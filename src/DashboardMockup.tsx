@@ -102,7 +102,25 @@ const USER_ACCOUNTS: UserAccount[] = [
     agentName: agent,
   })),
 ];
+const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
 
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target?.result?.toString() || "");
+      reader.readAsText(file);
+      setUploadedData(parsed);
+      alert("อัปโหลดข้อมูลสำเร็จ");
+    } catch (error) {
+      alert("ไฟล์ JSON ไม่ถูกต้อง");
+    }
+  };
+
+  reader.readAsText(file);
+};
 function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
@@ -659,311 +677,438 @@ export default function DashboardMockup() {
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
+  const [uploadedData, setUploadedData] = useState<any | null>(null);
 
-  const visibleAgentList = useMemo(() => {
-    if (!currentUser) return [] as string[];
-    return currentUser.role === "Agent" && currentUser.agentName ? [currentUser.agentName] : AGENTS;
-  }, [currentUser]);
+  const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  useEffect(() => {
-    if (!currentUser) return;
-    if (currentUser.role === "Agent" && currentUser.agentName) {
-      setSelectedAgent(currentUser.agentName);
-    }
-  }, [currentUser]);
+    const reader = new FileReader();
 
-  const agentCases = useMemo(() => CASES.filter((item) => item.agent === selectedAgent), [selectedAgent]);
-  const dateFilteredCases = useMemo(() => agentCases.filter((item) => isWithinDateRange(item.auditDate, dateFrom, dateTo)), [agentCases, dateFrom, dateTo]);
-  const weekLabels = useMemo(() => Array.from(new Set(dateFilteredCases.map((item) => item.weekLabel))), [dateFilteredCases]);
-  const visibleCases = useMemo(() => dateFilteredCases.filter((item) => selectedWeek === "all" || item.weekLabel === selectedWeek), [dateFilteredCases, selectedWeek]);
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result?.toString() || "");
+        setUploadedData(parsed);
+        setSelectedWeek("all");
+        setSelectedCaseKey("");
+        alert("อัปโหลดข้อมูลสำเร็จ");
+      } catch (error) {
+        alert("ไฟล์ JSON ไม่ถูกต้อง");
+      }
+    };
 
-  useEffect(() => {
-    const fallback = visibleCases[0] || dateFilteredCases[0] || agentCases[0];
-    if (!fallback) {
-      setSelectedCaseKey("");
+    reader.readAsText(file);
+  };
+
+  const handleLogin = () => {
+    const user = USER_ACCOUNTS.find(
+      (item) => item.username === username.trim().toLowerCase() && item.password === password
+    );
+
+    if (!user) {
+      setLoginError("Username หรือ Password ไม่ถูกต้อง");
       return;
     }
-    if (!visibleCases.some((item) => item.key === selectedCaseKey)) {
-      setSelectedCaseKey(fallback.key);
+
+    setCurrentUser(user);
+    setLoginError("");
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUsername("");
+    setPassword("");
+    setLoginError("");
+    setSelectedWeek("all");
+    setSelectedCaseKey("");
+    setDateFrom(formatInputDate(new Date(2026, 2, 1)));
+    setDateTo(formatInputDate(TODAY));
+  };
+
+  const visibleAgentList = useMemo(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return [currentUser.agentName];
     }
-  }, [visibleCases, dateFilteredCases, agentCases, selectedCaseKey]);
+    return [...AGENTS].sort((a, b) => a.localeCompare(b));
+  }, [currentUser]);
 
-  const selectedCase = visibleCases.find((item) => item.key === selectedCaseKey) || visibleCases[0] || null;
-  const summary = useMemo(() => buildAgentSummary(dateFilteredCases), [dateFilteredCases]);
-const incentiveDisplay = formatCurrencyTHB(
-  getIncentiveValue(dateFilteredCases.length, Number(summary.averageDisplay))
-);
-const incentiveRemark = getIncentiveRemark(
-  dateFilteredCases.length,
-  Number(summary.averageDisplay)
-);
+  useEffect(() => {
+    if (!visibleAgentList.includes(selectedAgent)) {
+      setSelectedAgent(visibleAgentList[0] || "");
+    }
+  }, [visibleAgentList, selectedAgent]);
 
-const handleLogin = () => {
-  const user = USER_ACCOUNTS.find(
-    (item) => item.username === username.trim().toLowerCase() && item.password === password
+  const sourceCases: CaseItem[] = useMemo(() => {
+    if (uploadedData?.cases && Array.isArray(uploadedData.cases)) {
+      return uploadedData.cases;
+    }
+    return CASES;
+  }, [uploadedData]);
+
+  const effectiveSelectedAgent =
+    currentUser?.role === "Agent" && currentUser.agentName
+      ? currentUser.agentName
+      : uploadedData?.agent || selectedAgent;
+
+  const agentCases = useMemo(() => {
+    return sourceCases.filter((item) => item.agent === effectiveSelectedAgent);
+  }, [sourceCases, effectiveSelectedAgent]);
+
+  const dateFilteredCases = useMemo(() => {
+    return agentCases.filter((item) => isWithinDateRange(item.auditDate, dateFrom, dateTo));
+  }, [agentCases, dateFrom, dateTo]);
+
+  const weekLabels = useMemo(() => {
+    if (uploadedData?.weeklySummaries && Array.isArray(uploadedData.weeklySummaries)) {
+      return uploadedData.weeklySummaries.map((item: any) => item.weekLabel);
+    }
+    return [...new Set(dateFilteredCases.map((item) => item.weekLabel))];
+  }, [uploadedData, dateFilteredCases]);
+
+  const visibleCases = useMemo(() => {
+    if (selectedWeek === "all") return dateFilteredCases;
+    return dateFilteredCases.filter((item) => item.weekLabel === selectedWeek);
+  }, [dateFilteredCases, selectedWeek]);
+
+  const dashboardCases = visibleCases;
+
+  const activeSelectedCase =
+    dashboardCases.find((item) => item.key === selectedCaseKey) ||
+    dashboardCases[0] ||
+    null;
+
+  useEffect(() => {
+    if (!dashboardCases.length) {
+      if (selectedCaseKey !== "") setSelectedCaseKey("");
+      return;
+    }
+
+    const stillExists = dashboardCases.some((item) => item.key === selectedCaseKey);
+    if (!stillExists) {
+      setSelectedCaseKey(dashboardCases[0].key);
+    }
+  }, [dashboardCases, selectedCaseKey]);
+
+  const summary = useMemo(() => {
+    return buildAgentSummary(dateFilteredCases);
+  }, [dateFilteredCases]);
+
+  const metricAverageDisplay =
+    uploadedData?.monthlySummary?.averageScore != null
+      ? Number(uploadedData.monthlySummary.averageScore).toFixed(2)
+      : summary.averageDisplay;
+
+  const metricCaseCount =
+    uploadedData?.monthlySummary?.casesReviewed != null
+      ? Number(uploadedData.monthlySummary.casesReviewed)
+      : dateFilteredCases.length;
+
+  const incentiveDisplay = formatCurrencyTHB(
+    getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
   );
 
-  if (!user) {
-    setLoginError("Username หรือ Password ไม่ถูกต้อง");
-    return;
+  const incentiveRemark = getIncentiveRemark(
+    metricCaseCount,
+    Number(metricAverageDisplay)
+  );
+
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        username={username}
+        password={password}
+        error={loginError}
+        onUsernameChange={setUsername}
+        onPasswordChange={setPassword}
+        onLogin={handleLogin}
+      />
+    );
   }
 
-  setCurrentUser(user);
-  setLoginError("");
-};
-
-const handleLogout = () => {
-  setCurrentUser(null);
-  setUsername("");
-  setPassword("");
-  setLoginError("");
-  setSelectedWeek("all");
-  setSelectedCaseKey("");
-  setDateFrom(formatInputDate(new Date(2026, 2, 1)));
-  setDateTo(formatInputDate(TODAY));
-};
-
-if (!currentUser) {
   return (
-    <LoginScreen
-      username={username}
-      password={password}
-      error={loginError}
-      onUsernameChange={setUsername}
-      onPasswordChange={setPassword}
-      onLogin={handleLogin}
-    />
-  );
-}
-
-return (
-  <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
-    <div className="mx-auto max-w-7xl p-6">
-      <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-500 p-6 text-white shadow-lg">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="text-sm font-medium text-violet-100">QA Appeal / Dashboard Mockup</div>
-            <h1 className="mt-2 text-3xl font-bold">
-              {currentUser.role === "Agent" ? currentUser.agentName : "QA Performance Dashboard"}
-            </h1>
-            <div className="mt-2 text-sm text-violet-100">
-              Logged in as {currentUser.displayName} ({currentUser.role})
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
+      <div className="mx-auto max-w-7xl p-6">
+        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-500 p-6 text-white shadow-lg">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-sm font-medium text-violet-100">
+                QA Appeal / Dashboard Mockup
+              </div>
+              <h1 className="mt-2 text-3xl font-bold">
+                {currentUser.role === "Agent"
+                  ? currentUser.agentName
+                  : "QA Performance Dashboard"}
+              </h1>
+              <div className="mt-2 text-sm text-violet-100">
+                Logged in as {currentUser.displayName} ({currentUser.role})
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <SmallButton onClick={() => window.print()}>
+                Print / Save PDF
+              </SmallButton>
+              <SmallButton onClick={handleLogout} dark>
+                Log out
+              </SmallButton>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
-            <SmallButton onClick={handleLogout} dark>
-              Log out
-            </SmallButton>
-          </div>
         </div>
-      </div>
 
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <Panel>
-            <PanelHeader title="Quick Controls" />
-            <PanelBody className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Selected Agent</label>
-                <select
-                  value={selectedAgent}
-                  onChange={(e) => setSelectedAgent(e.target.value)}
-                  disabled={currentUser.role === "Agent"}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 disabled:bg-slate-100"
-                >
-                  {visibleAgentList.map((agent) => (
-                    <option key={agent} value={agent}>
-                      {agent}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="space-y-6">
+            <Panel>
+              <PanelHeader title="Quick Controls" />
+              <PanelBody className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Upload Data File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleUploadJson}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Date From</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Selected Agent
+                  </label>
+                  <select
+                    value={effectiveSelectedAgent}
+                    onChange={(e) => setSelectedAgent(e.target.value)}
+                    disabled={currentUser.role === "Agent" || !!uploadedData?.agent}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 disabled:bg-slate-100"
+                  >
+                    {visibleAgentList.map((agent) => (
+                      <option key={agent} value={agent}>
+                        {agent}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Date From
+                  </label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Date To
+                  </label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Week Filter
+                  </label>
+                  <select
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                  >
+                    <option value="all">All Weeks</option>
+                    {weekLabels.map((week) => (
+                      <option key={week} value={week}>
+                        {week}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </PanelBody>
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="Weekly Snapshot" />
+              <PanelBody className="space-y-3">
+                <WeeklySnapshotCard
+                  label="All Weeks"
+                  caseCount={dateFilteredCases.length}
+                  averageDisplay={summary.averageDisplay}
+                  isActive={selectedWeek === "all"}
+                  onClick={() => setSelectedWeek("all")}
                 />
-              </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Date To</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
-                />
-              </div>
+                {uploadedData?.weeklySummaries && Array.isArray(uploadedData.weeklySummaries)
+                  ? uploadedData.weeklySummaries.map((week: any) => (
+                      <WeeklySnapshotCard
+                        key={week.weekLabel}
+                        label={week.weekLabel}
+                        caseCount={Number(week.casesReviewed || 0)}
+                        averageDisplay={Number(week.averageScore || 0).toFixed(2)}
+                        isActive={selectedWeek === week.weekLabel}
+                        onClick={() => setSelectedWeek(week.weekLabel)}
+                      />
+                    ))
+                  : weekLabels.map((week) => {
+                      const weekCases = dateFilteredCases.filter(
+                        (item) => item.weekLabel === week
+                      );
+                      const weekSummary = buildAgentSummary(weekCases);
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Week Filter</label>
-                <select
-                  value={selectedWeek}
-                  onChange={(e) => setSelectedWeek(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
-                >
-                  <option value="all">All Weeks</option>
-                  {weekLabels.map((week) => (
-                    <option key={week} value={week}>
-                      {week}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </PanelBody>
-          </Panel>
+                      return (
+                        <WeeklySnapshotCard
+                          key={week}
+                          label={week}
+                          caseCount={weekCases.length}
+                          averageDisplay={weekSummary.averageDisplay}
+                          isActive={selectedWeek === week}
+                          onClick={() => setSelectedWeek(week)}
+                        />
+                      );
+                    })}
+              </PanelBody>
+            </Panel>
 
-          <Panel>
-            <PanelHeader title="Weekly Snapshot" />
-            <PanelBody className="space-y-3">
-              <WeeklySnapshotCard
-                label="All Weeks"
-                caseCount={dateFilteredCases.length}
-                averageDisplay={summary.averageDisplay}
-                isActive={selectedWeek === "all"}
-                onClick={() => setSelectedWeek("all")}
+            <Panel>
+              <PanelHeader title="Data Health Checks" />
+              <PanelBody>
+                <DataHealthChecks />
+              </PanelBody>
+            </Panel>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                title="Average Score"
+                value={metricAverageDisplay}
+                sub={`${metricCaseCount} / ${CASE_TARGET} cases`}
               />
-              {weekLabels.map((week) => {
-                const weekCases = dateFilteredCases.filter((item) => item.weekLabel === week);
-                const weekSummary = buildAgentSummary(weekCases);
+              <MetricCard
+                title="Incentive"
+                value={incentiveDisplay}
+                sub={incentiveRemark}
+              />
+              <MetricCard
+                title="Selected Cases"
+                value={`${dashboardCases.length}`}
+                sub={selectedWeek === "all" ? "All visible weeks" : selectedWeek}
+              />
+              <MetricCard
+                title="Grade"
+                value={scoreToGrade(Number(metricAverageDisplay))}
+                sub="Based on current average"
+              />
+            </div>
 
-                return (
-                  <WeeklySnapshotCard
-                    key={week}
-                    label={week}
-                    caseCount={weekCases.length}
-                    averageDisplay={weekSummary.averageDisplay}
-                    isActive={selectedWeek === week}
-                    onClick={() => setSelectedWeek(week)}
+            <Panel>
+              <PanelHeader title="Case Navigator" />
+              <PanelBody>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {dashboardCases.map((item) => (
+                    <CaseNavigatorCard
+                      key={item.key}
+                      item={item}
+                      isSelected={activeSelectedCase?.key === item.key}
+                      onSelect={() => setSelectedCaseKey(item.key)}
+                    />
+                  ))}
+                </div>
+              </PanelBody>
+            </Panel>
+
+            {activeSelectedCase ? (
+              <Panel>
+                <PanelHeader title="Case Detail" />
+                <PanelBody className="space-y-5">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="text-sm text-slate-500">Case ID</div>
+                      <div className="text-xl font-bold text-slate-900">
+                        {activeSelectedCase.caseId}
+                      </div>
+                      <div className="mt-2 text-sm text-slate-700">
+                        {activeSelectedCase.inquiryTh}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {activeSelectedCase.inquiryEn}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
+                          activeSelectedCase.grade
+                        )}`}
+                      >
+                        Grade {activeSelectedCase.grade}
+                      </span>
+                      <ReviewStatusBadge item={activeSelectedCase} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                      <div className="text-xs text-slate-500">Audit Date</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {activeSelectedCase.auditDate}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                      <div className="text-xs text-slate-500">Week</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {activeSelectedCase.weekLabel}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                      <div className="text-xs text-slate-500">Final Score</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {activeSelectedCase.finalScore}
+                      </div>
+                    </div>
+                  </div>
+
+                  <CaseDetailTopicTable
+                    topics={activeSelectedCase.topics}
+                    revisedTopics={activeSelectedCase.revisedTopics}
+                    reviewStatus={activeSelectedCase.reviewStatus}
                   />
-                );
-              })}
-            </PanelBody>
-          </Panel>
-
-          <Panel>
-            <PanelHeader title="Data Health Checks" />
-            <PanelBody>
-              <DataHealthChecks />
-            </PanelBody>
-          </Panel>
-        </div>
-
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              title="Average Score"
-              value={summary.averageDisplay}
-              sub={`${dateFilteredCases.length} / ${CASE_TARGET} cases`}
-            />
-            <MetricCard
-              title="Incentive"
-              value={incentiveDisplay}
-              sub={incentiveRemark}
-            />
-            <MetricCard
-              title="Selected Cases"
-              value={`${visibleCases.length}`}
-              sub={selectedWeek === "all" ? "All visible weeks" : selectedWeek}
-            />
-            <MetricCard
-              title="Grade"
-              value={scoreToGrade(Number(summary.averageDisplay))}
-              sub="Based on current average"
-            />
-          </div>
-
-          <Panel>
-            <PanelHeader title="Case Navigator" />
-            <PanelBody>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {visibleCases.map((item) => (
-                  <CaseNavigatorCard
-                    key={item.key}
-                    item={item}
-                    isSelected={selectedCase?.key === item.key}
-                    onSelect={() => setSelectedCaseKey(item.key)}
-                  />
-                ))}
-              </div>
-            </PanelBody>
-          </Panel>
-
-          {selectedCase ? (
-            <Panel>
-              <PanelHeader title="Case Detail" />
-              <PanelBody className="space-y-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="text-sm text-slate-500">Case ID</div>
-                    <div className="text-xl font-bold text-slate-900">{selectedCase.caseId}</div>
-                    <div className="mt-2 text-sm text-slate-700">{selectedCase.inquiryTh}</div>
-                    <div className="mt-1 text-sm text-slate-500">{selectedCase.inquiryEn}</div>
+                </PanelBody>
+              </Panel>
+            ) : (
+              <Panel>
+                <PanelHeader title="Case Detail" />
+                <PanelBody>
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
+                    ไม่พบเคสในช่วงวันที่เลือก
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.grade)}`}>
-                      Grade {selectedCase.grade}
-                    </span>
-                    <ReviewStatusBadge item={selectedCase} />
-                  </div>
-                </div>
+                </PanelBody>
+              </Panel>
+            )}
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
-                    <div className="text-xs text-slate-500">Audit Date</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">{selectedCase.auditDate}</div>
-                  </div>
-                  <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
-                    <div className="text-xs text-slate-500">Week</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">{selectedCase.weekLabel}</div>
-                  </div>
-                  <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
-                    <div className="text-xs text-slate-500">Final Score</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">{selectedCase.finalScore}</div>
-                  </div>
-                </div>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <Panel>
+                <PanelHeader title="Topic Performance" />
+                <PanelBody>
+                  <TopicPerformanceTable items={summary.topicPerformance} />
+                </PanelBody>
+              </Panel>
 
-                <CaseDetailTopicTable
-                  topics={selectedCase.topics}
-                  revisedTopics={selectedCase.revisedTopics}
-                  reviewStatus={selectedCase.reviewStatus}
-                />
-              </PanelBody>
-            </Panel>
-          ) : (
-            <Panel>
-              <PanelHeader title="Case Detail" />
-              <PanelBody>
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-                  ไม่พบเคสในช่วงวันที่เลือก
-                </div>
-              </PanelBody>
-            </Panel>
-          )}
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <Panel>
-              <PanelHeader title="Topic Performance" />
-              <PanelBody>
-                <TopicPerformanceTable items={summary.topicPerformance} />
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Grade Mix" />
-              <PanelBody>
-                <GradeMix gradeCounts={summary.gradeCounts} />
-              </PanelBody>
-            </Panel>
+              <Panel>
+                <PanelHeader title="Grade Mix" />
+                <PanelBody>
+                  <GradeMix gradeCounts={summary.gradeCounts} />
+                </PanelBody>
+              </Panel>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 }
