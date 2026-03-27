@@ -630,7 +630,7 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [uploadedData, setUploadedData] = useState<any | null>(null);
-  const defaultDashboardData = uploadedData || currentDashboardData;
+  
 
 export default function DashboardMockup({ currentUser }: { currentUser: any }) {
  const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
