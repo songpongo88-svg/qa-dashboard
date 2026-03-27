@@ -24,7 +24,7 @@ const DEMO_USERS: DemoUser[] = [
 ].sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
 
 function hasFullAccess(user: any) {
-  return Boolean(user && user.role !== 'agent');
+  return Boolean(user && user.role !== "Agent");
 }
 
 function validateCases(cases: AppealCase[]) {
@@ -45,112 +45,16 @@ function Card({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-2 whitespace-pre-line text-base font-semibold text-slate-900">{value}</div>
-    </div>
-  );
-}
-
-function LoginScreen(props: {
-  selectedLogin: string;
-  accessCode: string;
-  loginError: string;
-  onSelectLogin: (value: string) => void;
-  onChangeAccessCode: (value: string) => void;
-  onUnlock: () => void;
-}) {
-  function LoginScreen(props: {
-  selectedLogin: string;
-  accessCode: string;
-  loginError: string;
-  onSelectLogin: (value: string) => void;
-  onChangeAccessCode: (value: string) => void;
-  onUnlock: () => void;
-}) {
-  const {
-    selectedLogin,
-    accessCode,
-    loginError,
-    onSelectLogin,
-    onChangeAccessCode,
-    onUnlock,
-  } = props;
-
-  return (
-      );
-}
-  const {
-    selectedLogin,
-    accessCode,
-    loginError,
-    onSelectLogin,
-    onChangeAccessCode,
-    onUnlock,
-  } = props;
-
-  return (
-    <div className="min-h-screen bg-[#f5f3ff] px-6 py-10 text-slate-800 lg:px-10">
-      <div className="mx-auto max-w-3xl overflow-hidden rounded-[32px] bg-white shadow-[0_24px_80px_rgba(88,28,135,0.14)] ring-1 ring-purple-100">
-        <div className="bg-gradient-to-r from-purple-900 via-violet-800 to-fuchsia-700 px-8 py-10 text-white">
-          <div className="text-sm font-medium uppercase tracking-[0.24em] text-purple-200">
-            Access
-          </div>
-          <h1 className="mt-3 text-3xl font-semibold leading-tight lg:text-4xl">
-            QA Appeal Results Portal
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-purple-100 lg:text-base">
-            โหมดนี้เป็นเดโม role visibility เท่านั้น
-          </p>
-        </div>
-
-        <div className="space-y-6 px-8 py-8">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Demo User</label>
-            <select
-              value={selectedLogin}
-              onChange={(e) => onSelectLogin(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400"
-            >
-              <option value="">Select demo user</option>
-              {DEMO_USERS.map((user) => (
-                <option key={user.label} value={user.label}>
-                  {user.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Access Code</label>
-            <input
-              type="password"
-              value={accessCode}
-              onChange={(e) => onChangeAccessCode(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onUnlock();
-              }}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400"
-              placeholder="Enter access code"
-            />
-            {loginError ? (
-              <div className="mt-2 text-sm font-medium text-red-600">{loginError}</div>
-            ) : null}
-          </div>
-
-          <button
-            onClick={onUnlock}
-            className="inline-flex items-center justify-center rounded-2xl bg-purple-700 px-5 py-3 text-sm font-semibold text-white hover:bg-purple-800"
-          >
-            Unlock Dashboard
-          </button>
-        </div>
+      <div className="mt-2 whitespace-pre-line text-base font-semibold text-slate-900">
+        {value}
       </div>
     </div>
   );
 }
 
 export default function AppealMockup({ currentUser }: { currentUser: any }) {
-  const [selectedagent, setSelectedagent] = useState('');
-  const [selectedCaseId, setSelectedCaseId] = useState('');
+  const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedCaseId, setSelectedCaseId] = useState("");
 
   const validationIssues = useMemo(() => validateCases(APPEAL_CASES), []);
 
@@ -162,48 +66,48 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
   }, [currentUser]);
 
   const filteredCases = useMemo(() => {
-    if (!selectedagent) return [] as AppealCase[];
-    return visibleCases.filter((item) => item.agentName === selectedagent);
-  }, [selectedagent, visibleCases]);
+    if (!selectedAgent) return [] as AppealCase[];
+    return visibleCases.filter((item) => item.agentName === selectedAgent);
+  }, [selectedAgent, visibleCases]);
 
   const selectedCase = useMemo(() => {
-    if (!selectedagent) return null;
+    if (!selectedAgent) return null;
     return filteredCases.find((item) => item.caseId === selectedCaseId) ?? filteredCases[0] ?? null;
-  }, [filteredCases, selectedagent, selectedCaseId]);
+  }, [filteredCases, selectedAgent, selectedCaseId]);
 
   useEffect(() => {
-  if (!currentUser) {
-    setSelectedagent('');
-    setSelectedCaseId('');
-    return;
-  }
-
-  if (!hasFullAccess(currentUser)) {
-    const own = currentUser.agentName ?? '';
-    if (selectedagent !== own) {
-      setSelectedagent(own);
+    if (!currentUser) {
+      setSelectedAgent("");
+      setSelectedCaseId("");
       return;
     }
-  }
 
-  if (!selectedagent) {
-    setSelectedCaseId('');
-    return;
-  }
+    if (!hasFullAccess(currentUser)) {
+      const ownAgent = currentUser.agentName ?? "";
+      if (selectedAgent !== ownAgent) {
+        setSelectedAgent(ownAgent);
+        return;
+      }
+    }
 
-  if (!filteredCases.some((item) => item.caseId === selectedCaseId)) {
-    setSelectedCaseId(filteredCases[0]?.caseId ?? '');
-  }
-}, [currentUser, selectedagent, selectedCaseId, filteredCases]);
+    if (!selectedAgent) {
+      setSelectedCaseId("");
+      return;
+    }
 
-  const selectableagents = hasFullAccess(currentUser)
-    ? agent_LIST
-    : agent_LIST.filter((agent) => visibleCases.some((item) => item.agentName === agent));
+    if (!filteredCases.some((item) => item.caseId === selectedCaseId)) {
+      setSelectedCaseId(filteredCases[0]?.caseId ?? "");
+    }
+  }, [currentUser, selectedAgent, selectedCaseId, filteredCases]);
+
+  const selectableAgents = hasFullAccess(currentUser)
+    ? AGENT_LIST
+    : AGENT_LIST.filter((agent) => visibleCases.some((item) => item.agentName === agent));
 
   const resolvedAppealResultDate =
     (selectedCase && FILE_CREATED_AT_BY_CASE[selectedCase.caseId]) ||
     selectedCase?.appealResultDate ||
-    '-';
+    "-";
 
   const notificationByline = `Songpon Phothong · ${resolvedAppealResultDate}`;
 
@@ -218,34 +122,21 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
                   แจ้งผลการพิจารณาอุทธรณ์คะแนน QA รายบุคคล
                 </h1>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-purple-100 lg:text-base">
-                  โหมดเดโม: agent เห็นเฉพาะข้อมูลของตัวเอง ส่วน Supervisor, Senior และ QA Management สามารถเลือกดูได้ทุกคน
+                  โหมดเดโม: Agent เห็นเฉพาะข้อมูลของตัวเอง ส่วน Supervisor, Senior และ QA Management
+                  สามารถเลือกดูได้ทุกคน
                 </p>
               </div>
 
-            <div className="bg-gradient-to-r from-purple-900 via-violet-800 to-fuchsia-700 px-8 py-8 text-white">
-  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div>
-      <h1 className="mt-2 text-3xl font-semibold leading-tight lg:text-4xl">
-        แจ้งผลการพิจารณาอุทธรณ์คะแนน QA รายบุคคล
-      </h1>
-      <p className="mt-3 max-w-3xl text-sm leading-7 text-purple-100 lg:text-base">
-        โหมดเดโม: agent เห็นเฉพาะข้อมูลของตัวเอง ส่วน Supervisor, Senior และ QA Management สามารถเลือกดูได้ทุกคน
-      </p>
-    </div>
-
-    <div className="text-sm text-purple-100">
-      {currentUser?.displayName || currentUser?.label || '-'} ({currentUser?.role || '-'})
-    </div>
-  </div>
-</div>
+              <div className="text-sm text-purple-100">
+                {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 bg-[#fcfbff] px-8 py-5 lg:grid-cols-3">
-            <Card label="Selected agent" value={selectedagent || '-'} />
+            <Card label="Selected Agent" value={selectedAgent || "-"} />
             <Card label="Role" value="CS Customer (Non Voice)" />
-            <Card label="Selected Case" value={selectedCase?.caseId || '-'} />
+            <Card label="Selected Case" value={selectedCase?.caseId || "-"} />
           </div>
         </section>
 
@@ -260,15 +151,15 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
         <section className="mb-8 rounded-[28px] bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 lg:p-8">
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr_0.8fr] lg:items-end">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">agent Name</label>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">Agent Name</label>
               <select
-                value={selectedagent}
-                disabled={currentUser?.role === 'agent'}
-                onChange={(e) => setSelectedagent(e.target.value)}
+                value={selectedAgent}
+                disabled={currentUser?.role === "Agent"}
+                onChange={(e) => setSelectedAgent(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400 disabled:bg-slate-100"
               >
-                <option value="">ยังไม่เลือกชื่อ agent</option>
-                {selectableagents.map((agent) => (
+                <option value="">ยังไม่เลือกชื่อ Agent</option>
+                {selectableAgents.map((agent) => (
                   <option key={agent} value={agent}>
                     {agent}
                   </option>
@@ -279,12 +170,12 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700">Case ID</label>
               <select
-                value={selectedCase?.caseId || ''}
+                value={selectedCase?.caseId || ""}
                 onChange={(e) => setSelectedCaseId(e.target.value)}
-                disabled={!selectedagent}
+                disabled={!selectedAgent}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400 disabled:bg-slate-100"
               >
-                {!selectedagent ? <option value="">กรุณาเลือก agent ก่อน</option> : null}
+                {!selectedAgent ? <option value="">กรุณาเลือก Agent ก่อน</option> : null}
                 {filteredCases.map((item) => (
                   <option key={item.caseId} value={item.caseId}>
                     {item.caseId} · {item.caseNo}
@@ -296,10 +187,10 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
             <div className="rounded-2xl bg-purple-50 px-4 py-4 ring-1 ring-purple-100">
               <div className="text-xs uppercase tracking-wide text-purple-700">Current View</div>
               <div className="mt-2 text-lg font-semibold text-slate-900">
-                {selectedCase?.caseId || '-'}
+                {selectedCase?.caseId || "-"}
               </div>
               <div className="mt-1 text-sm text-slate-600">
-                {selectedCase?.agentName || 'ยังไม่มีข้อมูล'}
+                {selectedCase?.agentName || "ยังไม่มีข้อมูล"}
               </div>
             </div>
           </div>
@@ -315,17 +206,29 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <Card label="Audit Date" value={selectedCase.auditDate || '-'} />
-                <Card label="Appeal Submit Date & Time" value={selectedCase.appealSubmitDate || '-'} />
-                <Card label="Appeal Result Date & Time" value={resolvedAppealResultDate} />
-                <Card label="Original Score" value={`${selectedCase.originalScore} · ${selectedCase.originalGrade}`} />
-                <Card label="Revised Score" value={`${selectedCase.revisedScore} · ${selectedCase.revisedGrade}`} />
+                <Card label="Audit Date" value={selectedCase.auditDate || "-"} />
+                <Card
+                  label="Appeal Submit Date & Time"
+                  value={selectedCase.appealSubmitDate || "-"}
+                />
+                <Card
+                  label="Appeal Result Date & Time"
+                  value={resolvedAppealResultDate}
+                />
+                <Card
+                  label="Original Score"
+                  value={`${selectedCase.originalScore} · ${selectedCase.originalGrade}`}
+                />
+                <Card
+                  label="Revised Score"
+                  value={`${selectedCase.revisedScore} · ${selectedCase.revisedGrade}`}
+                />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card
                   label="Appeal Channel"
-                  value={`${selectedCase.submissionChannel} | ${selectedCase.submissionEmail || '-'}`}
+                  value={`${selectedCase.submissionChannel} | ${selectedCase.submissionEmail || "-"}`}
                 />
                 <Card
                   label="Appeal Result Notification"
@@ -356,7 +259,7 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
 
                   {item.agentAppeal ? (
                     <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900 shadow-sm">
-                      <div className="font-semibold">ประเด็นที่ agent ยื่นอุทธรณ์</div>
+                      <div className="font-semibold">ประเด็นที่ Agent ยื่นอุทธรณ์</div>
                       <div className="mt-2 whitespace-pre-line">{item.agentAppeal}</div>
                     </div>
                   ) : null}
@@ -387,7 +290,7 @@ export default function AppealMockup({ currentUser }: { currentUser: any }) {
           </section>
         ) : (
           <section className="rounded-[28px] bg-white p-8 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)] ring-1 ring-slate-200">
-            <div className="text-lg font-semibold text-slate-900">กรุณาเลือกชื่อ agent</div>
+            <div className="text-lg font-semibold text-slate-900">กรุณาเลือกชื่อ Agent</div>
           </section>
         )}
       </div>
