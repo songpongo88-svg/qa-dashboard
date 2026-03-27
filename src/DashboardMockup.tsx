@@ -1050,7 +1050,7 @@ const metricAverageDisplay =
                   </div>
                 </PanelBody>
               </Panel>
-            )}
+    
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
               <Panel>
@@ -1070,6 +1070,6 @@ const metricAverageDisplay =
           </div>
   
   
-    </div>
+  
   );
 }
