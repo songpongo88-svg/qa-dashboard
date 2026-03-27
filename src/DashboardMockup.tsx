@@ -937,14 +937,57 @@ const metricAverageDisplay =
               </PanelBody>
             </Panel>
 
-            <Panel>
-          <Panel>
+                 <Panel>
+              <PanelHeader title="Weekly Snapshot" />
+              <PanelBody className="space-y-3">
+                <WeeklySnapshotCard
+                  label="All Weeks"
+                  caseCount={dateFilteredCases.length}
+                  averageDisplay={summary.averageDisplay}
+                  isActive={selectedWeek === "all"}
+                  onClick={() => setSelectedWeek("all")}
+                />
 
+                {defaultDashboardData?.weeklySummaries &&
+                Array.isArray(defaultDashboardData.weeklySummaries) ? (
+                  defaultDashboardData.weeklySummaries.map((week: any) => (
+                    <WeeklySnapshotCard
+                      key={week.weekLabel}
+                      label={week.weekLabel}
+                      caseCount={Number(week.casesReviewed || 0)}
+                      averageDisplay={Number(week.averageScore || 0).toFixed(2)}
+                      isActive={selectedWeek === week.weekLabel}
+                      onClick={() => setSelectedWeek(week.weekLabel)}
+                    />
+                  ))
+                ) : (
+                  weekLabels.map((week) => {
+                    const weekCases = dateFilteredCases.filter((item) => item.weekLabel === week);
+                    const weekSummary = buildAgentSummary(weekCases);
+
+                    return (
+                      <WeeklySnapshotCard
+                        key={week}
+                        label={week}
+                        caseCount={weekCases.length}
+                        averageDisplay={weekSummary.averageDisplay}
+                        isActive={selectedWeek === week}
+                        onClick={() => setSelectedWeek(week)}
+                      />
+                    );
+                  })
+                )}
+              </PanelBody>
+            </Panel>
+
+            <Panel>
               <PanelHeader title="Data Health Checks" />
               <PanelBody>
                 <DataHealthChecks />
               </PanelBody>
             </Panel>
+          </div>
+
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard
@@ -970,21 +1013,22 @@ const metricAverageDisplay =
             </div>
 
             <Panel>
-             <Panel>
-  <PanelHeader title="Case Navigator" />
-  <PanelBody>
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {dashboardCases.map((item) => (
-        <CaseNavigatorCard
-          key={item.key}
-          item={item}
-          isSelected={activeSelectedCase?.key === item.key}
-          onSelect={() => setSelectedCaseKey(item.key)}
-        />
-      ))}
-    </div>
-  </PanelBody>
-</Panel>
+              <PanelHeader title="Case Navigator" />
+              <PanelBody>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {dashboardCases.map((item) => (
+                    <CaseNavigatorCard
+                      key={item.key}
+                      item={item}
+                      isSelected={activeSelectedCase?.key === item.key}
+                      onSelect={() => setSelectedCaseKey(item.key)}
+                    />
+                  ))}
+                </div>
+              </PanelBody>
+            </Panel>
+
+            {activeSelectedCase ? (
               <Panel>
                 <PanelHeader title="Case Detail" />
                 <PanelBody className="space-y-5">
@@ -1050,7 +1094,7 @@ const metricAverageDisplay =
                   </div>
                 </PanelBody>
               </Panel>
-    
+            )}
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
               <Panel>
@@ -1066,10 +1110,10 @@ const metricAverageDisplay =
                   <GradeMix gradeCounts={summary.gradeCounts} />
                 </PanelBody>
               </Panel>
-         
+            </div>
           </div>
-  
-  
-  
+        </div>
+      </div>
+    </div>
   );
 }
