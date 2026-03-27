@@ -1,3 +1,4 @@
+import currentDashboardData from "./data/current-dashboard.json";
 import React, { useEffect, useMemo, useState } from "react";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
