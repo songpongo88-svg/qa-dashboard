@@ -692,14 +692,339 @@ export default function DashboardMockup() {
   const summary = useMemo(() => buildAgentSummary(dateFilteredCases), [dateFilteredCases]);
   const incentiveDisplay = formatCurrencyTHB(getIncentiveValue(dateFilteredCases.length, Number(summary.averageDisplay)));
   const incentiveRemark = getIncentiveRemark(dateFilteredCases.length, Number(summary.averageDisplay));
-
   const handleLogin = () => {
-    const matched = USER_ACCOUNTS.find((user) => user.username === username.trim().toLowerCase() && user.password === password);
+    const matched = USER_ACCOUNTS.find(
+      (user) =>
+        user.username === username.trim().toLowerCase() &&
+        user.password === password
+    );
+
     if (!matched) {
       setLoginError("Username หรือ Password ไม่ถูกต้อง");
       return;
     }
+
     setCurrentUser(matched);
     setLoginError("");
+
     if (matched.role === "Agent" && matched.agentName) {
-      setSelectedAgent(matche
+      setSelectedAgent(matched.agentName);
+    } else {
+      setSelectedAgent(AGENTS[0] || "");
+    }
+
+    setSelectedWeek("all");
+    setSelectedCaseKey("");
+  };
+
+  const handleLogout = () => {
+    setUsername("");
+    setPassword("");
+    setLoginError("");
+    setCurrentUser(null);
+    setSelectedAgent("Suphitcha Keawliam");
+    setSelectedWeek("all");
+    setSelectedCaseKey("");
+    setDateFrom(formatInputDate(new Date(2026, 2, 1)));
+    setDateTo(formatInputDate(TODAY));
+  };
+
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        username={username}
+        password={password}
+        error={loginError}
+        onUsernameChange={setUsername}
+        onPasswordChange={setPassword}
+        onLogin={handleLogin}
+      />
+    );
+  }
+
+  const isAgentView = currentUser.role === "Agent";
+  const weeklyCards = [
+    {
+      key: "all",
+      label: "All Weeks",
+      caseCount: dateFilteredCases.length,
+      averageDisplay: summary.averageDisplay,
+    },
+    ...weekLabels.map((week) => {
+      const weekCases = dateFilteredCases.filter((item) => item.weekLabel === week);
+      const weekSummary = buildAgentSummary(weekCases);
+      return {
+        key: week,
+        label: week,
+        caseCount: weekCases.length,
+        averageDisplay: weekSummary.averageDisplay,
+      };
+    }),
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50 text-slate-800">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <section className="mb-6 overflow-hidden rounded-[28px] bg-white shadow-[0_20px_60px_rgba(88,28,135,0.10)] ring-1 ring-violet-200">
+          <div className="bg-gradient-to-r from-violet-900 via-purple-800 to-fuchsia-700 px-6 py-6 text-white">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="text-sm font-medium uppercase tracking-[0.2em] text-violet-200">
+                  QA Dashboard
+                </div>
+                <h1 className="mt-2 text-3xl font-bold">
+                  QA Individual Dashboard
+                </h1>
+                <p className="mt-2 text-sm text-violet-100">
+                  Logged in as {currentUser.displayName} · {currentUser.role}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setSelectedWeek("all")} dark>
+                  Reset Week
+                </SmallButton>
+                <SmallButton onClick={handleLogout} dark>
+                  Log out
+                </SmallButton>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 bg-white px-6 py-5 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              title="Average Score"
+              value={summary.averageDisplay}
+              sub={`Date range: ${dateFrom} → ${dateTo}`}
+              className="border-violet-200 bg-violet-50/60"
+            />
+            <MetricCard
+              title="Cases Evaluated"
+              value={`${dateFilteredCases.length}`}
+              sub={`Target ${CASE_TARGET} cases`}
+              className="border-sky-200 bg-sky-50/60"
+            />
+            <MetricCard
+              title="Incentive"
+              value={incentiveDisplay}
+              sub={incentiveRemark}
+              className="border-emerald-200 bg-emerald-50/60"
+            />
+            <MetricCard
+              title="Selected Week"
+              value={selectedWeek === "all" ? "All" : selectedWeek}
+              sub={selectedCase ? selectedCase.caseId : "No case selected"}
+              className="border-fuchsia-200 bg-fuchsia-50/60"
+            />
+          </div>
+        </section>
+
+        <section className="mb-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <Panel>
+            <PanelHeader title="Filters" />
+            <PanelBody className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <div className="mb-2 text-sm font-semibold text-slate-700">Agent</div>
+                <select
+                  value={selectedAgent}
+                  onChange={(e) => setSelectedAgent(e.target.value)}
+                  disabled={isAgentView}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 disabled:bg-slate-100"
+                >
+                  {visibleAgentList.map((agent) => (
+                    <option key={agent} value={agent}>
+                      {agent}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-semibold text-slate-700">Week</div>
+                <select
+                  value={selectedWeek}
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                >
+                  <option value="all">All Weeks</option>
+                  {weekLabels.map((week) => (
+                    <option key={week} value={week}>
+                      {week}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-semibold text-slate-700">Date From</div>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-semibold text-slate-700">Date To</div>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
+                />
+              </div>
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Data Health Checks" />
+            <PanelBody>
+              <DataHealthChecks />
+            </PanelBody>
+          </Panel>
+        </section>
+
+        <section className="mb-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <Panel>
+            <PanelHeader title="Weekly Snapshot" />
+            <PanelBody className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {weeklyCards.map((card) => (
+                <WeeklySnapshotCard
+                  key={card.key}
+                  label={card.label}
+                  caseCount={card.caseCount}
+                  averageDisplay={card.averageDisplay}
+                  isActive={selectedWeek === card.key}
+                  onClick={() => setSelectedWeek(card.key)}
+                />
+              ))}
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Grade Mix" />
+            <PanelBody>
+              <GradeMix gradeCounts={summary.gradeCounts} />
+            </PanelBody>
+          </Panel>
+        </section>
+
+        <section className="mb-6">
+          <Panel>
+            <PanelHeader title="Case Navigator" />
+            <PanelBody className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {visibleCases.length ? (
+                visibleCases.map((item) => (
+                  <CaseNavigatorCard
+                    key={item.key}
+                    item={item}
+                    isSelected={selectedCase?.key === item.key}
+                    onSelect={() => setSelectedCaseKey(item.key)}
+                  />
+                ))
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                  ไม่พบเคสในช่วงวันที่ที่เลือก
+                </div>
+              )}
+            </PanelBody>
+          </Panel>
+        </section>
+
+        <section className="mb-6">
+          <Panel>
+            <PanelHeader title="Topic Performance % - Team Weekly" />
+            <PanelBody>
+              <TopicPerformanceTable items={summary.topicPerformance} />
+            </PanelBody>
+          </Panel>
+        </section>
+
+        <section>
+          <Panel>
+            <PanelHeader title="Case Detail" />
+            <PanelBody>
+              {selectedCase ? (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">
+                        Agent
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-slate-900">
+                        {selectedCase.agent}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">
+                        Audit Date
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-slate-900">
+                        {selectedCase.auditDate}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">
+                        Final Score
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-slate-900">
+                        {selectedCase.finalScore}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-xs uppercase tracking-wide text-slate-500">
+                        Grade
+                      </div>
+                      <div className="mt-2">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
+                            selectedCase.grade
+                          )}`}
+                        >
+                          {selectedCase.grade}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {selectedCase.caseId}
+                        </div>
+                        <div className="mt-1 text-sm text-slate-600">
+                          {selectedCase.inquiryTh}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {selectedCase.inquiryEn}
+                        </div>
+                      </div>
+
+                      <ReviewStatusBadge item={selectedCase} />
+                    </div>
+                  </div>
+
+                  <CaseDetailTopicTable
+                    topics={selectedCase.topics}
+                    revisedTopics={selectedCase.revisedTopics}
+                    reviewStatus={selectedCase.reviewStatus}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                  ยังไม่ได้เลือกเคส
+                </div>
+              )}
+            </PanelBody>
+          </Panel>
+        </section>
+      </div>
+    </div>
+  );
+}
+  
