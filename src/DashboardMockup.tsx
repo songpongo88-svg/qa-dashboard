@@ -746,10 +746,10 @@ const sourceCases: CaseItem[] = useMemo(() => {
   return CASES;
 }, [defaultDashboardData]);
 
- const effectiveSelectedAgent =
+const effectiveSelectedAgent =
   currentUser?.role === "Agent" && currentUser.agentName
     ? currentUser.agentName
-    : defaultDashboardData?.agent || selectedAgent;
+    : selectedAgent;
 
   const agentCases = useMemo(() => {
     return sourceCases.filter((item) => item.agent === effectiveSelectedAgent);
@@ -882,7 +882,7 @@ const metricAverageDisplay =
                   <select
                     value={effectiveSelectedAgent}
                     onChange={(e) => setSelectedAgent(e.target.value)}
-                    disabled={currentUser.role === "Agent" || !!uploadedData?.agent}
+                    disabled={currentUser.role === "Agent"}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 disabled:bg-slate-100"
                   >
                     {visibleAgentList.map((agent) => (
