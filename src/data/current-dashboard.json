@@ -1363,6 +1363,1649 @@
           "comment": "จากการประเมิน มีการอัปเดตและปิดเคสเรียบร้อย"
         }
       ],
+      {
+  "agent": "Nattapol Suprom",
+  "monthlySummary": {
+    "averageScore": 4.43,
+    "casesReviewed": 7,
+    "needMoreToTen": 3,
+    "bestTopic": "1.3 PDPA & Company Policy Compliance",
+    "lowestTopic": "3.1 Root Cause Analysis & Resolution"
+  },
+  "weeklySummaries": [
+    {
+      "weekLabel": "Week 2",
+      "averageScore": 88.75,
+      "casesReviewed": 4
+    },
+    {
+      "weekLabel": "Week 3",
+      "averageScore": 83.67,
+      "casesReviewed": 3
+    }
+  ],
+  "cases": [
+    {
+      "key": "case01",
+      "agent": "Nattapol Suprom",
+      "auditDate": "11/03/2026",
+      "weekLabel": "Week 2",
+      "caseId": "AA205259",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/smartchat?room=68a0919d8bdec07512935e83",
+      "inquiryTh": "ไรเดอร์สอบถามเกี่ยวกับเงินประกัน / ยอดเงินในระบบ",
+      "inquiryEn": "Rider inquires about deposit/balance in system",
+      "finalScore": 96.0,
+      "previousScore": 96.0,
+      "grade": "A",
+      "reviewStatus": "Original",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 10,
+          "max": 10,
+          "pct": 100.0,
+          "comment": "ทักทาย แนะนำตัว และปิดการสนทนาสุภาพครบถ้วน"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "อธิบายที่มาของเงินประกัน 140 บาทได้ถูกต้อง"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่มีการเปิดเผยข้อมูลอ่อนไหว"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตรวจสอบข้อมูลก่อนตอบและให้ข้อมูลตรงกับสถานการณ์"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบทั้งสาเหตุยอดเงิน และเงื่อนไขการใช้งาน"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อธิบายได้แต่ข้อความค่อนข้างยาวและรวมหลายประเด็น"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "อ้างอิงข้อมูลจากระบบจริง"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 10,
+          "max": 10,
+          "pct": 100.0,
+          "comment": "เข้าใจว่าไรเดอร์กังวลเรื่องเงินประกันและให้คำอธิบายชัดเจน"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ติดตามตอบคำถามเพิ่มเติมจนไรเดอร์เข้าใจ"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "แจ้งว่าต้องวิ่งงานเพื่อสะสมเงินประกันจนถึง 400 บาท"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อ่านได้แต่ข้อความยาวและเป็นบล็อกเดียว"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ภาษาถูกต้อง แต่ยืดเล็กน้อย"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "สุภาพ เป็นกันเอง เหมาะกับแชท"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้โทนที่เหมาะกับคำถามทั่วไป ไม่เร่งด่วน"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 10,
+          "max": 10,
+          "pct": 100.0,
+          "comment": "ตรวจสอบ → อธิบาย → ตอบคำถาม → ปิด"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบต่อเนื่อง อยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ปิดครบแต่ยังไม่มีการเช็กว่าต้องการความช่วยเหลือเพิ่มเติมหรือไม่"
+        }
+      ],
+      "revisedTopics": null
+    },
+    {
+      "key": "case02",
+      "agent": "Nattapol Suprom",
+      "auditDate": "12/03/2026",
+      "weekLabel": "Week 2",
+      "caseId": "AA205590",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/smartchat?room=696c60fc54f551845b4e7b45",
+      "inquiryTh": "ไรเดอร์สอบถามค่าชดเชยกรณีร้านยกเลิกหลังถึงร้าน",
+      "inquiryEn": "Rider inquires about compensation when store cancels after arrival",
+      "finalScore": 84.0,
+      "previousScore": 84.0,
+      "grade": "B",
+      "reviewStatus": "Original",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "ทักทายสุภาพ แต่ปิดโดยไม่ได้เชิญให้สอบถามเพิ่มเติม"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อมูลถูกต้อง แต่ยังไม่ตอบประเด็น “20 นาที” ชัดเจน"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่มีการเปิดเผยข้อมูลส่วนบุคคล"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ให้คำแนะนำทั่วไป แต่ยังไม่ตรงกับคำถามเฉพาะ"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ไม่ได้ตอบชัดว่าต้องทำภายใน 20 นาทีหรือไม่"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อธิบายวิธีดำเนินการได้แต่ยังไม่ละเอียด"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อิงตามขั้นตอนระบบ แต่ไม่ได้อ้างอิงเงื่อนไขเวลา"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 7,
+          "max": 10,
+          "pct": 70.0,
+          "comment": "เข้าใจสถานการณ์แต่ยังไม่ได้ตอบข้อสงสัยหลักของไรเดอร์"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ให้แนวทางช่วยเหลือ แต่ยังไม่ช่วยจนข้อสงสัยหมด"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีคำแนะนำ แต่ไม่มีทางเลือกเพิ่มเติม"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "อ่านง่าย จัดลำดับดี"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ภาษาเข้าใจง่าย"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "สุภาพ แต่ไม่มี Empathy"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้โทนเหมาะกับเคสสอบถาม"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "ขอข้อมูลก่อนให้คำแนะนำ ถือว่าถูกต้อง"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการปิดเคส แต่ยังไม่ปิดลูปคำถามอย่างสมบูรณ์"
+        }
+      ],
+      "revisedTopics": null
+    },
+    {
+      "key": "case03",
+      "agent": "Nattapol Suprom",
+      "auditDate": "14/03/2026",
+      "weekLabel": "Week 2",
+      "caseId": "AA206422",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/smartchat?room=69b50e30cc664c76fff2a5f3",
+      "inquiryTh": "ลูกค้าสอบถามระยะเวลาการคืนเงิน",
+      "inquiryEn": "Customer inquires about refund processing time",
+      "finalScore": 84.0,
+      "previousScore": 71.0,
+      "grade": "B",
+      "reviewStatus": "Revised",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "ทักทายและแนะนำชื่อแอดมิน (“แอดมินบอย”) และปิดสุภาพ แต่ไม่ได้เสนอช่วยเพิ่มเติมหรือถามความต้องการก่อนปิด"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "แจ้งเงื่อนไขการโอน/คืนเงินตามปกติถูกต้อง ไม่มีข้อมูลผิด"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่มีการเปิดเผยข้อมูลส่วนบุคคล และไม่ละเมิดนโยบาย"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้ข้อมูลจากการตรวจสอบก่อนหน้า และตอบสอดคล้องกับสถานการณ์"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ลูกค้ากังวลเรื่องเงิน — Agent อธิบายเหตุผลของความล่าช้าแล้ว"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 2,
+          "max": 5,
+          "pct": 40.0,
+          "comment": "แจ้งเงื่อนไข แต่ไม่มีขั้นตอนให้ลูกค้าดำเนินการต่อ"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "เป็นข้อมูลนโยบายทั่วไปที่ถูกต้อง แต่ไม่ได้อ้างอิงระบบ/Timeline ชัดเจน"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 4,
+          "max": 10,
+          "pct": 40.0,
+          "comment": "ไม่ได้วิเคราะห์เชิงลึกหรือเสนอทางแก้ เช่น ตรวจสอบสถานะคืนเงินเพิ่มเติม"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ตอบแล้วปิด ไม่มีการติดตามหรือเสนอช่วยดำเนินการต่อ"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 1,
+          "max": 5,
+          "pct": 20.0,
+          "comment": "ไม่มีขั้นตอนถัดไป / ไม่มี Timeline / ไม่มีช่องทางติดตาม"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "อ่านง่าย เป็นระเบียบ"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "สุภาพ ชัดเจน"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "สุภาพ แต่ขาด Empathy ต่อความเดือดร้อน"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "สุภาพ แต่ขาด Empathy ต่อความเดือดร้อน"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 5,
+          "max": 10,
+          "pct": 50.0,
+          "comment": "รับเคสมาต่อได้แต่ไม่มีการสรุปสถานะหรือทางต่อที่ชัดเจน"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการปิดเคส แต่ยังไม่เช็กความต้องการเพิ่มเติมก่อนจบ"
+        }
+      ],
+      "revisedTopics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 6,
+          "max": 10,
+          "pct": 60.0,
+          "comment": "เป็นเคสรับต่อ จึงไม่จำเป็นต้องเปิดบทสนทนาใหม่เต็มรูปแบบ แต่ยังไม่เต็มเพราะไม่มีการเกริ่นรับช่วงต่อให้ชัด และก่อนปิดยังไม่ได้เช็กย้ำว่าลูกค้ายังต้องการให้ช่วยติดตามต่อหรือไม่"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "Agent แจ้งถูกทิศทางว่าเป็นกรณีคืนเงินเข้าช่องทางธนาคาร และให้กรอบเวลาคืนเงินชัดเจน แต่ยังไม่เต็มเพราะยังไม่ได้ย้ำให้ชัดว่าตอนนี้เป็นสถานะรอคืนเงินตามรอบธนาคาร"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่พบการเปิดเผยข้อมูลเกินจำเป็น และข้อมูลที่ใช้ตอบอยู่ในขอบเขตของการตรวจสอบเคส"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "คำตอบค่อนข้างครบ มีทั้งผลตรวจสอบ ช่องทางคืนเงิน และระยะเวลา แต่ยังขาดทางต่อกรณีลูกค้ายังไม่พบยอดคืนหลังครบกำหนด"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อความเข้าใจง่ายว่าคืนเงินเข้าช่องทางเดิมและใช้เวลาเป็นรอบธนาคาร แต่ถ้าแยกเป็นลำดับสั้น ๆ จะชัดกว่า เช่น ตรวจสอบแล้ว / คืนช่องทางเดิม / ใช้เวลากี่วัน / ถ้ายังไม่เข้าให้ทำอย่างไร"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "Agent อิงจากข้อมูลตรวจสอบของเคสเดิมและตอบตามสถานะจริง ถือว่าดีแต่ยังไม่เต็ม เพราะยังไม่ได้ใช้ถ้อยคำชัด ๆ ว่า “จากการตรวจสอบในระบบ” ให้เด่นในคำตอบ"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ปรับเป็นเต็ม 5/5 เพราะข้อมูลที่ Agent แจ้งเป็นข้อมูลอ้างอิงจากระบบของธนาคาร KBank และมี Template สำหรับแจ้งลูกค้าโดยเฉพาะ จึงถือว่าอ้างอิงแหล่งข้อมูลถูกต้องและใช้งานได้เหมาะสม"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 7,
+          "max": 10,
+          "pct": 70.0,
+          "comment": "เหตุผลอุทธรณ์รับฟังได้บางส่วนว่าเป็นแชทต่อเนื่องและ Agent ก่อนหน้าได้แจ้งรายละเอียดไว้แล้ว แต่ยังไม่ควรได้เต็ม เพราะแม้จะเป็นเคสต่อเนื่อง Agent ควรมีการสรุปสถานะปัจจุบันแบบสั้นและชัด"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ปรับเป็นเต็ม 5/5 เพราะ Agent ก่อนหน้าได้แจ้งไว้แล้วว่าจะใช้เวลา 1–2 วันทำการ และแนะนำให้ลูกค้าตรวจสอบรายการเดินบัญชีช่วง 13:00 น. ของวันถัดไป เมื่อ Agent ในเคสนี้รับช่วงต่อในบริบทเดิมจึงไม่จำเป็นต้องเขียนซ้ำทั้งหมด"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ยังไม่เต็ม เพราะยังไม่มีการสรุป next step ที่ชัดพอในข้อความของ Agent แม้บริบทเดิมจะมีแนวทางไว้แล้ว"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อความเรียงลำดับดี มีทั้งแจ้งผลและปิดเคส แต่ยังไม่เต็ม เพราะข้อความสามารถสรุปให้สั้นและเป็นลำดับมากขึ้นได้"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ใช้ภาษาสุภาพและเข้าใจง่าย เหมาะกับงานบริการ แต่ยังไม่เต็ม เพราะบางประโยคยังเป็นภาษากลาง ๆ และทำให้กระชับขึ้นได้อีก"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "สุภาพ แต่ยังขาด Empathy ต่อความเดือดร้อนของลูกค้า"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "โทนยังไม่สะท้อนความเดือดร้อนของลูกค้าได้ดีพอ"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 5,
+          "max": 10,
+          "pct": 50.0,
+          "comment": "รับช่วงเคสต่อได้ แต่ยังไม่มีการสรุป flow หรือทางต่อในข้อความของตนเองอย่างชัดเจน"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการปิดเคส แต่ควรเช็กความต้องการช่วยเหลือเพิ่มเติมก่อนจบ"
+        }
+      ]
+    },
+    {
+      "key": "case04",
+      "agent": "Nattapol Suprom",
+      "auditDate": "15/03/2026",
+      "weekLabel": "Week 2",
+      "caseId": "AA206949",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/smartchat?room=69b688a7476670a7ac061d6d",
+      "inquiryTh": "ไรเดอร์แจ้งปัญหาออเดอร์และขอยกเลิกงาน",
+      "inquiryEn": "Rider reports order issue and requests cancellation",
+      "finalScore": 91.0,
+      "previousScore": 91.0,
+      "grade": "A",
+      "reviewStatus": "Original",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 7,
+          "max": 10,
+          "pct": 70.0,
+          "comment": "มีการทักทายสุภาพ ระบุชื่อแอดมินชัดเจน และปิดเคสพร้อมเสนอความช่วยเหลือเพิ่มเติม แต่ Closing ยังไม่ใช่ Script มาตรฐานแบบครบถ้วน"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อมูลที่แจ้งสอดคล้องกับสถานการณ์จริง ไม่มีการให้ข้อมูลผิดหรือคาดเดา"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการขอข้อมูลก่อนดำเนินการ ไม่เปิดเผยข้อมูลบุคคลที่สาม"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการยืนยัน Rider ID และรายละเอียดก่อนดำเนินการ คำตอบสอดคล้องกับสถานะงานจริง"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบครบทุกประเด็น ติดตามจนทราบว่าลูกค้าได้รับสินค้าแล้ว"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ไม่มีการอธิบายขั้นตอนเป็นลำดับ เพราะเป็นเคสประสานงาน ยังสามารถเพิ่มการแจ้งสิ่งที่จะดำเนินการให้ชัดเจนกว่านี้ได้"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "อ้างอิงข้อมูลจากระบบจริง (ออเดอร์/ที่อยู่/สถานะ)"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "ตรวจสอบสาเหตุว่าไรเดอร์ติดต่อไม่ได้ ยืนยันตำแหน่งและประสานให้ใหม่ แต่ไม่มีการวิเคราะห์ Root Cause เชิงลึก"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ดูแลจนงานเสร็จและลูกค้าได้รับสินค้า ไม่มีการส่งต่อหรือปล่อยเคสค้าง"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการแจ้งว่าจะประสานให้ แต่ไม่ได้แจ้ง Timeline หรือช่องทางติดตาม"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อ่านง่าย ลำดับดี มีการแบ่งข้อความ แต่ยังไม่มีการจัดเป็นข้อหรือรูปแบบที่ชัดเจนมาก"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ภาษาชัดเจน สุภาพ ไม่เยิ่นเย้อ"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "น้ำเสียงเป็นมิตร สุภาพ ไม่มีการโต้แย้ง"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้ภาษาที่เหมาะกับเคสเร่งด่วน ไม่ใช้ Template"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "ขอข้อมูล ตรวจสอบ และประสานงานครบตาม Flow"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการปิดเคส แต่ยังสามารถสรุปผล/ทางต่อให้ครบกว่านี้ได้"
+        }
+      ],
+      "revisedTopics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 7,
+          "max": 10,
+          "pct": 70.0,
+          "comment": "มีการทักทายสุภาพ ระบุชื่อแอดมิน “แอดมินบอย” ชัดเจน มีการใช้ชื่อแอดมินซ้ำระหว่างบทสนทนา และปิดเคสพร้อมเสนอความช่วยเหลือเพิ่มเติม แต่ Closing ยังไม่ใช่ Script มาตรฐานแบบครบถ้วน"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อมูลที่แจ้งสอดคล้องกับสถานการณ์จริง ไม่มีการให้ข้อมูลผิดหรือคาดเดา"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการขอข้อมูลก่อนดำเนินการ ไม่เปิดเผยข้อมูลบุคคลที่สาม ข้อมูลที่ใช้เป็นของผู้ติดต่อเอง"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการยืนยัน Rider ID และรายละเอียดก่อนดำเนินการ คำตอบสอดคล้องกับสถานะงานจริง ไม่ใช่คำตอบทั่วไป"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบครบทุกประเด็น ติดตามจนทราบว่าลูกค้าได้รับสินค้าแล้ว"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ไม่มีการอธิบายขั้นตอนเป็นลำดับ เพราะเป็นเคสประสานงาน ยังสามารถเพิ่มการแจ้งสิ่งที่จะดำเนินการให้ชัดเจนกว่านี้ได้"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "อ้างอิงข้อมูลจากระบบจริง (ออเดอร์/ที่อยู่/สถานะ) ไม่มีข้อมูลที่ไม่เป็นทางการ"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "ตรวจสอบสาเหตุว่าไรเดอร์ติดต่อไม่ได้ ยืนยันตำแหน่งและประสานให้ใหม่ แต่ไม่มีการวิเคราะห์ Root Cause เชิงลึก"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ดูแลจนงานเสร็จและลูกค้าได้รับสินค้า ไม่มีการส่งต่อหรือปล่อยเคสค้าง"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการแจ้งว่าจะประสานให้ แต่ไม่ได้แจ้ง Timeline หรือช่องทางติดตาม"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อ่านข้อความง่าย ลำดับดี มีการแบ่งข้อความ แต่ยังไม่มีการจัดเป็นข้อหรือรูปแบบที่ชัดเจนมาก"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ภาษาชัดเจน สุภาพ ไม่เยิ่นเย้อ"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "น้ำเสียงเป็นมิตร สุภาพ ไม่มีการโต้แย้ง"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้ภาษาที่เหมาะกับเคสเร่งด่วน ไม่ใช้ Template"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "ดำเนินการครบตาม Flow ของเคสประสานงาน"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการปิดเคสเรียบร้อย"
+        }
+      ]
+    },
+    {
+      "key": "case05",
+      "agent": "Nattapol Suprom",
+      "auditDate": "16/03/2026",
+      "weekLabel": "Week 3",
+      "caseId": "AA207397",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/case/69b92b991896519c0aa0586f?case=69b7cda91e7cb7775e9a5782",
+      "inquiryTh": "ไรเดอร์สอบถามเวลาเงินภารกิจเข้า",
+      "inquiryEn": "Rider inquires about mission payout time",
+      "finalScore": 80.0,
+      "previousScore": 68.0,
+      "grade": "B",
+      "reviewStatus": "Revised",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "มีการทักทายตามมาตรฐาน สุภาพ แนะนำตัวชัดเจน และมีข้อความปิดการสนทนา แต่ไม่มีการเสนอความช่วยเหลือเพิ่มเติมหรือสอบถามเพิ่มเติมก่อนปิดอย่างชัดเจน"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 2,
+          "max": 5,
+          "pct": 40.0,
+          "comment": "ให้ข้อมูลหลักเกี่ยวกับการโอนเงินโบนัสได้ถูกต้องตามเงื่อนไขกิจกรรม แต่แนะนำให้ตรวจสอบในช่วงเย็นของวันเดียวกันซึ่งอาจทำให้ Rider เข้าใจผิดเกี่ยวกับระยะเวลาการโอนเงิน"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่มีการเปิดเผยข้อมูลส่วนบุคคล และไม่มีการละเมิดนโยบายบริษัท"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ให้ข้อมูลหลักเกี่ยวกับการโอนเงินโบนัสได้ถูกต้องตามเงื่อนไขกิจกรรม แต่มีข้อมูลเพิ่มเติมที่ไม่สอดคล้องกับ Timeline จริง"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 2,
+          "max": 5,
+          "pct": 40.0,
+          "comment": "คำถามหลักไม่ได้รับคำตอบครบ ไม่มีข้อมูลเวลาการโอน เงื่อนไข หรือรอบการจ่ายเงิน"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "มีการให้คำแนะนำให้ตรวจสอบบัญชีและแอป แต่ไม่ได้อธิบายเป็นขั้นตอนอย่างเป็นระบบ และไม่เกี่ยวข้องกับคำถามหลัก"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ให้ข้อมูลเกี่ยวกับการโอนเงินโบนัสตามเงื่อนไขกิจกรรมซึ่งสอดคล้องกับแนวทางโดยรวม แต่ไม่มีการอ้างอิงแหล่งข้อมูลทางการโดยตรง"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 2,
+          "max": 10,
+          "pct": 20.0,
+          "comment": "ไม่ได้วิเคราะห์ว่าลูกค้าต้องการทราบ Timeline การจ่ายเงิน และเสนอแนวทางแก้ไขที่ไม่ตรงกับปัญหา"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ให้คำตอบและปิดเคส แต่ไม่ได้ตรวจสอบเพิ่มเติมหรือให้ข้อมูลที่ช่วยแก้ข้อสงสัยของลูกค้าอย่างแท้จริง"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 1,
+          "max": 5,
+          "pct": 20.0,
+          "comment": "ไม่มีการแจ้งว่าหากยังไม่ได้เงินควรทำอย่างไร ติดต่อที่ไหน หรือรอภายในกี่วัน"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อความอ่านเข้าใจง่าย แต่ไม่มีการแบ่งประเด็นข้อมูลสำคัญ"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้ภาษาถูกต้อง สุภาพ และไม่เยิ่นเย้อ"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "สุภาพ เหมาะกับการให้บริการ"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "รูปแบบข้อความเหมาะสมกับเคสสอบถาม แต่ยังไม่ตอบตรงความกังวลหลักมากพอ"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "ดำเนินการตาม Flow ได้ในระดับหนึ่ง แต่คำตอบยังไม่ครบสำหรับ Timeline และทางต่อ"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการอัปเดตและปิดเคสเรียบร้อย"
+        }
+      ],
+      "revisedTopics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "มีการทักทายตามมาตรฐาน สุภาพ แนะนำตัวชัดเจน และมีข้อความปิดการสนทนา แต่ไม่มีการเสนอความช่วยเหลือเพิ่มเติมหรือสอบถามเพิ่มเติมก่อนปิดอย่างชัดเจน"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "พิจารณาแล้วเห็นควรปรับคะแนน เนื่องจาก Agent ให้ข้อมูลหลักถูกต้องในระดับหนึ่งว่าเป็นการโอนในวันทำการ และมีการแจ้งแนวทางต่อหากเงินยังไม่เข้า อย่างไรก็ตาม ข้อความที่ระบุให้ตรวจสอบ “ช่วงเย็น” ยังเป็นข้อมูลที่ไม่สามารถยืนยันเวลาได้อย่างชัดเจน"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่มีการเปิดเผยข้อมูลส่วนบุคคล และไม่มีการละเมิดนโยบายบริษัท"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "Agent ให้ข้อมูลหลักเกี่ยวกับการโอนเงินโบนัสได้ถูกต้องตามเงื่อนไขกิจกรรม แต่มีการให้ข้อมูลเพิ่มเติมที่ไม่สอดคล้องกับ Timeline จริง โดยแนะนำให้ตรวจสอบในช่วงเย็นของวันเดียวกัน"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "พิจารณาแล้วเห็นควรปรับคะแนน เพราะแม้ Agent จะไม่ได้อธิบายเงื่อนไขรอบการโอนอย่างครบถ้วน แต่ยังมีการตอบสาระสำคัญบางส่วน ได้แก่ เงินจะโอนในวันทำการ และหากยังไม่เข้าให้ติดต่อกลับมาอีกครั้ง"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "Agent มีการแจ้งแนวทางเบื้องต้นจริง แต่ยังไม่ได้อธิบายเป็นลำดับขั้นตอนที่ชัดเจน เช่น ควรรอถึงเมื่อไร หากยังไม่เข้าแล้วต้องทำอย่างไรต่อ"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "แม้ Agent จะให้ข้อมูลตามแนวทางที่ได้รับมา แต่ในข้อความที่สื่อสารกับไรเดอร์ยังไม่ได้อ้างอิงข้อมูลเชิงเงื่อนไขหรือแหล่งข้อมูลอย่างชัดเจน และคำว่า “ช่วงเย็น” ยังไม่ใช่ข้อมูลอ้างอิงที่ยืนยันได้จากเงื่อนไขอย่างเป็นทางการ"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 6,
+          "max": 10,
+          "pct": 60.0,
+          "comment": "พิจารณาแล้วเห็นควรปรับคะแนน เนื่องจาก Agent จับประเด็นความกังวลของไรเดอร์ได้บางส่วน และมีการให้แนวทางเบื้องต้นในการติดตามต่อ หากยังไม่ได้รับเงิน อย่างไรก็ตาม ยังไม่ได้อธิบายต้นเหตุหรือ timeline ให้ชัดเพียงพอ"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "Agent ให้คำตอบและปิดเคส แต่ไม่ได้ตรวจสอบเพิ่มเติมหรือให้ข้อมูลที่ช่วยแก้ข้อสงสัยของลูกค้าอย่างแท้จริง"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "พิจารณาแล้วเห็นควรปรับคะแนน เนื่องจากในบทสนทนามีการแจ้ง next step จริงว่า หากยังไม่ได้รับเงินสามารถติดต่อกลับเข้ามาได้ อย่างไรก็ตาม ยังไม่ได้ระบุชัดว่าควรรอถึงเมื่อไร หรือเมื่อติดต่อกลับมาต้องแจ้งข้อมูลอะไรเพิ่มเติม"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อความอ่านเข้าใจง่าย แต่ไม่มีการแบ่งประเด็นข้อมูลสำคัญ"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ใช้ภาษาถูกต้อง สุภาพ และไม่เยิ่นเย้อ"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "สุภาพ เหมาะกับการให้บริการ"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "รูปแบบข้อความเหมาะสมกับเคสสอบถาม แต่ยังไม่ตอบตรงความกังวลหลักมากพอ"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "ดำเนินการตาม Flow ได้ในระดับหนึ่ง แต่คำตอบยังไม่ครบสำหรับ Timeline และทางต่อ"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการอัปเดตและปิดเคสเรียบร้อย"
+        }
+      ]
+    },
+    {
+      "key": "case06",
+      "agent": "Nattapol Suprom",
+      "auditDate": "17/03/2026",
+      "weekLabel": "Week 3",
+      "caseId": "AA207998",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/smartchat?room=6833f4b050e7bed9fa854d6f",
+      "inquiryTh": "ไรเดอร์สอบถามอัตราการรับงาน",
+      "inquiryEn": "Rider inquires about job acceptance rate",
+      "finalScore": 90.0,
+      "previousScore": 87.0,
+      "grade": "A",
+      "reviewStatus": "Revised",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "พนักงานมีการทักทายตามรูปแบบมาตรฐาน ใช้ถ้อยคำสุภาพ และมีข้อความปิดการสนทนาอย่างเหมาะสม แต่ไม่ได้มีการเสนอความช่วยเหลือเพิ่มเติมก่อนปิด"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อมูลที่พนักงานแจ้งสอดคล้องกับสถานะของเคส และไม่พบการให้ข้อมูลที่คลาดเคลื่อนหรือเกินจริง"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่พบการเปิดเผยข้อมูลส่วนบุคคล หรือข้อมูลที่ไม่เกี่ยวข้องกับเคส"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "พนักงานตอบตรงกับคำถามของไรเดอร์และให้ข้อมูลตามบริบทของเคสอย่างถูกต้อง"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ตอบคำถามหลักได้ครบถ้วนในระดับหนึ่ง แต่ยังไม่มีข้อมูลเพิ่มเติมที่อาจเป็นประโยชน์ เช่น แนวทางเพิ่มโอกาสในการได้รับงาน"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อความที่ใช้มีความชัดเจน กระชับ และเข้าใจง่าย"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อมูลที่ให้เป็นข้อมูลทั่วไปเกี่ยวกับการใช้งานระบบ และไม่ขัดกับแนวทางการให้บริการของบริษัท"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 3,
+          "max": 10,
+          "pct": 30.0,
+          "comment": "ตอบคำถามตามที่สอบถาม แต่ไม่ได้วิเคราะห์สาเหตุเชิงลึกหรือให้แนวทางแก้ไขเพิ่มเติม"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ดูแลเคสจนเสร็จสิ้น ไม่ส่งต่อโดยไม่จำเป็น และไม่มีการปล่อยเคสค้าง"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ไม่มีการแจ้งขั้นตอนถัดไปหรือช่องทางติดตามผลเพิ่มเติม หากลูกค้ายังมีปัญหาในอนาคต"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อความเรียงลำดับชัดเจน อ่านง่าย และสอดคล้องกับ Flow การสนทนา"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ใช้ภาษาถูกต้อง สุภาพ และกระชับเหมาะสมกับงานบริการ"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "น้ำเสียงสุภาพ เหมาะสมกับงานบริการ"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "รูปแบบการตอบเหมาะกับเคสสอบถามข้อมูล"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "ดำเนินการตามขั้นตอนบริการได้เหมาะสม"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการอัปเดตและปิดเคสเรียบร้อย"
+        }
+      ],
+      "revisedTopics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "พนักงานมีการทักทายตามรูปแบบมาตรฐาน ใช้ถ้อยคำสุภาพ และมีข้อความปิดการสนทนาอย่างเหมาะสม แต่ไม่ได้มีการเสนอความช่วยเหลือเพิ่มเติมก่อนปิดการสนทนา"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อมูลที่พนักงานแจ้งสอดคล้องกับสถานะของเคส และไม่พบการให้ข้อมูลที่คลาดเคลื่อนหรือเกินจริง"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่พบการเปิดเผยข้อมูลส่วนบุคคล หรือข้อมูลที่ไม่เกี่ยวข้องกับเคส การสื่อสารเป็นไปตามข้อกำหนดด้านข้อมูลส่วนบุคคลและนโยบายบริษัท"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "พนักงานตอบตรงกับคำถามของไรเดอร์และให้ข้อมูลตามบริบทของเคสอย่างถูกต้อง ไม่พบการตอบผิดประเด็น"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ตอบคำถามหลักของไรเดอร์ได้ครบถ้วนในระดับหนึ่ง อย่างไรก็ตาม ยังไม่มีการให้ข้อมูลเพิ่มเติมที่อาจเป็นประโยชน์ต่อไรเดอร์ เช่น แนวทางเพิ่มโอกาสในการได้รับงาน"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อความที่ใช้มีความชัดเจน กระชับ และเข้าใจง่าย ลูกค้าสามารถเข้าใจสาระสำคัญได้โดยไม่เกิดความสับสน"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อมูลที่ให้เป็นข้อมูลทั่วไปเกี่ยวกับการใช้งานระบบ และไม่ขัดกับแนวทางการให้บริการของบริษัท ไม่พบการอ้างอิงข้อมูลจากแหล่งที่ไม่เป็นทางการ"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 5,
+          "max": 10,
+          "pct": 50.0,
+          "comment": "ปรับจาก 3/10 เป็น 5/10 เพราะคะแนนเดิมค่อนข้างต่ำเกินไปเมื่อเทียบกับข้อเท็จจริงที่ Agent มีการตรวจสอบก่อนตอบจริง จึงควรปรับขึ้นเพื่อสะท้อนว่า Agent มีการ verify ข้อมูลก่อนตอบ แต่ยังไม่ถึงขั้นให้คะแนนสูง เพราะการสื่อสารยังไม่ต่อยอดในเชิงวิเคราะห์และแนวทางเพิ่มเติมมากพอ"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "พนักงานดูแลเคสจนเสร็จสิ้น ไม่ส่งต่อโดยไม่จำเป็น และไม่มีการปล่อยเคสค้าง"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "ไม่มีการแจ้งขั้นตอนถัดไปหรือช่องทางติดตามผลเพิ่มเติม หากลูกค้ายังมีปัญหาในอนาคต"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ข้อความเรียงลำดับชัดเจน อ่านง่าย และสอดคล้องกับ Flow การสนทนา"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ปรับจาก 4/5 เป็น 5/5 เนื่องจากเหตุผลในไฟล์ประเมินเดิมเป็นเชิงบวกทั้งหมดอยู่แล้ว และไม่พบจุดผิดพลาดด้านภาษา ความชัดเจน หรือความเยิ่นเย้ออย่างมีนัยสำคัญ"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "น้ำเสียงสุภาพ เหมาะสมกับงานบริการ"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "รูปแบบการตอบเหมาะกับเคสสอบถามข้อมูล"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 9,
+          "max": 10,
+          "pct": 90.0,
+          "comment": "ดำเนินการตามขั้นตอนบริการได้เหมาะสม"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ตอบอยู่ใน SLA"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการอัปเดตและปิดเคสเรียบร้อย"
+        }
+      ]
+    },
+    {
+      "key": "case07",
+      "agent": "Nattapol Suprom",
+      "auditDate": "18/03/2026",
+      "weekLabel": "Week 3",
+      "caseId": "AA208479",
+      "caseUrl": "https://app.oho.chat/business/6805c0f16232119d2a1204b5/smartchat?room=692855f5b129a1342b330278",
+      "inquiryTh": "ลูกค้าแจ้งชำระเงินไม่สำเร็จและออเดอร์ถูกยกเลิก",
+      "inquiryEn": "Customer reports payment failure and order cancellation",
+      "finalScore": 81.0,
+      "previousScore": 81.0,
+      "grade": "B",
+      "reviewStatus": "Original",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standards",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "มีการทักทายและแนะนำชื่อผู้ให้บริการชัดเจน รวมถึงมีการปิดการสนทนาเรียบร้อย แต่ยังไม่เต็ม เพราะประโยคปิดยังไม่ใช่ Closing ที่เช็กความครบก่อนจบเคส"
+        },
+        {
+          "code": "1.2",
+          "label": "Information Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อมูลที่แจ้งเรื่องให้ปิดและเปิดแอปใหม่ รวมถึงโค้ดส่วนลดจะคืนกลับเข้าสู่ระบบภายในประมาณ 15 นาทีถือว่าถูกทิศทางและตอบตรงเคส แต่ยังไม่เต็ม เพราะยังไม่ได้อธิบายเงื่อนไขเพิ่มเติม เช่น หากเกินเวลาแล้วยังไม่คืนต้องทำอย่างไร"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Company Policy Compliance",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ไม่พบการเปิดเผยข้อมูลส่วนบุคคลเกินจำเป็น และการตอบอยู่ในขอบเขตการให้บริการปกติ"
+        },
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "ลูกค้าแจ้งว่าจ่ายเงินไม่สำเร็จ ระบบยกเลิก และถามว่าโค้ดส่วนลดที่ยกเลิกไปจะคืนไหม Agent ตอบตรงคำถามทั้งสองส่วน"
+        },
+        {
+          "code": "2.2",
+          "label": "Answer Completeness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "คำตอบค่อนข้างครบ เพราะตอบทั้งเรื่องการทำรายการใหม่และเรื่องโค้ดคืน แต่ยังไม่เต็ม เพราะยังไม่ได้บอกเงื่อนไขกรณีที่โค้ดยังไม่กลับหรือถ้าลองใหม่แล้วยังจ่ายไม่ได้ควรทำอย่างไร"
+        },
+        {
+          "code": "2.3",
+          "label": "Process Explanation Clarity",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "อธิบายเข้าใจง่ายและลูกค้าสามารถทำตามได้ แต่ยังไม่เต็ม เพราะยังไม่ได้เรียงเป็นขั้นตอนชัดที่สุด"
+        },
+        {
+          "code": "2.4",
+          "label": "Correct Reference Usage",
+          "score": 3,
+          "max": 5,
+          "pct": 60.0,
+          "comment": "คำตอบดูเป็นข้อมูลการใช้งานที่ถูกต้อง แต่จากภาพยังไม่เห็นการอ้างอิงจากระบบหรือผลตรวจสอบชัดเจน จึงยังเป็นการตอบตามแนวทางทั่วไปมากกว่า"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause Analysis & Resolution",
+          "score": 7,
+          "max": 10,
+          "pct": 70.0,
+          "comment": "Agent เข้าใจปัญหาและให้ทางแก้เบื้องต้นได้ตรงจุดคือให้ปิด-เปิดแอปใหม่และทำรายการใหม่ พร้อมตอบข้อกังวลเรื่องโค้ดส่วนลดคืน แต่ยังไม่เต็ม เพราะยังไม่ได้วิเคราะห์ต่อว่าปัญหาจ่ายเงินไม่สำเร็จอาจเกิดจากอะไร"
+        },
+        {
+          "code": "3.2",
+          "label": "Case Ownership",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการตอบคำถามลูกค้าได้ครบประเด็นหลักและช่วยคลายความกังวลเรื่องโค้ดส่วนลดได้ดี แต่ยังไม่เต็ม เพราะยังไม่ได้เปิดทางต่อให้ชัดกรณีปัญหายังไม่หาย"
+        },
+        {
+          "code": "3.3",
+          "label": "Clear Next Step Guidance",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "มีการบอกทางต่อแล้วว่าลูกค้าสามารถปิดและเปิดแอปใหม่แล้วทำรายการใหม่ได้ และแจ้งเวลาคืนโค้ดส่วนลดชัดเจน แต่ยังไม่เต็ม เพราะยังขาดประโยคเผื่อกรณีระบบยังไม่คืนโค้ดหรือยังทำรายการไม่ได้"
+        },
+        {
+          "code": "4.1",
+          "label": "Message Structure",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ข้อความเรียงลำดับค่อนข้างดี ตอบทีละประเด็น และลูกค้าเข้าใจ แต่ยังไม่เต็ม เพราะถ้าจัดเป็นลำดับขั้นตอนสั้น ๆ จะอ่านง่ายกว่า"
+        },
+        {
+          "code": "4.2",
+          "label": "Language Accuracy & Conciseness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ใช้ภาษาสุภาพ เข้าใจง่าย และเป็นมิตร เหมาะกับงานบริการ แต่ยังไม่เต็ม เพราะบางประโยคยังทำให้กระชับและลื่นขึ้นได้อีก"
+        },
+        {
+          "code": "4.3",
+          "label": "Tone Appropriateness",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "น้ำเสียงสุภาพ เหมาะกับการให้บริการ"
+        },
+        {
+          "code": "4.4",
+          "label": "Format Adaptation by Situation",
+          "score": 4,
+          "max": 5,
+          "pct": 80.0,
+          "comment": "ปรับคำตอบเข้ากับสถานการณ์ได้ดี แต่ยังสามารถเพิ่มทางต่อกรณีปัญหายังไม่หายได้อีก"
+        },
+        {
+          "code": "5.1",
+          "label": "Work Process Compliance",
+          "score": 8,
+          "max": 10,
+          "pct": 80.0,
+          "comment": "ดำเนินการตาม Flow พื้นฐานได้ครบ แต่ยังไม่เต็ม เพราะยังสามารถสรุปเงื่อนไขและทางต่อให้ชัดกว่านี้ก่อนปิดเคส"
+        },
+        {
+          "code": "5.2",
+          "label": "SLA Response Compliance",
+          "score": 2,
+          "max": 5,
+          "pct": 40.0,
+          "comment": "ตามเกณฑ์ล่าสุด รับแชทต้องไม่เกิน 3–5 นาที และหลังรับแชทต้องตอบกลับภายใน 3 นาที เคสนี้เวลารอรับบริการยังอยู่ในเกณฑ์ แต่จากลำดับเวลา หลังรับแชทมีการตอบเกิน 3 นาที"
+        },
+        {
+          "code": "5.3",
+          "label": "Case Logging & Status Accuracy",
+          "score": 5,
+          "max": 5,
+          "pct": 100.0,
+          "comment": "มีการอัปเดตและปิดเคสเรียบร้อย"
+        }
+      ],
+      "revisedTopics": null
+    }
+  ]
+}
       "revisedTopics": null
     }
   ]
