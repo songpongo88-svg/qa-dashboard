@@ -945,8 +945,6 @@ const metricAverageDisplay =
                 <DataHealthChecks />
               </PanelBody>
             </Panel>
-          </div>
-
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard
@@ -975,18 +973,16 @@ const metricAverageDisplay =
               <PanelHeader title="Case Navigator" />
               <PanelBody>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {dashboardCases.map((item) => (
-                    <CaseNavigatorCard
-                      key={item.key}
-                      item={item}
-                      isSelected={activeSelectedCase?.key === item.key}
-                      onSelect={() => setSelectedCaseKey(item.key)}
-           
-              
-                </div>
+                 {dashboardCases.map((item) => (
+  <CaseNavigatorCard
+    key={item.key}
+    item={item}
+    isSelected={activeSelectedCase?.key === item.key}
+    onSelect={() => setSelectedCaseKey(item.key)}
+  />
+))}
               </PanelBody>
             </Panel>
-
             {activeSelectedCase ? (
               <Panel>
                 <PanelHeader title="Case Detail" />
