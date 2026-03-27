@@ -970,20 +970,21 @@ const metricAverageDisplay =
             </div>
 
             <Panel>
-              <PanelHeader title="Case Navigator" />
-              <PanelBody>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                 {dashboardCases.map((item) => (
-  <CaseNavigatorCard
-    key={item.key}
-    item={item}
-    isSelected={activeSelectedCase?.key === item.key}
-    onSelect={() => setSelectedCaseKey(item.key)}
-  />
-))}
-              </PanelBody>
-            </Panel>
-            {activeSelectedCase ? (
+             <Panel>
+  <PanelHeader title="Case Navigator" />
+  <PanelBody>
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {dashboardCases.map((item) => (
+        <CaseNavigatorCard
+          key={item.key}
+          item={item}
+          isSelected={activeSelectedCase?.key === item.key}
+          onSelect={() => setSelectedCaseKey(item.key)}
+        />
+      ))}
+    </div>
+  </PanelBody>
+</Panel>
               <Panel>
                 <PanelHeader title="Case Detail" />
                 <PanelBody className="space-y-5">
@@ -1065,10 +1066,10 @@ const metricAverageDisplay =
                   <GradeMix gradeCounts={summary.gradeCounts} />
                 </PanelBody>
               </Panel>
-            </div>
+         
           </div>
-        </div>
-      </div>
+  
+  
     </div>
   );
 }
