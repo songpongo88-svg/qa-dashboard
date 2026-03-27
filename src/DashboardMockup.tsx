@@ -30,13 +30,6 @@ type CaseItem = {
   revisedTopics?: Topic[];
 };
 
-type UserAccount = {
-  username: string;
-  password: string;
-  displayName: string;
-  role: UserRole;
-  agentName?: string;
-};
 
 type TopicSummary = {
   code: string;
@@ -91,18 +84,7 @@ const AGENTS = [
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
 
-const USER_ACCOUNTS: UserAccount[] = [
-  { username: "qa", password: "qa1234", displayName: "QA Admin", role: "QA" },
-  { username: "supervisor", password: "super1234", displayName: "Supervisor", role: "Supervisor" },
-  { username: "senior", password: "senior1234", displayName: "Senior", role: "Senior" },
-  ...AGENTS.map((agent) => ({
-    username: agent.toLowerCase().replace(/[^a-z]/g, ""),
-    password: "agent1234",
-    displayName: agent,
-    role: "Agent" as UserRole,
-    agentName: agent,
-  })),
-];
+
 const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -639,15 +621,6 @@ function DataHealthChecks() {
   );
 }
 
-function LoginScreen({ username, password, error, onUsernameChange, onPasswordChange, onLogin }: {
-  username: string;
-  password: string;
-  error: string;
-  onUsernameChange: (v: string) => void;
-  onPasswordChange: (v: string) => void;
-  onLogin: () => void;
-}) {
-  return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50 p-6">
       <div className="mx-auto flex min-h-[80vh] max-w-md items-center justify-center">
         <div className="w-full rounded-3xl border border-violet-200 bg-white/95 p-6 shadow-lg">
@@ -668,18 +641,15 @@ function LoginScreen({ username, password, error, onUsernameChange, onPasswordCh
   );
 }
 
-export default function DashboardMockup() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
-  const [selectedWeek, setSelectedWeek] = useState<string>("all");
-  const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
-  const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
-  const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
-  const [uploadedData, setUploadedData] = useState<any | null>(null);
-  const defaultDashboardData = uploadedData || currentDashboardData;
+export default function DashboardMockup({ currentUser }: { currentUser: any }) {
+ const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
+const [selectedWeek, setSelectedWeek] = useState<string>("all");
+const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
+const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
+const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
+const [uploadedData, setUploadedData] = useState<any | null>(null);
+const defaultDashboardData = uploadedData || currentDashboardData;
+  
   const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -701,30 +671,9 @@ export default function DashboardMockup() {
     reader.readAsText(file);
   };
 
-  const handleLogin = () => {
-    const user = USER_ACCOUNTS.find(
-      (item) => item.username === username.trim().toLowerCase() && item.password === password
-    );
+ 
 
-    if (!user) {
-      setLoginError("Username หรือ Password ไม่ถูกต้อง");
-      return;
-    }
-
-    setCurrentUser(user);
-    setLoginError("");
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setUsername("");
-    setPassword("");
-    setLoginError("");
-    setSelectedWeek("all");
-    setSelectedCaseKey("");
-    setDateFrom(formatInputDate(new Date(2026, 2, 1)));
-    setDateTo(formatInputDate(TODAY));
-  };
+  
 
   const visibleAgentList = useMemo(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
@@ -816,18 +765,7 @@ const metricAverageDisplay =
     Number(metricAverageDisplay)
   );
 
-  if (!currentUser) {
-    return (
-      <LoginScreen
-        username={username}
-        password={password}
-        error={loginError}
-        onUsernameChange={setUsername}
-        onPasswordChange={setPassword}
-        onLogin={handleLogin}
-      />
-    );
-  }
+ 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
@@ -851,9 +789,9 @@ const metricAverageDisplay =
               <SmallButton onClick={() => window.print()}>
                 Print / Save PDF
               </SmallButton>
-              <SmallButton onClick={handleLogout} dark>
-                Log out
-              </SmallButton>
+              <SmallButton onClick={() => window.print()} dark>
+  Export
+</SmallButton>
             </div>
           </div>
         </div>
