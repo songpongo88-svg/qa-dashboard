@@ -693,13 +693,4 @@ export default function DashboardMockup() {
   const incentiveDisplay = formatCurrencyTHB(getIncentiveValue(dateFilteredCases.length, Number(summary.averageDisplay)));
   const incentiveRemark = getIncentiveRemark(dateFilteredCases.length, Number(summary.averageDisplay));
 
-  const handleLogin = () => {
-    const matched = USER_ACCOUNTS.find((user) => user.username === username.trim().toLowerCase() && user.password === password);
-    if (!matched) {
-      setLoginError("Username หรือ Password ไม่ถูกต้อง");
-      return;
-    }
-    setCurrentUser(matched);
-    setLoginError("");
-    if (matched.role === "Agent" && matched.agentName) {
-      setSelectedAgent(matche
+  export defaual
