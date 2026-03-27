@@ -949,15 +949,34 @@ const metricAverageDisplay =
                 />
 
 {defaultDashboardData?.weeklySummaries &&
-Array.isArray(defaultDashboardData.weeklySummaries)
-defaultDashboardData.weeklySummaries.map((week: any) => (
-                      <WeeklySnapshotCard
-                        key={week.weekLabel}
-                        label={week.weekLabel}
-                        caseCount={Number(week.casesReviewed || 0)}
-                        averageDisplay={Number(week.averageScore || 0).toFixed(2)}
-                        isActive={selectedWeek === week.weekLabel}
-                        onClick={() => setSelectedWeek(week.weekLabel)}
+Array.isArray(defaultDashboardData.weeklySummaries) ? (
+  defaultDashboardData.weeklySummaries.map((week: any) => (
+    <WeeklySnapshotCard
+      key={week.weekLabel}
+      label={week.weekLabel}
+      caseCount={Number(week.casesReviewed || 0)}
+      averageDisplay={Number(week.averageScore || 0).toFixed(2)}
+      isActive={selectedWeek === week.weekLabel}
+      onClick={() => setSelectedWeek(week.weekLabel)}
+    />
+  ))
+) : (
+  weekLabels.map((week) => {
+    const weekCases = dateFilteredCases.filter((item) => item.weekLabel === week);
+    const weekSummary = buildAgentSummary(weekCases);
+
+    return (
+      <WeeklySnapshotCard
+        key={week}
+        label={week}
+        caseCount={weekCases.length}
+        averageDisplay={weekSummary.averageDisplay}
+        isActive={selectedWeek === week}
+        onClick={() => setSelectedWeek(week)}
+      />
+    );
+  })
+)}
                       />
                     ))
                   : weekLabels.map((week) => {
