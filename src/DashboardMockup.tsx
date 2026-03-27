@@ -679,7 +679,7 @@ export default function DashboardMockup() {
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [uploadedData, setUploadedData] = useState<any | null>(null);
-
+  const defaultDashboardData = uploadedData || currentDashboardData;
   const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
