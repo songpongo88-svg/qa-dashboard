@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
-type UserRole = "QA" | "Supervisor" | "Senior" | "Agent";
 
 type Topic = {
   code: string;
@@ -29,7 +28,6 @@ type CaseItem = {
   topics: Topic[];
   revisedTopics?: Topic[];
 };
-
 
 type TopicSummary = {
   code: string;
@@ -84,26 +82,6 @@ const AGENTS = [
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
 
-
-const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target?.result?.toString() || "");
-      reader.readAsText(file);
-      setUploadedData(parsed);
-      alert("อัปโหลดข้อมูลสำเร็จ");
-    } catch (error) {
-      alert("ไฟล์ JSON ไม่ถูกต้อง");
-    }
-  };
-
-  reader.readAsText(file);
-};
 function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
@@ -163,7 +141,10 @@ function c(
 ): CaseItem {
   const reviewStatus = options?.reviewStatus ?? "Original";
   const previousScore = originalScores.reduce((sum, item) => sum + item, 0);
-  const finalScore = options?.revisedScores?.length ? options.revisedScores.reduce((sum, item) => sum + item, 0) : previousScore;
+  const finalScore = options?.revisedScores?.length
+    ? options.revisedScores.reduce((sum, item) => sum + item, 0)
+    : previousScore;
+
   return {
     key: `${agent}-${caseId}`,
     agent,
@@ -177,7 +158,9 @@ function c(
     grade: scoreToGrade(finalScore),
     reviewStatus,
     topics: buildTopics(originalScores, options?.comments),
-    revisedTopics: options?.revisedScores ? buildTopics(options.revisedScores, options?.comments) : undefined,
+    revisedTopics: options?.revisedScores
+      ? buildTopics(options.revisedScores, options?.comments)
+      : undefined,
   };
 }
 
@@ -230,7 +213,7 @@ const COMMENT_MAP: Record<string, Record<string, string>> = {
     "5.3": "มีการปิดเคสและบันทึกในระบบถูกต้อง",
   },
   AA207015: {
-    "1.1": "มีการทักทาย แนะนำชื่อแอดมินชัดเจน ใช้ถ้อยคำสุภาพ และ Closing ถูกต้อง แต่ไม่มีการเสนอความช่วยเหลือเพิ่มเติมก่อนปิด",
+    "1.1": "มีการทักทาย แนะนำชื่อชัดเจน เช่น สวัสดีค่ะ แอดมินบัวลอยยินดีให้บริการ และมีการปิดบทสนทนาแล้ว แต่ยังขาดการเช็กก่อนปิดเคสว่าลูกค้ายังต้องการความช่วยเหลือเพิ่มไหม",
     "1.2": "ข้อมูลเกี่ยวกับเงินประกันและเงื่อนไขการคืนเงินตรงตามนโยบายบริษัท และใช้สื่อทางการประกอบ ไม่มีข้อมูลผิดหรือคาดเดา",
     "1.3": "ไม่มีการเปิดเผยข้อมูลส่วนบุคคล และไม่มีการละเมิดนโยบาย",
     "2.1": "คำตอบสอดคล้องกับคำถามเรื่องเงินประกัน แต่เป็นข้อมูลเชิงทั่วไป ไม่ได้ตรวจสอบสถานะบัญชีของไรเดอร์รายนี้ก่อนให้คำตอบ",
@@ -369,7 +352,11 @@ function isWithinDateRange(auditDate: string, from?: string, to?: string) {
 }
 
 function formatCurrencyTHB(value: number) {
-  return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function getIncentiveValue(caseCount: number, avg: number) {
@@ -389,17 +376,29 @@ function getIncentiveRemark(caseCount: number, avg: number) {
 }
 
 function buildAgentSummary(cases: CaseItem[]): Summary {
-  const average = cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(cases.length, 1);
+  const average =
+    cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(cases.length, 1);
+
   const gradeCounts: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
   for (const item of cases) gradeCounts[item.grade] += 1;
 
   const topicPerformance = TOPIC_MASTER.map((master) => {
     const topics = cases
-      .flatMap((item) => (item.reviewStatus === "Revised" && item.revisedTopics?.length ? item.revisedTopics : item.topics))
+      .flatMap((item) =>
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? item.revisedTopics
+          : item.topics
+      )
       .filter((topic) => topic.code === master.code);
 
     if (!topics.length) {
-      return { code: master.code, label: master.label, avgScore: "-", max: master.max, pct: "-" };
+      return {
+        code: master.code,
+        label: master.label,
+        avgScore: "-",
+        max: master.max,
+        pct: "-",
+      };
     }
 
     const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
@@ -412,34 +411,76 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
     };
   });
 
-  return { averageDisplay: average.toFixed(2), gradeCounts, topicPerformance };
+  return {
+    averageDisplay: average.toFixed(2),
+    gradeCounts,
+    topicPerformance,
+  };
 }
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-3xl border border-violet-200 bg-white/95 shadow-sm ${className}`}>{children}</div>;
+  return (
+    <div
+      className={`rounded-3xl border border-violet-200 bg-white/95 shadow-sm ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function PanelHeader({ title }: { title: string }) {
-  return <div className="border-b border-slate-200 px-5 py-4 text-lg font-semibold text-slate-900">{title}</div>;
+  return (
+    <div className="border-b border-slate-200 px-5 py-4 text-lg font-semibold text-slate-900">
+      {title}
+    </div>
+  );
 }
 
-function PanelBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function PanelBody({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return <div className={`p-5 ${className}`}>{children}</div>;
 }
 
-function SmallButton({ children, onClick, dark = false }: { children: React.ReactNode; onClick: () => void; dark?: boolean }) {
+function SmallButton({
+  children,
+  onClick,
+  dark = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  dark?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={dark ? "rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20" : "rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-violet-50"}
+      className={
+        dark
+          ? "rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20"
+          : "rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-violet-50"
+      }
     >
       {children}
     </button>
   );
 }
 
-function MetricCard({ title, value, sub, className = "" }: { title: string; value: string; sub: string; className?: string }) {
+function MetricCard({
+  title,
+  value,
+  sub,
+  className = "",
+}: {
+  title: string;
+  value: string;
+  sub: string;
+  className?: string;
+}) {
   return (
     <Panel className={className}>
       <PanelBody>
@@ -451,9 +492,29 @@ function MetricCard({ title, value, sub, className = "" }: { title: string; valu
   );
 }
 
-function WeeklySnapshotCard({ label, caseCount, averageDisplay, isActive, onClick }: { label: string; caseCount: number; averageDisplay: string; isActive: boolean; onClick: () => void }) {
+function WeeklySnapshotCard({
+  label,
+  caseCount,
+  averageDisplay,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  caseCount: number;
+  averageDisplay: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
   return (
-    <button type="button" onClick={onClick} className={`w-full rounded-2xl border px-4 py-4 text-left ${isActive ? "border-violet-300 bg-violet-100/80" : "border-violet-100 bg-violet-50/70 hover:bg-violet-100/70"}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-2xl border px-4 py-4 text-left ${
+        isActive
+          ? "border-violet-300 bg-violet-100/80"
+          : "border-violet-100 bg-violet-50/70 hover:bg-violet-100/70"
+      }`}
+    >
       <div className="font-semibold text-slate-900">{label}</div>
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-2xl bg-white/70 p-3">
@@ -469,7 +530,15 @@ function WeeklySnapshotCard({ label, caseCount, averageDisplay, isActive, onClic
   );
 }
 
-function CaseNavigatorCard({ item, isSelected, onSelect }: { item: CaseItem; isSelected: boolean; onSelect: () => void }) {
+function CaseNavigatorCard({
+  item,
+  isSelected,
+  onSelect,
+}: {
+  item: CaseItem;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
   return (
     <div
       role="button"
@@ -481,16 +550,28 @@ function CaseNavigatorCard({ item, isSelected, onSelect }: { item: CaseItem; isS
           onSelect();
         }
       }}
-      className={`h-full cursor-pointer rounded-2xl border p-3 text-left transition ${isSelected ? "border-violet-300 bg-violet-100/80 shadow-sm" : "border-violet-100 bg-white/70 hover:bg-violet-50/80"}`}
+      className={`h-full cursor-pointer rounded-2xl border p-3 text-left transition ${
+        isSelected
+          ? "border-violet-300 bg-violet-100/80 shadow-sm"
+          : "border-violet-100 bg-white/70 hover:bg-violet-50/80"
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
         </div>
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(item.grade)}`}>{item.grade}</span>
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
+          {item.grade}
+        </span>
       </div>
-      <div className="mt-2 min-h-[2.5rem] text-[12px] font-medium text-slate-800">{item.inquiryTh}</div>
+      <div className="mt-2 min-h-[2.5rem] text-[12px] font-medium text-slate-800">
+        {item.inquiryTh}
+      </div>
       <div className="mt-2 text-[10px] text-slate-500">{item.reviewStatus}</div>
     </div>
   );
@@ -499,8 +580,18 @@ function CaseNavigatorCard({ item, isSelected, onSelect }: { item: CaseItem; isS
 function ReviewStatusBadge({ item }: { item: CaseItem }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${reviewTone(item.reviewStatus)}`}>{item.reviewStatus}</span>
-      {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? <span className="text-xs font-medium text-violet-700">{Math.round(item.previousScore)} → {Math.round(item.finalScore)}</span> : null}
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${reviewTone(
+          item.reviewStatus
+        )}`}
+      >
+        {item.reviewStatus}
+      </span>
+      {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
+        <span className="text-xs font-medium text-violet-700">
+          {Math.round(item.previousScore)} → {Math.round(item.finalScore)}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -510,7 +601,7 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
     <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-violet-50/70">
       <table className="min-w-[860px] w-full text-sm">
         <thead>
-          <tr className="bg-violet-700 text-white text-[11px]">
+          <tr className="bg-violet-700 text-[11px] text-white">
             <th className="px-3 py-3">Topic</th>
             <th className="px-3 py-3 text-left">Description</th>
             <th className="px-3 py-3">Avg Score</th>
@@ -521,11 +612,19 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
         <tbody>
           {items.map((entry) => (
             <tr key={entry.code}>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.code}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.code}
+              </td>
               <td className="border-t border-slate-200 px-3 py-3">{entry.label}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.pct === "-" ? "-" : `${entry.pct}%`}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.avgScore}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.max}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.pct === "-" ? "-" : `${entry.pct}%`}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -534,9 +633,21 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
   );
 }
 
-function CaseDetailTopicTable({ topics, revisedTopics, reviewStatus }: { topics: Topic[]; revisedTopics?: Topic[]; reviewStatus?: ReviewStatus }) {
-  const activeTopics = reviewStatus === "Revised" && revisedTopics?.length ? revisedTopics : topics;
-  const columns = [activeTopics.filter((_, i) => i % 2 === 0), activeTopics.filter((_, i) => i % 2 === 1)];
+function CaseDetailTopicTable({
+  topics,
+  revisedTopics,
+  reviewStatus,
+}: {
+  topics: Topic[];
+  revisedTopics?: Topic[];
+  reviewStatus?: ReviewStatus;
+}) {
+  const activeTopics =
+    reviewStatus === "Revised" && revisedTopics?.length ? revisedTopics : topics;
+  const columns = [
+    activeTopics.filter((_, i) => i % 2 === 0),
+    activeTopics.filter((_, i) => i % 2 === 1),
+  ];
 
   const getTone = (pct: number): [string, string] => {
     if (pct >= 80) return ["ดี", "bg-emerald-50 text-emerald-700 border-emerald-200"];
@@ -546,36 +657,62 @@ function CaseDetailTopicTable({ topics, revisedTopics, reviewStatus }: { topics:
 
   return (
     <div className="space-y-3">
-      {reviewStatus === "Revised" && revisedTopics?.length ? <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">กำลังแสดง Score และ Percent จากไฟล์ Revised โดย Remark ใช้ของเดิม</div> : null}
+      {reviewStatus === "Revised" && revisedTopics?.length ? (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+          กำลังแสดง Score และ Percent จากไฟล์ Revised โดย Remark ใช้ของเดิม
+        </div>
+      ) : null}
+
       <div className="grid gap-3 xl:grid-cols-2">
         {columns.map((group, idx) => (
           <div key={idx} className="space-y-3">
             {group.map((topic) => {
               const [label, wrap] = getTone(topic.pct);
               return (
-                <div key={`${topic.code}-${topic.label}`} className="rounded-xl border border-fuchsia-100 bg-white/90 p-3 shadow-sm">
+                <div
+                  key={`${topic.code}-${topic.label}`}
+                  className="rounded-xl border border-fuchsia-100 bg-white/90 p-3 shadow-sm"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">{topic.code}</div>
-                      <div className="mt-1 text-xs font-semibold leading-5 text-slate-900">{topic.label}</div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                        {topic.code}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold leading-5 text-slate-900">
+                        {topic.label}
+                      </div>
                     </div>
                     <div className="shrink-0 rounded-lg bg-fuchsia-50 px-2.5 py-1.5 text-right">
-                      <div className="text-[9px] uppercase tracking-wide text-slate-500">{reviewStatus === "Revised" && revisedTopics?.length ? "Revised Score" : "Score"}</div>
-                      <div className="text-sm font-bold text-slate-900">{topic.score}/{topic.max}</div>
+                      <div className="text-[9px] uppercase tracking-wide text-slate-500">
+                        {reviewStatus === "Revised" && revisedTopics?.length
+                          ? "Revised Score"
+                          : "Score"}
+                      </div>
+                      <div className="text-sm font-bold text-slate-900">
+                        {topic.score}/{topic.max}
+                      </div>
                     </div>
                   </div>
+
                   <div className={`mt-2 rounded-lg border px-2.5 py-2 text-[11px] ${wrap}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <div className="font-medium">Percent</div>
                         <div className="mt-1 text-sm font-semibold">{topic.pct}%</div>
                       </div>
-                      <span className="rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold">{label}</span>
+                      <span className="rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold">
+                        {label}
+                      </span>
                     </div>
                   </div>
+
                   <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Evaluation Comment</div>
-                    <div className="mt-1 text-[11px] leading-5 text-slate-700">{topic.comment || "ยังไม่มี Evaluation Comment จากไฟล์ที่อัปโหลด"}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Evaluation Comment
+                    </div>
+                    <div className="mt-1 text-[11px] leading-5 text-slate-700">
+                      {topic.comment || "ยังไม่มี Evaluation Comment จากไฟล์ที่อัปโหลด"}
+                    </div>
                   </div>
                 </div>
               );
@@ -591,9 +728,20 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
   return (
     <div className="space-y-3">
       {(Object.keys(gradeCounts) as Grade[]).map((grade) => (
-        <div key={grade} className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white/70 px-4 py-3">
-          <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}>{grade}</span>
-          <span className="text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s)</span>
+        <div
+          key={grade}
+          className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white/70 px-4 py-3"
+        >
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(
+              grade
+            )}`}
+          >
+            {grade}
+          </span>
+          <span className="text-sm font-semibold text-slate-900">
+            {gradeCounts[grade]} Case(s)
+          </span>
         </div>
       ))}
     </div>
@@ -606,13 +754,23 @@ function DataHealthChecks() {
     { name: "Loaded case count", pass: CASES.length === 13 },
     { name: "Suphitcha loaded", pass: CASES.some((x) => x.agent === "Suphitcha Keawliam") },
     { name: "Sunijtra loaded", pass: CASES.some((x) => x.agent === "Sunijtra Siritan") },
-    { name: "Jari revised loaded", pass: CASES.some((x) => x.caseId === "AA208553" && x.reviewStatus === "Revised") },
+    {
+      name: "Jari revised loaded",
+      pass: CASES.some((x) => x.caseId === "AA208553" && x.reviewStatus === "Revised"),
+    },
   ];
 
   return (
     <div className="space-y-2">
       {tests.map((test) => (
-        <div key={test.name} className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${test.pass ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>
+        <div
+          key={test.name}
+          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
+            test.pass
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+        >
           <span>{test.name}</span>
           <span className="font-semibold">{test.pass ? "PASS" : "FAIL"}</span>
         </div>
@@ -621,8 +779,6 @@ function DataHealthChecks() {
   );
 }
 
-    
-
 export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
@@ -630,17 +786,8 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [uploadedData, setUploadedData] = useState<any | null>(null);
-  
+  const defaultDashboardData = uploadedData || currentDashboardData;
 
-export default function DashboardMockup({ currentUser }: { currentUser: any }) {
- const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
-const [selectedWeek, setSelectedWeek] = useState<string>("all");
-const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
-const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
-const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
-const [uploadedData, setUploadedData] = useState<any | null>(null);
-const defaultDashboardData = uploadedData || currentDashboardData;
-  
   const handleUploadJson = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -662,10 +809,6 @@ const defaultDashboardData = uploadedData || currentDashboardData;
     reader.readAsText(file);
   };
 
- 
-
-  
-
   const visibleAgentList = useMemo(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return [currentUser.agentName];
@@ -679,17 +822,17 @@ const defaultDashboardData = uploadedData || currentDashboardData;
     }
   }, [visibleAgentList, selectedAgent]);
 
-const sourceCases: CaseItem[] = useMemo(() => {
-  if (defaultDashboardData?.cases && Array.isArray(defaultDashboardData.cases)) {
-    return defaultDashboardData.cases;
-  }
-  return CASES;
-}, [defaultDashboardData]);
+  const sourceCases: CaseItem[] = useMemo(() => {
+    if (defaultDashboardData?.cases && Array.isArray(defaultDashboardData.cases)) {
+      return defaultDashboardData.cases;
+    }
+    return CASES;
+  }, [defaultDashboardData]);
 
-const effectiveSelectedAgent =
-  currentUser?.role === "Agent" && currentUser.agentName
-    ? currentUser.agentName
-    : selectedAgent;
+  const effectiveSelectedAgent =
+    currentUser?.role === "Agent" && currentUser.agentName
+      ? currentUser.agentName
+      : selectedAgent;
 
   const agentCases = useMemo(() => {
     return sourceCases.filter((item) => item.agent === effectiveSelectedAgent);
@@ -700,14 +843,14 @@ const effectiveSelectedAgent =
   }, [agentCases, dateFrom, dateTo]);
 
   const weekLabels = useMemo(() => {
-  if (
-    defaultDashboardData?.weeklySummaries &&
-    Array.isArray(defaultDashboardData.weeklySummaries)
-  ) {
-    return defaultDashboardData.weeklySummaries.map((item: any) => item.weekLabel);
-  }
-  return [...new Set(dateFilteredCases.map((item) => item.weekLabel))];
-}, [defaultDashboardData, dateFilteredCases]);
+    if (
+      defaultDashboardData?.weeklySummaries &&
+      Array.isArray(defaultDashboardData.weeklySummaries)
+    ) {
+      return defaultDashboardData.weeklySummaries.map((item: any) => item.weekLabel);
+    }
+    return [...new Set(dateFilteredCases.map((item) => item.weekLabel))];
+  }, [defaultDashboardData, dateFilteredCases]);
 
   const visibleCases = useMemo(() => {
     if (selectedWeek === "all") return dateFilteredCases;
@@ -737,26 +880,21 @@ const effectiveSelectedAgent =
     return buildAgentSummary(dateFilteredCases);
   }, [dateFilteredCases]);
 
-const metricAverageDisplay =
-  defaultDashboardData?.monthlySummary?.averageScore != null
-    ? Number(defaultDashboardData.monthlySummary.averageScore).toFixed(2)
-    : summary.averageDisplay;
+  const metricAverageDisplay =
+    defaultDashboardData?.monthlySummary?.averageScore != null
+      ? Number(defaultDashboardData.monthlySummary.averageScore).toFixed(2)
+      : summary.averageDisplay;
 
   const metricCaseCount =
-  defaultDashboardData?.monthlySummary?.casesReviewed != null
-    ? Number(defaultDashboardData.monthlySummary.casesReviewed)
-    : dateFilteredCases.length;
+    defaultDashboardData?.monthlySummary?.casesReviewed != null
+      ? Number(defaultDashboardData.monthlySummary.casesReviewed)
+      : dateFilteredCases.length;
 
   const incentiveDisplay = formatCurrencyTHB(
     getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
   );
 
-  const incentiveRemark = getIncentiveRemark(
-    metricCaseCount,
-    Number(metricAverageDisplay)
-  );
-
- 
+  const incentiveRemark = getIncentiveRemark(metricCaseCount, Number(metricAverageDisplay));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
@@ -776,13 +914,12 @@ const metricAverageDisplay =
                 Logged in as {currentUser.displayName} ({currentUser.role})
               </div>
             </div>
+
             <div className="flex flex-wrap gap-2">
-              <SmallButton onClick={() => window.print()}>
-                Print / Save PDF
-              </SmallButton>
+              <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
               <SmallButton onClick={() => window.print()} dark>
-  Export
-</SmallButton>
+                Export
+              </SmallButton>
             </div>
           </div>
         </div>
@@ -866,7 +1003,7 @@ const metricAverageDisplay =
               </PanelBody>
             </Panel>
 
-                 <Panel>
+            <Panel>
               <PanelHeader title="Weekly Snapshot" />
               <PanelBody className="space-y-3">
                 <WeeklySnapshotCard
@@ -974,6 +1111,7 @@ const metricAverageDisplay =
                         {activeSelectedCase.inquiryEn}
                       </div>
                     </div>
+
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
