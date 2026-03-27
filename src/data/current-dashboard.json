@@ -1,32 +1,4 @@
-export type TopicScore = {
-  code: string;
-  label: string;
-  score: number;
-  max: number;
-  pct: number;
-  comment: string;
-};
-
-export type QaCaseRecord = {
-  key: string;
-  agent: string;
-  auditDate: string;
-  weekLabel: string;
-  caseId: string;
-  caseUrl: string;
-  inquiryTh: string;
-  inquiryEn: string;
-  finalScore: number;
-  previousScore: number;
-  grade: string;
-  reviewStatus: string;
-  topics: TopicScore[];
-  revisedTopics: TopicScore[] | null;
-  criticalError?: boolean;
-};
-
-export const qaAppealCases: QaCaseRecord[] = [
-  {
+ {
     key: "case01",
     agent: "Jariyawadee Taboodda",
     auditDate: "11/03/2026",
