@@ -2,38 +2,66 @@ import { useState } from "react";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 
+type UserAccount = {
+  username: string;
+  password: string;
+  displayName: string;
+  role: string;
+  agentName?: string;
+};
+
+const USER_ACCOUNTS: UserAccount[] = [
+  // ใช้ชุดเดียวกับของเดิม
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "appeal">("dashboard");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+
+  const handleLogin = () => {
+    const user = USER_ACCOUNTS.find(
+      (item) => item.username === username.trim().toLowerCase() && item.password === password
+    );
+
+    if (!user) {
+      setLoginError("Username หรือ Password ไม่ถูกต้อง");
+      return;
+    }
+
+    setCurrentUser(user);
+    setLoginError("");
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setUsername("");
+    setPassword("");
+    setLoginError("");
+    setActiveTab("dashboard");
+  };
+
+  if (!currentUser) {
+    return (
+      <div>หน้า Login กลาง</div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="border-b bg-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl gap-2 p-4">
-          <button
-            onClick={() => setActiveTab("dashboard")}
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${
-              activeTab === "dashboard"
-                ? "bg-violet-600 text-white"
-                : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            Dashboard
-          </button>
-
-          <button
-            onClick={() => setActiveTab("appeal")}
-            className={`rounded-xl px-4 py-2 text-sm font-medium ${
-              activeTab === "appeal"
-                ? "bg-violet-600 text-white"
-                : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            Appeal
-          </button>
-        </div>
+    <div>
+      <div>
+        <button onClick={() => setActiveTab("dashboard")}>Dashboard</button>
+        <button onClick={() => setActiveTab("appeal")}>Appeal</button>
+        <button onClick={handleLogout}>Logout</button>
       </div>
 
-      {activeTab === "dashboard" ? <DashboardMockup /> : <AppealMockup />}
+      {activeTab === "dashboard" ? (
+        <DashboardMockup currentUser={currentUser} />
+      ) : (
+        <AppealMockup currentUser={currentUser} />
+      )}
     </div>
   );
 }
