@@ -939,53 +939,7 @@ const metricAverageDisplay =
 
             <Panel>
           <Panel>
- <Panel>
-  <PanelHeader title="Weekly Snapshot" />
-  <PanelBody className="space-y-3">
-    <WeeklySnapshotCard
-      label="All Weeks"
-      caseCount={dateFilteredCases.length}
-      averageDisplay={summary.averageDisplay}
-      isActive={selectedWeek === "all"}
-      onClick={() => setSelectedWeek("all")}
-    />
 
-    {defaultDashboardData?.weeklySummaries &&
-    Array.isArray(defaultDashboardData.weeklySummaries) ? (
-      defaultDashboardData.weeklySummaries.map((week: any) => (
-        <WeeklySnapshotCard
-          key={week.weekLabel}
-          label={week.weekLabel}
-          caseCount={Number(week.casesReviewed || 0)}
-          averageDisplay={Number(week.averageScore || 0).toFixed(2)}
-          isActive={selectedWeek === week.weekLabel}
-          onClick={() => setSelectedWeek(week.weekLabel)}
-        />
-      ))
-    ) : (
-      weekLabels.map((week) => {
-        const weekCases = dateFilteredCases.filter((item) => item.weekLabel === week);
-        const weekSummary = buildAgentSummary(weekCases);
-
-        return (
-          <WeeklySnapshotCard
-            key={week}
-            label={week}
-            caseCount={weekCases.length}
-            averageDisplay={weekSummary.averageDisplay}
-            isActive={selectedWeek === week}
-            onClick={() => setSelectedWeek(week)}
-          />
-        );
-      })
-    )}
-  </PanelBody>
-</Panel>
-                      />
-                    ))
-              
-
-            <Panel>
               <PanelHeader title="Data Health Checks" />
               <PanelBody>
                 <DataHealthChecks />
@@ -1027,8 +981,8 @@ const metricAverageDisplay =
                       item={item}
                       isSelected={activeSelectedCase?.key === item.key}
                       onSelect={() => setSelectedCaseKey(item.key)}
-                    />
-                  ))}
+           
+              
                 </div>
               </PanelBody>
             </Panel>
