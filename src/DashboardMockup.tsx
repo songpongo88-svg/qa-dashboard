@@ -739,17 +739,17 @@ export default function DashboardMockup() {
     }
   }, [visibleAgentList, selectedAgent]);
 
-  const sourceCases: CaseItem[] = useMemo(() => {
-    if (uploadedData?.cases && Array.isArray(uploadedData.cases)) {
-      return uploadedData.cases;
-    }
-    return CASES;
-  }, [uploadedData]);
+const sourceCases: CaseItem[] = useMemo(() => {
+  if (defaultDashboardData?.cases && Array.isArray(defaultDashboardData.cases)) {
+    return defaultDashboardData.cases;
+  }
+  return CASES;
+}, [defaultDashboardData]);
 
-  const effectiveSelectedAgent =
-    currentUser?.role === "Agent" && currentUser.agentName
-      ? currentUser.agentName
-      : uploadedData?.agent || selectedAgent;
+ const effectiveSelectedAgent =
+  currentUser?.role === "Agent" && currentUser.agentName
+    ? currentUser.agentName
+    : defaultDashboardData?.agent || selectedAgent;
 
   const agentCases = useMemo(() => {
     return sourceCases.filter((item) => item.agent === effectiveSelectedAgent);
@@ -760,11 +760,14 @@ export default function DashboardMockup() {
   }, [agentCases, dateFrom, dateTo]);
 
   const weekLabels = useMemo(() => {
-    if (uploadedData?.weeklySummaries && Array.isArray(uploadedData.weeklySummaries)) {
-      return uploadedData.weeklySummaries.map((item: any) => item.weekLabel);
-    }
-    return [...new Set(dateFilteredCases.map((item) => item.weekLabel))];
-  }, [uploadedData, dateFilteredCases]);
+  if (
+    defaultDashboardData?.weeklySummaries &&
+    Array.isArray(defaultDashboardData.weeklySummaries)
+  ) {
+    return defaultDashboardData.weeklySummaries.map((item: any) => item.weekLabel);
+  }
+  return [...new Set(dateFilteredCases.map((item) => item.weekLabel))];
+}, [defaultDashboardData, dateFilteredCases]);
 
   const visibleCases = useMemo(() => {
     if (selectedWeek === "all") return dateFilteredCases;
@@ -794,15 +797,15 @@ export default function DashboardMockup() {
     return buildAgentSummary(dateFilteredCases);
   }, [dateFilteredCases]);
 
-  const metricAverageDisplay =
-    uploadedData?.monthlySummary?.averageScore != null
-      ? Number(uploadedData.monthlySummary.averageScore).toFixed(2)
-      : summary.averageDisplay;
+const metricAverageDisplay =
+  defaultDashboardData?.monthlySummary?.averageScore != null
+    ? Number(defaultDashboardData.monthlySummary.averageScore).toFixed(2)
+    : summary.averageDisplay;
 
   const metricCaseCount =
-    uploadedData?.monthlySummary?.casesReviewed != null
-      ? Number(uploadedData.monthlySummary.casesReviewed)
-      : dateFilteredCases.length;
+  defaultDashboardData?.monthlySummary?.casesReviewed != null
+    ? Number(defaultDashboardData.monthlySummary.casesReviewed)
+    : dateFilteredCases.length;
 
   const incentiveDisplay = formatCurrencyTHB(
     getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
@@ -945,8 +948,9 @@ export default function DashboardMockup() {
                   onClick={() => setSelectedWeek("all")}
                 />
 
-                {uploadedData?.weeklySummaries && Array.isArray(uploadedData.weeklySummaries)
-                  ? uploadedData.weeklySummaries.map((week: any) => (
+{defaultDashboardData?.weeklySummaries &&
+Array.isArray(defaultDashboardData.weeklySummaries)
+defaultDashboardData.weeklySummaries.map((week: any) => (
                       <WeeklySnapshotCard
                         key={week.weekLabel}
                         label={week.weekLabel}
