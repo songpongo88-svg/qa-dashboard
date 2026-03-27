@@ -30,12 +30,7 @@ type AppealCase = {
   items: AppealItem[];
 };
 
-type DemoUser = {
-  label: string;
-  password: string;
-  role: 'agent' | 'senior' | 'supervisor' | 'qa_management';
-  agentName?: string;
-};
+
 
 const AGENT_LIST = [
   'Anucha Makundin',
@@ -53,7 +48,7 @@ const AGENT_LIST = [
   'Wassana Phothong',
 ] as const;
 
-const DEMO_USERS: DemoUser[] = [
+
   { label: 'Phrommarin Thaithorn', password: 'Phrommarin2026', role: 'supervisor' },
   { label: 'Krivut Vongkampang', password: 'Krivut2026', role: 'senior' },
   { label: 'Songpon Phothong', password: 'Songpon2026', role: 'qa_management' },
@@ -433,8 +428,9 @@ const APPEAL_CASES: AppealCase[] = [
   },
 ];
 
-function hasFullAccess(user: DemoUser | null) {
-  return Boolean(user && user.role !== 'agent');
+function hasFullAccess(user: any) {
+  return Boolean(user && user.role !== "Agent");
+}
 }
 
 function validateCases(cases: AppealCase[]) {
@@ -458,14 +454,6 @@ function Card({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LoginScreen(props: {
-  selectedLogin: string;
-  accessCode: string;
-  loginError: string;
-  onSelectLogin: (value: string) => void;
-  onChangeAccessCode: (value: string) => void;
-  onUnlock: () => void;
-}) {
   const { selectedLogin, accessCode, loginError, onSelectLogin, onChangeAccessCode, onUnlock } = props;
   return (
     <div className="min-h-screen bg-[#f5f3ff] px-6 py-10 text-slate-800 lg:px-10">
@@ -497,13 +485,9 @@ function LoginScreen(props: {
   );
 }
 
-export default function AppealMockup() {
-  const [selectedLogin, setSelectedLogin] = useState('');
-  const [accessCode, setAccessCode] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [currentUser, setCurrentUser] = useState<DemoUser | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState('');
-  const [selectedCaseId, setSelectedCaseId] = useState('');
+export default function AppealMockup({ currentUser }: { currentUser: any }) {
+const [selectedAgent, setSelectedAgent] = useState('');
+const [selectedCaseId, setSelectedCaseId] = useState('');
 
   const validationIssues = useMemo(() => validateCases(APPEAL_CASES), []);
   const visibleCases = useMemo(() => {
@@ -527,7 +511,7 @@ export default function AppealMockup() {
       setSelectedCaseId('');
       return;
     }
-    if (currentUser.role === 'agent') {
+
       const own = currentUser.agentName ?? '';
       if (selectedAgent !== own) {
         setSelectedAgent(own);
@@ -543,34 +527,7 @@ export default function AppealMockup() {
     }
   }, [currentUser, selectedAgent, selectedCaseId, filteredCases]);
 
-  const handleUnlock = () => {
-    const matched = DEMO_USERS.find((user) => user.label === selectedLogin);
-    if (!matched) {
-      setLoginError('กรุณาเลือกผู้ใช้งาน');
-      return;
-    }
-    if (accessCode.trim() !== matched.password) {
-      setLoginError('รหัสผ่านไม่ถูกต้อง');
-      return;
-    }
-    setCurrentUser(matched);
-    setLoginError('');
-    setSelectedAgent(matched.role === 'agent' ? matched.agentName ?? '' : '');
-    setSelectedCaseId('');
-  };
 
-  const handleLogout = () => {
-    setSelectedLogin('');
-    setAccessCode('');
-    setLoginError('');
-    setCurrentUser(null);
-    setSelectedAgent('');
-    setSelectedCaseId('');
-  };
-
-  if (!currentUser) {
-    return <LoginScreen selectedLogin={selectedLogin} accessCode={accessCode} loginError={loginError} onSelectLogin={setSelectedLogin} onChangeAccessCode={setAccessCode} onUnlock={handleUnlock} />;
-  }
 
   const selectableAgents = hasFullAccess(currentUser)
     ? AGENT_LIST
@@ -598,13 +555,9 @@ export default function AppealMockup() {
                 </p>
               </div>
               <button
-                onClick={handleLogout}
-                className="inline-flex items-center justify-center rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/15"
-              >
-                Lock Screen
-              </button>
-            </div>
-          </div>
+               <div className="text-sm text-purple-100">
+  {currentUser.displayName} ({currentUser.role})
+</div>
 
           <div className="grid gap-4 bg-[#fcfbff] px-8 py-5 lg:grid-cols-3">
             <Card label="Selected Agent" value={selectedAgent || '-'} />
@@ -627,7 +580,7 @@ export default function AppealMockup() {
               <label className="mb-2 block text-sm font-semibold text-slate-700">Agent Name</label>
               <select
                 value={selectedAgent}
-                disabled={currentUser.role === 'agent'}
+               disabled={currentUser.role === 'Agent'}
                 onChange={(e) => setSelectedAgent(e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400 disabled:bg-slate-100"
               >
