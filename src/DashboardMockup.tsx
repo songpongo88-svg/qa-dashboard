@@ -621,25 +621,16 @@ function DataHealthChecks() {
   );
 }
 
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50 p-6">
-      <div className="mx-auto flex min-h-[80vh] max-w-md items-center justify-center">
-        <div className="w-full rounded-3xl border border-violet-200 bg-white/95 p-6 shadow-lg">
-          <div className="mb-6 text-center">
-            <div className="text-sm font-medium text-violet-600">QA Dashboard Access</div>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900">Sign in</h1>
-            <p className="mt-2 text-sm text-slate-500">Agent เห็นเฉพาะของตัวเอง / QA, Supervisor, Senior เห็นได้ทุกคน</p>
-          </div>
-          <div className="space-y-4">
-            <input value={username} onChange={(e) => onUsernameChange(e.target.value)} placeholder="Username" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400" />
-            <input value={password} onChange={(e) => onPasswordChange(e.target.value)} type="password" placeholder="Password" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400" />
-            {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
-            <button type="button" onClick={onLogin} className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-800">Log in</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+    }
+
+export default function DashboardMockup({ currentUser }: { currentUser: any }) {
+  const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
+  const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
+  const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
+  const [uploadedData, setUploadedData] = useState<any | null>(null);
+  const defaultDashboardData = uploadedData || currentDashboardData;
 
 export default function DashboardMockup({ currentUser }: { currentUser: any }) {
  const [selectedAgent, setSelectedAgent] = useState<string>("Suphitcha Keawliam");
