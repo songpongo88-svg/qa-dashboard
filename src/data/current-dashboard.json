@@ -22,7 +22,108 @@
   "cases": [
     {
       "key": "case01",
-      "agent": "Jariyawadee Taboodda"
+      "agent": "Jariyawadee Taboodda",
+      "auditDate": "11/03/2026",
+      "weekLabel": "Week 2",
+      "caseId": "AA205172",
+      "inquiryTh": "ตัวอย่างหัวข้อเคส 1",
+      "inquiryEn": "Sample case subject 1",
+      "finalScore": 96,
+      "previousScore": 96,
+      "grade": "A",
+      "reviewStatus": "Original",
+      "topics": [
+        {
+          "code": "1.1",
+          "label": "Greeting & Closing Standard",
+          "score": 10,
+          "max": 10,
+          "pct": 100,
+          "comment": "มีการทักทาย แนะนำตัว และปิดการสนทนาครบถ้วน"
+        },
+        {
+          "code": "1.2",
+          "label": "Accuracy of Information",
+          "score": 5,
+          "max": 5,
+          "pct": 100,
+          "comment": "ให้ข้อมูลถูกต้องตรงตามเคส"
+        },
+        {
+          "code": "1.3",
+          "label": "PDPA & Policy",
+          "score": 5,
+          "max": 5,
+          "pct": 100,
+          "comment": "ไม่มีการเปิดเผยข้อมูลเกินจำเป็น"
+        }
+      ],
+      "revisedTopics": null
+    },
+    {
+      "key": "case02",
+      "agent": "Jariyawadee Taboodda",
+      "auditDate": "18/03/2026",
+      "weekLabel": "Week 3",
+      "caseId": "AA208553",
+      "inquiryTh": "ตัวอย่างหัวข้อเคส 2",
+      "inquiryEn": "Sample case subject 2",
+      "finalScore": 79,
+      "previousScore": 76,
+      "grade": "C",
+      "reviewStatus": "Revised",
+      "topics": [
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80,
+          "comment": "คำตอบตรงประเด็นหลักของเคส"
+        },
+        {
+          "code": "2.2",
+          "label": "Completeness",
+          "score": 4,
+          "max": 5,
+          "pct": 80,
+          "comment": "ตอบได้ค่อนข้างครบ แต่ยังมีบางส่วนที่ควรขยายเพิ่ม"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause & Fix",
+          "score": 7,
+          "max": 10,
+          "pct": 70,
+          "comment": "มีการวิเคราะห์และให้แนวทางแก้ไข แต่ยังไม่ลึกพอ"
+        }
+      ],
+      "revisedTopics": [
+        {
+          "code": "2.1",
+          "label": "Case Accuracy",
+          "score": 4,
+          "max": 5,
+          "pct": 80,
+          "comment": "คำตอบตรงประเด็นหลักของเคส"
+        },
+        {
+          "code": "2.2",
+          "label": "Completeness",
+          "score": 4,
+          "max": 5,
+          "pct": 80,
+          "comment": "ตอบได้ค่อนข้างครบ แต่ยังมีบางส่วนที่ควรขยายเพิ่ม"
+        },
+        {
+          "code": "3.1",
+          "label": "Root Cause & Fix",
+          "score": 8,
+          "max": 10,
+          "pct": 80,
+          "comment": "หลังพิจารณาเพิ่มเติม ปรับคะแนนตามเหตุผลอุทธรณ์"
+        }
+      ]
     }
   ]
 }
