@@ -939,6 +939,7 @@ const metricAverageDisplay =
 
             <Panel>
           <Panel>
+ <Panel>
   <PanelHeader title="Weekly Snapshot" />
   <PanelBody className="space-y-3">
     <WeeklySnapshotCard
