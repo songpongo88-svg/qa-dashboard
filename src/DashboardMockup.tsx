@@ -819,7 +819,7 @@ function DashboardMockup({ currentUser }: { currentUser: any }) {
                   <label className="mb-2 block text-sm font-medium text-slate-700">Selected Agent</label>
                   <select
                    <select
- <div>
+<div>
 <label className="mb-2 block text-sm font-medium text-slate-700">Selected Agent</label>
 <select
    value={effectiveSelectedAgent}
