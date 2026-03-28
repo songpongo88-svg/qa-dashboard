@@ -221,7 +221,7 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-3xl border border-violet-200 bg-white/95 shadow-sm ${className}`}>
+    <div className={`rounded-3xl border border-violet-200 bg-white shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -229,7 +229,7 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
 
 function PanelHeader({ title }: { title: string }) {
   return (
-    <div className="border-b border-slate-200 px-5 py-4 text-lg font-semibold text-slate-900">
+    <div className="border-b border-violet-100 px-5 py-4 text-lg font-semibold text-slate-900">
       {title}
     </div>
   );
@@ -261,7 +261,7 @@ function SmallButton({
       className={
         dark
           ? "rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20"
-          : "rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-violet-50"
+          : "rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm text-violet-700 hover:bg-violet-50"
       }
     >
       {children}
@@ -279,11 +279,12 @@ function MetricCard({
   sub: string;
 }) {
   return (
-    <Panel>
+    <Panel className="overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-500" />
       <PanelBody>
-        <div className="text-sm font-semibold">{title}</div>
-        <div className="mt-3 text-3xl font-bold">{value}</div>
-        <div className="mt-2 text-xs opacity-80">{sub}</div>
+        <div className="text-sm font-semibold text-slate-600">{title}</div>
+        <div className="mt-3 text-3xl font-bold text-slate-900">{value}</div>
+        <div className="mt-2 text-xs text-slate-500">{sub}</div>
       </PanelBody>
     </Panel>
   );
@@ -308,17 +309,17 @@ function WeeklySnapshotCard({
       onClick={onClick}
       className={`w-full rounded-2xl border px-4 py-4 text-left ${
         isActive
-          ? "border-violet-300 bg-violet-100/80"
-          : "border-violet-100 bg-violet-50/70 hover:bg-violet-100/70"
+          ? "border-violet-400 bg-violet-100"
+          : "border-violet-100 bg-violet-50 hover:bg-violet-100/70"
       }`}
     >
       <div className="font-semibold text-slate-900">{label}</div>
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl bg-white/70 p-3">
+        <div className="rounded-2xl bg-white p-3">
           <div className="text-slate-500">Average Score</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{averageDisplay}</div>
         </div>
-        <div className="rounded-2xl bg-white/70 p-3">
+        <div className="rounded-2xl bg-white p-3">
           <div className="text-slate-500">Cases</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{caseCount}</div>
         </div>
@@ -349,8 +350,8 @@ function CaseNavigatorCard({
       }}
       className={`h-full cursor-pointer rounded-2xl border p-3 text-left transition ${
         isSelected
-          ? "border-violet-300 bg-violet-100/80 shadow-sm"
-          : "border-violet-100 bg-white/70 hover:bg-violet-50/80"
+          ? "border-violet-400 bg-violet-100 shadow-sm"
+          : "border-violet-100 bg-white hover:bg-violet-50"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -395,10 +396,10 @@ function ReviewStatusBadge({ item }: { item: CaseItem }) {
 
 function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-violet-50/70">
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
       <table className="min-w-[860px] w-full text-sm">
         <thead>
-          <tr className="bg-violet-700 text-[11px] text-white">
+          <tr className="bg-violet-900 text-[11px] text-white">
             <th className="px-3 py-3">Topic</th>
             <th className="px-3 py-3 text-left">Description</th>
             <th className="px-3 py-3">Avg Score</th>
@@ -408,7 +409,7 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
         </thead>
         <tbody>
           {items.map((entry) => (
-            <tr key={entry.code}>
+            <tr key={entry.code} className="bg-white">
               <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.code}</td>
               <td className="border-t border-slate-200 px-3 py-3">{entry.label}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore}</td>
@@ -457,18 +458,18 @@ function CaseDetailTopicTable({
               return (
                 <div
                   key={`${topic.code}-${topic.label}`}
-                  className="rounded-xl border border-fuchsia-100 bg-white/90 p-3 shadow-sm"
+                  className="rounded-xl border border-violet-100 bg-white p-3 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
                         {topic.code}
                       </div>
                       <div className="mt-1 text-xs font-semibold leading-5 text-slate-900">
                         {topic.label}
                       </div>
                     </div>
-                    <div className="shrink-0 rounded-lg bg-fuchsia-50 px-2.5 py-1.5 text-right">
+                    <div className="shrink-0 rounded-lg bg-violet-50 px-2.5 py-1.5 text-right">
                       <div className="text-[9px] uppercase tracking-wide text-slate-500">Score</div>
                       <div className="text-sm font-bold text-slate-900">
                         {topic.score}/{topic.max}
@@ -512,7 +513,7 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
       {(Object.keys(gradeCounts) as Grade[]).map((grade) => (
         <div
           key={grade}
-          className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white/70 px-4 py-3"
+          className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
         >
           <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}>
             {grade}
@@ -765,7 +766,7 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
           กำลังโหลด QA_RawData1.xlsx...
         </div>
@@ -775,7 +776,7 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
@@ -788,36 +789,29 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
+    <div className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6">
-       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-  <div className="flex items-center gap-4">
-    <div>
-      <div className="text-sm font-medium text-violet-100">QA Performance Dashboard</div>
-      <h1 className="mt-2 text-3xl font-bold">
-        {currentUser?.role === "Agent"
-          ? currentUser.agentName
-          : "QA Performance Dashboard"}
-      </h1>
-      <div className="mt-2 text-sm text-violet-100">
-        Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-      </div>
-    </div>
+        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 p-6 text-white shadow-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <div className="text-sm font-medium text-violet-100">QA Performance Dashboard</div>
+                <h1 className="mt-2 text-3xl font-bold">
+                  {currentUser?.role === "Agent"
+                    ? currentUser.agentName
+                    : "QA Performance Dashboard"}
+                </h1>
+                <div className="mt-2 text-sm text-violet-100">
+                  Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
+                </div>
+              </div>
 
-    <img
-      src="/robinhood-logo.png"
-      alt="Robinhood Logo"
-      className="h-20 w-20 rounded-2xl border border-white/20 bg-white/10 object-cover shadow-lg"
-    />
-  </div>
-
-  <div className="flex flex-wrap gap-2">
-    <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
-    <SmallButton onClick={() => window.print()} dark>
-      Export
-    </SmallButton>
-  </div>
-</div>
+              <img
+                src="/robinhood-logo.png"
+                alt="Robinhood Logo"
+                className="h-20 w-20 rounded-2xl border border-white/20 bg-white/10 object-cover shadow-lg"
+              />
+            </div>
 
             <div className="flex flex-wrap gap-2">
               <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
@@ -1020,19 +1014,19 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                        <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
                           <div className="text-xs text-slate-500">Audit Date</div>
                           <div className="mt-1 text-sm font-semibold text-slate-900">{activeSelectedCase.auditDate}</div>
                         </div>
-                        <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                        <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
                           <div className="text-xs text-slate-500">Week</div>
                           <div className="mt-1 text-sm font-semibold text-slate-900">{activeSelectedCase.weekLabel}</div>
                         </div>
-                        <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                        <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
                           <div className="text-xs text-slate-500">Final Score</div>
                           <div className="mt-1 text-sm font-semibold text-slate-900">{activeSelectedCase.finalScore}</div>
                         </div>
-                        <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                        <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
                           <div className="text-xs text-slate-500">Case URL</div>
                           {activeSelectedCase.caseUrl ? (
                             <a
