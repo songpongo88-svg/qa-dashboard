@@ -818,11 +818,12 @@ function DashboardMockup({ currentUser }: { currentUser: any }) {
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700">Selected Agent</label>
                   <select
-                    value={effectiveSelectedAgent}
-                    onChange={(e) => setSelectedAgent(e.target.value)}
-                    disabled={currentUser?.role === "Agent"}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 disabled:bg-slate-100"
-                  >
+                   <select
+ value={effectiveSelectedAgent}
+ onChange={(e) => setSelectedAgent(e.target.value)}
+ disabled={currentUser?.role === "Agent"}
+ className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 disabled:bg-slate-100"
+>
                     {visibleAgentList.map((agent) => (
                       <option key={agent} value={agent}>
                         {agent}
