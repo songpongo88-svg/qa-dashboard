@@ -116,6 +116,9 @@ const USER_ACCOUNTS: UserAccount[] = [
   },
 ];
 
+type MainTab = "dashboard" | "appeal" | "qa-rubric";
+type DashboardSubTab = "overview" | "case-detail";
+
 function LoginScreen({
   username,
   password,
@@ -177,6 +180,88 @@ function LoginScreen({
   );
 }
 
+function QARubricPage() {
+  const sections = [
+    {
+      title: "1. Compliance, Process & Policy",
+      items: [
+        "1.1 Greeting & Closing Standard (10)",
+        "1.2 PDPA & Policy (5)",
+        "1.3 Process & SLA (5)",
+      ],
+    },
+    {
+      title: "2. Answer Quality & Knowledge",
+      items: [
+        "2.1 Case Accuracy (5)",
+        "2.2 Completeness (5)",
+        "2.3 Clarity of Steps (5)",
+        "2.4 Official Sources (5)",
+      ],
+    },
+    {
+      title: "3. Resolution & Ownership",
+      items: [
+        "3.1 Root Cause & Fix (10)",
+        "3.2 Ownership (5)",
+        "3.3 Next Step (5)",
+      ],
+    },
+    {
+      title: "4. Communication Skill",
+      items: [
+        "4.1 Message Structure (5)",
+        "4.2 Language (5)",
+        "4.3 Tone (5)",
+        "4.4 Adaptation (5)",
+      ],
+    },
+    {
+      title: "5. Process & SLA",
+      items: [
+        "5.1 Process (10)",
+        "5.2 SLA (5)",
+        "5.3 Case Logging (5)",
+      ],
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
+      <div className="mx-auto max-w-7xl p-6">
+        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-500 p-6 text-white shadow-lg">
+          <div className="text-sm font-medium text-violet-100">Private Tab</div>
+          <h1 className="mt-2 text-3xl font-bold">QA Rubric</h1>
+          <div className="mt-2 text-sm text-violet-100">
+            หน้านี้ใช้สำหรับดูโครงเกณฑ์ประเมิน QA และเงื่อนไขคะแนน
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {sections.map((section) => (
+            <div
+              key={section.title}
+              className="rounded-3xl border border-violet-200 bg-white p-6 shadow-sm"
+            >
+              <div className="text-lg font-semibold text-slate-900">{section.title}</div>
+              <div className="mt-4 space-y-3">
+                {section.items.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -185,9 +270,12 @@ function App() {
     const saved = localStorage.getItem("qa_current_user");
     return saved ? JSON.parse(saved) : null;
   });
-  const [activeTab, setActiveTab] = useState<"dashboard" | "appeal">("dashboard");
+  const [activeTab, setActiveTab] = useState<MainTab>("dashboard");
+  const [dashboardSubTab, setDashboardSubTab] = useState<DashboardSubTab>("overview");
 
   const idleTimerRef = useRef<number | null>(null);
+
+  const canSeeRubric = currentUser?.username === "qa";
 
   useEffect(() => {
     if (currentUser) {
@@ -212,6 +300,7 @@ function App() {
       setPassword("");
       setLoginError("ออกจากระบบอัตโนมัติเนื่องจากไม่มีการใช้งานเกิน 30 นาที");
       setActiveTab("dashboard");
+      setDashboardSubTab("overview");
       localStorage.removeItem("qa_current_user");
     };
 
@@ -271,11 +360,19 @@ function App() {
     setPassword("");
     setLoginError("");
     setActiveTab("dashboard");
+    setDashboardSubTab("overview");
     localStorage.removeItem("qa_current_user");
 
     if (idleTimerRef.current) {
       window.clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
+    }
+  };
+
+  const handleMainTabChange = (tab: MainTab) => {
+    setActiveTab(tab);
+    if (tab === "dashboard") {
+      setDashboardSubTab("overview");
     }
   };
 
@@ -295,54 +392,100 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab("dashboard")}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                activeTab === "dashboard"
-                  ? "bg-violet-700 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              Dashboard
-            </button>
+        <div className="mx-auto max-w-7xl px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleMainTabChange("dashboard")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                  activeTab === "dashboard"
+                    ? "bg-violet-700 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Dashboard
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab("appeal")}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                activeTab === "appeal"
-                  ? "bg-violet-700 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              Appeal
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => handleMainTabChange("appeal")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                  activeTab === "appeal"
+                    ? "bg-violet-700 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Appeal
+              </button>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right text-sm">
-              <div className="font-semibold text-slate-900">{currentUser.displayName}</div>
-              <div className="text-slate-500">{currentUser.role}</div>
+              {canSeeRubric ? (
+                <button
+                  type="button"
+                  onClick={() => handleMainTabChange("qa-rubric")}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                    activeTab === "qa-rubric"
+                      ? "bg-violet-700 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  QA Rubric
+                </button>
+              ) : null}
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              Log out
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="text-right text-sm">
+                <div className="font-semibold text-slate-900">{currentUser.displayName}</div>
+                <div className="text-slate-500">{currentUser.role}</div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Log out
+              </button>
+            </div>
           </div>
+
+          {activeTab === "dashboard" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
+              <button
+                type="button"
+                onClick={() => setDashboardSubTab("overview")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                  dashboardSubTab === "overview"
+                    ? "bg-fuchsia-100 text-fuchsia-700"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Overview
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDashboardSubTab("case-detail")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                  dashboardSubTab === "case-detail"
+                    ? "bg-fuchsia-100 text-fuchsia-700"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                Case Detail
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
       {activeTab === "dashboard" ? (
         <DashboardMockup currentUser={currentUser} />
-      ) : (
+      ) : activeTab === "appeal" ? (
         <AppealMockup currentUser={currentUser} />
+      ) : (
+        <QARubricPage />
       )}
     </div>
   );
