@@ -1,299 +1,196 @@
-type DemoUser = {
-  label: string;
-  password: string;
-  role: 'supervisor' | 'senior' | 'qa_management' | 'agent';
-  agentName?: string;
+import React, { useEffect, useMemo, useState } from "react";
+type AppealCase = {
+ caseId: string;
+ agentName: string;
+ appealSubmitDate?: string;
+ appealResultDate?: string;
+ appealChannel?: string;
+ originalScore?: number;
+ revisedScore?: number;
+ result?: string;
+ reason?: string;
 };
-
-const DEMO_USERS: DemoUser[] = [
-  { label: 'Phrommarin Thaithorn', password: 'Phrommarin2026', role: 'supervisor' },
-  { label: 'Krivut Vongkampang', password: 'Krivut2026', role: 'senior' },
-  { label: 'Songpon Phothong', password: 'Songpon2026', role: 'qa_management' },
-  { label: 'Anucha Makundin', password: 'Anucha2026', role: 'agent', agentName: 'Anucha Makundin' },
-  { label: 'Arisa aiemrit', password: 'Arisa2026', role: 'agent', agentName: 'Arisa aiemrit' },
-  { label: 'Chatkonnaphat Bhusomya', password: 'Chatkonnaphat2026', role: 'agent', agentName: 'Chatkonnaphat Bhusomya' },
-  { label: 'Jariyawadee Taboodda', password: 'Jariyawadee2026', role: 'agent', agentName: 'Jariyawadee Taboodda' },
-  { label: 'Jureeporn Piddum', password: 'Jureeporn2026', role: 'agent', agentName: 'Jureeporn Piddum' },
-  { label: 'Natcha Chai-in', password: 'Natcha2026', role: 'agent', agentName: 'Natcha Chai-in' },
-  { label: 'Nattapol Suprom', password: 'Nattapol2026', role: 'agent', agentName: 'Nattapol Suprom' },
-  { label: 'Sunijtra Siritip', password: 'Sunijtra2026', role: 'agent', agentName: 'Sunijtra Siritip' },
-  { label: 'Supakrit Promkhamnoi', password: 'Supakrit2026', role: 'agent', agentName: 'Supakrit Promkhamnoi' },
-  { label: 'Suphitcha Keawliam', password: 'Suphitcha2026', role: 'agent', agentName: 'Suphitcha Keawliam' },
-  { label: 'Wachiraporn chailittichai', password: 'Wachiraporn2026', role: 'agent', agentName: 'Wachiraporn chailittichai' },
-  { label: 'Wassana Phothong', password: 'Wassana2026', role: 'agent', agentName: 'Wassana Phothong' },
-].sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
-
+const DEMO_CASES: AppealCase[] = [
+ {
+   caseId: "AA205349",
+   agentName: "Jariyawadee Taboodda",
+   appealSubmitDate: "26/03/2026 20:26",
+   appealResultDate: "27/03/2026 10:00",
+   appealChannel: "Email",
+   originalScore: 76,
+   revisedScore: 79,
+   result: "Revised",
+   reason: "มีการทบทวนรายละเอียดเพิ่มเติมและปรับคะแนนบางหัวข้อ",
+ },
+ {
+   caseId: "AA206880",
+   agentName: "Songpon Phothong",
+   appealSubmitDate: "26/03/2026 20:26",
+   appealResultDate: "27/03/2026 10:30",
+   appealChannel: "Email",
+   originalScore: 69,
+   revisedScore: 69,
+   result: "No Change",
+   reason: "ตรวจสอบแล้วคงผลประเมินเดิม",
+ },
+];
 function hasFullAccess(user: any) {
-  return Boolean(user && user.role !== "Agent");
+ return Boolean(user && user.role !== "Agent");
 }
-
-function validateCases(cases: AppealCase[]) {
-  const seen = new Set<string>();
-  const issues: string[] = [];
-
-  for (const item of cases) {
-    const key = `${item.agentName}-${item.caseId}`;
-    if (seen.has(key)) issues.push(`Duplicate case found: ${key}`);
-    seen.add(key);
-    if (!item.items.length) issues.push(`Missing appeal items for ${key}`);
-  }
-
-  return issues;
-}
-
-function Card({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-2 whitespace-pre-line text-base font-semibold text-slate-900">
-        {value}
-      </div>
-    </div>
-  );
-}
-
 export default function AppealMockup({ currentUser }: { currentUser: any }) {
-  const [selectedAgent, setSelectedAgent] = useState("");
-  const [selectedCaseId, setSelectedCaseId] = useState("");
-
-  const validationIssues = useMemo(() => validateCases(APPEAL_CASES), []);
-
-  const visibleCases = useMemo(() => {
-    if (!currentUser) return [] as AppealCase[];
-    return hasFullAccess(currentUser)
-      ? APPEAL_CASES
-      : APPEAL_CASES.filter((item) => item.agentName === currentUser.agentName);
-  }, [currentUser]);
-
-  const filteredCases = useMemo(() => {
-    if (!selectedAgent) return [] as AppealCase[];
-    return visibleCases.filter((item) => item.agentName === selectedAgent);
-  }, [selectedAgent, visibleCases]);
-
-  const selectedCase = useMemo(() => {
-    if (!selectedAgent) return null;
-    return filteredCases.find((item) => item.caseId === selectedCaseId) ?? filteredCases[0] ?? null;
-  }, [filteredCases, selectedAgent, selectedCaseId]);
-
-  useEffect(() => {
-    if (!currentUser) {
-      setSelectedAgent("");
-      setSelectedCaseId("");
-      return;
-    }
-
-    if (!hasFullAccess(currentUser)) {
-      const ownAgent = currentUser.agentName ?? "";
-      if (selectedAgent !== ownAgent) {
-        setSelectedAgent(ownAgent);
-        return;
-      }
-    }
-
-    if (!selectedAgent) {
-      setSelectedCaseId("");
-      return;
-    }
-
-    if (!filteredCases.some((item) => item.caseId === selectedCaseId)) {
-      setSelectedCaseId(filteredCases[0]?.caseId ?? "");
-    }
-  }, [currentUser, selectedAgent, selectedCaseId, filteredCases]);
-
-  const selectableAgents = hasFullAccess(currentUser)
-    ? AGENT_LIST
-    : AGENT_LIST.filter((agent) => visibleCases.some((item) => item.agentName === agent));
-
-  const resolvedAppealResultDate =
-    (selectedCase && FILE_CREATED_AT_BY_CASE[selectedCase.caseId]) ||
-    selectedCase?.appealResultDate ||
-    "-";
-
-  const notificationByline = `Songpon Phothong · ${resolvedAppealResultDate}`;
-
-  return (
-    <div className="min-h-screen bg-[#f5f3ff] text-slate-800">
-      <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10">
-        <section className="mb-8 overflow-hidden rounded-[28px] bg-white shadow-[0_20px_60px_rgba(88,28,135,0.10)] ring-1 ring-purple-100">
-          <div className="bg-gradient-to-r from-purple-900 via-violet-800 to-fuchsia-700 px-8 py-8 text-white">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h1 className="mt-2 text-3xl font-semibold leading-tight lg:text-4xl">
-                  แจ้งผลการพิจารณาอุทธรณ์คะแนน QA รายบุคคล
-                </h1>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-purple-100 lg:text-base">
-                  โหมดเดโม: Agent เห็นเฉพาะข้อมูลของตัวเอง ส่วน Supervisor, Senior และ QA Management
-                  สามารถเลือกดูได้ทุกคน
-                </p>
-              </div>
-
-              <div className="text-sm text-purple-100">
-                {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-4 bg-[#fcfbff] px-8 py-5 lg:grid-cols-3">
-            <Card label="Selected Agent" value={selectedAgent || "-"} />
-            <Card label="Role" value="CS Customer (Non Voice)" />
-            <Card label="Selected Case" value={selectedCase?.caseId || "-"} />
-          </div>
-        </section>
-
-        {validationIssues.length > 0 ? (
-          <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            {validationIssues.map((issue) => (
-              <div key={issue}>• {issue}</div>
-            ))}
-          </section>
-        ) : null}
-
-        <section className="mb-8 rounded-[28px] bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 lg:p-8">
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_0.8fr] lg:items-end">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Agent Name</label>
-              <select
-                value={selectedAgent}
-                disabled={currentUser?.role === "Agent"}
-                onChange={(e) => setSelectedAgent(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400 disabled:bg-slate-100"
-              >
-                <option value="">ยังไม่เลือกชื่อ Agent</option>
-                {selectableAgents.map((agent) => (
-                  <option key={agent} value={agent}>
-                    {agent}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Case ID</label>
-              <select
-                value={selectedCase?.caseId || ""}
-                onChange={(e) => setSelectedCaseId(e.target.value)}
-                disabled={!selectedAgent}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none focus:border-purple-400 disabled:bg-slate-100"
-              >
-                {!selectedAgent ? <option value="">กรุณาเลือก Agent ก่อน</option> : null}
-                {filteredCases.map((item) => (
-                  <option key={item.caseId} value={item.caseId}>
-                    {item.caseId} · {item.caseNo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="rounded-2xl bg-purple-50 px-4 py-4 ring-1 ring-purple-100">
-              <div className="text-xs uppercase tracking-wide text-purple-700">Current View</div>
-              <div className="mt-2 text-lg font-semibold text-slate-900">
-                {selectedCase?.caseId || "-"}
-              </div>
-              <div className="mt-1 text-sm text-slate-600">
-                {selectedCase?.agentName || "ยังไม่มีข้อมูล"}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {selectedCase ? (
-          <section className="rounded-[28px] bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] ring-1 ring-purple-300 lg:p-8">
-            <div className="space-y-4 border-b border-slate-200 pb-5">
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                <div className="text-sm font-semibold text-red-800">
-                  {selectedCase.appealClosedNotice}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <Card label="Audit Date" value={selectedCase.auditDate || "-"} />
-                <Card
-                  label="Appeal Submit Date & Time"
-                  value={selectedCase.appealSubmitDate || "-"}
-                />
-                <Card
-                  label="Appeal Result Date & Time"
-                  value={resolvedAppealResultDate}
-                />
-                <Card
-                  label="Original Score"
-                  value={`${selectedCase.originalScore} · ${selectedCase.originalGrade}`}
-                />
-                <Card
-                  label="Revised Score"
-                  value={`${selectedCase.revisedScore} · ${selectedCase.revisedGrade}`}
-                />
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card
-                  label="Appeal Channel"
-                  value={`${selectedCase.submissionChannel} | ${selectedCase.submissionEmail || "-"}`}
-                />
-                <Card
-                  label="Appeal Result Notification"
-                  value={`${DEFAULT_NOTIFICATION_TITLE} | ${notificationByline} | ${DEFAULT_NOTIFICATION_EMAIL}`}
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-6">
-              {selectedCase.items.map((item) => (
-                <div
-                  key={item.topic}
-                  className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">{item.topic}</h3>
-                      <div className="mt-2 inline-flex rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-700 ring-1 ring-rose-200">
-                        ผลพิจารณา: {item.result}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 lg:min-w-[220px]">
-                      <Card label="Original" value={item.before} />
-                      <Card label="Revised" value={item.after} />
-                    </div>
-                  </div>
-
-                  {item.agentAppeal ? (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900 shadow-sm">
-                      <div className="font-semibold">ประเด็นที่ Agent ยื่นอุทธรณ์</div>
-                      <div className="mt-2 whitespace-pre-line">{item.agentAppeal}</div>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm leading-7 text-indigo-950 shadow-sm">
-                    <div className="font-semibold">คำชี้แจงผลพิจารณา</div>
-                    <div className="mt-2 whitespace-pre-line">{item.reason}</div>
-                  </div>
-
-                  {item.guidance ? (
-                    <div className="mt-4 rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm leading-7 text-purple-950 shadow-sm">
-                      <div className="font-semibold">แนวทางการตอบ</div>
-                      <div className="mt-2 whitespace-pre-line">{item.guidance}</div>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-              <div className="text-sm font-semibold text-emerald-700">
-                สรุปเคส {selectedCase.caseId}
-              </div>
-              <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700">
-                {selectedCase.summary}
-              </p>
-            </div>
-          </section>
-        ) : (
-          <section className="rounded-[28px] bg-white p-8 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)] ring-1 ring-slate-200">
-            <div className="text-lg font-semibold text-slate-900">กรุณาเลือกชื่อ Agent</div>
-          </section>
-        )}
-      </div>
-    </div>
-  );
+ const [selectedAgent, setSelectedAgent] = useState("");
+ const [selectedCaseId, setSelectedCaseId] = useState("");
+ const visibleCases = useMemo(() => {
+   if (!currentUser) return [];
+   return hasFullAccess(currentUser)
+     ? DEMO_CASES
+     : DEMO_CASES.filter((item) => item.agentName === currentUser.agentName);
+ }, [currentUser]);
+ const selectableAgents = useMemo(() => {
+   return [...new Set(visibleCases.map((item) => item.agentName))].sort((a, b) =>
+     a.localeCompare(b)
+   );
+ }, [visibleCases]);
+ useEffect(() => {
+   if (!selectableAgents.length) {
+     setSelectedAgent("");
+     setSelectedCaseId("");
+     return;
+   }
+   if (currentUser?.role === "Agent" && currentUser.agentName) {
+     setSelectedAgent(currentUser.agentName);
+     return;
+   }
+   if (!selectedAgent || !selectableAgents.includes(selectedAgent)) {
+     setSelectedAgent(selectableAgents[0]);
+   }
+ }, [currentUser, selectableAgents, selectedAgent]);
+ const filteredCases = useMemo(() => {
+   if (!selectedAgent) return [];
+   return visibleCases.filter((item) => item.agentName === selectedAgent);
+ }, [visibleCases, selectedAgent]);
+ useEffect(() => {
+   if (!filteredCases.length) {
+     setSelectedCaseId("");
+     return;
+   }
+   const stillExists = filteredCases.some((item) => item.caseId === selectedCaseId);
+   if (!stillExists) {
+     setSelectedCaseId(filteredCases[0].caseId);
+   }
+ }, [filteredCases, selectedCaseId]);
+ const selectedCase =
+   filteredCases.find((item) => item.caseId === selectedCaseId) || filteredCases[0] || null;
+ return (
+<div className="min-h-screen bg-[#f5f3ff] text-slate-800">
+<div className="mx-auto max-w-7xl px-6 py-10">
+<div className="overflow-hidden rounded-[28px] bg-white shadow-[0_20px_60px_rgba(88,28,135,0.10)] ring-1 ring-purple-100">
+<div className="bg-gradient-to-r from-purple-900 via-violet-800 to-fuchsia-700 px-8 py-8 text-white">
+<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+<div>
+<h1 className="text-3xl font-semibold leading-tight lg:text-4xl">
+                 แจ้งผลการพิจารณาอุทธรณ์คะแนน QA
+</h1>
+<p className="mt-3 text-sm text-purple-100">
+                 Agent เห็นเฉพาะข้อมูลของตัวเอง ส่วน QA / Supervisor / Senior เห็นได้ทุกคน
+</p>
+</div>
+<div className="text-sm text-purple-100">
+               {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
+</div>
+</div>
+</div>
+<div className="grid gap-4 p-6 md:grid-cols-2">
+<div>
+<label className="mb-2 block text-sm font-semibold text-slate-700">Agent Name</label>
+<select
+               value={selectedAgent}
+               onChange={(e) => setSelectedAgent(e.target.value)}
+               disabled={currentUser?.role === "Agent"}
+               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-purple-400 disabled:bg-slate-100"
+>
+               {selectableAgents.map((agent) => (
+<option key={agent} value={agent}>
+                   {agent}
+</option>
+               ))}
+</select>
+</div>
+<div>
+<label className="mb-2 block text-sm font-semibold text-slate-700">Case ID</label>
+<select
+               value={selectedCase?.caseId || ""}
+               onChange={(e) => setSelectedCaseId(e.target.value)}
+               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-purple-400"
+>
+               {filteredCases.map((item) => (
+<option key={item.caseId} value={item.caseId}>
+                   {item.caseId}
+</option>
+               ))}
+</select>
+</div>
+</div>
+</div>
+       {selectedCase ? (
+<div className="mt-8 rounded-[28px] bg-white p-8 shadow-[0_20px_50px_rgba(15,23,42,0.06)] ring-1 ring-slate-200">
+<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+<div className="text-xs text-slate-500">Case ID</div>
+<div className="mt-1 text-base font-semibold text-slate-900">{selectedCase.caseId}</div>
+</div>
+<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+<div className="text-xs text-slate-500">Appeal Submit Date</div>
+<div className="mt-1 text-base font-semibold text-slate-900">
+                 {selectedCase.appealSubmitDate || "-"}
+</div>
+</div>
+<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+<div className="text-xs text-slate-500">Appeal Result Date</div>
+<div className="mt-1 text-base font-semibold text-slate-900">
+                 {selectedCase.appealResultDate || "-"}
+</div>
+</div>
+<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+<div className="text-xs text-slate-500">Appeal Channel</div>
+<div className="mt-1 text-base font-semibold text-slate-900">
+                 {selectedCase.appealChannel || "-"}
+</div>
+</div>
+</div>
+<div className="mt-6 grid gap-4 md:grid-cols-3">
+<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+<div className="text-xs text-amber-700">Original Score</div>
+<div className="mt-1 text-xl font-bold text-slate-900">
+                 {selectedCase.originalScore ?? "-"}
+</div>
+</div>
+<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+<div className="text-xs text-emerald-700">Revised Score</div>
+<div className="mt-1 text-xl font-bold text-slate-900">
+                 {selectedCase.revisedScore ?? "-"}
+</div>
+</div>
+<div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+<div className="text-xs text-violet-700">Result</div>
+<div className="mt-1 text-xl font-bold text-slate-900">
+                 {selectedCase.result || "-"}
+</div>
+</div>
+</div>
+<div className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+<div className="text-sm font-semibold text-indigo-900">Reason</div>
+<div className="mt-2 text-sm leading-7 text-slate-700">
+               {selectedCase.reason || "-"}
+</div>
+</div>
+</div>
+       ) : (
+<div className="mt-8 rounded-[28px] bg-white p-8 text-center ring-1 ring-slate-200">
+           ไม่พบข้อมูลอุทธรณ์
+</div>
+       )}
+</div>
+</div>
+ );
 }
