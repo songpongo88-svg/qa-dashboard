@@ -948,11 +948,18 @@ function DashboardMockup({ currentUser }: { currentUser: any }) {
                 <PanelBody className="space-y-5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <div className="text-sm text-slate-500">Case ID</div>
-                      <div className="text-xl font-bold text-slate-900">{activeSelectedCase.caseId}</div>
-                      <div className="mt-2 text-sm text-slate-700">{activeSelectedCase.inquiryTh}</div>
-                      <div className="mt-1 text-sm text-slate-500">{activeSelectedCase.inquiryEn}</div>
-                    </div>
+<div className="text-sm text-slate-500">Case ID</div>
+<div className="text-xl font-bold text-slate-900">{activeSelectedCase.caseId}</div>
+<div className="mt-2 text-sm text-slate-700">
+   {activeSelectedCase.inquiryTh}
+</div>
+ {activeSelectedCase.inquiryEn &&
+ normalizeText(activeSelectedCase.inquiryEn) !== normalizeText(activeSelectedCase.inquiryTh) ? (
+<div className="mt-1 text-sm text-slate-500">
+     {activeSelectedCase.inquiryEn}
+</div>
+ ) : null}
+</div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <span
