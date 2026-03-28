@@ -790,19 +790,34 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50">
       <div className="mx-auto max-w-7xl p-6">
-        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-500 p-6 text-white shadow-lg">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-sm font-medium text-violet-100">QA Performance Dashboard</div>
-              <h1 className="mt-2 text-3xl font-bold">
-                {currentUser?.role === "Agent"
-                  ? currentUser.agentName
-                  : "QA Performance Dashboard"}
-              </h1>
-              <div className="mt-2 text-sm text-violet-100">
-                Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-              </div>
-            </div>
+       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+  <div className="flex items-center gap-4">
+    <div>
+      <div className="text-sm font-medium text-violet-100">QA Performance Dashboard</div>
+      <h1 className="mt-2 text-3xl font-bold">
+        {currentUser?.role === "Agent"
+          ? currentUser.agentName
+          : "QA Performance Dashboard"}
+      </h1>
+      <div className="mt-2 text-sm text-violet-100">
+        Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
+      </div>
+    </div>
+
+    <img
+      src="/robinhood-logo.png"
+      alt="Robinhood Logo"
+      className="h-20 w-20 rounded-2xl border border-white/20 bg-white/10 object-cover shadow-lg"
+    />
+  </div>
+
+  <div className="flex flex-wrap gap-2">
+    <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
+    <SmallButton onClick={() => window.print()} dark>
+      Export
+    </SmallButton>
+  </div>
+</div>
 
             <div className="flex flex-wrap gap-2">
               <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
