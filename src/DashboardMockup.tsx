@@ -807,7 +807,7 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
               </div>
 
               <img
-                src="/robinhood-logo.png"
+                src="/robinhood-logo.PNG"
                 alt="Robinhood Logo"
                 className="h-20 w-20 rounded-2xl border border-white/20 bg-white/10 object-cover shadow-lg"
               />
