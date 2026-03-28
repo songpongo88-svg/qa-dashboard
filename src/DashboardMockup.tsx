@@ -600,6 +600,10 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
         };
 
         const mapped: CaseItem[] = dataRows
+          const cleaned = mapped.filter(
+ (item) => item.agent && item.caseId && item.auditDate
+);
+setAllCases(cleaned);
           .filter((row) => row && getValue(row, "Agent Name") && getValue(row, "Case ID"))
           .map((row, index) => {
             const topics: Topic[] = TOPIC_MASTER.map((topic) => {
@@ -653,17 +657,22 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
     loadWorkbook();
   }, []);
 
-  const visibleAgentList = useMemo(() => {
-    const agents = [...new Set(allCases.map((item) => item.agent))].sort((a, b) =>
-      a.localeCompare(b)
-    );
-
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return agents.filter((agent) => agent === currentUser.agentName);
-    }
-
-    return agents;
-  }, [allCases, currentUser]);
+ const normalizeText = (value: unknown) =>
+ String(value ?? "")
+   .trim()
+   .replace(/\s+/g, " ")
+   .toLowerCase();
+const visibleAgentList = useMemo(() => {
+ const agents = [...new Set(allCases.map((item) => String(item.agent).trim()))].sort((a, b) =>
+   a.localeCompare(b)
+ );
+ if (currentUser?.role === "Agent" && currentUser.agentName) {
+   return agents.filter(
+     (agent) => normalizeText(agent) === normalizeText(currentUser.agentName)
+   );
+ }
+ return agents;
+}, [allCases, currentUser]);
 
   useEffect(() => {
     if (!selectedAgent && visibleAgentList.length > 0) {
@@ -677,14 +686,15 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   }, [visibleAgentList, selectedAgent]);
 
   const effectiveSelectedAgent =
-    currentUser?.role === "Agent" && currentUser.agentName
-      ? currentUser.agentName
-      : selectedAgent;
+ currentUser?.role === "Agent" && currentUser.agentName
+   ? String(currentUser.agentName).trim()
+   : String(selectedAgent).trim();
 
   const agentCases = useMemo(() => {
-    return allCases.filter((item) => item.agent === effectiveSelectedAgent);
-  }, [allCases, effectiveSelectedAgent]);
-
+ return allCases.filter(
+   (item) => normalizeText(item.agent) === normalizeText(effectiveSelectedAgent)
+ );
+}, [allCases, effectiveSelectedAgent]);
   const dateFilteredCases = useMemo(() => {
     return agentCases.filter((item) => isWithinDateRange(item.auditDate, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo]);
