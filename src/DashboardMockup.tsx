@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import dashboardData from "./data/current-dashboard.json";
+import * as XLSX from "xlsx";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -43,14 +43,6 @@ type Summary = {
   gradeCounts: Record<Grade, number>;
   topicPerformance: TopicSummary[];
 };
-
-type DashboardDataShape = {
-  mode?: string;
-  availableAgents?: string[];
-  cases?: CaseItem[];
-};
-
-const typedDashboardData = dashboardData as DashboardDataShape;
 
 const CASE_TARGET = 10;
 const TODAY = new Date();
@@ -117,6 +109,28 @@ function formatInputDate(value: Date) {
   const month = `${value.getMonth() + 1}`.padStart(2, "0");
   const day = `${value.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function excelDateToJSDate(value: any): Date | null {
+  if (!value && value !== 0) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (!parsed) return null;
+    return new Date(parsed.y, parsed.m - 1, parsed.d);
+  }
+  const asDate = new Date(value);
+  if (!Number.isNaN(asDate.getTime())) return asDate;
+  return null;
+}
+
+function formatAuditDate(value: any): string {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return String(value ?? "");
+  const day = `${dt.getDate()}`.padStart(2, "0");
+  const month = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const year = dt.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function parseAuditDate(value: string) {
@@ -581,58 +595,187 @@ export default function DashboardMockup({
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
 
   useEffect(() => {
-    try {
-      setIsLoading(true);
-      setLoadError("");
+    const loadWorkbook = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
 
-      const mapped = (typedDashboardData.cases || []).map((item, index) => {
-        const finalScore = Number(item.finalScore ?? 0);
-        const reviewStatus: ReviewStatus =
-          item.reviewStatus === "Revised" ? "Revised" : "Original";
+        const response = await fetch("/QA_RawData1.xlsx");
+        if (!response.ok) {
+          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+        }
 
-        return {
-          key: item.key || `row-${index + 1}-${String(item.caseId ?? "").trim()}`,
-          agent: String(item.agent ?? "").trim(),
-          auditDate: String(item.auditDate ?? "").trim(),
-          weekLabel: String(item.weekLabel ?? "-").trim(),
-          caseId: String(item.caseId ?? "").trim(),
-          caseUrl: item.caseUrl ? String(item.caseUrl).trim() : "",
-          inquiryTh: String(item.inquiryTh ?? "-").trim(),
-          inquiryEn: String(item.inquiryEn ?? "-").trim(),
-          finalScore,
-          previousScore:
-            typeof item.previousScore === "number"
-              ? item.previousScore
-              : finalScore,
-          grade: scoreToGrade(finalScore),
-          reviewStatus,
-          topics: (item.topics || []).map((topic) => ({
-            code: String(topic.code ?? ""),
-            label: String(topic.label ?? ""),
-            score: Number(topic.score ?? 0),
-            max: Number(topic.max ?? 0),
-            pct: Number(topic.pct ?? 0),
-            comment: topic.comment ? String(topic.comment) : "",
-          })),
-          revisedTopics: (item.revisedTopics || null)?.map((topic) => ({
-            code: String(topic.code ?? ""),
-            label: String(topic.label ?? ""),
-            score: Number(topic.score ?? 0),
-            max: Number(topic.max ?? 0),
-            pct: Number(topic.pct ?? 0),
-            comment: topic.comment ? String(topic.comment) : "",
-          })),
+        const buffer = await response.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+        const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
+
+        const rows = XLSX.utils.sheet_to_json<any[]>(sheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
+
+        const findHeaderRowIndex = () => {
+          for (let i = 0; i < rows.length; i++) {
+            const row = (rows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            const hasAgent = normalized.includes("agent name");
+            const hasCaseId = normalized.includes("case id");
+            if (hasAgent && hasCaseId) return i;
+          }
+          return -1;
         };
-      });
 
-      const cleaned = mapped.filter((item) => item.agent && item.caseId && item.auditDate);
-      setAllCases(cleaned);
-    } catch (error: any) {
-      console.error("Load Error:", error);
-      setLoadError(error?.message || "โหลดไฟล์ current-dashboard.json ไม่สำเร็จ");
-    } finally {
-      setIsLoading(false);
-    }
+        const headerIndex = findHeaderRowIndex();
+        if (headerIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ Excel");
+        }
+
+        const headerRow = ((rows[headerIndex] || []) as any[]).map((h) => String(h ?? "").trim());
+        const dataRows = rows.slice(headerIndex + 1);
+
+        const col = (name: string) => {
+          const target = normalizeText(name);
+          return headerRow.findIndex((h) => normalizeText(h) === target);
+        };
+
+        const getValue = (row: any[], name: string) => {
+          const idx = col(name);
+          return idx >= 0 ? row[idx] : null;
+        };
+
+        const mapped: CaseItem[] = dataRows
+          .filter((row) => row && getValue(row, "Agent Name") && getValue(row, "Case ID"))
+          .map((row, index) => {
+            const topics: Topic[] = TOPIC_MASTER.map((topic) => {
+              const scoreVal = Number(getValue(row, `${topic.code} Score`) || 0);
+              const score = Number.isFinite(scoreVal) ? scoreVal : 0;
+              const commentVal = getValue(row, `${topic.code} Comment`);
+
+              return {
+                code: topic.code,
+                label: topic.label,
+                score,
+                max: topic.max,
+                pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+                comment: commentVal ? String(commentVal).trim() : "",
+              };
+            });
+
+            const revisedTopics: Topic[] | null = TOPIC_MASTER.map((topic) => {
+              const revisedScoreVal = getValue(row, `${topic.code} Revised Score`);
+              const revisedCommentVal = getValue(row, `${topic.code} Revised Comment`);
+
+              const hasRevisedScore =
+                revisedScoreVal !== null &&
+                revisedScoreVal !== "" &&
+                !Number.isNaN(Number(revisedScoreVal));
+
+              const hasRevisedComment =
+                revisedCommentVal !== null &&
+                String(revisedCommentVal).trim() !== "";
+
+              if (!hasRevisedScore && !hasRevisedComment) {
+                return null;
+              }
+
+              const score = hasRevisedScore
+                ? Number(revisedScoreVal)
+                : topics.find((t) => t.code === topic.code)?.score ?? 0;
+
+              const comment = hasRevisedComment
+                ? String(revisedCommentVal).trim()
+                : topics.find((t) => t.code === topic.code)?.comment ?? "";
+
+              return {
+                code: topic.code,
+                label: topic.label,
+                score,
+                max: topic.max,
+                pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+                comment,
+              };
+            }).filter(Boolean) as Topic[];
+
+            const reviewStatusRaw =
+              getValue(row, "Review Status") ??
+              getValue(row, "reviewStatus") ??
+              getValue(row, "QA Status") ??
+              "";
+
+            const hasRevisedTopics = revisedTopics.length > 0;
+
+            const reviewStatus: ReviewStatus =
+              normalizeText(reviewStatusRaw) === "revised" || hasRevisedTopics
+                ? "Revised"
+                : "Original";
+
+            const finalScoreVal =
+              Number(
+                getValue(row, "Final Score") ??
+                  getValue(row, "Score After Appeal") ??
+                  getValue(row, "Revised Final Score")
+              ) ||
+              (reviewStatus === "Revised" && revisedTopics.length
+                ? revisedTopics.reduce((sum, topic) => sum + topic.score, 0)
+                : topics.reduce((sum, topic) => sum + topic.score, 0));
+
+            const previousScoreRaw =
+              getValue(row, "Previous Score") ??
+              getValue(row, "Original Score") ??
+              getValue(row, "Score Before Appeal");
+
+            const previousScoreVal =
+              previousScoreRaw !== null &&
+              previousScoreRaw !== "" &&
+              !Number.isNaN(Number(previousScoreRaw))
+                ? Number(previousScoreRaw)
+                : reviewStatus === "Revised"
+                ? topics.reduce((sum, topic) => sum + topic.score, 0)
+                : undefined;
+
+            const inquiry =
+              getValue(row, "Customer Inquiry") ??
+              getValue(row, "Inquiry TH") ??
+              getValue(row, "Inquiry");
+
+            const weekLabel = getValue(row, "Week Label") ?? getValue(row, "Week") ?? "-";
+
+            const caseUrl =
+              getValue(row, "Case URL") ??
+              getValue(row, "Case Url") ??
+              getValue(row, "URL") ??
+              "";
+
+            return {
+              key: `row-${index + 1}-${String(getValue(row, "Case ID")).trim()}`,
+              agent: String(getValue(row, "Agent Name")).trim(),
+              auditDate: formatAuditDate(getValue(row, "Audit Date")),
+              weekLabel: String(weekLabel || "-").trim(),
+              caseId: String(getValue(row, "Case ID")).trim(),
+              caseUrl: caseUrl ? String(caseUrl).trim() : "",
+              inquiryTh: inquiry ? String(inquiry).trim() : "-",
+              inquiryEn: inquiry ? String(inquiry).trim() : "-",
+              finalScore: finalScoreVal,
+              previousScore: previousScoreVal,
+              grade: scoreToGrade(finalScoreVal),
+              reviewStatus,
+              topics,
+              revisedTopics: revisedTopics.length ? revisedTopics : null,
+            };
+          });
+
+        const cleaned = mapped.filter((item) => item.agent && item.caseId && item.auditDate);
+        setAllCases(cleaned);
+      } catch (error: any) {
+        console.error("Load Error:", error);
+        setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadWorkbook();
   }, []);
 
   const visibleAgentList = useMemo(() => {
@@ -715,7 +858,7 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด current-dashboard.json...
+          กำลังโหลด QA_RawData1.xlsx...
         </div>
       </div>
     );
@@ -728,7 +871,7 @@ export default function DashboardMockup({
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
           <div className="mt-3 text-sm text-slate-600">
-            ตรวจสอบว่าไฟล์อยู่ที่ src/data/current-dashboard.json
+            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx
           </div>
         </div>
       </div>
@@ -885,31 +1028,40 @@ export default function DashboardMockup({
           </div>
 
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                title="Average Score"
-                value={metricAverageDisplay}
-                sub={`${metricCaseCount} case(s) in selected range`}
-              />
-              <MetricCard
-                title="Evaluation Progress"
-                value={`${metricCaseCount}/${CASE_TARGET}`}
-                sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
-              />
-              <MetricCard
-                title="Estimated Incentive"
-                value={incentiveDisplay}
-                sub={incentiveRemark}
-              />
-              <MetricCard
-                title="Review Mix"
-                value={`${dateFilteredCases.filter((c) => c.reviewStatus === "Revised").length}`}
-                sub="Revised case(s) in selected range"
-              />
-            </div>
-
-            {dashboardSubTab === "overview" ? (
+            {!effectiveSelectedAgent ? (
+              <Panel>
+                <PanelHeader title="Dashboard" />
+                <PanelBody>
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                    กรุณาเลือก Agent จาก Quick Controls ก่อน
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : dashboardSubTab === "overview" ? (
               <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    title="Average Score"
+                    value={metricAverageDisplay}
+                    sub={`${metricCaseCount} case(s) in selected range`}
+                  />
+                  <MetricCard
+                    title="Evaluation Progress"
+                    value={`${metricCaseCount}/${CASE_TARGET}`}
+                    sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
+                  />
+                  <MetricCard
+                    title="Estimated Incentive"
+                    value={incentiveDisplay}
+                    sub={incentiveRemark}
+                  />
+                  <MetricCard
+                    title="Review Mix"
+                    value={`${dateFilteredCases.filter((c) => c.reviewStatus === "Revised").length}`}
+                    sub="Revised case(s) in selected range"
+                  />
+                </div>
+
                 <Panel>
                   <PanelHeader
                     title="Topic Performance"
