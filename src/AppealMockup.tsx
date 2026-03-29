@@ -403,8 +403,10 @@ function AppealCaseCard({
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
         <span>{item.weekLabel || "-"}</span>
-        <span className="font-bold text-violet-700">
-          {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
+        <span className="flex items-center gap-2 text-sm font-extrabold">
+          <span className="text-rose-600">{item.previousScore.toFixed(0)}</span>
+          <span className="text-slate-300">→</span>
+          <span className="text-emerald-600">{item.finalScore.toFixed(0)}</span>
         </span>
       </div>
     </div>
@@ -521,7 +523,16 @@ export default function AppealMockup({
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
         const rawHelper = buildHeaderHelpers(rawHeaderRow);
 
-        const rawCaseScoreMap = new Map<string, { previousScore: number; agent: string; auditDate: string; weekLabel: string; inquiryTh: string }>();
+        const rawCaseScoreMap = new Map<
+          string,
+          {
+            previousScore: number;
+            agent: string;
+            auditDate: string;
+            weekLabel: string;
+            inquiryTh: string;
+          }
+        >();
 
         rawDataRows.forEach((row) => {
           const caseId = String(rawHelper.getValue(row, "Case ID") ?? "").trim();
@@ -668,7 +679,9 @@ export default function AppealMockup({
               rawCase?.inquiryTh ??
               "-";
 
-            const appealReviewSummary = String(helper.getValue(row, "Appeal Review Summary") ?? "").trim();
+            const appealReviewSummary = String(
+              helper.getValue(row, "Appeal Review Summary") ?? ""
+            ).trim();
 
             const reviewStatus: ReviewStatus = appealedTopics.length ? "Revised" : "Original";
 
@@ -961,10 +974,22 @@ export default function AppealMockup({
                             value={selectedCase.appealChannel || "-"}
                           />
                           <SummaryStat label="Audit Date" value={selectedCase.auditDate || "-"} />
-                          <SummaryStat
-                            label="Score Change"
-                            value={`${selectedCase.previousScore.toFixed(0)} → ${selectedCase.finalScore.toFixed(0)}`}
-                          />
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                              Score Change
+                            </div>
+                            <div className="mt-2 flex items-center gap-3 text-base font-extrabold">
+                              <span className="rounded-lg bg-rose-50 px-2.5 py-1 text-rose-700 ring-1 ring-rose-200">
+                                {selectedCase.previousScore.toFixed(0)}
+                              </span>
+                              <span className="text-slate-300">→</span>
+                              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700 ring-1 ring-emerald-200">
+                                {selectedCase.finalScore.toFixed(0)}
+                              </span>
+                            </div>
+                          </div>
+
                           <SummaryStat
                             label="Appealed Topics"
                             value={`${selectedCase.appealedTopics.length} topic(s)`}
