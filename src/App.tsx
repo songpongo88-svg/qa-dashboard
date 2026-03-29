@@ -13,21 +13,6 @@ type UserLike = {
   agentName?: string;
 };
 
-const AGENT_NAMES = [
-  "Anucha Makundin",
-  "Arisa aiemrit",
-  "Chatkonnaphat Bhusomya",
-  "Jariyawadee Taboodda",
-  "Jureeporn Piddum",
-  "Krivut Vongkampan",
-  "Natcha Chai-in",
-  "Nattapol Suprom",
-  "Songpon Phothong",
-  "Sunijtra Siritan",
-  "Suphitcha Keawliam",
-  "Wassana Phothong",
-].sort((a, b) => a.localeCompare(b));
-
 const USER_ACCOUNTS: UserLike[] = [
   {
     username: "qa",
@@ -53,16 +38,84 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Admin",
     role: "Admin",
   },
-  ...AGENT_NAMES.map((name) => {
-    const username = name.toLowerCase().replace(/[^a-z]/g, "");
-    return {
-      username,
-      password: "agent1234",
-      displayName: name,
-      role: "Agent" as Role,
-      agentName: name,
-    };
-  }),
+
+  {
+    username: "anucha",
+    password: "Mk!A7p9#L2",
+    displayName: "Anucha Makundin",
+    role: "Agent",
+    agentName: "Anucha Makundin",
+  },
+  {
+    username: "arisa",
+    password: "Ri$4Kq2@Zm",
+    displayName: "Arisa aiemrit",
+    role: "Agent",
+    agentName: "Arisa aiemrit",
+  },
+  {
+    username: "chatkonnaphat",
+    password: "Ct#8Lm3!Qa",
+    displayName: "Chatkonnaphat Bhusomya",
+    role: "Agent",
+    agentName: "Chatkonnaphat Bhusomya",
+  },
+  {
+    username: "jariyawadee",
+    password: "Jy@5Nx9#Wp",
+    displayName: "Jariyawadee Taboodda",
+    role: "Agent",
+    agentName: "Jariyawadee Taboodda",
+  },
+  {
+    username: "jureeporn",
+    password: "Jp!6Vr2@Kd",
+    displayName: "Jureeporn Piddum",
+    role: "Agent",
+    agentName: "Jureeporn Piddum",
+  },
+  {
+    username: "krivut",
+    password: "Kv#9Ts4!Mb",
+    displayName: "Krivut Vongkampan",
+    role: "Agent",
+    agentName: "Krivut Vongkampan",
+  },
+  {
+    username: "natcha",
+    password: "Nc@7Pw3#Lf",
+    displayName: "Natcha Chai-in",
+    role: "Agent",
+    agentName: "Natcha Chai-in",
+  },
+  {
+    username: "nattapol",
+    password: "Np!4Xz8@Hr",
+    displayName: "Nattapol Suprom",
+    role: "Agent",
+    agentName: "Nattapol Suprom",
+  },
+  {
+    username: "sunijtra",
+    password: "Sj#6Qm1!Ty",
+    displayName: "Sunijtra Siritan",
+    role: "Agent",
+    agentName: "Sunijtra Siritan",
+  },
+  {
+    username: "suphitcha",
+    password: "Sp@8Ld2#Vk",
+    displayName: "Suphitcha Keawliam",
+    role: "Agent",
+    agentName: "Suphitcha Keawliam",
+  },
+  {
+    username: "wassana",
+    password: "Ws!3Kr7@Pn",
+    displayName: "Wassana Phothong",
+    role: "Agent",
+    agentName: "Wassana Phothong",
+  },
 ];
 
 function LoginScreen({
@@ -179,20 +232,19 @@ function LoginScreen({
 
               <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Demo Accounts
+                  Privileged Users
                 </div>
                 <div className="mt-3 space-y-2 text-xs text-slate-600">
                   <div>QA: qa / qa1234</div>
                   <div>Supervisor: supervisor / super1234</div>
                   <div>Senior: senior / senior1234</div>
                   <div>Admin: admin / admin1234</div>
-                  <div>Agent: [username from full name] / agent1234</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>￼
+      </div>
     </div>
   );
 }
