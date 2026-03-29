@@ -723,7 +723,7 @@ export default function DashboardMockup({
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [appealMergeCount, setAppealMergeCount] = useState(0);
-  const [overviewMode, setOverviewMode] = useState<"all" | "revisedOnly">("all");
+  const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -1004,9 +1004,17 @@ export default function DashboardMockup({
     return dateFilteredCases.filter((item) => item.weekLabel === selectedWeek);
   }, [dateFilteredCases, selectedWeek]);
 
+  const revisedCount = useMemo(
+    () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
+    [dashboardCasesBase]
+  );
+
   const dashboardCases = useMemo(() => {
     if (overviewMode === "revisedOnly") {
       return dashboardCasesBase.filter((item) => item.reviewStatus === "Revised");
+    }
+    if (overviewMode === "originalOnly") {
+      return dashboardCasesBase.filter((item) => item.reviewStatus === "Original");
     }
     return dashboardCasesBase;
   }, [dashboardCasesBase, overviewMode]);
@@ -1268,6 +1276,18 @@ export default function DashboardMockup({
 
                       <button
                         type="button"
+                        onClick={() => setOverviewMode("originalOnly")}
+                        className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                          overviewMode === "originalOnly"
+                            ? "border-violet-400 bg-violet-100 text-violet-800"
+                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                        }`}
+                      >
+                        Original Only
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setOverviewMode("revisedOnly")}
                         className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
                           overviewMode === "revisedOnly"
@@ -1275,25 +1295,9 @@ export default function DashboardMockup({
                             : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                         }`}
                       >
-                        Revised Only
+                        Revised Only ({revisedCount})
                       </button>
                     </div>
-                  </PanelBody>
-                </Panel>
-
-                <Panel>
-                  <PanelHeader
-                    title="Topic Performance"
-                    subtitle="Average by topic using revised scores when available"
-                  />
-                  <PanelBody>
-                    {dashboardCases.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                        ไม่มีข้อมูลในเงื่อนไขที่เลือก
-                      </div>
-                    ) : (
-                      <TopicPerformanceTable items={summary.topicPerformance} />
-                    )}
                   </PanelBody>
                 </Panel>
 
@@ -1303,7 +1307,9 @@ export default function DashboardMockup({
                       title="Case Navigator"
                       subtitle={
                         overviewMode === "revisedOnly"
-                          ? "Showing revised cases only"
+                          ? `Showing revised cases only (${revisedCount})`
+                          : overviewMode === "originalOnly"
+                          ? "Showing original cases only"
                           : "Select a case to review details"
                       }
                     />
@@ -1334,6 +1340,22 @@ export default function DashboardMockup({
                     </PanelBody>
                   </Panel>
                 </div>
+
+                <Panel>
+                  <PanelHeader
+                    title="Topic Performance"
+                    subtitle="Average by topic using revised scores when available"
+                  />
+                  <PanelBody>
+                    {dashboardCases.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                        ไม่มีข้อมูลในเงื่อนไขที่เลือก
+                      </div>
+                    ) : (
+                      <TopicPerformanceTable items={summary.topicPerformance} />
+                    )}
+                  </PanelBody>
+                </Panel>
               </>
             ) : (
               <div className="space-y-6">
