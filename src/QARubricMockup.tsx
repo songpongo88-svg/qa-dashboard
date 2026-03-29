@@ -41,7 +41,7 @@ export default function QARubricMockup({
         <div className="rounded-3xl border border-violet-200 bg-white shadow-sm">
           <div className="border-b border-violet-100 px-6 py-4">
             <div className="text-lg font-semibold text-slate-900">
-              Non-Voice QA Evaluation Criteria
+              Non-Voice QA Evaluation Criteria March 2026
             </div>
             <div className="mt-1 text-xs text-slate-500">
               Reference rubric topics used in dashboard and appeal review
