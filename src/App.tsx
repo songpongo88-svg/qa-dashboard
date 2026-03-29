@@ -10,11 +10,7 @@ type UserLike = {
   agentName?: string;
 };
 
-export default function MainScreen({
-  currentUser,
-}: {
-  currentUser: UserLike;
-}) {
+export default function App() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "rubric">(
     "dashboard"
   );
@@ -22,6 +18,13 @@ export default function MainScreen({
     "overview" | "case-detail"
   >("overview");
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState<string>("");
+
+  const currentUser: UserLike = {
+    username: "qa",
+    displayName: "QA Admin",
+    role: "QA",
+    agentName: "",
+  };
 
   const effectiveSelectedAgent = useMemo(() => {
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
@@ -83,6 +86,7 @@ export default function MainScreen({
               >
                 Overview
               </button>
+
               <button
                 type="button"
                 onClick={() => setDashboardSubTab("case-detail")}
