@@ -135,9 +135,7 @@ function excelDateToText(value: any) {
     }
   }
   const maybeDate = new Date(value);
-  if (!Number.isNaN(maybeDate.getTime())) {
-    return maybeDate.toLocaleString("en-GB");
-  }
+  if (!Number.isNaN(maybeDate.getTime())) return maybeDate.toLocaleString("en-GB");
   return String(value);
 }
 
@@ -239,6 +237,10 @@ function inferAppealStatus(
   return "Pending";
 }
 
+function hasValue(value: unknown) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
 function Panel({
   title,
   subtitle,
@@ -325,45 +327,64 @@ function TopicCard({ topic }: { topic: TopicItem }) {
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Original
+        {(hasValue(topic.originalScore) || hasValue(topic.originalComment)) && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Original
+            </div>
+            {hasValue(topic.originalScore) ? (
+              <div className="mt-2 text-sm text-slate-700">
+                <span className="font-semibold">Score:</span> {topic.originalScore}
+              </div>
+            ) : null}
+            {hasValue(topic.originalComment) ? (
+              <div className="mt-3 text-[13px] leading-6 text-slate-700 whitespace-pre-line">
+                {topic.originalComment}
+              </div>
+            ) : null}
           </div>
-          <div className="mt-2 text-sm text-slate-700">
-            <span className="font-semibold">Score:</span> {topic.originalScore ?? "-"}
-          </div>
-          <div className="mt-3 text-[13px] leading-6 text-slate-700 whitespace-pre-line">
-            {topic.originalComment || "-"}
-          </div>
-        </div>
+        )}
 
-        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-sky-700">
-            Appeal Reason
+        {hasValue(topic.appealReason) ? (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+              Appeal Reason
+            </div>
+            <div className="mt-3 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+              {topic.appealReason}
+            </div>
           </div>
-          <div className="mt-3 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
-            {topic.appealReason || "-"}
-          </div>
-        </div>
+        ) : null}
 
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-          <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-            QA Response / Revised
+        {(hasValue(topic.revisedScore) || hasValue(topic.revisedComment)) && (
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+              QA Response / Revised
+            </div>
+            {hasValue(topic.revisedScore) ? (
+              <div className="mt-2 text-sm text-slate-800">
+                <span className="font-semibold">Score:</span> {topic.revisedScore}
+              </div>
+            ) : null}
+            {hasValue(topic.revisedComment) ? (
+              <div className="mt-3 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                {topic.revisedComment}
+              </div>
+            ) : null}
           </div>
-          <div className="mt-2 text-sm text-slate-800">
-            <span className="font-semibold">Score:</span>{" "}
-            {topic.revisedScore !== null ? topic.revisedScore : topic.originalScore ?? "-"}
-          </div>
-          <div className="mt-3 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
-            {topic.revisedComment || "-"}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default function AppealMockup({ currentUser }: { currentUser: UserLike }) {
+export default function AppealMockup({
+  currentUser,
+  selectedAgentFilter,
+}: {
+  currentUser: UserLike;
+  selectedAgentFilter?: string;
+}) {
   const [appealCases, setAppealCases] = useState<AppealCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -563,6 +584,10 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
       items = items.filter(
         (item) => normalizeText(item.agentName) === normalizeText(effectiveAgent)
       );
+    } else if (canViewAll && hasValue(selectedAgentFilter)) {
+      items = items.filter(
+        (item) => normalizeText(item.agentName) === normalizeText(selectedAgentFilter)
+      );
     }
 
     if (statusFilter !== "all") {
@@ -579,7 +604,7 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
     }
 
     return items;
-  }, [appealCases, canViewAll, effectiveAgent, statusFilter, searchText]);
+  }, [appealCases, canViewAll, effectiveAgent, selectedAgentFilter, statusFilter, searchText]);
 
   const selectedCase =
     visibleCases.find((item) => item.id === selectedAppealId) || visibleCases[0] || null;
@@ -649,6 +674,8 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
             <div className="mt-2 text-sm text-slate-500">
               {currentUser?.role === "Agent"
                 ? "บัญชีนี้ยังไม่มีเคสอุทธรณ์ของตัวเอง หรือชื่อในไฟล์ไม่ตรงกับชื่อ login"
+                : hasValue(selectedAgentFilter)
+                ? `Agent ที่เลือก (${selectedAgentFilter}) ยังไม่มีเคสอุทธรณ์`
                 : "ไม่พบข้อมูลตามเงื่อนไขที่เลือก"}
             </div>
           </div>
@@ -670,6 +697,11 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
               <div className="mt-2 text-sm text-violet-100">
                 Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
               </div>
+              {canViewAll && hasValue(selectedAgentFilter) ? (
+                <div className="mt-2 text-sm font-medium text-violet-100">
+                  Current Agent Filter: {selectedAgentFilter}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -711,48 +743,58 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
 
             <Panel title="Appeal Case List" subtitle="Click a case to open full appeal detail">
               <div className="space-y-3">
-                {visibleCases.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedAppealId(item.id)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
-                      selectedCase?.id === item.id
-                        ? "border-violet-400 bg-violet-100 shadow-sm"
-                        : "border-violet-100 bg-white hover:bg-violet-50"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">{item.caseId}</div>
-                        <div className="mt-1 text-xs text-slate-500">{item.agentName || "-"}</div>
+                {visibleCases.map((item) => {
+                  const appealedCodes = item.topics
+                    .filter((topic) => normalizeText(topic.appealReason) !== "")
+                    .map((topic) => topic.code);
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedAppealId(item.id)}
+                      className={`w-full rounded-2xl border p-4 text-left transition ${
+                        selectedCase?.id === item.id
+                          ? "border-violet-400 bg-violet-100 shadow-sm"
+                          : "border-violet-100 bg-white hover:bg-violet-50"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">{item.caseId}</div>
+                          {hasValue(item.agentName) ? (
+                            <div className="mt-1 text-xs text-slate-500">{item.agentName}</div>
+                          ) : null}
+                        </div>
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold ${statusTone(
+                            item.appealStatus
+                          )}`}
+                        >
+                          {item.appealStatus}
+                        </span>
                       </div>
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold ${statusTone(
-                          item.appealStatus
-                        )}`}
-                      >
-                        {item.appealStatus}
-                      </span>
-                    </div>
 
-                    <div className="mt-3 text-xs text-slate-500">
-                      Topics appealed: {item.appealedTopicsCount} • Changed: {item.changedTopicsCount}
-                    </div>
+                      {appealedCodes.length > 0 ? (
+                        <div className="mt-3 text-xs text-slate-500">
+                          Topics appealed: {appealedCodes.join(", ")}
+                        </div>
+                      ) : null}
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(item.originalGrade)}`}>
-                        {item.originalGrade}
-                      </span>
-                      <span className="text-slate-500">
-                        {item.originalFinalScore.toFixed(2)} → {item.revisedFinalScore.toFixed(2)}
-                      </span>
-                      <span className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(item.revisedGrade)}`}>
-                        {item.revisedGrade}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(item.originalGrade)}`}>
+                          {item.originalGrade}
+                        </span>
+                        <span className="text-slate-500">
+                          {item.originalFinalScore.toFixed(2)} → {item.revisedFinalScore.toFixed(2)}
+                        </span>
+                        <span className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(item.revisedGrade)}`}>
+                          {item.revisedGrade}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </Panel>
           </div>
@@ -763,55 +805,195 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                 <Panel
                   title={`Appeal Detail • ${selectedCase.caseId}`}
                   subtitle="Full appeal review by case"
+                  right={
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDetailMode("all")}
+                        className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${
+                          detailMode === "all"
+                            ? "border-violet-400 bg-violet-100 text-violet-800"
+                            : "border-violet-200 bg-white text-violet-700"
+                        }`}
+                      >
+                        All Topics
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailMode("appealedOnly")}
+                        className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${
+                          detailMode === "appealedOnly"
+                            ? "border-violet-400 bg-violet-100 text-violet-800"
+                            : "border-violet-200 bg-white text-violet-700"
+                        }`}
+                      >
+                        Appealed Only
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailMode("changedOnly")}
+                        className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${
+                          detailMode === "changedOnly"
+                            ? "border-violet-400 bg-violet-100 text-violet-800"
+                            : "border-violet-200 bg-white text-violet-700"
+                        }`}
+                      >
+                        Changed Only
+                      </button>
+                    </div>
+                  }
                 >
                   <div className="space-y-6">
                     <div className="grid gap-4 xl:grid-cols-2">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="grid gap-3 md:grid-cols-2">
-                          <div><div className="text-xs text-slate-500">Case ID</div><div className="text-sm font-semibold text-slate-900">{selectedCase.caseId}</div></div>
-                          <div><div className="text-xs text-slate-500">Agent Name</div><div className="text-sm font-semibold text-slate-900">{selectedCase.agentName || "-"}</div></div>
-                          <div><div className="text-xs text-slate-500">Audit Date</div><div className="text-sm font-semibold text-slate-900">{selectedCase.auditDate || "-"}</div></div>
-                          <div><div className="text-xs text-slate-500">Appeal Version</div><div className="text-sm font-semibold text-slate-900">{selectedCase.version || "-"}</div></div>
-                          <div><div className="text-xs text-slate-500">Submit Date</div><div className="text-sm font-semibold text-slate-900">{selectedCase.submitDate || "-"}</div></div>
-                          <div><div className="text-xs text-slate-500">Result Date</div><div className="text-sm font-semibold text-slate-900">{selectedCase.resultDate || "-"}</div></div>
+                          {hasValue(selectedCase.caseId) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Case ID</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.caseId}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.agentName) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Agent Name</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.agentName}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.auditDate) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Audit Date</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.auditDate}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.version) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Appeal Version</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.version}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.submitDate) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Submit Date</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.submitDate}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.resultDate) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Result Date</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.resultDate}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.appealChannel) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Appeal Channel</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.appealChannel}</div>
+                            </div>
+                          ) : null}
+
+                          {hasValue(selectedCase.reviewType) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Review Type</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.reviewType}</div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="grid gap-3 md:grid-cols-2">
-                          <div><div className="text-xs text-slate-500">Original Final Score</div><div className="text-lg font-bold text-slate-900">{selectedCase.originalFinalScore.toFixed(2)}</div></div>
-                          <div><div className="text-xs text-slate-500">Revised Final Score</div><div className="text-lg font-bold text-slate-900">{selectedCase.revisedFinalScore.toFixed(2)}</div></div>
-                          <div><div className="text-xs text-slate-500">Original Grade</div><div className="mt-1"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.originalGrade)}`}>{selectedCase.originalGrade}</span></div></div>
-                          <div><div className="text-xs text-slate-500">Revised Grade</div><div className="mt-1"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.revisedGrade)}`}>{selectedCase.revisedGrade}</span></div></div>
+                          <div>
+                            <div className="text-xs text-slate-500">Original Final Score</div>
+                            <div className="text-lg font-bold text-slate-900">
+                              {selectedCase.originalFinalScore.toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-slate-500">Revised Final Score</div>
+                            <div className="text-lg font-bold text-slate-900">
+                              {selectedCase.revisedFinalScore.toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-slate-500">Original Grade</div>
+                            <div className="mt-1">
+                              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.originalGrade)}`}>
+                                {selectedCase.originalGrade}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-slate-500">Revised Grade</div>
+                            <div className="mt-1">
+                              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.revisedGrade)}`}>
+                                {selectedCase.revisedGrade}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-xs text-slate-500">Appeal Status</div>
+                            <div className="mt-1">
+                              <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(selectedCase.appealStatus)}`}>
+                                {selectedCase.appealStatus}
+                              </span>
+                            </div>
+                          </div>
+
+                          {hasValue(selectedCase.commentStatus) ? (
+                            <div>
+                              <div className="text-xs text-slate-500">Comment Status</div>
+                              <div className="text-sm font-semibold text-slate-900">{selectedCase.commentStatus}</div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 xl:grid-cols-2">
-                      <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">Auto Change Remark</div>
-                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">{selectedCase.autoChangeRemark || "-"}</div>
+                    {hasValue(selectedCase.customerInquiry) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          Customer Inquiry
+                        </div>
+                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                          {selectedCase.customerInquiry}
+                        </div>
                       </div>
+                    ) : null}
 
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Decision Summary</div>
-                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">{selectedCase.decisionSummary || "-"}</div>
+                    {hasValue(selectedCase.autoChangeRemark) ? (
+                      <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                          Auto Change Remark
+                        </div>
+                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                          {selectedCase.autoChangeRemark}
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
+
+                    {hasValue(selectedCase.decisionSummary) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          Decision Summary
+                        </div>
+                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                          {selectedCase.decisionSummary}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </Panel>
 
-                <Panel
-                  title="Appeal Topic Review"
-                  subtitle="See exactly what was appealed and what changed"
-                  right={
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => setDetailMode("all")} className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${detailMode === "all" ? "border-violet-400 bg-violet-100 text-violet-800" : "border-violet-200 bg-white text-violet-700"}`}>All Topics</button>
-                      <button type="button" onClick={() => setDetailMode("appealedOnly")} className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${detailMode === "appealedOnly" ? "border-violet-400 bg-violet-100 text-violet-800" : "border-violet-200 bg-white text-violet-700"}`}>Appealed Only</button>
-                      <button type="button" onClick={() => setDetailMode("changedOnly")} className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${detailMode === "changedOnly" ? "border-violet-400 bg-violet-100 text-violet-800" : "border-violet-200 bg-white text-violet-700"}`}>Changed Only</button>
-                    </div>
-                  }
-                >
+                <Panel title="Appeal Topic Review" subtitle="See exactly what was appealed and what changed">
                   {detailTopics.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
                       ไม่มีหัวข้อในมุมมองที่เลือก
