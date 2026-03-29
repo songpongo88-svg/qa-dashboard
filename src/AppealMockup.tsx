@@ -12,7 +12,6 @@ type AppealTopicItem = {
   revisedScore: number;
   revisedComment: string;
   appealReason: string;
-  appealReviewSummary: string;
   changed: boolean;
 };
 
@@ -30,6 +29,7 @@ type AppealCaseItem = {
   grade: Grade;
   reviewStatus: ReviewStatus;
   inquiryTh: string;
+  appealReviewSummary: string;
   appealedTopics: AppealTopicItem[];
 };
 
@@ -324,6 +324,21 @@ function SummaryStat({
   );
 }
 
+function LogoBox() {
+  return (
+    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
+      <img
+        src="/robinhood-logo.png"
+        alt="Robinhood"
+        className="h-12 w-12 object-contain"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = "none";
+        }}
+      />
+    </div>
+  );
+}
+
 function AppealCaseCard({
   item,
   isSelected,
@@ -395,14 +410,14 @@ function TopicChangeCard({ item }: { item: AppealTopicItem }) {
             <div className="mt-2 text-sm text-slate-600">หัวข้อที่มีการอุทธรณ์และปรับผลจริง</div>
           </div>
 
-          <div className="min-w-[240px] rounded-2xl border border-violet-300 bg-white px-4 py-4 shadow-sm">
+          <div className="min-w-[260px] rounded-2xl border border-violet-300 bg-white px-4 py-4 shadow-sm">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
               Score Adjustment
             </div>
-            <div className="mt-2 flex items-center gap-3 text-2xl font-extrabold text-violet-700">
-              <span>{item.originalScore}</span>
+            <div className="mt-2 flex items-center gap-3 text-2xl font-extrabold">
+              <span className="text-rose-600">{item.originalScore}</span>
               <span className="text-slate-300">→</span>
-              <span>{item.revisedScore}</span>
+              <span className="text-emerald-600">{item.revisedScore}</span>
             </div>
           </div>
         </div>
@@ -426,15 +441,6 @@ function TopicChangeCard({ item }: { item: AppealTopicItem }) {
             <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
               {item.revisedComment || "-"}
             </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-          <div className="text-[11px] font-extrabold uppercase tracking-wide text-sky-700">
-            Appeal Review Summary
-          </div>
-          <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
-            {item.appealReviewSummary || "-"}
           </div>
         </div>
       </div>
@@ -505,9 +511,6 @@ export default function AppealMockup({
               const originalCommentRaw = helper.getValue(row, `${topic.code} Comment`);
               const revisedCommentRaw = helper.getValue(row, `${topic.code} Revised Comment`);
               const appealReasonRaw = helper.getValue(row, `${topic.code} Appeal Reason`);
-              const appealReviewSummaryRaw =
-                helper.getValue(row, `${topic.code} Appeal Review Summary`) ??
-                helper.getValue(row, "Appeal Review Summary");
 
               const appealReason = String(appealReasonRaw ?? "").trim();
 
@@ -549,7 +552,6 @@ export default function AppealMockup({
                 revisedScore,
                 revisedComment,
                 appealReason,
-                appealReviewSummary: String(appealReviewSummaryRaw ?? "").trim(),
                 changed,
               };
             }).filter(Boolean) as AppealTopicItem[];
@@ -583,6 +585,12 @@ export default function AppealMockup({
               helper.getValue(row, "Inquiry") ??
               "-";
 
+            const appealReviewSummary =
+              String(
+                helper.getValue(row, "Appeal Review Summary") ??
+                  ""
+              ).trim();
+
             const reviewStatus: ReviewStatus = appealedTopics.length ? "Revised" : "Original";
 
             return {
@@ -605,10 +613,7 @@ export default function AppealMockup({
                   helper.getValue(row, "Appeal Result Date")
               ),
               appealChannel:
-                String(
-                  helper.getValue(row, "Appeal Channel") ??
-                    "-"
-                ).trim() || "-",
+                String(helper.getValue(row, "Appeal Channel") ?? "-").trim() || "-",
               weekLabel: String(
                 helper.getValue(row, "Week Label") ?? helper.getValue(row, "Week") ?? "-"
               ).trim(),
@@ -617,6 +622,7 @@ export default function AppealMockup({
               grade: scoreToGrade(finalScore),
               reviewStatus,
               inquiryTh: String(inquiry || "-").trim(),
+              appealReviewSummary,
               appealedTopics,
             };
           })
@@ -715,28 +721,20 @@ export default function AppealMockup({
     <div className="min-h-screen bg-slate-100">
       <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-800 text-white">
         <div className="mx-auto max-w-[1700px] px-6 py-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/15">
-                <img
-                  src="/robinhood-logo.png"
-                  alt="Robinhood"
-                  className="h-10 w-10 object-contain"
-                />
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
+                QA Appeal Review
               </div>
-
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
-                  QA Appeal Review
-                </div>
-                <div className="mt-2 text-3xl font-bold tracking-tight">
-                  Appeal Result Dashboard
-                </div>
-                <div className="mt-2 max-w-3xl text-sm text-violet-100">
-                  แสดงเฉพาะหัวข้อที่มีการอุทธรณ์จริงและมีการเปลี่ยนจริงจากไฟล์ Appeal
-                </div>
+              <div className="mt-2 text-3xl font-bold tracking-tight">
+                Appeal Result Dashboard
+              </div>
+              <div className="mt-2 max-w-3xl text-sm text-violet-100">
+                แสดงเฉพาะหัวข้อที่มีการอุทธรณ์จริงและมีการเปลี่ยนจริงจากไฟล์ Appeal
               </div>
             </div>
+
+            <LogoBox />
           </div>
         </div>
       </div>
@@ -896,6 +894,15 @@ export default function AppealMockup({
                           </div>
                           <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
                             {selectedCase.inquiryTh || "-"}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                          <div className="text-[11px] font-extrabold uppercase tracking-wide text-sky-700">
+                            Appeal Review Summary
+                          </div>
+                          <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-900">
+                            {selectedCase.appealReviewSummary || "-"}
                           </div>
                         </div>
                       </PanelBody>
