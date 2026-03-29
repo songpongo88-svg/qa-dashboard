@@ -42,6 +42,14 @@ type TopicPerformanceRow = {
   pct: number;
 };
 
+type MonthlyTopicTrendRow = {
+  period: string;
+  topicCode: string;
+  topicLabel: string;
+  avgScore: number;
+  pct: number;
+};
+
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
@@ -155,9 +163,7 @@ function buildHeaderHelpers(headerRow: any[]) {
 
   const colIndexes = (name: string) => {
     const target = normalizeText(name);
-    return normalizedHeaders
-      .map((h, idx) => (h === target ? idx : -1))
-      .filter((idx) => idx >= 0);
+    return normalizedHeaders.map((h, idx) => (h === target ? idx : -1)).filter((idx) => idx >= 0);
   };
 
   const getValue = (row: any[], name: string, occurrence = 0) => {
@@ -228,9 +234,7 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div
-      className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}
-    >
+    <div className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -282,6 +286,36 @@ function MetricCard({
   );
 }
 
+function HighlightCard({
+  title,
+  value,
+  sub,
+  tone = "violet",
+}: {
+  title: string;
+  value: string;
+  sub: string;
+  tone?: "violet" | "emerald" | "rose" | "amber";
+}) {
+  const toneMap = {
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    rose: "border-rose-200 bg-rose-50 text-rose-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{title}</div>
+      <div className="mt-2 text-lg font-extrabold text-slate-900">{value}</div>
+      <div className="mt-2 text-xs text-slate-500">{sub}</div>
+      <div className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${toneMap[tone]}`}>
+        Highlight
+      </div>
+    </div>
+  );
+}
+
 function SummaryTable({ rows }: { rows: SummaryRow[] }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
@@ -309,9 +343,7 @@ function SummaryTable({ rows }: { rows: SummaryRow[] }) {
               <td className="border-t border-slate-200 px-3 py-3 text-center">
                 {row.avgScore.toFixed(2)}
               </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {row.revisedCount}
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.revisedCount}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeA}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeB}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeC}</td>
@@ -343,13 +375,9 @@ function TopicPerformanceTable({ rows }: { rows: TopicPerformanceRow[] }) {
             <tr key={row.code} className="bg-white">
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.code}</td>
               <td className="border-t border-slate-200 px-3 py-3">{row.label}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {row.avgScore.toFixed(2)}
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.avgScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.max}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {row.pct.toFixed(2)}%
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.pct.toFixed(2)}%</td>
             </tr>
           ))}
         </tbody>
@@ -395,32 +423,49 @@ function TopicRankList({
   );
 }
 
-function HighlightCard({
-  title,
-  value,
-  sub,
-  tone = "violet",
-}: {
-  title: string;
-  value: string;
-  sub: string;
-  tone?: "violet" | "emerald" | "rose" | "amber";
-}) {
-  const toneMap = {
-    violet: "border-violet-200 bg-violet-50 text-violet-700",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    rose: "border-rose-200 bg-rose-50 text-rose-700",
-    amber: "border-amber-200 bg-amber-50 text-amber-700",
-  };
-
+function MonthlyTopicTrendTable({ rows }: { rows: MonthlyTopicTrendRow[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="mt-2 text-lg font-extrabold text-slate-900">{value}</div>
-      <div className="mt-2 text-xs text-slate-500">{sub}</div>
-      <div className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${toneMap[tone]}`}>
-        Highlight
-      </div>
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[980px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-white text-[11px]">
+            <th className="px-3 py-3 text-left">Month</th>
+            <th className="px-3 py-3">Topic</th>
+            <th className="px-3 py-3 text-left">Description</th>
+            <th className="px-3 py-3">Avg Score</th>
+            <th className="px-3 py-3">Avg %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={`${row.period}-${row.topicCode}-${index}`} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">
+                {row.period}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.topicCode}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{row.topicLabel}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {row.avgScore.toFixed(2)}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {row.pct.toFixed(2)}%
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LogoBox() {
+  return (
+    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
+      <img
+        src="/robinhood-logo.png"
+        alt="Robinhood Logo"
+        className="h-12 w-12 object-contain"
+      />
     </div>
   );
 }
@@ -449,9 +494,7 @@ function buildSummaryRow(label: string, cases: CaseItem[]): SummaryRow {
 
 function buildTopicPerformance(cases: CaseItem[]): TopicPerformanceRow[] {
   return TOPIC_MASTER.map((master) => {
-    const topics = cases
-      .flatMap((item) => item.topics)
-      .filter((topic) => topic.code === master.code);
+    const topics = cases.flatMap((item) => item.topics).filter((topic) => topic.code === master.code);
 
     if (!topics.length) {
       return {
@@ -474,18 +517,6 @@ function buildTopicPerformance(cases: CaseItem[]): TopicPerformanceRow[] {
       pct,
     };
   });
-}
-
-function LogoBox() {
-  return (
-    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
-      <img
-        src="/robinhood-logo.png"
-        alt="Robinhood Logo"
-        className="h-12 w-12 object-contain"
-      />
-    </div>
-  );
 }
 
 export default function SummaryMockup({
@@ -511,12 +542,8 @@ export default function SummaryMockup({
           fetch("/Appleal ROWDATA.xlsx"),
         ]);
 
-        if (!rawResponse.ok) {
-          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx");
-        }
-        if (!appealResponse.ok) {
-          throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx");
-        }
+        if (!rawResponse.ok) throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx");
+        if (!appealResponse.ok) throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx");
 
         const rawBuffer = await rawResponse.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
@@ -538,9 +565,7 @@ export default function SummaryMockup({
           return -1;
         })();
 
-        if (rawHeaderIndex === -1) {
-          throw new Error("ไม่พบ header ของ QA_RawData1.xlsx");
-        }
+        if (rawHeaderIndex === -1) throw new Error("ไม่พบ header ของ QA_RawData1.xlsx");
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
@@ -566,9 +591,7 @@ export default function SummaryMockup({
           return -1;
         })();
 
-        if (appealHeaderIndex === -1) {
-          throw new Error("ไม่พบ header ของ Appleal ROWDATA.xlsx");
-        }
+        if (appealHeaderIndex === -1) throw new Error("ไม่พบ header ของ Appleal ROWDATA.xlsx");
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
         const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
@@ -668,9 +691,7 @@ export default function SummaryMockup({
 
             const mergedTopics = baseTopics.map((topic) => {
               const revisedScore = mergedAppeal?.revisedTopicScores.get(topic.code);
-              return revisedScore !== undefined
-                ? { ...topic, score: revisedScore }
-                : topic;
+              return revisedScore !== undefined ? { ...topic, score: revisedScore } : topic;
             });
 
             const baseFinalScore =
@@ -706,11 +727,9 @@ export default function SummaryMockup({
 
   const visibleAgentList = useMemo(() => {
     const mergedAgents = [...new Set(AGENT_MASTER)].sort((a, b) => a.localeCompare(b));
-
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
-
     return mergedAgents;
   }, [currentUser]);
 
@@ -742,6 +761,19 @@ export default function SummaryMockup({
 
     return data;
   }, [allCases, effectiveSelectedAgent, dateFrom, dateTo]);
+
+  const teamRows = useMemo(() => {
+    const map = new Map<string, CaseItem[]>();
+
+    filteredCases.forEach((item) => {
+      if (!map.has(item.agent)) map.set(item.agent, []);
+      map.get(item.agent)!.push(item);
+    });
+
+    return [...map.entries()]
+      .map(([agent, cases]) => buildSummaryRow(agent, cases))
+      .sort((a, b) => b.avgScore - a.avgScore);
+  }, [filteredCases]);
 
   const overallSummary = useMemo(() => buildSummaryRow("Overall", filteredCases), [filteredCases]);
 
@@ -804,6 +836,49 @@ export default function SummaryMockup({
     if (!monthlyRows.length) return null;
     return [...monthlyRows].sort((a, b) => a.avgScore - b.avgScore)[0] || null;
   }, [monthlyRows]);
+
+  const bestAgent = useMemo(() => {
+    if (!teamRows.length) return null;
+    return teamRows[0];
+  }, [teamRows]);
+
+  const lowestAgent = useMemo(() => {
+    if (!teamRows.length) return null;
+    return teamRows[teamRows.length - 1];
+  }, [teamRows]);
+
+  const monthlyTopicTrend = useMemo(() => {
+    const monthMap = new Map<string, CaseItem[]>();
+
+    filteredCases.forEach((item) => {
+      const dt = parseAuditDate(item.auditDate);
+      const key = `${dt.getFullYear()}-${`${dt.getMonth() + 1}`.padStart(2, "0")}`;
+      if (!monthMap.has(key)) monthMap.set(key, []);
+      monthMap.get(key)!.push(item);
+    });
+
+    const rows: MonthlyTopicTrendRow[] = [];
+
+    [...monthMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([period, cases]) => {
+        const perf = buildTopicPerformance(cases)
+          .sort((a, b) => a.pct - b.pct)
+          .slice(0, 5);
+
+        perf.forEach((topic) => {
+          rows.push({
+            period,
+            topicCode: topic.code,
+            topicLabel: topic.label,
+            avgScore: topic.avgScore,
+            pct: topic.pct,
+          });
+        });
+      });
+
+    return rows;
+  }, [filteredCases]);
 
   if (isLoading) {
     return (
@@ -928,7 +1003,7 @@ export default function SummaryMockup({
         <Panel>
           <PanelHeader title="Performance Highlights" subtitle="Quick insight from current filter" />
           <PanelBody>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
               <HighlightCard
                 title="Strongest Topic"
                 value={strongestTopic ? `${strongestTopic.code} ${strongestTopic.label}` : "-"}
@@ -952,6 +1027,18 @@ export default function SummaryMockup({
                 value={lowestMonth ? lowestMonth.label : "-"}
                 sub={lowestMonth ? `${lowestMonth.avgScore.toFixed(2)} average score` : "-"}
                 tone="amber"
+              />
+              <HighlightCard
+                title="Top Agent"
+                value={bestAgent ? bestAgent.label : "-"}
+                sub={bestAgent ? `${bestAgent.avgScore.toFixed(2)} average score` : "-"}
+                tone="emerald"
+              />
+              <HighlightCard
+                title="Lowest Agent"
+                value={lowestAgent ? lowestAgent.label : "-"}
+                sub={lowestAgent ? `${lowestAgent.avgScore.toFixed(2)} average score` : "-"}
+                tone="rose"
               />
             </div>
           </PanelBody>
@@ -979,6 +1066,20 @@ export default function SummaryMockup({
             </PanelBody>
           </Panel>
         </div>
+
+        <Panel>
+          <PanelHeader title="Team Summary" subtitle="Average score by agent in current filter" />
+          <PanelBody>
+            <SummaryTable rows={teamRows} />
+          </PanelBody>
+        </Panel>
+
+        <Panel>
+          <PanelHeader title="Monthly Topic Trend" subtitle="Top 5 weakest topics in each month" />
+          <PanelBody>
+            <MonthlyTopicTrendTable rows={monthlyTopicTrend} />
+          </PanelBody>
+        </Panel>
 
         <Panel>
           <PanelHeader title="Overall Summary" subtitle="Current filtered result" />
