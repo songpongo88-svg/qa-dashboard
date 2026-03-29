@@ -264,7 +264,7 @@ function Panel({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-sm ${className}`}
+      className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -274,14 +274,21 @@ function Panel({
 function PanelHeader({
   title,
   subtitle,
+  right,
 }: {
   title: string;
   subtitle?: string;
+  right?: React.ReactNode;
 }) {
   return (
     <div className="border-b border-violet-100 bg-white px-5 py-4">
-      <div className="text-lg font-semibold text-slate-900">{title}</div>
-      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-lg font-bold text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+        {right}
+      </div>
     </div>
   );
 }
@@ -731,7 +738,9 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
           key={grade}
           className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
         >
-          <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}>
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}
+          >
             {grade}
           </span>
           <span className="text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s)</span>
@@ -808,6 +817,18 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
     return sum + active.score;
   }, 0);
   return Number(total.toFixed(2));
+}
+
+function LogoBox() {
+  return (
+    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
+      <img
+        src="/robinhood-logo.png"
+        alt="Robinhood Logo"
+        className="h-12 w-12 object-contain"
+      />
+    </div>
+  );
 }
 
 export default function DashboardMockup({
@@ -1206,7 +1227,7 @@ export default function DashboardMockup({
     <div className="min-h-screen bg-slate-100">
       <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-800 text-white">
         <div className="mx-auto max-w-[1700px] px-6 py-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex items-start justify-between gap-6">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
                 QA Dashboard
@@ -1220,14 +1241,7 @@ export default function DashboardMockup({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <SmallButton dark onClick={() => setSelectedWeek("all")}>
-                Reset Week
-              </SmallButton>
-              <SmallButton dark onClick={() => setOverviewMode("all")}>
-                Show All Cases
-              </SmallButton>
-            </div>
+            <LogoBox />
           </div>
         </div>
       </div>
