@@ -557,7 +557,13 @@ function DataHealthChecks({
   );
 }
 
-export default function DashboardMockup({ currentUser }: { currentUser: any }) {
+export default function DashboardMockup({
+ currentUser,
+ dashboardSubTab,
+}: {
+ currentUser: any;
+ dashboardSubTab: "overview" | "case-detail";
+}) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
