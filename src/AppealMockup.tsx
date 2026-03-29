@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 
 type ReviewStatus = "Original" | "Revised";
+type Grade = "A" | "B" | "C" | "D" | "F";
 
 type AppealTopicItem = {
   code: string;
@@ -26,7 +27,7 @@ type AppealCaseItem = {
   weekLabel: string;
   finalScore: number;
   previousScore: number;
-  grade: "A" | "B" | "C" | "D" | "F";
+  grade: Grade;
   reviewStatus: ReviewStatus;
   inquiryTh: string;
   appealedTopics: AppealTopicItem[];
@@ -80,7 +81,7 @@ function isSameAgent(a: string, b: string) {
   );
 }
 
-function scoreToGrade(score: number): "A" | "B" | "C" | "D" | "F" {
+function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
   if (score >= 70) return "C";
@@ -88,7 +89,7 @@ function scoreToGrade(score: number): "A" | "B" | "C" | "D" | "F" {
   return "F";
 }
 
-function gradeTone(grade: "A" | "B" | "C" | "D" | "F") {
+function gradeTone(grade: Grade) {
   switch (grade) {
     case "A":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -247,7 +248,9 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div className={`overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-sm ${className}`}>
+    <div
+      className={`overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-sm ${className}`}
+    >
       {children}
     </div>
   );
@@ -337,7 +340,11 @@ function AppealCaseCard({
           <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
           <div className="mt-1 text-[11px] text-slate-500">{item.auditDate}</div>
         </div>
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(item.grade)}`}>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
           {item.grade}
         </span>
       </div>
@@ -489,13 +496,30 @@ export default function AppealMockup({
               const revisedCommentRaw = helper.getValue(row, `${topic.code} Revised Comment`);
               const appealReasonRaw = helper.getValue(row, `${topic.code} Appeal Reason`);
 
+              const appealReason = String(appealReasonRaw ?? "").trim();
+
+              const appealedThisTopic = !isNoAppealReason(appealReasonRaw);
+              if (!appealedThisTopic) return null;
+
+              const changed = hasRealTopicChange(
+                originalScoreRaw,
+                revisedScoreRaw,
+                originalCommentRaw,
+                revisedCommentRaw
+              );
+              if (!changed) return null;
+
               const originalScore =
-                originalScoreRaw !== null && originalScoreRaw !== "" && !Number.isNaN(Number(originalScoreRaw))
+                originalScoreRaw !== null &&
+                originalScoreRaw !== "" &&
+                !Number.isNaN(Number(originalScoreRaw))
                   ? Number(originalScoreRaw)
                   : 0;
 
               const revisedScore =
-                revisedScoreRaw !== null && revisedScoreRaw !== "" && !Number.isNaN(Number(revisedScoreRaw))
+                revisedScoreRaw !== null &&
+                revisedScoreRaw !== "" &&
+                !Number.isNaN(Number(revisedScoreRaw))
                   ? Number(revisedScoreRaw)
                   : originalScore;
 
@@ -504,20 +528,6 @@ export default function AppealMockup({
                 revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== ""
                   ? String(revisedCommentRaw).trim()
                   : originalComment;
-
-              const appealReason = String(appealReasonRaw ?? "").trim();
-
-              const changed = hasRealTopicChange(
-                originalScoreRaw,
-                revisedScoreRaw,
-                originalCommentRaw,
-                revisedCommentRaw
-              );
-
-              const appealedThisTopic = !isNoAppealReason(appealReasonRaw);
-
-              if (!appealedThisTopic) return null;
-              if (!changed) return null;
 
               return {
                 code: topic.code,
@@ -654,7 +664,10 @@ export default function AppealMockup({
   }, [filteredAppeals, selectedCaseKey]);
 
   const totalAppealCases = filteredAppeals.length;
-  const totalAppealedTopics = filteredAppeals.reduce((sum, item) => sum + item.appealedTopics.length, 0);
+  const totalAppealedTopics = filteredAppeals.reduce(
+    (sum, item) => sum + item.appealedTopics.length,
+    0
+  );
   const averageFinal =
     filteredAppeals.reduce((sum, item) => sum + item.finalScore, 0) /
     Math.max(filteredAppeals.length, 1);
@@ -702,7 +715,7 @@ export default function AppealMockup({
                   Appeal Result Dashboard
                 </div>
                 <div className="mt-2 max-w-3xl text-sm text-violet-100">
-                  แสดงเฉพาะหัวข้อที่มีการอุทธรณ์และมีการปรับจริง พร้อมสรุปคะแนนก่อน-หลังพิจารณา
+                  แสดงเฉพาะหัวข้อที่มีการอุทธรณ์จริงและมีการเปลี่ยนจริงจากไฟล์ Appeal
                 </div>
               </div>
             </div>
@@ -838,14 +851,18 @@ export default function AppealMockup({
                             <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
                               Case ID
                             </div>
-                            <div className="mt-1 text-sm font-bold text-slate-900">{selectedCase.caseId}</div>
+                            <div className="mt-1 text-sm font-bold text-slate-900">
+                              {selectedCase.caseId}
+                            </div>
                           </div>
 
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                             <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
                               Agent
                             </div>
-                            <div className="mt-1 text-sm font-bold text-slate-900">{selectedCase.agent}</div>
+                            <div className="mt-1 text-sm font-bold text-slate-900">
+                              {selectedCase.agent}
+                            </div>
                           </div>
 
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -889,7 +906,8 @@ export default function AppealMockup({
                               Score Change
                             </div>
                             <div className="mt-1 text-sm font-extrabold text-violet-800">
-                              {selectedCase.previousScore.toFixed(0)} → {selectedCase.finalScore.toFixed(0)}
+                              {selectedCase.previousScore.toFixed(0)} →{" "}
+                              {selectedCase.finalScore.toFixed(0)}
                             </div>
                           </div>
 
@@ -917,7 +935,7 @@ export default function AppealMockup({
                     <Panel>
                       <PanelHeader
                         title="Appeal Topic Review"
-                        subtitle="แสดงเฉพาะหัวข้อที่มีการอุทธรณ์และมีการปรับจริง"
+                        subtitle="แสดงเฉพาะหัวข้อที่มีการอุทธรณ์จริงและมีการเปลี่ยนจริง"
                       />
                       <PanelBody className="space-y-4">
                         {selectedCase.appealedTopics.map((topic) => (
