@@ -282,7 +282,7 @@ function Panel({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}
+      className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
     >
       {children}
     </div>
@@ -297,8 +297,8 @@ function PanelHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="border-b border-violet-100 bg-white px-5 py-4">
-      <div className="text-lg font-bold text-slate-900">{title}</div>
+    <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
   );
@@ -311,7 +311,7 @@ function PanelBody({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={`p-5 ${className}`}>{children}</div>;
+  return <div className={`p-5 lg:p-6 ${className}`}>{children}</div>;
 }
 
 function MetricCard({
@@ -324,12 +324,12 @@ function MetricCard({
   sub: string;
 }) {
   return (
-    <Panel className="overflow-hidden">
-      <div className="h-1.5 bg-gradient-to-r from-violet-900 via-violet-700 to-fuchsia-600" />
+    <Panel className="overflow-hidden border-violet-200/70 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/60">
+      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <PanelBody>
         <div className="text-sm font-semibold text-slate-600">{title}</div>
-        <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{value}</div>
-        <div className="mt-2 text-xs text-slate-500">{sub}</div>
+        <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900 lg:text-[34px]">{value}</div>
+        <div className="mt-2 text-xs leading-5 text-slate-500">{sub}</div>
       </PanelBody>
     </Panel>
   );
@@ -352,19 +352,19 @@ function WeeklySnapshotCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+      className={`w-full rounded-[22px] border px-4 py-4 text-left transition-all duration-200 ${
         isActive
-          ? "border-violet-400 bg-violet-100 shadow-sm"
-          : "border-violet-100 bg-violet-50 hover:bg-violet-100/70"
+          ? "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.18)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/70 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
       }`}
     >
       <div className="font-semibold text-slate-900">{label}</div>
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl bg-white p-3">
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
           <div className="text-slate-500">Average Score</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{averageDisplay}</div>
         </div>
-        <div className="rounded-2xl bg-white p-3">
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
           <div className="text-slate-500">Cases</div>
           <div className="mt-1 text-lg font-semibold text-slate-900">{caseCount}</div>
         </div>
@@ -393,10 +393,10 @@ function CaseNavigatorCard({
           onSelect();
         }
       }}
-      className={`h-full cursor-pointer rounded-2xl border p-4 text-left transition ${
+      className={`h-full cursor-pointer rounded-[22px] border p-4 text-left transition-all duration-200 ${
         isSelected
-          ? "border-violet-400 bg-violet-100 shadow-sm"
-          : "border-violet-100 bg-white hover:bg-violet-50"
+          ? "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.16)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/60 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -800,8 +800,12 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
 
 function LogoBox() {
   return (
-    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
-      <img src="/robinhood-logo.png" alt="Robinhood Logo" className="h-12 w-12 object-contain" />
+    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
+      <img
+        src="/robinhood-logo.png"
+        alt="Robinhood Logo"
+        className="h-16 w-16 object-contain lg:h-20 lg:w-20"
+      />
     </div>
   );
 }
@@ -1185,7 +1189,7 @@ export default function DashboardMockup({
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
@@ -1198,40 +1202,51 @@ export default function DashboardMockup({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-800 text-white">
-        <div className="mx-auto max-w-[1700px] px-6 py-8">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
+      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
+        <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-4xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
                 QA Dashboard
               </div>
-              <div className="mt-2 text-3xl font-bold tracking-tight">
+              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
                 Agent Performance Dashboard
               </div>
-              <div className="mt-2 max-w-3xl text-sm text-violet-100">
+              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
                 Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
                 Appleal ROWDATA
               </div>
             </div>
 
-            <LogoBox />
+            <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+              <LogoBox />
+              <div className="hidden sm:block">
+                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+                  Robinhood QA
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">Quality Monitoring Workspace</div>
+                <div className="mt-1 text-sm text-violet-100/90">
+                  Corporate dashboard for audit tracking and case review
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1700px] px-6 py-6">
-        <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
           <div className="space-y-6">
-            <Panel>
+            <Panel className="sticky top-4">
               <PanelHeader title="Quick Controls" subtitle="Filter by agent, date range and week" />
-              <PanelBody className="space-y-4">
+              <PanelBody className="space-y-5">
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Agent
                   </div>
                   {currentUser?.role === "Agent" ? (
-                    <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
                       {effectiveSelectedAgent || "-"}
                     </div>
                   ) : (
@@ -1244,7 +1259,7 @@ export default function DashboardMockup({
                         setSelectedWeek("all");
                         setSelectedCaseKey("");
                       }}
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
                       <option value="">Select Agent</option>
                       {visibleAgentList.map((agent) => (
@@ -1258,38 +1273,38 @@ export default function DashboardMockup({
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                   <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                       Date From
                     </div>
                     <input
                       type="date"
                       value={dateFrom}
                       onChange={(e) => setDateFrom(e.target.value)}
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                   </div>
 
                   <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                       Date To
                     </div>
                     <input
                       type="date"
                       value={dateTo}
                       onChange={(e) => setDateTo(e.target.value)}
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Week
                   </div>
                   <select
                     value={selectedWeek}
                     onChange={(e) => setSelectedWeek(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     disabled={!effectiveSelectedAgent}
                   >
                     <option value="all">All Weeks</option>
@@ -1307,7 +1322,7 @@ export default function DashboardMockup({
               <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
               <PanelBody className="space-y-3">
                 {!effectiveSelectedAgent ? (
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
                     กรุณาเลือก Agent ก่อน
                   </div>
                 ) : (
@@ -1357,7 +1372,7 @@ export default function DashboardMockup({
               <Panel>
                 <PanelHeader title="Dashboard" />
                 <PanelBody>
-                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                     กรุณาเลือก Agent จาก Quick Controls ก่อน
                   </div>
                 </PanelBody>
@@ -1442,7 +1457,7 @@ export default function DashboardMockup({
                     <PanelHeader title="Case List" subtitle="Visible cases in current filter" />
                     <PanelBody>
                       {!dashboardCases.length ? (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                           ไม่พบข้อมูลในช่วงที่เลือก
                         </div>
                       ) : (
@@ -1474,7 +1489,7 @@ export default function DashboardMockup({
                   <PanelHeader title="Case Navigator" subtitle="Select a case to review detailed topic scoring" />
                   <PanelBody>
                     {!dashboardCases.length ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                      <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                         ไม่พบข้อมูลในช่วงที่เลือก
                       </div>
                     ) : (
@@ -1591,7 +1606,7 @@ export default function DashboardMockup({
                   <Panel>
                     <PanelHeader title="Case Detail" />
                     <PanelBody>
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                      <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                         กรุณาเลือกเคสจากรายการด้านบน
                       </div>
                     </PanelBody>
