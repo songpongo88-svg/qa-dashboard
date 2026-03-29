@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import dashboardData from "./data/current-dashboard.json";
 
 type AppealStatus =
   | "Draft"
@@ -25,6 +26,7 @@ type AppealCase = {
   submitDate: string;
   auditDate: string;
   originalFinalScore: number;
+  previousScore: number;
   status: AppealStatus;
   version: string;
   decisionSummary: string;
@@ -39,97 +41,38 @@ type UserLike = {
   agentName?: string;
 };
 
-const MOCK_APPEALS: AppealCase[] = [
-  {
-    id: "APL-001",
-    caseId: "AA205349",
-    agentName: "Krivut Vongkampan",
-    submitDate: "2026-03-25",
-    auditDate: "2026-03-23",
-    originalFinalScore: 81,
-    status: "Revised",
-    version: "REV1",
-    decisionSummary: "Adjusted after appeal review in selected topics.",
-    autoChangeRemark: "Score changed 1 topic",
-    topics: [
-      {
-        code: "3.3",
-        label: "Clear Next Step Guidance",
-        originalScore: 3,
-        revisedScore: 4,
-        originalComment: "Next step not fully clear.",
-        appealReason: "Agent explained the next action and timeline clearly.",
-        revisedComment: "Revised to reflect clearer next-step guidance.",
-      },
-      {
-        code: "4.1",
-        label: "Message Structure",
-        originalScore: 5,
-        revisedScore: null,
-        originalComment: "Structure was acceptable.",
-        appealReason: "",
-        revisedComment: "",
-      },
-    ],
-  },
-  {
-    id: "APL-002",
-    caseId: "AA206880",
-    agentName: "Natcha Chai-in",
-    submitDate: "2026-03-26",
-    auditDate: "2026-03-26",
-    originalFinalScore: 74,
-    status: "In Review",
-    version: "REV1",
-    decisionSummary: "",
-    autoChangeRemark: "",
-    topics: [
-      {
-        code: "2.2",
-        label: "Completeness",
-        originalScore: 2,
-        revisedScore: null,
-        originalComment: "Answer did not fully cover the concern.",
-        appealReason:
-          "The response followed policy limits and addressed the main issue.",
-        revisedComment: "",
-      },
-      {
-        code: "2.3",
-        label: "Clear Actionable Guidance",
-        originalScore: 2,
-        revisedScore: null,
-        originalComment: "Guidance was limited.",
-        appealReason:
-          "Policy restriction prevented more detailed guidance.",
-        revisedComment: "",
-      },
-    ],
-  },
-  {
-    id: "APL-003",
-    caseId: "AA205172",
-    agentName: "Jariyawadee Taboodda",
-    submitDate: "2026-03-23",
-    auditDate: "2026-03-22",
-    originalFinalScore: 96,
-    status: "Approved",
-    version: "REV1",
-    decisionSummary: "Appeal reviewed and acknowledged with no score change.",
-    autoChangeRemark: "No change",
-    topics: [
-      {
-        code: "1.1",
-        label: "Greeting & Closing Standard",
-        originalScore: 10,
-        revisedScore: 10,
-        originalComment: "Standard followed correctly.",
-        appealReason: "No appeal reason provided.",
-        revisedComment: "No change.",
-      },
-    ],
-  },
-];
+type DashboardTopic = {
+  code?: string;
+  label?: string;
+  score?: number;
+  max?: number;
+  pct?: number;
+  comment?: string;
+};
+
+type DashboardCase = {
+  key?: string;
+  agent?: string;
+  auditDate?: string;
+  weekLabel?: string;
+  caseId?: string;
+  inquiryTh?: string;
+  inquiryEn?: string;
+  finalScore?: number;
+  previousScore?: number;
+  grade?: string;
+  reviewStatus?: string;
+  topics?: DashboardTopic[] | null;
+  revisedTopics?: DashboardTopic[] | null;
+};
+
+type DashboardDataShape = {
+  mode?: string;
+  availableAgents?: string[];
+  cases?: DashboardCase[];
+};
+
+const typedDashboardData = dashboardData as DashboardDataShape;
 
 function statusTone(status: AppealStatus) {
   switch (status) {
@@ -150,6 +93,33 @@ function statusTone(status: AppealStatus) {
   }
 }
 
+function mapReviewStatusToAppealStatus(
+  reviewStatus: string,
+  hasRevisedTopics: boolean
+): AppealStatus {
+  if (hasRevisedTopics) return "Revised";
+  if (reviewStatus === "Revised") return "Revised";
+  if (reviewStatus === "Original") return "Approved";
+  return "In Review";
+}
+
+function buildDecisionSummaryFromCase(item: DashboardCase) {
+  if (item.revisedTopics && item.revisedTopics.length > 0) {
+    return "Appeal reviewed and revised in selected topics.";
+  }
+  if (item.reviewStatus === "Original") {
+    return "Appeal reviewed with no score change.";
+  }
+  return "";
+}
+
+function buildAutoChangeRemarkFromCase(item: DashboardCase) {
+  if (item.revisedTopics && item.revisedTopics.length > 0) {
+    return `Score changed ${item.revisedTopics.length} topic(s)`;
+  }
+  return "No change";
+}
+
 function calculateRevisedFinalScore(
   topics: TopicItem[],
   originalFinalScore: number
@@ -158,12 +128,14 @@ function calculateRevisedFinalScore(
     (sum, item) => sum + item.originalScore,
     0
   );
-  const revisedTopicTotal = topics.reduce(
+
+  const effectiveTopicTotal = topics.reduce(
     (sum, item) => sum + (item.revisedScore ?? item.originalScore),
     0
   );
 
-  return originalFinalScore - originalTopicTotal + revisedTopicTotal;
+  const delta = effectiveTopicTotal - originalTopicTotal;
+  return Number((originalFinalScore + delta).toFixed(2));
 }
 
 function getChangedTopics(topics: TopicItem[]) {
@@ -249,10 +221,61 @@ function SmallButton({
   );
 }
 
+const APPEAL_CASES_FROM_JSON: AppealCase[] = (typedDashboardData.cases || []).map(
+  (item, index) => {
+    const originalTopics = item.topics || [];
+    const revisedTopics = item.revisedTopics || [];
+    const sourceTopics = revisedTopics.length > 0 ? revisedTopics : originalTopics;
+
+    const topics: TopicItem[] = sourceTopics.map((topic) => {
+      const originalTopic =
+        originalTopics.find((t) => t.code === topic.code) || topic;
+
+      const revisedTopic =
+        revisedTopics.find((t) => t.code === topic.code) || null;
+
+      const hasRevised =
+        revisedTopic !== null &&
+        (Number(revisedTopic.score ?? 0) !== Number(originalTopic.score ?? 0) ||
+          String(revisedTopic.comment ?? "") !== String(originalTopic.comment ?? ""));
+
+      return {
+        code: String(topic.code ?? ""),
+        label: String(topic.label ?? ""),
+        originalScore: Number(originalTopic.score ?? 0),
+        revisedScore: hasRevised ? Number(revisedTopic?.score ?? 0) : null,
+        originalComment: String(originalTopic.comment ?? ""),
+        appealReason: "รอเชื่อมข้อมูลเหตุผลอุทธรณ์",
+        revisedComment: hasRevised ? String(revisedTopic?.comment ?? "") : "",
+      };
+    });
+
+    const hasRevisedTopics = revisedTopics.length > 0;
+
+    return {
+      id: `APL-${String(index + 1).padStart(3, "0")}`,
+      caseId: String(item.caseId ?? ""),
+      agentName: String(item.agent ?? ""),
+      submitDate: String(item.auditDate ?? ""),
+      auditDate: String(item.auditDate ?? ""),
+      originalFinalScore: Number(item.finalScore ?? 0),
+      previousScore: Number(item.previousScore ?? item.finalScore ?? 0),
+      status: mapReviewStatusToAppealStatus(
+        String(item.reviewStatus ?? ""),
+        hasRevisedTopics
+      ),
+      version: hasRevisedTopics ? "REV1" : "Original",
+      decisionSummary: buildDecisionSummaryFromCase(item),
+      autoChangeRemark: buildAutoChangeRemarkFromCase(item),
+      topics,
+    };
+  }
+);
+
 export default function AppealMockup({ currentUser }: { currentUser: UserLike }) {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedAppealId, setSelectedAppealId] = useState<string | null>(null);
-  const [appeals, setAppeals] = useState<AppealCase[]>(MOCK_APPEALS);
+  const [appeals, setAppeals] = useState<AppealCase[]>(APPEAL_CASES_FROM_JSON);
 
   const canSeeAll = currentUser?.role !== "Agent";
   const effectiveAgent =
@@ -261,7 +284,12 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
       : "";
 
   const visibleAppeals = useMemo(() => {
-    let items = [...appeals];
+    let items = [...appeals].filter(
+      (item) =>
+        item.status === "Revised" ||
+        item.status === "In Review" ||
+        item.status === "Approved"
+    );
 
     if (!canSeeAll && effectiveAgent) {
       items = items.filter((item) => item.agentName === effectiveAgent);
@@ -483,7 +511,7 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                         <th className="px-3 py-3 text-left">Case ID</th>
                         <th className="px-3 py-3 text-left">Agent</th>
                         <th className="px-3 py-3 text-left">Submit Date</th>
-                        <th className="px-3 py-3 text-center">Original</th>
+                        <th className="px-3 py-3 text-center">Current</th>
                         <th className="px-3 py-3 text-center">Revised</th>
                         <th className="px-3 py-3 text-left">Topic(s)</th>
                         <th className="px-3 py-3 text-center">Status</th>
@@ -581,16 +609,17 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="text-xs text-slate-500">
-                        Original Final Score
-                      </div>
+                      <div className="text-xs text-slate-500">Current Final Score</div>
                       <div className="text-lg font-semibold text-slate-900">
                         {selectedAppeal.originalFinalScore}
                       </div>
 
-                      <div className="mt-4 text-xs text-slate-500">
-                        Revised Final Score
+                      <div className="mt-4 text-xs text-slate-500">Previous Score</div>
+                      <div className="text-sm font-medium text-slate-900">
+                        {selectedAppeal.previousScore}
                       </div>
+
+                      <div className="mt-4 text-xs text-slate-500">Revised Final Score</div>
                       <div className="text-lg font-semibold text-slate-900">
                         {calculateRevisedFinalScore(
                           selectedAppeal.topics,
@@ -598,9 +627,7 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                         )}
                       </div>
 
-                      <div className="mt-4 text-xs text-slate-500">
-                        Changed Topics
-                      </div>
+                      <div className="mt-4 text-xs text-slate-500">Changed Topics</div>
                       <div className="text-sm font-medium text-slate-900">
                         {getChangedTopics(selectedAppeal.topics)}
                       </div>
@@ -626,9 +653,7 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                       >
                         <div className="mb-4 flex items-center justify-between gap-3">
                           <div>
-                            <div className="text-xs text-slate-500">
-                              {topic.code}
-                            </div>
+                            <div className="text-xs text-slate-500">{topic.code}</div>
                             <div className="text-base font-semibold text-slate-900">
                               {topic.label}
                             </div>
