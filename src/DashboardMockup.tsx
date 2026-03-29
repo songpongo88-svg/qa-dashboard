@@ -274,21 +274,14 @@ function Panel({
 function PanelHeader({
   title,
   subtitle,
-  right,
 }: {
   title: string;
   subtitle?: string;
-  right?: React.ReactNode;
 }) {
   return (
     <div className="border-b border-violet-100 bg-white px-5 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-lg font-bold text-slate-900">{title}</div>
-          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
-        </div>
-        {right}
-      </div>
+      <div className="text-lg font-bold text-slate-900">{title}</div>
+      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
   );
 }
@@ -414,9 +407,7 @@ function CaseNavigatorCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">
-            {item.caseId}
-          </div>
+          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
         </div>
 
@@ -443,7 +434,6 @@ function CaseNavigatorCard({
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
         <span>{item.weekLabel}</span>
-
         {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
           <span className="font-semibold text-violet-700">
             {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
@@ -652,9 +642,7 @@ function CaseDetailTopicTable({
                     </div>
 
                     <div className="shrink-0 rounded-xl bg-violet-50 px-3 py-2 text-right">
-                      <div className="text-[9px] uppercase tracking-wide text-slate-500">
-                        Score
-                      </div>
+                      <div className="text-[9px] uppercase tracking-wide text-slate-500">Score</div>
                       <div className="text-sm font-bold text-slate-900">
                         {shownTopic.score}/{shownTopic.max}
                       </div>
@@ -671,9 +659,7 @@ function CaseDetailTopicTable({
                       </div>
 
                       {hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment) ? (
-                        <div className="mt-2 text-[11px] text-violet-700">
-                          Comment updated
-                        </div>
+                        <div className="mt-2 text-[11px] text-violet-700">Comment updated</div>
                       ) : null}
                     </div>
                   ) : null}
@@ -822,11 +808,7 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
 function LogoBox() {
   return (
     <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
-      <img
-        src="/robinhood-logo.png"
-        alt="Robinhood Logo"
-        className="h-12 w-12 object-contain"
-      />
+      <img src="/robinhood-logo.png" alt="Robinhood Logo" className="h-12 w-12 object-contain" />
     </div>
   );
 }
@@ -1250,10 +1232,7 @@ export default function DashboardMockup({
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel>
-              <PanelHeader
-                title="Quick Controls"
-                subtitle="Filter by agent, date range and week"
-              />
+              <PanelHeader title="Quick Controls" subtitle="Filter by agent, date range and week" />
               <PanelBody className="space-y-4">
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -1417,10 +1396,7 @@ export default function DashboardMockup({
                 </div>
 
                 <Panel>
-                  <PanelHeader
-                    title="Overview Filters"
-                    subtitle="Control which cases are shown in overview"
-                  />
+                  <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
                   <PanelBody>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -1463,10 +1439,7 @@ export default function DashboardMockup({
                 </Panel>
 
                 <Panel>
-                  <PanelHeader
-                    title="Topic Performance"
-                    subtitle="Average topic score in current view"
-                  />
+                  <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
                   <PanelBody>
                     <TopicPerformanceTable items={summary.topicPerformance} />
                   </PanelBody>
@@ -1474,10 +1447,7 @@ export default function DashboardMockup({
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                   <Panel>
-                    <PanelHeader
-                      title="Case List"
-                      subtitle="Visible cases in current filter"
-                    />
+                    <PanelHeader title="Case List" subtitle="Visible cases in current filter" />
                     <PanelBody>
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
@@ -1509,10 +1479,7 @@ export default function DashboardMockup({
             ) : (
               <>
                 <Panel>
-                  <PanelHeader
-                    title="Case Navigator"
-                    subtitle="Select a case to review detailed topic scoring"
-                  />
+                  <PanelHeader title="Case Navigator" subtitle="Select a case to review detailed topic scoring" />
                   <PanelBody>
                     {!dashboardCases.length ? (
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
@@ -1536,10 +1503,7 @@ export default function DashboardMockup({
                 {activeSelectedCase ? (
                   <>
                     <Panel>
-                      <PanelHeader
-                        title="Case Information"
-                        subtitle="Selected case overview and review status"
-                      />
+                      <PanelHeader title="Case Information" subtitle="Selected case overview and review status" />
                       <PanelBody className="space-y-5">
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                           <div className="space-y-3">
@@ -1620,10 +1584,7 @@ export default function DashboardMockup({
                     </Panel>
 
                     <Panel>
-                      <PanelHeader
-                        title="Topic Detail"
-                        subtitle="Original / Revised topic comparison"
-                      />
+                      <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
                       <PanelBody>
                         <CaseDetailTopicTable
                           topics={activeSelectedCase.topics}
