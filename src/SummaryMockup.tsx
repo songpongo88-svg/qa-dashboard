@@ -34,6 +34,14 @@ type SummaryRow = {
   gradeF: number;
 };
 
+type TopicPerformanceRow = {
+  code: string;
+  label: string;
+  avgScore: number;
+  max: number;
+  pct: number;
+};
+
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
@@ -301,7 +309,9 @@ function SummaryTable({ rows }: { rows: SummaryRow[] }) {
               <td className="border-t border-slate-200 px-3 py-3 text-center">
                 {row.avgScore.toFixed(2)}
               </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.revisedCount}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {row.revisedCount}
+              </td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeA}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeB}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeC}</td>
@@ -311,6 +321,106 @@ function SummaryTable({ rows }: { rows: SummaryRow[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function TopicPerformanceTable({ rows }: { rows: TopicPerformanceRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[860px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-white text-[11px]">
+            <th className="px-3 py-3">Topic</th>
+            <th className="px-3 py-3 text-left">Description</th>
+            <th className="px-3 py-3">Avg Score</th>
+            <th className="px-3 py-3">Max</th>
+            <th className="px-3 py-3">Avg %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.code} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.code}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{row.label}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {row.avgScore.toFixed(2)}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.max}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {row.pct.toFixed(2)}%
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TopicRankList({
+  rows,
+  variant,
+}: {
+  rows: TopicPerformanceRow[];
+  variant: "best" | "improvement";
+}) {
+  const tone =
+    variant === "best"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : "border-rose-200 bg-rose-50 text-rose-700";
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row, index) => (
+        <div
+          key={row.code}
+          className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
+        >
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Rank {index + 1}
+            </div>
+            <div className="mt-1 text-sm font-bold text-slate-900">
+              {row.code} {row.label}
+            </div>
+          </div>
+
+          <div className={`rounded-full border px-3 py-1 text-xs font-bold ${tone}`}>
+            {row.pct.toFixed(2)}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HighlightCard({
+  title,
+  value,
+  sub,
+  tone = "violet",
+}: {
+  title: string;
+  value: string;
+  sub: string;
+  tone?: "violet" | "emerald" | "rose" | "amber";
+}) {
+  const toneMap = {
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    rose: "border-rose-200 bg-rose-50 text-rose-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{title}</div>
+      <div className="mt-2 text-lg font-extrabold text-slate-900">{value}</div>
+      <div className="mt-2 text-xs text-slate-500">{sub}</div>
+      <div className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${toneMap[tone]}`}>
+        Highlight
+      </div>
     </div>
   );
 }
@@ -335,6 +445,35 @@ function buildSummaryRow(label: string, cases: CaseItem[]): SummaryRow {
     gradeD: gradeCount.D,
     gradeF: gradeCount.F,
   };
+}
+
+function buildTopicPerformance(cases: CaseItem[]): TopicPerformanceRow[] {
+  return TOPIC_MASTER.map((master) => {
+    const topics = cases
+      .flatMap((item) => item.topics)
+      .filter((topic) => topic.code === master.code);
+
+    if (!topics.length) {
+      return {
+        code: master.code,
+        label: master.label,
+        avgScore: 0,
+        max: master.max,
+        pct: 0,
+      };
+    }
+
+    const avgScore = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
+    const pct = (avgScore / master.max) * 100;
+
+    return {
+      code: master.code,
+      label: master.label,
+      avgScore,
+      max: master.max,
+      pct,
+    };
+  });
 }
 
 function LogoBox() {
@@ -636,6 +775,36 @@ export default function SummaryMockup({
       .map(([label, cases]) => buildSummaryRow(label, cases));
   }, [filteredCases]);
 
+  const topicPerformance = useMemo(() => buildTopicPerformance(filteredCases), [filteredCases]);
+
+  const strongestTopic = useMemo(() => {
+    if (!topicPerformance.length) return null;
+    return [...topicPerformance].sort((a, b) => b.pct - a.pct)[0] || null;
+  }, [topicPerformance]);
+
+  const weakestTopic = useMemo(() => {
+    if (!topicPerformance.length) return null;
+    return [...topicPerformance].sort((a, b) => a.pct - b.pct)[0] || null;
+  }, [topicPerformance]);
+
+  const bestTopics = useMemo(() => {
+    return [...topicPerformance].sort((a, b) => b.pct - a.pct).slice(0, 5);
+  }, [topicPerformance]);
+
+  const improvementTopics = useMemo(() => {
+    return [...topicPerformance].sort((a, b) => a.pct - b.pct).slice(0, 5);
+  }, [topicPerformance]);
+
+  const bestMonth = useMemo(() => {
+    if (!monthlyRows.length) return null;
+    return [...monthlyRows].sort((a, b) => b.avgScore - a.avgScore)[0] || null;
+  }, [monthlyRows]);
+
+  const lowestMonth = useMemo(() => {
+    if (!monthlyRows.length) return null;
+    return [...monthlyRows].sort((a, b) => a.avgScore - b.avgScore)[0] || null;
+  }, [monthlyRows]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -754,6 +923,61 @@ export default function SummaryMockup({
             value={`${overallSummary.gradeA}`}
             sub="grade A in current filter"
           />
+        </div>
+
+        <Panel>
+          <PanelHeader title="Performance Highlights" subtitle="Quick insight from current filter" />
+          <PanelBody>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <HighlightCard
+                title="Strongest Topic"
+                value={strongestTopic ? `${strongestTopic.code} ${strongestTopic.label}` : "-"}
+                sub={strongestTopic ? `${strongestTopic.pct.toFixed(2)}% average` : "-"}
+                tone="emerald"
+              />
+              <HighlightCard
+                title="Main Concern"
+                value={weakestTopic ? `${weakestTopic.code} ${weakestTopic.label}` : "-"}
+                sub={weakestTopic ? `${weakestTopic.pct.toFixed(2)}% average` : "-"}
+                tone="rose"
+              />
+              <HighlightCard
+                title="Best Month"
+                value={bestMonth ? bestMonth.label : "-"}
+                sub={bestMonth ? `${bestMonth.avgScore.toFixed(2)} average score` : "-"}
+                tone="violet"
+              />
+              <HighlightCard
+                title="Lowest Month"
+                value={lowestMonth ? lowestMonth.label : "-"}
+                sub={lowestMonth ? `${lowestMonth.avgScore.toFixed(2)} average score` : "-"}
+                tone="amber"
+              />
+            </div>
+          </PanelBody>
+        </Panel>
+
+        <Panel>
+          <PanelHeader title="Topic Performance Overview" subtitle="Average score by topic from current filter" />
+          <PanelBody>
+            <TopicPerformanceTable rows={topicPerformance} />
+          </PanelBody>
+        </Panel>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Panel>
+            <PanelHeader title="Best Performance Topics" subtitle="Top 5 strongest topics" />
+            <PanelBody>
+              <TopicRankList rows={bestTopics} variant="best" />
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Improvement Focus Topics" subtitle="Top 5 topics needing attention" />
+            <PanelBody>
+              <TopicRankList rows={improvementTopics} variant="improvement" />
+            </PanelBody>
+          </Panel>
         </div>
 
         <Panel>
