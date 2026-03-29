@@ -3,7 +3,13 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 
-type Role = "QA" | "Supervisor" | "Senior" | "Admin" | "Agent";
+type Role =
+  | "QA"
+  | "Supervisor"
+  | "Senior"
+  | "Admin"
+  | "Lead"
+  | "Agent";
 
 type UserLike = {
   username: string;
@@ -43,7 +49,7 @@ const USER_ACCOUNTS: UserLike[] = [
     username: "anucha",
     password: "Mk!A7p9#L2",
     displayName: "Anucha Makundin",
-    role: "Agent",
+    role: "Lead",
     agentName: "Anucha Makundin",
   },
   {
@@ -78,7 +84,7 @@ const USER_ACCOUNTS: UserLike[] = [
     username: "krivut",
     password: "Kv#9Ts4!Mb",
     displayName: "Krivut Vongkampan",
-    role: "Agent",
+    role: "Lead",
     agentName: "Krivut Vongkampan",
   },
   {
@@ -93,13 +99,20 @@ const USER_ACCOUNTS: UserLike[] = [
     password: "Np!4Xz8@Hr",
     displayName: "Nattapol Suprom",
     role: "Agent",
-    agentName: "Nattapol Suprom",
+    agentName: "NattapolSuprom",
+  },
+  {
+    username: "phrommarin",
+    password: "sD6#zL8&",
+    displayName: "Phrommarin Thaithorn",
+    role: "Lead",
+    agentName: "Phrommarin Thaithorn",
   },
   {
     username: "songpon",
-    password: "Songpon1234",
+    password: "Boom@4421L",
     displayName: "Songpon Phothong",
-    role: "Agent",
+    role: "Lead",
     agentName: "Songpon Phothong",
   },
   {
@@ -110,11 +123,25 @@ const USER_ACCOUNTS: UserLike[] = [
     agentName: "Sunijtra Siritan",
   },
   {
+    username: "supakrit",
+    password: "sP9#kM4!",
+    displayName: "Supakrit Promkhamnoi",
+    role: "Agent",
+    agentName: "Supakrit Promkhamnoi",
+  },
+  {
     username: "suphitcha",
     password: "Sp@8Ld2#Vk",
     displayName: "Suphitcha Keawliam",
-    role: "Agent",
+    role: "Lead",
     agentName: "Suphitcha Keawliam",
+  },
+  {
+    username: "wachiraporn",
+    password: "wL7$cI2@",
+    displayName: "Wachiraporn chailittichai",
+    role: "Agent",
+    agentName: "Wachiraporn chailittichai",
   },
   {
     username: "wassana",
@@ -166,6 +193,22 @@ function LoginScreen({
             <p className="mt-4 max-w-lg text-sm leading-7 text-violet-100">
               Sign in to access QA Dashboard, Case Detail, and QA Appeal Review.
             </p>
+
+            <div className="mt-8 grid gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                <div className="text-sm font-semibold">Privileged Access</div>
+                <div className="mt-1 text-xs text-violet-100">
+                  QA / Supervisor / Senior / Admin / Lead can view all agents.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                <div className="text-sm font-semibold">Agent Access</div>
+                <div className="mt-1 text-xs text-violet-100">
+                  Agent can view only their own dashboard and appeal cases.
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="p-8 lg:p-10">
@@ -176,6 +219,9 @@ function LoginScreen({
               <h2 className="mt-3 text-3xl font-bold text-slate-900">
                 Welcome back
               </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Enter your account to continue.
+              </p>
 
               <form onSubmit={handleLogin} className="mt-8 space-y-4">
                 <div>
@@ -186,7 +232,8 @@ function LoginScreen({
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    placeholder="Enter username"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                   />
                 </div>
 
@@ -198,7 +245,8 @@ function LoginScreen({
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    placeholder="Enter password"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                   />
                 </div>
 
@@ -210,11 +258,23 @@ function LoginScreen({
 
                 <button
                   type="submit"
-                  className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-800"
+                  className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-800"
                 >
                   Sign In
                 </button>
               </form>
+
+              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Privileged Users
+                </div>
+                <div className="mt-3 space-y-2 text-xs text-slate-600">
+                  <div>QA: qa / qa1234</div>
+                  <div>Supervisor: supervisor / super1234</div>
+                  <div>Senior: senior / senior1234</div>
+                  <div>Admin: admin / admin1234</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
