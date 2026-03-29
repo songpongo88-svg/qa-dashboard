@@ -723,6 +723,7 @@ export default function DashboardMockup({
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [appealMergeCount, setAppealMergeCount] = useState(0);
+  const [overviewMode, setOverviewMode] = useState<"all" | "revisedOnly">("all");
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -998,10 +999,17 @@ export default function DashboardMockup({
     return [...new Set(dateFilteredCases.map((item) => item.weekLabel))];
   }, [dateFilteredCases]);
 
-  const dashboardCases = useMemo(() => {
+  const dashboardCasesBase = useMemo(() => {
     if (selectedWeek === "all") return dateFilteredCases;
     return dateFilteredCases.filter((item) => item.weekLabel === selectedWeek);
   }, [dateFilteredCases, selectedWeek]);
+
+  const dashboardCases = useMemo(() => {
+    if (overviewMode === "revisedOnly") {
+      return dashboardCasesBase.filter((item) => item.reviewStatus === "Revised");
+    }
+    return dashboardCasesBase;
+  }, [dashboardCasesBase, overviewMode]);
 
   const activeSelectedCase =
     dashboardCases.find((item) => item.key === selectedCaseKey) || dashboardCases[0] || null;
@@ -1018,10 +1026,10 @@ export default function DashboardMockup({
     }
   }, [dashboardCases, selectedCaseKey]);
 
-  const summary = useMemo(() => buildAgentSummary(dateFilteredCases), [dateFilteredCases]);
+  const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
   const metricAverageDisplay = summary.averageDisplay;
-  const metricCaseCount = dateFilteredCases.length;
+  const metricCaseCount = dashboardCases.length;
   const incentiveDisplay = formatCurrencyTHB(
     getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
   );
@@ -1167,7 +1175,7 @@ export default function DashboardMockup({
                     <WeeklySnapshotCard
                       label="All Weeks"
                       caseCount={dateFilteredCases.length}
-                      averageDisplay={summary.averageDisplay}
+                      averageDisplay={buildAgentSummary(dateFilteredCases).averageDisplay}
                       isActive={selectedWeek === "all"}
                       onClick={() => setSelectedWeek("all")}
                     />
@@ -1220,7 +1228,7 @@ export default function DashboardMockup({
                   <MetricCard
                     title="Average Score"
                     value={metricAverageDisplay}
-                    sub={`${metricCaseCount} case(s) in selected range`}
+                    sub={`${metricCaseCount} case(s) in current view`}
                   />
                   <MetricCard
                     title="Evaluation Progress"
@@ -1234,10 +1242,44 @@ export default function DashboardMockup({
                   />
                   <MetricCard
                     title="Review Mix"
-                    value={`${dateFilteredCases.filter((c) => c.reviewStatus === "Revised").length}`}
-                    sub="Revised case(s) in selected range"
+                    value={`${dashboardCases.filter((c) => c.reviewStatus === "Revised").length}`}
+                    sub="Revised case(s) in current view"
                   />
                 </div>
+
+                <Panel>
+                  <PanelHeader
+                    title="Overview Filters"
+                    subtitle="Control which cases are shown in overview"
+                  />
+                  <PanelBody>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOverviewMode("all")}
+                        className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                          overviewMode === "all"
+                            ? "border-violet-400 bg-violet-100 text-violet-800"
+                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                        }`}
+                      >
+                        All Cases
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setOverviewMode("revisedOnly")}
+                        className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                          overviewMode === "revisedOnly"
+                            ? "border-violet-400 bg-violet-100 text-violet-800"
+                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                        }`}
+                      >
+                        Revised Only
+                      </button>
+                    </div>
+                  </PanelBody>
+                </Panel>
 
                 <Panel>
                   <PanelHeader
@@ -1245,9 +1287,9 @@ export default function DashboardMockup({
                     subtitle="Average by topic using revised scores when available"
                   />
                   <PanelBody>
-                    {dateFilteredCases.length === 0 ? (
+                    {dashboardCases.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                        ไม่มีข้อมูลในช่วงที่เลือก
+                        ไม่มีข้อมูลในเงื่อนไขที่เลือก
                       </div>
                     ) : (
                       <TopicPerformanceTable items={summary.topicPerformance} />
@@ -1259,7 +1301,11 @@ export default function DashboardMockup({
                   <Panel>
                     <PanelHeader
                       title="Case Navigator"
-                      subtitle="Select a case to review details"
+                      subtitle={
+                        overviewMode === "revisedOnly"
+                          ? "Showing revised cases only"
+                          : "Select a case to review details"
+                      }
                     />
                     <PanelBody>
                       {dashboardCases.length === 0 ? (
