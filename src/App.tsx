@@ -96,6 +96,13 @@ const USER_ACCOUNTS: UserLike[] = [
     agentName: "Nattapol Suprom",
   },
   {
+    username: "songpon",
+    password: "Songpon1234",
+    displayName: "Songpon Phothong",
+    role: "Agent",
+    agentName: "Songpon Phothong",
+  },
+  {
     username: "sunijtra",
     password: "Sj#6Qm1!Ty",
     displayName: "Sunijtra Siritan",
@@ -159,22 +166,6 @@ function LoginScreen({
             <p className="mt-4 max-w-lg text-sm leading-7 text-violet-100">
               Sign in to access QA Dashboard, Case Detail, and QA Appeal Review.
             </p>
-
-            <div className="mt-8 grid gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                <div className="text-sm font-semibold">QA / Admin / Supervisor / Senior</div>
-                <div className="mt-1 text-xs text-violet-100">
-                  Can view all agents and filter appeal cases by selected agent.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                <div className="text-sm font-semibold">Agent</div>
-                <div className="mt-1 text-xs text-violet-100">
-                  Can view only their own dashboard and appeal cases.
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="p-8 lg:p-10">
@@ -185,9 +176,6 @@ function LoginScreen({
               <h2 className="mt-3 text-3xl font-bold text-slate-900">
                 Welcome back
               </h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Enter your account to continue.
-              </p>
 
               <form onSubmit={handleLogin} className="mt-8 space-y-4">
                 <div>
@@ -198,8 +186,7 @@ function LoginScreen({
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter username"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                   />
                 </div>
 
@@ -211,8 +198,7 @@ function LoginScreen({
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                   />
                 </div>
 
@@ -224,23 +210,11 @@ function LoginScreen({
 
                 <button
                   type="submit"
-                  className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-800"
+                  className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-800"
                 >
                   Sign In
                 </button>
               </form>
-
-              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Privileged Users
-                </div>
-                <div className="mt-3 space-y-2 text-xs text-slate-600">
-                  <div>QA: qa / qa1234</div>
-                  <div>Supervisor: supervisor / super1234</div>
-                  <div>Senior: senior / senior1234</div>
-                  <div>Admin: admin / admin1234</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
