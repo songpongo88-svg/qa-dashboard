@@ -134,11 +134,11 @@ const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 
 function LogoBox() {
   return (
-    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-white/10 shadow-sm">
+    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm shadow-lg sm:h-20 sm:w-20">
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="h-16 w-16 object-contain"
+        className="h-10 w-10 object-contain sm:h-12 sm:w-12"
       />
     </div>
   );
@@ -157,10 +157,10 @@ function NavButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
         active
-          ? "bg-violet-700 text-white shadow-sm"
-          : "bg-white text-violet-700 border border-violet-200 hover:bg-violet-50"
+          ? "bg-violet-700 text-white shadow-md"
+          : "border border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
       }`}
     >
       {label}
@@ -181,10 +181,10 @@ function DashboardSubButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
         active
-          ? "bg-violet-100 text-violet-800 border border-violet-300"
-          : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+          ? "border border-violet-300 bg-violet-100 text-violet-800"
+          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
       {label}
@@ -204,26 +204,49 @@ function SessionWarningModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 px-4">
-      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-        <div className="text-lg font-bold text-slate-900">Session Timeout Warning</div>
-        <div className="mt-3 text-sm leading-6 text-slate-600">
-          You have been inactive for a while. Your session will be logged out automatically in
-          1 minute unless you choose to stay signed in.
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-3xl border border-violet-100 bg-white p-6 shadow-2xl sm:p-7">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 shadow-sm">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+
+          <div className="min-w-0">
+            <div className="text-lg font-bold text-slate-900 sm:text-xl">
+              Session Timeout Warning
+            </div>
+            <div className="mt-2 text-sm leading-6 text-slate-600">
+              Your session will be logged out automatically in 1 minute due to inactivity.
+              Please confirm if you would like to stay signed in.
+            </div>
+          </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onLogoutNow}
-            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             Log Out Now
           </button>
           <button
             type="button"
             onClick={onStayLoggedIn}
-            className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"
+            className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-95"
           >
             Stay Logged In
           </button>
@@ -365,50 +388,76 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <div className="mx-auto flex min-h-screen max-w-[1440px] items-center px-6 py-10">
-          <div className="grid w-full gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 px-10 py-12 text-white">
-              <div className="absolute right-10 top-10">
-                <LogoBox />
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-violet-50 to-fuchsia-50">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1280px] items-center px-4 py-6 sm:px-6 lg:px-8">
+          <div className="grid w-full gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-7 text-white shadow-2xl sm:px-8 sm:py-8 lg:px-9 lg:py-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_30%)]" />
 
-              <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-violet-100">
-                Secure Access
-              </div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100 sm:text-xs">
+                    Secure Access
+                  </div>
+                  <LogoBox />
+                </div>
 
-              <div className="mt-10 text-lg font-semibold text-violet-100">
-                Robinhood Customer Service Quality Assurance
-              </div>
+                <div className="mt-8 text-sm font-semibold tracking-[0.14em] text-violet-100 sm:text-base">
+                  Robinhood Customer Service Quality Assurance
+                </div>
 
-              <div className="mt-4 max-w-[620px] text-6xl font-extrabold leading-[1.05] tracking-tight">
-                Robinhood QA
-                <br />
-                Control Center
-              </div>
+                <div className="mt-4 max-w-[520px] text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                  Robinhood QA
+                  <br />
+                  Control Center
+                </div>
 
-              <div className="mt-8 max-w-[640px] text-xl leading-10 text-violet-100">
-                Access your QA Dashboard, Case Detail, and Appeal Review in one place with
-                role-based visibility for team leads and agents.
+                <div className="mt-5 max-w-[560px] text-sm leading-7 text-violet-100/95 sm:text-base">
+                  Unified access for QA Dashboard, Appeal Review, and Case Detail with
+                  role-based visibility for supervisors and agents.
+                </div>
+
+                <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="text-xs uppercase tracking-[0.18em] text-violet-100/80">
+                      Access
+                    </div>
+                    <div className="mt-2 text-sm font-semibold">Role-Based Login</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="text-xs uppercase tracking-[0.18em] text-violet-100/80">
+                      Review
+                    </div>
+                    <div className="mt-2 text-sm font-semibold">Appeal Tracking</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="text-xs uppercase tracking-[0.18em] text-violet-100/80">
+                      Security
+                    </div>
+                    <div className="mt-2 text-sm font-semibold">Session Protection</div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-[36px] border border-slate-200 bg-white px-8 py-10 shadow-sm">
-              <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em] text-violet-700">
+            <div className="rounded-[32px] border border-white/70 bg-white/90 px-5 py-6 shadow-xl backdrop-blur sm:px-7 sm:py-8">
+              <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700 sm:text-xs">
                 Sign In
               </div>
 
-              <div className="mt-8 text-5xl font-extrabold tracking-tight text-slate-900">
-                Welcome
+              <div className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+                Welcome Back
               </div>
 
-              <div className="mt-4 text-xl leading-8 text-slate-500">
-                Enter your account to access Dashboard, Case Detail and Appeal Review.
+              <div className="mt-3 text-sm leading-6 text-slate-500 sm:text-base">
+                Please sign in to access Dashboard, Case Detail, and Appeal Review.
               </div>
 
-              <div className="mt-10 space-y-6">
+              <div className="mt-8 space-y-5">
                 <div>
-                  <label className="mb-3 block text-sm font-bold text-slate-900">Username</label>
+                  <label className="mb-2 block text-sm font-semibold text-slate-800">
+                    Username
+                  </label>
                   <input
                     type="text"
                     value={username}
@@ -417,12 +466,14 @@ export default function App() {
                       if (e.key === "Enter") handleLogin();
                     }}
                     placeholder="Enter username"
-                    className="w-full rounded-3xl border border-slate-200 px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-3 block text-sm font-bold text-slate-900">Password</label>
+                  <label className="mb-2 block text-sm font-semibold text-slate-800">
+                    Password
+                  </label>
                   <input
                     type="password"
                     value={password}
@@ -431,7 +482,7 @@ export default function App() {
                       if (e.key === "Enter") handleLogin();
                     }}
                     placeholder="Enter password"
-                    className="w-full rounded-3xl border border-slate-200 px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                   />
                 </div>
 
@@ -444,7 +495,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleLogin}
-                  className="w-full rounded-3xl bg-violet-700 px-5 py-4 text-base font-bold text-white shadow-sm transition hover:bg-violet-800"
+                  className="w-full rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3.5 text-sm font-bold text-white shadow-lg transition hover:opacity-95"
                 >
                   Sign In
                 </button>
@@ -465,23 +516,24 @@ export default function App() {
       />
 
       <div className="min-h-screen bg-slate-100">
-        <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-[1700px] flex-col gap-4 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700">
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-700 sm:text-sm">
                 Robinhood QA
               </div>
-              <div className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+              <div className="mt-1 text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
                 Welcome, {welcomeName}
               </div>
-              <div className="mt-1 text-sm text-slate-500">
+              <div className="mt-1 text-xs text-slate-500 sm:text-sm">
                 Role: <span className="font-semibold text-slate-700">{currentUser.role}</span>
                 {" · "}
-                Agent Name: <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
+                Agent Name:{" "}
+                <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <NavButton
                 active={activeTab === "dashboard"}
                 label="Dashboard"
@@ -501,7 +553,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
               >
                 Log Out
               </button>
@@ -511,7 +563,7 @@ export default function App() {
 
         {activeTab === "dashboard" ? (
           <div>
-            <div className="mx-auto max-w-[1700px] px-6 pt-6">
+            <div className="mx-auto max-w-[1600px] px-4 pt-5 sm:px-6">
               <div className="flex flex-wrap gap-2">
                 <DashboardSubButton
                   active={dashboardSubTab === "overview"}
