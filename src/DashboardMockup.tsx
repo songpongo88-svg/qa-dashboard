@@ -83,6 +83,19 @@ function normalizeText(value: unknown) {
     .toLowerCase();
 }
 
+function compactText(value: unknown) {
+  return normalizeText(value).replace(/[^a-z0-9]/g, "");
+}
+
+function isSameAgent(a: string, b: string) {
+  const na = normalizeText(a);
+  const nb = normalizeText(b);
+  const ca = compactText(a);
+  const cb = compactText(b);
+
+  return na === nb || ca === cb || na.includes(nb) || nb.includes(na) || ca.includes(cb) || cb.includes(ca);
+}
+
 function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
@@ -971,9 +984,7 @@ export default function DashboardMockup({
     );
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return agents.filter(
-        (agent) => normalizeText(agent) === normalizeText(currentUser.agentName)
-      );
+      return agents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
     return agents;
@@ -981,14 +992,14 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      if (selectedAgent !== currentUser.agentName) {
+      if (!isSameAgent(selectedAgent || "", currentUser.agentName)) {
         setSelectedAgent(currentUser.agentName);
       }
       onSelectedAgentChange?.(currentUser.agentName);
       return;
     }
 
-    if (selectedAgent && !visibleAgentList.includes(selectedAgent)) {
+    if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
@@ -1001,9 +1012,7 @@ export default function DashboardMockup({
 
   const agentCases = useMemo(() => {
     if (!effectiveSelectedAgent) return [];
-    return allCases.filter(
-      (item) => normalizeText(item.agent) === normalizeText(effectiveSelectedAgent)
-    );
+    return allCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
   }, [allCases, effectiveSelectedAgent]);
 
   const dateFilteredCases = useMemo(() => {
