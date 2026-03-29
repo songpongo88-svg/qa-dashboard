@@ -453,6 +453,21 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
   );
 }
 
+function getOriginalTopicMap(topics: Topic[]) {
+  return new Map(topics.map((topic) => [topic.code, topic]));
+}
+
+function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
+  if (!originalTopic) return false;
+
+  const scoreChanged = originalTopic.score !== revisedTopic.score;
+  const commentChanged =
+    String(originalTopic.comment || "").trim() !==
+    String(revisedTopic.comment || "").trim();
+
+  return scoreChanged || commentChanged;
+}
+
 function CaseDetailTopicTable({
   topics,
   revisedTopics,
@@ -464,6 +479,8 @@ function CaseDetailTopicTable({
 }) {
   const activeTopics =
     reviewStatus === "Revised" && revisedTopics?.length ? revisedTopics : topics;
+
+  const originalMap = getOriginalTopicMap(topics);
 
   const columns = [
     activeTopics.filter((_, i) => i % 2 === 0),
@@ -483,6 +500,12 @@ function CaseDetailTopicTable({
           <div key={idx} className="space-y-3">
             {group.map((topic) => {
               const [label, wrap] = getTone(topic.pct);
+              const originalTopic = originalMap.get(topic.code);
+              const changed =
+                reviewStatus === "Revised" &&
+                revisedTopics?.length &&
+                isTopicChanged(originalTopic, topic);
+
               return (
                 <div
                   key={`${topic.code}-${topic.label}`}
@@ -499,12 +522,32 @@ function CaseDetailTopicTable({
                     </div>
 
                     <div className="shrink-0 rounded-xl bg-violet-50 px-3 py-2 text-right">
-                      <div className="text-[9px] uppercase tracking-wide text-slate-500">Score</div>
+                      <div className="text-[9px] uppercase tracking-wide text-slate-500">
+                        Score
+                      </div>
                       <div className="text-sm font-bold text-slate-900">
                         {topic.score}/{topic.max}
                       </div>
                     </div>
                   </div>
+
+                  {changed && originalTopic ? (
+                    <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[12px] text-violet-800">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold">Revised Topic</span>
+                        <span className="rounded-full border border-violet-300 px-2 py-0.5 text-[10px] font-semibold">
+                          {originalTopic.score} → {topic.score}
+                        </span>
+                      </div>
+
+                      {String(originalTopic.comment || "").trim() !==
+                      String(topic.comment || "").trim() ? (
+                        <div className="mt-2 text-[11px] text-violet-700">
+                          Comment updated
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <div className={`mt-3 rounded-xl border px-3 py-2 text-[11px] ${wrap}`}>
                     <div className="flex items-center justify-between gap-2">
@@ -518,14 +561,36 @@ function CaseDetailTopicTable({
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                      Evaluation Comment
+                  {changed && originalTopic ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          Original Comment
+                        </div>
+                        <div className="mt-1 text-[13px] leading-6 text-slate-700 whitespace-pre-line">
+                          {originalTopic.comment || "ยังไม่มี Evaluation Comment"}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3">
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                          Revised Comment
+                        </div>
+                        <div className="mt-1 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                          {topic.comment || "ยังไม่มี Revised Comment"}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-1 text-[13px] leading-6 text-slate-700 whitespace-pre-line">
-                      {topic.comment || "ยังไม่มี Evaluation Comment"}
+                  ) : (
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        Evaluation Comment
+                      </div>
+                      <div className="mt-1 text-[13px] leading-6 text-slate-700 whitespace-pre-line">
+                        {topic.comment || "ยังไม่มี Evaluation Comment"}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
@@ -702,10 +767,7 @@ export default function DashboardMockup({
           for (let i = 0; i < appealRows.length; i++) {
             const row = (appealRows[i] || []) as any[];
             const normalized = row.map((v) => normalizeText(v));
-            if (
-              normalized.includes("case id") &&
-              normalized.includes("appeal version")
-            ) {
+            if (normalized.includes("case id") && normalized.includes("appeal version")) {
               return i;
             }
           }
@@ -819,9 +881,7 @@ export default function DashboardMockup({
                 ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics)
                 : baseFinalScore);
 
-            const previousScoreVal =
-              mergedAppeal?.previousScore ??
-              baseFinalScore;
+            const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
 
             const inquiry =
               rawHelper.getValue(row, "Customer Inquiry") ??
