@@ -44,6 +44,14 @@ type Summary = {
   topicPerformance: TopicSummary[];
 };
 
+type AppealMergeItem = {
+  caseId: string;
+  finalScore?: number;
+  previousScore?: number;
+  reviewStatus?: ReviewStatus;
+  revisedTopics: Topic[];
+};
+
 const CASE_TARGET = 10;
 const TODAY = new Date();
 
@@ -514,7 +522,7 @@ function CaseDetailTopicTable({
                     <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                       Evaluation Comment
                     </div>
-                    <div className="mt-1 text-[13px] leading-6 text-slate-700">
+                    <div className="mt-1 text-[13px] leading-6 text-slate-700 whitespace-pre-line">
                       {topic.comment || "ยังไม่มี Evaluation Comment"}
                     </div>
                   </div>
@@ -549,13 +557,16 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
 function DataHealthChecks({
   caseCount,
   agentCount,
+  appealCount,
 }: {
   caseCount: number;
   agentCount: number;
+  appealCount: number;
 }) {
   const tests = [
     { name: "Raw data loaded", pass: caseCount > 0 },
     { name: "Agent list built", pass: agentCount > 0 },
+    { name: "Appeal merge loaded", pass: appealCount > 0 },
     { name: "Case URL available", pass: true },
   ];
 
@@ -578,6 +589,41 @@ function DataHealthChecks({
   );
 }
 
+function buildHeaderHelpers(headerRow: any[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+
+  const colIndexes = (name: string) => {
+    const target = normalizeText(name);
+    return normalizedHeaders
+      .map((h, idx) => (h === target ? idx : -1))
+      .filter((idx) => idx >= 0);
+  };
+
+  const getValue = (row: any[], name: string, occurrence = 0) => {
+    const indexes = colIndexes(name);
+    const idx = indexes[occurrence];
+    return idx >= 0 ? row[idx] : null;
+  };
+
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    const idx = indexes[indexes.length - 1];
+    return row[idx];
+  };
+
+  return { getValue, getLastValue, colIndexes };
+}
+
+function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
+  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
+  const total = baseTopics.reduce((sum, base) => {
+    const active = revisedMap.get(base.code) || base;
+    return sum + active.score;
+  }, 0);
+  return Number(total.toFixed(2));
+}
+
 export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
@@ -593,6 +639,7 @@ export default function DashboardMockup({
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
+  const [appealMergeCount, setAppealMergeCount] = useState(0);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -600,57 +647,154 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const response = await fetch("/QA_RawData1.xlsx");
-        if (!response.ok) {
+        const [rawResponse, appealResponse] = await Promise.all([
+          fetch("/QA_RawData1.xlsx"),
+          fetch("/Appleal ROWDATA.xlsx"),
+        ]);
+
+        if (!rawResponse.ok) {
           throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
         }
+        if (!appealResponse.ok) {
+          throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
+        }
 
-        const buffer = await response.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-        const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
+        const rawBuffer = await rawResponse.arrayBuffer();
+        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+        const rawSheet =
+          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
 
-        const rows = XLSX.utils.sheet_to_json<any[]>(sheet, {
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
           header: 1,
           defval: null,
           raw: true,
         });
 
-        const findHeaderRowIndex = () => {
-          for (let i = 0; i < rows.length; i++) {
-            const row = (rows[i] || []) as any[];
+        const rawHeaderIndex = (() => {
+          for (let i = 0; i < rawRows.length; i++) {
+            const row = (rawRows[i] || []) as any[];
             const normalized = row.map((v) => normalizeText(v));
-            const hasAgent = normalized.includes("agent name");
-            const hasCaseId = normalized.includes("case id");
-            if (hasAgent && hasCaseId) return i;
+            if (normalized.includes("agent name") && normalized.includes("case id")) return i;
           }
           return -1;
-        };
+        })();
 
-        const headerIndex = findHeaderRowIndex();
-        if (headerIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ Excel");
+        if (rawHeaderIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
         }
 
-        const headerRow = ((rows[headerIndex] || []) as any[]).map((h) => String(h ?? "").trim());
-        const dataRows = rows.slice(headerIndex + 1);
+        const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
+        const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
+        const rawHelper = buildHeaderHelpers(rawHeaderRow);
 
-        const col = (name: string) => {
-          const target = normalizeText(name);
-          return headerRow.findIndex((h) => normalizeText(h) === target);
-        };
+        const appealBuffer = await appealResponse.arrayBuffer();
+        const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
+        const appealSheet =
+          appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
 
-        const getValue = (row: any[], name: string) => {
-          const idx = col(name);
-          return idx >= 0 ? row[idx] : null;
-        };
+        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
 
-        const mapped: CaseItem[] = dataRows
-          .filter((row) => row && getValue(row, "Agent Name") && getValue(row, "Case ID"))
+        const appealHeaderIndex = (() => {
+          for (let i = 0; i < appealRows.length; i++) {
+            const row = (appealRows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            if (
+              normalized.includes("case id") &&
+              normalized.includes("appeal version")
+            ) {
+              return i;
+            }
+          }
+          return -1;
+        })();
+
+        if (appealHeaderIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ Appleal ROWDATA.xlsx");
+        }
+
+        const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
+        const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
+        const appealHelper = buildHeaderHelpers(appealHeaderRow);
+
+        const appealMap = new Map<string, AppealMergeItem>();
+
+        appealDataRows.forEach((row) => {
+          const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
+          if (!caseId) return;
+
+          const revisedTopics: Topic[] = TOPIC_MASTER.map((topic) => {
+            const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
+            const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
+            const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
+            const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
+
+            const hasRevisedScore =
+              revisedScoreRaw !== null &&
+              revisedScoreRaw !== "" &&
+              !Number.isNaN(Number(revisedScoreRaw));
+
+            const hasRevisedComment =
+              revisedCommentRaw !== null &&
+              String(revisedCommentRaw).trim() !== "";
+
+            if (!hasRevisedScore && !hasRevisedComment) return null;
+
+            const score = hasRevisedScore ? Number(revisedScoreRaw) : Number(originalScoreRaw ?? 0);
+            const comment = hasRevisedComment
+              ? String(revisedCommentRaw).trim()
+              : String(originalCommentRaw ?? "").trim();
+
+            return {
+              code: topic.code,
+              label: topic.label,
+              score,
+              max: topic.max,
+              pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+              comment,
+            };
+          }).filter(Boolean) as Topic[];
+
+          const explicitFinalScore = appealHelper.getLastValue(row, "Final Score");
+          const explicitOriginalFinalScore = appealHelper.getValue(row, "Final Score", 0);
+
+          const finalScore =
+            explicitFinalScore !== null &&
+            explicitFinalScore !== "" &&
+            !Number.isNaN(Number(explicitFinalScore))
+              ? Number(explicitFinalScore)
+              : undefined;
+
+          const previousScore =
+            explicitOriginalFinalScore !== null &&
+            explicitOriginalFinalScore !== "" &&
+            !Number.isNaN(Number(explicitOriginalFinalScore))
+              ? Number(explicitOriginalFinalScore)
+              : undefined;
+
+          if (!revisedTopics.length && finalScore === undefined) return;
+
+          appealMap.set(caseId, {
+            caseId,
+            finalScore,
+            previousScore,
+            reviewStatus: revisedTopics.length ? "Revised" : "Original",
+            revisedTopics,
+          });
+        });
+
+        setAppealMergeCount(appealMap.size);
+
+        const mapped: CaseItem[] = rawDataRows
+          .filter((row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID"))
           .map((row, index) => {
             const topics: Topic[] = TOPIC_MASTER.map((topic) => {
-              const scoreVal = Number(getValue(row, `${topic.code} Score`) || 0);
+              const scoreVal = Number(rawHelper.getValue(row, `${topic.code} Score`) || 0);
               const score = Number.isFinite(scoreVal) ? scoreVal : 0;
-              const commentVal = getValue(row, `${topic.code} Comment`);
+              const commentVal = rawHelper.getValue(row, `${topic.code} Comment`);
 
               return {
                 code: topic.code,
@@ -662,97 +806,48 @@ export default function DashboardMockup({
               };
             });
 
-            const revisedTopics: Topic[] | null = TOPIC_MASTER.map((topic) => {
-              const revisedScoreVal = getValue(row, `${topic.code} Revised Score`);
-              const revisedCommentVal = getValue(row, `${topic.code} Revised Comment`);
+            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
+            const mergedAppeal = appealMap.get(caseId);
 
-              const hasRevisedScore =
-                revisedScoreVal !== null &&
-                revisedScoreVal !== "" &&
-                !Number.isNaN(Number(revisedScoreVal));
-
-              const hasRevisedComment =
-                revisedCommentVal !== null &&
-                String(revisedCommentVal).trim() !== "";
-
-              if (!hasRevisedScore && !hasRevisedComment) {
-                return null;
-              }
-
-              const score = hasRevisedScore
-                ? Number(revisedScoreVal)
-                : topics.find((t) => t.code === topic.code)?.score ?? 0;
-
-              const comment = hasRevisedComment
-                ? String(revisedCommentVal).trim()
-                : topics.find((t) => t.code === topic.code)?.comment ?? "";
-
-              return {
-                code: topic.code,
-                label: topic.label,
-                score,
-                max: topic.max,
-                pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
-                comment,
-              };
-            }).filter(Boolean) as Topic[];
-
-            const reviewStatusRaw =
-              getValue(row, "Review Status") ??
-              getValue(row, "reviewStatus") ??
-              getValue(row, "QA Status") ??
-              "";
-
-            const hasRevisedTopics = revisedTopics.length > 0;
-
-            const reviewStatus: ReviewStatus =
-              normalizeText(reviewStatusRaw) === "revised" || hasRevisedTopics
-                ? "Revised"
-                : "Original";
+            const baseFinalScore =
+              Number(rawHelper.getValue(row, "Final Score")) ||
+              topics.reduce((sum, topic) => sum + topic.score, 0);
 
             const finalScoreVal =
-              Number(
-                getValue(row, "Final Score") ??
-                  getValue(row, "Score After Appeal") ??
-                  getValue(row, "Revised Final Score")
-              ) ||
-              (reviewStatus === "Revised" && revisedTopics.length
-                ? revisedTopics.reduce((sum, topic) => sum + topic.score, 0)
-                : topics.reduce((sum, topic) => sum + topic.score, 0));
-
-            const previousScoreRaw =
-              getValue(row, "Previous Score") ??
-              getValue(row, "Original Score") ??
-              getValue(row, "Score Before Appeal");
+              mergedAppeal?.finalScore ??
+              (mergedAppeal?.revisedTopics?.length
+                ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics)
+                : baseFinalScore);
 
             const previousScoreVal =
-              previousScoreRaw !== null &&
-              previousScoreRaw !== "" &&
-              !Number.isNaN(Number(previousScoreRaw))
-                ? Number(previousScoreRaw)
-                : reviewStatus === "Revised"
-                ? topics.reduce((sum, topic) => sum + topic.score, 0)
-                : undefined;
+              mergedAppeal?.previousScore ??
+              baseFinalScore;
 
             const inquiry =
-              getValue(row, "Customer Inquiry") ??
-              getValue(row, "Inquiry TH") ??
-              getValue(row, "Inquiry");
+              rawHelper.getValue(row, "Customer Inquiry") ??
+              rawHelper.getValue(row, "Inquiry TH") ??
+              rawHelper.getValue(row, "Inquiry");
 
-            const weekLabel = getValue(row, "Week Label") ?? getValue(row, "Week") ?? "-";
+            const weekLabel =
+              rawHelper.getValue(row, "Week Label") ??
+              rawHelper.getValue(row, "Week") ??
+              "-";
 
             const caseUrl =
-              getValue(row, "Case URL") ??
-              getValue(row, "Case Url") ??
-              getValue(row, "URL") ??
+              rawHelper.getValue(row, "Case URL") ??
+              rawHelper.getValue(row, "Case Url") ??
+              rawHelper.getValue(row, "URL") ??
               "";
 
+            const reviewStatus: ReviewStatus =
+              mergedAppeal?.revisedTopics?.length ? "Revised" : "Original";
+
             return {
-              key: `row-${index + 1}-${String(getValue(row, "Case ID")).trim()}`,
-              agent: String(getValue(row, "Agent Name")).trim(),
-              auditDate: formatAuditDate(getValue(row, "Audit Date")),
+              key: `row-${index + 1}-${caseId}`,
+              agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
+              auditDate: formatAuditDate(rawHelper.getValue(row, "Audit Date")),
               weekLabel: String(weekLabel || "-").trim(),
-              caseId: String(getValue(row, "Case ID")).trim(),
+              caseId,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
@@ -761,7 +856,7 @@ export default function DashboardMockup({
               grade: scoreToGrade(finalScoreVal),
               reviewStatus,
               topics,
-              revisedTopics: revisedTopics.length ? revisedTopics : null,
+              revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
             };
           });
 
@@ -858,7 +953,7 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด QA_RawData1.xlsx...
+          กำลังโหลด QA_RawData1.xlsx + Appleal ROWDATA.xlsx...
         </div>
       </div>
     );
@@ -871,7 +966,7 @@ export default function DashboardMockup({
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
           <div className="mt-3 text-sm text-slate-600">
-            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx
+            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx และ public/Appleal ROWDATA.xlsx
           </div>
         </div>
       </div>
@@ -1022,7 +1117,11 @@ export default function DashboardMockup({
             <Panel>
               <PanelHeader title="Data Health Checks" subtitle="System and data validation status" />
               <PanelBody>
-                <DataHealthChecks caseCount={allCases.length} agentCount={visibleAgentList.length} />
+                <DataHealthChecks
+                  caseCount={allCases.length}
+                  agentCount={visibleAgentList.length}
+                  appealCount={appealMergeCount}
+                />
               </PanelBody>
             </Panel>
           </div>
@@ -1142,7 +1241,7 @@ export default function DashboardMockup({
                 <Panel>
                   <PanelHeader
                     title="Case Detail"
-                    subtitle="Uses revised topics automatically when review status is Revised"
+                    subtitle="Uses merged appeal data automatically when revised rows exist"
                   />
                   <PanelBody>
                     {!activeSelectedCase ? (
@@ -1239,7 +1338,7 @@ export default function DashboardMockup({
                               <div className="mt-2 text-sm font-semibold text-slate-900">
                                 {activeSelectedCase.reviewStatus === "Revised" &&
                                 activeSelectedCase.revisedTopics?.length
-                                  ? "Showing Revised Topics"
+                                  ? "Showing Merged Revised Topics"
                                   : "Showing Original Topics"}
                               </div>
                             </div>
