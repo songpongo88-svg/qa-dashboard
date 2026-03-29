@@ -329,11 +329,8 @@ function LogoBox() {
     <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
       <img
         src="/robinhood-logo.png"
-        alt="Robinhood"
+        alt="Robinhood Logo"
         className="h-12 w-12 object-contain"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).style.display = "none";
-        }}
       />
     </div>
   );
