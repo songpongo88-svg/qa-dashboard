@@ -10,9 +10,9 @@ type AppealTopicItem = {
   max: number;
   originalScore: number;
   revisedScore: number;
-  originalComment: string;
   revisedComment: string;
   appealReason: string;
+  appealReviewSummary: string;
   changed: boolean;
 };
 
@@ -395,13 +395,13 @@ function TopicChangeCard({ item }: { item: AppealTopicItem }) {
             <div className="mt-2 text-sm text-slate-600">หัวข้อที่มีการอุทธรณ์และปรับผลจริง</div>
           </div>
 
-          <div className="grid min-w-[220px] gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-3 shadow-sm">
-            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          <div className="min-w-[240px] rounded-2xl border border-violet-300 bg-white px-4 py-4 shadow-sm">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
               Score Adjustment
             </div>
-            <div className="flex items-center gap-2 text-lg font-extrabold text-violet-700">
+            <div className="mt-2 flex items-center gap-3 text-2xl font-extrabold text-violet-700">
               <span>{item.originalScore}</span>
-              <span className="text-slate-400">→</span>
+              <span className="text-slate-300">→</span>
               <span>{item.revisedScore}</span>
             </div>
           </div>
@@ -410,45 +410,31 @@ function TopicChangeCard({ item }: { item: AppealTopicItem }) {
 
       <div className="p-5">
         <div className="grid gap-4 xl:grid-cols-2">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-              <div className="text-[11px] font-extrabold uppercase tracking-wide text-violet-700">
-                Appealed Issue
-              </div>
-              <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
-                {item.appealReason || "-"}
-              </div>
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+            <div className="text-[11px] font-extrabold uppercase tracking-wide text-violet-700">
+              Appealed Issue
             </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
-                Original Comment
-              </div>
-              <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-800">
-                {item.originalComment || "-"}
-              </div>
+            <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
+              {item.appealReason || "-"}
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-              <div className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-700">
-                Revised Result
-              </div>
-              <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
-                {item.revisedComment || "-"}
-              </div>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+            <div className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-700">
+              Appeal Result
             </div>
+            <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
+              {item.revisedComment || "-"}
+            </div>
+          </div>
+        </div>
 
-            <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-              <div className="text-[11px] font-extrabold uppercase tracking-wide text-sky-700">
-                Review Summary
-              </div>
-              <div className="mt-2 text-[14px] leading-6 text-slate-900">
-                ปรับคะแนนจาก <span className="font-extrabold">{item.originalScore}</span> เป็น{" "}
-                <span className="font-extrabold text-sky-700">{item.revisedScore}</span>
-              </div>
-            </div>
+        <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wide text-sky-700">
+            Appeal Review Summary
+          </div>
+          <div className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-900">
+            {item.appealReviewSummary || "-"}
           </div>
         </div>
       </div>
@@ -519,6 +505,9 @@ export default function AppealMockup({
               const originalCommentRaw = helper.getValue(row, `${topic.code} Comment`);
               const revisedCommentRaw = helper.getValue(row, `${topic.code} Revised Comment`);
               const appealReasonRaw = helper.getValue(row, `${topic.code} Appeal Reason`);
+              const appealReviewSummaryRaw =
+                helper.getValue(row, `${topic.code} Appeal Review Summary`) ??
+                helper.getValue(row, "Appeal Review Summary");
 
               const appealReason = String(appealReasonRaw ?? "").trim();
 
@@ -547,11 +536,10 @@ export default function AppealMockup({
                   ? Number(revisedScoreRaw)
                   : originalScore;
 
-              const originalComment = String(originalCommentRaw ?? "").trim();
               const revisedComment =
                 revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== ""
                   ? String(revisedCommentRaw).trim()
-                  : originalComment;
+                  : String(originalCommentRaw ?? "").trim();
 
               return {
                 code: topic.code,
@@ -559,9 +547,9 @@ export default function AppealMockup({
                 max: topic.max,
                 originalScore,
                 revisedScore,
-                originalComment,
                 revisedComment,
                 appealReason,
+                appealReviewSummary: String(appealReviewSummaryRaw ?? "").trim(),
                 changed,
               };
             }).filter(Boolean) as AppealTopicItem[];
@@ -607,14 +595,20 @@ export default function AppealMockup({
                   helper.getValue(row, "QA Date")
               ),
               appealSubmitDateTime: formatDateTime(
-                helper.getValue(row, "Appeal Submit Date & Time") ??
+                helper.getValue(row, "Appeal Submit") ??
+                  helper.getValue(row, "Appeal Submit Date & Time") ??
                   helper.getValue(row, "Appeal Submit Date")
               ),
               appealResultDateTime: formatDateTime(
-                helper.getValue(row, "Appeal Result Date & Time") ??
+                helper.getValue(row, "Appeal Result") ??
+                  helper.getValue(row, "Appeal Result Date & Time") ??
                   helper.getValue(row, "Appeal Result Date")
               ),
-              appealChannel: String(helper.getValue(row, "Appeal Channel") ?? "-").trim() || "-",
+              appealChannel:
+                String(
+                  helper.getValue(row, "Appeal Channel") ??
+                    "-"
+                ).trim() || "-",
               weekLabel: String(
                 helper.getValue(row, "Week Label") ?? helper.getValue(row, "Week") ?? "-"
               ).trim(),
