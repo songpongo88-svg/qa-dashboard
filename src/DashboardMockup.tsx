@@ -61,18 +61,18 @@ const TOPIC_MASTER = [
   { code: "1.3", label: "PDPA & Policy", max: 5 },
   { code: "2.1", label: "Case Accuracy", max: 5 },
   { code: "2.2", label: "Completeness", max: 5 },
-  { code: "2.3", label: "Clarity of Steps", max: 5 },
+  { code: "2.3", label: "Clear Actionable Guidance", max: 5 },
   { code: "2.4", label: "Official Sources", max: 5 },
-  { code: "3.1", label: "Root Cause & Fix", max: 10 },
-  { code: "3.2", label: "Ownership", max: 5 },
-  { code: "3.3", label: "Next Step", max: 5 },
+  { code: "3.1", label: "Root Cause & Resolution", max: 10 },
+  { code: "3.2", label: "Case Ownership", max: 5 },
+  { code: "3.3", label: "Clear Next Step Guidance", max: 5 },
   { code: "4.1", label: "Message Structure", max: 5 },
-  { code: "4.2", label: "Language", max: 5 },
-  { code: "4.3", label: "Tone", max: 5 },
-  { code: "4.4", label: "Adaptation", max: 5 },
-  { code: "5.1", label: "Process", max: 10 },
-  { code: "5.2", label: "SLA", max: 5 },
-  { code: "5.3", label: "Case Logging", max: 5 },
+  { code: "4.2", label: "Language Quality", max: 5 },
+  { code: "4.3", label: "Tone & Empathy", max: 5 },
+  { code: "4.4", label: "Adaptation to Context", max: 5 },
+  { code: "5.1", label: "Work Process Compliance", max: 10 },
+  { code: "5.2", label: "SLA Compliance", max: 5 },
+  { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
 
 function normalizeText(value: unknown) {
@@ -691,11 +691,10 @@ function buildHeaderHelpers(headerRow: any[]) {
   const getLastValue = (row: any[], name: string) => {
     const indexes = colIndexes(name);
     if (!indexes.length) return null;
-    const idx = indexes[indexes.length - 1];
-    return row[idx];
+    return row[indexes[indexes.length - 1]];
   };
 
-  return { getValue, getLastValue, colIndexes };
+  return { getValue, getLastValue };
 }
 
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
@@ -710,20 +709,34 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
 export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
+  externalSelectedAgent,
+  onSelectedAgentChange,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
+  externalSelectedAgent?: string;
+  onSelectedAgentChange?: (agentName: string) => void;
 }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [selectedAgent, setSelectedAgent] = useState<string>("");
+  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+
+  useEffect(() => {
+    if (
+      currentUser?.role !== "Agent" &&
+      typeof externalSelectedAgent === "string" &&
+      externalSelectedAgent !== selectedAgent
+    ) {
+      setSelectedAgent(externalSelectedAgent);
+    }
+  }, [externalSelectedAgent, currentUser, selectedAgent]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -786,7 +799,7 @@ export default function DashboardMockup({
           for (let i = 0; i < appealRows.length; i++) {
             const row = (appealRows[i] || []) as any[];
             const normalized = row.map((v) => normalizeText(v));
-            if (normalized.includes("case id") && normalized.includes("appeal version")) {
+            if (normalized.includes("case id")) {
               return i;
             }
           }
@@ -971,13 +984,15 @@ export default function DashboardMockup({
       if (selectedAgent !== currentUser.agentName) {
         setSelectedAgent(currentUser.agentName);
       }
+      onSelectedAgentChange?.(currentUser.agentName);
       return;
     }
 
     if (selectedAgent && !visibleAgentList.includes(selectedAgent)) {
       setSelectedAgent("");
+      onSelectedAgentChange?.("");
     }
-  }, [currentUser, visibleAgentList, selectedAgent]);
+  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
 
   const effectiveSelectedAgent =
     currentUser?.role === "Agent" && currentUser.agentName
@@ -1116,7 +1131,11 @@ export default function DashboardMockup({
                   </label>
                   <select
                     value={effectiveSelectedAgent}
-                    onChange={(e) => setSelectedAgent(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedAgent(value);
+                      onSelectedAgentChange?.(value);
+                    }}
                     disabled={currentUser?.role === "Agent"}
                     className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200 disabled:bg-slate-100"
                   >
