@@ -98,9 +98,9 @@ const USER_ACCOUNTS: UserLike[] = [
   {
     username: "sunijtra",
     password: "Sj#6Qm1!Ty",
-    displayName: "Sunijtra Siritan",
+    displayName: "Sunijtra Siritip",
     role: "Agent",
-    agentName: "Sunijtra Siritan",
+    agentName: "Sunijtra Siritip",
     canViewAllAgents: false,
   },
   {
