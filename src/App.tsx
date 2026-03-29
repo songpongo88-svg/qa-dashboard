@@ -3,30 +3,25 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 
-type Role =
-  | "QA"
-  | "Supervisor"
-  | "Senior"
-  | "Admin"
-  | "Lead"
-  | "Agent";
+type Role = "Lead" | "Agent";
 
 type UserLike = {
   username: string;
   password: string;
   displayName: string;
   role: Role;
-  agentName?: string;
+  agentName: string;
+  canViewAllAgents: boolean;
 };
 
 const USER_ACCOUNTS: UserLike[] = [
- 
   {
     username: "anucha",
     password: "Mk!A7p9#L2",
     displayName: "Anucha Makundin",
     role: "Lead",
     agentName: "Anucha Makundin",
+    canViewAllAgents: true,
   },
   {
     username: "arisa",
@@ -34,6 +29,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Arisa aiemrit",
     role: "Agent",
     agentName: "Arisa aiemrit",
+    canViewAllAgents: false,
   },
   {
     username: "chatkonnaphat",
@@ -41,6 +37,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Chatkonnaphat Bhusomya",
     role: "Agent",
     agentName: "Chatkonnaphat Bhusomya",
+    canViewAllAgents: false,
   },
   {
     username: "jariyawadee",
@@ -48,6 +45,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Jariyawadee Taboodda",
     role: "Agent",
     agentName: "Jariyawadee Taboodda",
+    canViewAllAgents: false,
   },
   {
     username: "jureeporn",
@@ -55,6 +53,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Jureeporn Piddum",
     role: "Agent",
     agentName: "Jureeporn Piddum",
+    canViewAllAgents: false,
   },
   {
     username: "krivut",
@@ -62,6 +61,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Krivut Vongkampan",
     role: "Lead",
     agentName: "Krivut Vongkampan",
+    canViewAllAgents: true,
   },
   {
     username: "natcha",
@@ -69,6 +69,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Natcha Chai-in",
     role: "Agent",
     agentName: "Natcha Chai-in",
+    canViewAllAgents: false,
   },
   {
     username: "nattapol",
@@ -76,13 +77,15 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Nattapol Suprom",
     role: "Agent",
     agentName: "Nattapol Suprom",
+    canViewAllAgents: false,
   },
   {
-    username: "phrommarin",
+    username: "Phrommarin",
     password: "sD6#zL8&",
     displayName: "Phrommarin Thaithorn",
     role: "Lead",
     agentName: "Phrommarin Thaithorn",
+    canViewAllAgents: true,
   },
   {
     username: "songpon",
@@ -90,6 +93,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Songpon Phothong",
     role: "Lead",
     agentName: "Songpon Phothong",
+    canViewAllAgents: true,
   },
   {
     username: "sunijtra",
@@ -97,6 +101,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Sunijtra Siritan",
     role: "Agent",
     agentName: "Sunijtra Siritan",
+    canViewAllAgents: false,
   },
   {
     username: "supakrit",
@@ -104,6 +109,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Supakrit Promkhamnoi",
     role: "Agent",
     agentName: "Supakrit Promkhamnoi",
+    canViewAllAgents: false,
   },
   {
     username: "suphitcha",
@@ -111,13 +117,15 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Suphitcha Keawliam",
     role: "Lead",
     agentName: "Suphitcha Keawliam",
+    canViewAllAgents: true,
   },
   {
     username: "wachiraporn",
-    password: "wL7$cI2@",
+    password: "wL7$cl2@",
     displayName: "Wachiraporn chailittichai",
     role: "Agent",
     agentName: "Wachiraporn chailittichai",
+    canViewAllAgents: false,
   },
   {
     username: "wassana",
@@ -125,6 +133,7 @@ const USER_ACCOUNTS: UserLike[] = [
     displayName: "Wassana Phothong",
     role: "Agent",
     agentName: "Wassana Phothong",
+    canViewAllAgents: false,
   },
 ];
 
@@ -140,8 +149,11 @@ function LoginScreen({
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const normalizedUsername = username.trim();
+
     const matchedUser = USER_ACCOUNTS.find(
-      (user) => user.username === username.trim() && user.password === password
+      (user) =>
+        user.username === normalizedUsername && user.password === password
     );
 
     if (!matchedUser) {
@@ -156,32 +168,36 @@ function LoginScreen({
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center p-6">
-        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 p-8 text-white lg:p-10">
-            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-violet-200">
+        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-700 p-8 text-white lg:p-10">
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-300">
               Robinhood QA Platform
             </div>
+
             <h1 className="mt-4 text-4xl font-bold leading-tight">
               QA Dashboard
               <br />
               Appeal Review
             </h1>
-            <p className="mt-4 max-w-lg text-sm leading-7 text-violet-100">
-              Sign in to access QA Dashboard, Case Detail, and QA Appeal Review.
+
+            <p className="mt-4 max-w-lg text-sm leading-7 text-slate-200">
+              Sign in to access your QA Dashboard, Case Detail, and Appeal
+              Review.
             </p>
 
             <div className="mt-8 grid gap-3">
               <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                <div className="text-sm font-semibold">Privileged Access</div>
-                <div className="mt-1 text-xs text-violet-100">
-                  QA / Supervisor / Senior / Admin / Lead can view all agents.
+                <div className="text-sm font-semibold">Access Control</div>
+                <div className="mt-1 text-xs text-slate-200">
+                  Users with View all agents can access all dashboards. Other
+                  users can access only their own data.
                 </div>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                <div className="text-sm font-semibold">Agent Access</div>
-                <div className="mt-1 text-xs text-violet-100">
-                  Agent can view only their own dashboard and appeal cases.
+                <div className="text-sm font-semibold">Available Accounts</div>
+                <div className="mt-1 text-xs text-slate-200">
+                  This login page accepts only the configured agent accounts.
                 </div>
               </div>
             </div>
@@ -189,14 +205,16 @@ function LoginScreen({
 
           <div className="p-8 lg:p-10">
             <div className="mx-auto max-w-md">
-              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-600">
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-600">
                 Login
               </div>
+
               <h2 className="mt-3 text-3xl font-bold text-slate-900">
                 Welcome back
               </h2>
+
               <p className="mt-2 text-sm text-slate-500">
-                Enter your account to continue.
+                Enter your username and password to continue.
               </p>
 
               <form onSubmit={handleLogin} className="mt-8 space-y-4">
@@ -209,7 +227,7 @@ function LoginScreen({
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Enter username"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                   />
                 </div>
 
@@ -222,7 +240,7 @@ function LoginScreen({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                   />
                 </div>
 
@@ -234,7 +252,7 @@ function LoginScreen({
 
                 <button
                   type="submit"
-                  className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-800"
+                  className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Sign In
                 </button>
@@ -242,13 +260,13 @@ function LoginScreen({
 
               <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Privileged Users
+                  Access Summary
                 </div>
-                <div className="mt-3 space-y-2 text-xs text-slate-600">
-                  <div>QA: qa / qa1234</div>
-                  <div>Supervisor: supervisor / super1234</div>
-                  <div>Senior: senior / senior1234</div>
-                  <div>Admin: admin / admin1234</div>
+                <div className="mt-3 text-xs leading-6 text-slate-600">
+                  View all agents: anucha, krivut, Phrommarin, songpon,
+                  suphitcha
+                  <br />
+                  Own data only: all remaining users
                 </div>
               </div>
             </div>
@@ -275,7 +293,7 @@ function MainScreen({
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState<string>("");
 
   const effectiveSelectedAgent = useMemo(() => {
-    if (currentUser?.role === "Agent" && currentUser?.agentName) {
+    if (!currentUser.canViewAllAgents) {
       return currentUser.agentName;
     }
     return selectedAgentGlobal;
@@ -290,8 +308,8 @@ function MainScreen({
             onClick={() => setActiveTab("dashboard")}
             className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${
               activeTab === "dashboard"
-                ? "border-violet-400 bg-violet-100 text-violet-800"
-                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                ? "border-slate-400 bg-slate-100 text-slate-800"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             }`}
           >
             Dashboard
@@ -302,8 +320,8 @@ function MainScreen({
             onClick={() => setActiveTab("appeal")}
             className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${
               activeTab === "appeal"
-                ? "border-violet-400 bg-violet-100 text-violet-800"
-                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                ? "border-slate-400 bg-slate-100 text-slate-800"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             }`}
           >
             Appeal
@@ -314,8 +332,8 @@ function MainScreen({
             onClick={() => setActiveTab("rubric")}
             className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${
               activeTab === "rubric"
-                ? "border-violet-400 bg-violet-100 text-violet-800"
-                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                ? "border-slate-400 bg-slate-100 text-slate-800"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
             }`}
           >
             QA Rubric
@@ -354,7 +372,9 @@ function MainScreen({
               <div className="text-sm font-semibold text-slate-900">
                 {currentUser.displayName}
               </div>
-              <div className="text-xs text-slate-500">{currentUser.role}</div>
+              <div className="text-xs text-slate-500">
+                {currentUser.canViewAllAgents ? "View all agents" : "Own data only"}
+              </div>
             </div>
 
             <button
@@ -373,7 +393,9 @@ function MainScreen({
           currentUser={currentUser}
           dashboardSubTab={dashboardSubTab}
           externalSelectedAgent={effectiveSelectedAgent}
-          onSelectedAgentChange={setSelectedAgentGlobal}
+          onSelectedAgentChange={
+            currentUser.canViewAllAgents ? setSelectedAgentGlobal : undefined
+          }
         />
       ) : activeTab === "appeal" ? (
         <AppealMockup
@@ -394,5 +416,10 @@ export default function App() {
     return <LoginScreen onLogin={setCurrentUser} />;
   }
 
-  return <MainScreen currentUser={currentUser} onLogout={() => setCurrentUser(null)} />;
+  return (
+    <MainScreen
+      currentUser={currentUser}
+      onLogout={() => setCurrentUser(null)}
+    />
+  );
 }
