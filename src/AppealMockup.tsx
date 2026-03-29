@@ -111,9 +111,11 @@ function formatInputDate(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function excelDateToJSDate(value: any): Date | null {
-  if (!value && value !== 0) return null;
-  if (value instanceof Date) return value;
+function tryParseLooseDate(value: any): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
@@ -126,13 +128,26 @@ function excelDateToJSDate(value: any): Date | null {
       Math.floor(parsed.S || 0)
     );
   }
-  const asDate = new Date(value);
-  if (!Number.isNaN(asDate.getTime())) return asDate;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const nativeParsed = new Date(raw);
+  if (!Number.isNaN(nativeParsed.getTime())) return nativeParsed;
+
+  const cleaned = raw
+    .replace(/\s+/g, " ")
+    .replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/, "$3-$2-$1T$4:$5")
+    .trim();
+
+  const secondTry = new Date(cleaned);
+  if (!Number.isNaN(secondTry.getTime())) return secondTry;
+
   return null;
 }
 
 function formatDate(value: any): string {
-  const dt = excelDateToJSDate(value);
+  const dt = tryParseLooseDate(value);
   if (!dt) return String(value ?? "");
   const day = `${dt.getDate()}`.padStart(2, "0");
   const month = `${dt.getMonth() + 1}`.padStart(2, "0");
@@ -141,7 +156,7 @@ function formatDate(value: any): string {
 }
 
 function formatDateTime(value: any): string {
-  const dt = excelDateToJSDate(value);
+  const dt = tryParseLooseDate(value);
   if (!dt) return String(value ?? "-");
   const day = `${dt.getDate()}`.padStart(2, "0");
   const month = `${dt.getMonth() + 1}`.padStart(2, "0");
@@ -158,6 +173,8 @@ function parseAuditDate(value: string) {
 
 function isWithinDateRange(auditDate: string, from?: string, to?: string) {
   const date = parseAuditDate(auditDate);
+  if (Number.isNaN(date.getTime())) return true;
+
   if (from) {
     const fromDate = new Date(from);
     if (date < fromDate) return false;
@@ -464,10 +481,82 @@ export default function AppealMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const appealResponse = await fetch("/Appleal ROWDATA.xlsx");
+        const [rawResponse, appealResponse] = await Promise.all([
+          fetch("/QA_RawData1.xlsx"),
+          fetch("/Appleal ROWDATA.xlsx"),
+        ]);
+
+        if (!rawResponse.ok) {
+          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+        }
         if (!appealResponse.ok) {
           throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
         }
+
+        const rawBuffer = await rawResponse.arrayBuffer();
+        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+        const rawSheet =
+          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
+
+        const rawHeaderIndex = (() => {
+          for (let i = 0; i < rawRows.length; i++) {
+            const row = (rawRows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            if (normalized.includes("agent name") && normalized.includes("case id")) return i;
+          }
+          return -1;
+        })();
+
+        if (rawHeaderIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
+        }
+
+        const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
+        const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
+        const rawHelper = buildHeaderHelpers(rawHeaderRow);
+
+        const rawCaseScoreMap = new Map<string, { previousScore: number; agent: string; auditDate: string; weekLabel: string; inquiryTh: string }>();
+
+        rawDataRows.forEach((row) => {
+          const caseId = String(rawHelper.getValue(row, "Case ID") ?? "").trim();
+          if (!caseId) return;
+
+          const finalScoreRaw = rawHelper.getValue(row, "Final Score");
+          const topicTotal = TOPIC_MASTER.reduce((sum, topic) => {
+            const scoreVal = Number(rawHelper.getValue(row, `${topic.code} Score`) || 0);
+            return sum + (Number.isFinite(scoreVal) ? scoreVal : 0);
+          }, 0);
+
+          const previousScore =
+            finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
+              ? Number(finalScoreRaw)
+              : topicTotal;
+
+          const inquiry =
+            rawHelper.getValue(row, "Customer Inquiry") ??
+            rawHelper.getValue(row, "Inquiry TH") ??
+            rawHelper.getValue(row, "Inquiry") ??
+            "-";
+
+          const weekLabel =
+            rawHelper.getValue(row, "Week Label") ??
+            rawHelper.getValue(row, "Week") ??
+            "-";
+
+          rawCaseScoreMap.set(caseId, {
+            previousScore,
+            agent: String(rawHelper.getValue(row, "Agent Name") ?? "").trim(),
+            auditDate: formatDate(rawHelper.getValue(row, "Audit Date")),
+            weekLabel: String(weekLabel || "-").trim(),
+            inquiryTh: String(inquiry || "-").trim(),
+          });
+        });
 
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
@@ -501,6 +590,7 @@ export default function AppealMockup({
           .filter((row) => row && helper.getValue(row, "Case ID"))
           .map((row, index) => {
             const caseId = String(helper.getValue(row, "Case ID") ?? "").trim();
+            const rawCase = rawCaseScoreMap.get(caseId);
 
             const appealedTopics: AppealTopicItem[] = TOPIC_MASTER.map((topic) => {
               const originalScoreRaw = helper.getValue(row, `${topic.code} Score`);
@@ -554,39 +644,31 @@ export default function AppealMockup({
             }).filter(Boolean) as AppealTopicItem[];
 
             const explicitFinalScore = helper.getLastValue(row, "Final Score");
-            const explicitOriginalFinalScore = helper.getValue(row, "Final Score", 0);
 
             const finalScore =
               explicitFinalScore !== null &&
               explicitFinalScore !== "" &&
               !Number.isNaN(Number(explicitFinalScore))
                 ? Number(explicitFinalScore)
-                : 0;
+                : appealedTopics.reduce((sum, topic) => sum + topic.revisedScore, 0);
 
-            const previousScore =
-              explicitOriginalFinalScore !== null &&
-              explicitOriginalFinalScore !== "" &&
-              !Number.isNaN(Number(explicitOriginalFinalScore))
-                ? Number(explicitOriginalFinalScore)
-                : finalScore;
+            const previousScore = rawCase?.previousScore ?? finalScore;
 
             const agent =
               helper.getValue(row, "Agent Name") ??
               helper.getValue(row, "QA Name") ??
               helper.getValue(row, "Agent") ??
+              rawCase?.agent ??
               "";
 
             const inquiry =
               helper.getValue(row, "Customer Inquiry") ??
               helper.getValue(row, "Inquiry TH") ??
               helper.getValue(row, "Inquiry") ??
+              rawCase?.inquiryTh ??
               "-";
 
-            const appealReviewSummary =
-              String(
-                helper.getValue(row, "Appeal Review Summary") ??
-                  ""
-              ).trim();
+            const appealReviewSummary = String(helper.getValue(row, "Appeal Review Summary") ?? "").trim();
 
             const reviewStatus: ReviewStatus = appealedTopics.length ? "Revised" : "Original";
 
@@ -594,11 +676,12 @@ export default function AppealMockup({
               key: `appeal-${index + 1}-${caseId}`,
               caseId,
               agent: String(agent || "").trim(),
-              auditDate: formatDate(
-                helper.getValue(row, "Audit Date") ??
-                  helper.getValue(row, "Selected Case Date") ??
-                  helper.getValue(row, "QA Date")
-              ),
+              auditDate:
+                formatDate(
+                  helper.getValue(row, "Audit Date") ??
+                    helper.getValue(row, "Selected Case Date") ??
+                    helper.getValue(row, "QA Date")
+                ) || rawCase?.auditDate || "-",
               appealSubmitDateTime: formatDateTime(
                 helper.getValue(row, "Appeal Submit") ??
                   helper.getValue(row, "Appeal Submit Date & Time") ??
@@ -609,11 +692,14 @@ export default function AppealMockup({
                   helper.getValue(row, "Appeal Result Date & Time") ??
                   helper.getValue(row, "Appeal Result Date")
               ),
-              appealChannel:
-                String(helper.getValue(row, "Appeal Channel") ?? "-").trim() || "-",
-              weekLabel: String(
-                helper.getValue(row, "Week Label") ?? helper.getValue(row, "Week") ?? "-"
-              ).trim(),
+              appealChannel: String(helper.getValue(row, "Appeal Channel") ?? "-").trim() || "-",
+              weekLabel:
+                String(
+                  helper.getValue(row, "Week Label") ??
+                    helper.getValue(row, "Week") ??
+                    rawCase?.weekLabel ??
+                    "-"
+                ).trim() || "-",
               finalScore,
               previousScore,
               grade: scoreToGrade(finalScore),
@@ -697,7 +783,7 @@ export default function AppealMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด Appleal ROWDATA.xlsx...
+          กำลังโหลด QA_RawData1.xlsx + Appleal ROWDATA.xlsx...
         </div>
       </div>
     );
