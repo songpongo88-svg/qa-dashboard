@@ -644,10 +644,7 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
               getValue(row, "Inquiry TH") ??
               getValue(row, "Inquiry");
 
-            const weekLabel =
-              getValue(row, "Week Label") ??
-              getValue(row, "Week") ??
-              "-";
+            const weekLabel = getValue(row, "Week Label") ?? getValue(row, "Week") ?? "-";
 
             const caseUrl =
               getValue(row, "Case URL") ??
@@ -791,43 +788,28 @@ export default function DashboardMockup({ currentUser }: { currentUser: any }) {
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6">
-        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 p-6 text-white shadow-xl">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-  <div className="flex min-w-0 items-center justify-between gap-4 w-full">
-    <div className="min-w-0">
-      <div className="text-sm font-medium text-violet-100">QA Performance Dashboard</div>
-      <h1 className="mt-2 text-3xl font-bold leading-tight">
-        {currentUser?.role === "Agent"
-          ? currentUser.agentName
-          : "QA Performance Dashboard"}
-      </h1>
-      <div className="mt-2 text-sm text-violet-100">
-        Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-      </div>
-    </div>
+        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white shadow-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex w-full min-w-0 items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-violet-100">QA Performance Dashboard</div>
+                <h1 className="mt-2 text-3xl font-bold leading-tight">
+                  {currentUser?.role === "Agent"
+                    ? currentUser.agentName
+                    : "QA Performance Dashboard"}
+                </h1>
+                <div className="mt-2 text-sm text-violet-100">
+                  Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
+                </div>
+              </div>
 
-    <div className="shrink-0">
-      <img
-        src="/robinhood-logo.PNG"
-        alt="Robinhood Logo"
-        className="h-28 w-28 rounded-3xl object-cover shadow-xl"
-      />
-    </div>
-  </div>
-
-  <div className="flex flex-wrap gap-2">
-    <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
-    <SmallButton onClick={() => window.print()} dark>
-      Export
-    </SmallButton>
-  </div>
-</div>
-
-              <img
-                src="/robinhood-logo.PNG"
-                alt="Robinhood Logo"
-                className="h-20 w-20 rounded-2xl border border-white/20 bg-white/10 object-cover shadow-lg"
-              />
+              <div className="shrink-0">
+                <img
+                  src="/robinhood-logo.PNG"
+                  alt="Robinhood Logo"
+                  className="h-28 w-28 rounded-3xl object-cover shadow-xl"
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
