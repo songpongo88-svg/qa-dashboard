@@ -169,7 +169,21 @@ function buildHeaderHelpers(headerRow: any[]) {
     return row[indexes[indexes.length - 1]];
   };
 
-  return { getValue, getLastValue };
+  const getFirstExisting = (row: any[], names: string[]) => {
+    for (const name of names) {
+      const value = getValue(row, name);
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        return value;
+      }
+    }
+    return null;
+  };
+
+  const hasAnyHeader = (names: string[]) => {
+    return names.some((name) => colIndexes(name).length > 0);
+  };
+
+  return { getValue, getLastValue, getFirstExisting, hasAnyHeader };
 }
 
 function getEffectiveScore(topic: TopicItem) {
@@ -271,11 +285,7 @@ function MetricCard({
   );
 }
 
-function TopicCard({
-  topic,
-}: {
-  topic: TopicItem;
-}) {
+function TopicCard({ topic }: { topic: TopicItem }) {
   const scoreChanged =
     topic.revisedScore !== null && topic.revisedScore !== topic.originalScore;
 
@@ -301,13 +311,11 @@ function TopicCard({
               Appealed
             </span>
           ) : null}
-
           {scoreChanged ? (
             <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
               {topic.originalScore ?? 0} → {topic.revisedScore ?? 0}
             </span>
           ) : null}
-
           {!scoreChanged && commentChanged ? (
             <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
               Comment Revised
@@ -389,14 +397,10 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
         const headerIndex = (() => {
           for (let i = 0; i < rows.length; i++) {
             const row = (rows[i] || []) as any[];
-            const normalized = row.map((v) => normalizeText(v));
-            if (
-              normalized.includes("case id") &&
-              normalized.includes("agent name") &&
-              normalized.includes("appeal version")
-            ) {
-              return i;
-            }
+            const helper = buildHeaderHelpers(row);
+            const hasCase = helper.hasAnyHeader(["Case ID", "CaseId", "Selected Case"]);
+            const hasAgent = helper.hasAnyHeader(["Agent Name", "Agent", "QA Name", "Employee Name"]);
+            if (hasCase && hasAgent) return i;
           }
           return -1;
         })();
@@ -410,14 +414,24 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
         const helper = buildHeaderHelpers(headerRow);
 
         const mapped: AppealCase[] = dataRows
-          .filter((row) => row && helper.getValue(row, "Case ID"))
+          .filter((row) => row && helper.getFirstExisting(row, ["Case ID", "CaseId", "Selected Case"]))
           .map((row, index) => {
             const topics: TopicItem[] = TOPIC_MASTER.map((topic) => {
-              const originalScore = toNumberOrNull(helper.getValue(row, `${topic.code} Score`));
-              const revisedScore = toNumberOrNull(helper.getValue(row, `${topic.code} Revised Score`));
-              const originalComment = String(helper.getValue(row, `${topic.code} Comment`) ?? "").trim();
-              const appealReason = String(helper.getValue(row, `${topic.code} Appeal Reason`) ?? "").trim();
-              const revisedComment = String(helper.getValue(row, `${topic.code} Revised Comment`) ?? "").trim();
+              const originalScore = toNumberOrNull(
+                helper.getFirstExisting(row, [`${topic.code} Score`, `${topic.code} Original Score`])
+              );
+              const revisedScore = toNumberOrNull(
+                helper.getFirstExisting(row, [`${topic.code} Revised Score`, `${topic.code} New Score`])
+              );
+              const originalComment = String(
+                helper.getFirstExisting(row, [`${topic.code} Comment`, `${topic.code} Original Comment`]) ?? ""
+              ).trim();
+              const appealReason = String(
+                helper.getFirstExisting(row, [`${topic.code} Appeal Reason`, `${topic.code} Agent Appeal`, `${topic.code} Reason`]) ?? ""
+              ).trim();
+              const revisedComment = String(
+                helper.getFirstExisting(row, [`${topic.code} Revised Comment`, `${topic.code} QA Comment`, `${topic.code} Result Comment`]) ?? ""
+              ).trim();
 
               const scoreChanged =
                 revisedScore !== null && originalScore !== null && revisedScore !== originalScore;
@@ -438,16 +452,18 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
               };
             });
 
-            const criticalError = String(helper.getValue(row, "Critical Error") ?? "").trim();
+            const criticalError = String(
+              helper.getFirstExisting(row, ["Critical Error", "Critical", "Critical Error Status"]) ?? ""
+            ).trim();
 
             const originalFinalScore =
               toNumberOrNull(helper.getValue(row, "Final Score", 0)) ??
-              Number(
-                topics.reduce((sum, topic) => sum + (topic.originalScore ?? 0), 0).toFixed(2)
-              );
+              toNumberOrNull(helper.getFirstExisting(row, ["Original Final Score", "Previous Score", "Score Before Appeal"])) ??
+              Number(topics.reduce((sum, topic) => sum + (topic.originalScore ?? 0), 0).toFixed(2));
 
             const revisedFinalScore =
               toNumberOrNull(helper.getLastValue(row, "Final Score")) ??
+              toNumberOrNull(helper.getFirstExisting(row, ["Revised Final Score", "Score After Appeal"])) ??
               calculateFinalScore(topics, criticalError);
 
             const changedTopicsCount = topics.filter((topic) => topic.changed).length;
@@ -455,14 +471,18 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
               (topic) => normalizeText(topic.appealReason) !== ""
             ).length;
 
-            const rawStatus = String(helper.getValue(row, "Appeal Status") ?? "").trim();
+            const rawStatus = String(
+              helper.getFirstExisting(row, ["Appeal Status", "Result Status", "Status"]) ?? ""
+            ).trim();
+
             const autoChangeRemark =
-              String(helper.getValue(row, "Auto Change Remark") ?? "").trim() ||
+              String(helper.getFirstExisting(row, ["Auto Change Remark", "Change Remark"]) ?? "").trim() ||
               buildAutoChangeRemark(topics);
 
             const decisionSummary =
-              String(helper.getValue(row, "สรุปผลพิจารณา") ?? "").trim() ||
-              String(helper.getValue(row, "Decision Summary") ?? "").trim();
+              String(
+                helper.getFirstExisting(row, ["สรุปผลพิจารณา", "Decision Summary", "QA Response Summary", "Result Summary"]) ?? ""
+              ).trim();
 
             const appealStatus = inferAppealStatus(
               rawStatus,
@@ -473,24 +493,37 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
 
             return {
               id: `APL-${String(index + 1).padStart(4, "0")}`,
-              caseId: String(helper.getValue(row, "Case ID") ?? "").trim(),
-              agentName: String(helper.getValue(row, "Agent Name") ?? "").trim(),
-              auditDate: excelDateToText(helper.getValue(row, "Audit Date")),
-              submitDate: excelDateToText(
-                helper.getValue(row, "Appeal Submit Date & Time") ??
-                  helper.getValue(row, "Timestamp")
+              caseId: String(
+                helper.getFirstExisting(row, ["Case ID", "CaseId", "Selected Case"]) ?? ""
+              ).trim(),
+              agentName: String(
+                helper.getFirstExisting(row, ["Agent Name", "Agent", "QA Name", "Employee Name"]) ?? ""
+              ).trim(),
+              auditDate: excelDateToText(
+                helper.getFirstExisting(row, ["Audit Date", "QA Date", "Evaluation Date"])
               ),
-              resultDate: excelDateToText(helper.getValue(row, "Appeal Result Date & Time")),
-              appealChannel: String(helper.getValue(row, "Appeal Channel") ?? "").trim(),
-              reviewType: String(helper.getValue(row, "Review Type") ?? "").trim(),
+              submitDate: excelDateToText(
+                helper.getFirstExisting(row, ["Appeal Submit Date & Time", "Timestamp", "Submit Date"])
+              ),
+              resultDate: excelDateToText(
+                helper.getFirstExisting(row, ["Appeal Result Date & Time", "Result Date"])
+              ),
+              appealChannel: String(
+                helper.getFirstExisting(row, ["Appeal Channel", "Channel"]) ?? ""
+              ).trim(),
+              reviewType: String(
+                helper.getFirstExisting(row, ["Review Type", "Type"]) ?? ""
+              ).trim(),
               criticalError,
-              version: String(helper.getValue(row, "Appeal Version") ?? "").trim() || "REV1",
+              version: String(
+                helper.getFirstExisting(row, ["Appeal Version", "Version", "Appeal Ver."]) ?? "REV1"
+              ).trim(),
               appealStatus,
-              commentStatus: String(helper.getValue(row, "Comment Status") ?? "").trim(),
+              commentStatus: String(
+                helper.getFirstExisting(row, ["Comment Status", "QA Comment Status"]) ?? ""
+              ).trim(),
               customerInquiry: String(
-                helper.getValue(row, "Customer Inquiry") ??
-                  helper.getValue(row, "Inquiry") ??
-                  ""
+                helper.getFirstExisting(row, ["Customer Inquiry", "Inquiry", "Case Detail", "Issue Detail"]) ?? ""
               ).trim(),
               autoChangeRemark,
               decisionSummary,
@@ -503,7 +536,7 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
               topics,
             };
           })
-          .filter((item) => item.caseId && item.agentName);
+          .filter((item) => item.caseId);
 
         setAppealCases(mapped);
       } catch (error: any) {
@@ -557,11 +590,9 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
     if (detailMode === "appealedOnly") {
       return selectedCase.topics.filter((topic) => normalizeText(topic.appealReason) !== "");
     }
-
     if (detailMode === "changedOnly") {
       return selectedCase.topics.filter((topic) => topic.changed);
     }
-
     return selectedCase.topics;
   }, [selectedCase, detailMode]);
 
@@ -617,7 +648,7 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
             <div className="text-lg font-semibold text-slate-900">ไม่พบเคสอุทธรณ์</div>
             <div className="mt-2 text-sm text-slate-500">
               {currentUser?.role === "Agent"
-                ? "บัญชีนี้ยังไม่มีเคสอุทธรณ์ของตัวเอง"
+                ? "บัญชีนี้ยังไม่มีเคสอุทธรณ์ของตัวเอง หรือชื่อในไฟล์ไม่ตรงกับชื่อ login"
                 : "ไม่พบข้อมูลตามเงื่อนไขที่เลือก"}
             </div>
           </div>
@@ -635,22 +666,10 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
                 Robinhood QA Appeal
               </div>
-              <h1 className="mt-3 text-3xl font-bold leading-tight">
-                QA Appeal Review
-              </h1>
+              <h1 className="mt-3 text-3xl font-bold leading-tight">QA Appeal Review</h1>
               <div className="mt-2 text-sm text-violet-100">
                 Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20"
-              >
-                Print / Save PDF
-              </button>
             </div>
           </div>
         </div>
@@ -666,45 +685,27 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
           <div className="space-y-6">
             <Panel title="Quick Controls" subtitle="Search and filter appeal cases">
               <div className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Search
-                  </label>
-                  <input
-                    type="text"
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    placeholder="Search Case ID / Agent"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Appeal Status
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="Pending">Pending</option>
-                    <option value="In Review">In Review</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Partially Approved">Partially Approved</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="No Change">No Change</option>
-                    <option value="Draft">Draft</option>
-                  </select>
-                </div>
-
-                <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
-                  <div className="text-xs text-slate-500">Visibility Rule</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                    {canViewAll ? "View all appeal cases" : "View own appeal cases only"}
-                  </div>
-                </div>
+                <input
+                  type="text"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="Search Case ID / Agent"
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm"
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="In Review">In Review</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Partially Approved">Partially Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="No Change">No Change</option>
+                  <option value="Draft">Draft</option>
+                </select>
               </div>
             </Panel>
 
@@ -723,12 +724,9 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <div className="text-sm font-semibold text-slate-900">
-                          {item.caseId}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-500">{item.agentName}</div>
+                        <div className="text-sm font-semibold text-slate-900">{item.caseId}</div>
+                        <div className="mt-1 text-xs text-slate-500">{item.agentName || "-"}</div>
                       </div>
-
                       <span
                         className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold ${statusTone(
                           item.appealStatus
@@ -743,21 +741,13 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-                      <span
-                        className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(
-                          item.originalGrade
-                        )}`}
-                      >
+                      <span className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(item.originalGrade)}`}>
                         {item.originalGrade}
                       </span>
                       <span className="text-slate-500">
                         {item.originalFinalScore.toFixed(2)} → {item.revisedFinalScore.toFixed(2)}
                       </span>
-                      <span
-                        className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(
-                          item.revisedGrade
-                        )}`}
-                      >
+                      <span className={`rounded-full border px-2 py-0.5 font-semibold ${gradeTone(item.revisedGrade)}`}>
                         {item.revisedGrade}
                       </span>
                     </div>
@@ -773,181 +763,54 @@ export default function AppealMockup({ currentUser }: { currentUser: UserLike })
                 <Panel
                   title={`Appeal Detail • ${selectedCase.caseId}`}
                   subtitle="Full appeal review by case"
-                  right={
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDetailMode("all")}
-                        className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${
-                          detailMode === "all"
-                            ? "border-violet-400 bg-violet-100 text-violet-800"
-                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                        }`}
-                      >
-                        All Topics
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDetailMode("appealedOnly")}
-                        className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${
-                          detailMode === "appealedOnly"
-                            ? "border-violet-400 bg-violet-100 text-violet-800"
-                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                        }`}
-                      >
-                        Appealed Only
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDetailMode("changedOnly")}
-                        className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${
-                          detailMode === "changedOnly"
-                            ? "border-violet-400 bg-violet-100 text-violet-800"
-                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                        }`}
-                      >
-                        Changed Only
-                      </button>
-                    </div>
-                  }
                 >
                   <div className="space-y-6">
                     <div className="grid gap-4 xl:grid-cols-2">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="grid gap-3 md:grid-cols-2">
-                          <div>
-                            <div className="text-xs text-slate-500">Case ID</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.caseId}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Agent Name</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.agentName}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Audit Date</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.auditDate || "-"}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Appeal Version</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.version || "-"}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Submit Date</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.submitDate || "-"}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Result Date</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.resultDate || "-"}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Appeal Channel</div>
-                            <div className="text-sm font-semibold text-slate-900">{selectedCase.appealChannel || "-"}</div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Status</div>
-                            <div className="mt-1">
-                              <span
-                                className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusTone(
-                                  selectedCase.appealStatus
-                                )}`}
-                              >
-                                {selectedCase.appealStatus}
-                              </span>
-                            </div>
-                          </div>
+                          <div><div className="text-xs text-slate-500">Case ID</div><div className="text-sm font-semibold text-slate-900">{selectedCase.caseId}</div></div>
+                          <div><div className="text-xs text-slate-500">Agent Name</div><div className="text-sm font-semibold text-slate-900">{selectedCase.agentName || "-"}</div></div>
+                          <div><div className="text-xs text-slate-500">Audit Date</div><div className="text-sm font-semibold text-slate-900">{selectedCase.auditDate || "-"}</div></div>
+                          <div><div className="text-xs text-slate-500">Appeal Version</div><div className="text-sm font-semibold text-slate-900">{selectedCase.version || "-"}</div></div>
+                          <div><div className="text-xs text-slate-500">Submit Date</div><div className="text-sm font-semibold text-slate-900">{selectedCase.submitDate || "-"}</div></div>
+                          <div><div className="text-xs text-slate-500">Result Date</div><div className="text-sm font-semibold text-slate-900">{selectedCase.resultDate || "-"}</div></div>
                         </div>
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div className="grid gap-3 md:grid-cols-2">
-                          <div>
-                            <div className="text-xs text-slate-500">Original Final Score</div>
-                            <div className="text-lg font-bold text-slate-900">
-                              {selectedCase.originalFinalScore.toFixed(2)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Revised Final Score</div>
-                            <div className="text-lg font-bold text-slate-900">
-                              {selectedCase.revisedFinalScore.toFixed(2)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Original Grade</div>
-                            <div className="mt-1">
-                              <span
-                                className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
-                                  selectedCase.originalGrade
-                                )}`}
-                              >
-                                {selectedCase.originalGrade}
-                              </span>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Revised Grade</div>
-                            <div className="mt-1">
-                              <span
-                                className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
-                                  selectedCase.revisedGrade
-                                )}`}
-                              >
-                                {selectedCase.revisedGrade}
-                              </span>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Appealed Topics</div>
-                            <div className="text-sm font-semibold text-slate-900">
-                              {selectedCase.appealedTopicsCount}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-slate-500">Changed Topics</div>
-                            <div className="text-sm font-semibold text-slate-900">
-                              {selectedCase.changedTopicsCount}
-                            </div>
-                          </div>
+                          <div><div className="text-xs text-slate-500">Original Final Score</div><div className="text-lg font-bold text-slate-900">{selectedCase.originalFinalScore.toFixed(2)}</div></div>
+                          <div><div className="text-xs text-slate-500">Revised Final Score</div><div className="text-lg font-bold text-slate-900">{selectedCase.revisedFinalScore.toFixed(2)}</div></div>
+                          <div><div className="text-xs text-slate-500">Original Grade</div><div className="mt-1"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.originalGrade)}`}>{selectedCase.originalGrade}</span></div></div>
+                          <div><div className="text-xs text-slate-500">Revised Grade</div><div className="mt-1"><span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.revisedGrade)}`}>{selectedCase.revisedGrade}</span></div></div>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid gap-4 xl:grid-cols-2">
                       <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-                          Auto Change Remark
-                        </div>
-                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
-                          {selectedCase.autoChangeRemark || "-"}
-                        </div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">Auto Change Remark</div>
+                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">{selectedCase.autoChangeRemark || "-"}</div>
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          Decision Summary
-                        </div>
-                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
-                          {selectedCase.decisionSummary || "-"}
-                        </div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Decision Summary</div>
+                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">{selectedCase.decisionSummary || "-"}</div>
                       </div>
                     </div>
-
-                    {selectedCase.customerInquiry ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          Customer Inquiry
-                        </div>
-                        <div className="mt-2 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
-                          {selectedCase.customerInquiry}
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 </Panel>
 
                 <Panel
                   title="Appeal Topic Review"
                   subtitle="See exactly what was appealed and what changed"
+                  right={
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => setDetailMode("all")} className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${detailMode === "all" ? "border-violet-400 bg-violet-100 text-violet-800" : "border-violet-200 bg-white text-violet-700"}`}>All Topics</button>
+                      <button type="button" onClick={() => setDetailMode("appealedOnly")} className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${detailMode === "appealedOnly" ? "border-violet-400 bg-violet-100 text-violet-800" : "border-violet-200 bg-white text-violet-700"}`}>Appealed Only</button>
+                      <button type="button" onClick={() => setDetailMode("changedOnly")} className={`rounded-2xl border px-3 py-2 text-sm font-semibold ${detailMode === "changedOnly" ? "border-violet-400 bg-violet-100 text-violet-800" : "border-violet-200 bg-white text-violet-700"}`}>Changed Only</button>
+                    </div>
+                  }
                 >
                   {detailTopics.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
