@@ -20,31 +20,7 @@ type UserLike = {
 };
 
 const USER_ACCOUNTS: UserLike[] = [
-  {
-    username: "qa",
-    password: "qa1234",
-    displayName: "QA Admin",
-    role: "QA",
-  },
-  {
-    username: "supervisor",
-    password: "super1234",
-    displayName: "Supervisor",
-    role: "Supervisor",
-  },
-  {
-    username: "senior",
-    password: "senior1234",
-    displayName: "Senior",
-    role: "Senior",
-  },
-  {
-    username: "admin",
-    password: "admin1234",
-    displayName: "Admin",
-    role: "Admin",
-  },
-
+ 
   {
     username: "anucha",
     password: "Mk!A7p9#L2",
@@ -99,7 +75,7 @@ const USER_ACCOUNTS: UserLike[] = [
     password: "Np!4Xz8@Hr",
     displayName: "Nattapol Suprom",
     role: "Agent",
-    agentName: "NattapolSuprom",
+    agentName: "Nattapol Suprom",
   },
   {
     username: "phrommarin",
