@@ -134,11 +134,11 @@ const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 
 function LogoBox() {
   return (
-    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm shadow-lg sm:h-20 sm:w-20">
+    <div className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl border border-white/15 bg-white/10 shadow-lg backdrop-blur-sm sm:h-[96px] sm:w-[96px]">
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="h-10 w-10 object-contain sm:h-12 sm:w-12"
+        className="h-[48px] w-[48px] object-contain sm:h-[64px] sm:w-[64px]"
       />
     </div>
   );
@@ -389,9 +389,9 @@ export default function App() {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-violet-50 to-fuchsia-50">
-        <div className="mx-auto flex min-h-screen w-full max-w-[1280px] items-center px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center px-4 py-5 sm:px-5 lg:px-6">
           <div className="grid w-full gap-5 lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-7 text-white shadow-2xl sm:px-8 sm:py-8 lg:px-9 lg:py-10">
+            <div className="relative overflow-hidden rounded-[30px] bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 px-5 py-6 text-white shadow-2xl sm:px-7 sm:py-7 lg:px-8 lg:py-8">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_30%)]" />
 
               <div className="relative z-10">
@@ -406,13 +406,13 @@ export default function App() {
                   Robinhood Customer Service Quality Assurance
                 </div>
 
-                <div className="mt-4 max-w-[520px] text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                <div className="mt-4 max-w-[500px] text-[2rem] font-extrabold leading-tight tracking-tight sm:text-[2.4rem] lg:text-[3.2rem]">
                   Robinhood QA
                   <br />
                   Control Center
                 </div>
 
-                <div className="mt-5 max-w-[560px] text-sm leading-7 text-violet-100/95 sm:text-base">
+                <div className="mt-5 max-w-[540px] text-sm leading-7 text-violet-100/95 sm:text-base">
                   Unified access for QA Dashboard, Appeal Review, and Case Detail with
                   role-based visibility for supervisors and agents.
                 </div>
@@ -440,7 +440,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="rounded-[32px] border border-white/70 bg-white/90 px-5 py-6 shadow-xl backdrop-blur sm:px-7 sm:py-8">
+            <div className="rounded-[30px] border border-white/70 bg-white/90 px-5 py-6 shadow-xl backdrop-blur sm:px-7 sm:py-8">
               <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700 sm:text-xs">
                 Sign In
               </div>
