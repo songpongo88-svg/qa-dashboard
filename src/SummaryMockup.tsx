@@ -590,6 +590,212 @@ function buildTopicPerformance(cases: CaseItem[]): TopicPerformanceRow[] {
   });
 }
 
+function exportSummaryToExcel(params: {
+  overallSummary: SummaryRow;
+  teamRows: SummaryRow[];
+  topicPerformance: TopicPerformanceRow[];
+  monthlyRows: SummaryRow[];
+  yearlyRows: SummaryRow[];
+  monthlyTopicTrend: MonthlyTopicTrendRow[];
+  selectedAgentLabel: string;
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const {
+    overallSummary,
+    teamRows,
+    topicPerformance,
+    monthlyRows,
+    yearlyRows,
+    monthlyTopicTrend,
+    selectedAgentLabel,
+    dateFrom,
+    dateTo,
+  } = params;
+
+  const workbook = XLSX.utils.book_new();
+
+  const metaRows = [
+    ["QA Summary Export"],
+    [],
+    ["Agent Filter", selectedAgentLabel || "All Agents"],
+    ["Date From", dateFrom],
+    ["Date To", dateTo],
+    ["Exported At", new Date().toLocaleString("th-TH")],
+  ];
+
+  const overallSheetData = [
+    ...metaRows,
+    [],
+    ["Period", "Cases", "Avg Score", "Revised", "A", "B", "C", "D", "F"],
+    [
+      overallSummary.label,
+      overallSummary.caseCount,
+      overallSummary.avgScore,
+      overallSummary.revisedCount,
+      overallSummary.gradeA,
+      overallSummary.gradeB,
+      overallSummary.gradeC,
+      overallSummary.gradeD,
+      overallSummary.gradeF,
+    ],
+  ];
+
+  const teamSheetData = [
+    ...metaRows,
+    [],
+    ["Agent", "Cases", "Avg Score", "Revised", "A", "B", "C", "D", "F"],
+    ...teamRows.map((row) => [
+      row.label,
+      row.caseCount,
+      row.avgScore,
+      row.revisedCount,
+      row.gradeA,
+      row.gradeB,
+      row.gradeC,
+      row.gradeD,
+      row.gradeF,
+    ]),
+  ];
+
+  const topicSheetData = [
+    ...metaRows,
+    [],
+    ["Topic", "Description", "Avg Score", "Max", "Avg %"],
+    ...topicPerformance.map((row) => [row.code, row.label, row.avgScore, row.max, row.pct]),
+  ];
+
+  const monthlySheetData = [
+    ...metaRows,
+    [],
+    ["Month", "Cases", "Avg Score", "Revised", "A", "B", "C", "D", "F"],
+    ...monthlyRows.map((row) => [
+      row.label,
+      row.caseCount,
+      row.avgScore,
+      row.revisedCount,
+      row.gradeA,
+      row.gradeB,
+      row.gradeC,
+      row.gradeD,
+      row.gradeF,
+    ]),
+  ];
+
+  const yearlySheetData = [
+    ...metaRows,
+    [],
+    ["Year", "Cases", "Avg Score", "Revised", "A", "B", "C", "D", "F"],
+    ...yearlyRows.map((row) => [
+      row.label,
+      row.caseCount,
+      row.avgScore,
+      row.revisedCount,
+      row.gradeA,
+      row.gradeB,
+      row.gradeC,
+      row.gradeD,
+      row.gradeF,
+    ]),
+  ];
+
+  const trendSheetData = [
+    ...metaRows,
+    [],
+    ["Month", "Topic", "Description", "Avg Score", "Avg %"],
+    ...monthlyTopicTrend.map((row) => [
+      row.period,
+      row.topicCode,
+      row.topicLabel,
+      row.avgScore,
+      row.pct,
+    ]),
+  ];
+
+  const overallWs = XLSX.utils.aoa_to_sheet(overallSheetData);
+  const teamWs = XLSX.utils.aoa_to_sheet(teamSheetData);
+  const topicWs = XLSX.utils.aoa_to_sheet(topicSheetData);
+  const monthlyWs = XLSX.utils.aoa_to_sheet(monthlySheetData);
+  const yearlyWs = XLSX.utils.aoa_to_sheet(yearlySheetData);
+  const trendWs = XLSX.utils.aoa_to_sheet(trendSheetData);
+
+  overallWs["!cols"] = [
+    { wch: 18 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+  ];
+
+  teamWs["!cols"] = [
+    { wch: 28 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+  ];
+
+  topicWs["!cols"] = [
+    { wch: 10 },
+    { wch: 34 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 10 },
+  ];
+
+  monthlyWs["!cols"] = [
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+  ];
+
+  yearlyWs["!cols"] = [
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+    { wch: 6 },
+  ];
+
+  trendWs["!cols"] = [
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 34 },
+    { wch: 12 },
+    { wch: 10 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, overallWs, "Overall Summary");
+  XLSX.utils.book_append_sheet(workbook, teamWs, "Team Summary");
+  XLSX.utils.book_append_sheet(workbook, topicWs, "Topic Performance");
+  XLSX.utils.book_append_sheet(workbook, monthlyWs, "Monthly Summary");
+  XLSX.utils.book_append_sheet(workbook, yearlyWs, "Yearly Summary");
+  XLSX.utils.book_append_sheet(workbook, trendWs, "Monthly Topic Trend");
+
+  const safeAgent = (selectedAgentLabel || "All_Agents").replace(/[\\/:*?"<>| ]+/g, "_");
+  const fileName = `QA_Summary_${safeAgent}_${dateFrom}_to_${dateTo}.xlsx`;
+
+  XLSX.writeFile(workbook, fileName);
+}
+
 export default function SummaryMockup({
   currentUser,
 }: {
@@ -980,7 +1186,7 @@ export default function SummaryMockup({
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
       <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
                 QA Summary
@@ -994,15 +1200,37 @@ export default function SummaryMockup({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
-              <LogoBox />
-              <div className="hidden sm:block">
-                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
-                  Robinhood QA
-                </div>
-                <div className="mt-1 text-lg font-semibold text-white">Performance Summary Workspace</div>
-                <div className="mt-1 text-sm text-violet-100/90">
-                  Management-ready insight for monthly and yearly performance
+            <div className="flex items-center gap-3 self-start">
+              <button
+                type="button"
+                onClick={() =>
+                  exportSummaryToExcel({
+                    overallSummary,
+                    teamRows,
+                    topicPerformance,
+                    monthlyRows,
+                    yearlyRows,
+                    monthlyTopicTrend,
+                    selectedAgentLabel: effectiveSelectedAgent || "All Agents",
+                    dateFrom,
+                    dateTo,
+                  })
+                }
+                className="inline-flex rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100"
+              >
+                Export Excel
+              </button>
+
+              <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+                <LogoBox />
+                <div className="hidden sm:block">
+                  <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+                    Robinhood QA
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-white">Performance Summary Workspace</div>
+                  <div className="mt-1 text-sm text-violet-100/90">
+                    Management-ready insight for monthly and yearly performance
+                  </div>
                 </div>
               </div>
             </div>
