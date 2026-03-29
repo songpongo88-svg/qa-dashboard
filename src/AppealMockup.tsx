@@ -113,7 +113,6 @@ function formatInputDate(value: Date) {
 
 function tryParseLooseDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
-
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
 
   if (typeof value === "number") {
@@ -174,7 +173,6 @@ function parseAuditDate(value: string) {
 function isWithinDateRange(auditDate: string, from?: string, to?: string) {
   const date = parseAuditDate(auditDate);
   if (Number.isNaN(date.getTime())) return true;
-
   if (from) {
     const fromDate = new Date(from);
     if (date < fromDate) return false;
@@ -344,11 +342,7 @@ function SummaryStat({
 function LogoBox() {
   return (
     <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
-      <img
-        src="/robinhood-logo.png"
-        alt="Robinhood Logo"
-        className="h-12 w-12 object-contain"
-      />
+      <img src="/robinhood-logo.png" alt="Robinhood Logo" className="h-12 w-12 object-contain" />
     </div>
   );
 }
@@ -822,9 +816,7 @@ export default function AppealMockup({
               <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
                 QA Appeal Review
               </div>
-              <div className="mt-2 text-3xl font-bold tracking-tight">
-                Appeal Result Dashboard
-              </div>
+              <div className="mt-2 text-3xl font-bold tracking-tight">Appeal Result Dashboard</div>
               <div className="mt-2 max-w-3xl text-sm text-violet-100">
                 แสดงเฉพาะหัวข้อที่มีการอุทธรณ์จริงและมีการเปลี่ยนจริงจากไฟล์ Appeal
               </div>
