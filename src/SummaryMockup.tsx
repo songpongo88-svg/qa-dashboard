@@ -50,6 +50,8 @@ type MonthlyTopicTrendRow = {
   pct: number;
 };
 
+const CASE_TARGET = 10;
+
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
@@ -124,6 +126,21 @@ function scoreToGrade(score: number): Grade {
   return "F";
 }
 
+function gradeTone(grade: Grade) {
+  switch (grade) {
+    case "A":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "B":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "C":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "D":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    default:
+      return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+}
+
 function formatInputDate(value: Date) {
   const y = value.getFullYear();
   const m = `${value.getMonth() + 1}`.padStart(2, "0");
@@ -156,6 +173,30 @@ function formatAuditDate(value: any): string {
 function parseAuditDate(value: string) {
   const [day, month, year] = value.split("/").map(Number);
   return new Date(year, month - 1, day);
+}
+
+function formatCurrencyTHB(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getIncentiveValue(caseCount: number, avg: number) {
+  if (caseCount < CASE_TARGET) return 0;
+  if (avg >= 90) return 1000;
+  if (avg >= 80) return 700;
+  if (avg >= 70) return 300;
+  return 0;
+}
+
+function getIncentiveRemark(caseCount: number, avg: number) {
+  if (caseCount < CASE_TARGET) return "ยังประเมินไม่ครบ 10 เคส";
+  if (avg >= 90) return "Excellent";
+  if (avg >= 80) return "Good";
+  if (avg >= 70) return "Fair";
+  return "Improvement Required";
 }
 
 function buildHeaderHelpers(headerRow: any[]) {
@@ -234,7 +275,9 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}>
+    <div
+      className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
+    >
       {children}
     </div>
   );
@@ -248,8 +291,8 @@ function PanelHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="border-b border-violet-100 bg-white px-5 py-4">
-      <div className="text-lg font-bold text-slate-900">{title}</div>
+    <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
   );
@@ -262,7 +305,7 @@ function PanelBody({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={`p-5 ${className}`}>{children}</div>;
+  return <div className={`p-5 lg:p-6 ${className}`}>{children}</div>;
 }
 
 function MetricCard({
@@ -275,14 +318,44 @@ function MetricCard({
   sub: string;
 }) {
   return (
-    <Panel>
-      <div className="h-1.5 bg-gradient-to-r from-violet-900 via-violet-700 to-fuchsia-600" />
+    <Panel className="overflow-hidden border-violet-200/70 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/60">
+      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <PanelBody>
         <div className="text-sm font-semibold text-slate-600">{title}</div>
-        <div className="mt-3 text-3xl font-bold text-slate-900">{value}</div>
-        <div className="mt-2 text-xs text-slate-500">{sub}</div>
+        <div className="mt-3 text-3xl font-bold text-slate-900 lg:text-[34px]">{value}</div>
+        <div className="mt-2 text-xs leading-5 text-slate-500">{sub}</div>
       </PanelBody>
     </Panel>
+  );
+}
+
+function RewardCard({
+  title,
+  value,
+  sub,
+  tone,
+}: {
+  title: string;
+  value: string;
+  sub: string;
+  tone: "violet" | "emerald" | "sky" | "amber";
+}) {
+  const toneMap = {
+    violet:
+      "border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 text-violet-800",
+    emerald:
+      "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white text-emerald-800",
+    sky: "border-sky-200 bg-gradient-to-br from-sky-50 to-white text-sky-800",
+    amber:
+      "border-amber-200 bg-gradient-to-br from-amber-50 to-white text-amber-800",
+  };
+
+  return (
+    <div className={`rounded-[24px] border p-4 shadow-sm ${toneMap[tone]}`}>
+      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{title}</div>
+      <div className="mt-3 text-2xl font-extrabold tracking-tight">{value}</div>
+      <div className="mt-2 text-xs leading-5 text-slate-600">{sub}</div>
+    </div>
   );
 }
 
@@ -305,10 +378,10 @@ function HighlightCard({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
       <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{title}</div>
       <div className="mt-2 text-lg font-extrabold text-slate-900">{value}</div>
-      <div className="mt-2 text-xs text-slate-500">{sub}</div>
+      <div className="mt-2 text-xs leading-5 text-slate-500">{sub}</div>
       <div className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${toneMap[tone]}`}>
         Highlight
       </div>
@@ -340,9 +413,7 @@ function SummaryTable({ rows }: { rows: SummaryRow[] }) {
                 {row.label}
               </td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.caseCount}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {row.avgScore.toFixed(2)}
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.avgScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.revisedCount}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeA}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{row.gradeB}</td>
@@ -403,7 +474,7 @@ function TopicRankList({
       {rows.map((row, index) => (
         <div
           key={row.code}
-          className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
+          className="flex items-center justify-between rounded-[22px] border border-violet-100 bg-white px-4 py-3 shadow-sm"
         >
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -460,11 +531,11 @@ function MonthlyTopicTrendTable({ rows }: { rows: MonthlyTopicTrendRow[] }) {
 
 function LogoBox() {
   return (
-    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
+    <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md">
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="h-12 w-12 object-contain"
+        className="h-14 w-14 object-contain"
       />
     </div>
   );
@@ -880,6 +951,10 @@ export default function SummaryMockup({
     return rows;
   }, [filteredCases]);
 
+  const overallGrade = scoreToGrade(overallSummary.avgScore);
+  const overallIncentive = getIncentiveValue(overallSummary.caseCount, overallSummary.avgScore);
+  const overallRemark = getIncentiveRemark(overallSummary.caseCount, overallSummary.avgScore);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -902,28 +977,40 @@ export default function SummaryMockup({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-800 text-white">
-        <div className="mx-auto max-w-[1700px] px-6 py-8">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
+      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
+        <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-4xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
                 QA Summary
               </div>
-              <div className="mt-2 text-3xl font-bold tracking-tight">
+              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
                 Overall / Monthly / Yearly Summary
               </div>
-              <div className="mt-2 max-w-3xl text-sm text-violet-100">
+              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
                 สรุปจาก QA_RawData1.xlsx และ merge revised score จาก Appleal ROWDATA.xlsx
+                พร้อมภาพรวมผลงาน หัวข้อเด่น หัวข้อที่ควรปรับปรุง และ incentive summary
               </div>
             </div>
 
-            <LogoBox />
+            <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+              <LogoBox />
+              <div className="hidden sm:block">
+                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+                  Robinhood QA
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">Performance Summary Workspace</div>
+                <div className="mt-1 text-sm text-violet-100/90">
+                  Management-ready insight for monthly and yearly performance
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1700px] px-6 py-6 space-y-6">
+      <div className="mx-auto max-w-[1720px] px-6 py-6 space-y-6 lg:px-8 lg:py-8">
         <Panel>
           <PanelHeader title="Filters" subtitle="Agent and date range" />
           <PanelBody className="grid gap-4 md:grid-cols-3">
@@ -932,14 +1019,14 @@ export default function SummaryMockup({
                 Agent
               </div>
               {currentUser?.role === "Agent" ? (
-                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800">
+                <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-bold text-violet-800">
                   {effectiveSelectedAgent || "-"}
                 </div>
               ) : (
                 <select
                   value={selectedAgent}
                   onChange={(e) => setSelectedAgent(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                  className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                 >
                   <option value="">All Agents</option>
                   {visibleAgentList.map((agent) => (
@@ -959,7 +1046,7 @@ export default function SummaryMockup({
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
               />
             </div>
 
@@ -971,13 +1058,13 @@ export default function SummaryMockup({
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none"
+                className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
               />
             </div>
           </PanelBody>
         </Panel>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Overall Cases"
             value={`${overallSummary.caseCount}`}
@@ -999,6 +1086,61 @@ export default function SummaryMockup({
             sub="grade A in current filter"
           />
         </div>
+
+        <Panel className="overflow-hidden border-violet-200/80 bg-gradient-to-br from-white via-violet-50/20 to-fuchsia-50/40">
+          <PanelHeader
+            title="Overall Reward Summary"
+            subtitle="สรุปเกรดรวม อินเซนทีฟ จำนวนเคส และสถานะการผ่านเกณฑ์ประจำช่วงที่เลือก"
+          />
+          <PanelBody>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <RewardCard
+                title="Month Grade"
+                value={overallGrade}
+                sub={`Average score ${overallSummary.avgScore.toFixed(2)}`}
+                tone="violet"
+              />
+              <RewardCard
+                title="Estimated Incentive"
+                value={formatCurrencyTHB(overallIncentive)}
+                sub="คำนวณตามเกณฑ์ incentive ล่าสุด"
+                tone="emerald"
+              />
+              <RewardCard
+                title="Cases Evaluated"
+                value={`${overallSummary.caseCount}/${CASE_TARGET}`}
+                sub={
+                  overallSummary.caseCount >= CASE_TARGET
+                    ? "Target reached"
+                    : "Target not reached"
+                }
+                tone="sky"
+              />
+              <RewardCard
+                title="Summary Remark"
+                value={overallRemark}
+                sub="สรุปผลรวมของช่วงเวลาที่กำลังดู"
+                tone="amber"
+              />
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-bold ${gradeTone(
+                  overallGrade
+                )}`}
+              >
+                Grade {overallGrade}
+              </span>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                Incentive {formatCurrencyTHB(overallIncentive)}
+              </span>
+              <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                Cases {overallSummary.caseCount}/{CASE_TARGET}
+              </span>
+            </div>
+          </PanelBody>
+        </Panel>
 
         <Panel>
           <PanelHeader title="Performance Highlights" subtitle="Quick insight from current filter" />
