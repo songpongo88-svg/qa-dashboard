@@ -379,16 +379,27 @@ function CaseNavigatorCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
+          <div className="truncate text-sm font-semibold text-slate-900">
+            {item.caseId}
+          </div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
         </div>
-        <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
-            item.grade
-          )}`}
-        >
-          {item.grade}
-        </span>
+
+        <div className="flex flex-col items-end gap-1">
+          <span
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+              item.grade
+            )}`}
+          >
+            {item.grade}
+          </span>
+
+          {item.reviewStatus === "Revised" ? (
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+              Revised
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-3 min-h-[2.75rem] text-[12px] font-medium leading-5 text-slate-800">
@@ -397,7 +408,14 @@ function CaseNavigatorCard({
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
         <span>{item.weekLabel}</span>
-        <span>{item.reviewStatus}</span>
+
+        {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
+          <span className="font-semibold text-violet-700">
+            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
+          </span>
+        ) : (
+          <span>{item.reviewStatus}</span>
+        )}
       </div>
     </div>
   );
