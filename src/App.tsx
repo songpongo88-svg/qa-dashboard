@@ -110,29 +110,37 @@ function LoginScreen({
  onLogin: () => void;
 }) {
  return (
-<div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-slate-50 to-fuchsia-50 p-6">
-<div className="w-full max-w-md rounded-3xl border border-violet-200 bg-white p-6 shadow-lg">
-<div className="mb-6 text-center">
-<div className="text-sm font-medium text-violet-600">QA Dashboard Access</div>
-<h1 className="mt-2 text-2xl font-bold text-slate-900">Sign in</h1>
-<p className="mt-2 text-sm text-slate-500">
+<div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,_#4c1d95,_#0f172a_55%)] p-6">
+<div className="w-full max-w-md overflow-hidden rounded-3xl border border-violet-400/20 bg-white shadow-2xl">
+<div className="bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-6 text-white">
+<div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
+           Robinhood QA System
+</div>
+<h1 className="mt-3 text-2xl font-bold">Sign in</h1>
+<p className="mt-2 text-sm text-violet-100">
            ระบบจะออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน 30 นาที
 </p>
 </div>
-<div className="space-y-4">
+<div className="space-y-4 p-6">
+<div>
+<label className="mb-2 block text-sm font-medium text-slate-700">Username</label>
 <input
-           value={username}
-           onChange={(e) => onUsernameChange(e.target.value)}
-           placeholder="Username"
-           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
-         />
+             value={username}
+             onChange={(e) => onUsernameChange(e.target.value)}
+             placeholder="Enter username"
+             className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+           />
+</div>
+<div>
+<label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
 <input
-           value={password}
-           onChange={(e) => onPasswordChange(e.target.value)}
-           type="password"
-           placeholder="Password"
-           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400"
-         />
+             value={password}
+             onChange={(e) => onPasswordChange(e.target.value)}
+             type="password"
+             placeholder="Enter password"
+             className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+           />
+</div>
          {error ? (
 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
              {error}
@@ -141,7 +149,7 @@ function LoginScreen({
 <button
            type="button"
            onClick={onLogin}
-           className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-800"
+           className="w-full rounded-2xl bg-gradient-to-r from-violet-900 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95"
 >
            Log in
 </button>
@@ -151,21 +159,71 @@ function LoginScreen({
  );
 }
 function QARubricPage() {
+ const sections = [
+   {
+     title: "1. Compliance, Process & Policy",
+     items: [
+       "1.1 Greeting & Closing Standard",
+       "1.2 Accuracy / PDPA / Policy",
+       "1.3 Process & SLA",
+     ],
+   },
+   {
+     title: "2. Answer Quality & Knowledge",
+     items: ["2.1 Case Accuracy", "2.2 Completeness", "2.3 Clarity of Steps", "2.4 Official Sources"],
+   },
+   {
+     title: "3. Resolution & Ownership",
+     items: ["3.1 Root Cause & Fix", "3.2 Ownership", "3.3 Next Step"],
+   },
+   {
+     title: "4. Communication Skill",
+     items: ["4.1 Message Structure", "4.2 Language", "4.3 Tone", "4.4 Adaptation"],
+   },
+   {
+     title: "5. Process & SLA",
+     items: ["5.1 Process", "5.2 SLA", "5.3 Case Logging"],
+   },
+ ];
  return (
 <div className="min-h-screen bg-slate-100">
 <div className="mx-auto max-w-7xl p-6">
-<div className="rounded-3xl bg-white p-6 shadow-sm border border-violet-200">
-<div className="text-sm font-medium text-violet-600">Private Tab</div>
-<h1 className="mt-2 text-3xl font-bold text-slate-900">QA Rubric</h1>
-<div className="mt-2 text-sm text-slate-500">
-           หน้านี้ใช้สำหรับเก็บเกณฑ์ประเมิน QA ส่วนตัวของคุณ
+<div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-6 text-white shadow-xl">
+<div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
+           Private Workspace
 </div>
+<h1 className="mt-3 text-3xl font-bold">QA Rubric</h1>
+<p className="mt-2 text-sm text-violet-100">
+           หน้านี้ใช้สำหรับเก็บเกณฑ์ประเมิน QA และ reference ส่วนตัว
+</p>
+</div>
+<div className="grid gap-6 lg:grid-cols-2">
+         {sections.map((section) => (
+<div
+             key={section.title}
+             className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-sm"
+>
+<div className="bg-slate-900 px-5 py-4 text-sm font-semibold text-white">
+               {section.title}
+</div>
+<div className="space-y-3 p-5">
+               {section.items.map((item) => (
+<div
+                   key={item}
+                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+>
+                   {item}
+</div>
+               ))}
+</div>
+</div>
+         ))}
 </div>
 </div>
 </div>
  );
 }
-function App() {
+export default function App() {
  const [username, setUsername] = useState("");
  const [password, setPassword] = useState("");
  const [loginError, setLoginError] = useState("");
@@ -274,18 +332,18 @@ function App() {
    );
  }
  return (
-<div className="min-h-screen bg-slate-50">
-<div className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-<div className="mx-auto max-w-7xl px-4 py-3">
-<div className="flex items-center justify-between gap-4">
+<div className="min-h-screen bg-slate-100">
+<div className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950 shadow-lg">
+<div className="mx-auto max-w-7xl px-4 py-4">
+<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 <div className="flex flex-wrap items-center gap-2">
 <button
                type="button"
                onClick={() => handleMainTabChange("dashboard")}
-               className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+               className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                  activeTab === "dashboard"
-                   ? "bg-violet-700 text-white"
-                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                   ? "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-lg"
+                   : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                }`}
 >
                Dashboard
@@ -293,10 +351,10 @@ function App() {
 <button
                type="button"
                onClick={() => handleMainTabChange("appeal")}
-               className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+               className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                  activeTab === "appeal"
-                   ? "bg-violet-700 text-white"
-                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                   ? "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-lg"
+                   : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                }`}
 >
                Appeal
@@ -305,10 +363,10 @@ function App() {
 <button
                  type="button"
                  onClick={() => handleMainTabChange("qa-rubric")}
-                 className={`rounded-xl px-4 py-2 text-sm font-semibold ${
+                 className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                    activeTab === "qa-rubric"
-                     ? "bg-violet-700 text-white"
-                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                     ? "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-lg"
+                     : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                  }`}
 >
                  QA Rubric
@@ -316,52 +374,51 @@ function App() {
              ) : null}
 </div>
 <div className="flex items-center gap-3">
-<div className="text-right text-sm">
-<div className="font-semibold text-slate-900">{currentUser.displayName}</div>
-<div className="text-slate-500">{currentUser.role}</div>
+<div className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-right">
+<div className="text-sm font-semibold text-white">{currentUser.displayName}</div>
+<div className="text-xs text-slate-400">{currentUser.role}</div>
 </div>
 <button
                type="button"
                onClick={handleLogout}
-               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+               className="rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-200"
 >
                Log out
 </button>
 </div>
 </div>
          {activeTab === "dashboard" ? (
-<div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
+<div className="mt-4 border-t border-slate-800 pt-4">
+<div className="flex flex-wrap items-center gap-2">
 <button
-               type="button"
-               onClick={() => setDashboardSubTab("overview")}
-               className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                 dashboardSubTab === "overview"
-                   ? "bg-fuchsia-100 text-fuchsia-700"
-                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-               }`}
+                 type="button"
+                 onClick={() => setDashboardSubTab("overview")}
+                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                   dashboardSubTab === "overview"
+                     ? "bg-violet-100 text-violet-800"
+                     : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                 }`}
 >
-               Overview
+                 Overview
 </button>
 <button
-               type="button"
-               onClick={() => setDashboardSubTab("case-detail")}
-               className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-                 dashboardSubTab === "case-detail"
-                   ? "bg-fuchsia-100 text-fuchsia-700"
-                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-               }`}
+                 type="button"
+                 onClick={() => setDashboardSubTab("case-detail")}
+                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                   dashboardSubTab === "case-detail"
+                     ? "bg-violet-100 text-violet-800"
+                     : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                 }`}
 >
-               Case Detail
+                 Case Detail
 </button>
+</div>
 </div>
          ) : null}
 </div>
 </div>
      {activeTab === "dashboard" ? (
-<DashboardMockup
-         currentUser={currentUser}
-         dashboardSubTab={dashboardSubTab}
-       />
+<DashboardMockup currentUser={currentUser} dashboardSubTab={dashboardSubTab} />
      ) : activeTab === "appeal" ? (
 <AppealMockup currentUser={currentUser} />
      ) : (
@@ -370,4 +427,3 @@ function App() {
 </div>
  );
 }
-export default App;
