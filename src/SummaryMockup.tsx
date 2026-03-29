@@ -220,7 +220,9 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}>
+    <div
+      className={`overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-sm ${className}`}
+    >
       {children}
     </div>
   );
@@ -333,6 +335,18 @@ function buildSummaryRow(label: string, cases: CaseItem[]): SummaryRow {
     gradeD: gradeCount.D,
     gradeF: gradeCount.F,
   };
+}
+
+function LogoBox() {
+  return (
+    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-sm">
+      <img
+        src="/robinhood-logo.png"
+        alt="Robinhood Logo"
+        className="h-12 w-12 object-contain"
+      />
+    </div>
+  );
 }
 
 export default function SummaryMockup({
@@ -647,14 +661,20 @@ export default function SummaryMockup({
     <div className="min-h-screen bg-slate-100">
       <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-800 text-white">
         <div className="mx-auto max-w-[1700px] px-6 py-8">
-          <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
-            QA Summary
-          </div>
-          <div className="mt-2 text-3xl font-bold tracking-tight">
-            Overall / Monthly / Yearly Summary
-          </div>
-          <div className="mt-2 text-sm text-violet-100">
-            สรุปจาก QA_RawData1.xlsx และ merge revised score จาก Appleal ROWDATA.xlsx
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-200">
+                QA Summary
+              </div>
+              <div className="mt-2 text-3xl font-bold tracking-tight">
+                Overall / Monthly / Yearly Summary
+              </div>
+              <div className="mt-2 max-w-3xl text-sm text-violet-100">
+                สรุปจาก QA_RawData1.xlsx และ merge revised score จาก Appleal ROWDATA.xlsx
+              </div>
+            </div>
+
+            <LogoBox />
           </div>
         </div>
       </div>
