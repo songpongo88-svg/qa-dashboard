@@ -28,6 +28,7 @@ type CaseItem = {
   reviewStatus: ReviewStatus;
   topics: Topic[];
   revisedTopics?: Topic[] | null;
+  displayRevisedTopicCodes?: string[];
 };
 
 type TopicSummary = {
@@ -50,6 +51,7 @@ type AppealMergeItem = {
   previousScore?: number;
   reviewStatus?: ReviewStatus;
   revisedTopics: Topic[];
+  displayRevisedTopicCodes: string[];
 };
 
 const CASE_TARGET = 10;
@@ -204,6 +206,12 @@ function getIncentiveRemark(caseCount: number, avg: number) {
   return "Improvement Required";
 }
 
+function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
+  if (!revisedTopics?.length) return topics;
+  const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
+  return topics.map((topic) => revisedMap.get(topic.code) || topic);
+}
+
 function buildAgentSummary(cases: CaseItem[]): Summary {
   const average =
     cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(cases.length, 1);
@@ -213,13 +221,11 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
 
   const topicPerformance = TOPIC_MASTER.map((master) => {
     const topics = cases
-      .flatMap((item) => {
-        if (item.reviewStatus === "Revised" && item.revisedTopics?.length) {
-          const revisedMap = new Map(item.revisedTopics.map((t) => [t.code, t]));
-          return item.topics.map((topic) => revisedMap.get(topic.code) || topic);
-        }
-        return item.topics;
-      })
+      .flatMap((item) =>
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? mergeTopicSet(item.topics, item.revisedTopics)
+          : item.topics
+      )
       .filter((topic) => topic.code === master.code);
 
     if (!topics.length) {
@@ -401,7 +407,9 @@ function CaseNavigatorCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
+          <div className="truncate text-sm font-semibold text-slate-900">
+            {item.caseId}
+          </div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
         </div>
 
@@ -499,6 +507,23 @@ function normalizeCommentForCompare(value?: string) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function normalizeAppealReason(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function isNoAppealReason(value: unknown) {
+  const text = normalizeAppealReason(value);
+  if (!text) return false;
+
+  const normalized = text.toLowerCase();
+  return (
+    normalized === "ไม่อุทธรณ์หัวข้อนี้" ||
+    normalized === "not appeal" ||
+    normalized === "no appeal" ||
+    normalized.includes("ไม่อุทธรณ์")
+  );
+}
+
 function hasMeaningfulTextChange(originalValue?: string, revisedValue?: string) {
   const original = normalizeCommentForCompare(originalValue);
   const revised = normalizeCommentForCompare(revisedValue);
@@ -509,14 +534,41 @@ function hasMeaningfulTextChange(originalValue?: string, revisedValue?: string) 
   return original !== revised;
 }
 
+function hasRealTopicChange(
+  originalScore: unknown,
+  revisedScore: unknown,
+  originalComment: unknown,
+  revisedComment: unknown
+) {
+  const originalScoreNum =
+    originalScore !== null && originalScore !== "" && !Number.isNaN(Number(originalScore))
+      ? Number(originalScore)
+      : null;
+
+  const revisedScoreNum =
+    revisedScore !== null && revisedScore !== "" && !Number.isNaN(Number(revisedScore))
+      ? Number(revisedScore)
+      : null;
+
+  const originalCommentText = normalizeCommentForCompare(String(originalComment ?? ""));
+  const revisedCommentText = normalizeCommentForCompare(String(revisedComment ?? ""));
+
+  const scoreChanged =
+    originalScoreNum !== null &&
+    revisedScoreNum !== null &&
+    originalScoreNum !== revisedScoreNum;
+
+  const commentChanged =
+    revisedCommentText !== "" && revisedCommentText !== originalCommentText;
+
+  return scoreChanged || commentChanged;
+}
+
 function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
   if (!originalTopic) return false;
 
   const scoreChanged = Number(originalTopic.score) !== Number(revisedTopic.score);
-  const commentChanged = hasMeaningfulTextChange(
-    originalTopic.comment,
-    revisedTopic.comment
-  );
+  const commentChanged = hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment);
 
   return scoreChanged || commentChanged;
 }
@@ -525,12 +577,15 @@ function CaseDetailTopicTable({
   topics,
   revisedTopics,
   reviewStatus,
+  displayRevisedTopicCodes = [],
 }: {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   reviewStatus?: ReviewStatus;
+  displayRevisedTopicCodes?: string[];
 }) {
   const originalMap = getOriginalTopicMap(topics);
+  const displayCodeSet = new Set(displayRevisedTopicCodes);
 
   const displayTopics =
     reviewStatus === "Revised" && revisedTopics?.length
@@ -564,8 +619,11 @@ function CaseDetailTopicTable({
                   ? revisedTopics.find((item) => item.code === topic.code)
                   : undefined;
 
+              const allowedToShowRevised = displayCodeSet.has(topic.code);
+
               const changed =
                 reviewStatus === "Revised" &&
+                allowedToShowRevised &&
                 !!revisedTopic &&
                 isTopicChanged(originalTopic, revisedTopic);
 
@@ -606,7 +664,9 @@ function CaseDetailTopicTable({
                       </div>
 
                       {hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment) ? (
-                        <div className="mt-2 text-[11px] text-violet-700">Comment updated</div>
+                        <div className="mt-2 text-[11px] text-violet-700">
+                          Comment updated
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
@@ -649,7 +709,7 @@ function CaseDetailTopicTable({
                         Evaluation Comment
                       </div>
                       <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-                        {shownTopic.comment || "ยังไม่มี Evaluation Comment"}
+                        {(originalTopic || shownTopic).comment || "ยังไม่มี Evaluation Comment"}
                       </div>
                     </div>
                   )}
@@ -671,9 +731,7 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
           key={grade}
           className="flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
         >
-          <span
-            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}
-          >
+          <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}>
             {grade}
           </span>
           <span className="text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s)</span>
@@ -866,11 +924,15 @@ export default function DashboardMockup({
           const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
           if (!caseId) return;
 
-          const revisedTopics: Topic[] = TOPIC_MASTER.map((topic) => {
-            const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
-            const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
+          const revisedTopics: Topic[] = [];
+          const displayRevisedTopicCodes: string[] = [];
+
+          TOPIC_MASTER.forEach((topic) => {
             const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
+            const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
             const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
+            const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
+            const appealReasonRaw = appealHelper.getValue(row, `${topic.code} Appeal Reason`);
 
             const hasRevisedScore =
               revisedScoreRaw !== null &&
@@ -881,22 +943,34 @@ export default function DashboardMockup({
               revisedCommentRaw !== null &&
               String(revisedCommentRaw).trim() !== "";
 
-            if (!hasRevisedScore && !hasRevisedComment) return null;
+            if (!hasRevisedScore && !hasRevisedComment) return;
 
             const score = hasRevisedScore ? Number(revisedScoreRaw) : Number(originalScoreRaw ?? 0);
             const comment = hasRevisedComment
               ? String(revisedCommentRaw).trim()
               : String(originalCommentRaw ?? "").trim();
 
-            return {
+            revisedTopics.push({
               code: topic.code,
               label: topic.label,
               score,
               max: topic.max,
               pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
               comment,
-            };
-          }).filter(Boolean) as Topic[];
+            });
+
+            const appealedThisTopic = !isNoAppealReason(appealReasonRaw);
+            const changedThisTopic = hasRealTopicChange(
+              originalScoreRaw,
+              revisedScoreRaw,
+              originalCommentRaw,
+              revisedCommentRaw
+            );
+
+            if (appealedThisTopic && changedThisTopic) {
+              displayRevisedTopicCodes.push(topic.code);
+            }
+          });
 
           const explicitFinalScore = appealHelper.getLastValue(row, "Final Score");
           const explicitOriginalFinalScore = appealHelper.getValue(row, "Final Score", 0);
@@ -921,8 +995,9 @@ export default function DashboardMockup({
             caseId,
             finalScore,
             previousScore,
-            reviewStatus: revisedTopics.length ? "Revised" : "Original",
+            reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
             revisedTopics,
+            displayRevisedTopicCodes,
           });
         });
 
@@ -980,7 +1055,7 @@ export default function DashboardMockup({
               "";
 
             const reviewStatus: ReviewStatus =
-              mergedAppeal?.revisedTopics?.length ? "Revised" : "Original";
+              mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
 
             return {
               key: `row-${index + 1}-${caseId}`,
@@ -997,6 +1072,7 @@ export default function DashboardMockup({
               reviewStatus,
               topics,
               revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
+              displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
             };
           });
 
@@ -1539,6 +1615,7 @@ export default function DashboardMockup({
                           topics={activeSelectedCase.topics}
                           revisedTopics={activeSelectedCase.revisedTopics}
                           reviewStatus={activeSelectedCase.reviewStatus}
+                          displayRevisedTopicCodes={activeSelectedCase.displayRevisedTopicCodes || []}
                         />
                       </PanelBody>
                     </Panel>
