@@ -83,6 +83,10 @@ function normalizeText(value: unknown) {
     .toLowerCase();
 }
 
+function compactText(value: unknown) {
+  return normalizeText(value).replace(/[^a-z0-9]/g, "");
+}
+
 function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
@@ -143,6 +147,10 @@ function toNumberOrNull(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   return Number.isNaN(n) ? null : n;
+}
+
+function hasValue(value: unknown) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
 function buildHeaderHelpers(headerRow: any[]) {
@@ -237,8 +245,13 @@ function inferAppealStatus(
   return "Pending";
 }
 
-function hasValue(value: unknown) {
-  return value !== null && value !== undefined && String(value).trim() !== "";
+function isSameAgent(a: string, b: string) {
+  const na = normalizeText(a);
+  const nb = normalizeText(b);
+  const ca = compactText(a);
+  const cb = compactText(b);
+
+  return na === nb || ca === cb || na.includes(nb) || nb.includes(na) || ca.includes(cb) || cb.includes(ca);
 }
 
 function Panel({
@@ -420,8 +433,7 @@ export default function AppealMockup({
             const row = (rows[i] || []) as any[];
             const helper = buildHeaderHelpers(row);
             const hasCase = helper.hasAnyHeader(["Case ID", "CaseId", "Selected Case"]);
-            const hasAgent = helper.hasAnyHeader(["Agent Name", "Agent", "QA Name", "Employee Name"]);
-            if (hasCase && hasAgent) return i;
+            if (hasCase) return i;
           }
           return -1;
         })();
@@ -479,12 +491,20 @@ export default function AppealMockup({
 
             const originalFinalScore =
               toNumberOrNull(helper.getValue(row, "Final Score", 0)) ??
-              toNumberOrNull(helper.getFirstExisting(row, ["Original Final Score", "Previous Score", "Score Before Appeal"])) ??
+              toNumberOrNull(
+                helper.getFirstExisting(row, [
+                  "Original Final Score",
+                  "Previous Score",
+                  "Score Before Appeal",
+                ])
+              ) ??
               Number(topics.reduce((sum, topic) => sum + (topic.originalScore ?? 0), 0).toFixed(2));
 
             const revisedFinalScore =
               toNumberOrNull(helper.getLastValue(row, "Final Score")) ??
-              toNumberOrNull(helper.getFirstExisting(row, ["Revised Final Score", "Score After Appeal"])) ??
+              toNumberOrNull(
+                helper.getFirstExisting(row, ["Revised Final Score", "Score After Appeal"])
+              ) ??
               calculateFinalScore(topics, criticalError);
 
             const changedTopicsCount = topics.filter((topic) => topic.changed).length;
@@ -500,10 +520,29 @@ export default function AppealMockup({
               String(helper.getFirstExisting(row, ["Auto Change Remark", "Change Remark"]) ?? "").trim() ||
               buildAutoChangeRemark(topics);
 
-            const decisionSummary =
-              String(
-                helper.getFirstExisting(row, ["สรุปผลพิจารณา", "Decision Summary", "QA Response Summary", "Result Summary"]) ?? ""
-              ).trim();
+            const decisionSummary = String(
+              helper.getFirstExisting(
+                row,
+                ["สรุปผลพิจารณา", "Decision Summary", "QA Response Summary", "Result Summary"]
+              ) ?? ""
+            ).trim();
+
+            const agentName = String(
+              helper.getFirstExisting(row, [
+                "Agent Name",
+                "Agent",
+                "Employee Name",
+                "Rider Name",
+                "User Name",
+                "Owner",
+                "Case Owner",
+                "Appeal Owner",
+                "Submit By",
+                "Submitted By",
+                "Requester Name",
+                "Full Name",
+              ]) ?? ""
+            ).trim();
 
             const appealStatus = inferAppealStatus(
               rawStatus,
@@ -517,9 +556,7 @@ export default function AppealMockup({
               caseId: String(
                 helper.getFirstExisting(row, ["Case ID", "CaseId", "Selected Case"]) ?? ""
               ).trim(),
-              agentName: String(
-                helper.getFirstExisting(row, ["Agent Name", "Agent", "QA Name", "Employee Name"]) ?? ""
-              ).trim(),
+              agentName,
               auditDate: excelDateToText(
                 helper.getFirstExisting(row, ["Audit Date", "QA Date", "Evaluation Date"])
               ),
@@ -544,7 +581,10 @@ export default function AppealMockup({
                 helper.getFirstExisting(row, ["Comment Status", "QA Comment Status"]) ?? ""
               ).trim(),
               customerInquiry: String(
-                helper.getFirstExisting(row, ["Customer Inquiry", "Inquiry", "Case Detail", "Issue Detail"]) ?? ""
+                helper.getFirstExisting(
+                  row,
+                  ["Customer Inquiry", "Inquiry", "Case Detail", "Issue Detail"]
+                ) ?? ""
               ).trim(),
               autoChangeRemark,
               decisionSummary,
@@ -581,13 +621,9 @@ export default function AppealMockup({
     let items = [...appealCases];
 
     if (!canViewAll && effectiveAgent) {
-      items = items.filter(
-        (item) => normalizeText(item.agentName) === normalizeText(effectiveAgent)
-      );
+      items = items.filter((item) => isSameAgent(item.agentName, effectiveAgent));
     } else if (canViewAll && hasValue(selectedAgentFilter)) {
-      items = items.filter(
-        (item) => normalizeText(item.agentName) === normalizeText(selectedAgentFilter)
-      );
+      items = items.filter((item) => isSameAgent(item.agentName, selectedAgentFilter || ""));
     }
 
     if (statusFilter !== "all") {
@@ -647,9 +683,6 @@ export default function AppealMockup({
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
-          <div className="mt-3 text-sm text-slate-600">
-            ตรวจสอบว่าไฟล์อยู่ที่ public/Appleal ROWDATA.xlsx
-          </div>
         </div>
       </div>
     );
@@ -659,21 +692,11 @@ export default function AppealMockup({
     return (
       <div className="min-h-screen bg-slate-100 p-6">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white shadow-xl">
-            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
-              Robinhood QA Appeal
-            </div>
-            <h1 className="mt-3 text-3xl font-bold">QA Appeal Review</h1>
-            <div className="mt-2 text-sm text-violet-100">
-              Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-            </div>
-          </div>
-
           <div className="rounded-3xl border border-violet-200 bg-white p-10 text-center shadow-sm">
             <div className="text-lg font-semibold text-slate-900">ไม่พบเคสอุทธรณ์</div>
             <div className="mt-2 text-sm text-slate-500">
               {currentUser?.role === "Agent"
-                ? "บัญชีนี้ยังไม่มีเคสอุทธรณ์ของตัวเอง หรือชื่อในไฟล์ไม่ตรงกับชื่อ login"
+                ? `บัญชีนี้ยังไม่พบเคสอุทธรณ์ของ ${currentUser.agentName || currentUser.displayName}`
                 : hasValue(selectedAgentFilter)
                 ? `Agent ที่เลือก (${selectedAgentFilter}) ยังไม่มีเคสอุทธรณ์`
                 : "ไม่พบข้อมูลตามเงื่อนไขที่เลือก"}
@@ -688,20 +711,13 @@ export default function AppealMockup({
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-6">
         <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white shadow-xl">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
-                Robinhood QA Appeal
-              </div>
-              <h1 className="mt-3 text-3xl font-bold leading-tight">QA Appeal Review</h1>
-              <div className="mt-2 text-sm text-violet-100">
-                Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-              </div>
-              {canViewAll && hasValue(selectedAgentFilter) ? (
-                <div className="mt-2 text-sm font-medium text-violet-100">
-                  Current Agent Filter: {selectedAgentFilter}
-                </div>
-              ) : null}
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
+              Robinhood QA Appeal
+            </div>
+            <h1 className="mt-3 text-3xl font-bold leading-tight">QA Appeal Review</h1>
+            <div className="mt-2 text-sm text-violet-100">
+              Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
             </div>
           </div>
         </div>
