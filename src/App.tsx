@@ -1,3 +1,142 @@
+import React, { useMemo, useState } from "react";
+import DashboardMockup from "./DashboardMockup";
+import AppealMockup from "./AppealMockup";
+import QARubricMockup from "./QARubricMockup";
+
+type Role = "Lead" | "Agent";
+
+type UserLike = {
+  username: string;
+  password: string;
+  displayName: string;
+  role: Role;
+  agentName: string;
+  canViewAllAgents: boolean;
+};
+
+const USER_ACCOUNTS: UserLike[] = [
+  {
+    username: "anucha",
+    password: "Mk!A7p9#L2",
+    displayName: "Anucha Makundin",
+    role: "Lead",
+    agentName: "Anucha Makundin",
+    canViewAllAgents: true,
+  },
+  {
+    username: "arisa",
+    password: "Ri$4Kq2@Zm",
+    displayName: "Arisa aiemrit",
+    role: "Agent",
+    agentName: "Arisa aiemrit",
+    canViewAllAgents: false,
+  },
+  {
+    username: "chatkonnaphat",
+    password: "Ct#8Lm3!Qa",
+    displayName: "Chatkonnaphat Bhusomya",
+    role: "Agent",
+    agentName: "Chatkonnaphat Bhusomya",
+    canViewAllAgents: false,
+  },
+  {
+    username: "jariyawadee",
+    password: "Jy@5Nx9#Wp",
+    displayName: "Jariyawadee Taboodda",
+    role: "Agent",
+    agentName: "Jariyawadee Taboodda",
+    canViewAllAgents: false,
+  },
+  {
+    username: "jureeporn",
+    password: "Jp!6Vr2@Kd",
+    displayName: "Jureeporn Piddum",
+    role: "Agent",
+    agentName: "Jureeporn Piddum",
+    canViewAllAgents: false,
+  },
+  {
+    username: "krivut",
+    password: "Kv#9Ts4!Mb",
+    displayName: "Krivut Vongkampan",
+    role: "Lead",
+    agentName: "Krivut Vongkampan",
+    canViewAllAgents: true,
+  },
+  {
+    username: "natcha",
+    password: "Nc@7Pw3#Lf",
+    displayName: "Natcha Chai-in",
+    role: "Agent",
+    agentName: "Natcha Chai-in",
+    canViewAllAgents: false,
+  },
+  {
+    username: "nattapol",
+    password: "Np!4Xz8@Hr",
+    displayName: "Nattapol Suprom",
+    role: "Agent",
+    agentName: "Nattapol Suprom",
+    canViewAllAgents: false,
+  },
+  {
+    username: "Phrommarin",
+    password: "sD6#zL8&",
+    displayName: "Phrommarin Thaithorn",
+    role: "Lead",
+    agentName: "Phrommarin Thaithorn",
+    canViewAllAgents: true,
+  },
+  {
+    username: "songpon",
+    password: "Boom@4421L",
+    displayName: "Songpon Phothong",
+    role: "Lead",
+    agentName: "Songpon Phothong",
+    canViewAllAgents: true,
+  },
+  {
+    username: "sunijtra",
+    password: "Sj#6Qm1!Ty",
+    displayName: "Sunijtra Siritan",
+    role: "Agent",
+    agentName: "Sunijtra Siritan",
+    canViewAllAgents: false,
+  },
+  {
+    username: "supakrit",
+    password: "sP9#kM4!",
+    displayName: "Supakrit Promkhamnoi",
+    role: "Agent",
+    agentName: "Supakrit Promkhamnoi",
+    canViewAllAgents: false,
+  },
+  {
+    username: "suphitcha",
+    password: "Sp@8Ld2#Vk",
+    displayName: "Suphitcha Keawliam",
+    role: "Lead",
+    agentName: "Suphitcha Keawliam",
+    canViewAllAgents: true,
+  },
+  {
+    username: "wachiraporn",
+    password: "wL7$cl2@",
+    displayName: "Wachiraporn chailittichai",
+    role: "Agent",
+    agentName: "Wachiraporn chailittichai",
+    canViewAllAgents: false,
+  },
+  {
+    username: "wassana",
+    password: "Ws!3Kr7@Pn",
+    displayName: "Wassana Phothong",
+    role: "Agent",
+    agentName: "Wassana Phothong",
+    canViewAllAgents: false,
+  },
+];
+
 function LoginScreen({
   onLogin,
 }: {
@@ -135,5 +274,154 @@ function LoginScreen({
         </div>
       </div>
     </div>
+  );
+}
+
+function MainScreen({
+  currentUser,
+  onLogout,
+}: {
+  currentUser: UserLike;
+  onLogout: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "rubric">(
+    "dashboard"
+  );
+  const [dashboardSubTab, setDashboardSubTab] = useState<
+    "overview" | "case-detail"
+  >("overview");
+  const [selectedAgentGlobal, setSelectedAgentGlobal] = useState<string>("");
+
+  const effectiveSelectedAgent = useMemo(() => {
+    if (!currentUser.canViewAllAgents) {
+      return currentUser.agentName;
+    }
+    return selectedAgentGlobal;
+  }, [currentUser, selectedAgentGlobal]);
+
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <div className="border-b border-violet-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-6 py-4">
+          <button
+            type="button"
+            onClick={() => setActiveTab("dashboard")}
+            className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${
+              activeTab === "dashboard"
+                ? "border-violet-400 bg-violet-100 text-violet-800"
+                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+            }`}
+          >
+            Dashboard
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("appeal")}
+            className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${
+              activeTab === "appeal"
+                ? "border-violet-400 bg-violet-100 text-violet-800"
+                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+            }`}
+          >
+            Appeal
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("rubric")}
+            className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold ${
+              activeTab === "rubric"
+                ? "border-violet-400 bg-violet-100 text-violet-800"
+                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+            }`}
+          >
+            QA Rubric
+          </button>
+
+          {activeTab === "dashboard" ? (
+            <div className="ml-auto flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDashboardSubTab("overview")}
+                className={`rounded-2xl border px-4 py-2 text-sm font-semibold ${
+                  dashboardSubTab === "overview"
+                    ? "border-slate-400 bg-slate-100 text-slate-800"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Overview
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDashboardSubTab("case-detail")}
+                className={`rounded-2xl border px-4 py-2 text-sm font-semibold ${
+                  dashboardSubTab === "case-detail"
+                    ? "border-slate-400 bg-slate-100 text-slate-800"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Case Detail
+              </button>
+            </div>
+          ) : null}
+
+          <div className="ml-auto flex items-center gap-3">
+            <div className="hidden text-right md:block">
+              <div className="text-sm font-semibold text-slate-900">
+                {currentUser.displayName}
+              </div>
+              <div className="text-xs text-slate-500">
+                {currentUser.canViewAllAgents
+                  ? "View all agents"
+                  : "Own data only"}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {activeTab === "dashboard" ? (
+        <DashboardMockup
+          currentUser={currentUser}
+          dashboardSubTab={dashboardSubTab}
+          externalSelectedAgent={effectiveSelectedAgent}
+          onSelectedAgentChange={
+            currentUser.canViewAllAgents ? setSelectedAgentGlobal : undefined
+          }
+        />
+      ) : activeTab === "appeal" ? (
+        <AppealMockup
+          currentUser={currentUser}
+          selectedAgentFilter={effectiveSelectedAgent}
+        />
+      ) : (
+        <QARubricMockup currentUser={currentUser} />
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const [currentUser, setCurrentUser] = useState<UserLike | null>(null);
+
+  if (!currentUser) {
+    return <LoginScreen onLogin={setCurrentUser} />;
+  }
+
+  return (
+    <MainScreen
+      currentUser={currentUser}
+      onLogout={() => setCurrentUser(null)}
+    />
   );
 }
