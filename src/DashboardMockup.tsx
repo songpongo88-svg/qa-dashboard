@@ -77,6 +77,24 @@ const TOPIC_MASTER = [
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
 
+const AGENT_MASTER = [
+  "Anucha Makundin",
+  "Arisa aiemrit",
+  "Chatkonnaphat Bhusomya",
+  "Jariyawadee Taboodda",
+  "Jureeporn Piddum",
+  "Krivut Vongkampan",
+  "Natcha Chai-in",
+  "Nattapol Suprom",
+  "Phrommarin Thaithorn",
+  "Songpon Phothong",
+  "Sunijtra Siritan",
+  "Supakrit Promkhamnoi",
+  "Suphitcha Keawliam",
+  "Wachiraporn chailittichai",
+  "Wassana Phothong",
+].sort((a, b) => a.localeCompare(b));
+
 function normalizeText(value: unknown) {
   return String(value ?? "")
     .replace(/\u00A0/g, " ")
@@ -296,30 +314,6 @@ function PanelBody({
   return <div className={`p-5 ${className}`}>{children}</div>;
 }
 
-function SmallButton({
-  children,
-  onClick,
-  dark = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  dark?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        dark
-          ? "rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20"
-          : "rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50"
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
 function MetricCard({
   title,
   value,
@@ -511,7 +505,6 @@ function normalizeAppealReason(value: unknown) {
 function isNoAppealReason(value: unknown) {
   const text = normalizeAppealReason(value);
   if (!text) return false;
-
   const normalized = text.toLowerCase();
   return (
     normalized === "ไม่อุทธรณ์หัวข้อนี้" ||
@@ -906,9 +899,7 @@ export default function DashboardMockup({
           for (let i = 0; i < appealRows.length; i++) {
             const row = (appealRows[i] || []) as any[];
             const normalized = row.map((v) => normalizeText(v));
-            if (normalized.includes("case id")) {
-              return i;
-            }
+            if (normalized.includes("case id")) return i;
           }
           return -1;
         })();
@@ -1093,15 +1084,16 @@ export default function DashboardMockup({
   }, []);
 
   const visibleAgentList = useMemo(() => {
-    const agents = [...new Set(allCases.map((item) => String(item.agent).trim()))].sort((a, b) =>
+    const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
+    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) =>
       a.localeCompare(b)
     );
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return agents.filter((agent) => isSameAgent(agent, currentUser.agentName));
+      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
-    return agents;
+    return mergedAgents;
   }, [allCases, currentUser]);
 
   useEffect(() => {
