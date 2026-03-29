@@ -3,14 +3,207 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 
+type Role = "QA" | "Supervisor" | "Senior" | "Admin" | "Agent";
+
 type UserLike = {
-  username?: string;
-  displayName?: string;
-  role?: string;
+  username: string;
+  password: string;
+  displayName: string;
+  role: Role;
   agentName?: string;
 };
 
-export default function App() {
+const AGENT_NAMES = [
+  "Anucha Makundin",
+  "Arisa aiemrit",
+  "Chatkonnaphat Bhusomya",
+  "Jariyawadee Taboodda",
+  "Jureeporn Piddum",
+  "Krivut Vongkampan",
+  "Natcha Chai-in",
+  "Nattapol Suprom",
+  "Songpon Phothong",
+  "Sunijtra Siritan",
+  "Suphitcha Keawliam",
+  "Wassana Phothong",
+].sort((a, b) => a.localeCompare(b));
+
+const USER_ACCOUNTS: UserLike[] = [
+  {
+    username: "qa",
+    password: "qa1234",
+    displayName: "QA Admin",
+    role: "QA",
+  },
+  {
+    username: "supervisor",
+    password: "super1234",
+    displayName: "Supervisor",
+    role: "Supervisor",
+  },
+  {
+    username: "senior",
+    password: "senior1234",
+    displayName: "Senior",
+    role: "Senior",
+  },
+  {
+    username: "admin",
+    password: "admin1234",
+    displayName: "Admin",
+    role: "Admin",
+  },
+  ...AGENT_NAMES.map((name) => {
+    const username = name.toLowerCase().replace(/[^a-z]/g, "");
+    return {
+      username,
+      password: "agent1234",
+      displayName: name,
+      role: "Agent" as Role,
+      agentName: name,
+    };
+  }),
+];
+
+function LoginScreen({
+  onLogin,
+}: {
+  onLogin: (user: UserLike) => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorText, setErrorText] = useState("");
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const matchedUser = USER_ACCOUNTS.find(
+      (user) => user.username === username.trim() && user.password === password
+    );
+
+    if (!matchedUser) {
+      setErrorText("Username หรือ Password ไม่ถูกต้อง");
+      return;
+    }
+
+    setErrorText("");
+    onLogin(matchedUser);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center p-6">
+        <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 p-8 text-white lg:p-10">
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-violet-200">
+              Robinhood QA Platform
+            </div>
+            <h1 className="mt-4 text-4xl font-bold leading-tight">
+              QA Dashboard
+              <br />
+              Appeal Review
+            </h1>
+            <p className="mt-4 max-w-lg text-sm leading-7 text-violet-100">
+              Sign in to access QA Dashboard, Case Detail, and QA Appeal Review.
+            </p>
+
+            <div className="mt-8 grid gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                <div className="text-sm font-semibold">QA / Admin / Supervisor / Senior</div>
+                <div className="mt-1 text-xs text-violet-100">
+                  Can view all agents and filter appeal cases by selected agent.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                <div className="text-sm font-semibold">Agent</div>
+                <div className="mt-1 text-xs text-violet-100">
+                  Can view only their own dashboard and appeal cases.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 lg:p-10">
+            <div className="mx-auto max-w-md">
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-600">
+                Login
+              </div>
+              <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                Welcome back
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Enter your account to continue.
+              </p>
+
+              <form onSubmit={handleLogin} className="mt-8 space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter username"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                  />
+                </div>
+
+                {errorText ? (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {errorText}
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-violet-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-800"
+                >
+                  Sign In
+                </button>
+              </form>
+
+              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Demo Accounts
+                </div>
+                <div className="mt-3 space-y-2 text-xs text-slate-600">
+                  <div>QA: qa / qa1234</div>
+                  <div>Supervisor: supervisor / super1234</div>
+                  <div>Senior: senior / senior1234</div>
+                  <div>Admin: admin / admin1234</div>
+                  <div>Agent: [username from full name] / agent1234</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>￼
+    </div>
+  );
+}
+
+function MainScreen({
+  currentUser,
+  onLogout,
+}: {
+  currentUser: UserLike;
+  onLogout: () => void;
+}) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "rubric">(
     "dashboard"
   );
@@ -18,13 +211,6 @@ export default function App() {
     "overview" | "case-detail"
   >("overview");
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState<string>("");
-
-  const currentUser: UserLike = {
-    username: "qa",
-    displayName: "QA Admin",
-    role: "QA",
-    agentName: "",
-  };
 
   const effectiveSelectedAgent = useMemo(() => {
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
@@ -100,6 +286,23 @@ export default function App() {
               </button>
             </div>
           ) : null}
+
+          <div className="ml-auto flex items-center gap-3">
+            <div className="hidden text-right md:block">
+              <div className="text-sm font-semibold text-slate-900">
+                {currentUser.displayName}
+              </div>
+              <div className="text-xs text-slate-500">{currentUser.role}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
@@ -120,4 +323,14 @@ export default function App() {
       )}
     </div>
   );
+}
+
+export default function App() {
+  const [currentUser, setCurrentUser] = useState<UserLike | null>(null);
+
+  if (!currentUser) {
+    return <LoginScreen onLogin={setCurrentUser} />;
+  }
+
+  return <MainScreen currentUser={currentUser} onLogout={() => setCurrentUser(null)} />;
 }
