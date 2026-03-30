@@ -571,12 +571,16 @@ export default function App() {
               </div>
             </div>
 
-            <DashboardMockup
-              currentUser={currentUser}
-              dashboardSubTab={dashboardSubTab}
-              externalSelectedAgent={selectedAgentFromDashboard}
-              onSelectedAgentChange={setSelectedAgentFromDashboard}
-            />
+<DashboardMockup
+  currentUser={currentUser}
+  dashboardSubTab={dashboardSubTab}
+  externalSelectedAgent={selectedAgentFromDashboard}
+  onSelectedAgentChange={setSelectedAgentFromDashboard}
+  onOpenCaseDetail={() => {
+    setActiveTab("dashboard");
+    setDashboardSubTab("case-detail");
+  }}
+/>
           </div>
         ) : activeTab === "appeal" ? (
           <AppealMockup currentUser={currentUser} />
