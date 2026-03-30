@@ -130,9 +130,64 @@ const USER_ACCOUNTS: UserAccount[] = [
 ];
 
 const STORAGE_KEY = "qa_current_user";
+const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
+
+function readStoredUser(): CurrentUser | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as CurrentUser;
+    if (
+      !parsed ||
+      typeof parsed.username !== "string" ||
+      typeof parsed.displayName !== "string" ||
+      typeof parsed.role !== "string" ||
+      typeof parsed.agentName !== "string"
+    ) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readPasswordOverrides(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(PASSWORD_OVERRIDE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePasswordOverrides(value: Record<string, string>) {
+  localStorage.setItem(PASSWORD_OVERRIDE_KEY, JSON.stringify(value));
+}
+
+function savePasswordOverride(username: string, newPassword: string) {
+  const current = readPasswordOverrides();
+  current[username.trim().toLowerCase()] = newPassword;
+  writePasswordOverrides(current);
+}
+
+function removePasswordOverride(username: string) {
+  const current = readPasswordOverrides();
+  delete current[username.trim().toLowerCase()];
+  writePasswordOverrides(current);
+}
+
+function getEffectivePassword(account: UserAccount) {
+  const overrides = readPasswordOverrides();
+  return overrides[account.username.trim().toLowerCase()] || account.password;
+}
 
 function LogoBox() {
   return (
@@ -235,27 +290,184 @@ function SessionWarningModal({
   );
 }
 
-function readStoredUser(): CurrentUser | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+function ChangePasswordModal({
+  open,
+  onClose,
+  currentPasswordInput,
+  setCurrentPasswordInput,
+  newPasswordInput,
+  setNewPasswordInput,
+  confirmNewPasswordInput,
+  setConfirmNewPasswordInput,
+  error,
+  success,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  currentPasswordInput: string;
+  setCurrentPasswordInput: (value: string) => void;
+  newPasswordInput: string;
+  setNewPasswordInput: (value: string) => void;
+  confirmNewPasswordInput: string;
+  setConfirmNewPasswordInput: (value: string) => void;
+  error: string;
+  success: string;
+  onSubmit: () => void;
+}) {
+  if (!open) return null;
 
-    const parsed = JSON.parse(raw) as CurrentUser;
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+        <div className="text-xl font-bold text-slate-900">Change Password</div>
+        <div className="mt-2 text-sm text-slate-500">
+          Update your password for this browser.
+        </div>
 
-    if (
-      !parsed ||
-      typeof parsed.username !== "string" ||
-      typeof parsed.displayName !== "string" ||
-      typeof parsed.role !== "string" ||
-      typeof parsed.agentName !== "string"
-    ) {
-      return null;
-    }
+        <div className="mt-6 space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">
+              Current Password
+            </label>
+            <input
+              type="password"
+              value={currentPasswordInput}
+              onChange={(e) => setCurrentPasswordInput(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
+          </div>
 
-    return parsed;
-  } catch {
-    return null;
-  }
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">
+              New Password
+            </label>
+            <input
+              type="password"
+              value={newPasswordInput}
+              onChange={(e) => setNewPasswordInput(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              value={confirmNewPasswordInput}
+              onChange={(e) => setConfirmNewPasswordInput(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
+          </div>
+
+          {error ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+              {error}
+            </div>
+          ) : null}
+
+          {success ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              {success}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
+          >
+            Save Password
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordModal({
+  open,
+  onClose,
+  selectedUsername,
+  setSelectedUsername,
+  onReset,
+  resultMessage,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selectedUsername: string;
+  setSelectedUsername: (value: string) => void;
+  onReset: () => void;
+  resultMessage: string;
+}) {
+  if (!open) return null;
+
+  const resettableUsers = USER_ACCOUNTS.filter((item) => item.role === "Agent");
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+        <div className="text-xl font-bold text-slate-900">Reset Password</div>
+        <div className="mt-2 text-sm text-slate-500">
+          Supervisor can reset agent password back to default.
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">
+              Select Agent
+            </label>
+            <select
+              value={selectedUsername}
+              onChange={(e) => setSelectedUsername(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            >
+              <option value="">Select Agent</option>
+              {resettableUsers.map((item) => (
+                <option key={item.username} value={item.username}>
+                  {item.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {resultMessage ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              {resultMessage}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onReset}
+            className="rounded-2xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
+          >
+            Reset to Default
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -264,6 +476,17 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [showSessionWarning, setShowSessionWarning] = useState(false);
+
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState("");
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState("");
+
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetTargetUsername, setResetTargetUsername] = useState("");
+  const [resetResultMessage, setResetResultMessage] = useState("");
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "summary" | "rubric">(
     "dashboard"
@@ -299,6 +522,19 @@ export default function App() {
     }
   };
 
+  const resetPasswordModalState = () => {
+    setResetTargetUsername("");
+    setResetResultMessage("");
+  };
+
+  const resetChangePasswordState = () => {
+    setCurrentPasswordInput("");
+    setNewPasswordInput("");
+    setConfirmNewPasswordInput("");
+    setChangePasswordError("");
+    setChangePasswordSuccess("");
+  };
+
   const handleLogout = () => {
     clearSessionTimers();
     setShowSessionWarning(false);
@@ -309,6 +545,10 @@ export default function App() {
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
     setSelectedAgentFromDashboard("");
+    setShowChangePasswordModal(false);
+    setShowResetPasswordModal(false);
+    resetChangePasswordState();
+    resetPasswordModalState();
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -369,11 +609,15 @@ export default function App() {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedPassword = password.trim();
 
-    const matchedUser = USER_ACCOUNTS.find(
-      (item) =>
-        item.username.trim().toLowerCase() === normalizedUsername &&
-        item.password === normalizedPassword
-    );
+    const matchedUser = USER_ACCOUNTS.find((item) => {
+      const normalizedItemUsername = item.username.trim().toLowerCase();
+      const effectivePassword = getEffectivePassword(item);
+
+      return (
+        normalizedItemUsername === normalizedUsername &&
+        effectivePassword === normalizedPassword
+      );
+    });
 
     if (!matchedUser) {
       setLoginError("Invalid username or password");
@@ -400,6 +644,70 @@ export default function App() {
 
   const handleStayLoggedIn = () => {
     startSessionTimers();
+  };
+
+  const handleChangePassword = () => {
+    if (!currentUser) return;
+
+    const account = USER_ACCOUNTS.find(
+      (item) => item.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase()
+    );
+
+    if (!account) {
+      setChangePasswordError("User account not found");
+      setChangePasswordSuccess("");
+      return;
+    }
+
+    const effectivePassword = getEffectivePassword(account);
+
+    if (currentPasswordInput !== effectivePassword) {
+      setChangePasswordError("Current password is incorrect");
+      setChangePasswordSuccess("");
+      return;
+    }
+
+    if (!newPasswordInput.trim()) {
+      setChangePasswordError("New password cannot be empty");
+      setChangePasswordSuccess("");
+      return;
+    }
+
+    if (newPasswordInput.length < 6) {
+      setChangePasswordError("New password must be at least 6 characters");
+      setChangePasswordSuccess("");
+      return;
+    }
+
+    if (newPasswordInput !== confirmNewPasswordInput) {
+      setChangePasswordError("New password and confirm password do not match");
+      setChangePasswordSuccess("");
+      return;
+    }
+
+    savePasswordOverride(currentUser.username, newPasswordInput);
+
+    setChangePasswordError("");
+    setChangePasswordSuccess("Password changed successfully");
+    setCurrentPasswordInput("");
+    setNewPasswordInput("");
+    setConfirmNewPasswordInput("");
+
+    setTimeout(() => {
+      setShowChangePasswordModal(false);
+      setChangePasswordSuccess("");
+    }, 1000);
+  };
+
+  const handleResetPasswordToDefault = () => {
+    if (!resetTargetUsername) return;
+
+    removePasswordOverride(resetTargetUsername);
+
+    const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
+    const targetName = targetAccount?.displayName || resetTargetUsername;
+
+    setResetResultMessage(`Password for ${targetName} has been reset to default.`);
   };
 
   if (!currentUser) {
@@ -503,6 +811,35 @@ export default function App() {
         onLogoutNow={handleLogout}
       />
 
+      <ChangePasswordModal
+        open={showChangePasswordModal}
+        onClose={() => {
+          setShowChangePasswordModal(false);
+          resetChangePasswordState();
+        }}
+        currentPasswordInput={currentPasswordInput}
+        setCurrentPasswordInput={setCurrentPasswordInput}
+        newPasswordInput={newPasswordInput}
+        setNewPasswordInput={setNewPasswordInput}
+        confirmNewPasswordInput={confirmNewPasswordInput}
+        setConfirmNewPasswordInput={setConfirmNewPasswordInput}
+        error={changePasswordError}
+        success={changePasswordSuccess}
+        onSubmit={handleChangePassword}
+      />
+
+      <ResetPasswordModal
+        open={showResetPasswordModal}
+        onClose={() => {
+          setShowResetPasswordModal(false);
+          resetPasswordModalState();
+        }}
+        selectedUsername={resetTargetUsername}
+        setSelectedUsername={setResetTargetUsername}
+        onReset={handleResetPasswordToDefault}
+        resultMessage={resetResultMessage}
+      />
+
       <div className="min-h-screen bg-slate-100">
         <div className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-[1700px] flex-col gap-4 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
@@ -545,6 +882,30 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => {
+                  resetChangePasswordState();
+                  setShowChangePasswordModal(true);
+                }}
+                className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+              >
+                Change Password
+              </button>
+
+              {currentUser.role === "Supervisor" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetPasswordModalState();
+                    setShowResetPasswordModal(true);
+                  }}
+                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                >
+                  Reset Password
+                </button>
+              ) : null}
+
+              <button
+                type="button"
                 onClick={handleLogout}
                 className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
               >
@@ -571,16 +932,16 @@ export default function App() {
               </div>
             </div>
 
-<DashboardMockup
-  currentUser={currentUser}
-  dashboardSubTab={dashboardSubTab}
-  externalSelectedAgent={selectedAgentFromDashboard}
-  onSelectedAgentChange={setSelectedAgentFromDashboard}
-  onOpenCaseDetail={() => {
-    setActiveTab("dashboard");
-    setDashboardSubTab("case-detail");
-  }}
-/>
+            <DashboardMockup
+              currentUser={currentUser}
+              dashboardSubTab={dashboardSubTab}
+              externalSelectedAgent={selectedAgentFromDashboard}
+              onSelectedAgentChange={setSelectedAgentFromDashboard}
+              onOpenCaseDetail={() => {
+                setActiveTab("dashboard");
+                setDashboardSubTab("case-detail");
+              }}
+            />
           </div>
         ) : activeTab === "appeal" ? (
           <AppealMockup currentUser={currentUser} />
