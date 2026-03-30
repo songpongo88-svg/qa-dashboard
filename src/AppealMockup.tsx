@@ -62,11 +62,9 @@ const AGENT_MASTER = [
   "Krivut Vongkampan",
   "Natcha Chai-in",
   "Nattapol Suprom",
-  "Phrommarin Thaithorn",
-  "Songpon Phothong",
-  "Sunijtra Siritan",
   "Supakrit Promkhamnoi",
   "Suphitcha Keawliam",
+  "Sunijtra Siritip",
   "Wachiraporn chailittichai",
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
