@@ -328,7 +328,9 @@ function MetricCard({
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <PanelBody>
         <div className="text-sm font-semibold text-slate-600">{title}</div>
-        <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900 lg:text-[34px]">{value}</div>
+        <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900 lg:text-[34px]">
+          {value}
+        </div>
         <div className="mt-2 text-xs leading-5 text-slate-500">{sub}</div>
       </PanelBody>
     </Panel>
@@ -635,7 +637,9 @@ function CaseDetailTopicTable({
                     </div>
 
                     <div className="shrink-0 rounded-xl bg-violet-50 px-3 py-2 text-right">
-                      <div className="text-[9px] uppercase tracking-wide text-slate-500">Score</div>
+                      <div className="text-[9px] uppercase tracking-wide text-slate-500">
+                        Score
+                      </div>
                       <div className="text-sm font-bold text-slate-900">
                         {shownTopic.score}/{shownTopic.max}
                       </div>
@@ -764,7 +768,7 @@ function DataHealthChecks({
   );
 }
 
-function buildHeaderHelpersWithValues(headerRow: any[]) {
+function buildHeaderHelpers(headerRow: any[]) {
   const normalizedHeaders = headerRow.map((h) => normalizeText(h));
 
   const colIndexes = (name: string) => {
@@ -810,16 +814,117 @@ function LogoHeaderBox() {
   );
 }
 
+function MiniBarChart({
+  data,
+  height = 220,
+}: {
+  data: { label: string; value: number }[];
+  height?: number;
+}) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+
+  return (
+    <div className="rounded-2xl border border-violet-100 bg-white p-4">
+      <div className="flex items-end gap-3" style={{ height }}>
+        {data.map((item) => {
+          const barHeight = Math.max((item.value / max) * (height - 40), item.value > 0 ? 16 : 4);
+
+          return (
+            <div key={item.label} className="flex flex-1 flex-col items-center justify-end gap-2">
+              <div className="text-xs font-semibold text-slate-600">{item.value}</div>
+              <div
+                className="w-full rounded-t-xl bg-gradient-to-t from-violet-700 to-fuchsia-500 transition-all"
+                style={{ height: barHeight }}
+              />
+              <div className="text-center text-[11px] leading-4 text-slate-500">{item.label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DonutLikeLegend({
+  data,
+}: {
+  data: { label: string; value: number; tone: string }[];
+}) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <div className="rounded-2xl border border-violet-100 bg-white p-4">
+      <div className="space-y-3">
+        {data.map((item) => {
+          const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
+          return (
+            <div
+              key={item.label}
+              className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`h-3 w-3 rounded-full ${item.tone}`} />
+                <span className="text-sm font-medium text-slate-700">{item.label}</span>
+              </div>
+              <div className="text-sm font-bold text-slate-900">
+                {item.value} <span className="text-slate-400">({pct}%)</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function QuickCaseSearchCard({
+  item,
+  onOpen,
+}: {
+  item: CaseItem;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
+          <div className="mt-1 text-[11px] text-slate-500">
+            {item.agent} · {item.auditDate}
+          </div>
+        </div>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
+          {item.grade}
+        </span>
+      </div>
+
+      <div className="mt-2 line-clamp-2 text-[12px] leading-5 text-slate-700">{item.inquiryTh}</div>
+
+      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open in Case Detail</div>
+    </button>
+  );
+}
+
 export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
   externalSelectedAgent,
   onSelectedAgentChange,
+  onOpenCaseDetail,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
   externalSelectedAgent?: string;
   onSelectedAgentChange?: (agentName: string) => void;
+  onOpenCaseDetail?: () => void;
 }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -887,7 +992,7 @@ export default function DashboardMockup({
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
-        const rawHelper = buildHeaderHelpersWithValues(rawHeaderRow);
+        const rawHelper = buildHeaderHelpers(rawHeaderRow);
 
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
@@ -915,7 +1020,7 @@ export default function DashboardMockup({
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
         const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
-        const appealHelper = buildHeaderHelpersWithValues(appealHeaderRow);
+        const appealHelper = buildHeaderHelpers(appealHeaderRow);
 
         const appealMap = new Map<string, AppealMergeItem>();
 
@@ -1199,6 +1304,60 @@ export default function DashboardMockup({
   );
   const incentiveRemark = getIncentiveRemark(metricCaseCount, Number(metricAverageDisplay));
 
+  const overviewCaseSearchResults = useMemo(() => {
+    const keyword = caseIdSearch.trim().toLowerCase();
+    if (!keyword) return [];
+
+    return dateFilteredCases
+      .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
+      .slice(0, 8);
+  }, [dateFilteredCases, caseIdSearch]);
+
+  const scoreDistributionData = useMemo(() => {
+    const buckets = [
+      { label: "90-100", value: 0 },
+      { label: "80-89", value: 0 },
+      { label: "70-79", value: 0 },
+      { label: "60-69", value: 0 },
+      { label: "<60", value: 0 },
+    ];
+
+    dashboardCases.forEach((item) => {
+      const score = item.finalScore;
+      if (score >= 90) buckets[0].value += 1;
+      else if (score >= 80) buckets[1].value += 1;
+      else if (score >= 70) buckets[2].value += 1;
+      else if (score >= 60) buckets[3].value += 1;
+      else buckets[4].value += 1;
+    });
+
+    return buckets;
+  }, [dashboardCases]);
+
+  const reviewMixChartData = useMemo(() => {
+    const revised = dashboardCases.filter((item) => item.reviewStatus === "Revised").length;
+    const original = dashboardCases.filter((item) => item.reviewStatus === "Original").length;
+
+    return [
+      { label: "Original", value: original, tone: "bg-slate-400" },
+      { label: "Revised", value: revised, tone: "bg-violet-600" },
+    ];
+  }, [dashboardCases]);
+
+  const weakestTopics = useMemo(() => {
+    return summary.topicPerformance
+      .filter((item) => item.pct !== "-")
+      .sort((a, b) => Number(a.pct) - Number(b.pct))
+      .slice(0, 3);
+  }, [summary]);
+
+  const strongestTopics = useMemo(() => {
+    return summary.topicPerformance
+      .filter((item) => item.pct !== "-")
+      .sort((a, b) => Number(b.pct) - Number(a.pct))
+      .slice(0, 3);
+  }, [summary]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -1465,7 +1624,7 @@ export default function DashboardMockup({
 
                   <Panel>
                     <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
-                    <PanelBody>
+                    <PanelBody className="space-y-4">
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -1503,36 +1662,57 @@ export default function DashboardMockup({
                           Revised Only
                         </button>
                       </div>
+
+                      {caseIdSearch.trim() ? (
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                            Quick Case Search Result
+                          </div>
+
+                          <div className="mt-3 space-y-3">
+                            {overviewCaseSearchResults.length ? (
+                              overviewCaseSearchResults.map((item) => (
+                                <QuickCaseSearchCard
+                                  key={item.key}
+                                  item={item}
+                                  onOpen={() => {
+                                    setSelectedCaseKey(item.key);
+                                    onOpenCaseDetail?.();
+                                  }}
+                                />
+                              ))
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                ไม่พบเลขเคสที่ค้นหา
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </PanelBody>
                   </Panel>
 
-                  <Panel>
-                    <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
-                    <PanelBody>
-                      <TopicPerformanceTable items={summary.topicPerformance} />
-                    </PanelBody>
-                  </Panel>
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Panel>
+                      <PanelHeader title="Score Distribution" subtitle="Case count by score range" />
+                      <PanelBody>
+                        <MiniBarChart data={scoreDistributionData} />
+                      </PanelBody>
+                    </Panel>
+
+                    <Panel>
+                      <PanelHeader title="Review Status Mix" subtitle="Original vs Revised in current view" />
+                      <PanelBody>
+                        <DonutLikeLegend data={reviewMixChartData} />
+                      </PanelBody>
+                    </Panel>
+                  </div>
 
                   <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <Panel>
-                      <PanelHeader title="Case List" subtitle="Visible cases in current filter" />
+                      <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
                       <PanelBody>
-                        {!dashboardCases.length ? (
-                          <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                            ไม่พบข้อมูลในช่วงที่เลือก
-                          </div>
-                        ) : (
-                          <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                            {dashboardCases.map((item) => (
-                              <CaseNavigatorCard
-                                key={item.key}
-                                item={item}
-                                isSelected={activeSelectedCase?.key === item.key}
-                                onSelect={() => setSelectedCaseKey(item.key)}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <TopicPerformanceTable items={summary.topicPerformance} />
                       </PanelBody>
                     </Panel>
 
@@ -1540,6 +1720,50 @@ export default function DashboardMockup({
                       <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
                       <PanelBody>
                         <GradeMix gradeCounts={summary.gradeCounts} />
+                      </PanelBody>
+                    </Panel>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Panel>
+                      <PanelHeader title="Strongest Topics" subtitle="Top 3 topics in current view" />
+                      <PanelBody className="space-y-3">
+                        {strongestTopics.length ? (
+                          strongestTopics.map((topic) => (
+                            <div
+                              key={topic.code}
+                              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"
+                            >
+                              <div className="text-sm font-bold text-slate-900">
+                                {topic.code} {topic.label}
+                              </div>
+                              <div className="mt-1 text-xs text-emerald-700">{topic.pct}% average</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-slate-500">No data</div>
+                        )}
+                      </PanelBody>
+                    </Panel>
+
+                    <Panel>
+                      <PanelHeader title="Coaching Focus" subtitle="Top 3 weakest topics in current view" />
+                      <PanelBody className="space-y-3">
+                        {weakestTopics.length ? (
+                          weakestTopics.map((topic) => (
+                            <div
+                              key={topic.code}
+                              className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3"
+                            >
+                              <div className="text-sm font-bold text-slate-900">
+                                {topic.code} {topic.label}
+                              </div>
+                              <div className="mt-1 text-xs text-rose-700">{topic.pct}% average</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-slate-500">No data</div>
+                        )}
                       </PanelBody>
                     </Panel>
                   </div>
