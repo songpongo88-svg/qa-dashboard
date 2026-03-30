@@ -260,9 +260,7 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div
-      className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_12px_34px_rgba(76,29,149,0.08)] ${className}`}
-    >
+    <div className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_12px_34px_rgba(76,29,149,0.08)] ${className}`}>
       {children}
     </div>
   );
@@ -367,11 +365,7 @@ function QuickCaseCard({
           </div>
         </div>
 
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
-            item.grade
-          )}`}
-        >
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(item.grade)}`}>
           {item.grade}
         </span>
       </div>
@@ -508,13 +502,8 @@ export default function AppealMockup({
 
         const rawBuffer = await rawResponse.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
-        const rawSheet =
-          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
-          header: 1,
-          defval: null,
-          raw: true,
-        });
+        const rawSheet = rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, { header: 1, defval: null, raw: true });
 
         const rawHeaderIndex = (() => {
           for (let i = 0; i < rawRows.length; i++) {
@@ -540,11 +529,7 @@ export default function AppealMockup({
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
         const appealSheet =
           appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
-        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
-          header: 1,
-          defval: null,
-          raw: true,
-        });
+        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, { header: 1, defval: null, raw: true });
 
         const appealHeaderIndex = (() => {
           for (let i = 0; i < appealRows.length; i++) {
@@ -584,11 +569,7 @@ export default function AppealMockup({
               : formatDateOnly(appealHelper.getValue(row, "Audit Date"));
 
             const weekLabel = rawRow
-              ? String(
-                  rawHelper.getValue(rawRow, "Week Label") ??
-                    rawHelper.getValue(rawRow, "Week") ??
-                    "-"
-                ).trim()
+              ? String(rawHelper.getValue(rawRow, "Week Label") ?? rawHelper.getValue(rawRow, "Week") ?? "-").trim()
               : "-";
 
             const caseUrl = rawRow
@@ -629,9 +610,7 @@ export default function AppealMockup({
 
               const revisedScoreCandidate = appealHelper.getValue(row, `${master.code} Revised Score`);
               const revisedCommentCandidate = appealHelper.getValue(row, `${master.code} Revised Comment`);
-              const appealReason = String(
-                appealHelper.getValue(row, `${master.code} Appeal Reason`) ?? ""
-              ).trim();
+              const appealReason = String(appealHelper.getValue(row, `${master.code} Appeal Reason`) ?? "").trim();
 
               const hasRevisedScore =
                 revisedScoreCandidate !== null &&
@@ -643,14 +622,10 @@ export default function AppealMockup({
                 String(revisedCommentCandidate).trim() !== "";
 
               const revisedScore = hasRevisedScore ? Number(revisedScoreCandidate) : originalScore;
-              const revisedComment = hasRevisedComment
-                ? String(revisedCommentCandidate).trim()
-                : originalComment;
+              const revisedComment = hasRevisedComment ? String(revisedCommentCandidate).trim() : originalComment;
 
               const appealed = !!appealReason && !isNoAppealReason(appealReason);
-              const changed =
-                appealed &&
-                isRealTopicChanged(originalScore, revisedScore, originalComment, revisedComment);
+              const changed = appealed && isRealTopicChanged(originalScore, revisedScore, originalComment, revisedComment);
 
               return {
                 code: master.code,
@@ -774,8 +749,7 @@ export default function AppealMockup({
     }
   }, [filteredCases, selectedCaseKey]);
 
-  const selectedCase =
-    filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
+  const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
 
   const handleGeneratePdf = () => {
     if (!selectedCase) return;
@@ -786,12 +760,7 @@ export default function AppealMockup({
     const right = pageWidth - 16;
     let y = 16;
 
-    const addLine = (
-      text: string,
-      size = 10,
-      color: [number, number, number] = [51, 65, 85],
-      gap = 6
-    ) => {
+    const addLine = (text: string, size = 10, color: [number, number, number] = [51, 65, 85], gap = 6) => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
@@ -1057,11 +1026,7 @@ export default function AppealMockup({
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
                           {selectedCase.caseId}
                         </span>
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
-                            selectedCase.grade
-                          )}`}
-                        >
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.grade)}`}>
                           Grade {selectedCase.grade}
                         </span>
                         <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
@@ -1220,4 +1185,4 @@ export default function AppealMockup({
     </div>
   );
 }
- ესมีอะไรต้องแก้อีกไหมื่อ App.tsx ด้วยไหม
+ โค้ดอันนี้เหรอ
