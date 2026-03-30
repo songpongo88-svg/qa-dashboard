@@ -22,111 +22,21 @@ type CurrentUser = {
 };
 
 const USER_ACCOUNTS: UserAccount[] = [
-  {
-    username: "Anucha",
-    password: "Mk!A7p9#L2",
-    displayName: "Anucha Makundin",
-    role: "Supervisor",
-    agentName: "Anucha Makundin",
-  },
-  {
-    username: "Arisa",
-    password: "Ri$4Kq2@Zm",
-    displayName: "Arisa aiemrit",
-    role: "Agent",
-    agentName: "Arisa aiemrit",
-  },
-  {
-    username: "Chatkonnaphat",
-    password: "Ct#8Lm3!Qa",
-    displayName: "Chatkonnaphat Bhusomya",
-    role: "Agent",
-    agentName: "Chatkonnaphat Bhusomya",
-  },
-  {
-    username: "Jariyawadee",
-    password: "Jy@5Nx9#Wp",
-    displayName: "Jariyawadee Taboodda",
-    role: "Agent",
-    agentName: "Jariyawadee Taboodda",
-  },
-  {
-    username: "Jureeporn",
-    password: "Jp!6Vr2@Kd",
-    displayName: "Jureeporn Piddum",
-    role: "Agent",
-    agentName: "Jureeporn Piddum",
-  },
-  {
-    username: "Krivut",
-    password: "Kv#9Ts4!Mb",
-    displayName: "Krivut Vongkampan",
-    role: "Supervisor",
-    agentName: "Krivut Vongkampan",
-  },
-  {
-    username: "Natcha",
-    password: "Nc@7Pw3#Lf",
-    displayName: "Natcha Chai-in",
-    role: "Agent",
-    agentName: "Natcha Chai-in",
-  },
-  {
-    username: "Nattapol",
-    password: "Np!4Xz8@Hr",
-    displayName: "Nattapol Suprom",
-    role: "Agent",
-    agentName: "Nattapol Suprom",
-  },
-  {
-    username: "Phrommarin",
-    password: "sD6#zL8&",
-    displayName: "Phrommarin Thaithorn",
-    role: "Supervisor",
-    agentName: "Phrommarin Thaithorn",
-  },
-  {
-    username: "Songpon",
-    password: "Boom@4421L",
-    displayName: "Songpon Phothong",
-    role: "Supervisor",
-    agentName: "Songpon Phothong",
-  },
-  {
-    username: "Sunijtra",
-    password: "Sj#6Qm1!Ty",
-    displayName: "Sunijtra Siritan",
-    role: "Agent",
-    agentName: "Sunijtra Siritan",
-  },
-  {
-    username: "Supakrit",
-    password: "sP9#kM4!",
-    displayName: "Supakrit Promkhamnoi",
-    role: "Agent",
-    agentName: "Supakrit Promkhamnoi",
-  },
-  {
-    username: "Suphitcha",
-    password: "Sp@8Ld2#Vk",
-    displayName: "Suphitcha Keawliam",
-    role: "Supervisor",
-    agentName: "Suphitcha Keawliam",
-  },
-  {
-    username: "Wachiraporn",
-    password: "wL7$cl2@",
-    displayName: "Wachiraporn chailittichai",
-    role: "Agent",
-    agentName: "Wachiraporn chailittichai",
-  },
-  {
-    username: "Wassana",
-    password: "Ws!3Kr7@Pn",
-    displayName: "Wassana Phothong",
-    role: "Agent",
-    agentName: "Wassana Phothong",
-  },
+  { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin" },
+  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa aiemrit", role: "Agent", agentName: "Arisa aiemrit" },
+  { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Agent", agentName: "Chatkonnaphat Bhusomya" },
+  { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Agent", agentName: "Jariyawadee Taboodda" },
+  { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Agent", agentName: "Jureeporn Piddum" },
+  { username: "Krivut", password: "Kv#9Ts4!Mb", displayName: "Krivut Vongkampan", role: "Supervisor", agentName: "Krivut Vongkampan" },
+  { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Agent", agentName: "Natcha Chai-in" },
+  { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Agent", agentName: "Nattapol Suprom" },
+  { username: "Phrommarin", password: "sD6#zL8&", displayName: "Phrommarin Thaithorn", role: "Supervisor", agentName: "Phrommarin Thaithorn" },
+  { username: "Songpon", password: "Boom@4421L", displayName: "Songpon Phothong", role: "Supervisor", agentName: "Songpon Phothong" },
+  { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritan", role: "Agent", agentName: "Sunijtra Siritan" },
+  { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Agent", agentName: "Supakrit Promkhamnoi" },
+  { username: "Suphitcha", password: "Sp@8Ld2#Vk", displayName: "Suphitcha Keawliam", role: "Supervisor", agentName: "Suphitcha Keawliam" },
+  { username: "Wachiraporn", password: "wL7$cl2@", displayName: "Wachiraporn chailittichai", role: "Agent", agentName: "Wachiraporn chailittichai" },
+  { username: "Wassana", password: "Ws!3Kr7@Pn", displayName: "Wassana Phothong", role: "Agent", agentName: "Wassana Phothong" },
 ];
 
 const STORAGE_KEY = "qa_current_user";
@@ -139,18 +49,8 @@ function readStoredUser(): CurrentUser | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-
     const parsed = JSON.parse(raw) as CurrentUser;
-    if (
-      !parsed ||
-      typeof parsed.username !== "string" ||
-      typeof parsed.displayName !== "string" ||
-      typeof parsed.role !== "string" ||
-      typeof parsed.agentName !== "string"
-    ) {
-      return null;
-    }
-
+    if (!parsed || typeof parsed.username !== "string") return null;
     return parsed;
   } catch {
     return null;
@@ -192,11 +92,7 @@ function getEffectivePassword(account: UserAccount) {
 function LogoBox() {
   return (
     <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-white/10 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm">
-      <img
-        src="/robinhood-logo.png"
-        alt="Robinhood Logo"
-        className="h-16 w-16 object-contain"
-      />
+      <img src="/robinhood-logo.png" alt="Robinhood Logo" className="h-16 w-16 object-contain" />
     </div>
   );
 }
@@ -265,10 +161,8 @@ function SessionWarningModal({
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-lg font-bold text-slate-900">Session Timeout Warning</div>
         <div className="mt-3 text-sm leading-6 text-slate-600">
-          You have been inactive for a while. Your session will be logged out automatically in
-          1 minute unless you choose to stay signed in.
+          You have been inactive for a while. Your session will be logged out automatically in 1 minute unless you choose to stay signed in.
         </div>
-
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
@@ -321,15 +215,11 @@ function ChangePasswordModal({
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-xl font-bold text-slate-900">Change Password</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Update your password for this browser.
-        </div>
+        <div className="mt-2 text-sm text-slate-500">Update your password for this browser.</div>
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              Current Password
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Current Password</label>
             <input
               type="password"
               value={currentPasswordInput}
@@ -339,9 +229,7 @@ function ChangePasswordModal({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              New Password
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">New Password</label>
             <input
               type="password"
               value={newPasswordInput}
@@ -351,9 +239,7 @@ function ChangePasswordModal({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              Confirm New Password
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Confirm New Password</label>
             <input
               type="password"
               value={confirmNewPasswordInput}
@@ -419,15 +305,11 @@ function ResetPasswordModal({
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-xl font-bold text-slate-900">Reset Password</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Supervisor can reset agent password back to default.
-        </div>
+        <div className="mt-2 text-sm text-slate-500">Supervisor can reset agent password back to default.</div>
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              Select Agent
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Select Agent</label>
             <select
               value={selectedUsername}
               onChange={(e) => setSelectedUsername(e.target.value)}
@@ -488,11 +370,9 @@ export default function App() {
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "summary" | "rubric">(
-    "dashboard"
-  );
+  const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "summary" | "rubric">("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
-  const [selectedAgentFromDashboard, setSelectedAgentFromDashboard] = useState("");
+  const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -510,12 +390,17 @@ export default function App() {
     }
   }, [currentUser]);
 
+  useEffect(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      setSelectedAgentGlobal(currentUser.agentName);
+    }
+  }, [currentUser]);
+
   const clearSessionTimers = () => {
     if (warningTimerRef.current) {
       clearTimeout(warningTimerRef.current);
       warningTimerRef.current = null;
     }
-
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
       inactivityTimerRef.current = null;
@@ -544,7 +429,7 @@ export default function App() {
     setLoginError("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentFromDashboard("");
+    setSelectedAgentGlobal("");
     setShowChangePasswordModal(false);
     setShowResetPasswordModal(false);
     resetChangePasswordState();
@@ -578,13 +463,7 @@ export default function App() {
       return;
     }
 
-    const activityEvents: Array<keyof WindowEventMap> = [
-      "mousemove",
-      "mousedown",
-      "keydown",
-      "scroll",
-      "touchstart",
-    ];
+    const activityEvents: Array<keyof WindowEventMap> = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
 
     const handleUserActivity = () => {
       if (showSessionWarning) return;
@@ -612,11 +491,7 @@ export default function App() {
     const matchedUser = USER_ACCOUNTS.find((item) => {
       const normalizedItemUsername = item.username.trim().toLowerCase();
       const effectivePassword = getEffectivePassword(item);
-
-      return (
-        normalizedItemUsername === normalizedUsername &&
-        effectivePassword === normalizedPassword
-      );
+      return normalizedItemUsername === normalizedUsername && effectivePassword === normalizedPassword;
     });
 
     if (!matchedUser) {
@@ -639,7 +514,7 @@ export default function App() {
     setPassword("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentFromDashboard(matchedUser.role === "Agent" ? matchedUser.agentName : "");
+    setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
   };
 
   const handleStayLoggedIn = () => {
@@ -701,12 +576,9 @@ export default function App() {
 
   const handleResetPasswordToDefault = () => {
     if (!resetTargetUsername) return;
-
     removePasswordOverride(resetTargetUsername);
-
     const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
-
     setResetResultMessage(`Password for ${targetName} has been reset to default.`);
   };
 
@@ -739,43 +611,22 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 max-w-[680px] text-base leading-8 text-violet-100/95 sm:text-lg">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA Rubric
-                  with role-based visibility for supervisors and agents.
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA Rubric with role-based visibility for supervisors and agents.
                 </div>
 
                 <div className="mt-10 grid gap-4 sm:grid-cols-3">
                   <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
-                      Performance
-                    </div>
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">Performance</div>
                     <div className="mt-3 text-sm font-semibold">Dashboard & Summary</div>
                   </div>
-
                   <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
-                      Review
-                    </div>
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">Review</div>
                     <div className="mt-3 text-sm font-semibold">Appeal & QA Rubric</div>
                   </div>
-
                   <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
-                      Security
-                    </div>
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">Security</div>
                     <div className="mt-3 text-sm font-semibold">Session & Password Control</div>
                   </div>
-                </div>
-
-                <div className="mt-10 flex flex-wrap gap-3 text-sm text-violet-100/90">
-                  <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2">
-                    Role-Based Login
-                  </span>
-                  <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2">
-                    Change Password
-                  </span>
-                  <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2">
-                    Supervisor Reset
-                  </span>
                 </div>
               </div>
             </div>
@@ -835,16 +686,6 @@ export default function App() {
                 >
                   Sign In
                 </button>
-
-                <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                    Access Notes
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-slate-600">
-                    Agents can view only their own data. Supervisors can access broader reporting,
-                    review utilities, and password reset controls.
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -855,11 +696,7 @@ export default function App() {
 
   return (
     <>
-      <SessionWarningModal
-        open={showSessionWarning}
-        onStayLoggedIn={handleStayLoggedIn}
-        onLogoutNow={handleLogout}
-      />
+      <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogoutNow={handleLogout} />
 
       <ChangePasswordModal
         open={showChangePasswordModal}
@@ -903,8 +740,7 @@ export default function App() {
               <div className="mt-1 text-sm text-slate-500">
                 Role: <span className="font-semibold text-slate-700">{currentUser.role}</span>
                 {" · "}
-                Agent Name:{" "}
-                <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
+                Agent Name: <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
               </div>
             </div>
 
@@ -914,16 +750,8 @@ export default function App() {
                   Performance
                 </span>
 
-                <NavButton
-                  active={activeTab === "dashboard"}
-                  label="Dashboard"
-                  onClick={() => setActiveTab("dashboard")}
-                />
-                <NavButton
-                  active={activeTab === "summary"}
-                  label="Summary"
-                  onClick={() => setActiveTab("summary")}
-                />
+                <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} />
+                <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} />
               </div>
 
               <div className="flex items-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-2 py-2">
@@ -931,16 +759,8 @@ export default function App() {
                   Review
                 </span>
 
-                <NavButton
-                  active={activeTab === "appeal"}
-                  label="Appeal"
-                  onClick={() => setActiveTab("appeal")}
-                />
-                <NavButton
-                  active={activeTab === "rubric"}
-                  label="QA Rubric"
-                  onClick={() => setActiveTab("rubric")}
-                />
+                <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} />
+                <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} />
               </div>
 
               <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2">
@@ -988,24 +808,16 @@ export default function App() {
           <div>
             <div className="mx-auto max-w-[1720px] px-6 pt-6">
               <div className="flex flex-wrap gap-2">
-                <DashboardSubButton
-                  active={dashboardSubTab === "overview"}
-                  label="Overview"
-                  onClick={() => setDashboardSubTab("overview")}
-                />
-                <DashboardSubButton
-                  active={dashboardSubTab === "case-detail"}
-                  label="Case Detail"
-                  onClick={() => setDashboardSubTab("case-detail")}
-                />
+                <DashboardSubButton active={dashboardSubTab === "overview"} label="Overview" onClick={() => setDashboardSubTab("overview")} />
+                <DashboardSubButton active={dashboardSubTab === "case-detail"} label="Case Detail" onClick={() => setDashboardSubTab("case-detail")} />
               </div>
             </div>
 
             <DashboardMockup
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
-              externalSelectedAgent={selectedAgentFromDashboard}
-              onSelectedAgentChange={setSelectedAgentFromDashboard}
+              externalSelectedAgent={selectedAgentGlobal}
+              onSelectedAgentChange={setSelectedAgentGlobal}
               onOpenCaseDetail={() => {
                 setActiveTab("dashboard");
                 setDashboardSubTab("case-detail");
@@ -1013,7 +825,11 @@ export default function App() {
             />
           </div>
         ) : activeTab === "appeal" ? (
-          <AppealMockup currentUser={currentUser} />
+          <AppealMockup
+            currentUser={currentUser}
+            externalSelectedAgent={selectedAgentGlobal}
+            onSelectedAgentChange={setSelectedAgentGlobal}
+          />
         ) : activeTab === "summary" ? (
           <SummaryMockup currentUser={currentUser} />
         ) : (
