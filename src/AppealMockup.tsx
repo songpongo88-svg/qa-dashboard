@@ -774,9 +774,16 @@ export default function AppealMockup({
       : String(selectedAgent || "").trim();
 
   const agentAppeals = useMemo(() => {
-    if (!effectiveSelectedAgent) return [];
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return allAppeals.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+    }
+
+    if (!effectiveSelectedAgent) {
+      return allAppeals;
+    }
+
     return allAppeals.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
-  }, [allAppeals, effectiveSelectedAgent]);
+  }, [allAppeals, effectiveSelectedAgent, currentUser]);
 
   const filteredAppeals = useMemo(() => {
     return agentAppeals.filter((item) => {
@@ -882,7 +889,7 @@ export default function AppealMockup({
                       }}
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                     >
-                      <option value="">Select Agent</option>
+                      <option value="">All Agents</option>
                       {visibleAgentList.map((agent) => (
                         <option key={agent} value={agent}>
                           {agent}
@@ -904,7 +911,7 @@ export default function AppealMockup({
                         setCaseIdSearch(e.target.value);
                         setSelectedCaseKey("");
                       }}
-                      placeholder="Search by Case ID"
+                      placeholder="ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือก Agent"
                       className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
@@ -991,7 +998,7 @@ export default function AppealMockup({
           </div>
 
           <div className="space-y-6">
-            {effectiveSelectedAgent ? (
+            {filteredAppeals.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               <>
                 <div className="grid gap-4 md:grid-cols-3">
                   <MetricCard
@@ -1142,7 +1149,7 @@ export default function AppealMockup({
                     <PanelHeader title="Appeal Result" />
                     <PanelBody>
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                        กรุณาเลือกเคสอุทธรณ์จากรายการด้านซ้าย
+                        ไม่พบเคสที่ตรงกับเงื่อนไขที่ค้นหา
                       </div>
                     </PanelBody>
                   </Panel>
@@ -1153,7 +1160,7 @@ export default function AppealMockup({
                 <PanelHeader title="Appeal Result" />
                 <PanelBody>
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
-                    กรุณาเลือก Agent ก่อน
+                    กรุณาเลือก Agent หรือค้นหา Case ID
                   </div>
                 </PanelBody>
               </Panel>
