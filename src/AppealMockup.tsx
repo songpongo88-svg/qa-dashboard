@@ -1185,4 +1185,3 @@ export default function AppealMockup({
     </div>
   );
 }
- โค้ดอันนี้เหรอ
