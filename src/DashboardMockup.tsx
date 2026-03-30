@@ -814,64 +814,256 @@ function LogoHeaderBox() {
   );
 }
 
-function MiniBarChart({
+function PremiumBarChart({
+  title,
+  subtitle,
   data,
-  height = 220,
+  height = 240,
 }: {
+  title?: string;
+  subtitle?: string;
   data: { label: string; value: number }[];
   height?: number;
 }) {
   const max = Math.max(...data.map((d) => d.value), 1);
 
   return (
-    <div className="rounded-2xl border border-violet-100 bg-white p-4">
-      <div className="flex items-end gap-3" style={{ height }}>
-        {data.map((item) => {
-          const barHeight = Math.max((item.value / max) * (height - 40), item.value > 0 ? 16 : 4);
+    <div className="rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
+      {title ? (
+        <div className="mb-4">
+          <div className="text-sm font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+      ) : null}
 
-          return (
-            <div key={item.label} className="flex flex-1 flex-col items-center justify-end gap-2">
-              <div className="text-xs font-semibold text-slate-600">{item.value}</div>
-              <div
-                className="w-full rounded-t-xl bg-gradient-to-t from-violet-700 to-fuchsia-500 transition-all"
-                style={{ height: barHeight }}
-              />
-              <div className="text-center text-[11px] leading-4 text-slate-500">{item.label}</div>
-            </div>
-          );
-        })}
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between pb-7 pt-2">
+          {[0, 1, 2, 3].map((line) => (
+            <div key={line} className="border-t border-dashed border-violet-100" />
+          ))}
+        </div>
+
+        <div className="relative flex items-end gap-4" style={{ height }}>
+          {data.map((item) => {
+            const barHeight = Math.max((item.value / max) * (height - 50), item.value > 0 ? 18 : 6);
+
+            return (
+              <div key={item.label} className="flex flex-1 flex-col items-center justify-end gap-2">
+                <div className="text-xs font-bold text-slate-700">{item.value}</div>
+
+                <div className="relative flex w-full items-end justify-center">
+                  <div
+                    className="w-full rounded-t-[18px] bg-gradient-to-t from-violet-800 via-violet-600 to-fuchsia-400 shadow-[0_12px_24px_rgba(124,58,237,0.22)] transition-all duration-300"
+                    style={{ height: barHeight }}
+                  >
+                    <div className="h-3 w-full rounded-t-[18px] bg-white/20" />
+                  </div>
+                </div>
+
+                <div className="text-center text-[11px] font-medium leading-4 text-slate-500">
+                  {item.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-function DonutLikeLegend({
+function PremiumReviewMixCard({
+  title,
+  subtitle,
   data,
 }: {
+  title?: string;
+  subtitle?: string;
   data: { label: string; value: number; tone: string }[];
 }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
+  const first = data[0]?.value || 0;
+  const firstPct = total > 0 ? (first / total) * 100 : 0;
 
   return (
-    <div className="rounded-2xl border border-violet-100 bg-white p-4">
-      <div className="space-y-3">
-        {data.map((item) => {
-          const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
-          return (
-            <div
-              key={item.label}
-              className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2"
-            >
-              <div className="flex items-center gap-2">
-                <span className={`h-3 w-3 rounded-full ${item.tone}`} />
-                <span className="text-sm font-medium text-slate-700">{item.label}</span>
+    <div className="rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
+      {title ? (
+        <div className="mb-4">
+          <div className="text-sm font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+      ) : null}
+
+      <div className="grid gap-5 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-center">
+        <div className="flex items-center justify-center">
+          <div
+            className="relative h-40 w-40 rounded-full"
+            style={{
+              background: `conic-gradient(#94a3b8 0% ${firstPct}%, #7c3aed ${firstPct}% 100%)`,
+            }}
+          >
+            <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full bg-white shadow-inner">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Total
               </div>
-              <div className="text-sm font-bold text-slate-900">
-                {item.value} <span className="text-slate-400">({pct}%)</span>
+              <div className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">
+                {total}
               </div>
+              <div className="mt-1 text-[11px] text-slate-500">cases</div>
             </div>
-          );
-        })}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {data.map((item) => {
+            const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
+
+            return (
+              <div
+                key={item.label}
+                className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-3.5 w-3.5 rounded-full ${item.tone}`} />
+                    <span className="text-sm font-semibold text-slate-800">{item.label}</span>
+                  </div>
+                  <div className="text-sm font-extrabold text-slate-900">
+                    {item.value}
+                    <span className="ml-1 text-slate-400">({pct}%)</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${item.tone}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PremiumLineChart({
+  title,
+  subtitle,
+  data,
+  height = 240,
+}: {
+  title?: string;
+  subtitle?: string;
+  data: { label: string; value: number }[];
+  height?: number;
+}) {
+  const width = 640;
+  const padding = 28;
+  const values = data.map((d) => d.value);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+
+  const points = data.map((item, index) => {
+    const x =
+      data.length === 1
+        ? width / 2
+        : padding + (index * (width - padding * 2)) / (data.length - 1);
+    const y = padding + ((max - item.value) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  });
+
+  return (
+    <div className="rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
+      {title ? (
+        <div className="mb-4">
+          <div className="text-sm font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[640px] w-full">
+          {[0, 1, 2, 3].map((line) => {
+            const y = padding + (line * (height - padding * 2)) / 3;
+            return (
+              <line
+                key={line}
+                x1={padding}
+                x2={width - padding}
+                y1={y}
+                y2={y}
+                stroke="#e9d5ff"
+                strokeDasharray="4 6"
+              />
+            );
+          })}
+
+          <defs>
+            <linearGradient id="lineFillPremium" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(124,58,237,0.25)" />
+              <stop offset="100%" stopColor="rgba(124,58,237,0.02)" />
+            </linearGradient>
+            <linearGradient id="lineStrokePremium" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#7c3aed" />
+              <stop offset="100%" stopColor="#d946ef" />
+            </linearGradient>
+          </defs>
+
+          {points.length > 1 ? (
+            <>
+              <polygon
+                points={`${points.join(" ")} ${width - padding},${height - padding} ${padding},${height - padding}`}
+                fill="url(#lineFillPremium)"
+              />
+              <polyline
+                fill="none"
+                stroke="url(#lineStrokePremium)"
+                strokeWidth="4"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                points={points.join(" ")}
+              />
+            </>
+          ) : null}
+
+          {data.map((item, index) => {
+            const x =
+              data.length === 1
+                ? width / 2
+                : padding + (index * (width - padding * 2)) / (data.length - 1);
+            const y = padding + ((max - item.value) / range) * (height - padding * 2);
+
+            return (
+              <g key={item.label}>
+                <circle cx={x} cy={y} r="6" fill="#7c3aed" />
+                <circle cx={x} cy={y} r="12" fill="rgba(124,58,237,0.12)" />
+                <text
+                  x={x}
+                  y={y - 14}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill="#475569"
+                  fontWeight="700"
+                >
+                  {item.value.toFixed(1)}
+                </text>
+                <text
+                  x={x}
+                  y={height - 8}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill="#64748b"
+                >
+                  {item.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </div>
   );
@@ -1358,6 +1550,21 @@ export default function DashboardMockup({
       .slice(0, 3);
   }, [summary]);
 
+  const weeklyTrendData = useMemo(() => {
+    const weekMap = new Map<string, number[]>();
+
+    searchedCases.forEach((item) => {
+      const week = item.weekLabel || "Unknown";
+      if (!weekMap.has(week)) weekMap.set(week, []);
+      weekMap.get(week)!.push(item.finalScore);
+    });
+
+    return [...weekMap.entries()].map(([label, scores]) => ({
+      label,
+      value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
+    }));
+  }, [searchedCases]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -1693,20 +1900,24 @@ export default function DashboardMockup({
                   </Panel>
 
                   <div className="grid gap-6 xl:grid-cols-2">
-                    <Panel>
-                      <PanelHeader title="Score Distribution" subtitle="Case count by score range" />
-                      <PanelBody>
-                        <MiniBarChart data={scoreDistributionData} />
-                      </PanelBody>
-                    </Panel>
+                    <PremiumBarChart
+                      title="Score Distribution"
+                      subtitle="Case count by score range"
+                      data={scoreDistributionData}
+                    />
 
-                    <Panel>
-                      <PanelHeader title="Review Status Mix" subtitle="Original vs Revised in current view" />
-                      <PanelBody>
-                        <DonutLikeLegend data={reviewMixChartData} />
-                      </PanelBody>
-                    </Panel>
+                    <PremiumReviewMixCard
+                      title="Review Status Mix"
+                      subtitle="Original vs Revised in current view"
+                      data={reviewMixChartData}
+                    />
                   </div>
+
+                  <PremiumLineChart
+                    title="Weekly Score Trend"
+                    subtitle="Average score by visible week"
+                    data={weeklyTrendData}
+                  />
 
                   <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <Panel>
@@ -1737,7 +1948,9 @@ export default function DashboardMockup({
                               <div className="text-sm font-bold text-slate-900">
                                 {topic.code} {topic.label}
                               </div>
-                              <div className="mt-1 text-xs text-emerald-700">{topic.pct}% average</div>
+                              <div className="mt-1 text-xs text-emerald-700">
+                                {topic.pct}% average
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -1758,7 +1971,9 @@ export default function DashboardMockup({
                               <div className="text-sm font-bold text-slate-900">
                                 {topic.code} {topic.label}
                               </div>
-                              <div className="mt-1 text-xs text-rose-700">{topic.pct}% average</div>
+                              <div className="mt-1 text-xs text-rose-700">
+                                {topic.pct}% average
+                              </div>
                             </div>
                           ))
                         ) : (
