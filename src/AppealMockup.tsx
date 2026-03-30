@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 
 type ReviewStatus = "Original" | "Revised";
 type Grade = "A" | "B" | "C" | "D" | "F";
@@ -14,6 +15,7 @@ type Topic = {
   originalScore?: number;
   originalComment?: string;
   appealReason?: string;
+  appealed?: boolean;
   changed?: boolean;
 };
 
@@ -33,9 +35,28 @@ type AppealCaseItem = {
   appealResultDateTime: string;
   appealChannel: string;
   caseUrl?: string;
+  appealedTopics: Topic[];
   changedTopics: Topic[];
   allTopics: Topic[];
 };
+
+const AGENT_MASTER = [
+  "Anucha Makundin",
+  "Arisa aiemrit",
+  "Chatkonnaphat Bhusomya",
+  "Jariyawadee Taboodda",
+  "Jureeporn Piddum",
+  "Krivut Vongkampan",
+  "Natcha Chai-in",
+  "Nattapol Suprom",
+  "Phrommarin Thaithorn",
+  "Songpon Phothong",
+  "Sunijtra Siritan",
+  "Supakrit Promkhamnoi",
+  "Suphitcha Keawliam",
+  "Wachiraporn chailittichai",
+  "Wassana Phothong",
+].sort((a, b) => a.localeCompare(b));
 
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
@@ -135,7 +156,6 @@ function gradeTone(grade: Grade) {
 
 function parseExcelDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
-
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
 
   if (typeof value === "number") {
@@ -347,7 +367,11 @@ function QuickCaseCard({
           </div>
         </div>
 
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(item.grade)}`}>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
           {item.grade}
         </span>
       </div>
@@ -360,13 +384,13 @@ function QuickCaseCard({
         <span className="font-semibold text-violet-700">
           {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
         </span>
-        <span className="text-slate-500">{item.changedTopics.length} changed topic(s)</span>
+        <span className="text-slate-500">{item.appealedTopics.length} appealed topic(s)</span>
       </div>
     </button>
   );
 }
 
-function TopicChangeCard({ topic }: { topic: Topic }) {
+function TopicAppealCard({ topic }: { topic: Topic }) {
   const scoreChanged = Number(topic.originalScore ?? topic.score) !== Number(topic.score);
   const commentChanged = hasMeaningfulTextChange(topic.originalComment, topic.comment);
 
@@ -384,7 +408,11 @@ function TopicChangeCard({ topic }: { topic: Topic }) {
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
                 Score Updated
               </span>
-            ) : null}
+            ) : (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                Score Maintained
+              </span>
+            )}
 
             {commentChanged ? (
               <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
@@ -440,15 +468,29 @@ function TopicChangeCard({ topic }: { topic: Topic }) {
 
 export default function AppealMockup({
   currentUser,
+  externalSelectedAgent,
+  onSelectedAgentChange,
 }: {
   currentUser: any;
+  externalSelectedAgent?: string;
+  onSelectedAgentChange?: (agentName: string) => void;
 }) {
   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedCaseKey, setSelectedCaseKey] = useState("");
   const [searchCaseId, setSearchCaseId] = useState("");
-  const [showAllTopics, setShowAllTopics] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
+
+  useEffect(() => {
+    if (
+      currentUser?.role !== "Agent" &&
+      typeof externalSelectedAgent === "string" &&
+      externalSelectedAgent !== selectedAgent
+    ) {
+      setSelectedAgent(externalSelectedAgent);
+    }
+  }, [externalSelectedAgent, currentUser, selectedAgent]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -461,18 +503,13 @@ export default function AppealMockup({
           fetch("/Appleal ROWDATA.xlsx"),
         ]);
 
-        if (!rawResponse.ok) {
-          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
-        }
-        if (!appealResponse.ok) {
-          throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
-        }
+        if (!rawResponse.ok) throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+        if (!appealResponse.ok) throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
 
         const rawBuffer = await rawResponse.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
         const rawSheet =
           rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
-
         const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
           header: 1,
           defval: null,
@@ -487,10 +524,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-
-        if (rawHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
-        }
+        if (rawHeaderIndex === -1) throw new Error("ไม่พบ Header ใน QA_RawData1.xlsx");
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
@@ -506,7 +540,6 @@ export default function AppealMockup({
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
         const appealSheet =
           appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
-
         const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
           header: 1,
           defval: null,
@@ -521,10 +554,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-
-        if (appealHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ Appleal ROWDATA.xlsx");
-        }
+        if (appealHeaderIndex === -1) throw new Error("ไม่พบ Header ใน Appleal ROWDATA.xlsx");
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
         const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
@@ -617,9 +647,9 @@ export default function AppealMockup({
                 ? String(revisedCommentCandidate).trim()
                 : originalComment;
 
-              const appealedThisTopic = !!appealReason && !isNoAppealReason(appealReason);
+              const appealed = !!appealReason && !isNoAppealReason(appealReason);
               const changed =
-                appealedThisTopic &&
+                appealed &&
                 isRealTopicChanged(originalScore, revisedScore, originalComment, revisedComment);
 
               return {
@@ -632,10 +662,12 @@ export default function AppealMockup({
                 originalScore,
                 originalComment,
                 appealReason,
+                appealed,
                 changed,
               };
             });
 
+            const appealedTopics = topics.filter((topic) => topic.appealed);
             const changedTopics = topics.filter((topic) => topic.changed);
 
             return {
@@ -670,6 +702,7 @@ export default function AppealMockup({
                   "-"
               ).trim(),
               caseUrl,
+              appealedTopics,
               changedTopics,
               allTopics: topics,
             } as AppealCaseItem;
@@ -688,25 +721,53 @@ export default function AppealMockup({
     loadWorkbook();
   }, []);
 
-  const visibleCases = useMemo(() => {
+  const visibleAgentList = useMemo(() => {
+    const merged = [...new Set([...AGENT_MASTER, ...allCases.map((item) => item.agent).filter(Boolean)])];
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return merged.filter((agent) => isSameAgent(agent, currentUser.agentName));
+    }
+    return merged.sort((a, b) => a.localeCompare(b));
+  }, [allCases, currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      if (!isSameAgent(selectedAgent || "", currentUser.agentName)) {
+        setSelectedAgent(currentUser.agentName);
+      }
+      onSelectedAgentChange?.(currentUser.agentName);
+      return;
+    }
+
+    if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
+      setSelectedAgent("");
+      onSelectedAgentChange?.("");
+    }
+  }, [currentUser, selectedAgent, visibleAgentList, onSelectedAgentChange]);
+
+  const effectiveSelectedAgent =
+    currentUser?.role === "Agent" && currentUser.agentName
+      ? String(currentUser.agentName).trim()
+      : String(selectedAgent || "").trim();
+
+  const baseVisibleCases = useMemo(() => {
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
       return allCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
     }
-    return allCases;
-  }, [allCases, currentUser]);
+    if (!effectiveSelectedAgent) return allCases;
+    return allCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
+  }, [allCases, currentUser, effectiveSelectedAgent]);
 
   const filteredCases = useMemo(() => {
     const keyword = searchCaseId.trim().toLowerCase();
-    if (!keyword) return visibleCases;
-    return visibleCases.filter((item) => item.caseId.toLowerCase().includes(keyword));
-  }, [visibleCases, searchCaseId]);
+    if (!keyword) return baseVisibleCases;
+    return baseVisibleCases.filter((item) => item.caseId.toLowerCase().includes(keyword));
+  }, [baseVisibleCases, searchCaseId]);
 
   useEffect(() => {
     if (!filteredCases.length) {
       setSelectedCaseKey("");
       return;
     }
-
     const exists = filteredCases.some((item) => item.key === selectedCaseKey);
     if (!exists) {
       setSelectedCaseKey(filteredCases[0].key);
@@ -716,9 +777,127 @@ export default function AppealMockup({
   const selectedCase =
     filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
 
-  const displayTopics = showAllTopics
-    ? selectedCase?.allTopics || []
-    : selectedCase?.changedTopics || [];
+  const handleGeneratePdf = () => {
+    if (!selectedCase) return;
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const left = 16;
+    const right = pageWidth - 16;
+    let y = 16;
+
+    const addLine = (
+      text: string,
+      size = 10,
+      color: [number, number, number] = [51, 65, 85],
+      gap = 6
+    ) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(size);
+      doc.setTextColor(color[0], color[1], color[2]);
+      const lines = doc.splitTextToSize(text, right - left);
+      doc.text(lines, left, y);
+      y += lines.length * (size * 0.4) + gap;
+    };
+
+    const addLabelValue = (label: string, value: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(88, 28, 135);
+      doc.text(label, left, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(51, 65, 85);
+      doc.text(value || "-", left + 40, y);
+      y += 6;
+    };
+
+    doc.setFillColor(91, 33, 182);
+    doc.roundedRect(left, y, right - left, 18, 3, 3, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Robinhood QA Appeal Result", left + 6, y + 11);
+    y += 26;
+
+    doc.setTextColor(190, 24, 93);
+    doc.setFillColor(255, 241, 242);
+    doc.roundedRect(left, y, right - left, 16, 3, 3, "F");
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Final Appeal Decision Completed", left + 6, y + 10);
+    y += 22;
+
+    addLabelValue("Case ID", selectedCase.caseId);
+    addLabelValue("Agent", selectedCase.agent);
+    addLabelValue("Audit Date", selectedCase.auditDate);
+    addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
+    addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
+    addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
+    addLabelValue("Appeal Version", selectedCase.appealVersion || "-");
+    addLabelValue(
+      "Score",
+      `${selectedCase.previousScore.toFixed(2)} -> ${selectedCase.finalScore.toFixed(2)} (${formatScoreDiff(
+        selectedCase.previousScore,
+        selectedCase.finalScore
+      )})`
+    );
+    y += 4;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Customer Inquiry", left, y);
+    y += 6;
+    addLine(selectedCase.inquiry || "-", 10);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Appealed Topics", left, y);
+    y += 8;
+
+    selectedCase.appealedTopics.forEach((topic, index) => {
+      if (y > 255) {
+        doc.addPage();
+        y = 16;
+      }
+
+      doc.setFillColor(245, 243, 255);
+      doc.roundedRect(left, y, right - left, 10, 2, 2, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(88, 28, 135);
+      doc.text(`${topic.code} ${topic.label}`, left + 4, y + 6.5);
+      y += 14;
+
+      addLabelValue("Score", `${topic.originalScore ?? topic.score} -> ${topic.score}`);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(88, 28, 135);
+      doc.text("Appeal Reason", left, y);
+      y += 5;
+      addLine(topic.appealReason || "-", 9);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(88, 28, 135);
+      doc.text("Original Comment", left, y);
+      y += 5;
+      addLine(topic.originalComment || "-", 9);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(88, 28, 135);
+      doc.text("Revised Comment", left, y);
+      y += 5;
+      addLine(topic.comment || "-", 9);
+
+      if (index !== selectedCase.appealedTopics.length - 1) y += 2;
+    });
+
+    doc.save(`Appeal_Result_${selectedCase.caseId}.pdf`);
+  };
 
   if (isLoading) {
     return (
@@ -754,7 +933,7 @@ export default function AppealMockup({
                 Final Appeal Decision
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                แสดงผลการพิจารณาอุทธรณ์แบบกระชับ เน้นเฉพาะผลสรุป คะแนน และหัวข้อที่มีการเปลี่ยนจริง
+                แสดงผลการพิจารณาอุทธรณ์แบบกระชับ เน้นผลสรุป คะแนนเดิมเทียบคะแนนใหม่ เวลา และหัวข้อที่ยื่นอุทธรณ์
               </div>
             </div>
 
@@ -775,20 +954,39 @@ export default function AppealMockup({
         <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel className="sticky top-4">
-              <PanelHeader title="Quick Search" subtitle="Find case by Case ID" />
+              <PanelHeader title="Quick Search" subtitle="Filter by agent and Case ID" />
               <PanelBody className="space-y-4">
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Search Case ID
+                {currentUser?.role === "Agent" ? (
+                  <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                    {effectiveSelectedAgent || "-"}
                   </div>
-                  <input
-                    type="text"
-                    value={searchCaseId}
-                    onChange={(e) => setSearchCaseId(e.target.value)}
-                    placeholder="Search Case ID"
+                ) : (
+                  <select
+                    value={selectedAgent}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedAgent(value);
+                      onSelectedAgentChange?.(value);
+                      setSelectedCaseKey("");
+                    }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                  />
-                </div>
+                  >
+                    <option value="">All Agents</option>
+                    {visibleAgentList.map((agent) => (
+                      <option key={agent} value={agent}>
+                        {agent}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <input
+                  type="text"
+                  value={searchCaseId}
+                  onChange={(e) => setSearchCaseId(e.target.value)}
+                  placeholder="Search Case ID"
+                  className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                />
 
                 {searchCaseId.trim() ? (
                   <button
@@ -832,16 +1030,16 @@ export default function AppealMockup({
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <ScoreCard
-                    title="Previous Score"
+                    title="Original Score"
                     value={selectedCase.previousScore.toFixed(2)}
                     tone="border-slate-200 bg-slate-50 text-slate-700"
-                    sub="Original evaluation score"
+                    sub="Before appeal review"
                   />
                   <ScoreCard
-                    title="Final Score"
+                    title="Revised Score"
                     value={selectedCase.finalScore.toFixed(2)}
                     tone="border-violet-200 bg-violet-50 text-violet-700"
-                    sub="Final score after appeal review"
+                    sub="After appeal review"
                   />
                   <ScoreCard
                     title="Score Change"
@@ -859,7 +1057,11 @@ export default function AppealMockup({
                         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
                           {selectedCase.caseId}
                         </span>
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.grade)}`}>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
+                            selectedCase.grade
+                          )}`}
+                        >
                           Grade {selectedCase.grade}
                         </span>
                         <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
@@ -914,16 +1116,26 @@ export default function AppealMockup({
                         </div>
                       </div>
 
-                      {selectedCase.caseUrl ? (
-                        <a
-                          href={selectedCase.caseUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                      <div className="flex flex-wrap gap-3">
+                        {selectedCase.caseUrl ? (
+                          <a
+                            href={selectedCase.caseUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                          >
+                            Open Case URL
+                          </a>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={handleGeneratePdf}
+                          className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
                         >
-                          Open Case URL
-                        </a>
-                      ) : null}
+                          Generate PDF
+                        </button>
+                      </div>
                     </PanelBody>
                   </Panel>
 
@@ -974,44 +1186,18 @@ export default function AppealMockup({
 
                 <Panel>
                   <PanelHeader
-                    title="Changed Topics"
-                    subtitle="Show only revised topics by default for easier review"
+                    title="Appealed Topics"
+                    subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมคะแนน Original และ Revised"
                   />
-                  <PanelBody className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowAllTopics(false)}
-                        className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                          !showAllTopics
-                            ? "border-violet-400 bg-violet-100 text-violet-800"
-                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                        }`}
-                      >
-                        Changed Topics Only ({selectedCase.changedTopics.length})
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowAllTopics(true)}
-                        className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                          showAllTopics
-                            ? "border-violet-400 bg-violet-100 text-violet-800"
-                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                        }`}
-                      >
-                        Show All Topics ({selectedCase.allTopics.length})
-                      </button>
-                    </div>
-
-                    {!displayTopics.length ? (
+                  <PanelBody>
+                    {!selectedCase.appealedTopics.length ? (
                       <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                        ไม่พบหัวข้อที่มีการเปลี่ยนแปลง
+                        ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {displayTopics.map((topic) => (
-                          <TopicChangeCard key={`${selectedCase.caseId}-${topic.code}`} topic={topic} />
+                        {selectedCase.appealedTopics.map((topic) => (
+                          <TopicAppealCard key={`${selectedCase.caseId}-${topic.code}`} topic={topic} />
                         ))}
                       </div>
                     )}
@@ -1034,3 +1220,4 @@ export default function AppealMockup({
     </div>
   );
 }
+ ესมีอะไรต้องแก้อีกไหมื่อ App.tsx ด้วยไหม
