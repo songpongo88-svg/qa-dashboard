@@ -131,6 +131,20 @@ function buildHeaderHelpers(headerRow: any[]) {
   return { getValue, getLastValue };
 }
 
+function getFirstNonEmptyValue(
+  helper: { getValue: (row: any[], name: string, occurrence?: number) => any },
+  row: any[],
+  names: string[]
+) {
+  for (const name of names) {
+    const value = helper.getValue(row, name);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return null;
+}
+
 function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
@@ -252,6 +266,25 @@ function scoreDiffTone(previousScore: number, finalScore: number) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function topicScoreStatusTone(originalScore: number, revisedScore: number) {
+  if (revisedScore > originalScore) {
+    return {
+      label: "Improved",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+  if (revisedScore < originalScore) {
+    return {
+      label: "Reduced",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+  return {
+    label: "No Change",
+    className: "border-slate-200 bg-slate-50 text-slate-700",
+  };
+}
+
 function Panel({
   children,
   className = "",
@@ -260,7 +293,9 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_12px_34px_rgba(76,29,149,0.08)] ${className}`}>
+    <div
+      className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_12px_34px_rgba(76,29,149,0.08)] ${className}`}
+    >
       {children}
     </div>
   );
@@ -365,7 +400,11 @@ function QuickCaseCard({
           </div>
         </div>
 
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(item.grade)}`}>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
           {item.grade}
         </span>
       </div>
@@ -385,74 +424,104 @@ function QuickCaseCard({
 }
 
 function TopicAppealCard({ topic }: { topic: Topic }) {
-  const scoreChanged = Number(topic.originalScore ?? topic.score) !== Number(topic.score);
+  const originalScore = Number(topic.originalScore ?? topic.score);
+  const revisedScore = Number(topic.score);
+  const diff = revisedScore - originalScore;
   const commentChanged = hasMeaningfulTextChange(topic.originalComment, topic.comment);
+  const statusTone = topicScoreStatusTone(originalScore, revisedScore);
 
   return (
-    <div className="rounded-[24px] border border-violet-100 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">
-            {topic.code}
+    <div className="overflow-hidden rounded-[26px] border border-violet-200 bg-white shadow-[0_10px_28px_rgba(76,29,149,0.08)]">
+      <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">
+              {topic.code}
+            </div>
+            <div className="mt-1 text-base font-bold text-slate-900">{topic.label}</div>
           </div>
-          <div className="mt-1 text-sm font-bold text-slate-900">{topic.label}</div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {scoreChanged ? (
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
-                Score Updated
-              </span>
-            ) : (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                Score Maintained
-              </span>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${statusTone.className}`}>
+              {statusTone.label}
+            </span>
 
             {commentChanged ? (
-              <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700">
+              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700">
                 Comment Updated
               </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-right">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Score Change
-          </div>
-          <div className="mt-1 text-base font-extrabold text-slate-900">
-            {topic.originalScore ?? topic.score} → {topic.score}
+            ) : (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                Comment Maintained
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {topic.appealReason ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700">
-            Appeal Reason
+      <div className="p-5">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Original Score
+            </div>
+            <div className="mt-2 text-2xl font-extrabold text-slate-900">{originalScore}</div>
           </div>
-          <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-            {topic.appealReason}
+
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+              Revised Score
+            </div>
+            <div className="mt-2 text-2xl font-extrabold text-slate-900">{revisedScore}</div>
+          </div>
+
+          <div className={`rounded-2xl border px-4 py-4 ${statusTone.className}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-80">
+              Score Change
+            </div>
+            <div className="mt-2 text-2xl font-extrabold">
+              {diff > 0 ? `+${diff}` : diff}
+            </div>
           </div>
         </div>
-      ) : null}
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Original Comment
-          </div>
-          <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-            {topic.originalComment || "No original comment"}
+        <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-slate-800">Score Comparison</div>
+            <div className="text-sm font-bold text-violet-800">
+              {originalScore} → {revisedScore}
+            </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
-            Revised Comment
+        {topic.appealReason ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700">
+              Appeal Reason
+            </div>
+            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+              {topic.appealReason}
+            </div>
           </div>
-          <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-            {topic.comment || "No revised comment"}
+        ) : null}
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Original Comment
+            </div>
+            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
+              {topic.originalComment || "No original comment"}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+              Revised Comment
+            </div>
+            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+              {topic.comment || "No revised comment"}
+            </div>
           </div>
         </div>
       </div>
@@ -502,8 +571,13 @@ export default function AppealMockup({
 
         const rawBuffer = await rawResponse.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
-        const rawSheet = rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, { header: 1, defval: null, raw: true });
+        const rawSheet =
+          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
 
         const rawHeaderIndex = (() => {
           for (let i = 0; i < rawRows.length; i++) {
@@ -529,7 +603,11 @@ export default function AppealMockup({
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
         const appealSheet =
           appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
-        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, { header: 1, defval: null, raw: true });
+        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
 
         const appealHeaderIndex = (() => {
           for (let i = 0; i < appealRows.length; i++) {
@@ -569,7 +647,11 @@ export default function AppealMockup({
               : formatDateOnly(appealHelper.getValue(row, "Audit Date"));
 
             const weekLabel = rawRow
-              ? String(rawHelper.getValue(rawRow, "Week Label") ?? rawHelper.getValue(rawRow, "Week") ?? "-").trim()
+              ? String(
+                  rawHelper.getValue(rawRow, "Week Label") ??
+                    rawHelper.getValue(rawRow, "Week") ??
+                    "-"
+                ).trim()
               : "-";
 
             const caseUrl = rawRow
@@ -594,6 +676,30 @@ export default function AppealMockup({
             const previousScore = Number(previousScoreRaw || 0);
             const finalScore = Number(finalScoreRaw || 0);
 
+            const appealSubmitRaw = getFirstNonEmptyValue(appealHelper, row, [
+              "Appeal Submit Date & Time",
+              "Appeal Submit Date",
+              "Submit Date & Time",
+              "Submit Date",
+            ]);
+
+            const appealResultRaw = getFirstNonEmptyValue(appealHelper, row, [
+              "Appeal Result Date & Time",
+              "Appeal Result Date",
+              "Result Date & Time",
+              "Result Date",
+            ]);
+
+            const appealChannelRaw = getFirstNonEmptyValue(appealHelper, row, [
+              "Appeal Channel",
+              "Channel",
+            ]);
+
+            const appealVersionRaw = getFirstNonEmptyValue(appealHelper, row, [
+              "Appeal Version",
+              "Version",
+            ]);
+
             const topics: Topic[] = TOPIC_MASTER.map((master) => {
               const originalScore =
                 Number(
@@ -608,9 +714,17 @@ export default function AppealMockup({
                   : appealHelper.getValue(row, `${master.code} Comment`) ?? ""
               ).trim();
 
-              const revisedScoreCandidate = appealHelper.getValue(row, `${master.code} Revised Score`);
-              const revisedCommentCandidate = appealHelper.getValue(row, `${master.code} Revised Comment`);
-              const appealReason = String(appealHelper.getValue(row, `${master.code} Appeal Reason`) ?? "").trim();
+              const revisedScoreCandidate = appealHelper.getValue(
+                row,
+                `${master.code} Revised Score`
+              );
+              const revisedCommentCandidate = appealHelper.getValue(
+                row,
+                `${master.code} Revised Comment`
+              );
+              const appealReason = String(
+                appealHelper.getValue(row, `${master.code} Appeal Reason`) ?? ""
+              ).trim();
 
               const hasRevisedScore =
                 revisedScoreCandidate !== null &&
@@ -622,10 +736,19 @@ export default function AppealMockup({
                 String(revisedCommentCandidate).trim() !== "";
 
               const revisedScore = hasRevisedScore ? Number(revisedScoreCandidate) : originalScore;
-              const revisedComment = hasRevisedComment ? String(revisedCommentCandidate).trim() : originalComment;
+              const revisedComment = hasRevisedComment
+                ? String(revisedCommentCandidate).trim()
+                : originalComment;
 
               const appealed = !!appealReason && !isNoAppealReason(appealReason);
-              const changed = appealed && isRealTopicChanged(originalScore, revisedScore, originalComment, revisedComment);
+              const changed =
+                appealed &&
+                isRealTopicChanged(
+                  originalScore,
+                  revisedScore,
+                  originalComment,
+                  revisedComment
+                );
 
               return {
                 code: master.code,
@@ -656,26 +779,10 @@ export default function AppealMockup({
               finalScore,
               reviewStatus: changedTopics.length ? "Revised" : "Original",
               grade: scoreToGrade(finalScore),
-              appealVersion: String(
-                appealHelper.getValue(row, "Appeal Version") ??
-                  appealHelper.getValue(row, "Version") ??
-                  "-"
-              ).trim(),
-              appealSubmitDateTime: formatDateTime(
-                appealHelper.getValue(row, "Appeal Submit Date & Time") ??
-                  appealHelper.getValue(row, "Appeal Submit Date") ??
-                  appealHelper.getValue(row, "Submit Date & Time")
-              ),
-              appealResultDateTime: formatDateTime(
-                appealHelper.getValue(row, "Appeal Result Date & Time") ??
-                  appealHelper.getValue(row, "Appeal Result Date") ??
-                  appealHelper.getValue(row, "Result Date & Time")
-              ),
-              appealChannel: String(
-                appealHelper.getValue(row, "Appeal Channel") ??
-                  appealHelper.getValue(row, "Channel") ??
-                  "-"
-              ).trim(),
+              appealVersion: String(appealVersionRaw ?? "-").trim(),
+              appealSubmitDateTime: formatDateTime(appealSubmitRaw),
+              appealResultDateTime: formatDateTime(appealResultRaw),
+              appealChannel: String(appealChannelRaw ?? "-").trim(),
               caseUrl,
               appealedTopics,
               changedTopics,
@@ -749,7 +856,8 @@ export default function AppealMockup({
     }
   }, [filteredCases, selectedCaseKey]);
 
-  const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
+  const selectedCase =
+    filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
 
   const handleGeneratePdf = () => {
     if (!selectedCase) return;
@@ -760,7 +868,12 @@ export default function AppealMockup({
     const right = pageWidth - 16;
     let y = 16;
 
-    const addLine = (text: string, size = 10, color: [number, number, number] = [51, 65, 85], gap = 6) => {
+    const addLine = (
+      text: string,
+      size = 10,
+      color: [number, number, number] = [51, 65, 85],
+      gap = 6
+    ) => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
@@ -1152,7 +1265,7 @@ export default function AppealMockup({
                 <Panel>
                   <PanelHeader
                     title="Appealed Topics"
-                    subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมคะแนน Original และ Revised"
+                    subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
                   />
                   <PanelBody>
                     {!selectedCase.appealedTopics.length ? (
