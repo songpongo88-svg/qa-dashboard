@@ -139,7 +139,6 @@ function readStoredUser(): CurrentUser | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-
     const parsed = JSON.parse(raw) as CurrentUser;
     if (
       !parsed ||
@@ -150,7 +149,6 @@ function readStoredUser(): CurrentUser | null {
     ) {
       return null;
     }
-
     return parsed;
   } catch {
     return null;
@@ -191,7 +189,7 @@ function getEffectivePassword(account: UserAccount) {
 
 function LogoBox() {
   return (
-    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-white/10 shadow-sm">
+    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-white/10 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm">
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
@@ -214,10 +212,10 @@ function NavButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
         active
           ? "bg-violet-700 text-white shadow-sm"
-          : "bg-white text-violet-700 border border-violet-200 hover:bg-violet-50"
+          : "border border-white bg-white text-slate-700 hover:border-violet-200 hover:bg-violet-50"
       }`}
     >
       {label}
@@ -240,8 +238,8 @@ function DashboardSubButton({
       onClick={onClick}
       className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
         active
-          ? "bg-violet-100 text-violet-800 border border-violet-300"
-          : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+          ? "border border-violet-300 bg-violet-100 text-violet-800"
+          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
       {label}
@@ -492,7 +490,7 @@ export default function App() {
     "dashboard"
   );
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
-  const [selectedAgentFromDashboard, setSelectedAgentFromDashboard] = useState("");
+  const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -507,6 +505,12 @@ export default function App() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
     } else {
       localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      setSelectedAgentGlobal(currentUser.agentName);
     }
   }, [currentUser]);
 
@@ -544,7 +548,7 @@ export default function App() {
     setLoginError("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentFromDashboard("");
+    setSelectedAgentGlobal("");
     setShowChangePasswordModal(false);
     setShowResetPasswordModal(false);
     resetChangePasswordState();
@@ -639,7 +643,7 @@ export default function App() {
     setPassword("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentFromDashboard(matchedUser.role === "Agent" ? matchedUser.agentName : "");
+    setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
   };
 
   const handleStayLoggedIn = () => {
@@ -701,56 +705,80 @@ export default function App() {
 
   const handleResetPasswordToDefault = () => {
     if (!resetTargetUsername) return;
-
     removePasswordOverride(resetTargetUsername);
-
     const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
-
     setResetResultMessage(`Password for ${targetName} has been reset to default.`);
   };
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <div className="mx-auto flex min-h-screen max-w-[1440px] items-center px-6 py-10">
-          <div className="grid w-full gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 px-10 py-12 text-white">
-              <div className="absolute right-10 top-10">
-                <LogoBox />
-              </div>
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(139,92,246,0.18),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(217,70,239,0.14),_transparent_24%),linear-gradient(135deg,#f8f7ff_0%,#f4f1ff_40%,#ffffff_100%)]">
+        <div className="mx-auto flex min-h-screen max-w-[1480px] items-center px-6 py-10">
+          <div className="grid w-full gap-6 xl:grid-cols-[1.18fr_0.82fr]">
+            <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-violet-950 via-violet-850 to-fuchsia-700 px-8 py-8 text-white shadow-[0_30px_70px_rgba(88,28,135,0.28)] sm:px-10 sm:py-10 xl:px-12 xl:py-12">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.20),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_30%)]" />
+              <div className="absolute -left-16 bottom-0 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-fuchsia-300/10 blur-3xl" />
 
-              <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-5 py-2 text-sm font-semibold uppercase tracking-[0.25em] text-violet-100">
-                Secure Access
-              </div>
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-5">
+                  <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-5 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-violet-100">
+                    Secure Access
+                  </div>
+                  <LogoBox />
+                </div>
 
-              <div className="mt-10 text-lg font-semibold text-violet-100">
-                Robinhood Customer Service Quality Assurance
-              </div>
+                <div className="mt-12 text-base font-semibold tracking-[0.08em] text-violet-100">
+                  Robinhood Customer Service Quality Assurance
+                </div>
 
-              <div className="mt-4 max-w-[620px] text-6xl font-extrabold leading-[1.05] tracking-tight">
-                Robinhood QA
-                <br />
-                Control Center
-              </div>
+                <div className="mt-5 max-w-[680px] text-[2.7rem] font-extrabold leading-[1.02] tracking-tight sm:text-[3.2rem] xl:text-[4.3rem]">
+                  Robinhood QA
+                  <br />
+                  Control Center
+                </div>
 
-              <div className="mt-8 max-w-[640px] text-xl leading-10 text-violet-100">
-                Access your QA Dashboard, Case Detail, Appeal Review, and Summary in one place
-                with role-based visibility for team leads and agents.
+                <div className="mt-6 max-w-[680px] text-base leading-8 text-violet-100/95 sm:text-lg">
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA Rubric with role-based visibility for supervisors and agents.
+                </div>
+
+                <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
+                      Performance
+                    </div>
+                    <div className="mt-3 text-sm font-semibold">Dashboard & Summary</div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
+                      Review
+                    </div>
+                    <div className="mt-3 text-sm font-semibold">Appeal & QA Rubric</div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
+                      Security
+                    </div>
+                    <div className="mt-3 text-sm font-semibold">Session & Password Control</div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-[36px] border border-slate-200 bg-white px-8 py-10 shadow-sm">
-              <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em] text-violet-700">
+            <div className="rounded-[40px] border border-white/70 bg-white/90 px-7 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8 sm:py-9 xl:px-10 xl:py-10">
+              <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-violet-700">
                 Sign In
               </div>
 
-              <div className="mt-8 text-5xl font-extrabold tracking-tight text-slate-900">
-                Welcome
+              <div className="mt-7 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+                Welcome Back
               </div>
 
-              <div className="mt-4 text-xl leading-8 text-slate-500">
-                Enter your account to access Dashboard, Case Detail, Appeal Review, and Summary.
+              <div className="mt-4 text-base leading-7 text-slate-500 sm:text-lg">
+                Enter your credentials to access the Robinhood QA workspace.
               </div>
 
               <div className="mt-10 space-y-6">
@@ -764,7 +792,7 @@ export default function App() {
                       if (e.key === "Enter") handleLogin();
                     }}
                     placeholder="Enter username"
-                    className="w-full rounded-3xl border border-slate-200 px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                   />
                 </div>
 
@@ -778,7 +806,7 @@ export default function App() {
                       if (e.key === "Enter") handleLogin();
                     }}
                     placeholder="Enter password"
-                    className="w-full rounded-3xl border border-slate-200 px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                   />
                 </div>
 
@@ -791,7 +819,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleLogin}
-                  className="w-full rounded-3xl bg-violet-700 px-5 py-4 text-base font-bold text-white shadow-sm transition hover:bg-violet-800"
+                  className="w-full rounded-3xl bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600 px-5 py-4 text-base font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95"
                 >
                   Sign In
                 </button>
@@ -842,7 +870,7 @@ export default function App() {
 
       <div className="min-h-screen bg-slate-100">
         <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-[1700px] flex-col gap-4 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="mx-auto flex max-w-[1720px] flex-col gap-4 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <div className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700">
                 Robinhood QA
@@ -859,65 +887,84 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <NavButton
-                active={activeTab === "dashboard"}
-                label="Dashboard"
-                onClick={() => setActiveTab("dashboard")}
-              />
-              <NavButton
-                active={activeTab === "appeal"}
-                label="Appeal"
-                onClick={() => setActiveTab("appeal")}
-              />
-              <NavButton
-                active={activeTab === "summary"}
-                label="Summary"
-                onClick={() => setActiveTab("summary")}
-              />
-              <NavButton
-                active={activeTab === "rubric"}
-                label="QA Rubric"
-                onClick={() => setActiveTab("rubric")}
-              />
+              <div className="flex items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-2 py-2">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-violet-700">
+                  Performance
+                </span>
 
-              <button
-                type="button"
-                onClick={() => {
-                  resetChangePasswordState();
-                  setShowChangePasswordModal(true);
-                }}
-                className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
-              >
-                Change Password
-              </button>
+                <NavButton
+                  active={activeTab === "dashboard"}
+                  label="Dashboard"
+                  onClick={() => setActiveTab("dashboard")}
+                />
+                <NavButton
+                  active={activeTab === "summary"}
+                  label="Summary"
+                  onClick={() => setActiveTab("summary")}
+                />
+              </div>
 
-              {currentUser.role === "Supervisor" ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-2 py-2">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">
+                  Review
+                </span>
+
+                <NavButton
+                  active={activeTab === "appeal"}
+                  label="Appeal"
+                  onClick={() => setActiveTab("appeal")}
+                />
+                <NavButton
+                  active={activeTab === "rubric"}
+                  label="QA Rubric"
+                  onClick={() => setActiveTab("rubric")}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                  Account
+                </span>
+
                 <button
                   type="button"
                   onClick={() => {
-                    resetPasswordModalState();
-                    setShowResetPasswordModal(true);
+                    resetChangePasswordState();
+                    setShowChangePasswordModal(true);
                   }}
-                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                  className="rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:border-violet-200 hover:bg-violet-50"
                 >
-                  Reset Password
+                  Change Password
                 </button>
-              ) : null}
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-              >
-                Log Out
-              </button>
+                {currentUser.role === "Supervisor" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetPasswordModalState();
+                      setShowResetPasswordModal(true);
+                    }}
+                    className="rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:border-amber-200 hover:bg-amber-50"
+                  >
+                    Reset Password
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-200 hover:bg-rose-50"
+                >
+                  Log Out
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {activeTab === "dashboard" ? (
           <div>
-            <div className="mx-auto max-w-[1700px] px-6 pt-6">
+            <div className="mx-auto max-w-[1720px] px-6 pt-6">
               <div className="flex flex-wrap gap-2">
                 <DashboardSubButton
                   active={dashboardSubTab === "overview"}
@@ -935,8 +982,8 @@ export default function App() {
             <DashboardMockup
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
-              externalSelectedAgent={selectedAgentFromDashboard}
-              onSelectedAgentChange={setSelectedAgentFromDashboard}
+              externalSelectedAgent={selectedAgentGlobal}
+              onSelectedAgentChange={setSelectedAgentGlobal}
               onOpenCaseDetail={() => {
                 setActiveTab("dashboard");
                 setDashboardSubTab("case-detail");
@@ -944,7 +991,11 @@ export default function App() {
             />
           </div>
         ) : activeTab === "appeal" ? (
-          <AppealMockup currentUser={currentUser} />
+          <AppealMockup
+            currentUser={currentUser}
+            externalSelectedAgent={selectedAgentGlobal}
+            onSelectedAgentChange={setSelectedAgentGlobal}
+          />
         ) : activeTab === "summary" ? (
           <SummaryMockup currentUser={currentUser} />
         ) : (
