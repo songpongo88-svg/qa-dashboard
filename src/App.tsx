@@ -80,7 +80,7 @@ const USER_ACCOUNTS: UserAccount[] = [
   },
   {
     username: "Phrommarin",
-    password: "RBH1234",
+    password: "sD6#zL8&",
     displayName: "Phrommarin Thaithorn",
     role: "Supervisor",
     agentName: "Phrommarin Thaithorn",
@@ -95,9 +95,9 @@ const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Sunijtra",
     password: "Sj#6Qm1!Ty",
-    displayName: "Sunijtra Siritip",
+    displayName: "Sunijtra Siritan",
     role: "Agent",
-    agentName: "Sunijtra Siritip",
+    agentName: "Sunijtra Siritan",
   },
   {
     username: "Supakrit",
@@ -129,6 +129,7 @@ const USER_ACCOUNTS: UserAccount[] = [
   },
 ];
 
+const STORAGE_KEY = "qa_current_user";
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
@@ -234,16 +235,39 @@ function SessionWarningModal({
   );
 }
 
+function readStoredUser(): CurrentUser | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as CurrentUser;
+
+    if (
+      !parsed ||
+      typeof parsed.username !== "string" ||
+      typeof parsed.displayName !== "string" ||
+      typeof parsed.role !== "string" ||
+      typeof parsed.agentName !== "string"
+    ) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [showSessionWarning, setShowSessionWarning] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "rubric"
-  >("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "summary" | "rubric">(
+    "dashboard"
+  );
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [selectedAgentFromDashboard, setSelectedAgentFromDashboard] = useState("");
 
@@ -253,6 +277,14 @@ export default function App() {
   const welcomeName = useMemo(() => {
     if (!currentUser) return "";
     return currentUser.displayName || currentUser.username;
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }, [currentUser]);
 
   const clearSessionTimers = () => {
@@ -277,6 +309,7 @@ export default function App() {
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
     setSelectedAgentFromDashboard("");
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const startSessionTimers = () => {
@@ -347,12 +380,15 @@ export default function App() {
       return;
     }
 
-    setCurrentUser({
+    const nextUser: CurrentUser = {
       username: matchedUser.username,
       displayName: matchedUser.displayName,
       role: matchedUser.role,
       agentName: matchedUser.agentName,
-    });
+    };
+
+    setCurrentUser(nextUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
 
     setLoginError("");
     setUsername("");
