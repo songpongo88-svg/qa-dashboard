@@ -62,7 +62,9 @@ const AGENT_MASTER = [
   "Krivut Vongkampan",
   "Natcha Chai-in",
   "Nattapol Suprom",
-  "Sunijtra Siritip",
+  "Phrommarin Thaithorn",
+  "Songpon Phothong",
+  "Sunijtra Siritan",
   "Supakrit Promkhamnoi",
   "Suphitcha Keawliam",
   "Wachiraporn chailittichai",
@@ -484,6 +486,7 @@ export default function AppealMockup({
   const [loadError, setLoadError] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("");
   const [selectedCaseKey, setSelectedCaseKey] = useState("");
+  const [caseIdSearch, setCaseIdSearch] = useState("");
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(new Date(2026, 2, 1)));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(new Date()));
 
@@ -776,8 +779,13 @@ export default function AppealMockup({
   }, [allAppeals, effectiveSelectedAgent]);
 
   const filteredAppeals = useMemo(() => {
-    return agentAppeals.filter((item) => isWithinDateRange(item.auditDate, dateFrom, dateTo));
-  }, [agentAppeals, dateFrom, dateTo]);
+    return agentAppeals.filter((item) => {
+      const matchDate = isWithinDateRange(item.auditDate, dateFrom, dateTo);
+      const keyword = caseIdSearch.trim().toLowerCase();
+      const matchCaseId = !keyword || String(item.caseId || "").toLowerCase().includes(keyword);
+      return matchDate && matchCaseId;
+    });
+  }, [agentAppeals, dateFrom, dateTo, caseIdSearch]);
 
   const selectedCase =
     filteredAppeals.find((item) => item.key === selectedCaseKey) || filteredAppeals[0] || null;
@@ -793,6 +801,12 @@ export default function AppealMockup({
       setSelectedCaseKey(filteredAppeals[0].key);
     }
   }, [filteredAppeals, selectedCaseKey]);
+
+  useEffect(() => {
+    if (!caseIdSearch.trim()) return;
+    if (!filteredAppeals.length) return;
+    setSelectedCaseKey(filteredAppeals[0].key);
+  }, [caseIdSearch, filteredAppeals]);
 
   const totalAppealCases = filteredAppeals.length;
   const totalAppealedTopics = filteredAppeals.reduce(
@@ -848,7 +862,7 @@ export default function AppealMockup({
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel>
-              <PanelHeader title="Quick Controls" subtitle="Filter by agent and date" />
+              <PanelHeader title="Quick Controls" subtitle="Filter by agent, date, and case ID" />
               <PanelBody className="space-y-4">
                 <div>
                   <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -877,6 +891,53 @@ export default function AppealMockup({
                     </select>
                   )}
                 </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Search Case ID
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={caseIdSearch}
+                      onChange={(e) => {
+                        setCaseIdSearch(e.target.value);
+                        setSelectedCaseKey("");
+                      }}
+                      placeholder="Search by Case ID"
+                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
+                    />
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {caseIdSearch.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCaseIdSearch("");
+                      setSelectedCaseKey("");
+                    }}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Clear Search
+                  </button>
+                ) : null}
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                   <div>
