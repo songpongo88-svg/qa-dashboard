@@ -261,19 +261,6 @@ function isRealTopicChanged(
   );
 }
 
-function formatScoreDiff(previousScore: number, finalScore: number) {
-  const diff = Number((finalScore - previousScore).toFixed(2));
-  if (diff > 0) return `+${diff.toFixed(2)}`;
-  return diff.toFixed(2);
-}
-
-function scoreDiffTone(previousScore: number, finalScore: number) {
-  const diff = finalScore - previousScore;
-  if (diff > 0) return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (diff < 0) return "border-rose-200 bg-rose-50 text-rose-700";
-  return "border-slate-200 bg-slate-50 text-slate-700";
-}
-
 function topicScoreStatusTone(originalScore: number, revisedScore: number) {
   if (revisedScore > originalScore) {
     return {
@@ -423,7 +410,7 @@ function QuickCaseCard({
 
       <div className="mt-3 flex items-center justify-between text-[11px]">
         <span className="font-semibold text-violet-700">
-          {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
+          Original: {item.previousScore.toFixed(2)} → Final: {item.finalScore.toFixed(2)}
         </span>
         <span className="text-slate-500">{item.appealedTopics.length} appealed topic(s)</span>
       </div>
@@ -487,10 +474,10 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
 
           <div className={`rounded-2xl border px-4 py-4 ${statusTone.className}`}>
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-80">
-              Score Change
+              Score Comparison
             </div>
-            <div className="mt-2 text-2xl font-extrabold">
-              {diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0"}
+            <div className="mt-2 text-lg font-extrabold">
+              {originalScore} → {revisedScore}
             </div>
           </div>
         </div>
@@ -966,10 +953,7 @@ export default function AppealMockup({
     addLabelValue("Grade", selectedCase.grade);
     addLabelValue(
       "Score",
-      `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)} (${formatScoreDiff(
-        selectedCase.previousScore,
-        selectedCase.finalScore
-      )})`
+      `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`
     );
     addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
     addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
@@ -983,12 +967,7 @@ export default function AppealMockup({
       addLine("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
     } else {
       selectedCase.appealedTopics.forEach((topic, idx) => {
-        addLine(
-          `${idx + 1}. ${topic.code} ${topic.label}`,
-          10,
-          [15, 23, 42],
-          4
-        );
+        addLine(`${idx + 1}. ${topic.code} ${topic.label}`, 10, [15, 23, 42], 4);
         addLine(
           `Original Score: ${Number(topic.originalScore ?? 0)} | Revised Score: ${Number(
             topic.score
@@ -1104,9 +1083,9 @@ export default function AppealMockup({
             </Panel>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <ScoreCard
-                  title="Previous Score"
+                  title="Original Score"
                   value={selectedCase.previousScore.toFixed(2)}
                   tone="border-slate-200 bg-slate-50 text-slate-800"
                 />
@@ -1114,11 +1093,7 @@ export default function AppealMockup({
                   title="Final Score"
                   value={selectedCase.finalScore.toFixed(2)}
                   tone="border-violet-200 bg-violet-50 text-violet-800"
-                />
-                <ScoreCard
-                  title="Score Change"
-                  value={formatScoreDiff(selectedCase.previousScore, selectedCase.finalScore)}
-                  tone={scoreDiffTone(selectedCase.previousScore, selectedCase.finalScore)}
+                  sub={`${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`}
                 />
                 <ScoreCard
                   title="Grade"
