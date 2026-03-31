@@ -80,7 +80,7 @@ const USER_ACCOUNTS: UserAccount[] = [
   },
   {
     username: "Phrommarin",
-    password: "sD6#zL8&",
+    password: "RBH1234",
     displayName: "Phrommarin Thaithorn",
     role: "Supervisor",
     agentName: "Phrommarin Thaithorn",
