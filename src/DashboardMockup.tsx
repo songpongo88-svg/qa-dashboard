@@ -1488,8 +1488,22 @@ export default function DashboardMockup({
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
   const metricAverageDisplay = summary.averageDisplay;
-  const currentGrade = scoreToGrade(Number(metricAverageDisplay));
   const metricCaseCount = dashboardCases.length;
+
+  const currentGradeDisplay =
+    metricCaseCount === 0
+      ? "F"
+      : metricCaseCount < CASE_TARGET
+      ? "-"
+      : scoreToGrade(Number(metricAverageDisplay));
+
+  const currentGradeSub =
+    metricCaseCount === 0
+      ? "No evaluated case in selected month"
+      : metricCaseCount < CASE_TARGET
+      ? "Grade will appear when completed 10 cases"
+      : "Calculated from current average score";
+
   const incentiveDisplay = formatCurrencyTHB(
     getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
   );
@@ -1818,8 +1832,8 @@ export default function DashboardMockup({
                     />
                     <MetricCard
                       title="Current Grade"
-                      value={currentGrade}
-                      sub="Calculated from current average score"
+                      value={currentGradeDisplay}
+                      sub={currentGradeSub}
                     />
                     <MetricCard
                       title="Evaluation Progress"
@@ -1910,17 +1924,6 @@ export default function DashboardMockup({
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
                               <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">Critical Error</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Written Warning</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2.5 py-1 text-xs font-semibold text-fuchsia-700">
-                                  G
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Immediate fail</td>
                             </tr>
                           </tbody>
                         </table>
