@@ -54,14 +54,6 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
 };
 
-type GradeGuideRow = {
-  scoreRange: string;
-  level: string;
-  grade: string;
-  incentive: string;
-  meaning: string;
-};
-
 const CASE_TARGET = 10;
 const TODAY = new Date();
 
@@ -84,51 +76,6 @@ const TOPIC_MASTER = [
   { code: "5.2", label: "SLA Compliance", max: 5 },
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
-
-const GRADE_GUIDE: GradeGuideRow[] = [
-  {
-    scoreRange: "90-100",
-    level: "Excellent",
-    grade: "A",
-    incentive: "1,000",
-    meaning: "Meets all key standards",
-  },
-  {
-    scoreRange: "80-89",
-    level: "Good",
-    grade: "B",
-    incentive: "700",
-    meaning: "Meets most standards",
-  },
-  {
-    scoreRange: "70-79",
-    level: "Fair",
-    grade: "C",
-    incentive: "300",
-    meaning: "Minimum pass level",
-  },
-  {
-    scoreRange: "60-69",
-    level: "Improvement Required",
-    grade: "D",
-    incentive: "0",
-    meaning: "Below company standard",
-  },
-  {
-    scoreRange: "<60",
-    level: "Fail",
-    grade: "F",
-    incentive: "0",
-    meaning: "Significant quality issue",
-  },
-  {
-    scoreRange: "Critical Error",
-    level: "Written Warning",
-    grade: "G",
-    incentive: "0",
-    meaning: "Immediate fail",
-  },
-];
 
 const AGENT_MASTER = [
   "Anucha Makundin",
@@ -182,7 +129,7 @@ function scoreToGrade(score: number): Grade {
   return "F";
 }
 
-function gradeTone(grade: Grade | string) {
+function gradeTone(grade: Grade) {
   switch (grade) {
     case "A":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -192,11 +139,8 @@ function gradeTone(grade: Grade | string) {
       return "border-amber-200 bg-amber-50 text-amber-700";
     case "D":
       return "border-orange-200 bg-orange-50 text-orange-700";
-    case "F":
-    case "G":
-      return "border-rose-200 bg-rose-50 text-rose-700";
     default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
+      return "border-rose-200 bg-rose-50 text-rose-700";
   }
 }
 
@@ -538,43 +482,6 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
               <td className="border-t border-slate-200 px-3 py-3 text-center">
                 {entry.pct === "-" ? "-" : `${entry.pct}%`}
               </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function GradeGuideTable({ items }: { items: GradeGuideRow[] }) {
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[920px] w-full text-sm">
-        <thead>
-          <tr className="bg-violet-950 text-[11px] text-white">
-            <th className="px-3 py-3 text-left">Score Range</th>
-            <th className="px-3 py-3 text-left">Level</th>
-            <th className="px-3 py-3 text-center">Grade</th>
-            <th className="px-3 py-3 text-center">Incentive (THB)</th>
-            <th className="px-3 py-3 text-left">Meaning</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={`${item.scoreRange}-${item.grade}`} className="bg-white">
-              <td className="border-t border-slate-200 px-3 py-3">{item.scoreRange}</td>
-              <td className="border-t border-slate-200 px-3 py-3">{item.level}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                <span
-                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(
-                    item.grade
-                  )}`}
-                >
-                  {item.grade}
-                </span>
-              </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.incentive}</td>
-              <td className="border-t border-slate-200 px-3 py-3">{item.meaning}</td>
             </tr>
           ))}
         </tbody>
@@ -1581,6 +1488,7 @@ export default function DashboardMockup({
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
   const metricAverageDisplay = summary.averageDisplay;
+  const currentGrade = scoreToGrade(Number(metricAverageDisplay));
   const metricCaseCount = dashboardCases.length;
   const incentiveDisplay = formatCurrencyTHB(
     getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
@@ -1704,7 +1612,9 @@ export default function DashboardMockup({
                 <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
                   Robinhood QA
                 </div>
-                <div className="mt-1 text-lg font-semibold text-white">Quality Monitoring Workspace</div>
+                <div className="mt-1 text-lg font-semibold text-white">
+                  Quality Monitoring Workspace
+                </div>
                 <div className="mt-1 text-sm text-violet-100/90">
                   Corporate dashboard for audit tracking and case review
                 </div>
@@ -1718,7 +1628,10 @@ export default function DashboardMockup({
         <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel className="sticky top-4">
-              <PanelHeader title="Quick Controls" subtitle="Filter by agent, case ID, date range and week" />
+              <PanelHeader
+                title="Quick Controls"
+                subtitle="Filter by agent, case ID, date range and week"
+              />
               <PanelBody className="space-y-5">
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
@@ -1897,11 +1810,16 @@ export default function DashboardMockup({
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <MetricCard
                       title="Average Score"
                       value={metricAverageDisplay}
                       sub={`${metricCaseCount} case(s) in current view`}
+                    />
+                    <MetricCard
+                      title="Current Grade"
+                      value={currentGrade}
+                      sub="Calculated from current average score"
                     />
                     <MetricCard
                       title="Evaluation Progress"
@@ -1925,13 +1843,96 @@ export default function DashboardMockup({
                       title="QA Grade & Incentive Guide"
                       subtitle="Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month"
                     />
-                    <PanelBody>
-                      <GradeGuideTable items={GRADE_GUIDE} />
+                    <PanelBody className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-[860px] w-full text-sm">
+                          <thead>
+                            <tr className="bg-violet-950 text-[11px] text-white">
+                              <th className="px-4 py-3 text-left">Score Range</th>
+                              <th className="px-4 py-3 text-left">Level</th>
+                              <th className="px-4 py-3 text-center">Grade</th>
+                              <th className="px-4 py-3 text-center">Incentive (THB)</th>
+                              <th className="px-4 py-3 text-left">Meaning</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                  A
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3">80-89</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                  B
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3">70-79</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                  C
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3">60-69</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                  D
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Fail</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                  F
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
+                            </tr>
+                            <tr className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3">Critical Error</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Written Warning</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2.5 py-1 text-xs font-semibold text-fuchsia-700">
+                                  G
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                              <td className="border-t border-slate-200 px-4 py-3">Immediate fail</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </PanelBody>
                   </Panel>
 
                   <Panel>
-                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
+                    <PanelHeader
+                      title="Overview Filters"
+                      subtitle="Control which cases are shown in overview"
+                    />
                     <PanelBody className="space-y-4">
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -2022,7 +2023,10 @@ export default function DashboardMockup({
 
                   <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <Panel>
-                      <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
+                      <PanelHeader
+                        title="Topic Performance"
+                        subtitle="Average topic score in current view"
+                      />
                       <PanelBody>
                         <TopicPerformanceTable items={summary.topicPerformance} />
                       </PanelBody>
@@ -2061,7 +2065,10 @@ export default function DashboardMockup({
                     </Panel>
 
                     <Panel>
-                      <PanelHeader title="Coaching Focus" subtitle="Top 3 weakest topics in current view" />
+                      <PanelHeader
+                        title="Coaching Focus"
+                        subtitle="Top 3 weakest topics in current view"
+                      />
                       <PanelBody className="space-y-3">
                         {weakestTopics.length ? (
                           weakestTopics.map((topic) => (
@@ -2087,7 +2094,10 @@ export default function DashboardMockup({
               ) : (
                 <>
                   <Panel>
-                    <PanelHeader title="Case Navigator" subtitle="Select a case to review detailed topic scoring" />
+                    <PanelHeader
+                      title="Case Navigator"
+                      subtitle="Select a case to review detailed topic scoring"
+                    />
                     <PanelBody>
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
@@ -2111,7 +2121,10 @@ export default function DashboardMockup({
                   {activeSelectedCase ? (
                     <>
                       <Panel>
-                        <PanelHeader title="Case Information" subtitle="Selected case overview and review status" />
+                        <PanelHeader
+                          title="Case Information"
+                          subtitle="Selected case overview and review status"
+                        />
                         <PanelBody className="space-y-5">
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                             <div className="space-y-3">
@@ -2192,7 +2205,10 @@ export default function DashboardMockup({
                       </Panel>
 
                       <Panel>
-                        <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
+                        <PanelHeader
+                          title="Topic Detail"
+                          subtitle="Original / Revised topic comparison"
+                        />
                         <PanelBody>
                           <CaseDetailTopicTable
                             topics={activeSelectedCase.topics}
