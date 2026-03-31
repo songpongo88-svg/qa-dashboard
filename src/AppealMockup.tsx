@@ -49,7 +49,9 @@ const AGENT_MASTER = [
   "Krivut Vongkampan",
   "Natcha Chai-in",
   "Nattapol Suprom",
-  "Sunijtra Siritip",
+  "Phrommarin Thaithorn",
+  "Songpon Phothong",
+  "Sunijtra Siritan",
   "Supakrit Promkhamnoi",
   "Suphitcha Keawliam",
   "Wachiraporn chailittichai",
@@ -616,6 +618,7 @@ export default function AppealMockup({
             if (!caseId) return null;
 
             const rawRow = rawCaseMap.get(caseId);
+
             const agent = rawRow
               ? String(rawHelper.getValue(rawRow, "Agent Name") ?? "").trim()
               : String(appealHelper.getValue(row, "Agent Name") ?? "").trim();
@@ -664,39 +667,32 @@ export default function AppealMockup({
                     ""
                 ).trim();
 
-            const originalScoreRaw =
-              getFirstNonEmptyValue(appealHelper, row, [
-                "Original Score",
-                "Previous Score",
-                "Initial Score",
-                "Score Before Appeal",
-                "Pre-Appeal Score",
-                "QA Score",
-              ]) ??
-              getValueByHeaderIncludes(appealHeaderRow, row, ["original", "score"]) ??
-              getValueByHeaderIncludes(appealHeaderRow, row, ["previous", "score"]) ??
-              getValueByHeaderIncludes(appealHeaderRow, row, ["before", "appeal"]) ??
+            const rawOverallScore =
               rawHelper.getValue(rawRow || [], "Final Score") ??
               rawHelper.getValue(rawRow || [], "QA Score") ??
+              rawHelper.getValue(rawRow || [], "Total Score") ??
+              rawHelper.getValue(rawRow || [], "Score") ??
               0;
 
-            const revisedScoreRaw =
-              getFirstNonEmptyValue(appealHelper, row, [
-                "Final Score",
-                "Revised Final Score",
-                "Revised Score",
-                "Score After Appeal",
-                "Post-Appeal Score",
-              ]) ??
+            const appealOverallScore =
+              appealHelper.getLastValue(row, "Final Score") ??
+              appealHelper.getValue(row, "Revised Final Score") ??
+              appealHelper.getValue(row, "Revised Score") ??
+              appealHelper.getValue(row, "Score After Appeal") ??
+              appealHelper.getValue(row, "Post-Appeal Score") ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["final", "score"]) ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["revised", "score"]) ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["after", "appeal"]) ??
-              appealHelper.getLastValue(row, "Final Score") ??
-              rawHelper.getValue(rawRow || [], "Final Score") ??
-              0;
+              null;
 
-            const previousScore = Number(originalScoreRaw || 0);
-            const finalScore = Number(revisedScoreRaw || 0);
+            const previousScore = Number(rawOverallScore || 0);
+            const finalScore = Number(
+              appealOverallScore !== null &&
+                appealOverallScore !== undefined &&
+                String(appealOverallScore).trim() !== ""
+                ? appealOverallScore
+                : rawOverallScore
+            );
 
             const appealSubmitRaw =
               getFirstNonEmptyValue(appealHelper, row, [
@@ -743,36 +739,40 @@ export default function AppealMockup({
             const topics: Topic[] = TOPIC_MASTER.map((master) => {
               const originalScore =
                 Number(
-                  rawRow
-                    ? rawHelper.getValue(rawRow, `${master.code} Score`)
-                    : appealHelper.getValue(row, `${master.code} Score`)
+                  rawHelper.getValue(rawRow || [], `${master.code} Score`) ??
+                    rawHelper.getValue(rawRow || [], `${master.code} Final Score`) ??
+                    rawHelper.getValue(rawRow || [], `${master.code}`) ??
+                    0
                 ) || 0;
 
               const originalComment = String(
-                rawRow
-                  ? rawHelper.getValue(rawRow, `${master.code} Comment`) ?? ""
-                  : appealHelper.getValue(row, `${master.code} Comment`) ?? ""
+                rawHelper.getValue(rawRow || [], `${master.code} Comment`) ??
+                  rawHelper.getValue(rawRow || [], `${master.code} Evaluation Comment`) ??
+                  ""
               ).trim();
 
-              const revisedScoreCandidate = appealHelper.getValue(
-                row,
-                `${master.code} Revised Score`
-              );
-              const revisedCommentCandidate = appealHelper.getValue(
-                row,
-                `${master.code} Revised Comment`
-              );
+              const revisedScoreCandidate =
+                appealHelper.getValue(row, `${master.code} Revised Score`) ??
+                appealHelper.getValue(row, `${master.code} Final Score`) ??
+                appealHelper.getValue(row, `${master.code} Score`);
+
+              const revisedCommentCandidate =
+                appealHelper.getValue(row, `${master.code} Revised Comment`) ??
+                appealHelper.getValue(row, `${master.code} Comment`);
+
               const appealReason = String(
                 appealHelper.getValue(row, `${master.code} Appeal Reason`) ?? ""
               ).trim();
 
               const hasRevisedScore =
                 revisedScoreCandidate !== null &&
-                revisedScoreCandidate !== "" &&
+                revisedScoreCandidate !== undefined &&
+                String(revisedScoreCandidate).trim() !== "" &&
                 !Number.isNaN(Number(revisedScoreCandidate));
 
               const hasRevisedComment =
                 revisedCommentCandidate !== null &&
+                revisedCommentCandidate !== undefined &&
                 String(revisedCommentCandidate).trim() !== "";
 
               const revisedScore = hasRevisedScore ? Number(revisedScoreCandidate) : originalScore;
@@ -844,7 +844,9 @@ export default function AppealMockup({
   }, []);
 
   const visibleAgentList = useMemo(() => {
-    const merged = [...new Set([...AGENT_MASTER, ...allCases.map((item) => item.agent).filter(Boolean)])];
+    const merged = [
+      ...new Set([...AGENT_MASTER, ...allCases.map((item) => item.agent).filter(Boolean)]),
+    ];
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return merged.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
