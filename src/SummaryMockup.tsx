@@ -22,7 +22,7 @@ type CaseItem = {
   auditDateObj: Date | null;
   auditYear: number | null;
   auditMonth: number | null;
-  auditMonthKey: string;
+  auditMonthLabel: string;
   weekLabel: string;
   caseId: string;
   finalScore: number;
@@ -51,6 +51,7 @@ type AppealMergeItem = {
 };
 
 const CASE_TARGET = 10;
+
 const MONTH_LABELS = [
   "January",
   "February",
@@ -95,7 +96,6 @@ const AGENT_MASTER = [
   "Krivut Vongkampan",
   "Natcha Chai-in",
   "Nattapol Suprom",
-  "Phrommarin Thaithorn",
   "Songpon Phothong",
   "Sunijtra Siritip",
   "Supakrit Promkhamnoi",
@@ -140,23 +140,6 @@ function scoreToGrade(score: number): Grade {
   return "F";
 }
 
-function gradeTone(grade: string) {
-  switch (grade) {
-    case "A":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "B":
-      return "border-sky-200 bg-sky-50 text-sky-700";
-    case "C":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "D":
-      return "border-orange-200 bg-orange-50 text-orange-700";
-    case "F":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
-  }
-}
-
 function gradeStatus(grade: string) {
   switch (grade) {
     case "A":
@@ -171,6 +154,23 @@ function gradeStatus(grade: string) {
       return "Fail";
     default:
       return "Pending";
+  }
+}
+
+function gradeTone(grade: string) {
+  switch (grade) {
+    case "A":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "B":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "C":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "D":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    case "F":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700";
   }
 }
 
@@ -212,12 +212,6 @@ function formatAuditDate(value: any): string {
   return `${day}/${month}/${year}`;
 }
 
-function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
-  if (!revisedTopics?.length) return topics;
-  const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
-  return topics.map((topic) => revisedMap.get(topic.code) || topic);
-}
-
 function buildHeaderHelpers(headerRow: any[]) {
   const normalizedHeaders = headerRow.map((h) => normalizeText(h));
 
@@ -241,6 +235,12 @@ function buildHeaderHelpers(headerRow: any[]) {
   };
 
   return { getValue, getLastValue };
+}
+
+function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
+  if (!revisedTopics?.length) return topics;
+  const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
+  return topics.map((topic) => revisedMap.get(topic.code) || topic);
 }
 
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
@@ -283,7 +283,13 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
   });
 }
 
-function SectionBand({
+function getPeriodSubtitle(periodType: PeriodType) {
+  if (periodType === "weekly") return "Weekly performance analysis";
+  if (periodType === "monthly") return "Monthly performance analysis";
+  return "Yearly performance analysis";
+}
+
+function SectionHeader({
   title,
   subtitle,
   badge,
@@ -310,13 +316,13 @@ function SectionBand({
   );
 }
 
-function ControlChip({
-  active,
+function FilterChip({
   label,
+  active,
   onClick,
 }: {
-  active: boolean;
   label: string;
+  active: boolean;
   onClick: () => void;
 }) {
   return (
@@ -337,19 +343,21 @@ function ControlChip({
 function PremiumMetricCard({
   title,
   value,
-  helper,
   sub,
+  badge,
   tone = "violet",
 }: {
   title: string;
   value: string;
-  helper?: React.ReactNode;
   sub?: string;
+  badge?: React.ReactNode;
   tone?: "violet" | "emerald" | "sky" | "amber" | "rose" | "slate";
 }) {
   const toneMap = {
-    violet: "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80 text-violet-900",
-    emerald: "from-emerald-50 via-white to-emerald-100/70 border-emerald-200 text-emerald-700",
+    violet:
+      "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80 text-violet-900",
+    emerald:
+      "from-emerald-50 via-white to-emerald-100/70 border-emerald-200 text-emerald-700",
     sky: "from-sky-50 via-white to-indigo-100/60 border-sky-200 text-sky-700",
     amber: "from-amber-50 via-white to-amber-100/70 border-amber-200 text-amber-700",
     rose: "from-rose-50 via-white to-rose-100/70 border-rose-200 text-rose-700",
@@ -357,19 +365,21 @@ function PremiumMetricCard({
   };
 
   return (
-    <div className={`overflow-hidden rounded-[28px] border bg-gradient-to-br shadow-[0_10px_30px_rgba(91,33,182,0.08)] ${toneMap[tone]}`}>
+    <div
+      className={`overflow-hidden rounded-[28px] border bg-gradient-to-br shadow-[0_10px_30px_rgba(91,33,182,0.08)] ${toneMap[tone]}`}
+    >
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
         <div className="mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px]">{value}</div>
-        {helper ? <div className="mt-3">{helper}</div> : null}
+        {badge ? <div className="mt-3">{badge}</div> : null}
         {sub ? <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div> : null}
       </div>
     </div>
   );
 }
 
-function MiniStatCard({
+function SummaryStat({
   label,
   value,
   tone = "slate",
@@ -389,7 +399,9 @@ function MiniStatCard({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </div>
       <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold ${toneMap[tone]}`}>
         {value}
       </div>
@@ -423,9 +435,7 @@ function ExecutiveSummaryCard({
       ? "sky"
       : currentGrade === "C"
       ? "amber"
-      : currentGrade === "D"
-      ? "rose"
-      : currentGrade === "F"
+      : currentGrade === "D" || currentGrade === "F"
       ? "rose"
       : "slate";
 
@@ -443,12 +453,12 @@ function ExecutiveSummaryCard({
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <MiniStatCard label="Average Score" value={averageScore} tone="violet" />
-            <MiniStatCard label="Progress" value={progress} tone="emerald" />
-            <MiniStatCard label="Incentive" value={incentive} tone="amber" />
-            <MiniStatCard label="Revised Cases" value={String(revisedCount)} tone="sky" />
-            <MiniStatCard label="Status Level" value={currentStatus} tone={gradeColor as any} />
-            <MiniStatCard label="Performance View" value="Current Filter" tone="slate" />
+            <SummaryStat label="Average Score" value={averageScore} tone="violet" />
+            <SummaryStat label="Progress" value={progress} tone="emerald" />
+            <SummaryStat label="Incentive" value={incentive} tone="amber" />
+            <SummaryStat label="Revised Cases" value={String(revisedCount)} tone="sky" />
+            <SummaryStat label="Status Level" value={currentStatus} tone={gradeColor as any} />
+            <SummaryStat label="Summary View" value="Executive" tone="slate" />
           </div>
         </div>
 
@@ -458,10 +468,11 @@ function ExecutiveSummaryCard({
           </div>
           <div className="mt-4 space-y-4 text-sm leading-6 text-slate-700">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              Current overall performance is at <span className="font-bold text-violet-700">{averageScore}</span> with grade <span className="font-bold text-slate-900">{currentGrade}</span>.
+              Current performance is at <span className="font-bold text-violet-700">{averageScore}</span>{" "}
+              with grade <span className="font-bold text-slate-900">{currentGrade}</span>.
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              Reviewed volume is <span className="font-semibold text-slate-900">{progress}</span> in the selected view.
+              Reviewed volume in this view is <span className="font-semibold text-slate-900">{progress}</span>.
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               Strongest topic is <span className="font-semibold text-emerald-700">{strongestTopic}</span>.
@@ -476,7 +487,7 @@ function ExecutiveSummaryCard({
   );
 }
 
-function InsightFamilyCard({
+function InsightCard({
   title,
   subtitle,
   tone = "violet",
@@ -514,7 +525,9 @@ function SimpleListItem({
 }) {
   return (
     <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </div>
       <div className={`mt-1 text-sm font-semibold ${valueTone}`}>{value}</div>
     </div>
   );
@@ -578,11 +591,19 @@ function TopicRankingTable({ items }: { items: TopicSummary[] }) {
         <tbody>
           {items.map((entry) => (
             <tr key={entry.code} className="bg-white">
-              <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">{entry.code}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-slate-700">{entry.label}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore.toFixed(2)}</td>
+              <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">
+                {entry.code}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-slate-700">
+                {entry.label}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.avgScore.toFixed(2)}
+              </td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.pct.toFixed(2)}%</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.pct.toFixed(2)}%
+              </td>
             </tr>
           ))}
         </tbody>
@@ -617,15 +638,25 @@ function AgentRankingTable({
         <tbody>
           {items.map((entry) => (
             <tr key={entry.agent} className="bg-white">
-              <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">{entry.agent}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.average.toFixed(2)}</td>
+              <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">
+                {entry.agent}
+              </td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">
-                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(entry.grade)}`}>
+                {entry.average.toFixed(2)}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(
+                    entry.grade
+                  )}`}
+                >
                   {entry.grade}
                 </span>
               </td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.caseCount}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.revisedCount}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.revisedCount}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -695,7 +726,8 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
         const appealSheet =
-          appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
+          appealWorkbook.Sheets["Appeal_Data"] ||
+          appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
 
         const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
           header: 1,
@@ -741,8 +773,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
               !Number.isNaN(Number(revisedScoreRaw));
 
             const hasRevisedComment =
-              revisedCommentRaw !== null &&
-              String(revisedCommentRaw).trim() !== "";
+              revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
 
             if (!hasRevisedScore && !hasRevisedComment) return;
 
@@ -798,7 +829,10 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
         const mapped: CaseItem[] = rawDataRows
           .filter(
-            (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
+            (row) =>
+              row &&
+              rawHelper.getValue(row, "Agent Name") &&
+              rawHelper.getValue(row, "Case ID")
           )
           .map((row, index) => {
             const topics: Topic[] = TOPIC_MASTER.map((topic) => {
@@ -818,14 +852,15 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
             const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
             const mergedAppeal = appealMap.get(caseId);
+
             const rawAuditDate = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(rawAuditDate);
             const auditYear = auditDateObj ? auditDateObj.getFullYear() : null;
             const auditMonth = auditDateObj ? auditDateObj.getMonth() + 1 : null;
-            const auditMonthKey =
-              auditYear && auditMonth
-                ? `${auditYear}-${String(auditMonth).padStart(2, "0")}`
-                : "unknown";
+            const auditMonthLabel =
+              auditMonth && auditMonth >= 1 && auditMonth <= 12
+                ? MONTH_LABELS[auditMonth - 1]
+                : "-";
 
             const baseFinalScore =
               Number(rawHelper.getValue(row, "Final Score")) ||
@@ -838,6 +873,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                 : baseFinalScore);
 
             const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
+
             const weekLabel =
               rawHelper.getValue(row, "Week Label") ??
               rawHelper.getValue(row, "Week") ??
@@ -853,7 +889,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
               auditDateObj,
               auditYear,
               auditMonth,
-              auditMonthKey,
+              auditMonthLabel,
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               finalScore: finalScoreVal,
@@ -863,8 +899,6 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
               topics,
               revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
               displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
-              inquiryTh: "",
-              inquiryEn: "",
             };
           });
 
@@ -880,11 +914,6 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     loadWorkbook();
   }, []);
 
-  const agentOptions = useMemo(() => {
-    const agentsFromCases = allCases.map((item) => item.agent).filter(Boolean);
-    return [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) => a.localeCompare(b));
-  }, [allCases]);
-
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       setViewMode("by-agent");
@@ -898,13 +927,15 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     );
   }, [allCases]);
 
-  const monthOptions = useMemo(() => {
-    if (selectedYear === "all") return MONTH_LABELS.map((label, index) => ({ label, value: `${index + 1}` }));
-    return MONTH_LABELS.map((label, index) => ({ label, value: `${index + 1}` }));
-  }, [selectedYear]);
-
   const weekOptions = useMemo(() => {
     return [...new Set(allCases.map((item) => item.weekLabel).filter(Boolean))];
+  }, [allCases]);
+
+  const agentOptions = useMemo(() => {
+    const agentsFromCases = allCases.map((item) => item.agent).filter(Boolean);
+    return [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) =>
+      a.localeCompare(b)
+    );
   }, [allCases]);
 
   const scopedCases = useMemo(() => {
@@ -922,26 +953,37 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
       items = items.filter((item) => item.weekLabel === selectedWeek);
     }
 
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      items = items.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+      return items;
+    }
+
     if (viewMode === "by-agent" && selectedAgent !== "all") {
       items = items.filter((item) => isSameAgent(item.agent, selectedAgent));
     }
 
     return items;
-  }, [allCases, periodType, selectedYear, selectedMonth, selectedWeek, viewMode, selectedAgent]);
+  }, [
+    allCases,
+    periodType,
+    selectedYear,
+    selectedMonth,
+    selectedWeek,
+    viewMode,
+    selectedAgent,
+    currentUser,
+  ]);
 
   const averageScore =
     scopedCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(scopedCases.length, 1);
 
   const currentGradeDisplay =
-    scopedCases.length === 0
-      ? "F"
-      : scopedCases.length < CASE_TARGET
-      ? "-"
-      : scoreToGrade(Number(averageScore.toFixed(2)));
+    scopedCases.length === 0 ? "F" : scopedCases.length < CASE_TARGET ? "Pending" : scoreToGrade(averageScore);
 
   const currentStatus = gradeStatus(currentGradeDisplay);
-
   const revisedCount = scopedCases.filter((item) => item.reviewStatus === "Revised").length;
+  const targetCompletionPct = Math.min((scopedCases.length / CASE_TARGET) * 100, 100);
+
   const incentiveDisplay = formatCurrencyTHB(
     getIncentiveValue(scopedCases.length, Number(averageScore.toFixed(2)))
   );
@@ -958,11 +1000,11 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     [topicSummary]
   );
 
-  const executiveStrongest = strongestTopics[0]
+  const strongestTopicLabel = strongestTopics[0]
     ? `${strongestTopics[0].code} ${strongestTopics[0].label}`
     : "-";
 
-  const executiveWeakest = weakestTopics[0]
+  const weakestTopicLabel = weakestTopics[0]
     ? `${weakestTopics[0].code} ${weakestTopics[0].label}`
     : "-";
 
@@ -984,17 +1026,16 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     if (periodType === "monthly") {
       const monthMap = new Map<string, number[]>();
       scopedCases.forEach((item) => {
-        if (!item.auditMonth) return;
-        const label = MONTH_LABELS[item.auditMonth - 1];
-        if (!monthMap.has(label)) monthMap.set(label, []);
-        monthMap.get(label)!.push(item.finalScore);
+        if (!item.auditMonthLabel || item.auditMonthLabel === "-") return;
+        if (!monthMap.has(item.auditMonthLabel)) monthMap.set(item.auditMonthLabel, []);
+        monthMap.get(item.auditMonthLabel)!.push(item.finalScore);
       });
 
-      return MONTH_LABELS.map((label) => ({
-        label: label.slice(0, 3),
+      return MONTH_LABELS.map((month) => ({
+        label: month.slice(0, 3),
         value:
-          monthMap.get(label)?.reduce((sum, score) => sum + score, 0) /
-            Math.max(monthMap.get(label)?.length || 0, 1) || 0,
+          monthMap.get(month)?.reduce((sum, score) => sum + score, 0) /
+            Math.max(monthMap.get(month)?.length || 0, 1) || 0,
       })).filter((item) => item.value > 0);
     }
 
@@ -1025,6 +1066,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
     const current = comparisonData[comparisonData.length - 1]?.value || 0;
     const previous = comparisonData[comparisonData.length - 2]?.value || 0;
+
     return {
       current,
       previous,
@@ -1032,18 +1074,28 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     };
   }, [comparisonData]);
 
+  const rankingBaseCases = useMemo(() => {
+    let items = [...allCases];
+
+    if (selectedYear !== "all") {
+      items = items.filter((item) => String(item.auditYear || "") === selectedYear);
+    }
+
+    if (periodType !== "yearly" && selectedMonth !== "all") {
+      items = items.filter((item) => String(item.auditMonth || "") === selectedMonth);
+    }
+
+    if (periodType === "weekly" && selectedWeek !== "all") {
+      items = items.filter((item) => item.weekLabel === selectedWeek);
+    }
+
+    return items;
+  }, [allCases, periodType, selectedYear, selectedMonth, selectedWeek]);
+
   const agentRanking = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
 
-    allCases.forEach((item) => {
-      if (selectedYear !== "all" && String(item.auditYear || "") !== selectedYear) return;
-      if (periodType !== "yearly" && selectedMonth !== "all" && String(item.auditMonth || "") !== selectedMonth) {
-        return;
-      }
-      if (periodType === "weekly" && selectedWeek !== "all" && item.weekLabel !== selectedWeek) {
-        return;
-      }
-
+    rankingBaseCases.forEach((item) => {
       if (!groups.has(item.agent)) groups.set(item.agent, []);
       groups.get(item.agent)!.push(item);
     });
@@ -1052,37 +1104,23 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
       .map(([agent, items]) => {
         const average =
           items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
+
+        const gradeDisplay =
+          items.length === 0 ? "F" : items.length < CASE_TARGET ? "Pending" : scoreToGrade(average);
+
         return {
           agent,
           average: Number(average.toFixed(2)),
-          grade: items.length < CASE_TARGET ? "-" : scoreToGrade(average),
+          grade: gradeDisplay,
           caseCount: items.length,
           revisedCount: items.filter((item) => item.reviewStatus === "Revised").length,
         };
       })
       .sort((a, b) => b.average - a.average);
-  }, [allCases, selectedYear, selectedMonth, selectedWeek, periodType]);
+  }, [rankingBaseCases]);
 
   const topAgents = agentRanking.slice(0, 3);
   const bottomAgents = [...agentRanking].reverse().slice(0, 3);
-
-  const reviewSnapshotItems = [
-    {
-      label: "Original Cases",
-      value: `${scopedCases.filter((item) => item.reviewStatus === "Original").length} case(s)`,
-      valueTone: "text-slate-900",
-    },
-    {
-      label: "Revised Cases",
-      value: `${scopedCases.filter((item) => item.reviewStatus === "Revised").length} case(s)`,
-      valueTone: "text-violet-700",
-    },
-    {
-      label: "Current Status",
-      value: currentStatus,
-      valueTone: "text-sky-700",
-    },
-  ];
 
   if (isLoading) {
     return (
@@ -1109,33 +1147,41 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
         <div className="space-y-6">
-          <SectionBand
-            title="Performance Summary Family"
-            subtitle="Premium overview for Weekly, Monthly, Yearly performance in Overall and By Agent view"
-            badge="Summary Workspace"
+          <SectionHeader
+            title="Executive Performance Summary"
+            subtitle="Corporate summary view for Weekly, Monthly, and Yearly performance analysis"
+            badge={currentUser?.role === "Agent" ? "My Performance" : "Management View"}
           />
 
           <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
             <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-            <div className="grid gap-5 px-6 py-6 xl:grid-cols-[1.1fr_1fr_1fr]">
+            <div className="grid gap-5 px-6 py-6 xl:grid-cols-[1fr_1fr_1.2fr]">
               <div>
                 <div className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-700">
                   View Mode
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <ControlChip
-                    active={viewMode === "overall"}
-                    label="Overall"
-                    onClick={() => {
-                      setViewMode("overall");
-                      if (currentUser?.role !== "Agent") setSelectedAgent("all");
-                    }}
-                  />
-                  <ControlChip
-                    active={viewMode === "by-agent"}
-                    label="By Agent"
-                    onClick={() => setViewMode("by-agent")}
-                  />
+                  {currentUser?.role === "Agent" ? (
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                      By Agent
+                    </div>
+                  ) : (
+                    <>
+                      <FilterChip
+                        label="Overall"
+                        active={viewMode === "overall"}
+                        onClick={() => {
+                          setViewMode("overall");
+                          setSelectedAgent("all");
+                        }}
+                      />
+                      <FilterChip
+                        label="By Agent"
+                        active={viewMode === "by-agent"}
+                        onClick={() => setViewMode("by-agent")}
+                      />
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1144,9 +1190,21 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   Period Type
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <ControlChip active={periodType === "weekly"} label="Weekly" onClick={() => setPeriodType("weekly")} />
-                  <ControlChip active={periodType === "monthly"} label="Monthly" onClick={() => setPeriodType("monthly")} />
-                  <ControlChip active={periodType === "yearly"} label="Yearly" onClick={() => setPeriodType("yearly")} />
+                  <FilterChip
+                    label="Weekly"
+                    active={periodType === "weekly"}
+                    onClick={() => setPeriodType("weekly")}
+                  />
+                  <FilterChip
+                    label="Monthly"
+                    active={periodType === "monthly"}
+                    onClick={() => setPeriodType("monthly")}
+                  />
+                  <FilterChip
+                    label="Yearly"
+                    active={periodType === "yearly"}
+                    onClick={() => setPeriodType("yearly")}
+                  />
                 </div>
               </div>
 
@@ -1180,9 +1238,9 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                     className="mt-3 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
                   >
                     <option value="all">All Months</option>
-                    {monthOptions.map((month) => (
-                      <option key={month.value} value={month.value}>
-                        {month.label}
+                    {MONTH_LABELS.map((month, index) => (
+                      <option key={month} value={String(index + 1)}>
+                        {month}
                       </option>
                     ))}
                   </select>
@@ -1235,24 +1293,25 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
             </div>
           </div>
 
-          <SectionBand
-            title="Performance Overview"
-            subtitle="Executive KPI snapshot for the selected summary view"
-            badge={viewMode === "overall" ? "Overall Summary" : "By Agent Summary"}
+          <SectionHeader
+            title="Executive Overview"
+            subtitle={`High-level KPI summary · ${getPeriodSubtitle(periodType)}`}
+            badge={viewMode === "overall" ? "Overall" : "By Agent"}
           />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
             <PremiumMetricCard
               title="Average Score"
               value={averageScore.toFixed(2)}
               tone="violet"
-              helper={
+              badge={
                 <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                  Overall Performance
+                  Overall Score
                 </span>
               }
-              sub={`${scopedCases.length} case(s) in selected view`}
+              sub="Average score in selected view"
             />
+
             <PremiumMetricCard
               title="Current Grade"
               value={currentGradeDisplay}
@@ -1267,51 +1326,78 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   ? "rose"
                   : "slate"
               }
-              helper={
+              badge={
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${gradeTone(currentGradeDisplay)}`}>
-                    Grade {currentGradeDisplay}
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${gradeTone(
+                      currentGradeDisplay
+                    )}`}
+                  >
+                    {currentGradeDisplay === "Pending" ? "Pending" : `Grade ${currentGradeDisplay}`}
                   </span>
                   <span className="text-[12px] font-semibold text-slate-700">
-                    Status: {currentStatus}
+                    {currentStatus}
                   </span>
                 </div>
               }
-              sub={scopedCases.length < CASE_TARGET ? "Grade fully applies at 10 reviewed cases" : "Calculated from current average"}
+              sub={
+                currentGradeDisplay === "Pending"
+                  ? "Grade will finalize at 10 reviewed cases"
+                  : currentGradeDisplay === "F" && scopedCases.length === 0
+                  ? "No reviewed cases in selected period"
+                  : "Calculated from current average score"
+              }
             />
+
             <PremiumMetricCard
-              title="Evaluation Progress"
-              value={`${scopedCases.length}/${CASE_TARGET}`}
-              tone={scopedCases.length >= CASE_TARGET ? "emerald" : "amber"}
-              helper={
-                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                  scopedCases.length >= CASE_TARGET
-                    ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-                    : "border-amber-200 bg-amber-100 text-amber-700"
-                }`}>
-                  {scopedCases.length >= CASE_TARGET ? "Target Reached" : "In Progress"}
+              title="Evaluated Cases"
+              value={String(scopedCases.length)}
+              tone="sky"
+              badge={
+                <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                  Reviewed Cases
                 </span>
               }
-              sub="Reviewed volume in selected summary"
+              sub="Cases included in current summary"
             />
+
+            <PremiumMetricCard
+              title="Target Completion"
+              value={`${targetCompletionPct.toFixed(0)}%`}
+              tone={scopedCases.length >= CASE_TARGET ? "emerald" : "amber"}
+              badge={
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                    scopedCases.length >= CASE_TARGET
+                      ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                      : "border-amber-200 bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {scopedCases.length}/{CASE_TARGET}
+                </span>
+              }
+              sub="Completion toward monthly target"
+            />
+
             <PremiumMetricCard
               title="Estimated Incentive"
               value={incentiveDisplay}
               tone="amber"
-              helper={
+              badge={
                 <span className="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
                   Monthly Estimate
                 </span>
               }
-              sub="Based on current scoring rules"
+              sub="Applies when reviewed cases reach target"
             />
+
             <PremiumMetricCard
-              title="Review Mix"
-              value={`${revisedCount}`}
-              tone="sky"
-              helper={
-                <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                  Revised Cases
+              title="Revised Cases"
+              value={String(revisedCount)}
+              tone="slate"
+              badge={
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  Appeal Impact
                 </span>
               }
               sub="Revised cases in selected summary"
@@ -1325,14 +1411,14 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
             progress={`${scopedCases.length}/${CASE_TARGET}`}
             incentive={incentiveDisplay}
             revisedCount={revisedCount}
-            strongestTopic={executiveStrongest}
-            weakestTopic={executiveWeakest}
+            strongestTopic={strongestTopicLabel}
+            weakestTopic={weakestTopicLabel}
           />
 
-          <SectionBand
-            title="Period Comparison"
-            subtitle="Compare Weekly, Monthly, or Yearly performance trend in the selected view"
-            badge={periodType === "weekly" ? "Weekly" : periodType === "monthly" ? "Monthly" : "Yearly"}
+          <SectionHeader
+            title="Performance Trend"
+            subtitle="Trend and comparison view across selected time periods"
+            badge={periodType === "weekly" ? "Weekly Trend" : periodType === "monthly" ? "Monthly Trend" : "Yearly Trend"}
           />
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1342,22 +1428,30 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                 periodType === "weekly"
                   ? "Weekly Performance Comparison"
                   : periodType === "monthly"
-                  ? "Monthly Performance Trend"
-                  : "Yearly Performance Overview"
+                  ? "Monthly Performance Comparison"
+                  : "Yearly Performance Comparison"
               }
-              subtitle="Average score comparison across selected periods"
+              subtitle="Average score trend by selected period"
             />
 
-            <InsightFamilyCard
-              title="Comparison Snapshot"
-              subtitle="Current vs previous visible period"
+            <InsightCard
+              title="Period Comparison"
+              subtitle="Current vs previous period snapshot"
               tone="sky"
             >
               <div className="space-y-3">
-                <SimpleListItem label="Current Period" value={previousComparison.current.toFixed(2)} valueTone="text-sky-700" />
-                <SimpleListItem label="Previous Period" value={previousComparison.previous.toFixed(2)} valueTone="text-slate-900" />
                 <SimpleListItem
-                  label="Delta"
+                  label="Current Period"
+                  value={previousComparison.current.toFixed(2)}
+                  valueTone="text-sky-700"
+                />
+                <SimpleListItem
+                  label="Previous Period"
+                  value={previousComparison.previous.toFixed(2)}
+                  valueTone="text-slate-900"
+                />
+                <SimpleListItem
+                  label="Change"
                   value={`${previousComparison.delta >= 0 ? "+" : ""}${previousComparison.delta.toFixed(2)}`}
                   valueTone={previousComparison.delta >= 0 ? "text-emerald-700" : "text-rose-700"}
                 />
@@ -1365,23 +1459,31 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   label="Best Visible Period"
                   value={
                     comparisonData.length
-                      ? `${[...comparisonData].sort((a, b) => b.value - a.value)[0].label} · ${[...comparisonData].sort((a, b) => b.value - a.value)[0].value.toFixed(2)}`
+                      ? `${[...comparisonData].sort((a, b) => b.value - a.value)[0].label} · ${[
+                          ...comparisonData,
+                        ]
+                          .sort((a, b) => b.value - a.value)[0]
+                          .value.toFixed(2)}`
                       : "-"
                   }
                   valueTone="text-emerald-700"
                 />
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
           </div>
 
-          <SectionBand
-            title="Topic Performance Family"
-            subtitle="Strength, coaching focus, and topic ranking for the selected summary scope"
-            badge="Topic Based Performance"
+          <SectionHeader
+            title="Topic Performance"
+            subtitle="Topic-level strengths, coaching focus, and ranking"
+            badge="Quality Dimensions"
           />
 
           <div className="grid gap-6 xl:grid-cols-3">
-            <InsightFamilyCard title="Top Strengths" subtitle="Highest performing topics" tone="emerald">
+            <InsightCard
+              title="Top Strengths"
+              subtitle="Highest performing topics"
+              tone="emerald"
+            >
               <div className="space-y-3">
                 {strongestTopics.map((topic) => (
                   <SimpleListItem
@@ -1392,9 +1494,13 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   />
                 ))}
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
 
-            <InsightFamilyCard title="Coaching Focus" subtitle="Lowest performing topics" tone="rose">
+            <InsightCard
+              title="Coaching Focus"
+              subtitle="Lowest performing topics"
+              tone="rose"
+            >
               <div className="space-y-3">
                 {weakestTopics.map((topic) => (
                   <SimpleListItem
@@ -1405,45 +1511,58 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   />
                 ))}
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
 
-            <InsightFamilyCard title="Review Snapshot" subtitle="Summary of review mix and status" tone="violet">
+            <InsightCard
+              title="Review Snapshot"
+              subtitle="Summary of current quality view"
+              tone="violet"
+            >
               <div className="space-y-3">
-                {reviewSnapshotItems.map((item) => (
-                  <SimpleListItem
-                    key={item.label}
-                    label={item.label}
-                    value={item.value}
-                    valueTone={item.valueTone}
-                  />
-                ))}
+                <SimpleListItem
+                  label="Current Grade"
+                  value={`${currentGradeDisplay} · ${currentStatus}`}
+                  valueTone="text-slate-900"
+                />
+                <SimpleListItem
+                  label="Strongest Topic"
+                  value={strongestTopicLabel}
+                  valueTone="text-emerald-700"
+                />
+                <SimpleListItem
+                  label="Main Focus"
+                  value={weakestTopicLabel}
+                  valueTone="text-rose-700"
+                />
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
           </div>
 
           <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
             <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
             <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-6 py-5">
               <div className="text-[19px] font-bold tracking-tight text-slate-900">Topic Ranking</div>
-              <div className="mt-1 text-sm text-slate-500">Full topic ranking for selected summary scope</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Full ranking of topic performance in selected summary
+              </div>
             </div>
             <div className="p-6">
               <TopicRankingTable items={[...topicSummary].sort((a, b) => b.pct - a.pct)} />
             </div>
           </div>
 
-          <SectionBand
-            title="Agent Performance Family"
-            subtitle={
-              viewMode === "overall"
-                ? "Team ranking, top performers, and lowest performers"
-                : "Selected agent context plus team comparison"
-            }
-            badge={viewMode === "overall" ? "Team View" : "Agent View"}
+          <SectionHeader
+            title="Agent Performance"
+            subtitle="Overall team view or selected agent performance perspective"
+            badge={currentUser?.role === "Agent" ? "My Performance View" : "Team Performance View"}
           />
 
           <div className="grid gap-6 xl:grid-cols-3">
-            <InsightFamilyCard title="Top Performers" subtitle="Highest average score" tone="emerald">
+            <InsightCard
+              title="Top Performers"
+              subtitle="Highest average score"
+              tone="emerald"
+            >
               <div className="space-y-3">
                 {topAgents.map((agent) => (
                   <SimpleListItem
@@ -1454,9 +1573,13 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   />
                 ))}
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
 
-            <InsightFamilyCard title="Watchlist" subtitle="Lowest average score" tone="rose">
+            <InsightCard
+              title="Watchlist"
+              subtitle="Lowest average score"
+              tone="rose"
+            >
               <div className="space-y-3">
                 {bottomAgents.map((agent) => (
                   <SimpleListItem
@@ -1467,17 +1590,25 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   />
                 ))}
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
 
-            <InsightFamilyCard
-              title={viewMode === "overall" ? "Team Snapshot" : "Selected Agent Snapshot"}
-              subtitle={viewMode === "overall" ? "Current team level reading" : "Current selected agent reading"}
+            <InsightCard
+              title={currentUser?.role === "Agent" ? "My Snapshot" : viewMode === "overall" ? "Team Snapshot" : "Selected Agent Snapshot"}
+              subtitle="Quick reading of current performance context"
               tone="sky"
             >
               <div className="space-y-3">
                 <SimpleListItem
-                  label={viewMode === "overall" ? "View Mode" : "Selected Agent"}
-                  value={viewMode === "overall" ? "Overall Team" : selectedAgent === "all" ? "-" : selectedAgent}
+                  label={currentUser?.role === "Agent" ? "Agent" : "View"}
+                  value={
+                    currentUser?.role === "Agent"
+                      ? currentUser.agentName
+                      : viewMode === "overall"
+                      ? "Overall Team"
+                      : selectedAgent === "all"
+                      ? "-"
+                      : selectedAgent
+                  }
                   valueTone="text-sky-700"
                 />
                 <SimpleListItem
@@ -1491,14 +1622,16 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   valueTone="text-slate-900"
                 />
               </div>
-            </InsightFamilyCard>
+            </InsightCard>
           </div>
 
           <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
             <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
             <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-6 py-5">
               <div className="text-[19px] font-bold tracking-tight text-slate-900">Agent Ranking</div>
-              <div className="mt-1 text-sm text-slate-500">Performance comparison by agent in the current period selection</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Agent comparison in the selected period scope
+              </div>
             </div>
             <div className="p-6">
               <AgentRankingTable items={agentRanking} />
