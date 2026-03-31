@@ -405,10 +405,16 @@ function QuickCaseCard({
         {item.inquiry || "-"}
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[11px]">
-        <span className="font-semibold text-violet-700">
-          Original: {item.previousScore.toFixed(2)} → Final: {item.finalScore.toFixed(2)}
-        </span>
+      <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+        <div className="flex flex-wrap items-center gap-2 font-semibold">
+          <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+            Original: {item.previousScore.toFixed(2)}
+          </span>
+          <span className="text-slate-400">→</span>
+          <span className="rounded-full bg-violet-100 px-2 py-1 text-violet-700">
+            Final: {item.finalScore.toFixed(2)}
+          </span>
+        </div>
         <span className="text-slate-500">{item.appealedTopics.length} appealed topic(s)</span>
       </div>
     </button>
@@ -455,26 +461,28 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
 
       <div className="p-5">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+          <div className="rounded-2xl border border-slate-300 bg-slate-100 px-4 py-4">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               Original Score
             </div>
             <div className="mt-2 text-2xl font-extrabold text-slate-900">{originalScore}</div>
           </div>
 
-          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+          <div className="rounded-2xl border border-violet-300 bg-violet-100 px-4 py-4">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
               Revised Score
             </div>
             <div className="mt-2 text-2xl font-extrabold text-slate-900">{revisedScore}</div>
           </div>
 
-          <div className={`rounded-2xl border px-4 py-4 ${statusTone.className}`}>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-80">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               Score Comparison
             </div>
-            <div className="mt-2 text-lg font-extrabold">
-              {originalScore} → {revisedScore}
+            <div className="mt-2 text-lg font-extrabold text-slate-900">
+              <span className="text-slate-700">{originalScore}</span>
+              <span className="mx-2 text-slate-400">→</span>
+              <span className="text-violet-700">{revisedScore}</span>
             </div>
           </div>
         </div>
@@ -482,9 +490,11 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
         <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-semibold text-slate-800">Score Comparison</div>
-            <div className="text-sm font-bold text-violet-800">
-              {originalScore} → {revisedScore}
-              {diff === 0 ? " (No Change)" : ""}
+            <div className="text-sm font-bold">
+              <span className="text-slate-700">{originalScore}</span>
+              <span className="mx-2 text-slate-400">→</span>
+              <span className="text-violet-700">{revisedScore}</span>
+              {diff === 0 ? <span className="ml-1 text-slate-500">(No Change)</span> : null}
             </div>
           </div>
         </div>
@@ -1091,12 +1101,12 @@ export default function AppealMockup({
                 <ScoreCard
                   title="Original Score"
                   value={selectedCase.previousScore.toFixed(2)}
-                  tone="border-slate-200 bg-slate-50 text-slate-800"
+                  tone="border-slate-300 bg-slate-100 text-slate-900"
                 />
                 <ScoreCard
                   title="Final Score"
                   value={selectedCase.finalScore.toFixed(2)}
-                  tone="border-violet-200 bg-violet-50 text-violet-800"
+                  tone="border-violet-300 bg-violet-100 text-violet-900"
                   sub={`${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`}
                 />
                 <ScoreCard
