@@ -54,6 +54,14 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
 };
 
+type GradeGuideRow = {
+  scoreRange: string;
+  level: string;
+  grade: string;
+  incentive: string;
+  meaning: string;
+};
+
 const CASE_TARGET = 10;
 const TODAY = new Date();
 
@@ -76,6 +84,51 @@ const TOPIC_MASTER = [
   { code: "5.2", label: "SLA Compliance", max: 5 },
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
+
+const GRADE_GUIDE: GradeGuideRow[] = [
+  {
+    scoreRange: "90-100",
+    level: "Excellent",
+    grade: "A",
+    incentive: "1,000",
+    meaning: "Meets all key standards",
+  },
+  {
+    scoreRange: "80-89",
+    level: "Good",
+    grade: "B",
+    incentive: "700",
+    meaning: "Meets most standards",
+  },
+  {
+    scoreRange: "70-79",
+    level: "Fair",
+    grade: "C",
+    incentive: "300",
+    meaning: "Minimum pass level",
+  },
+  {
+    scoreRange: "60-69",
+    level: "Improvement Required",
+    grade: "D",
+    incentive: "0",
+    meaning: "Below company standard",
+  },
+  {
+    scoreRange: "<60",
+    level: "Fail",
+    grade: "F",
+    incentive: "0",
+    meaning: "Significant quality issue",
+  },
+  {
+    scoreRange: "Critical Error",
+    level: "Written Warning",
+    grade: "G",
+    incentive: "0",
+    meaning: "Immediate fail",
+  },
+];
 
 const AGENT_MASTER = [
   "Anucha Makundin",
@@ -129,7 +182,7 @@ function scoreToGrade(score: number): Grade {
   return "F";
 }
 
-function gradeTone(grade: Grade) {
+function gradeTone(grade: Grade | string) {
   switch (grade) {
     case "A":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -139,8 +192,11 @@ function gradeTone(grade: Grade) {
       return "border-amber-200 bg-amber-50 text-amber-700";
     case "D":
       return "border-orange-200 bg-orange-50 text-orange-700";
-    default:
+    case "F":
+    case "G":
       return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700";
   }
 }
 
@@ -482,6 +538,43 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
               <td className="border-t border-slate-200 px-3 py-3 text-center">
                 {entry.pct === "-" ? "-" : `${entry.pct}%`}
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function GradeGuideTable({ items }: { items: GradeGuideRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[920px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-3 py-3 text-left">Score Range</th>
+            <th className="px-3 py-3 text-left">Level</th>
+            <th className="px-3 py-3 text-center">Grade</th>
+            <th className="px-3 py-3 text-center">Incentive (THB)</th>
+            <th className="px-3 py-3 text-left">Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={`${item.scoreRange}-${item.grade}`} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3">{item.scoreRange}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{item.level}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(
+                    item.grade
+                  )}`}
+                >
+                  {item.grade}
+                </span>
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.incentive}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{item.meaning}</td>
             </tr>
           ))}
         </tbody>
@@ -1826,6 +1919,16 @@ export default function DashboardMockup({
                       sub="Revised case(s) in current view"
                     />
                   </div>
+
+                  <Panel>
+                    <PanelHeader
+                      title="QA Grade & Incentive Guide"
+                      subtitle="Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month"
+                    />
+                    <PanelBody>
+                      <GradeGuideTable items={GRADE_GUIDE} />
+                    </PanelBody>
+                  </Panel>
 
                   <Panel>
                     <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
