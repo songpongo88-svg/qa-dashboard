@@ -666,7 +666,9 @@ export default function AppealMockup({
                 ).trim();
 
             const rawOverallScore =
-              rawHelper.getValue(rawRow || [], "Final Score") ?? null;
+              rawHelper.getLastValue(rawRow || [], "Final Score") ??
+              rawHelper.getValue(rawRow || [], "Final Score") ??
+              null;
 
             const appealOverallScore =
               appealHelper.getLastValue(row, "Final Score") ??
