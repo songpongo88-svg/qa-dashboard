@@ -144,6 +144,53 @@ function gradeTone(grade: Grade) {
   }
 }
 
+function currentGradeTone(value: string) {
+  switch (value) {
+    case "A":
+      return {
+        card: "from-emerald-50 via-white to-emerald-100/70 border-emerald-200",
+        badge: "border-emerald-200 bg-emerald-100 text-emerald-700",
+        level: "Excellent",
+        levelText: "text-emerald-700",
+      };
+    case "B":
+      return {
+        card: "from-sky-50 via-white to-sky-100/70 border-sky-200",
+        badge: "border-sky-200 bg-sky-100 text-sky-700",
+        level: "Good",
+        levelText: "text-sky-700",
+      };
+    case "C":
+      return {
+        card: "from-amber-50 via-white to-amber-100/70 border-amber-200",
+        badge: "border-amber-200 bg-amber-100 text-amber-700",
+        level: "Fair",
+        levelText: "text-amber-700",
+      };
+    case "D":
+      return {
+        card: "from-orange-50 via-white to-orange-100/70 border-orange-200",
+        badge: "border-orange-200 bg-orange-100 text-orange-700",
+        level: "Improvement Required",
+        levelText: "text-orange-700",
+      };
+    case "F":
+      return {
+        card: "from-rose-50 via-white to-rose-100/70 border-rose-200",
+        badge: "border-rose-200 bg-rose-100 text-rose-700",
+        level: "Fail",
+        levelText: "text-rose-700",
+      };
+    default:
+      return {
+        card: "from-slate-50 via-white to-slate-100 border-slate-200",
+        badge: "border-slate-200 bg-slate-100 text-slate-700",
+        level: "Pending",
+        levelText: "text-slate-600",
+      };
+  }
+}
+
 function reviewTone(reviewStatus: ReviewStatus) {
   return reviewStatus === "Revised"
     ? "border-violet-200 bg-violet-50 text-violet-700"
@@ -316,22 +363,31 @@ function MetricCard({
   title,
   value,
   sub,
+  accent = "from-white via-violet-50/40 to-fuchsia-50/60 border-violet-200/70",
+  valueClassName = "text-slate-900",
+  helper,
 }: {
   title: string;
   value: string;
   sub: string;
+  accent?: string;
+  valueClassName?: string;
+  helper?: React.ReactNode;
 }) {
   return (
-    <Panel className="overflow-hidden border-violet-200/70 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/60">
+    <div
+      className={`overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
+    >
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      <PanelBody>
-        <div className="text-sm font-semibold text-slate-600">{title}</div>
-        <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900 lg:text-[34px]">
+      <div className="p-5 lg:p-6">
+        <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
+        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
           {value}
         </div>
-        <div className="mt-2 text-xs leading-5 text-slate-500">{sub}</div>
-      </PanelBody>
-    </Panel>
+        {helper ? <div className="mt-3">{helper}</div> : null}
+        <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
+      </div>
+    </div>
   );
 }
 
@@ -1829,26 +1885,86 @@ export default function DashboardMockup({
                       title="Average Score"
                       value={metricAverageDisplay}
                       sub={`${metricCaseCount} case(s) in current view`}
+                      accent="from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
+                      valueClassName="text-violet-900"
+                      helper={
+                        <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
+                          Team Score
+                        </span>
+                      }
                     />
+
                     <MetricCard
                       title="Current Grade"
                       value={currentGradeDisplay}
                       sub={currentGradeSub}
+                      accent={currentGradeTone(currentGradeDisplay).card}
+                      valueClassName={currentGradeTone(currentGradeDisplay).levelText}
+                      helper={
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(
+                              currentGradeDisplay
+                            ).badge}`}
+                          >
+                            Grade {currentGradeDisplay}
+                          </span>
+                          <span
+                            className={`text-[12px] font-semibold ${currentGradeTone(currentGradeDisplay).levelText}`}
+                          >
+                            Status: {currentGradeTone(currentGradeDisplay).level}
+                          </span>
+                        </div>
+                      }
                     />
+
                     <MetricCard
                       title="Evaluation Progress"
                       value={`${metricCaseCount}/${CASE_TARGET}`}
                       sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
+                      accent={
+                        metricCaseCount >= CASE_TARGET
+                          ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                          : "from-amber-50 via-white to-amber-100/70 border-amber-200"
+                      }
+                      valueClassName={metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"}
+                      helper={
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                            metricCaseCount >= CASE_TARGET
+                              ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                              : "border-amber-200 bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {metricCaseCount >= CASE_TARGET ? "Completed" : "In Progress"}
+                        </span>
+                      }
                     />
+
                     <MetricCard
                       title="Estimated Incentive"
                       value={incentiveDisplay}
                       sub={incentiveRemark}
+                      accent="from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
+                      valueClassName="text-fuchsia-700"
+                      helper={
+                        <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
+                          Monthly Estimate
+                        </span>
+                      }
                     />
+
                     <MetricCard
                       title="Review Mix"
                       value={`${revisedCount}`}
                       sub="Revised case(s) in current view"
+                      accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
+                      valueClassName="text-sky-700"
+                      helper={
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                          Revised Cases
+                        </span>
+                      }
                     />
                   </div>
 
