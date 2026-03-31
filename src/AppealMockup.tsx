@@ -88,6 +88,13 @@ function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeCaseId(value: unknown) {
+  return String(value ?? "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toUpperCase();
+}
+
 function isSameAgent(a: string, b: string) {
   const na = normalizeText(a);
   const nb = normalizeText(b);
@@ -574,7 +581,7 @@ export default function AppealMockup({
 
         const rawCaseMap = new Map<string, any[]>();
         rawDataRows.forEach((rawRow) => {
-          const rawCaseId = String(rawHelper.getValue(rawRow, "Case ID") ?? "").trim();
+          const rawCaseId = normalizeCaseId(rawHelper.getValue(rawRow, "Case ID"));
           if (rawCaseId) rawCaseMap.set(rawCaseId, rawRow);
         });
 
@@ -607,7 +614,8 @@ export default function AppealMockup({
             const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
             if (!caseId) return null;
 
-            const rawRow = rawCaseMap.get(caseId);
+            const normalizedCaseId = normalizeCaseId(caseId);
+            const rawRow = rawCaseMap.get(normalizedCaseId);
 
             const agent = rawRow
               ? String(rawHelper.getValue(rawRow, "Agent Name") ?? "").trim()
@@ -658,20 +666,27 @@ export default function AppealMockup({
                 ).trim();
 
             const rawOverallScore =
-              rawHelper.getValue(rawRow || [], "Final Score") ?? 0;
+              rawHelper.getValue(rawRow || [], "Final Score") ?? null;
 
             const appealOverallScore =
               appealHelper.getLastValue(row, "Final Score") ??
               appealHelper.getValue(row, "Final Score") ??
               null;
 
-            const previousScore = Number(rawOverallScore || 0);
+            const previousScore = Number(
+              rawOverallScore !== null &&
+                rawOverallScore !== undefined &&
+                String(rawOverallScore).trim() !== ""
+                ? rawOverallScore
+                : 0
+            );
+
             const finalScore = Number(
               appealOverallScore !== null &&
                 appealOverallScore !== undefined &&
                 String(appealOverallScore).trim() !== ""
                 ? appealOverallScore
-                : rawOverallScore
+                : previousScore
             );
 
             const appealSubmitRaw =
