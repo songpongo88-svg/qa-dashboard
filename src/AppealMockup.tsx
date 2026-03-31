@@ -450,7 +450,9 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${statusTone.className}`}>
+            <span
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${statusTone.className}`}
+            >
               {statusTone.label}
             </span>
 
@@ -640,7 +642,12 @@ export default function AppealMockup({
                     rawHelper.getValue(rawRow, "Inquiry") ??
                     ""
                 ).trim()
-              : "";
+              : String(
+                  appealHelper.getValue(row, "Customer Inquiry") ??
+                    appealHelper.getValue(row, "Inquiry TH") ??
+                    appealHelper.getValue(row, "Inquiry") ??
+                    ""
+                ).trim();
 
             const auditDate = rawRow
               ? formatDateOnly(rawHelper.getValue(rawRow, "Audit Date"))
@@ -652,7 +659,11 @@ export default function AppealMockup({
                     rawHelper.getValue(rawRow, "Week") ??
                     "-"
                 ).trim()
-              : "-";
+              : String(
+                  appealHelper.getValue(row, "Week Label") ??
+                    appealHelper.getValue(row, "Week") ??
+                    "-"
+                ).trim();
 
             const caseUrl = rawRow
               ? String(
@@ -661,7 +672,12 @@ export default function AppealMockup({
                     rawHelper.getValue(rawRow, "URL") ??
                     ""
                 ).trim()
-              : "";
+              : String(
+                  appealHelper.getValue(row, "Case URL") ??
+                    appealHelper.getValue(row, "Case Url") ??
+                    appealHelper.getValue(row, "URL") ??
+                    ""
+                ).trim();
 
             const previousScoreRaw =
               appealHelper.getValue(row, "Final Score", 0) ??
@@ -679,24 +695,34 @@ export default function AppealMockup({
             const appealSubmitRaw =
               getFirstNonEmptyValue(appealHelper, row, [
                 "Appeal Submit Date & Time",
+                "APPEAL SUBMIT DATE & TIME",
                 "Appeal Submit Date",
                 "Submit Date & Time",
                 "Submit Date",
+                "Created",
+                "Created Date",
+                "File Created Date",
               ]) ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["appeal", "submit"]) ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["submit", "date"]) ??
-              getValueByHeaderIncludes(appealHeaderRow, row, ["submit"]);
+              getValueByHeaderIncludes(appealHeaderRow, row, ["submit"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["created"]);
 
             const appealResultRaw =
               getFirstNonEmptyValue(appealHelper, row, [
                 "Appeal Result Date & Time",
+                "APPEAL RESULT DATE & TIME",
                 "Appeal Result Date",
                 "Result Date & Time",
                 "Result Date",
+                "Created",
+                "Created Date",
+                "File Created Date",
               ]) ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["appeal", "result"]) ??
               getValueByHeaderIncludes(appealHeaderRow, row, ["result", "date"]) ??
-              getValueByHeaderIncludes(appealHeaderRow, row, ["result"]);
+              getValueByHeaderIncludes(appealHeaderRow, row, ["result"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["created"]);
 
             const appealChannelRaw = getFirstNonEmptyValue(appealHelper, row, [
               "Appeal Channel",
@@ -787,10 +813,10 @@ export default function AppealMockup({
               finalScore,
               reviewStatus: changedTopics.length ? "Revised" : "Original",
               grade: scoreToGrade(finalScore),
-              appealVersion: String(appealVersionRaw ?? "-").trim(),
-              appealSubmitDateTime: formatDateTime(appealSubmitRaw),
-              appealResultDateTime: formatDateTime(appealResultRaw),
-              appealChannel: String(appealChannelRaw ?? "-").trim(),
+              appealVersion: String(appealVersionRaw ?? "-").trim() || "-",
+              appealSubmitDateTime: formatDateTime(appealSubmitRaw) || "-",
+              appealResultDateTime: formatDateTime(appealResultRaw) || "-",
+              appealChannel: String(appealChannelRaw ?? "-").trim() || "-",
               caseUrl,
               appealedTopics,
               changedTopics,
@@ -872,9 +898,27 @@ export default function AppealMockup({
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     const left = 16;
     const right = pageWidth - 16;
+    const contentWidth = right - left;
     let y = 16;
+
+    const ensureSpace = (needed = 12) => {
+      if (y + needed > pageHeight - 16) {
+        doc.addPage();
+        y = 16;
+      }
+    };
+
+    const addSectionTitle = (text: string) => {
+      ensureSpace(12);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(88, 28, 135);
+      doc.text(text, left, y);
+      y += 8;
+    };
 
     const addLine = (
       text: string,
@@ -882,111 +926,93 @@ export default function AppealMockup({
       color: [number, number, number] = [51, 65, 85],
       gap = 6
     ) => {
+      ensureSpace(10);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
-      const lines = doc.splitTextToSize(text, right - left);
+      const lines = doc.splitTextToSize(text || "-", contentWidth);
       doc.text(lines, left, y);
       y += lines.length * (size * 0.4) + gap;
     };
 
     const addLabelValue = (label: string, value: string) => {
+      ensureSpace(8);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(88, 28, 135);
       doc.text(label, left, y);
+
       doc.setFont("helvetica", "normal");
       doc.setTextColor(51, 65, 85);
-      doc.text(value || "-", left + 40, y);
-      y += 6;
+      const lines = doc.splitTextToSize(value || "-", contentWidth - 42);
+      doc.text(lines, left + 42, y);
+      y += Math.max(6, lines.length * 5);
     };
 
     doc.setFillColor(91, 33, 182);
-    doc.roundedRect(left, y, right - left, 18, 3, 3, "F");
+    doc.roundedRect(left, y, contentWidth, 18, 3, 3, "F");
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
     doc.text("Robinhood QA Appeal Result", left + 6, y + 11);
     y += 26;
 
-    doc.setTextColor(190, 24, 93);
-    doc.setFillColor(255, 241, 242);
-    doc.roundedRect(left, y, right - left, 16, 3, 3, "F");
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Final Appeal Decision Completed", left + 6, y + 10);
-    y += 22;
-
     addLabelValue("Case ID", selectedCase.caseId);
     addLabelValue("Agent", selectedCase.agent);
-    addLabelValue("Audit Date", selectedCase.auditDate);
-    addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
-    addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
-    addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
+    addLabelValue("Audit Date", selectedCase.auditDate || "-");
+    addLabelValue("Week", selectedCase.weekLabel || "-");
     addLabelValue("Appeal Version", selectedCase.appealVersion || "-");
+    addLabelValue("Review Status", selectedCase.reviewStatus);
+    addLabelValue("Grade", selectedCase.grade);
     addLabelValue(
       "Score",
-      `${selectedCase.previousScore.toFixed(2)} -> ${selectedCase.finalScore.toFixed(2)} (${formatScoreDiff(
+      `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)} (${formatScoreDiff(
         selectedCase.previousScore,
         selectedCase.finalScore
       )})`
     );
-    y += 4;
+    addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
+    addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
+    addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    doc.text("Customer Inquiry", left, y);
-    y += 6;
-    addLine(selectedCase.inquiry || "-", 10);
+    addSectionTitle("Customer Inquiry");
+    addLine(selectedCase.inquiry || "-");
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    doc.text("Appealed Topics", left, y);
-    y += 8;
+    addSectionTitle("Appealed Topics");
+    if (!selectedCase.appealedTopics.length) {
+      addLine("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
+    } else {
+      selectedCase.appealedTopics.forEach((topic, idx) => {
+        addLine(
+          `${idx + 1}. ${topic.code} ${topic.label}`,
+          10,
+          [15, 23, 42],
+          4
+        );
+        addLine(
+          `Original Score: ${Number(topic.originalScore ?? 0)} | Revised Score: ${Number(
+            topic.score
+          )}`,
+          9,
+          [71, 85, 105],
+          4
+        );
+        if (topic.appealReason) {
+          addLine(`Appeal Reason: ${topic.appealReason}`, 9, [71, 85, 105], 4);
+        }
+        addLine(`Revised Comment: ${topic.comment || "-"}`, 9, [71, 85, 105], 6);
+      });
+    }
 
-    selectedCase.appealedTopics.forEach((topic, index) => {
-      if (y > 255) {
-        doc.addPage();
-        y = 16;
-      }
-
-      doc.setFillColor(245, 243, 255);
-      doc.roundedRect(left, y, right - left, 10, 2, 2, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(88, 28, 135);
-      doc.text(`${topic.code} ${topic.label}`, left + 4, y + 6.5);
-      y += 14;
-
-      addLabelValue("Score", `${topic.originalScore ?? topic.score} -> ${topic.score}`);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(88, 28, 135);
-      doc.text("Appeal Reason", left, y);
-      y += 5;
-      addLine(topic.appealReason || "-", 9);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(88, 28, 135);
-      doc.text("Revised Comment", left, y);
-      y += 5;
-      addLine(topic.comment || "-", 9);
-
-      if (index !== selectedCase.appealedTopics.length - 1) y += 2;
-    });
-
-    doc.save(`Appeal_Result_${selectedCase.caseId}.pdf`);
+    doc.save(`QA_Appeal_${selectedCase.caseId}.pdf`);
   };
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด Appeal Data...
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="rounded-3xl border border-violet-200 bg-white px-8 py-6 text-center shadow-sm">
+          <div className="text-lg font-bold text-violet-700">Loading appeal data...</div>
+          <div className="mt-2 text-sm text-slate-500">กรุณารอสักครู่</div>
         </div>
       </div>
     );
@@ -994,306 +1020,278 @@ export default function AppealMockup({
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
-        <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
-          <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
-          <div className="mt-2 text-sm">{loadError}</div>
-        </div>
+      <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-6 text-rose-700">
+        <div className="text-lg font-bold">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>
+        <div className="mt-2 text-sm">{loadError}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
-      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
-        <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-4xl">
-              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                Appeal Review
+    <div className="space-y-6">
+      <AppealClosedBanner />
+
+      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <Panel className="h-fit">
+          <PanelHeader
+            title="Appeal Case List"
+            subtitle="เลือกเคสที่ต้องการดูผลพิจารณาอุทธรณ์"
+          />
+          <PanelBody className="space-y-4">
+            {currentUser?.role !== "Agent" ? (
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Agent
+                </label>
+                <select
+                  value={selectedAgent}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSelectedAgent(next);
+                    onSelectedAgentChange?.(next);
+                  }}
+                  className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
+                >
+                  <option value="">All Agents</option>
+                  {visibleAgentList.map((agent) => (
+                    <option key={agent} value={agent}>
+                      {agent}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
-                Final Appeal Decision
-              </div>
-              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                แสดงผลการพิจารณาอุทธรณ์แบบกระชับ เน้นผลสรุป คะแนนเดิมเทียบคะแนนใหม่ เวลา และหัวข้อที่ยื่นอุทธรณ์
-              </div>
+            ) : null}
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Search Case ID
+              </label>
+              <input
+                value={searchCaseId}
+                onChange={(e) => setSearchCaseId(e.target.value)}
+                placeholder="เช่น AA206880"
+                className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
+              />
             </div>
 
-            <div className="rounded-[28px] border border-white/10 bg-white/10 px-5 py-4 backdrop-blur-sm">
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-200">
-                Visible Cases
-              </div>
-              <div className="mt-1 text-3xl font-extrabold">{filteredCases.length}</div>
-              <div className="mt-1 text-sm text-violet-100/90">
-                {currentUser?.role === "Agent" ? "Your appeal records" : "All visible appeal records"}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <Panel className="sticky top-4">
-              <PanelHeader title="Quick Search" subtitle="Filter by agent and Case ID" />
-              <PanelBody className="space-y-4">
-                {currentUser?.role === "Agent" ? (
-                  <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                    {effectiveSelectedAgent || "-"}
-                  </div>
-                ) : (
-                  <select
-                    value={selectedAgent}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedAgent(value);
-                      onSelectedAgentChange?.(value);
-                      setSelectedCaseKey("");
-                    }}
-                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                  >
-                    <option value="">All Agents</option>
-                    {visibleAgentList.map((agent) => (
-                      <option key={agent} value={agent}>
-                        {agent}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <input
-                  type="text"
-                  value={searchCaseId}
-                  onChange={(e) => setSearchCaseId(e.target.value)}
-                  placeholder="Search Case ID"
-                  className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                />
-
-                {searchCaseId.trim() ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearchCaseId("")}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Clear Search
-                  </button>
-                ) : null}
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Appeal Case List" subtitle="Select a case to view final appeal result" />
-              <PanelBody>
-                {!filteredCases.length ? (
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-6 text-center text-sm text-slate-500">
-                    ไม่พบเคสที่ตรงกับเงื่อนไข
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredCases.map((item) => (
-                      <QuickCaseCard
-                        key={item.key}
-                        item={item}
-                        isSelected={selectedCase?.key === item.key}
-                        onClick={() => setSelectedCaseKey(item.key)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </PanelBody>
-            </Panel>
-          </div>
-
-          <div className="space-y-6">
-            {selectedCase ? (
-              <>
-                <AppealClosedBanner />
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <ScoreCard
-                    title="Original Score"
-                    value={selectedCase.previousScore.toFixed(2)}
-                    tone="border-slate-200 bg-slate-50 text-slate-700"
-                    sub="Before appeal review"
-                  />
-                  <ScoreCard
-                    title="Revised Score"
-                    value={selectedCase.finalScore.toFixed(2)}
-                    tone="border-violet-200 bg-violet-50 text-violet-700"
-                    sub="After appeal review"
-                  />
-                  <ScoreCard
-                    title="Score Change"
-                    value={formatScoreDiff(selectedCase.previousScore, selectedCase.finalScore)}
-                    tone={scoreDiffTone(selectedCase.previousScore, selectedCase.finalScore)}
-                    sub="Net score impact"
-                  />
+            <div className="space-y-3">
+              {!filteredCases.length ? (
+                <div className="rounded-2xl border border-dashed border-violet-200 bg-white/70 p-6 text-center text-sm text-slate-500">
+                  ไม่พบข้อมูลเคส
                 </div>
+              ) : (
+                filteredCases.map((item) => (
+                  <QuickCaseCard
+                    key={item.key}
+                    item={item}
+                    isSelected={selectedCase?.key === item.key}
+                    onClick={() => setSelectedCaseKey(item.key)}
+                  />
+                ))
+              )}
+            </div>
+          </PanelBody>
+        </Panel>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-                  <Panel>
-                    <PanelHeader title="Case Summary" subtitle="Essential case and appeal information" />
-                    <PanelBody className="space-y-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                          {selectedCase.caseId}
-                        </span>
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(selectedCase.grade)}`}>
-                          Grade {selectedCase.grade}
-                        </span>
-                        <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
-                          Appeal Closed
-                        </span>
-                      </div>
+        <div className="space-y-6">
+          {!selectedCase ? (
+            <Panel>
+              <PanelBody>
+                <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-10 text-center text-sm text-slate-500">
+                  กรุณาเลือกเคสจากรายการด้านซ้าย
+                </div>
+              </PanelBody>
+            </Panel>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <ScoreCard
+                  title="Previous Score"
+                  value={selectedCase.previousScore.toFixed(2)}
+                  tone="border-slate-200 bg-slate-50 text-slate-800"
+                />
+                <ScoreCard
+                  title="Final Score"
+                  value={selectedCase.finalScore.toFixed(2)}
+                  tone="border-violet-200 bg-violet-50 text-violet-800"
+                />
+                <ScoreCard
+                  title="Score Change"
+                  value={formatScoreDiff(selectedCase.previousScore, selectedCase.finalScore)}
+                  tone={scoreDiffTone(selectedCase.previousScore, selectedCase.finalScore)}
+                />
+                <ScoreCard
+                  title="Grade"
+                  value={selectedCase.grade}
+                  tone={gradeTone(selectedCase.grade)}
+                  sub={selectedCase.reviewStatus}
+                />
+              </div>
 
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Agent
-                          </div>
-                          <div className="mt-1 text-sm font-semibold text-slate-900">
-                            {selectedCase.agent || "-"}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Appeal Version
-                          </div>
-                          <div className="mt-1 text-sm font-semibold text-slate-900">
-                            {selectedCase.appealVersion || "-"}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Audit Date
-                          </div>
-                          <div className="mt-1 text-sm font-semibold text-slate-900">
-                            {selectedCase.auditDate || "-"}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Week
-                          </div>
-                          <div className="mt-1 text-sm font-semibold text-slate-900">
-                            {selectedCase.weekLabel || "-"}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Customer Inquiry
-                        </div>
-                        <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
-                          {selectedCase.inquiry || "-"}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-3">
-                        {selectedCase.caseUrl ? (
-                          <a
-                            href={selectedCase.caseUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-                          >
-                            Open Case URL
-                          </a>
-                        ) : null}
-
-                        <button
-                          type="button"
-                          onClick={handleGeneratePdf}
-                          className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
-                        >
-                          Generate PDF
-                        </button>
-                      </div>
-                    </PanelBody>
-                  </Panel>
-
-                  <Panel>
-                    <PanelHeader title="Appeal Timeline" subtitle="Submit and final result timestamps" />
-                    <PanelBody className="space-y-4">
+              <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.2fr)_360px]">
+                <Panel>
+                  <PanelHeader
+                    title="Appeal Case Summary"
+                    subtitle="ข้อมูลสรุปของเคสและผลการพิจารณาอุทธรณ์"
+                  />
+                  <PanelBody className="space-y-5">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
-                          Appeal Submit Date & Time
+                          Case ID
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
-                          {selectedCase.appealSubmitDateTime || "-"}
+                          {selectedCase.caseId}
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700">
-                          Appeal Result Date & Time
+                      <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                          Agent
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
-                          {selectedCase.appealResultDateTime || "-"}
+                          {selectedCase.agent}
                         </div>
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Appeal Channel
+                          Audit Date
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
-                          {selectedCase.appealChannel || "-"}
+                          {selectedCase.auditDate || "-"}
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-red-50 px-4 py-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700">
-                          Final Decision
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Week Label
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
-                          Finalized and closed
-                        </div>
-                        <div className="mt-2 text-[12px] leading-6 text-slate-700">
-                          This case has completed the appeal review process and cannot be appealed again.
+                          {selectedCase.weekLabel || "-"}
                         </div>
                       </div>
-                    </PanelBody>
-                  </Panel>
-                </div>
 
-                <Panel>
-                  <PanelHeader
-                    title="Appealed Topics"
-                    subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
-                  />
-                  <PanelBody>
-                    {!selectedCase.appealedTopics.length ? (
-                      <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                        ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Appeal Version
+                        </div>
+                        <div className="mt-2 text-sm font-bold text-slate-900">
+                          {selectedCase.appealVersion || "-"}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {selectedCase.appealedTopics.map((topic) => (
-                          <TopicAppealCard key={`${selectedCase.caseId}-${topic.code}`} topic={topic} />
-                        ))}
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Review Status
+                        </div>
+                        <div className="mt-2 text-sm font-bold text-slate-900">
+                          {selectedCase.reviewStatus}
+                        </div>
                       </div>
-                    )}
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                        Customer Inquiry
+                      </div>
+                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                        {selectedCase.inquiry || "-"}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      {selectedCase.caseUrl ? (
+                        <a
+                          href={selectedCase.caseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                        >
+                          Open Case Link
+                        </a>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={handleGeneratePdf}
+                        className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
+                      >
+                        Generate PDF
+                      </button>
+                    </div>
                   </PanelBody>
                 </Panel>
-              </>
-            ) : (
+
+                <Panel>
+                  <PanelHeader title="Appeal Timeline" subtitle="Submit and final result timestamps" />
+                  <PanelBody className="space-y-4">
+                    <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                        Appeal Submit Date & Time
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-900">
+                        {selectedCase.appealSubmitDateTime || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+                        Appeal Result Date & Time
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-900">
+                        {selectedCase.appealResultDateTime || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Appeal Channel
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-900">
+                        {selectedCase.appealChannel || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50 to-red-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+                        Final Decision
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-900">
+                        Finalized and closed
+                      </div>
+                      <div className="mt-2 text-[12px] leading-6 text-slate-700">
+                        This case has completed the appeal review process and cannot be appealed again.
+                      </div>
+                    </div>
+                  </PanelBody>
+                </Panel>
+              </div>
+
               <Panel>
-                <PanelHeader title="Appeal Result" />
+                <PanelHeader
+                  title="Appealed Topics"
+                  subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
+                />
                 <PanelBody>
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                    กรุณาเลือกเคสจากรายการด้านซ้าย
-                  </div>
+                  {!selectedCase.appealedTopics.length ? (
+                    <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
+                      ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {selectedCase.appealedTopics.map((topic) => (
+                        <TopicAppealCard
+                          key={`${selectedCase.caseId}-${topic.code}`}
+                          topic={topic}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </PanelBody>
               </Panel>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>
