@@ -666,18 +666,39 @@ export default function AppealMockup({
                     ""
                 ).trim();
 
-            const previousScoreRaw =
-              appealHelper.getValue(row, "Final Score", 0) ??
+            const originalScoreRaw =
+              getFirstNonEmptyValue(appealHelper, row, [
+                "Original Score",
+                "Previous Score",
+                "Initial Score",
+                "Score Before Appeal",
+                "Pre-Appeal Score",
+                "QA Score",
+              ]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["original", "score"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["previous", "score"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["before", "appeal"]) ??
               rawHelper.getValue(rawRow || [], "Final Score") ??
+              rawHelper.getValue(rawRow || [], "QA Score") ??
               0;
 
-            const finalScoreRaw =
+            const revisedScoreRaw =
+              getFirstNonEmptyValue(appealHelper, row, [
+                "Final Score",
+                "Revised Final Score",
+                "Revised Score",
+                "Score After Appeal",
+                "Post-Appeal Score",
+              ]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["final", "score"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["revised", "score"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["after", "appeal"]) ??
               appealHelper.getLastValue(row, "Final Score") ??
               rawHelper.getValue(rawRow || [], "Final Score") ??
               0;
 
-            const previousScore = Number(previousScoreRaw || 0);
-            const finalScore = Number(finalScoreRaw || 0);
+            const previousScore = Number(originalScoreRaw || 0);
+            const finalScore = Number(revisedScoreRaw || 0);
 
             const appealSubmitRaw =
               getFirstNonEmptyValue(appealHelper, row, [
