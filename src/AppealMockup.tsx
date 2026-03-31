@@ -145,6 +145,14 @@ function getFirstNonEmptyValue(
   return null;
 }
 
+function getValueByHeaderIncludes(headerRow: any[], row: any[], keywords: string[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+  const foundIndex = normalizedHeaders.findIndex((header) =>
+    keywords.every((keyword) => header.includes(normalizeText(keyword)))
+  );
+  return foundIndex >= 0 ? row[foundIndex] : null;
+}
+
 function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A";
   if (score >= 80) return "B";
@@ -480,7 +488,7 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
               Score Change
             </div>
             <div className="mt-2 text-2xl font-extrabold">
-              {diff > 0 ? `+${diff}` : diff}
+              {diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0"}
             </div>
           </div>
         </div>
@@ -490,6 +498,7 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
             <div className="text-sm font-semibold text-slate-800">Score Comparison</div>
             <div className="text-sm font-bold text-violet-800">
               {originalScore} → {revisedScore}
+              {diff === 0 ? " (No Change)" : ""}
             </div>
           </div>
         </div>
@@ -505,16 +514,7 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
           </div>
         ) : null}
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Original Comment
-            </div>
-            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-              {topic.originalComment || "No original comment"}
-            </div>
-          </div>
-
+        <div className="mt-4">
           <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
               Revised Comment
@@ -676,19 +676,27 @@ export default function AppealMockup({
             const previousScore = Number(previousScoreRaw || 0);
             const finalScore = Number(finalScoreRaw || 0);
 
-            const appealSubmitRaw = getFirstNonEmptyValue(appealHelper, row, [
-              "Appeal Submit Date & Time",
-              "Appeal Submit Date",
-              "Submit Date & Time",
-              "Submit Date",
-            ]);
+            const appealSubmitRaw =
+              getFirstNonEmptyValue(appealHelper, row, [
+                "Appeal Submit Date & Time",
+                "Appeal Submit Date",
+                "Submit Date & Time",
+                "Submit Date",
+              ]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["appeal", "submit"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["submit", "date"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["submit"]);
 
-            const appealResultRaw = getFirstNonEmptyValue(appealHelper, row, [
-              "Appeal Result Date & Time",
-              "Appeal Result Date",
-              "Result Date & Time",
-              "Result Date",
-            ]);
+            const appealResultRaw =
+              getFirstNonEmptyValue(appealHelper, row, [
+                "Appeal Result Date & Time",
+                "Appeal Result Date",
+                "Result Date & Time",
+                "Result Date",
+              ]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["appeal", "result"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["result", "date"]) ??
+              getValueByHeaderIncludes(appealHeaderRow, row, ["result"]);
 
             const appealChannelRaw = getFirstNonEmptyValue(appealHelper, row, [
               "Appeal Channel",
@@ -960,13 +968,6 @@ export default function AppealMockup({
       doc.text("Appeal Reason", left, y);
       y += 5;
       addLine(topic.appealReason || "-", 9);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(88, 28, 135);
-      doc.text("Original Comment", left, y);
-      y += 5;
-      addLine(topic.originalComment || "-", 9);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
