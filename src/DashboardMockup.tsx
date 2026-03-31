@@ -11,7 +11,7 @@ type Topic = {
   max: number;
   pct: number;
   comment?: string;
-};
+}
 
 type CaseItem = {
   key: string;
