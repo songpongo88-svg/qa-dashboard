@@ -691,6 +691,7 @@ export default function AppealMockup({
 
             const appealSubmitRaw =
               getFirstNonEmptyValue(appealHelper, row, [
+                "Appeal Submit",
                 "Appeal Submit Date & Time",
                 "APPEAL SUBMIT DATE & TIME",
                 "Appeal Submit Date",
@@ -703,6 +704,7 @@ export default function AppealMockup({
 
             const appealResultRaw =
               getFirstNonEmptyValue(appealHelper, row, [
+                "Appeal Result",
                 "Appeal Result Date & Time",
                 "APPEAL RESULT DATE & TIME",
                 "Appeal Result Date",
@@ -713,10 +715,11 @@ export default function AppealMockup({
                 "File Created Date",
               ]) ?? null;
 
-            const appealChannelRaw = getFirstNonEmptyValue(appealHelper, row, [
-              "Appeal Channel",
-              "Channel",
-            ]);
+            const appealChannelRaw =
+              getFirstNonEmptyValue(appealHelper, row, [
+                "Appeal Channel",
+                "Channel",
+              ]) ?? "-";
 
             const appealVersionRaw = getFirstNonEmptyValue(appealHelper, row, [
               "Appeal Version",
@@ -948,17 +951,14 @@ export default function AppealMockup({
     addLabelValue("Case ID", selectedCase.caseId);
     addLabelValue("Agent", selectedCase.agent);
     addLabelValue("Audit Date", selectedCase.auditDate || "-");
-    addLabelValue("Week", selectedCase.weekLabel || "-");
+    addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
+    addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
+    addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
     addLabelValue("Appeal Version", selectedCase.appealVersion || "-");
-    addLabelValue("Review Status", selectedCase.reviewStatus);
-    addLabelValue("Grade", selectedCase.grade);
     addLabelValue(
       "Score",
       `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`
     );
-    addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
-    addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
-    addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
 
     addSectionTitle("Customer Inquiry");
     addLine(selectedCase.inquiry || "-");
@@ -967,8 +967,9 @@ export default function AppealMockup({
     if (!selectedCase.appealedTopics.length) {
       addLine("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
     } else {
-      selectedCase.appealedTopics.forEach((topic, idx) => {
-        addLine(`${idx + 1}. ${topic.code} ${topic.label}`, 10, [15, 23, 42], 4);
+      selectedCase.appealedTopics.forEach((topic, index) => {
+        ensureSpace(28);
+        addLine(`${index + 1}. ${topic.code} ${topic.label}`, 10, [15, 23, 42], 4);
         addLine(
           `Original Score: ${Number(topic.originalScore ?? 0)} | Revised Score: ${Number(
             topic.score
