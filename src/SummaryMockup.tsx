@@ -131,6 +131,21 @@ const TEAM_MASTER: Record<string, string[]> = {
 
 const EXCLUDED_AGENTS = ["Arisa aiemrit"];
 
+const AGENT_MASTER = [
+  "Anucha Makundin",
+  "Chatkonnaphat Bhusomya",
+  "Jariyawadee Taboodda",
+  "Jureeporn Piddum",
+  "Krivut Vongkampan",
+  "Natcha Chai-in",
+  "Nattapol Suprom",
+  "Sunijtra Siritip",
+  "Supakrit Promkhamnoi",
+  "Suphitcha Keawliam",
+  "Wachiraporn chailittichai",
+  "Wassana Phothong",
+].sort((a, b) => a.localeCompare(b));
+
 function normalizeText(value: unknown) {
   return String(value ?? "")
     .replace(/\u00A0/g, " ")
@@ -350,26 +365,28 @@ function getLowestTopicLabel(topicSummary: TopicSummary[]) {
   return lowest ? lowest.label : "-";
 }
 
-function buildAgentRanking(cases: CaseItem[]): AgentRow[] {
-  const grouped = new Map<string, CaseItem[]>();
+function buildAgentRanking(cases: CaseItem[], selectedTeam: string = "all"): AgentRow[] {
+  const visibleAgents =
+    selectedTeam === "all"
+      ? AGENT_MASTER.filter((agent) => !isExcludedAgent(agent))
+      : (TEAM_MASTER[selectedTeam] || []).filter((agent) => !isExcludedAgent(agent));
 
-  cases.forEach((item) => {
-    if (!grouped.has(item.agent)) grouped.set(item.agent, []);
-    grouped.get(item.agent)!.push(item);
-  });
+  return visibleAgents
+    .map((agent) => {
+      const items = cases.filter((item) => isSameAgent(item.agent, agent));
+      const avg =
+        items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
 
-  return [...grouped.entries()]
-    .map(([agent, items]) => {
-      const avg = items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
-      const gradeDisplay = getGradeDisplay(items.length, avg);
+      const avgScore = items.length ? Number(avg.toFixed(2)) : 0;
+      const gradeDisplay = items.length === 0 ? "F" : getGradeDisplay(items.length, avgScore);
 
       return {
         agent,
-        team: items[0]?.team || getAgentTeam(agent),
+        team: getAgentTeam(agent),
         cases: items.length,
-        avgScore: Number(avg.toFixed(2)),
+        avgScore,
         gradeDisplay,
-        incentive: getIncentiveValue(items.length, avg),
+        incentive: items.length === 0 ? 0 : getIncentiveValue(items.length, avgScore),
         critical: 0,
         status:
           items.length === 0
@@ -379,7 +396,10 @@ function buildAgentRanking(cases: CaseItem[]): AgentRow[] {
             : "Ready",
       };
     })
-    .sort((a, b) => b.avgScore - a.avgScore);
+    .sort((a, b) => {
+      if (b.avgScore !== a.avgScore) return b.avgScore - a.avgScore;
+      return a.agent.localeCompare(b.agent);
+    });
 }
 
 function formatMonthValue(selectedMonth: string) {
@@ -1269,7 +1289,10 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   const agentAvg =
     agentBaseCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(agentBaseCases.length, 1);
 
-  const teamRanking = useMemo(() => buildAgentRanking(teamBaseCases), [teamBaseCases]);
+  const teamRanking = useMemo(
+    () => buildAgentRanking(teamBaseCases, selectedTeam),
+    [teamBaseCases, selectedTeam]
+  );
 
   const topAgentByYear = useMemo(() => teamRanking[0]?.agent || "-", [teamRanking]);
 
@@ -1399,8 +1422,8 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   );
 
   const monthlyTeamRanking = useMemo(
-    () => buildAgentRanking(monthlyTeamCases),
-    [monthlyTeamCases]
+    () => buildAgentRanking(monthlyTeamCases, selectedTeam),
+    [monthlyTeamCases, selectedTeam]
   );
 
   const monthlyTop5Agents = useMemo(() => {
@@ -1926,10 +1949,12 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                     <TrendLineChart
                       title="Yearly Agent Trend"
                       subtitle="Monthly average score for selected agent"
-                      data={yearlyAgentTrend.map((row) => ({
-                        label: row.label.slice(0, 3),
-                        value: row.avgScore,
-                      })).filter((row) => row.value > 0)}
+                      data={yearlyAgentTrend
+                        .map((row) => ({
+                          label: row.label.slice(0, 3),
+                          value: row.avgScore,
+                        }))
+                        .filter((row) => row.value > 0)}
                     />
                   </Section>
 
