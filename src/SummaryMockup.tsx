@@ -3,8 +3,8 @@ import * as XLSX from "xlsx";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
-type ViewMode = "overall" | "by-agent";
 type PeriodType = "weekly" | "monthly" | "yearly";
+type ScopeType = "team" | "agent";
 
 type Topic = {
   code: string;
@@ -25,6 +25,7 @@ type CaseItem = {
   auditMonthLabel: string;
   weekLabel: string;
   caseId: string;
+  inquiry: string;
   finalScore: number;
   previousScore?: number;
   grade: Grade;
@@ -32,6 +33,14 @@ type CaseItem = {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   displayRevisedTopicCodes?: string[];
+};
+
+type AppealMergeItem = {
+  caseId: string;
+  finalScore?: number;
+  previousScore?: number;
+  revisedTopics: Topic[];
+  displayRevisedTopicCodes: string[];
 };
 
 type TopicSummary = {
@@ -42,12 +51,14 @@ type TopicSummary = {
   pct: number;
 };
 
-type AppealMergeItem = {
-  caseId: string;
-  finalScore?: number;
-  previousScore?: number;
-  revisedTopics: Topic[];
-  displayRevisedTopicCodes: string[];
+type AgentSummary = {
+  agent: string;
+  cases: number;
+  avgScore: number;
+  gradeDisplay: string;
+  incentive: number;
+  critical: number;
+  status: string;
 };
 
 const CASE_TARGET = 10;
@@ -140,8 +151,8 @@ function scoreToGrade(score: number): Grade {
   return "F";
 }
 
-function gradeStatus(grade: string) {
-  switch (grade) {
+function gradeStatus(gradeDisplay: string) {
+  switch (gradeDisplay) {
     case "A":
       return "Excellent";
     case "B":
@@ -157,8 +168,8 @@ function gradeStatus(grade: string) {
   }
 }
 
-function gradeTone(grade: string) {
-  switch (grade) {
+function gradeTone(gradeDisplay: string) {
+  switch (gradeDisplay) {
     case "A":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "B":
@@ -188,6 +199,12 @@ function getIncentiveValue(caseCount: number, avg: number) {
   if (avg >= 80) return 700;
   if (avg >= 70) return 300;
   return 0;
+}
+
+function getMonthlyGradeDisplay(caseCount: number, avgScore: number) {
+  if (caseCount === 0) return "F";
+  if (caseCount < CASE_TARGET) return "Pending";
+  return scoreToGrade(avgScore);
 }
 
 function excelDateToJSDate(value: any): Date | null {
@@ -283,40 +300,72 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
   });
 }
 
-function getPeriodSubtitle(periodType: PeriodType) {
-  if (periodType === "weekly") return "Weekly performance analysis";
-  if (periodType === "monthly") return "Monthly performance analysis";
-  return "Yearly performance analysis";
+function getBestTopicLabel(topicSummary: TopicSummary[]) {
+  const best = [...topicSummary].sort((a, b) => b.pct - a.pct)[0];
+  return best ? best.label : "-";
 }
 
-function SectionHeader({
+function getLowestTopicLabel(topicSummary: TopicSummary[]) {
+  const lowest = [...topicSummary].sort((a, b) => a.pct - b.pct)[0];
+  return lowest ? lowest.label : "-";
+}
+
+function groupByAgent(cases: CaseItem[]): AgentSummary[] {
+  const map = new Map<string, CaseItem[]>();
+
+  cases.forEach((item) => {
+    if (!map.has(item.agent)) map.set(item.agent, []);
+    map.get(item.agent)!.push(item);
+  });
+
+  return [...map.entries()]
+    .map(([agent, items]) => {
+      const avg = items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
+      const gradeDisplay = getMonthlyGradeDisplay(items.length, avg);
+
+      return {
+        agent,
+        cases: items.length,
+        avgScore: Number(avg.toFixed(2)),
+        gradeDisplay,
+        incentive: getIncentiveValue(items.length, avg),
+        critical: 0,
+        status:
+          items.length >= CASE_TARGET ? "Ready" : items.length === 0 ? "No reviewed cases" : "Need 10 cases",
+      };
+    })
+    .sort((a, b) => b.avgScore - a.avgScore);
+}
+
+function SectionCard({
   title,
   subtitle,
-  badge,
+  children,
+  right,
 }: {
   title: string;
   subtitle?: string;
-  badge?: string;
+  children: React.ReactNode;
+  right?: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
+    <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_14px_34px_rgba(76,29,149,0.08)]">
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      <div className="flex flex-col gap-3 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="text-[19px] font-bold tracking-tight text-slate-900">{title}</div>
-          {subtitle ? <div className="mt-1 text-sm text-slate-500">{subtitle}</div> : null}
+      <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-6 py-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[20px] font-bold tracking-tight text-slate-900">{title}</div>
+            {subtitle ? <div className="mt-1 text-sm text-slate-500">{subtitle}</div> : null}
+          </div>
+          {right}
         </div>
-        {badge ? (
-          <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
-            {badge}
-          </span>
-        ) : null}
       </div>
+      <div className="p-6">{children}</div>
     </div>
   );
 }
 
-function FilterChip({
+function PillButton({
   label,
   active,
   onClick,
@@ -340,242 +389,166 @@ function FilterChip({
   );
 }
 
-function PremiumMetricCard({
+function KpiCard({
   title,
   value,
-  sub,
   badge,
+  sub,
   tone = "violet",
 }: {
   title: string;
   value: string;
+  badge?: string;
   sub?: string;
-  badge?: React.ReactNode;
   tone?: "violet" | "emerald" | "sky" | "amber" | "rose" | "slate";
 }) {
   const toneMap = {
-    violet:
-      "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80 text-violet-900",
-    emerald:
-      "from-emerald-50 via-white to-emerald-100/70 border-emerald-200 text-emerald-700",
-    sky: "from-sky-50 via-white to-indigo-100/60 border-sky-200 text-sky-700",
-    amber: "from-amber-50 via-white to-amber-100/70 border-amber-200 text-amber-700",
-    rose: "from-rose-50 via-white to-rose-100/70 border-rose-200 text-rose-700",
-    slate: "from-slate-50 via-white to-slate-100 border-slate-200 text-slate-800",
+    violet: "border-violet-200/80 from-white via-violet-50/45 to-fuchsia-50/55",
+    emerald: "border-emerald-200 from-emerald-50 via-white to-emerald-100/65",
+    sky: "border-sky-200 from-sky-50 via-white to-indigo-100/55",
+    amber: "border-amber-200 from-amber-50 via-white to-amber-100/65",
+    rose: "border-rose-200 from-rose-50 via-white to-rose-100/65",
+    slate: "border-slate-200 from-slate-50 via-white to-slate-100",
+  };
+
+  const badgeToneMap = {
+    violet: "border-violet-200 bg-violet-100 text-violet-700",
+    emerald: "border-emerald-200 bg-emerald-100 text-emerald-700",
+    sky: "border-sky-200 bg-sky-100 text-sky-700",
+    amber: "border-amber-200 bg-amber-100 text-amber-700",
+    rose: "border-rose-200 bg-rose-100 text-rose-700",
+    slate: "border-slate-200 bg-slate-100 text-slate-700",
   };
 
   return (
-    <div
-      className={`overflow-hidden rounded-[28px] border bg-gradient-to-br shadow-[0_10px_30px_rgba(91,33,182,0.08)] ${toneMap[tone]}`}
-    >
+    <div className={`overflow-hidden rounded-[28px] border bg-gradient-to-br shadow-sm ${toneMap[tone]}`}>
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      <div className="p-5 lg:p-6">
+      <div className="p-5">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className="mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px]">{value}</div>
-        {badge ? <div className="mt-3">{badge}</div> : null}
+        <div className="mt-3 text-[40px] font-extrabold leading-none tracking-tight text-slate-900">
+          {value}
+        </div>
+        {badge ? (
+          <div className="mt-3">
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${badgeToneMap[tone]}`}>
+              {badge}
+            </span>
+          </div>
+        ) : null}
         {sub ? <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div> : null}
       </div>
     </div>
   );
 }
 
-function SummaryStat({
-  label,
-  value,
-  tone = "slate",
+function KeyValueGrid({
+  items,
 }: {
-  label: string;
-  value: string;
-  tone?: "emerald" | "sky" | "violet" | "amber" | "rose" | "slate";
+  items: {
+    label: string;
+    value: string | number;
+    valueClassName?: string;
+  }[];
 }) {
-  const toneMap = {
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    sky: "border-sky-200 bg-sky-50 text-sky-700",
-    violet: "border-violet-200 bg-violet-50 text-violet-700",
-    amber: "border-amber-200 bg-amber-50 text-amber-700",
-    rose: "border-rose-200 bg-rose-50 text-rose-700",
-    slate: "border-slate-200 bg-slate-50 text-slate-700",
-  };
-
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </div>
-      <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold ${toneMap[tone]}`}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function ExecutiveSummaryCard({
-  averageScore,
-  currentGrade,
-  currentStatus,
-  progress,
-  incentive,
-  revisedCount,
-  strongestTopic,
-  weakestTopic,
-}: {
-  averageScore: string;
-  currentGrade: string;
-  currentStatus: string;
-  progress: string;
-  incentive: string;
-  revisedCount: number;
-  strongestTopic: string;
-  weakestTopic: string;
-}) {
-  const gradeColor =
-    currentGrade === "A"
-      ? "emerald"
-      : currentGrade === "B"
-      ? "sky"
-      : currentGrade === "C"
-      ? "amber"
-      : currentGrade === "D" || currentGrade === "F"
-      ? "rose"
-      : "slate";
-
-  return (
-    <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_14px_34px_rgba(76,29,149,0.10)]">
-      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      <div className="grid gap-6 px-6 py-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[26px] border border-violet-100 bg-gradient-to-br from-white via-violet-50/35 to-fuchsia-50/45 p-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-semibold text-slate-500">Overall Grade</span>
-            <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${gradeTone(currentGrade)}`}>
-              {currentGrade}
-            </span>
-            <span className="text-sm font-semibold text-slate-700">{currentStatus}</span>
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {items.map((item) => (
+        <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            {item.label}
           </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <SummaryStat label="Average Score" value={averageScore} tone="violet" />
-            <SummaryStat label="Progress" value={progress} tone="emerald" />
-            <SummaryStat label="Incentive" value={incentive} tone="amber" />
-            <SummaryStat label="Revised Cases" value={String(revisedCount)} tone="sky" />
-            <SummaryStat label="Status Level" value={currentStatus} tone={gradeColor as any} />
-            <SummaryStat label="Summary View" value="Executive" tone="slate" />
+          <div className={`mt-2 text-base font-bold ${item.valueClassName || "text-slate-900"}`}>
+            {item.value}
           </div>
         </div>
-
-        <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-700">
-            Executive Reading
-          </div>
-          <div className="mt-4 space-y-4 text-sm leading-6 text-slate-700">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              Current performance is at <span className="font-bold text-violet-700">{averageScore}</span>{" "}
-              with grade <span className="font-bold text-slate-900">{currentGrade}</span>.
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              Reviewed volume in this view is <span className="font-semibold text-slate-900">{progress}</span>.
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              Strongest topic is <span className="font-semibold text-emerald-700">{strongestTopic}</span>.
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              Main coaching focus is <span className="font-semibold text-rose-700">{weakestTopic}</span>.
-            </div>
-          </div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
 
-function InsightCard({
-  title,
-  subtitle,
-  tone = "violet",
-  children,
+function TrendMiniTable({
+  rows,
+  col1Label,
+  col2Label,
+  col3Label,
 }: {
-  title: string;
-  subtitle: string;
-  tone?: "violet" | "emerald" | "rose" | "sky";
-  children: React.ReactNode;
-}) {
-  const toneMap = {
-    violet: "from-violet-50 via-white to-fuchsia-50 border-violet-200",
-    emerald: "from-emerald-50 via-white to-emerald-100/60 border-emerald-200",
-    rose: "from-rose-50 via-white to-rose-100/60 border-rose-200",
-    sky: "from-sky-50 via-white to-indigo-100/60 border-sky-200",
-  };
-
-  return (
-    <div className={`rounded-[26px] border bg-gradient-to-br ${toneMap[tone]} p-5 shadow-sm`}>
-      <div className="text-base font-bold tracking-tight text-slate-900">{title}</div>
-      <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
-      <div className="mt-4">{children}</div>
-    </div>
-  );
-}
-
-function SimpleListItem({
-  label,
-  value,
-  valueTone = "text-slate-900",
-}: {
-  label: string;
-  value: string;
-  valueTone?: string;
+  rows: { label: string; cases: number; avg: number; status?: string }[];
+  col1Label: string;
+  col2Label: string;
+  col3Label: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </div>
-      <div className={`mt-1 text-sm font-semibold ${valueTone}`}>{value}</div>
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[520px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-3 py-3 text-left">{col1Label}</th>
+            <th className="px-3 py-3 text-center">{col2Label}</th>
+            <th className="px-3 py-3 text-center">{col3Label}</th>
+            <th className="px-3 py-3 text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 font-medium text-slate-800">
+                {row.label}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.cases}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{row.avg.toFixed(2)}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center text-slate-600">
+                {row.status || "-"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function ComparisonBarChart({
-  data,
-  title,
-  subtitle,
-}: {
-  data: { label: string; value: number }[];
-  title: string;
-  subtitle: string;
-}) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-
+function RankingTable({ items }: { items: AgentSummary[] }) {
   return (
-    <div className="rounded-[26px] border border-violet-200/70 bg-white p-5 shadow-sm">
-      <div className="text-base font-bold tracking-tight text-slate-900">{title}</div>
-      <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
-
-      <div className="mt-6">
-        <div className="relative flex items-end gap-4" style={{ height: 250 }}>
-          {data.map((item) => {
-            const h = Math.max((item.value / max) * 180, item.value > 0 ? 16 : 6);
-
-            return (
-              <div key={item.label} className="flex flex-1 flex-col items-center justify-end gap-2">
-                <div className="text-xs font-bold text-slate-700">{item.value.toFixed(1)}</div>
-                <div className="flex w-full items-end">
-                  <div
-                    className="w-full rounded-t-[18px] bg-gradient-to-t from-violet-800 via-violet-600 to-fuchsia-400 shadow-[0_12px_24px_rgba(124,58,237,0.18)]"
-                    style={{ height: h }}
-                  />
-                </div>
-                <div className="text-center text-[11px] font-medium leading-4 text-slate-500">
-                  {item.label}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[860px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-3 py-3 text-center">Seq</th>
+            <th className="px-3 py-3 text-left">Agent</th>
+            <th className="px-3 py-3 text-center">Cases</th>
+            <th className="px-3 py-3 text-center">Avg Score</th>
+            <th className="px-3 py-3 text-center">Grade</th>
+            <th className="px-3 py-3 text-center">Incentive</th>
+            <th className="px-3 py-3 text-center">Critical</th>
+            <th className="px-3 py-3 text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, index) => (
+            <tr key={item.agent} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{index + 1}</td>
+              <td className="border-t border-slate-200 px-3 py-3 font-medium text-slate-900">
+                {item.agent}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.cases}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.avgScore.toFixed(2)}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(item.gradeDisplay)}`}>
+                  {item.gradeDisplay}
+                </span>
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.incentive}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.critical}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center text-slate-600">{item.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function TopicRankingTable({ items }: { items: TopicSummary[] }) {
+function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
       <table className="min-w-[760px] w-full text-sm">
@@ -585,7 +558,7 @@ function TopicRankingTable({ items }: { items: TopicSummary[] }) {
             <th className="px-3 py-3 text-left">Description</th>
             <th className="px-3 py-3 text-center">Avg Score</th>
             <th className="px-3 py-3 text-center">Max</th>
-            <th className="px-3 py-3 text-center">Avg %</th>
+            <th className="px-3 py-3 text-center">Performance %</th>
           </tr>
         </thead>
         <tbody>
@@ -594,16 +567,10 @@ function TopicRankingTable({ items }: { items: TopicSummary[] }) {
               <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">
                 {entry.code}
               </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-slate-700">
-                {entry.label}
-              </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {entry.avgScore.toFixed(2)}
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-slate-700">{entry.label}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {entry.pct.toFixed(2)}%
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.pct.toFixed(1)}%</td>
             </tr>
           ))}
         </tbody>
@@ -612,55 +579,78 @@ function TopicRankingTable({ items }: { items: TopicSummary[] }) {
   );
 }
 
-function AgentRankingTable({
-  items,
-}: {
-  items: {
-    agent: string;
-    average: number;
-    grade: string;
-    caseCount: number;
-    revisedCount: number;
-  }[];
-}) {
+function CaseListTable({ items }: { items: CaseItem[] }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[760px] w-full text-sm">
+      <table className="min-w-[980px] w-full text-sm">
         <thead>
           <tr className="bg-violet-950 text-[11px] text-white">
-            <th className="px-3 py-3 text-left">Agent</th>
-            <th className="px-3 py-3 text-center">Average</th>
+            <th className="px-3 py-3 text-center">Seq</th>
+            <th className="px-3 py-3 text-center">Audit Date</th>
+            <th className="px-3 py-3 text-left">Case ID</th>
+            <th className="px-3 py-3 text-left">Inquiry</th>
+            <th className="px-3 py-3 text-center">Final Score</th>
             <th className="px-3 py-3 text-center">Grade</th>
-            <th className="px-3 py-3 text-center">Cases</th>
-            <th className="px-3 py-3 text-center">Revised</th>
+            <th className="px-3 py-3 text-center">Review</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((entry) => (
-            <tr key={entry.agent} className="bg-white">
-              <td className="border-t border-slate-200 px-3 py-3 font-semibold text-slate-900">
-                {entry.agent}
-              </td>
+          {items.map((item, index) => (
+            <tr key={item.key} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{index + 1}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.auditDate}</td>
+              <td className="border-t border-slate-200 px-3 py-3 font-medium text-slate-900">{item.caseId}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-slate-700">{item.inquiry || "-"}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{item.finalScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {entry.average.toFixed(2)}
-              </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(
-                    entry.grade
-                  )}`}
-                >
-                  {entry.grade}
+                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(item.grade)}`}>
+                  {item.grade}
                 </span>
               </td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.caseCount}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {entry.revisedCount}
-              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center text-slate-600">{item.reviewStatus}</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function LogoHero() {
+  return (
+    <div className="overflow-hidden rounded-[34px] border border-violet-200/80 bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_18px_48px_rgba(76,29,149,0.18)]">
+      <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
+            Robinhood QA
+          </div>
+          <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
+            Executive Summary Workspace
+          </div>
+          <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/90">
+            Power BI inspired summary view for Weekly, Monthly, and Yearly performance tracking.
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md">
+            <img
+              src="/robinhood-logo.png"
+              alt="Robinhood Logo"
+              className="h-16 w-16 object-contain"
+            />
+          </div>
+          <div className="hidden sm:block">
+            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+              Quality Monitoring
+            </div>
+            <div className="mt-1 text-lg font-semibold text-white">Corporate Summary Dashboard</div>
+            <div className="mt-1 text-sm text-violet-100/90">
+              Weekly · Monthly · Yearly performance intelligence
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -670,12 +660,22 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const [viewMode, setViewMode] = useState<ViewMode>("overall");
+  const isAgentRole = currentUser?.role === "Agent";
+  const [scope, setScope] = useState<ScopeType>(isAgentRole ? "agent" : "team");
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
-  const [selectedAgent, setSelectedAgent] = useState<string>("all");
+  const [selectedAgent, setSelectedAgent] = useState<string>(
+    isAgentRole && currentUser?.agentName ? currentUser.agentName : "all"
+  );
+
+  useEffect(() => {
+    if (isAgentRole && currentUser?.agentName) {
+      setScope("agent");
+      setSelectedAgent(currentUser.agentName);
+    }
+  }, [isAgentRole, currentUser]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -726,8 +726,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
         const appealSheet =
-          appealWorkbook.Sheets["Appeal_Data"] ||
-          appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
+          appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
 
         const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
           header: 1,
@@ -829,10 +828,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
         const mapped: CaseItem[] = rawDataRows
           .filter(
-            (row) =>
-              row &&
-              rawHelper.getValue(row, "Agent Name") &&
-              rawHelper.getValue(row, "Case ID")
+            (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
           )
           .map((row, index) => {
             const topics: Topic[] = TOPIC_MASTER.map((topic) => {
@@ -852,15 +848,12 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
             const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
             const mergedAppeal = appealMap.get(caseId);
-
             const rawAuditDate = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(rawAuditDate);
             const auditYear = auditDateObj ? auditDateObj.getFullYear() : null;
             const auditMonth = auditDateObj ? auditDateObj.getMonth() + 1 : null;
             const auditMonthLabel =
-              auditMonth && auditMonth >= 1 && auditMonth <= 12
-                ? MONTH_LABELS[auditMonth - 1]
-                : "-";
+              auditMonth && auditMonth >= 1 && auditMonth <= 12 ? MONTH_LABELS[auditMonth - 1] : "-";
 
             const baseFinalScore =
               Number(rawHelper.getValue(row, "Final Score")) ||
@@ -879,6 +872,12 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
               rawHelper.getValue(row, "Week") ??
               "-";
 
+            const inquiry =
+              rawHelper.getValue(row, "Customer Inquiry") ??
+              rawHelper.getValue(row, "Inquiry TH") ??
+              rawHelper.getValue(row, "Inquiry") ??
+              "-";
+
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
 
@@ -892,6 +891,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
               auditMonthLabel,
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
+              inquiry: String(inquiry || "-").trim(),
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
               grade: scoreToGrade(finalScoreVal),
@@ -914,12 +914,14 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     loadWorkbook();
   }, []);
 
-  useEffect(() => {
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      setViewMode("by-agent");
-      setSelectedAgent(currentUser.agentName);
+  const agentOptions = useMemo(() => {
+    const agentsFromCases = allCases.map((item) => item.agent).filter(Boolean);
+    const merged = [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) => a.localeCompare(b));
+    if (isAgentRole && currentUser?.agentName) {
+      return merged.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
-  }, [currentUser]);
+    return merged;
+  }, [allCases, currentUser, isAgentRole]);
 
   const yearOptions = useMemo(() => {
     return [...new Set(allCases.map((item) => item.auditYear).filter(Boolean) as number[])].sort(
@@ -928,17 +930,15 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   }, [allCases]);
 
   const weekOptions = useMemo(() => {
-    return [...new Set(allCases.map((item) => item.weekLabel).filter(Boolean))];
-  }, [allCases]);
+    const base = allCases.filter((item) => {
+      if (selectedYear !== "all" && String(item.auditYear || "") !== selectedYear) return false;
+      if (selectedMonth !== "all" && String(item.auditMonth || "") !== selectedMonth) return false;
+      return true;
+    });
+    return [...new Set(base.map((item) => item.weekLabel).filter(Boolean))];
+  }, [allCases, selectedYear, selectedMonth]);
 
-  const agentOptions = useMemo(() => {
-    const agentsFromCases = allCases.map((item) => item.agent).filter(Boolean);
-    return [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }, [allCases]);
-
-  const scopedCases = useMemo(() => {
+  const baseFilteredCases = useMemo(() => {
     let items = [...allCases];
 
     if (selectedYear !== "all") {
@@ -953,12 +953,12 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
       items = items.filter((item) => item.weekLabel === selectedWeek);
     }
 
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
+    if (isAgentRole && currentUser?.agentName) {
       items = items.filter((item) => isSameAgent(item.agent, currentUser.agentName));
       return items;
     }
 
-    if (viewMode === "by-agent" && selectedAgent !== "all") {
+    if (scope === "agent" && selectedAgent !== "all") {
       items = items.filter((item) => isSameAgent(item.agent, selectedAgent));
     }
 
@@ -969,158 +969,99 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     selectedYear,
     selectedMonth,
     selectedWeek,
-    viewMode,
+    scope,
     selectedAgent,
     currentUser,
+    isAgentRole,
   ]);
 
-  const averageScore =
-    scopedCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(scopedCases.length, 1);
+  const topicSummary = useMemo(() => buildTopicSummary(baseFilteredCases), [baseFilteredCases]);
+  const bestTopic = useMemo(() => getBestTopicLabel(topicSummary), [topicSummary]);
+  const lowestTopic = useMemo(() => getLowestTopicLabel(topicSummary), [topicSummary]);
 
-  const currentGradeDisplay =
-    scopedCases.length === 0 ? "F" : scopedCases.length < CASE_TARGET ? "Pending" : scoreToGrade(averageScore);
+  const avgScore =
+    baseFilteredCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(baseFilteredCases.length, 1);
 
-  const currentStatus = gradeStatus(currentGradeDisplay);
-  const revisedCount = scopedCases.filter((item) => item.reviewStatus === "Revised").length;
-  const targetCompletionPct = Math.min((scopedCases.length / CASE_TARGET) * 100, 100);
+  const gradeDisplay = getMonthlyGradeDisplay(baseFilteredCases.length, avgScore);
+  const criticalCases = 0;
+  const incentive = getIncentiveValue(baseFilteredCases.length, avgScore);
 
-  const incentiveDisplay = formatCurrencyTHB(
-    getIncentiveValue(scopedCases.length, Number(averageScore.toFixed(2)))
-  );
+  const teamRanking = useMemo(() => groupByAgent(baseFilteredCases), [baseFilteredCases]);
 
-  const topicSummary = useMemo(() => buildTopicSummary(scopedCases), [scopedCases]);
-
-  const strongestTopics = useMemo(
-    () => [...topicSummary].sort((a, b) => b.pct - a.pct).slice(0, 3),
-    [topicSummary]
-  );
-
-  const weakestTopics = useMemo(
-    () => [...topicSummary].sort((a, b) => a.pct - b.pct).slice(0, 3),
-    [topicSummary]
-  );
-
-  const strongestTopicLabel = strongestTopics[0]
-    ? `${strongestTopics[0].code} ${strongestTopics[0].label}`
-    : "-";
-
-  const weakestTopicLabel = weakestTopics[0]
-    ? `${weakestTopics[0].code} ${weakestTopics[0].label}`
-    : "-";
-
-  const comparisonData = useMemo(() => {
-    if (periodType === "weekly") {
-      const weekMap = new Map<string, number[]>();
-      scopedCases.forEach((item) => {
-        const key = item.weekLabel || "Unknown";
-        if (!weekMap.has(key)) weekMap.set(key, []);
-        weekMap.get(key)!.push(item.finalScore);
-      });
-
-      return [...weekMap.entries()].map(([label, scores]) => ({
-        label,
-        value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
-      }));
-    }
-
-    if (periodType === "monthly") {
-      const monthMap = new Map<string, number[]>();
-      scopedCases.forEach((item) => {
-        if (!item.auditMonthLabel || item.auditMonthLabel === "-") return;
-        if (!monthMap.has(item.auditMonthLabel)) monthMap.set(item.auditMonthLabel, []);
-        monthMap.get(item.auditMonthLabel)!.push(item.finalScore);
-      });
-
-      return MONTH_LABELS.map((month) => ({
-        label: month.slice(0, 3),
-        value:
-          monthMap.get(month)?.reduce((sum, score) => sum + score, 0) /
-            Math.max(monthMap.get(month)?.length || 0, 1) || 0,
-      })).filter((item) => item.value > 0);
-    }
-
-    const yearMap = new Map<string, number[]>();
-    scopedCases.forEach((item) => {
-      if (!item.auditYear) return;
-      const key = String(item.auditYear);
-      if (!yearMap.has(key)) yearMap.set(key, []);
-      yearMap.get(key)!.push(item.finalScore);
+  const weeklyTrendRows = useMemo(() => {
+    if (periodType !== "weekly") return [];
+    const weekMap = new Map<string, CaseItem[]>();
+    baseFilteredCases.forEach((item) => {
+      const key = item.weekLabel || "Unknown";
+      if (!weekMap.has(key)) weekMap.set(key, []);
+      weekMap.get(key)!.push(item);
     });
 
-    return [...yearMap.entries()]
-      .sort((a, b) => Number(a[0]) - Number(b[0]))
-      .map(([label, scores]) => ({
-        label,
-        value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
-      }));
-  }, [periodType, scopedCases]);
-
-  const previousComparison = useMemo(() => {
-    if (comparisonData.length < 2) {
+    return [...weekMap.entries()].map(([label, items]) => {
+      const avg = items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
       return {
-        current: comparisonData[comparisonData.length - 1]?.value || 0,
-        previous: 0,
-        delta: 0,
+        label,
+        cases: items.length,
+        avg,
+        status: items.length >= CASE_TARGET ? "Ready" : items.length === 0 ? "No reviewed cases" : "Reviewed",
       };
-    }
+    });
+  }, [baseFilteredCases, periodType]);
 
-    const current = comparisonData[comparisonData.length - 1]?.value || 0;
-    const previous = comparisonData[comparisonData.length - 2]?.value || 0;
-
-    return {
-      current,
-      previous,
-      delta: current - previous,
-    };
-  }, [comparisonData]);
-
-  const rankingBaseCases = useMemo(() => {
-    let items = [...allCases];
-
-    if (selectedYear !== "all") {
-      items = items.filter((item) => String(item.auditYear || "") === selectedYear);
-    }
-
-    if (periodType !== "yearly" && selectedMonth !== "all") {
-      items = items.filter((item) => String(item.auditMonth || "") === selectedMonth);
-    }
-
-    if (periodType === "weekly" && selectedWeek !== "all") {
-      items = items.filter((item) => item.weekLabel === selectedWeek);
-    }
-
-    return items;
-  }, [allCases, periodType, selectedYear, selectedMonth, selectedWeek]);
-
-  const agentRanking = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
-
-    rankingBaseCases.forEach((item) => {
-      if (!groups.has(item.agent)) groups.set(item.agent, []);
-      groups.get(item.agent)!.push(item);
+  const monthlyTrendRows = useMemo(() => {
+    const monthMap = new Map<string, CaseItem[]>();
+    baseFilteredCases.forEach((item) => {
+      if (!item.auditMonthLabel || item.auditMonthLabel === "-") return;
+      if (!monthMap.has(item.auditMonthLabel)) monthMap.set(item.auditMonthLabel, []);
+      monthMap.get(item.auditMonthLabel)!.push(item);
     });
 
-    return [...groups.entries()]
-      .map(([agent, items]) => {
-        const average =
-          items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
+    return MONTH_LABELS.map((month) => {
+      const items = monthMap.get(month) || [];
+      const avg = items.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(items.length, 1);
+      return {
+        label: month,
+        cases: items.length,
+        avg: Number(avg.toFixed(2)),
+        status:
+          items.length === 0 ? "Pending" : items.length < CASE_TARGET ? "Pending 10 cases" : scoreToGrade(avg),
+      };
+    });
+  }, [baseFilteredCases]);
 
-        const gradeDisplay =
-          items.length === 0 ? "F" : items.length < CASE_TARGET ? "Pending" : scoreToGrade(average);
+  const selectedAgentCases = useMemo(() => {
+    if (isAgentRole && currentUser?.agentName) {
+      return baseFilteredCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+    }
+    if (selectedAgent !== "all") {
+      return baseFilteredCases.filter((item) => isSameAgent(item.agent, selectedAgent));
+    }
+    return baseFilteredCases;
+  }, [baseFilteredCases, currentUser, isAgentRole, selectedAgent]);
 
-        return {
-          agent,
-          average: Number(average.toFixed(2)),
-          grade: gradeDisplay,
-          caseCount: items.length,
-          revisedCount: items.filter((item) => item.reviewStatus === "Revised").length,
-        };
-      })
-      .sort((a, b) => b.average - a.average);
-  }, [rankingBaseCases]);
+  const selectedAgentTopicSummary = useMemo(
+    () => buildTopicSummary(selectedAgentCases),
+    [selectedAgentCases]
+  );
 
-  const topAgents = agentRanking.slice(0, 3);
-  const bottomAgents = [...agentRanking].reverse().slice(0, 3);
+  const selectedAgentAvg =
+    selectedAgentCases.reduce((sum, item) => sum + item.finalScore, 0) /
+    Math.max(selectedAgentCases.length, 1);
+
+  const selectedAgentGrade = getMonthlyGradeDisplay(selectedAgentCases.length, selectedAgentAvg);
+
+  const topAgentByYear = useMemo(() => teamRanking[0]?.agent || "-", [teamRanking]);
+  const bottomAgentByYear = useMemo(
+    () => [...teamRanking].sort((a, b) => a.avgScore - b.avgScore)[0]?.agent || "-",
+    [teamRanking]
+  );
+
+  const currentAgentName =
+    isAgentRole && currentUser?.agentName
+      ? currentUser.agentName
+      : selectedAgent !== "all"
+      ? selectedAgent
+      : "-";
 
   if (isLoading) {
     return (
@@ -1138,6 +1079,9 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
+          <div className="mt-3 text-sm text-slate-600">
+            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx และ public/Appleal ROWDATA.xlsx
+          </div>
         </div>
       </div>
     );
@@ -1147,39 +1091,31 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
         <div className="space-y-6">
-          <SectionHeader
-            title="Executive Performance Summary"
-            subtitle="Corporate summary view for Weekly, Monthly, and Yearly performance analysis"
-            badge={currentUser?.role === "Agent" ? "My Performance" : "Management View"}
-          />
+          <LogoHero />
 
-          <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
-            <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-            <div className="grid gap-5 px-6 py-6 xl:grid-cols-[1fr_1fr_1.2fr]">
+          <SectionCard
+            title="Summary Control Panel"
+            subtitle="Choose view scope and reporting period"
+            right={
+              <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                {isAgentRole ? "Agent View" : "Management View"}
+              </span>
+            }
+          >
+            <div className="grid gap-5 xl:grid-cols-[1fr_1fr_1.2fr]">
               <div>
                 <div className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-700">
-                  View Mode
+                  View Scope
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {currentUser?.role === "Agent" ? (
+                  {isAgentRole ? (
                     <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      By Agent
+                      My Performance
                     </div>
                   ) : (
                     <>
-                      <FilterChip
-                        label="Overall"
-                        active={viewMode === "overall"}
-                        onClick={() => {
-                          setViewMode("overall");
-                          setSelectedAgent("all");
-                        }}
-                      />
-                      <FilterChip
-                        label="By Agent"
-                        active={viewMode === "by-agent"}
-                        onClick={() => setViewMode("by-agent")}
-                      />
+                      <PillButton label="Team View" active={scope === "team"} onClick={() => setScope("team")} />
+                      <PillButton label="By Agent" active={scope === "agent"} onClick={() => setScope("agent")} />
                     </>
                   )}
                 </div>
@@ -1190,21 +1126,9 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   Period Type
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <FilterChip
-                    label="Weekly"
-                    active={periodType === "weekly"}
-                    onClick={() => setPeriodType("weekly")}
-                  />
-                  <FilterChip
-                    label="Monthly"
-                    active={periodType === "monthly"}
-                    onClick={() => setPeriodType("monthly")}
-                  />
-                  <FilterChip
-                    label="Yearly"
-                    active={periodType === "yearly"}
-                    onClick={() => setPeriodType("yearly")}
-                  />
+                  <PillButton label="Weekly" active={periodType === "weekly"} onClick={() => setPeriodType("weekly")} />
+                  <PillButton label="Monthly" active={periodType === "monthly"} onClick={() => setPeriodType("monthly")} />
+                  <PillButton label="Yearly" active={periodType === "yearly"} onClick={() => setPeriodType("yearly")} />
                 </div>
               </div>
 
@@ -1269,15 +1193,15 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   <div className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-700">
                     Agent
                   </div>
-                  {currentUser?.role === "Agent" ? (
+                  {isAgentRole ? (
                     <div className="mt-3 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {currentUser.agentName}
+                      {currentUser?.agentName || "-"}
                     </div>
                   ) : (
                     <select
                       value={selectedAgent}
                       onChange={(e) => setSelectedAgent(e.target.value)}
-                      disabled={viewMode !== "by-agent"}
+                      disabled={scope !== "agent"}
                       className="mt-3 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
                     >
                       <option value="all">All Agents</option>
@@ -1291,352 +1215,229 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                 </div>
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          <SectionHeader
-            title="Executive Overview"
-            subtitle={`High-level KPI summary · ${getPeriodSubtitle(periodType)}`}
-            badge={viewMode === "overall" ? "Overall" : "By Agent"}
-          />
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-            <PremiumMetricCard
-              title="Average Score"
-              value={averageScore.toFixed(2)}
-              tone="violet"
-              badge={
-                <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                  Overall Score
-                </span>
-              }
-              sub="Average score in selected view"
-            />
-
-            <PremiumMetricCard
-              title="Current Grade"
-              value={currentGradeDisplay}
-              tone={
-                currentGradeDisplay === "A"
-                  ? "emerald"
-                  : currentGradeDisplay === "B"
-                  ? "sky"
-                  : currentGradeDisplay === "C"
-                  ? "amber"
-                  : currentGradeDisplay === "D" || currentGradeDisplay === "F"
-                  ? "rose"
-                  : "slate"
-              }
-              badge={
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${gradeTone(
-                      currentGradeDisplay
-                    )}`}
-                  >
-                    {currentGradeDisplay === "Pending" ? "Pending" : `Grade ${currentGradeDisplay}`}
+          {periodType === "weekly" && scope === "team" && !isAgentRole ? (
+            <>
+              <SectionCard
+                title="Weekly Dashboard"
+                subtitle="Selected week overview for the whole team"
+                right={
+                  <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    Team Weekly View
                   </span>
-                  <span className="text-[12px] font-semibold text-slate-700">
-                    {currentStatus}
+                }
+              >
+                <KeyValueGrid
+                  items={[
+                    { label: "Week", value: selectedWeek === "all" ? "All Weeks" : selectedWeek },
+                    {
+                      label: "Month",
+                      value:
+                        selectedMonth === "all"
+                          ? "All Months"
+                          : MONTH_LABELS[Number(selectedMonth) - 1] || "All Months",
+                    },
+                    { label: "Team Cases", value: baseFilteredCases.length },
+                    { label: "Avg Score", value: avgScore.toFixed(2) },
+                    { label: "Critical Cases", value: criticalCases },
+                    { label: "Best Topic", value: bestTopic, valueClassName: "text-emerald-700" },
+                    { label: "Lowest Topic", value: lowestTopic, valueClassName: "text-rose-700" },
+                  ]}
+                />
+              </SectionCard>
+
+              <SectionCard title="Agent Weekly Ranking" subtitle="Weekly ranking overview for the selected team scope">
+                <RankingTable items={teamRanking} />
+              </SectionCard>
+
+              <SectionCard title="Topic Performance % - Team Weekly" subtitle="Topic performance for selected weekly view">
+                <TopicPerformanceTable items={topicSummary.sort((a, b) => b.pct - a.pct)} />
+              </SectionCard>
+            </>
+          ) : null}
+
+          {periodType === "weekly" && (scope === "agent" || isAgentRole) ? (
+            <>
+              <SectionCard
+                title="Weekly QA by Agent"
+                subtitle="Weekly summary for selected agent only"
+                right={
+                  <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    My Weekly View
                   </span>
+                }
+              >
+                <KeyValueGrid
+                  items={[
+                    { label: "Agent", value: currentAgentName },
+                    { label: "Week", value: selectedWeek === "all" ? "All Weeks" : selectedWeek },
+                    { label: "Weekly Cases", value: selectedAgentCases.length },
+                    { label: "Critical Cases", value: 0 },
+                    { label: "Average Score", value: selectedAgentAvg.toFixed(2) },
+                    {
+                      label: "Best Topic",
+                      value: getBestTopicLabel(selectedAgentTopicSummary),
+                      valueClassName: "text-emerald-700",
+                    },
+                    {
+                      label: "Improve Topic",
+                      value: getLowestTopicLabel(selectedAgentTopicSummary),
+                      valueClassName: "text-rose-700",
+                    },
+                  ]}
+                />
+              </SectionCard>
+
+              <SectionCard title="Weekly Case List" subtitle="Reviewed weekly cases for selected agent">
+                <CaseListTable items={selectedAgentCases} />
+              </SectionCard>
+            </>
+          ) : null}
+
+          {periodType === "monthly" && scope === "team" && !isAgentRole ? (
+            <>
+              <SectionCard
+                title="Monthly Team Summary"
+                subtitle="Selected month overview for the whole team"
+                right={
+                  <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    Team Monthly View
+                  </span>
+                }
+              >
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                  <KpiCard title="Month" value={selectedMonth === "all" ? "All" : (MONTH_LABELS[Number(selectedMonth) - 1] || "All").slice(0, 3)} badge={selectedMonth === "all" ? "All Months" : MONTH_LABELS[Number(selectedMonth) - 1]} sub="Current month view" tone="violet" />
+                  <KpiCard title="Year" value={selectedYear === "all" ? "All" : selectedYear} badge="Selected Year" sub="Current year filter" tone="slate" />
+                  <KpiCard title="Team Cases" value={String(baseFilteredCases.length)} badge="Reviewed Cases" sub="Cases in selected view" tone="sky" />
+                  <KpiCard title="Avg Score" value={avgScore.toFixed(2)} badge="Team Performance" sub="Average monthly score" tone="violet" />
+                  <KpiCard title="Best Topic" value={bestTopic} badge="Top Quality Area" sub="Best topic in month" tone="emerald" />
+                  <KpiCard title="Lowest Topic" value={lowestTopic} badge="Main Focus Area" sub="Lowest topic in month" tone="rose" />
                 </div>
-              }
-              sub={
-                currentGradeDisplay === "Pending"
-                  ? "Grade will finalize at 10 reviewed cases"
-                  : currentGradeDisplay === "F" && scopedCases.length === 0
-                  ? "No reviewed cases in selected period"
-                  : "Calculated from current average score"
-              }
-            />
+              </SectionCard>
 
-            <PremiumMetricCard
-              title="Evaluated Cases"
-              value={String(scopedCases.length)}
-              tone="sky"
-              badge={
-                <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                  Reviewed Cases
-                </span>
-              }
-              sub="Cases included in current summary"
-            />
+              <SectionCard title="Agent Monthly Ranking" subtitle="Monthly ranking across the team">
+                <RankingTable items={teamRanking} />
+              </SectionCard>
 
-            <PremiumMetricCard
-              title="Target Completion"
-              value={`${targetCompletionPct.toFixed(0)}%`}
-              tone={scopedCases.length >= CASE_TARGET ? "emerald" : "amber"}
-              badge={
-                <span
-                  className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                    scopedCases.length >= CASE_TARGET
-                      ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-                      : "border-amber-200 bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {scopedCases.length}/{CASE_TARGET}
-                </span>
-              }
-              sub="Completion toward monthly target"
-            />
+              <SectionCard title="Topic Performance % - Team Monthly" subtitle="Monthly topic performance by team">
+                <TopicPerformanceTable items={topicSummary.sort((a, b) => b.pct - a.pct)} />
+              </SectionCard>
+            </>
+          ) : null}
 
-            <PremiumMetricCard
-              title="Estimated Incentive"
-              value={incentiveDisplay}
-              tone="amber"
-              badge={
-                <span className="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                  Monthly Estimate
-                </span>
-              }
-              sub="Applies when reviewed cases reach target"
-            />
-
-            <PremiumMetricCard
-              title="Revised Cases"
-              value={String(revisedCount)}
-              tone="slate"
-              badge={
-                <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                  Appeal Impact
-                </span>
-              }
-              sub="Revised cases in selected summary"
-            />
-          </div>
-
-          <ExecutiveSummaryCard
-            averageScore={averageScore.toFixed(2)}
-            currentGrade={currentGradeDisplay}
-            currentStatus={currentStatus}
-            progress={`${scopedCases.length}/${CASE_TARGET}`}
-            incentive={incentiveDisplay}
-            revisedCount={revisedCount}
-            strongestTopic={strongestTopicLabel}
-            weakestTopic={weakestTopicLabel}
-          />
-
-          <SectionHeader
-            title="Performance Trend"
-            subtitle="Trend and comparison view across selected time periods"
-            badge={periodType === "weekly" ? "Weekly Trend" : periodType === "monthly" ? "Monthly Trend" : "Yearly Trend"}
-          />
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <ComparisonBarChart
-              data={comparisonData}
-              title={
-                periodType === "weekly"
-                  ? "Weekly Performance Comparison"
-                  : periodType === "monthly"
-                  ? "Monthly Performance Comparison"
-                  : "Yearly Performance Comparison"
-              }
-              subtitle="Average score trend by selected period"
-            />
-
-            <InsightCard
-              title="Period Comparison"
-              subtitle="Current vs previous period snapshot"
-              tone="sky"
-            >
-              <div className="space-y-3">
-                <SimpleListItem
-                  label="Current Period"
-                  value={previousComparison.current.toFixed(2)}
-                  valueTone="text-sky-700"
-                />
-                <SimpleListItem
-                  label="Previous Period"
-                  value={previousComparison.previous.toFixed(2)}
-                  valueTone="text-slate-900"
-                />
-                <SimpleListItem
-                  label="Change"
-                  value={`${previousComparison.delta >= 0 ? "+" : ""}${previousComparison.delta.toFixed(2)}`}
-                  valueTone={previousComparison.delta >= 0 ? "text-emerald-700" : "text-rose-700"}
-                />
-                <SimpleListItem
-                  label="Best Visible Period"
-                  value={
-                    comparisonData.length
-                      ? `${[...comparisonData].sort((a, b) => b.value - a.value)[0].label} · ${[
-                          ...comparisonData,
-                        ]
-                          .sort((a, b) => b.value - a.value)[0]
-                          .value.toFixed(2)}`
-                      : "-"
-                  }
-                  valueTone="text-emerald-700"
-                />
-              </div>
-            </InsightCard>
-          </div>
-
-          <SectionHeader
-            title="Topic Performance"
-            subtitle="Topic-level strengths, coaching focus, and ranking"
-            badge="Quality Dimensions"
-          />
-
-          <div className="grid gap-6 xl:grid-cols-3">
-            <InsightCard
-              title="Top Strengths"
-              subtitle="Highest performing topics"
-              tone="emerald"
-            >
-              <div className="space-y-3">
-                {strongestTopics.map((topic) => (
-                  <SimpleListItem
-                    key={topic.code}
-                    label={topic.code}
-                    value={`${topic.label} · ${topic.pct.toFixed(2)}%`}
-                    valueTone="text-emerald-700"
+          {periodType === "monthly" && (scope === "agent" || isAgentRole) ? (
+            <>
+              <SectionCard
+                title="Monthly QA Dashboard"
+                subtitle="Monthly dashboard for selected agent"
+                right={
+                  <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    My Monthly View
+                  </span>
+                }
+              >
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                  <KpiCard title="Cases Reviewed" value={String(selectedAgentCases.length)} badge="Monthly Cases" sub="Reviewed in selected month" tone="sky" />
+                  <KpiCard
+                    title="Need More to 10"
+                    value={String(Math.max(CASE_TARGET - selectedAgentCases.length, 0))}
+                    badge="Monthly Target"
+                    sub="Required to finalize grade"
+                    tone={selectedAgentCases.length >= CASE_TARGET ? "emerald" : "amber"}
                   />
-                ))}
-              </div>
-            </InsightCard>
+                  <KpiCard title="Average Score" value={selectedAgentAvg.toFixed(2)} badge="Current Month" sub="Average score this month" tone="violet" />
+                  <KpiCard title="Monthly Grade" value={selectedAgentGrade} badge={gradeStatus(selectedAgentGrade)} sub="Monthly grade status" tone={selectedAgentGrade === "A" ? "emerald" : selectedAgentGrade === "B" ? "sky" : selectedAgentGrade === "C" ? "amber" : selectedAgentGrade === "D" || selectedAgentGrade === "F" ? "rose" : "slate"} />
+                  <KpiCard title="Incentive (THB)" value={String(getIncentiveValue(selectedAgentCases.length, selectedAgentAvg))} badge="Monthly Incentive" sub="Calculated after target" tone="amber" />
+                  <KpiCard title="Best Topic" value={getBestTopicLabel(selectedAgentTopicSummary)} badge="Strongest Area" sub="Best topic in month" tone="emerald" />
+                </div>
 
-            <InsightCard
-              title="Coaching Focus"
-              subtitle="Lowest performing topics"
-              tone="rose"
-            >
-              <div className="space-y-3">
-                {weakestTopics.map((topic) => (
-                  <SimpleListItem
-                    key={topic.code}
-                    label={topic.code}
-                    value={`${topic.label} · ${topic.pct.toFixed(2)}%`}
-                    valueTone="text-rose-700"
+                <div className="mt-4">
+                  <KeyValueGrid
+                    items={[
+                      {
+                        label: "Lowest Topic",
+                        value: getLowestTopicLabel(selectedAgentTopicSummary),
+                        valueClassName: "text-rose-700",
+                      },
+                    ]}
                   />
-                ))}
-              </div>
-            </InsightCard>
+                </div>
+              </SectionCard>
 
-            <InsightCard
-              title="Review Snapshot"
-              subtitle="Summary of current quality view"
-              tone="violet"
-            >
-              <div className="space-y-3">
-                <SimpleListItem
-                  label="Current Grade"
-                  value={`${currentGradeDisplay} · ${currentStatus}`}
-                  valueTone="text-slate-900"
+              <SectionCard title="Monthly Case List" subtitle="Case list for selected agent in the current monthly view">
+                <CaseListTable items={selectedAgentCases} />
+              </SectionCard>
+            </>
+          ) : null}
+
+          {periodType === "yearly" && scope === "team" && !isAgentRole ? (
+            <>
+              <SectionCard
+                title="Yearly Team Summary"
+                subtitle="Yearly overview for the whole team"
+                right={
+                  <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    Team Yearly View
+                  </span>
+                }
+              >
+                <KeyValueGrid
+                  items={[
+                    { label: "Year", value: selectedYear === "all" ? "All Years" : selectedYear },
+                    { label: "Team Cases", value: baseFilteredCases.length },
+                    { label: "Avg Score", value: avgScore.toFixed(2) },
+                    { label: "Critical Cases", value: criticalCases },
+                  ]}
                 />
-                <SimpleListItem
-                  label="Strongest Topic"
-                  value={strongestTopicLabel}
-                  valueTone="text-emerald-700"
+              </SectionCard>
+
+              <SectionCard title="Monthly Team Trend" subtitle="Monthly team trend for the selected yearly scope">
+                <TrendMiniTable rows={monthlyTrendRows} col1Label="Month" col2Label="Cases" col3Label="Avg Score" />
+              </SectionCard>
+
+              <SectionCard title="Top / Bottom Agent by Year" subtitle="Best and lowest yearly average by agent">
+                <KeyValueGrid
+                  items={[
+                    { label: "Top Avg Score Agent", value: topAgentByYear, valueClassName: "text-emerald-700" },
+                    { label: "Bottom Avg Score Agent", value: bottomAgentByYear, valueClassName: "text-rose-700" },
+                  ]}
                 />
-                <SimpleListItem
-                  label="Main Focus"
-                  value={weakestTopicLabel}
-                  valueTone="text-rose-700"
+              </SectionCard>
+
+              <SectionCard title="Yearly Team Ranking" subtitle="Yearly agent ranking table">
+                <RankingTable items={teamRanking} />
+              </SectionCard>
+            </>
+          ) : null}
+
+          {periodType === "yearly" && (scope === "agent" || isAgentRole) ? (
+            <>
+              <SectionCard
+                title="Yearly By Agent"
+                subtitle="Selected agent yearly trend"
+                right={
+                  <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                    My Yearly View
+                  </span>
+                }
+              >
+                <KeyValueGrid
+                  items={[
+                    { label: "Agent", value: currentAgentName },
+                    { label: "Year", value: selectedYear === "all" ? "All Years" : selectedYear },
+                    { label: "Cases", value: selectedAgentCases.length },
+                    { label: "Avg Score", value: selectedAgentAvg.toFixed(2) },
+                    { label: "Critical Cases", value: 0 },
+                  ]}
                 />
-              </div>
-            </InsightCard>
-          </div>
+              </SectionCard>
 
-          <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
-            <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-            <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-6 py-5">
-              <div className="text-[19px] font-bold tracking-tight text-slate-900">Topic Ranking</div>
-              <div className="mt-1 text-sm text-slate-500">
-                Full ranking of topic performance in selected summary
-              </div>
-            </div>
-            <div className="p-6">
-              <TopicRankingTable items={[...topicSummary].sort((a, b) => b.pct - a.pct)} />
-            </div>
-          </div>
-
-          <SectionHeader
-            title="Agent Performance"
-            subtitle="Overall team view or selected agent performance perspective"
-            badge={currentUser?.role === "Agent" ? "My Performance View" : "Team Performance View"}
-          />
-
-          <div className="grid gap-6 xl:grid-cols-3">
-            <InsightCard
-              title="Top Performers"
-              subtitle="Highest average score"
-              tone="emerald"
-            >
-              <div className="space-y-3">
-                {topAgents.map((agent) => (
-                  <SimpleListItem
-                    key={agent.agent}
-                    label={agent.agent}
-                    value={`${agent.average.toFixed(2)} · ${agent.caseCount} case(s)`}
-                    valueTone="text-emerald-700"
-                  />
-                ))}
-              </div>
-            </InsightCard>
-
-            <InsightCard
-              title="Watchlist"
-              subtitle="Lowest average score"
-              tone="rose"
-            >
-              <div className="space-y-3">
-                {bottomAgents.map((agent) => (
-                  <SimpleListItem
-                    key={agent.agent}
-                    label={agent.agent}
-                    value={`${agent.average.toFixed(2)} · ${agent.caseCount} case(s)`}
-                    valueTone="text-rose-700"
-                  />
-                ))}
-              </div>
-            </InsightCard>
-
-            <InsightCard
-              title={currentUser?.role === "Agent" ? "My Snapshot" : viewMode === "overall" ? "Team Snapshot" : "Selected Agent Snapshot"}
-              subtitle="Quick reading of current performance context"
-              tone="sky"
-            >
-              <div className="space-y-3">
-                <SimpleListItem
-                  label={currentUser?.role === "Agent" ? "Agent" : "View"}
-                  value={
-                    currentUser?.role === "Agent"
-                      ? currentUser.agentName
-                      : viewMode === "overall"
-                      ? "Overall Team"
-                      : selectedAgent === "all"
-                      ? "-"
-                      : selectedAgent
-                  }
-                  valueTone="text-sky-700"
-                />
-                <SimpleListItem
-                  label="Average Score"
-                  value={averageScore.toFixed(2)}
-                  valueTone="text-violet-700"
-                />
-                <SimpleListItem
-                  label="Current Grade"
-                  value={`${currentGradeDisplay} · ${currentStatus}`}
-                  valueTone="text-slate-900"
-                />
-              </div>
-            </InsightCard>
-          </div>
-
-          <div className="overflow-hidden rounded-[30px] border border-violet-200/80 bg-white shadow-[0_12px_32px_rgba(76,29,149,0.08)]">
-            <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-            <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-6 py-5">
-              <div className="text-[19px] font-bold tracking-tight text-slate-900">Agent Ranking</div>
-              <div className="mt-1 text-sm text-slate-500">
-                Agent comparison in the selected period scope
-              </div>
-            </div>
-            <div className="p-6">
-              <AgentRankingTable items={agentRanking} />
-            </div>
-          </div>
+              <SectionCard title="Monthly Trend" subtitle="Monthly trend for selected agent in yearly view">
+                <TrendMiniTable rows={monthlyTrendRows} col1Label="Month" col2Label="Cases" col3Label="Avg Score" />
+              </SectionCard>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
