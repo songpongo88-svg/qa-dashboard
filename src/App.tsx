@@ -214,8 +214,8 @@ function NavButton({
       onClick={onClick}
       className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
         active
-          ? "bg-violet-700 text-white shadow-sm"
-          : "border border-white bg-white text-slate-700 hover:border-violet-200 hover:bg-violet-50"
+          ? "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
+          : "border border-transparent bg-transparent text-slate-600 hover:bg-white hover:text-violet-700"
       }`}
     >
       {label}
@@ -476,31 +476,10 @@ function LoginFeatureCard({
   desc: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+    <div className="rounded-[20px] border border-white/15 bg-white/10 p-3.5 backdrop-blur-sm">
       <div className="text-[11px] uppercase tracking-[0.18em] text-violet-100/80">{title}</div>
       <div className="mt-2 text-sm font-semibold leading-6 text-white/95">{desc}</div>
     </div>
-  );
-}
-
-function QuickAccountChip({
-  label,
-  sub,
-  onClick,
-}: {
-  label: string;
-  sub: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
-    >
-      <div className="text-sm font-semibold text-slate-900">{label}</div>
-      <div className="mt-1 text-xs text-slate-500">{sub}</div>
-    </button>
   );
 }
 
@@ -535,8 +514,6 @@ export default function App() {
     if (!currentUser) return "";
     return currentUser.displayName || currentUser.username;
   }, [currentUser]);
-
-  const quickAccounts = useMemo(() => USER_ACCOUNTS.slice(0, 4), []);
 
   useEffect(() => {
     if (currentUser) {
@@ -752,9 +729,9 @@ export default function App() {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50">
-        <div className="mx-auto flex min-h-screen w-full max-w-[1280px] items-center justify-center px-4 py-6 sm:px-6 lg:px-8">
-          <div className="grid w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-violet-200/70 bg-white shadow-[0_24px_80px_rgba(76,29,149,0.12)] lg:grid-cols-[1.03fr_0.97fr]">
-            <div className="relative overflow-hidden bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700 p-6 text-white sm:p-8 lg:p-10">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4 py-4 sm:px-5 lg:px-6">
+          <div className="grid w-full max-w-[1020px] overflow-hidden rounded-[24px] border border-violet-200/70 bg-white shadow-[0_18px_56px_rgba(76,29,149,0.10)] lg:grid-cols-[1fr_0.94fr]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700 p-5 text-white sm:p-6 lg:p-7">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_28%)]" />
 
               <div className="relative z-10">
@@ -765,11 +742,11 @@ export default function App() {
                   <LogoBox />
                 </div>
 
-                <div className="mt-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
+                <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
                   Robinhood Customer Service QA
                 </div>
 
-                <div className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                <div className="mt-3 text-[28px] font-bold tracking-tight sm:text-[34px]">
                   QA Monitoring Workspace
                 </div>
 
@@ -778,7 +755,7 @@ export default function App() {
                   with role-based visibility for supervisors and agents.
                 </div>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
                   <LoginFeatureCard
                     title="Performance"
                     desc="Dashboard, KPI, grade, incentive, trend, and summary view"
@@ -797,12 +774,12 @@ export default function App() {
                   />
                 </div>
 
-                <div className="mt-8 flex items-center gap-4 rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-sm">
-                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
+                <div className="mt-6 flex items-center gap-4 rounded-[22px] border border-white/15 bg-white/10 px-4 py-3.5 backdrop-blur-sm">
+                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
                     <img
                       src="/robinhood-logo.png"
                       alt="Robinhood"
-                      className="h-9 w-9 object-contain"
+                      className="h-8 w-8 object-contain"
                     />
                   </div>
                   <div>
@@ -820,23 +797,23 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-6 sm:p-8 lg:p-10">
-              <div className="mx-auto w-full max-w-[420px]">
+            <div className="bg-white p-5 sm:p-6 lg:p-7">
+              <div className="mx-auto w-full max-w-[400px]">
                 <div className="flex justify-center lg:justify-start">
-                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm">
+                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm">
                     <img
                       src="/robinhood-logo.png"
                       alt="Robinhood"
-                      className="h-10 w-10 object-contain"
+                      className="h-9 w-9 object-contain"
                     />
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-5">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">
                     Sign In
                   </div>
-                  <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  <div className="mt-2 text-[26px] font-bold tracking-tight text-slate-900 sm:text-[30px]">
                     Welcome back
                   </div>
                   <div className="mt-2 text-sm leading-6 text-slate-500">
@@ -844,7 +821,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="mt-8 space-y-4">
+                <div className="mt-7 space-y-4">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-800">
                       Username
@@ -890,26 +867,6 @@ export default function App() {
                   >
                     Sign In
                   </button>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Quick Accounts
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {quickAccounts.map((item) => (
-                      <QuickAccountChip
-                        key={item.username}
-                        label={item.displayName}
-                        sub={`${item.role} · ${item.username}`}
-                        onClick={() => {
-                          setUsername(item.username);
-                          setPassword(getEffectivePassword(item));
-                          setLoginError("");
-                        }}
-                      />
-                    ))}
-                  </div>
                 </div>
 
                 <div className="mt-5 text-center text-xs leading-5 text-slate-400 lg:text-left">
@@ -961,13 +918,13 @@ export default function App() {
       />
 
       <div className="min-h-screen bg-slate-100">
-        <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6 2xl:px-8 xl:flex-row xl:items-center xl:justify-between">
+        <div className="border-b border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30 backdrop-blur-sm">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-3 sm:px-5 lg:px-6 2xl:px-8 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">
                 Robinhood QA
               </div>
-              <div className="mt-1 truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
+              <div className="mt-1 truncate text-xl font-extrabold tracking-tight text-slate-800 sm:text-2xl">
                 Welcome, {welcomeName}
               </div>
               <div className="mt-1 text-sm text-slate-500">
@@ -979,8 +936,8 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-2 py-2">
-                <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-violet-700">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200/80 bg-white/80 px-2 py-2 shadow-sm">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
                   Performance
                 </span>
 
@@ -996,8 +953,8 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-2 py-2">
-                <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-200/80 bg-white/80 px-2 py-2 shadow-sm">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
                   Review
                 </span>
 
@@ -1013,8 +970,8 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2">
-                <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 shadow-sm">
+                <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
                   Account
                 </span>
 
@@ -1024,7 +981,7 @@ export default function App() {
                     resetChangePasswordState();
                     setShowChangePasswordModal(true);
                   }}
-                  className="rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:border-violet-200 hover:bg-violet-50"
+                  className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-violet-700"
                 >
                   Change Password
                 </button>
@@ -1036,7 +993,7 @@ export default function App() {
                       resetPasswordModalState();
                       setShowResetPasswordModal(true);
                     }}
-                    className="rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:border-amber-200 hover:bg-amber-50"
+                    className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-amber-700"
                   >
                     Reset Password
                   </button>
@@ -1045,7 +1002,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="rounded-xl border border-white bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-200 hover:bg-rose-50"
+                  className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-rose-700"
                 >
                   Log Out
                 </button>
