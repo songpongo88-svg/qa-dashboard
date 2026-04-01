@@ -189,11 +189,11 @@ function getEffectivePassword(account: UserAccount) {
 
 function LogoBox() {
   return (
-    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/15 bg-white/10 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm">
+    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm sm:h-20 sm:w-20 sm:rounded-[26px]">
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="h-16 w-16 object-contain"
+        className="h-10 w-10 object-contain sm:h-14 sm:w-14"
       />
     </div>
   );
@@ -468,6 +468,42 @@ function ResetPasswordModal({
   );
 }
 
+function LoginFeatureCard({
+  title,
+  desc,
+}: {
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-violet-100/80">{title}</div>
+      <div className="mt-2 text-sm font-semibold leading-6 text-white/95">{desc}</div>
+    </div>
+  );
+}
+
+function QuickAccountChip({
+  label,
+  sub,
+  onClick,
+}: {
+  label: string;
+  sub: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+    >
+      <div className="text-sm font-semibold text-slate-900">{label}</div>
+      <div className="mt-1 text-xs text-slate-500">{sub}</div>
+    </button>
+  );
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
   const [username, setUsername] = useState("");
@@ -499,6 +535,8 @@ export default function App() {
     if (!currentUser) return "";
     return currentUser.displayName || currentUser.username;
   }, [currentUser]);
+
+  const quickAccounts = useMemo(() => USER_ACCOUNTS.slice(0, 4), []);
 
   useEffect(() => {
     if (currentUser) {
@@ -713,116 +751,170 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(139,92,246,0.18),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(217,70,239,0.14),_transparent_24%),linear-gradient(135deg,#f8f7ff_0%,#f4f1ff_40%,#ffffff_100%)]">
-        <div className="mx-auto flex min-h-screen max-w-[1480px] items-center px-6 py-10">
-          <div className="grid w-full gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-            <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-violet-950 via-violet-850 to-fuchsia-700 px-8 py-8 text-white shadow-[0_30px_70px_rgba(88,28,135,0.28)] sm:px-10 sm:py-10 xl:px-12 xl:py-12">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.20),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_30%)]" />
-              <div className="absolute -left-16 bottom-0 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
-              <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-fuchsia-300/10 blur-3xl" />
+      <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1280px] items-center justify-center px-4 py-6 sm:px-6 lg:px-8">
+          <div className="grid w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-violet-200/70 bg-white shadow-[0_24px_80px_rgba(76,29,149,0.12)] lg:grid-cols-[1.03fr_0.97fr]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700 p-6 text-white sm:p-8 lg:p-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_28%)]" />
 
               <div className="relative z-10">
-                <div className="flex items-start justify-between gap-5">
-                  <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-5 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-violet-100">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100">
                     Secure Access
                   </div>
                   <LogoBox />
                 </div>
 
-                <div className="mt-12 text-base font-semibold tracking-[0.08em] text-violet-100">
-                  Robinhood Customer Service Quality Assurance
+                <div className="mt-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
+                  Robinhood Customer Service QA
                 </div>
 
-                <div className="mt-5 max-w-[680px] text-[2.7rem] font-extrabold leading-[1.02] tracking-tight sm:text-[3.2rem] xl:text-[4.3rem]">
-                  Robinhood QA
-                  <br />
-                  Control Center
+                <div className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                  QA Monitoring Workspace
                 </div>
 
-                <div className="mt-6 max-w-[680px] text-base leading-8 text-violet-100/95 sm:text-lg">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA Rubric with role-based visibility for supervisors and agents.
+                <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA Rubric
+                  with role-based visibility for supervisors and agents.
                 </div>
 
-                <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
-                      Performance
-                    </div>
-                    <div className="mt-3 text-sm font-semibold">Dashboard & Summary</div>
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                  <LoginFeatureCard
+                    title="Performance"
+                    desc="Dashboard, KPI, grade, incentive, trend, and summary view"
+                  />
+                  <LoginFeatureCard
+                    title="Review"
+                    desc="Appeal result, case comparison, and QA rubric reference"
+                  />
+                  <LoginFeatureCard
+                    title="Security"
+                    desc="Password control, session timeout, and supervisor reset tools"
+                  />
+                  <LoginFeatureCard
+                    title="Workspace"
+                    desc="Responsive layout optimized for common laptop browser size"
+                  />
+                </div>
+
+                <div className="mt-8 flex items-center gap-4 rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-sm">
+                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
+                    <img
+                      src="/robinhood-logo.png"
+                      alt="Robinhood"
+                      className="h-9 w-9 object-contain"
+                    />
                   </div>
-
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
-                      Review
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-200">
+                      Enterprise Access
                     </div>
-                    <div className="mt-3 text-sm font-semibold">Appeal & QA Rubric</div>
-                  </div>
-
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-violet-100/80">
-                      Security
+                    <div className="mt-1 text-sm font-semibold text-white sm:text-base">
+                      Customer Service Quality Monitoring Platform
                     </div>
-                    <div className="mt-3 text-sm font-semibold">Session & Password Control</div>
+                    <div className="mt-1 text-xs text-violet-100/80 sm:text-sm">
+                      Optimized to fit browser view without manual zoom out
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[40px] border border-white/70 bg-white/90 px-7 py-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8 sm:py-9 xl:px-10 xl:py-10">
-              <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-violet-700">
-                Sign In
-              </div>
-
-              <div className="mt-7 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-                Welcome Back
-              </div>
-
-              <div className="mt-4 text-base leading-7 text-slate-500 sm:text-lg">
-                Enter your credentials to access the Robinhood QA workspace.
-              </div>
-
-              <div className="mt-10 space-y-6">
-                <div>
-                  <label className="mb-3 block text-sm font-bold text-slate-900">Username</label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleLogin();
-                    }}
-                    placeholder="Enter username"
-                    className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-3 block text-sm font-bold text-slate-900">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleLogin();
-                    }}
-                    placeholder="Enter password"
-                    className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-                  />
-                </div>
-
-                {loginError ? (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-                    {loginError}
+            <div className="bg-white p-6 sm:p-8 lg:p-10">
+              <div className="mx-auto w-full max-w-[420px]">
+                <div className="flex justify-center lg:justify-start">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm">
+                    <img
+                      src="/robinhood-logo.png"
+                      alt="Robinhood"
+                      className="h-10 w-10 object-contain"
+                    />
                   </div>
-                ) : null}
+                </div>
 
-                <button
-                  type="button"
-                  onClick={handleLogin}
-                  className="w-full rounded-3xl bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600 px-5 py-4 text-base font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95"
-                >
-                  Sign In
-                </button>
+                <div className="mt-6">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">
+                    Sign In
+                  </div>
+                  <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                    Welcome back
+                  </div>
+                  <div className="mt-2 text-sm leading-6 text-slate-500">
+                    Enter your credentials to access the Robinhood QA workspace.
+                  </div>
+                </div>
+
+                <div className="mt-8 space-y-4">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-800">
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleLogin();
+                      }}
+                      placeholder="Enter username"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-800">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleLogin();
+                      }}
+                      placeholder="Enter password"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  {loginError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                      {loginError}
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleLogin}
+                    className="w-full rounded-2xl bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95"
+                  >
+                    Sign In
+                  </button>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Quick Accounts
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {quickAccounts.map((item) => (
+                      <QuickAccountChip
+                        key={item.username}
+                        label={item.displayName}
+                        sub={`${item.role} · ${item.username}`}
+                        onClick={() => {
+                          setUsername(item.username);
+                          setPassword(getEffectivePassword(item));
+                          setLoginError("");
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 text-center text-xs leading-5 text-slate-400 lg:text-left">
+                  This login layout is responsive and sized for standard laptop browser view.
+                </div>
               </div>
             </div>
           </div>
@@ -870,12 +962,12 @@ export default function App() {
 
       <div className="min-h-screen bg-slate-100">
         <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-[1720px] flex-col gap-4 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-700">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6 2xl:px-8 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">
                 Robinhood QA
               </div>
-              <div className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+              <div className="mt-1 truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
                 Welcome, {welcomeName}
               </div>
               <div className="mt-1 text-sm text-slate-500">
@@ -887,7 +979,7 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-2 py-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-2 py-2">
                 <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-violet-700">
                   Performance
                 </span>
@@ -904,7 +996,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-2 py-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-2 py-2">
                 <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">
                   Review
                 </span>
@@ -921,7 +1013,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2 py-2">
                 <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-slate-600">
                   Account
                 </span>
@@ -964,7 +1056,7 @@ export default function App() {
 
         {activeTab === "dashboard" ? (
           <div>
-            <div className="mx-auto max-w-[1720px] px-6 pt-6">
+            <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 sm:px-5 lg:px-6 2xl:px-8">
               <div className="flex flex-wrap gap-2">
                 <DashboardSubButton
                   active={dashboardSubTab === "overview"}
