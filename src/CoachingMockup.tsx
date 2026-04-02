@@ -17,6 +17,9 @@ type CaseItem = {
   key: string;
   agent: string;
   auditDate: string;
+  auditDateObj: Date | null;
+  monthKey: string;
+  monthLabel: string;
   weekLabel: string;
   caseId: string;
   inquiryTh: string;
@@ -143,6 +146,21 @@ function formatAuditDate(value: any): string {
   const month = `${dt.getMonth() + 1}`.padStart(2, "0");
   const year = dt.getFullYear();
   return `${day}/${month}/${year}`;
+}
+
+function getMonthKey(date: Date | null) {
+  if (!date) return "unknown";
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getMonthLabel(date: Date | null) {
+  if (!date) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function buildHeaderHelpers(headerRow: any[]) {
@@ -430,6 +448,80 @@ function getCoachingGuide(topicCode: string) {
   );
 }
 
+function buildOneOnOneSummary(args: {
+  agentName: string;
+  caseCount: number;
+  averageScore: number;
+  strongestTopic?: CoachingTopicSummary;
+  weakestTopic?: CoachingTopicSummary;
+  focusTopics: CoachingTopicSummary[];
+  monthLabel: string;
+  weekLabel: string;
+}) {
+  const {
+    agentName,
+    caseCount,
+    averageScore,
+    strongestTopic,
+    weakestTopic,
+    focusTopics,
+    monthLabel,
+    weekLabel,
+  } = args;
+
+  const grade = scoreToGrade(averageScore);
+  const focus1 = focusTopics[0];
+  const focus2 = focusTopics[1];
+  const focus3 = focusTopics[2];
+
+  const scopeText =
+    weekLabel === "All Weeks"
+      ? `${monthLabel}`
+      : `${monthLabel} / ${weekLabel}`;
+
+  const overallComment =
+    caseCount === 0
+      ? `ในช่วง ${scopeText} ยังไม่พบเคสประเมินของ ${agentName} จึงยังไม่สามารถสรุปแนวทาง coaching ได้`
+      : `${agentName} มีผลประเมินในช่วง ${scopeText} จำนวน ${caseCount} เคส ค่าเฉลี่ยอยู่ที่ ${averageScore.toFixed(
+          2
+        )} คะแนน อยู่ในระดับ ${grade} โดยภาพรวมยังควรรักษามาตรฐานในหัวข้อที่ทำได้ดี และเร่งพัฒนาในหัวข้อที่มีผลกระทบต่อคุณภาพคำตอบและความชัดเจนของการให้บริการ`;
+
+  const strengthComment =
+    strongestTopic
+      ? `จุดแข็งที่เห็นได้ชัดคือหัวข้อ ${strongestTopic.code} ${strongestTopic.label} โดยมีผลการประเมินเฉลี่ย ${strongestTopic.pct.toFixed(
+          2
+        )}% สะท้อนว่ามีความสามารถในการดำเนินการตามมาตรฐานในหัวข้อนี้ได้ค่อนข้างดี ควรรักษาคุณภาพส่วนนี้ให้สม่ำเสมอในทุกเคส`
+      : `ยังไม่สามารถระบุจุดแข็งได้จากข้อมูลปัจจุบัน`;
+
+  const improvementComment =
+    weakestTopic
+      ? `หัวข้อที่ควรเร่งพัฒนาเป็นลำดับแรกคือ ${weakestTopic.code} ${weakestTopic.label} โดยมีผลการประเมินเฉลี่ย ${weakestTopic.pct.toFixed(
+          2
+        )}% ซึ่งสะท้อนว่ายังมีโอกาสพัฒนาในหัวข้อนี้อย่างชัดเจน โดยควรโฟกัสที่การตอบให้ครบถ้วน ชัดเจน และสอดคล้องกับบริบทเคสมากขึ้น`
+      : `ยังไม่สามารถระบุหัวข้อที่ควรพัฒนาได้จากข้อมูลปัจจุบัน`;
+
+  const focusList = [focus1, focus2, focus3]
+    .filter(Boolean)
+    .map((topic) => `${topic!.code} ${topic!.label}`)
+    .join(" / ");
+
+  const coachingDirection = focusList
+    ? `สำหรับการ coaching รอบนี้ แนะนำให้เน้นติดตามหัวข้อ ${focusList} โดยใช้การ review จากเคสจริงร่วมกับการอธิบาย expected behavior ที่ควรเกิดขึ้นในแต่ละหัวข้อ เพื่อให้น้องสามารถเชื่อมโยงจากข้อผิดพลาดเดิมไปสู่แนวทางการตอบที่ถูกต้องได้ชัดเจนขึ้น`
+    : `สำหรับการ coaching รอบนี้ ควรใช้เคสจริงประกอบการทบทวนเพื่อหาแนวทางพัฒนาที่เหมาะสม`;
+
+  const nextStep = focus1
+    ? `เป้าหมายในรอบถัดไปคือยกระดับหัวข้อ ${focus1.code} ${focus1.label} ให้มีคุณภาพดีขึ้นอย่างต่อเนื่อง พร้อมติดตามผลผ่านการสุ่มเคสและ feedback รายจุด เพื่อให้เห็นพัฒนาการเชิงพฤติกรรมอย่างชัดเจน`
+    : `เป้าหมายในรอบถัดไปคือเพิ่มความสม่ำเสมอของคุณภาพการตอบในทุกเคส`;
+
+  return {
+    overallComment,
+    strengthComment,
+    improvementComment,
+    coachingDirection,
+    nextStep,
+  };
+}
+
 function Panel({
   children,
   className = "",
@@ -512,11 +604,66 @@ function LogoHeaderBox() {
   );
 }
 
+function buildCoachingSummary(cases: CaseItem[]): CoachingTopicSummary[] {
+  return TOPIC_MASTER.map((master) => {
+    const caseTopicPairs = cases.map((item) => {
+      const mergedTopics =
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? mergeTopicSet(item.topics, item.revisedTopics)
+          : item.topics;
+
+      const topic = mergedTopics.find((t) => t.code === master.code);
+      return { item, topic };
+    });
+
+    const valid = caseTopicPairs.filter((pair) => pair.topic) as {
+      item: CaseItem;
+      topic: Topic;
+    }[];
+
+    if (!valid.length) {
+      return {
+        code: master.code,
+        label: master.label,
+        avgScore: 0,
+        pct: 0,
+        max: master.max,
+        failCount: 0,
+        impactedCases: [],
+        priority: "Low",
+      };
+    }
+
+    const avg = valid.reduce((sum, row) => sum + row.topic.score, 0) / valid.length;
+    const pct = (avg / master.max) * 100;
+
+    const impactedCases = valid
+      .filter((row) => row.topic.pct < 80)
+      .map((row) => row.item);
+
+    const failCount = impactedCases.length;
+    const priority = getPriority(pct, failCount);
+
+    return {
+      code: master.code,
+      label: master.label,
+      avgScore: Number(avg.toFixed(2)),
+      pct: Number(pct.toFixed(2)),
+      max: master.max,
+      failCount,
+      impactedCases,
+      priority,
+    };
+  });
+}
+
 export default function CoachingMockup({ currentUser }: { currentUser: any }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -713,13 +860,19 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
               rawHelper.getValue(row, "Week") ??
               "-";
 
+            const auditDateRaw = rawHelper.getValue(row, "Audit Date");
+            const auditDateObj = excelDateToJSDate(auditDateRaw);
+
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
 
             return {
               key: `row-${index + 1}-${caseId}`,
               agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
-              auditDate: formatAuditDate(rawHelper.getValue(row, "Audit Date")),
+              auditDate: formatAuditDate(auditDateRaw),
+              auditDateObj,
+              monthKey: getMonthKey(auditDateObj),
+              monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
@@ -774,21 +927,67 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       ? currentUser.agentName
       : selectedAgent;
 
-  const agentCases = useMemo(() => {
+  const baseAgentCases = useMemo(() => {
     if (!effectiveAgent) return [];
     return allCases.filter((item) => isSameAgent(item.agent, effectiveAgent));
   }, [allCases, effectiveAgent]);
 
+  const monthOptions = useMemo(() => {
+    const unique = Array.from(
+      new Map(
+        baseAgentCases
+          .filter((item) => item.monthKey !== "unknown")
+          .map((item) => [item.monthKey, item.monthLabel])
+      ).entries()
+    )
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
+
+    return unique;
+  }, [baseAgentCases]);
+
+  useEffect(() => {
+    if (!monthOptions.length) {
+      setSelectedMonth("all");
+      return;
+    }
+
+    if (selectedMonth === "all") return;
+
+    if (!monthOptions.some((item) => item.value === selectedMonth)) {
+      setSelectedMonth(monthOptions[0].value);
+    }
+  }, [monthOptions, selectedMonth]);
+
+  const monthFilteredCases = useMemo(() => {
+    if (selectedMonth === "all") return baseAgentCases;
+    return baseAgentCases.filter((item) => item.monthKey === selectedMonth);
+  }, [baseAgentCases, selectedMonth]);
+
+  const weekOptions = useMemo(() => {
+    return [...new Set(monthFilteredCases.map((item) => item.weekLabel).filter(Boolean))].sort();
+  }, [monthFilteredCases]);
+
+  useEffect(() => {
+    if (!weekOptions.length) {
+      setSelectedWeek("all");
+      return;
+    }
+
+    if (selectedWeek === "all") return;
+
+    if (!weekOptions.includes(selectedWeek)) {
+      setSelectedWeek("all");
+    }
+  }, [weekOptions, selectedWeek]);
+
+  const agentCases = useMemo(() => {
+    if (selectedWeek === "all") return monthFilteredCases;
+    return monthFilteredCases.filter((item) => item.weekLabel === selectedWeek);
+  }, [monthFilteredCases, selectedWeek]);
+
   const currentAverage =
     agentCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(agentCases.length, 1);
-
-  const strongestTopic = useMemo(() => {
-    return [...buildCoachingSummary(agentCases)].sort((a, b) => b.pct - a.pct)[0];
-  }, [agentCases]);
-
-  const weakestTopic = useMemo(() => {
-    return [...buildCoachingSummary(agentCases)].sort((a, b) => a.pct - b.pct)[0];
-  }, [agentCases]);
 
   const coachingTopics = useMemo(() => {
     return buildCoachingSummary(agentCases).sort((a, b) => {
@@ -798,6 +997,14 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       if (a.pct !== b.pct) return a.pct - b.pct;
       return a.code.localeCompare(b.code);
     });
+  }, [agentCases]);
+
+  const strongestTopic = useMemo(() => {
+    return [...buildCoachingSummary(agentCases)].sort((a, b) => b.pct - a.pct)[0];
+  }, [agentCases]);
+
+  const weakestTopic = useMemo(() => {
+    return [...buildCoachingSummary(agentCases)].sort((a, b) => a.pct - b.pct)[0];
   }, [agentCases]);
 
   const focusTopics = coachingTopics.slice(0, 5);
@@ -823,6 +1030,37 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       .filter((item) => item.issues.length > 0)
       .sort((a, b) => a.finalScore - b.finalScore);
   }, [agentCases, focusTopics]);
+
+  const currentMonthLabel =
+    selectedMonth === "all"
+      ? "All Months"
+      : monthOptions.find((item) => item.value === selectedMonth)?.label || selectedMonth;
+
+  const currentWeekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
+
+  const currentScopeLabel = `${currentMonthLabel} • ${currentWeekLabel}`;
+
+  const oneOnOneSummary = useMemo(() => {
+    return buildOneOnOneSummary({
+      agentName: effectiveAgent || "-",
+      caseCount: agentCases.length,
+      averageScore: currentAverage,
+      strongestTopic,
+      weakestTopic,
+      focusTopics,
+      monthLabel: currentMonthLabel,
+      weekLabel: currentWeekLabel,
+    });
+  }, [
+    effectiveAgent,
+    agentCases.length,
+    currentAverage,
+    strongestTopic,
+    weakestTopic,
+    focusTopics,
+    currentMonthLabel,
+    currentWeekLabel,
+  ]);
 
   if (isLoading) {
     return (
@@ -886,7 +1124,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
             <Panel className="sticky top-4">
               <PanelHeader
                 title="Coaching Controls"
-                subtitle="Select agent for coaching summary"
+                subtitle="Select agent, month, and week for coaching summary"
               />
               <PanelBody className="space-y-5">
                 <div>
@@ -900,7 +1138,11 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                   ) : (
                     <select
                       value={selectedAgent}
-                      onChange={(e) => setSelectedAgent(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedAgent(e.target.value);
+                        setSelectedMonth("all");
+                        setSelectedWeek("all");
+                      }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
                       {visibleAgentList.map((agent) => (
@@ -912,10 +1154,50 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                   )}
                 </div>
 
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Month
+                  </div>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      setSelectedMonth(e.target.value);
+                      setSelectedWeek("all");
+                    }}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="all">All Months</option>
+                    {monthOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Week
+                  </div>
+                  <select
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="all">All Weeks</option>
+                    {weekOptions.map((week) => (
+                      <option key={week} value={week}>
+                        {week}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                    Coaching Intent
+                    Current Scope
                   </div>
+                  <div className="mt-2 text-sm font-semibold text-slate-800">{currentScopeLabel}</div>
                   <div className="mt-2 text-sm leading-6 text-slate-700">
                     ใช้สำหรับสรุปหัวข้อที่ควรพัฒนา พร้อมแนวทาง coaching ที่นำไปใช้ต่อกับน้องแต่ละคนได้ทันที
                   </div>
@@ -936,7 +1218,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
               <MetricCard
                 title="Reviewed Cases"
                 value={String(agentCases.length)}
-                sub="Cases in current coaching scope"
+                sub={currentScopeLabel}
                 accent="from-sky-50 via-white to-sky-100/70 border-sky-200"
                 valueClassName="text-sky-700"
               />
@@ -962,6 +1244,61 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                 valueClassName="text-rose-700"
               />
             </div>
+
+            <Panel>
+              <PanelHeader
+                title="One-on-One Coaching Summary"
+                subtitle="Auto-generated summary for coaching discussion"
+              />
+              <PanelBody className="space-y-4">
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                    Overall Summary
+                  </div>
+                  <div className="mt-2 text-sm leading-7 text-slate-700">
+                    {oneOnOneSummary.overallComment}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Strength to Maintain
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-slate-700">
+                      {oneOnOneSummary.strengthComment}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                      Main Improvement Area
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-slate-700">
+                      {oneOnOneSummary.improvementComment}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                    Coaching Direction
+                  </div>
+                  <div className="mt-2 text-sm leading-7 text-slate-700">
+                    {oneOnOneSummary.coachingDirection}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                    Next Coaching Target
+                  </div>
+                  <div className="mt-2 text-sm leading-7 text-slate-700">
+                    {oneOnOneSummary.nextStep}
+                  </div>
+                </div>
+              </PanelBody>
+            </Panel>
 
             <div className="grid gap-6 xl:grid-cols-2">
               <Panel>
@@ -1273,57 +1610,4 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       </div>
     </div>
   );
-}
-
-function buildCoachingSummary(cases: CaseItem[]): CoachingTopicSummary[] {
-  return TOPIC_MASTER.map((master) => {
-    const caseTopicPairs = cases.map((item) => {
-      const mergedTopics =
-        item.reviewStatus === "Revised" && item.revisedTopics?.length
-          ? mergeTopicSet(item.topics, item.revisedTopics)
-          : item.topics;
-
-      const topic = mergedTopics.find((t) => t.code === master.code);
-      return { item, topic };
-    });
-
-    const valid = caseTopicPairs.filter((pair) => pair.topic) as {
-      item: CaseItem;
-      topic: Topic;
-    }[];
-
-    if (!valid.length) {
-      return {
-        code: master.code,
-        label: master.label,
-        avgScore: 0,
-        pct: 0,
-        max: master.max,
-        failCount: 0,
-        impactedCases: [],
-        priority: "Low",
-      };
-    }
-
-    const avg = valid.reduce((sum, row) => sum + row.topic.score, 0) / valid.length;
-    const pct = (avg / master.max) * 100;
-
-    const impactedCases = valid
-      .filter((row) => row.topic.pct < 80)
-      .map((row) => row.item);
-
-    const failCount = impactedCases.length;
-    const priority = getPriority(pct, failCount);
-
-    return {
-      code: master.code,
-      label: master.label,
-      avgScore: Number(avg.toFixed(2)),
-      pct: Number(pct.toFixed(2)),
-      max: master.max,
-      failCount,
-      impactedCases,
-      priority,
-    };
-  });
 }
