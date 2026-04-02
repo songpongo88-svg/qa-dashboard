@@ -3,6 +3,7 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
+import CoachingMockup from "./CoachingMockup";
 
 type UserRole = "Agent" | "Supervisor";
 
@@ -95,9 +96,9 @@ const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Sunijtra",
     password: "Sj#6Qm1!Ty",
-    displayName: "Sunijtra Siritip",
+    displayName: "Sunijtra Siritan",
     role: "Agent",
-    agentName: "Sunijtra Siritip",
+    agentName: "Sunijtra Siritan",
   },
   {
     username: "Supakrit",
@@ -501,9 +502,9 @@ export default function App() {
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "appeal" | "summary" | "rubric">(
-    "dashboard"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "appeal" | "summary" | "rubric" | "coaching"
+  >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
 
@@ -751,8 +752,8 @@ export default function App() {
                 </div>
 
                 <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA Rubric
-                  with role-based visibility for supervisors and agents.
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, Coaching,
+                  and QA Rubric with role-based visibility for supervisors and agents.
                 </div>
 
                 <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
@@ -762,7 +763,7 @@ export default function App() {
                   />
                   <LoginFeatureCard
                     title="Review"
-                    desc="Appeal result, case comparison, and QA rubric reference"
+                    desc="Appeal result, coaching, case comparison, and QA rubric reference"
                   />
                   <LoginFeatureCard
                     title="Security"
@@ -968,6 +969,11 @@ export default function App() {
                   label="QA Rubric"
                   onClick={() => setActiveTab("rubric")}
                 />
+                <NavButton
+                  active={activeTab === "coaching"}
+                  label="Coaching"
+                  onClick={() => setActiveTab("coaching")}
+                />
               </div>
 
               <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 shadow-sm">
@@ -1047,6 +1053,8 @@ export default function App() {
           />
         ) : activeTab === "summary" ? (
           <SummaryMockup currentUser={currentUser} />
+        ) : activeTab === "coaching" ? (
+          <CoachingMockup currentUser={currentUser} />
         ) : (
           <QARubricMockup />
         )}
