@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { APR_2026_TOPICS } from "../lib/evaluation/rubricDefinitions";
 import { calculateApril2026Incentive } from "../lib/evaluation/gradeIncentiveEngine";
-import type { CaseMaster, EvaluationTopicResult } from "../lib/evaluation/evaluationTypes";
+import type {
+  CaseMaster,
+  EvaluationTopicResult,
+} from "../lib/evaluation/evaluationTypes";
 
 const DEFAULT_CASE: CaseMaster = {
   caseId: "",
@@ -20,7 +23,7 @@ const DEFAULT_CASE: CaseMaster = {
   incentiveTotal: 0,
   incentiveCash: 0,
   incentiveRbhCode: 0,
-  criticalErrorFlag: false
+  criticalErrorFlag: false,
 };
 
 function buildDefaultTopicResults(): EvaluationTopicResult[] {
@@ -40,14 +43,16 @@ function buildDefaultTopicResults(): EvaluationTopicResult[] {
     reviewerComment: "",
     languageQualityCheck: topic.topicCode === "4.2" ? "Good" : undefined,
     chatToneCheck: topic.topicCode === "4.3" ? "Good" : undefined,
-    voiceToneCheck: topic.topicCode === "4.3" ? "N/A" : undefined
+    voiceToneCheck: topic.topicCode === "4.3" ? "N/A" : undefined,
   }));
 }
 
 export default function EvaluationStudioPage() {
   const [caseMaster, setCaseMaster] = useState<CaseMaster>(DEFAULT_CASE);
   const [transcriptText, setTranscriptText] = useState("");
-  const [topicResults, setTopicResults] = useState<EvaluationTopicResult[]>(buildDefaultTopicResults());
+  const [topicResults, setTopicResults] = useState<EvaluationTopicResult[]>(
+    buildDefaultTopicResults()
+  );
 
   const totalScore = useMemo(() => {
     return topicResults.reduce((sum, topic) => sum + topic.reviewerFinalScore, 0);
@@ -60,7 +65,9 @@ export default function EvaluationStudioPage() {
   function handleGenerateSummary() {
     const trimmed = transcriptText.trim();
     const fallbackSummary = trimmed
-      ? `สรุปอัตโนมัติเบื้องต้นจากข้อความเคส: ${trimmed.slice(0, 180)}${trimmed.length > 180 ? "..." : ""}`
+      ? `สรุปอัตโนมัติเบื้องต้นจากข้อความเคส: ${trimmed.slice(0, 180)}${
+          trimmed.length > 180 ? "..." : ""
+        }`
       : "ยังไม่มีข้อมูล transcript สำหรับสรุปเคส";
 
     setCaseMaster((prev) => ({
@@ -68,11 +75,14 @@ export default function EvaluationStudioPage() {
       caseSummary: fallbackSummary,
       customerIntent: prev.customerIntent || "ระบุภายหลังจากการอ่านเคส",
       agentActionSummary: prev.agentActionSummary || "ระบุภายหลังจากการประเมิน",
-      resolutionStatus: prev.resolutionStatus || "Pending"
+      resolutionStatus: prev.resolutionStatus || "Pending",
     }));
   }
 
-  function handleTopicChange(index: number, patch: Partial<EvaluationTopicResult>) {
+  function handleTopicChange(
+    index: number,
+    patch: Partial<EvaluationTopicResult>
+  ) {
     setTopicResults((prev) =>
       prev.map((topic, i) => (i === index ? { ...topic, ...patch } : topic))
     );
@@ -82,39 +92,52 @@ export default function EvaluationStudioPage() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-slate-900">QA Evaluation Studio</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            QA Evaluation Studio
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
             Prototype สำหรับประเมิน QA เดือนเมษายน 2569 ตาม rubric ใหม่
           </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl bg-white p-6 shadow-sm space-y-4">
+          <div className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Case Intake</h2>
+
             <input
               className="w-full rounded-xl border px-3 py-2"
               placeholder="Case ID"
               value={caseMaster.caseId}
-              onChange={(e) => setCaseMaster((prev) => ({ ...prev, caseId: e.target.value }))}
+              onChange={(e) =>
+                setCaseMaster((prev) => ({ ...prev, caseId: e.target.value }))
+              }
             />
+
             <input
               className="w-full rounded-xl border px-3 py-2"
               placeholder="Agent Name"
               value={caseMaster.agentName}
-              onChange={(e) => setCaseMaster((prev) => ({ ...prev, agentName: e.target.value }))}
+              onChange={(e) =>
+                setCaseMaster((prev) => ({ ...prev, agentName: e.target.value }))
+              }
             />
+
             <input
               className="w-full rounded-xl border px-3 py-2"
               type="date"
               value={caseMaster.auditDate}
-              onChange={(e) => setCaseMaster((prev) => ({ ...prev, auditDate: e.target.value }))}
+              onChange={(e) =>
+                setCaseMaster((prev) => ({ ...prev, auditDate: e.target.value }))
+              }
             />
+
             <textarea
               className="min-h-[220px] w-full rounded-xl border px-3 py-2"
               placeholder="Paste chat transcript here"
               value={transcriptText}
               onChange={(e) => setTranscriptText(e.target.value)}
             />
+
             <button
               className="rounded-xl bg-violet-600 px-4 py-2 text-white"
               onClick={handleGenerateSummary}
@@ -123,19 +146,26 @@ export default function EvaluationStudioPage() {
             </button>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-sm space-y-4">
+          <div className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Case Summary</h2>
+
             <div className="rounded-xl border p-4 text-sm text-slate-700">
               {caseMaster.caseSummary || "ยังไม่มีสรุปเคส"}
             </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border p-4">
                 <div className="text-xs text-slate-500">Customer Intent</div>
-                <div className="mt-1 text-sm text-slate-800">{caseMaster.customerIntent || "-"}</div>
+                <div className="mt-1 text-sm text-slate-800">
+                  {caseMaster.customerIntent || "-"}
+                </div>
               </div>
+
               <div className="rounded-xl border p-4">
                 <div className="text-xs text-slate-500">Resolution Status</div>
-                <div className="mt-1 text-sm text-slate-800">{caseMaster.resolutionStatus || "-"}</div>
+                <div className="mt-1 text-sm text-slate-800">
+                  {caseMaster.resolutionStatus || "-"}
+                </div>
               </div>
             </div>
           </div>
@@ -143,16 +173,20 @@ export default function EvaluationStudioPage() {
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Topic Evaluation</h2>
+
           <div className="mt-4 space-y-4">
             {topicResults.map((topic, index) => (
-              <div key={topic.topicCode} className="rounded-2xl border p-4 space-y-3">
+              <div key={topic.topicCode} className="space-y-3 rounded-2xl border p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="font-medium text-slate-900">
                       {topic.topicCode} {topic.topicLabel}
                     </div>
-                    <div className="text-xs text-slate-500">Max {topic.maxScore}</div>
+                    <div className="text-xs text-slate-500">
+                      Max {topic.maxScore}
+                    </div>
                   </div>
+
                   <input
                     className="w-24 rounded-xl border px-3 py-2 text-right"
                     type="number"
@@ -162,16 +196,19 @@ export default function EvaluationStudioPage() {
                     value={topic.reviewerFinalScore}
                     onChange={(e) =>
                       handleTopicChange(index, {
-                        reviewerFinalScore: Number(e.target.value || 0)
+                        reviewerFinalScore: Number(e.target.value || 0),
                       })
                     }
                   />
                 </div>
+
                 <textarea
                   className="min-h-[90px] w-full rounded-xl border px-3 py-2"
                   placeholder="Reason Formal TH"
                   value={topic.reasonFormalTh}
-                  onChange={(e) => handleTopicChange(index, { reasonFormalTh: e.target.value })}
+                  onChange={(e) =>
+                    handleTopicChange(index, { reasonFormalTh: e.target.value })
+                  }
                 />
               </div>
             ))}
@@ -180,22 +217,34 @@ export default function EvaluationStudioPage() {
 
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Final Summary</h2>
+
           <div className="mt-4 grid gap-4 sm:grid-cols-4">
             <div className="rounded-xl border p-4">
               <div className="text-xs text-slate-500">Final Score</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">{gradeIncentive.finalScore}</div>
+              <div className="mt-1 text-2xl font-semibold text-slate-900">
+                {gradeIncentive.finalScore}
+              </div>
             </div>
+
             <div className="rounded-xl border p-4">
               <div className="text-xs text-slate-500">Grade</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">{gradeIncentive.finalGrade}</div>
+              <div className="mt-1 text-2xl font-semibold text-slate-900">
+                {gradeIncentive.finalGrade}
+              </div>
             </div>
+
             <div className="rounded-xl border p-4">
               <div className="text-xs text-slate-500">Incentive Total</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">{gradeIncentive.incentiveTotal}</div>
+              <div className="mt-1 text-2xl font-semibold text-slate-900">
+                {gradeIncentive.incentiveTotal}
+              </div>
             </div>
+
             <div className="rounded-xl border p-4">
               <div className="text-xs text-slate-500">Scheme</div>
-              <div className="mt-1 text-sm font-medium text-slate-900">{gradeIncentive.incentiveScheme}</div>
+              <div className="mt-1 text-sm font-medium text-slate-900">
+                {gradeIncentive.incentiveScheme}
+              </div>
             </div>
           </div>
         </div>
