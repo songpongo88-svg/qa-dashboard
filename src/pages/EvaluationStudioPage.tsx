@@ -114,6 +114,34 @@ export default function EvaluationStudioPage() {
     );
   }
 
+  function handleExportJson() {
+    const payload = {
+      caseMaster: {
+        ...caseMaster,
+        finalScore: gradeIncentive.finalScore,
+        finalGrade: gradeIncentive.finalGrade,
+        incentiveTotal: gradeIncentive.incentiveTotal,
+        incentiveCash: gradeIncentive.incentiveCash,
+        incentiveRbhCode: gradeIncentive.incentiveRbhCode,
+      },
+      topicResults,
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${caseMaster.caseId || "qa-evaluation"}-evaluation.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -292,6 +320,16 @@ export default function EvaluationStudioPage() {
                 {gradeIncentive.incentiveScheme}
               </div>
             </div>
+          </div>
+
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={handleExportJson}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Export JSON
+            </button>
           </div>
         </div>
       </div>
