@@ -199,15 +199,50 @@ export default function EvaluationStudioPage() {
           <div className="mt-4 space-y-4">
             {topicResults.map((topic, index) => (
               <div key={topic.topicCode} className="space-y-3 rounded-2xl border p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="font-medium text-slate-900">
-                      {topic.topicCode} {topic.topicLabel}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      Max {topic.maxScore}
-                    </div>
-                  </div>
+  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <div className="font-medium text-slate-900">
+        {topic.topicCode} {topic.topicLabel}
+      </div>
+      <div className="text-xs text-slate-500">
+        Max {topic.maxScore}
+      </div>
+      <div className="mt-1 text-xs text-slate-500">
+        Suggested Range: {topic.suggestedScoreMin ?? "-"} - {topic.suggestedScoreMax ?? "-"}
+      </div>
+    </div>
+
+    <div className="grid gap-2 sm:grid-cols-2">
+      <select
+        className="rounded-xl border px-3 py-2 text-sm"
+        value={topic.deductionLevel}
+        onChange={(e) =>
+          handleTopicChange(index, {
+            deductionLevel: e.target.value as EvaluationTopicResult["deductionLevel"],
+          })
+        }
+      >
+        <option value="None">None</option>
+        <option value="Minor">Minor</option>
+        <option value="Moderate">Moderate</option>
+        <option value="Severe">Severe</option>
+      </select>
+
+      <input
+        className="w-full rounded-xl border px-3 py-2 text-right"
+        type="number"
+        min={0}
+        max={topic.maxScore}
+        step={1}
+        value={topic.reviewerFinalScore}
+        onChange={(e) =>
+          handleTopicChange(index, {
+            reviewerFinalScore: Number(e.target.value || 0),
+          })
+        }
+      />
+    </div>
+  </div>
 
                   <input
                     className="w-24 rounded-xl border px-3 py-2 text-right"
