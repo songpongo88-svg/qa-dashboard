@@ -83,7 +83,6 @@ const AGENT_MASTER = [
   "Natcha Chai-in",
   "Nattapol Suprom",
   "Sunijtra Siritip",
-  "Sunijtra Siritan",
   "Supakrit Promkhamnoi",
   "Suphitcha Keawliam",
   "Wachiraporn chailittichai",
