@@ -114,8 +114,8 @@ export default function EvaluationStudioPage() {
     );
   }
 
-  function handleExportJson() {
-    const payload = {
+  function buildExportPayload() {
+    return {
       caseMaster: {
         ...caseMaster,
         finalScore: gradeIncentive.finalScore,
@@ -127,6 +127,10 @@ export default function EvaluationStudioPage() {
       topicResults,
       exportedAt: new Date().toISOString(),
     };
+  }
+
+  function handleExportJson() {
+    const payload = buildExportPayload();
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -136,6 +140,66 @@ export default function EvaluationStudioPage() {
     const link = document.createElement("a");
     link.href = url;
     link.download = `${caseMaster.caseId || "qa-evaluation"}-evaluation.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function escapeCsvValue(value: string | number | boolean | null | undefined) {
+    const text = String(value ?? "");
+    if (text.includes('"') || text.includes(",") || text.includes("\n")) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  }
+
+  function handleExportCsv() {
+    const topicScoreMap = Object.fromEntries(
+      topicResults.map((topic) => [topic.topicCode, topic.reviewerFinalScore])
+    );
+
+    const row = {
+      auditDate: caseMaster.auditDate,
+      month: caseMaster.monthLabel,
+      week: caseMaster.weekLabel || "",
+      caseId: caseMaster.caseId,
+      agentName: caseMaster.agentName,
+      rubricVersion: caseMaster.rubricVersion,
+      reviewStatus: caseMaster.reviewStatus,
+      caseSummary: caseMaster.caseSummary,
+      customerIntent: caseMaster.customerIntent || "",
+      agentActionSummary: caseMaster.agentActionSummary || "",
+      resolutionStatus: caseMaster.resolutionStatus || "",
+      finalScore: gradeIncentive.finalScore,
+      finalGrade: gradeIncentive.finalGrade,
+      incentiveTotal: gradeIncentive.incentiveTotal,
+      incentiveCash: gradeIncentive.incentiveCash,
+      incentiveRbhCode: gradeIncentive.incentiveRbhCode,
+      score_1_1: topicScoreMap["1.1"] ?? "",
+      score_1_2: topicScoreMap["1.2"] ?? "",
+      score_1_3: topicScoreMap["1.3"] ?? "",
+      score_2_1: topicScoreMap["2.1"] ?? "",
+      score_2_2: topicScoreMap["2.2"] ?? "",
+      score_2_3: topicScoreMap["2.3"] ?? "",
+      score_3_1: topicScoreMap["3.1"] ?? "",
+      score_3_2: topicScoreMap["3.2"] ?? "",
+      score_4_1: topicScoreMap["4.1"] ?? "",
+      score_4_2: topicScoreMap["4.2"] ?? "",
+      score_4_3: topicScoreMap["4.3"] ?? "",
+      overallQaSummary: "",
+    };
+
+    const headers = Object.keys(row);
+    const values = Object.values(row).map((value) => escapeCsvValue(value));
+
+    const csv = [headers.join(","), values.join(",")].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${caseMaster.caseId || "qa-evaluation"}-dashboard-row.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -193,7 +257,7 @@ export default function EvaluationStudioPage() {
             />
 
             <button
-              className="rounded-xl bg-violet-600 px-4 py-2 text-white"
+              className="rounded-xl bg-violet-600 px-4 py-2 text-white hover:bg-violet-700"
               onClick={handleGenerateSummary}
             >
               Generate Case Summary
@@ -322,13 +386,21 @@ export default function EvaluationStudioPage() {
             </div>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={handleExportJson}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
               Export JSON
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Export CSV
             </button>
           </div>
         </div>
