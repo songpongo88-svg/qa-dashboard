@@ -80,13 +80,35 @@ export default function EvaluationStudioPage() {
   }
 
   function handleTopicChange(
-    index: number,
-    patch: Partial<EvaluationTopicResult>
-  ) {
-    setTopicResults((prev) =>
-      prev.map((topic, i) => (i === index ? { ...topic, ...patch } : topic))
-    );
-  }
+  index: number,
+  patch: Partial<EvaluationTopicResult>
+) {
+  setTopicResults((prev) =>
+    prev.map((topic, i) => {
+      if (i !== index) return topic;
+
+      const nextTopic = { ...topic, ...patch };
+
+      if (patch.deductionLevel) {
+        const band = getDeductionBand(nextTopic.topicCode, patch.deductionLevel);
+        const suggestedScore = getSuggestedScoreFromLevel(
+          nextTopic.topicCode,
+          patch.deductionLevel
+        );
+
+        return {
+          ...nextTopic,
+          suggestedScoreMin: band?.min,
+          suggestedScoreMax: band?.max,
+          reviewerFinalScore:
+            suggestedScore !== null ? suggestedScore : nextTopic.reviewerFinalScore,
+        };
+      }
+
+      return nextTopic;
+    })
+  );
+}
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
