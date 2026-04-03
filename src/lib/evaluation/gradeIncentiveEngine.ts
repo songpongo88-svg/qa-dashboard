@@ -7,7 +7,9 @@ function calculateGrade(finalScore: number): FinalGrade {
   return "D";
 }
 
-export function calculateApril2026Incentive(finalScore: number): GradeIncentiveResult {
+export function calculateApril2026Incentive(
+  finalScore: number
+): GradeIncentiveResult {
   const finalGrade = calculateGrade(finalScore);
 
   switch (finalGrade) {
@@ -19,7 +21,7 @@ export function calculateApril2026Incentive(finalScore: number): GradeIncentiveR
         incentiveCash: 700,
         incentiveRbhCode: 300,
         incentiveEligible: true,
-        incentiveScheme: "APR_2026_SPECIAL"
+        incentiveScheme: "APR_2026_SPECIAL",
       };
     case "B":
       return {
@@ -29,7 +31,7 @@ export function calculateApril2026Incentive(finalScore: number): GradeIncentiveR
         incentiveCash: 500,
         incentiveRbhCode: 200,
         incentiveEligible: true,
-        incentiveScheme: "APR_2026_SPECIAL"
+        incentiveScheme: "APR_2026_SPECIAL",
       };
     case "C":
       return {
@@ -39,7 +41,7 @@ export function calculateApril2026Incentive(finalScore: number): GradeIncentiveR
         incentiveCash: 350,
         incentiveRbhCode: 150,
         incentiveEligible: true,
-        incentiveScheme: "APR_2026_SPECIAL"
+        incentiveScheme: "APR_2026_SPECIAL",
       };
     default:
       return {
@@ -49,7 +51,7 @@ export function calculateApril2026Incentive(finalScore: number): GradeIncentiveR
         incentiveCash: 0,
         incentiveRbhCode: 0,
         incentiveEligible: false,
-        incentiveScheme: "APR_2026_SPECIAL"
+        incentiveScheme: "APR_2026_SPECIAL",
       };
   }
 }
