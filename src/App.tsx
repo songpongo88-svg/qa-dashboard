@@ -4,6 +4,7 @@ import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
+import EvaluationStudioPage from "./pages/EvaluationStudioPage";
 
 type UserRole = "Agent" | "Supervisor";
 
@@ -503,7 +504,7 @@ export default function App() {
   const [resetResultMessage, setResetResultMessage] = useState("");
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "rubric" | "coaching"
+    "dashboard" | "appeal" | "summary" | "rubric" | "coaching" | "evaluation-studio"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
@@ -974,33 +975,13 @@ export default function App() {
                   label="Coaching"
                   onClick={() => setActiveTab("coaching")}
                 />
+                <NavButton
+                  active={activeTab === "evaluation-studio"}
+                  label="Evaluation Studio"
+                  onClick={() => setActiveTab("evaluation-studio")}
+                />
               </div>
-<div className="flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-200/80 bg-white/80 px-2 py-2 shadow-sm">
-  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
-    Review
-  </span>
 
-  <NavButton
-    active={activeTab === "appeal"}
-    label="Appeal"
-    onClick={() => setActiveTab("appeal")}
-  />
-  <NavButton
-    active={activeTab === "rubric"}
-    label="QA Rubric"
-    onClick={() => setActiveTab("rubric")}
-  />
-  <NavButton
-    active={activeTab === "coaching"}
-    label="Coaching"
-    onClick={() => setActiveTab("coaching")}
-  />
-  <NavButton
-    active={activeTab === "evaluation-studio"}
-    label="Evaluation Studio"
-    onClick={() => setActiveTab("evaluation-studio")}
-  />
-</div>
               <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 shadow-sm">
                 <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
                   Account
@@ -1080,6 +1061,8 @@ export default function App() {
           <SummaryMockup currentUser={currentUser} />
         ) : activeTab === "coaching" ? (
           <CoachingMockup currentUser={currentUser} />
+        ) : activeTab === "evaluation-studio" ? (
+          <EvaluationStudioPage />
         ) : (
           <QARubricMockup />
         )}
