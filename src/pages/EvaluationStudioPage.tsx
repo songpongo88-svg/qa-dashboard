@@ -77,12 +77,21 @@ function isVoiceRelevant(topicCode: string, hasOutboundCall: boolean) {
   return topicCode === "4.3" && hasOutboundCall;
 }
 
+function getTopicResult(
+  topicResults: EvaluationTopicResult[],
+  topicCode: string
+): EvaluationTopicResult | undefined {
+  return topicResults.find((topic) => topic.topicCode === topicCode);
+}
+
 export default function EvaluationStudioPage() {
   const [caseMaster, setCaseMaster] = useState<CaseMaster>(DEFAULT_CASE);
   const [transcriptText, setTranscriptText] = useState("");
   const [topicResults, setTopicResults] = useState<EvaluationTopicResult[]>(
     buildDefaultTopicResults()
   );
+  const [validationMessage, setValidationMessage] = useState("");
+  const [warningMessage, setWarningMessage] = useState("");
 
   const totalScore = useMemo(() => {
     return topicResults.reduce((sum, topic) => sum + topic.reviewerFinalScore, 0);
@@ -115,6 +124,8 @@ export default function EvaluationStudioPage() {
 
   function handleCaseMasterChange(patch: Partial<CaseMaster>) {
     setCaseMaster((prev) => ({ ...prev, ...patch }));
+    setValidationMessage("");
+    setWarningMessage("");
   }
 
   function handleTopicChange(
@@ -157,6 +168,45 @@ export default function EvaluationStudioPage() {
         return nextTopic;
       })
     );
+
+    setValidationMessage("");
+    setWarningMessage("");
+  }
+
+  function validateBeforeExport(): boolean {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!caseMaster.caseId.trim()) {
+      errors.push("กรุณาระบุ Case ID");
+    }
+
+    if (!caseMaster.agentName.trim()) {
+      errors.push("กรุณาระบุ Agent Name");
+    }
+
+    if (!caseMaster.auditDate.trim()) {
+      errors.push("กรุณาระบุ Audit Date");
+    }
+
+    if (
+      caseMaster.criticalErrorFlag &&
+      !caseMaster.criticalErrorType?.trim() &&
+      !caseMaster.criticalErrorNote?.trim()
+    ) {
+      errors.push("หากติ๊ก Critical Error กรุณาระบุ Type หรือ Note อย่างน้อย 1 ช่อง");
+    }
+
+    if (caseMaster.hasOutboundCall && !caseMaster.voiceFileUploaded) {
+      warnings.push(
+        "เคสนี้ระบุว่ามี Outbound Call แต่ยังไม่ได้ติ๊ก Voice File Uploaded"
+      );
+    }
+
+    setValidationMessage(errors.join(" | "));
+    setWarningMessage(warnings.join(" | "));
+
+    return errors.length === 0;
   }
 
   function buildExportPayload() {
@@ -176,6 +226,8 @@ export default function EvaluationStudioPage() {
   }
 
   function handleExportJson() {
+    if (!validateBeforeExport()) return;
+
     const payload = buildExportPayload();
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -193,46 +245,59 @@ export default function EvaluationStudioPage() {
   }
 
   function handleExportCsv() {
-    const topicScoreMap = Object.fromEntries(
-      topicResults.map((topic) => [topic.topicCode, topic.reviewerFinalScore])
-    );
+    if (!validateBeforeExport()) return;
+
+    const t11 = getTopicResult(topicResults, "1.1");
+    const t12 = getTopicResult(topicResults, "1.2");
+    const t13 = getTopicResult(topicResults, "1.3");
+    const t21 = getTopicResult(topicResults, "2.1");
+    const t22 = getTopicResult(topicResults, "2.2");
+    const t23 = getTopicResult(topicResults, "2.3");
+    const t31 = getTopicResult(topicResults, "3.1");
+    const t32 = getTopicResult(topicResults, "3.2");
+    const t41 = getTopicResult(topicResults, "4.1");
+    const t42 = getTopicResult(topicResults, "4.2");
+    const t43 = getTopicResult(topicResults, "4.3");
 
     const row = {
-      auditDate: caseMaster.auditDate,
-      month: caseMaster.monthLabel,
-      week: caseMaster.weekLabel || "",
-      caseId: caseMaster.caseId,
-      agentName: caseMaster.agentName,
-      rubricVersion: caseMaster.rubricVersion,
-      reviewStatus: caseMaster.reviewStatus,
-      hasOutboundCall: caseMaster.hasOutboundCall,
-      voiceFileUploaded: caseMaster.voiceFileUploaded,
-      caseSummary: caseMaster.caseSummary,
-      customerIntent: caseMaster.customerIntent || "",
-      agentActionSummary: caseMaster.agentActionSummary || "",
-      resolutionStatus: caseMaster.resolutionStatus || "",
-      potentialRisk: caseMaster.potentialRisk || "",
-      finalScore: gradeIncentive.finalScore,
-      finalGrade: gradeIncentive.finalGrade,
-      incentiveTotal: gradeIncentive.incentiveTotal,
-      incentiveCash: gradeIncentive.incentiveCash,
-      incentiveRbhCode: gradeIncentive.incentiveRbhCode,
-      criticalErrorFlag: caseMaster.criticalErrorFlag,
-      criticalErrorType: caseMaster.criticalErrorType || "",
-      criticalErrorNote: caseMaster.criticalErrorNote || "",
-      overallQaSummary: caseMaster.overallQaSummary || "",
-      coachingSummary: caseMaster.coachingSummary || "",
-      score_1_1: topicScoreMap["1.1"] ?? "",
-      score_1_2: topicScoreMap["1.2"] ?? "",
-      score_1_3: topicScoreMap["1.3"] ?? "",
-      score_2_1: topicScoreMap["2.1"] ?? "",
-      score_2_2: topicScoreMap["2.2"] ?? "",
-      score_2_3: topicScoreMap["2.3"] ?? "",
-      score_3_1: topicScoreMap["3.1"] ?? "",
-      score_3_2: topicScoreMap["3.2"] ?? "",
-      score_4_1: topicScoreMap["4.1"] ?? "",
-      score_4_2: topicScoreMap["4.2"] ?? "",
-      score_4_3: topicScoreMap["4.3"] ?? "",
+      "Audit Date": caseMaster.auditDate,
+      Month: caseMaster.monthLabel,
+      Week: caseMaster.weekLabel || "",
+      "Agent Name": caseMaster.agentName,
+      "Case ID": caseMaster.caseId,
+      "Rubric Version": caseMaster.rubricVersion,
+      "Review Status": caseMaster.reviewStatus,
+      "Case Summary": caseMaster.caseSummary,
+      "Customer Intent": caseMaster.customerIntent || "",
+      "Agent Action Summary": caseMaster.agentActionSummary || "",
+      "Resolution Status": caseMaster.resolutionStatus || "",
+      "Potential Risk": caseMaster.potentialRisk || "",
+      "Has Outbound Call": caseMaster.hasOutboundCall,
+      "Voice File Uploaded": caseMaster.voiceFileUploaded,
+      "Final Score": gradeIncentive.finalScore,
+      Grade: gradeIncentive.finalGrade,
+      "Incentive Total": gradeIncentive.incentiveTotal,
+      "Incentive Cash": gradeIncentive.incentiveCash,
+      "Incentive RBH Code": gradeIncentive.incentiveRbhCode,
+      "Critical Error Flag": caseMaster.criticalErrorFlag,
+      "Critical Error Type": caseMaster.criticalErrorType || "",
+      "Critical Error Note": caseMaster.criticalErrorNote || "",
+      "1.1 Score": t11?.reviewerFinalScore ?? "",
+      "1.2 Score": t12?.reviewerFinalScore ?? "",
+      "1.3 Score": t13?.reviewerFinalScore ?? "",
+      "2.1 Score": t21?.reviewerFinalScore ?? "",
+      "2.2 Score": t22?.reviewerFinalScore ?? "",
+      "2.3 Score": t23?.reviewerFinalScore ?? "",
+      "3.1 Score": t31?.reviewerFinalScore ?? "",
+      "3.2 Score": t32?.reviewerFinalScore ?? "",
+      "4.1 Score": t41?.reviewerFinalScore ?? "",
+      "4.2 Score": t42?.reviewerFinalScore ?? "",
+      "4.3 Score": t43?.reviewerFinalScore ?? "",
+      "Language Quality Check": t42?.languageQualityCheck ?? "",
+      "Chat Tone Check": t43?.chatToneCheck ?? "",
+      "Voice Tone Check": t43?.voiceToneCheck ?? "",
+      "Overall QA Summary": caseMaster.overallQaSummary || "",
+      "Coaching Summary": caseMaster.coachingSummary || "",
     };
 
     const headers = Object.keys(row);
@@ -279,6 +344,22 @@ export default function EvaluationStudioPage() {
             Prototype สำหรับประเมิน QA เดือนเมษายน 2569 ตาม rubric ใหม่
           </p>
         </div>
+
+        {(validationMessage || warningMessage) && (
+          <div className="space-y-3">
+            {validationMessage ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                {validationMessage}
+              </div>
+            ) : null}
+
+            {warningMessage ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                {warningMessage}
+              </div>
+            ) : null}
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
