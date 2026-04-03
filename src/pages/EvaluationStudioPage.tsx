@@ -5,6 +5,7 @@ import {
   getDeductionBand,
   getSuggestedScoreFromLevel,
 } from "../lib/evaluation/deductionRules";
+import { getReasonTemplate } from "../lib/evaluation/reasonTemplates";
 import type {
   CaseMaster,
   EvaluationTopicResult,
@@ -49,7 +50,7 @@ function buildDefaultTopicResults(): EvaluationTopicResult[] {
     suggestedScoreMin: topic.maxScore,
     suggestedScoreMax: topic.maxScore,
     reviewerFinalScore: topic.maxScore,
-    reasonFormalTh: "",
+    reasonFormalTh: getReasonTemplate(topic.topicCode, "None"),
     evidenceQuote: "",
     improvementGuidance: "",
     boundaryRuleApplied: topic.boundaryRule,
@@ -133,12 +134,23 @@ export default function EvaluationStudioPage() {
             patch.deductionLevel
           );
 
+          const currentReason = topic.reasonFormalTh?.trim() || "";
+          const autoReason = getReasonTemplate(
+            nextTopic.topicCode,
+            patch.deductionLevel
+          );
+
+          const shouldReplaceReason =
+            currentReason === "" ||
+            currentReason === getReasonTemplate(topic.topicCode, topic.deductionLevel);
+
           return {
             ...nextTopic,
             suggestedScoreMin: band?.min,
             suggestedScoreMax: band?.max,
             reviewerFinalScore:
               suggestedScore !== null ? suggestedScore : nextTopic.reviewerFinalScore,
+            reasonFormalTh: shouldReplaceReason ? autoReason : nextTopic.reasonFormalTh,
           };
         }
 
