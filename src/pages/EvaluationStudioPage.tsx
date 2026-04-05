@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createWorker, type Worker } from "tesseract.js";
 import { APR_2026_TOPICS } from "../lib/evaluation/rubricDefinitions";
 import { calculateApril2026Incentive } from "../lib/evaluation/gradeIncentiveEngine";
 import {
@@ -17,8 +18,11 @@ type UploadItem = {
   name: string;
   type: string;
   size: number;
+  file: File;
   previewUrl?: string;
   extractedText?: string;
+  ocrStatus?: "idle" | "processing" | "done" | "error";
+  ocrError?: string;
 };
 
 const DEFAULT_CASE: CaseMaster = {
@@ -430,6 +434,21 @@ export default function EvaluationStudioPage() {
   const [warningMessage, setWarningMessage] = useState("");
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [autoEvalNote, setAutoEvalNote] = useState("");
+  const [ocrBusy, setOcrBusy] = useState(false);
+
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    return () => {
+      uploads.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
+  }, [uploads]);
 
   const combinedAnalysisText = useMemo(() => {
     const fileText = uploads
@@ -447,11 +466,54 @@ export default function EvaluationStudioPage() {
     return calculateApril2026Incentive(totalScore);
   }, [totalScore]);
 
+  async function getOrCreateWorker() {
+    if (workerRef.current) return workerRef.current;
+    const worker = await createWorker("eng");
+    workerRef.current = worker;
+    return worker;
+  }
+
+  async function runOcrForUpload(uploadId: string, file: File) {
+    try {
+      setUploads((prev) =>
+        prev.map((item) =>
+          item.id === uploadId ? { ...item, ocrStatus: "processing", ocrError: "" } : item
+        )
+      );
+
+      const worker = await getOrCreateWorker();
+      const result = await worker.recognize(file);
+      const text = result.data.text || "";
+
+      setUploads((prev) =>
+        prev.map((item) =>
+          item.id === uploadId
+            ? { ...item, extractedText: text, ocrStatus: "done", ocrError: "" }
+            : item
+        )
+      );
+    } catch (error) {
+      setUploads((prev) =>
+        prev.map((item) =>
+          item.id === uploadId
+            ? {
+                ...item,
+                ocrStatus: "error",
+                ocrError: error instanceof Error ? error.message : "OCR failed",
+              }
+            : item
+        )
+      );
+    }
+  }
+
   async function handleFilesSelected(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
+    setOcrBusy(true);
 
     const nextItems: UploadItem[] = [];
 
@@ -463,13 +525,16 @@ export default function EvaluationStudioPage() {
 
       let extractedText = "";
       let previewUrl: string | undefined;
+      let ocrStatus: UploadItem["ocrStatus"] = "idle";
 
       if (isTextLike) {
         extractedText = await readFileAsText(file);
+        ocrStatus = "done";
       }
 
       if (isImage) {
         previewUrl = URL.createObjectURL(file);
+        ocrStatus = "processing";
       }
 
       nextItems.push({
@@ -477,20 +542,30 @@ export default function EvaluationStudioPage() {
         name: file.name,
         type: file.type || "unknown",
         size: file.size,
+        file,
         extractedText,
         previewUrl,
+        ocrStatus,
       });
     }
 
     setUploads((prev) => [...prev, ...nextItems]);
-    setAutoEvalNote(
-      "ไฟล์ข้อความจะถูกนำมารวมในการวิเคราะห์อัตโนมัติ ส่วนรูปภาพ/ไฟล์อื่นจะถูกแนบไว้เป็นหลักฐานประกอบ"
-    );
 
     if (files.some((file) => file.type.startsWith("image/"))) {
       handleCaseMasterChange({ sourceType: "mixed" });
     }
 
+    setAutoEvalNote(
+      "ไฟล์ข้อความจะถูกนำมารวมในการวิเคราะห์อัตโนมัติ และรูปภาพจะพยายาม OCR เป็นข้อความก่อนนำไปประเมิน"
+    );
+
+    for (const item of nextItems) {
+      if (item.type.startsWith("image/")) {
+        await runOcrForUpload(item.id, item.file);
+      }
+    }
+
+    setOcrBusy(false);
     e.target.value = "";
   }
 
@@ -551,7 +626,7 @@ export default function EvaluationStudioPage() {
     }));
 
     setAutoEvalNote(
-      "Auto Evaluation รอบนี้เป็นการประเมินเบื้องต้นจากข้อความและไฟล์ข้อความที่แนบไว้ คุณยังสามารถปรับคะแนนและเหตุผลภายหลังได้"
+      "Auto Evaluation รอบนี้เป็นการประเมินเบื้องต้นจาก transcript และข้อความที่ OCR/อ่านจากไฟล์ได้ คุณยังสามารถปรับคะแนนและเหตุผลภายหลังได้"
     );
   }
 
@@ -658,7 +733,8 @@ export default function EvaluationStudioPage() {
         name: item.name,
         type: item.type,
         size: item.size,
-        hasExtractedText: Boolean(item.extractedText),
+        extractedText: item.extractedText || "",
+        ocrStatus: item.ocrStatus || "idle",
       })),
       exportedAt: new Date().toISOString(),
     };
@@ -781,7 +857,7 @@ export default function EvaluationStudioPage() {
             QA Evaluation Studio
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Auto Evaluation + Reviewer Edit สำหรับประเมิน QA เดือนเมษายน 2569
+            Auto Evaluation + OCR Screenshot สำหรับประเมิน QA เดือนเมษายน 2569
           </p>
         </div>
 
@@ -890,8 +966,14 @@ export default function EvaluationStudioPage() {
                 accept=".txt,.csv,.json,.md,.log,image/*,.pdf"
               />
               <div className="text-xs text-slate-500">
-                ไฟล์ข้อความจะถูกนำมารวมในการวิเคราะห์อัตโนมัติ ส่วนรูปภาพ/PDF จะถูกแนบไว้เป็นหลักฐานประกอบในหน้า
+                ถ้าเป็นรูป screenshot ระบบจะ OCR ข้อความจากรูปให้ก่อน แล้วค่อยนำไป Auto Evaluation
               </div>
+
+              {ocrBusy ? (
+                <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700">
+                  กำลังอ่านตัวอักษรจากรูปภาพ (OCR)...
+                </div>
+              ) : null}
 
               {uploads.length > 0 ? (
                 <div className="space-y-3">
@@ -906,6 +988,17 @@ export default function EvaluationStudioPage() {
                           <div className="text-xs text-slate-500">
                             {item.type || "unknown"} · {Math.round(item.size / 1024)} KB
                           </div>
+                          <div className="mt-1 text-xs">
+                            OCR Status:{" "}
+                            <span className="font-semibold">
+                              {item.ocrStatus || "idle"}
+                            </span>
+                          </div>
+                          {item.ocrError ? (
+                            <div className="mt-1 text-xs text-rose-600">
+                              {item.ocrError}
+                            </div>
+                          ) : null}
                         </div>
                         <button
                           type="button"
@@ -926,8 +1019,8 @@ export default function EvaluationStudioPage() {
 
                       {item.extractedText ? (
                         <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
-                          {item.extractedText.slice(0, 400)}
-                          {item.extractedText.length > 400 ? "..." : ""}
+                          {item.extractedText.slice(0, 600)}
+                          {item.extractedText.length > 600 ? "..." : ""}
                         </div>
                       ) : null}
                     </div>
