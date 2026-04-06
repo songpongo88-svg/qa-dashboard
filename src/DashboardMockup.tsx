@@ -1261,7 +1261,7 @@ function SlideOverCaseDetail({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 lg:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto space-y-6 p-5 lg:p-6">
           <Panel>
             <PanelHeader
               title="Case Information"
@@ -1374,13 +1374,21 @@ export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
   externalSelectedAgent,
+  externalSelectedMonthKey,
+  externalSelectedWeek,
   onSelectedAgentChange,
+  onSelectedMonthKeyChange,
+  onSelectedWeekChange,
   onOpenCaseDetail,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
   externalSelectedAgent?: string;
+  externalSelectedMonthKey?: string;
+  externalSelectedWeek?: string;
   onSelectedAgentChange?: (agentName: string) => void;
+  onSelectedMonthKeyChange?: (monthKey: string) => void;
+  onSelectedWeekChange?: (week: string) => void;
   onOpenCaseDetail?: () => void;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
@@ -1389,8 +1397,8 @@ export default function DashboardMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string>("all");
-  const [selectedWeek, setSelectedWeek] = useState<string>("all");
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(externalSelectedMonthKey || "all");
+  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
@@ -1408,6 +1416,21 @@ export default function DashboardMockup({
       setSelectedAgent(externalSelectedAgent);
     }
   }, [externalSelectedAgent, currentUser, selectedAgent]);
+
+  useEffect(() => {
+    if (
+      typeof externalSelectedMonthKey === "string" &&
+      externalSelectedMonthKey !== selectedMonthKey
+    ) {
+      setSelectedMonthKey(externalSelectedMonthKey);
+    }
+  }, [externalSelectedMonthKey, selectedMonthKey]);
+
+  useEffect(() => {
+    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
+      setSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek, selectedWeek]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -1716,11 +1739,17 @@ export default function DashboardMockup({
   }, [agentCases]);
 
   useEffect(() => {
+    if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
+      setSelectedMonthKey("all");
+      onSelectedMonthKeyChange?.("all");
+    }
+  }, [selectedMonthKey, monthOptions, onSelectedMonthKeyChange]);
+
+  useEffect(() => {
     if (selectedMonthKey === "all") {
       const firstDay = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
       setDateFrom(formatInputDate(firstDay));
       setDateTo(formatInputDate(TODAY));
-      setSelectedWeek("all");
       return;
     }
 
@@ -1732,7 +1761,6 @@ export default function DashboardMockup({
 
     setDateFrom(formatInputDate(firstDay));
     setDateTo(formatInputDate(lastDay));
-    setSelectedWeek("all");
   }, [selectedMonthKey]);
 
   const dateFilteredCases = useMemo(() => {
@@ -1748,6 +1776,13 @@ export default function DashboardMockup({
   const weekLabels = useMemo(() => {
     return [...new Set(searchScopedCases.map((item) => item.weekLabel).filter(Boolean))].sort();
   }, [searchScopedCases]);
+
+  useEffect(() => {
+    if (selectedWeek !== "all" && !weekLabels.includes(selectedWeek)) {
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+    }
+  }, [selectedWeek, weekLabels, onSelectedWeekChange]);
 
   const dashboardCasesBase = useMemo(() => {
     if (selectedWeek === "all") return searchScopedCases;
@@ -1794,8 +1829,6 @@ export default function DashboardMockup({
 
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;
-
-  const hasCurrentMonthCases = selectedMonthKey === "all" ? metricCaseCount > 0 : true;
 
   const currentGradeDisplay =
     metricCaseCount === 0
@@ -1975,6 +2008,7 @@ export default function DashboardMockup({
                         setSelectedAgent(value);
                         onSelectedAgentChange?.(value);
                         setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
                         setSelectedCaseKey("");
                         setSlideOverOpen(false);
                       }}
@@ -1997,7 +2031,9 @@ export default function DashboardMockup({
                   <select
                     value={selectedMonthKey}
                     onChange={(e) => {
-                      setSelectedMonthKey(e.target.value);
+                      const value = e.target.value;
+                      setSelectedMonthKey(value);
+                      onSelectedMonthKeyChange?.(value);
                       setSelectedCaseKey("");
                       setSlideOverOpen(false);
                     }}
@@ -2102,7 +2138,9 @@ export default function DashboardMockup({
                   <select
                     value={selectedWeek}
                     onChange={(e) => {
-                      setSelectedWeek(e.target.value);
+                      const value = e.target.value;
+                      setSelectedWeek(value);
+                      onSelectedWeekChange?.(value);
                       setSelectedCaseKey("");
                       setSlideOverOpen(false);
                     }}
@@ -2134,7 +2172,10 @@ export default function DashboardMockup({
                       caseCount={searchScopedCases.length}
                       averageDisplay={buildAgentSummary(searchScopedCases).averageDisplay}
                       isActive={selectedWeek === "all"}
-                      onClick={() => setSelectedWeek("all")}
+                      onClick={() => {
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                      }}
                     />
 
                     {weekLabels.map((week) => {
@@ -2148,7 +2189,10 @@ export default function DashboardMockup({
                           caseCount={weekCases.length}
                           averageDisplay={weekSummary.averageDisplay}
                           isActive={selectedWeek === week}
-                          onClick={() => setSelectedWeek(week)}
+                          onClick={() => {
+                            setSelectedWeek(week);
+                            onSelectedWeekChange?.(week);
+                          }}
                         />
                       );
                     })}
@@ -2569,7 +2613,7 @@ export default function DashboardMockup({
                     <PanelBody>
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          {!hasCurrentMonthCases && effectiveSelectedAgent === "Anucha Makundin"
+                          {effectiveSelectedAgent === "Anucha Makundin"
                             ? "เดือนนี้ไม่มีเคสประเมินของ Anucha • Score = 0.00 • Grade = F"
                             : "ไม่พบข้อมูลในช่วงที่เลือก"}
                         </div>
