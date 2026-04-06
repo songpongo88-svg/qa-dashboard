@@ -182,7 +182,7 @@ function currentGradeTone(value: string) {
       return {
         card: "from-rose-50 via-white to-rose-100/70 border-rose-200",
         badge: "border-rose-200 bg-rose-100 text-rose-700",
-        level: "Fail / No Case",
+        level: "Fail",
         levelText: "text-rose-700",
       };
     default:
@@ -236,14 +236,7 @@ function excelDateToJSDate(value: any): Date | null {
   );
   if (ddmmyyyyMatch) {
     const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
-    return new Date(
-      Number(y),
-      Number(m) - 1,
-      Number(d),
-      Number(hh),
-      Number(mm),
-      Number(ss)
-    );
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
   }
 
   const parsed = new Date(text);
@@ -346,7 +339,6 @@ function getIncentiveValue(caseCount: number, avg: number) {
 }
 
 function getIncentiveRemark(caseCount: number, avg: number) {
-  if (caseCount === 0) return "No case evaluated";
   if (caseCount < CASE_TARGET) return "ยังประเมินไม่ครบ 10 เคส";
   if (avg >= 90) return "Excellent";
   if (avg >= 80) return "Good";
@@ -689,8 +681,7 @@ function hasRealTopicChange(
     revisedScoreNum !== null &&
     originalScoreNum !== revisedScoreNum;
 
-  const commentChanged =
-    revisedCommentText !== "" && revisedCommentText !== originalCommentText;
+  const commentChanged = revisedCommentText !== "" && revisedCommentText !== originalCommentText;
 
   return scoreChanged || commentChanged;
 }
@@ -1074,10 +1065,7 @@ function PremiumReviewMixCard({
                 </div>
 
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full rounded-full ${item.tone}`}
-                    style={{ width: `${pct}%` }}
-                  />
+                  <div className={`h-full rounded-full ${item.tone}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
@@ -1190,13 +1178,7 @@ function PremiumLineChart({
                 >
                   {item.value.toFixed(1)}
                 </text>
-                <text
-                  x={x}
-                  y={height - 8}
-                  textAnchor="middle"
-                  fontSize="11"
-                  fill="#64748b"
-                >
+                <text x={x} y={height - 8} textAnchor="middle" fontSize="11" fill="#64748b">
                   {item.label}
                 </text>
               </g>
@@ -1256,18 +1238,17 @@ function SlideOverCaseDetail({
   if (!open || !caseItem) return null;
 
   return (
-    <div className="fixed inset-0 z-[90]">
-      <div className="absolute inset-0 bg-slate-900/45" onClick={onClose} />
-      <div className="absolute right-0 top-0 h-full w-full max-w-[1080px] overflow-y-auto bg-[#f8f6ff] shadow-2xl">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      <div className="relative z-10 flex h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[30px] border border-violet-200 bg-[#f8f6ff] shadow-2xl">
         <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
                 Case Detail
               </div>
-              <div className="mt-1 truncate text-lg font-bold text-slate-900">
-                {caseItem.caseId}
-              </div>
+              <div className="mt-1 truncate text-lg font-bold text-slate-900">{caseItem.caseId}</div>
             </div>
 
             <button
@@ -1280,7 +1261,7 @@ function SlideOverCaseDetail({
           </div>
         </div>
 
-        <div className="space-y-6 p-5 lg:p-6">
+        <div className="flex-1 overflow-y-auto p-5 lg:p-6 space-y-6">
           <Panel>
             <PanelHeader
               title="Case Information"
@@ -1308,9 +1289,7 @@ function SlideOverCaseDetail({
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Agent
                       </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">
-                        {caseItem.agent}
-                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">{caseItem.agent}</div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -1375,10 +1354,7 @@ function SlideOverCaseDetail({
           </Panel>
 
           <Panel>
-            <PanelHeader
-              title="Topic Detail"
-              subtitle="Original / Revised topic comparison"
-            />
+            <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
             <PanelBody>
               <CaseDetailTopicTable
                 topics={caseItem.topics}
@@ -1529,8 +1505,7 @@ export default function DashboardMockup({
               !Number.isNaN(Number(revisedScoreRaw));
 
             const hasRevisedComment =
-              revisedCommentRaw !== null &&
-              String(revisedCommentRaw).trim() !== "";
+              revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
 
             if (!hasRevisedScore && !hasRevisedComment) return;
 
@@ -1633,9 +1608,7 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "Inquiry");
 
             const weekLabel =
-              rawHelper.getValue(row, "Week Label") ??
-              rawHelper.getValue(row, "Week") ??
-              "-";
+              rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
 
             const caseUrl =
               rawHelper.getValue(row, "Case URL") ??
@@ -1733,20 +1706,21 @@ export default function DashboardMockup({
   const monthOptions = useMemo(() => {
     return Array.from(
       new Map(
-        allCases
+        agentCases
           .filter((item) => item.monthKey !== "unknown")
           .map((item) => [item.monthKey, item.monthLabel])
       ).entries()
     )
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => b.value.localeCompare(a.value));
-  }, [allCases]);
+  }, [agentCases]);
 
   useEffect(() => {
     if (selectedMonthKey === "all") {
       const firstDay = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
       setDateFrom(formatInputDate(firstDay));
       setDateTo(formatInputDate(TODAY));
+      setSelectedWeek("all");
       return;
     }
 
@@ -1759,34 +1733,26 @@ export default function DashboardMockup({
     setDateFrom(formatInputDate(firstDay));
     setDateTo(formatInputDate(lastDay));
     setSelectedWeek("all");
-    setSelectedCaseKey("");
   }, [selectedMonthKey]);
 
   const dateFilteredCases = useMemo(() => {
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo]);
 
-  const searchedCases = useMemo(() => {
+  const searchScopedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
-
-    if (keyword) {
-      const source = effectiveSelectedAgent ? agentCases : allCases;
-      return source.filter((item) =>
-        String(item.caseId || "").toLowerCase().includes(keyword)
-      );
-    }
-
-    return dateFilteredCases;
-  }, [caseIdSearch, effectiveSelectedAgent, agentCases, allCases, dateFilteredCases]);
+    if (!keyword) return dateFilteredCases;
+    return agentCases.filter((item) => String(item.caseId || "").toLowerCase().includes(keyword));
+  }, [agentCases, dateFilteredCases, caseIdSearch]);
 
   const weekLabels = useMemo(() => {
-    return [...new Set(searchedCases.map((item) => item.weekLabel).filter(Boolean))].sort();
-  }, [searchedCases]);
+    return [...new Set(searchScopedCases.map((item) => item.weekLabel).filter(Boolean))].sort();
+  }, [searchScopedCases]);
 
   const dashboardCasesBase = useMemo(() => {
-    if (selectedWeek === "all") return searchedCases;
-    return searchedCases.filter((item) => item.weekLabel === selectedWeek);
-  }, [searchedCases, selectedWeek]);
+    if (selectedWeek === "all") return searchScopedCases;
+    return searchScopedCases.filter((item) => item.weekLabel === selectedWeek);
+  }, [searchScopedCases, selectedWeek]);
 
   const revisedCount = useMemo(
     () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
@@ -1803,31 +1769,33 @@ export default function DashboardMockup({
     return dashboardCasesBase;
   }, [dashboardCasesBase, overviewMode]);
 
-  const activeSelectedCase =
-    dashboardCases.find((item) => item.key === selectedCaseKey) || dashboardCases[0] || null;
+  const activeSelectedCase = useMemo(() => {
+    if (!selectedCaseKey) return null;
+    return dashboardCases.find((item) => item.key === selectedCaseKey) || null;
+  }, [dashboardCases, selectedCaseKey]);
 
   useEffect(() => {
     if (!dashboardCases.length) {
       if (selectedCaseKey !== "") setSelectedCaseKey("");
+      if (slideOverOpen) setSlideOverOpen(false);
       return;
     }
 
+    if (!selectedCaseKey) return;
+
     const stillExists = dashboardCases.some((item) => item.key === selectedCaseKey);
     if (!stillExists) {
-      setSelectedCaseKey(dashboardCases[0].key);
+      setSelectedCaseKey("");
+      setSlideOverOpen(false);
     }
-  }, [dashboardCases, selectedCaseKey]);
-
-  useEffect(() => {
-    if (!caseIdSearch.trim()) return;
-    if (!dashboardCases.length) return;
-    setSelectedCaseKey(dashboardCases[0].key);
-  }, [caseIdSearch, dashboardCases]);
+  }, [dashboardCases, selectedCaseKey, slideOverOpen]);
 
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;
+
+  const hasCurrentMonthCases = selectedMonthKey === "all" ? metricCaseCount > 0 : true;
 
   const currentGradeDisplay =
     metricCaseCount === 0
@@ -1852,12 +1820,10 @@ export default function DashboardMockup({
     const keyword = caseIdSearch.trim().toLowerCase();
     if (!keyword) return [];
 
-    const source = effectiveSelectedAgent ? agentCases : allCases;
-
-    return source
+    return agentCases
       .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
       .slice(0, 8);
-  }, [effectiveSelectedAgent, agentCases, allCases, caseIdSearch]);
+  }, [agentCases, caseIdSearch]);
 
   const scoreDistributionData = useMemo(() => {
     const buckets = [
@@ -1907,7 +1873,7 @@ export default function DashboardMockup({
   const weeklyTrendData = useMemo(() => {
     const weekMap = new Map<string, number[]>();
 
-    searchedCases.forEach((item) => {
+    searchScopedCases.forEach((item) => {
       const week = item.weekLabel || "Unknown";
       if (!weekMap.has(week)) weekMap.set(week, []);
       weekMap.get(week)!.push(item.finalScore);
@@ -1917,7 +1883,7 @@ export default function DashboardMockup({
       label,
       value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
     }));
-  }, [searchedCases]);
+  }, [searchScopedCases]);
 
   const currentViewingMonthLabel =
     selectedMonthKey === "all"
@@ -1950,12 +1916,6 @@ export default function DashboardMockup({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
-      <SlideOverCaseDetail
-        open={slideOverOpen}
-        caseItem={activeSelectedCase}
-        onClose={() => setSlideOverOpen(false)}
-      />
-
       <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -2016,6 +1976,7 @@ export default function DashboardMockup({
                         onSelectedAgentChange?.(value);
                         setSelectedWeek("all");
                         setSelectedCaseKey("");
+                        setSlideOverOpen(false);
                       }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
@@ -2035,7 +1996,11 @@ export default function DashboardMockup({
                   </div>
                   <select
                     value={selectedMonthKey}
-                    onChange={(e) => setSelectedMonthKey(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedMonthKey(e.target.value);
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
                     <option value="all">Current Month</option>
@@ -2058,9 +2023,9 @@ export default function DashboardMockup({
                       onChange={(e) => {
                         setCaseIdSearch(e.target.value);
                         setSelectedCaseKey("");
-                        setSelectedWeek("all");
+                        setSlideOverOpen(false);
                       }}
-                      placeholder="ค้นหาเลขเคสได้เลย"
+                      placeholder="ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือกเดือน"
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
@@ -2088,6 +2053,7 @@ export default function DashboardMockup({
                     onClick={() => {
                       setCaseIdSearch("");
                       setSelectedCaseKey("");
+                      setSlideOverOpen(false);
                     }}
                     className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
                   >
@@ -2103,7 +2069,11 @@ export default function DashboardMockup({
                     <input
                       type="date"
                       value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
+                      onChange={(e) => {
+                        setDateFrom(e.target.value);
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                   </div>
@@ -2115,7 +2085,11 @@ export default function DashboardMockup({
                     <input
                       type="date"
                       value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
+                      onChange={(e) => {
+                        setDateTo(e.target.value);
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                   </div>
@@ -2127,9 +2101,13 @@ export default function DashboardMockup({
                   </div>
                   <select
                     value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedWeek(e.target.value);
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    disabled={!searchedCases.length}
+                    disabled={!searchScopedCases.length}
                   >
                     <option value="all">All Weeks</option>
                     {weekLabels.map((week) => (
@@ -2145,7 +2123,7 @@ export default function DashboardMockup({
             <Panel>
               <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
               <PanelBody className="space-y-3">
-                {!searchedCases.length ? (
+                {!searchScopedCases.length ? (
                   <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
                     ไม่พบข้อมูลในช่วงที่เลือก
                   </div>
@@ -2153,14 +2131,14 @@ export default function DashboardMockup({
                   <>
                     <WeeklySnapshotCard
                       label="All Weeks"
-                      caseCount={searchedCases.length}
-                      averageDisplay={buildAgentSummary(searchedCases).averageDisplay}
+                      caseCount={searchScopedCases.length}
+                      averageDisplay={buildAgentSummary(searchScopedCases).averageDisplay}
                       isActive={selectedWeek === "all"}
                       onClick={() => setSelectedWeek("all")}
                     />
 
                     {weekLabels.map((week) => {
-                      const weekCases = searchedCases.filter((item) => item.weekLabel === week);
+                      const weekCases = searchScopedCases.filter((item) => item.weekLabel === week);
                       const weekSummary = buildAgentSummary(weekCases);
 
                       return (
@@ -2196,10 +2174,7 @@ export default function DashboardMockup({
               dashboardSubTab === "overview" ? (
                 <>
                   <Panel>
-                    <PanelHeader
-                      title="Current Viewing Scope"
-                      subtitle="Selected agent and period"
-                    />
+                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
@@ -2273,42 +2248,22 @@ export default function DashboardMockup({
                     <MetricCard
                       title="Evaluation Progress"
                       value={`${metricCaseCount}/${CASE_TARGET}`}
-                      sub={
-                        metricCaseCount === 0
-                          ? "No case evaluated"
-                          : metricCaseCount >= CASE_TARGET
-                          ? "Target reached"
-                          : "Target not reached"
-                      }
+                      sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
                       accent={
                         metricCaseCount >= CASE_TARGET
                           ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
-                          : metricCaseCount === 0
-                          ? "from-rose-50 via-white to-rose-100/70 border-rose-200"
                           : "from-amber-50 via-white to-amber-100/70 border-amber-200"
                       }
-                      valueClassName={
-                        metricCaseCount >= CASE_TARGET
-                          ? "text-emerald-700"
-                          : metricCaseCount === 0
-                          ? "text-rose-700"
-                          : "text-amber-700"
-                      }
+                      valueClassName={metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"}
                       helper={
                         <span
                           className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
                             metricCaseCount >= CASE_TARGET
                               ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-                              : metricCaseCount === 0
-                              ? "border-rose-200 bg-rose-100 text-rose-700"
                               : "border-amber-200 bg-amber-100 text-amber-700"
                           }`}
                         >
-                          {metricCaseCount >= CASE_TARGET
-                            ? "Completed"
-                            : metricCaseCount === 0
-                            ? "No Case"
-                            : "In Progress"}
+                          {metricCaseCount >= CASE_TARGET ? "Completed" : "In Progress"}
                         </span>
                       }
                     />
@@ -2420,10 +2375,7 @@ export default function DashboardMockup({
                   </Panel>
 
                   <Panel>
-                    <PanelHeader
-                      title="Overview Filters"
-                      subtitle="Control which cases are shown in overview"
-                    />
+                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
                     <PanelBody className="space-y-4">
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -2515,10 +2467,7 @@ export default function DashboardMockup({
 
                   <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <Panel>
-                      <PanelHeader
-                        title="Topic Performance"
-                        subtitle="Average topic score in current view"
-                      />
+                      <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
                       <PanelBody>
                         <TopicPerformanceTable items={summary.topicPerformance} />
                       </PanelBody>
@@ -2545,9 +2494,7 @@ export default function DashboardMockup({
                               <div className="text-sm font-bold text-slate-900">
                                 {topic.code} {topic.label}
                               </div>
-                              <div className="mt-1 text-xs text-emerald-700">
-                                {topic.pct}% average
-                              </div>
+                              <div className="mt-1 text-xs text-emerald-700">{topic.pct}% average</div>
                             </div>
                           ))
                         ) : (
@@ -2557,10 +2504,7 @@ export default function DashboardMockup({
                     </Panel>
 
                     <Panel>
-                      <PanelHeader
-                        title="Coaching Focus"
-                        subtitle="Top 3 weakest topics in current view"
-                      />
+                      <PanelHeader title="Coaching Focus" subtitle="Top 3 weakest topics in current view" />
                       <PanelBody className="space-y-3">
                         {weakestTopics.length ? (
                           weakestTopics.map((topic) => (
@@ -2571,9 +2515,7 @@ export default function DashboardMockup({
                               <div className="text-sm font-bold text-slate-900">
                                 {topic.code} {topic.label}
                               </div>
-                              <div className="mt-1 text-xs text-rose-700">
-                                {topic.pct}% average
-                              </div>
+                              <div className="mt-1 text-xs text-rose-700">{topic.pct}% average</div>
                             </div>
                           ))
                         ) : (
@@ -2586,10 +2528,7 @@ export default function DashboardMockup({
               ) : (
                 <>
                   <Panel>
-                    <PanelHeader
-                      title="Current Viewing Scope"
-                      subtitle="Selected agent and period"
-                    />
+                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
@@ -2625,12 +2564,14 @@ export default function DashboardMockup({
                   <Panel>
                     <PanelHeader
                       title="Case Navigator"
-                      subtitle="Click a case to open Slide-over detail"
+                      subtitle="Select a case to open detailed topic scoring"
                     />
                     <PanelBody>
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          ไม่พบข้อมูลในช่วงที่เลือก
+                          {!hasCurrentMonthCases && effectiveSelectedAgent === "Anucha Makundin"
+                            ? "เดือนนี้ไม่มีเคสประเมินของ Anucha • Score = 0.00 • Grade = F"
+                            : "ไม่พบข้อมูลในช่วงที่เลือก"}
                         </div>
                       ) : (
                         <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
@@ -2650,16 +2591,11 @@ export default function DashboardMockup({
                     </PanelBody>
                   </Panel>
 
-                  {!dashboardCases.length ? (
-                    <Panel>
-                      <PanelHeader title="Case Detail" />
-                      <PanelBody>
-                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          ไม่พบเคสที่ตรงกับเงื่อนไขที่ค้นหา
-                        </div>
-                      </PanelBody>
-                    </Panel>
-                  ) : null}
+                  <SlideOverCaseDetail
+                    open={slideOverOpen}
+                    caseItem={activeSelectedCase}
+                    onClose={() => setSlideOverOpen(false)}
+                  />
                 </>
               )
             ) : (
