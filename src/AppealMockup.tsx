@@ -34,6 +34,7 @@ type AppealCaseItem = {
   appealSubmitDateTime: string;
   appealResultDateTime: string;
   appealChannel: string;
+  appealReviewSummary: string;
   caseUrl?: string;
   appealedTopics: Topic[];
   changedTopics: Topic[];
@@ -217,6 +218,12 @@ function formatDateTime(value: any): string {
   const hh = `${dt.getHours()}`.padStart(2, "0");
   const min = `${dt.getMinutes()}`.padStart(2, "0");
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+function formatDateTimeOrRaw(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+  const formatted = formatDateTime(value);
+  return formatted && formatted.trim() !== "" ? formatted : String(value).trim() || "-";
 }
 
 function normalizeComment(value?: string) {
@@ -703,39 +710,47 @@ export default function AppealMockup({
 
             const appealSubmitRaw =
               getFirstNonEmptyValue(appealHelper, row, [
-                "Appeal Submit",
                 "Appeal Submit Date & Time",
-                "APPEAL SUBMIT DATE & TIME",
+                "Appeal Submit",
                 "Appeal Submit Date",
                 "Submit Date & Time",
                 "Submit Date",
-                "Created",
+                "Appeal Created Date & Time",
+                "Appeal Created Date",
+                "Created Date & Time",
                 "Created Date",
+                "Created",
                 "File Created Date",
               ]) ?? null;
 
             const appealResultRaw =
               getFirstNonEmptyValue(appealHelper, row, [
-                "Appeal Result",
                 "Appeal Result Date & Time",
-                "APPEAL RESULT DATE & TIME",
+                "Appeal Result",
                 "Appeal Result Date",
                 "Result Date & Time",
                 "Result Date",
-                "Created",
+                "Appeal Closed Date & Time",
+                "Appeal Closed Date",
+                "Created Date & Time",
                 "Created Date",
+                "Created",
                 "File Created Date",
               ]) ?? null;
 
             const appealChannelRaw =
-              getFirstNonEmptyValue(appealHelper, row, [
-                "Appeal Channel",
-                "Channel",
-              ]) ?? "-";
+              getFirstNonEmptyValue(appealHelper, row, ["Appeal Channel", "Channel"]) ?? "-";
 
             const appealVersionRaw = getFirstNonEmptyValue(appealHelper, row, [
               "Appeal Version",
               "Version",
+            ]);
+
+            const appealReviewSummaryRaw = getFirstNonEmptyValue(appealHelper, row, [
+              "Appeal Review Summary",
+              "Review Summary",
+              "Appeal Summary",
+              "Summary",
             ]);
 
             const topics: Topic[] = TOPIC_MASTER.map((master) => {
@@ -817,9 +832,10 @@ export default function AppealMockup({
               reviewStatus: changedTopics.length ? "Revised" : "Original",
               grade: scoreToGrade(finalScore),
               appealVersion: String(appealVersionRaw ?? "-").trim() || "-",
-              appealSubmitDateTime: formatDateTime(appealSubmitRaw) || "-",
-              appealResultDateTime: formatDateTime(appealResultRaw) || "-",
+              appealSubmitDateTime: formatDateTimeOrRaw(appealSubmitRaw),
+              appealResultDateTime: formatDateTimeOrRaw(appealResultRaw),
               appealChannel: String(appealChannelRaw ?? "-").trim() || "-",
+              appealReviewSummary: String(appealReviewSummaryRaw ?? "").trim() || "-",
               caseUrl,
               appealedTopics,
               changedTopics,
@@ -974,6 +990,9 @@ export default function AppealMockup({
 
     addSectionTitle("Customer Inquiry");
     addLine(selectedCase.inquiry || "-");
+
+    addSectionTitle("Appeal Review Summary");
+    addLine(selectedCase.appealReviewSummary || "-");
 
     addSectionTitle("Appealed Topics");
     if (!selectedCase.appealedTopics.length) {
@@ -1186,6 +1205,15 @@ export default function AppealMockup({
                       </div>
                       <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
                         {selectedCase.inquiry || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
+                        Appeal Review Summary
+                      </div>
+                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                        {selectedCase.appealReviewSummary || "-"}
                       </div>
                     </div>
 
