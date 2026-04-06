@@ -1727,16 +1727,21 @@ export default function DashboardMockup({
   }, [allCases, effectiveSelectedAgent, currentUser]);
 
   const monthOptions = useMemo(() => {
-    return Array.from(
-      new Map(
-        agentCases
-          .filter((item) => item.monthKey !== "unknown")
-          .map((item) => [item.monthKey, item.monthLabel])
-      ).entries()
-    )
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => b.value.localeCompare(a.value));
-  }, [agentCases]);
+  const sourceCases =
+    agentCases.length > 0
+      ? agentCases
+      : allCases;
+
+  return Array.from(
+    new Map(
+      sourceCases
+        .filter((item) => item.monthKey !== "unknown")
+        .map((item) => [item.monthKey, item.monthLabel])
+    ).entries()
+  )
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => b.value.localeCompare(a.value));
+}, [agentCases, allCases]);
 
   useEffect(() => {
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
