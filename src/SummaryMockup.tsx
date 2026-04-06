@@ -1062,9 +1062,18 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
     return [...groups.entries()]
       .map(([key, cases]) => {
-        const [agent, label] = key.split("__");
+        const [agent] = key.split("__");
         const summary = summarizeCases(cases);
-        return { agent, label, ...summary };
+
+        return {
+          agent,
+          label: cases[0]?.yearKey || "-",
+          caseCount: summary.caseCount,
+          avgScore: summary.avgScore,
+          grade: summary.grade,
+          revisedCount: summary.revisedCount,
+          incentive: summary.incentive,
+        };
       })
       .sort((a, b) => {
         if (a.label !== b.label) return b.label.localeCompare(a.label);
