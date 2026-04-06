@@ -192,7 +192,7 @@ function currentGradeTone(value: string) {
         level: "Pending",
         levelText: "text-slate-600",
       };
-  }
+    }
 }
 
 function reviewTone(reviewStatus: ReviewStatus) {
@@ -1380,6 +1380,7 @@ export default function DashboardMockup({
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
   onOpenCaseDetail,
+  seasonalTheme = false,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
@@ -1390,6 +1391,7 @@ export default function DashboardMockup({
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
   onOpenCaseDetail?: () => void;
+  seasonalTheme?: boolean;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
@@ -1727,21 +1729,18 @@ export default function DashboardMockup({
   }, [allCases, effectiveSelectedAgent, currentUser]);
 
   const monthOptions = useMemo(() => {
-  const sourceCases =
-    agentCases.length > 0
-      ? agentCases
-      : allCases;
+    const sourceCases = agentCases.length > 0 ? agentCases : allCases;
 
-  return Array.from(
-    new Map(
-      sourceCases
-        .filter((item) => item.monthKey !== "unknown")
-        .map((item) => [item.monthKey, item.monthLabel])
-    ).entries()
-  )
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => b.value.localeCompare(a.value));
-}, [agentCases, allCases]);
+    return Array.from(
+      new Map(
+        sourceCases
+          .filter((item) => item.monthKey !== "unknown")
+          .map((item) => [item.monthKey, item.monthLabel])
+      ).entries()
+    )
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
+  }, [agentCases, allCases]);
 
   useEffect(() => {
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
@@ -1953,13 +1952,25 @@ export default function DashboardMockup({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
-      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
+    <div
+      className={
+        seasonalTheme
+          ? "min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50"
+          : "min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
+      }
+    >
+      <div
+        className={`text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
+          seasonalTheme
+            ? "bg-gradient-to-r from-orange-500 via-pink-500 to-sky-500"
+            : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
+        }`}
+      >
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                QA Dashboard
+                {seasonalTheme ? "QA Dashboard • Songkran Theme" : "QA Dashboard"}
               </div>
               <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
                 Agent Performance Dashboard
@@ -1985,6 +1996,12 @@ export default function DashboardMockup({
               </div>
             </div>
           </div>
+
+          {seasonalTheme ? (
+            <div className="mt-5 rounded-[24px] border border-white/15 bg-white/12 px-5 py-4 text-sm font-semibold text-white/95 backdrop-blur-sm">
+              🌼 Songkran Theme active until 25 Apr 2026
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -2219,6 +2236,12 @@ export default function DashboardMockup({
           </div>
 
           <div className="space-y-6">
+            {seasonalTheme ? (
+              <div className="rounded-[24px] border border-orange-200 bg-white/80 px-5 py-4 text-sm font-semibold text-orange-700 shadow-sm">
+                🌼 Songkran Theme active until 25 Apr 2026
+              </div>
+            ) : null}
+
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
