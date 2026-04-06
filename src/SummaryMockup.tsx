@@ -941,16 +941,21 @@ export default function SummaryMockup({
   }, [allCases, effectiveAgent]);
 
   const monthOptions = useMemo(() => {
-    return Array.from(
-      new Map(
-        filteredByAgent
-          .filter((item) => item.monthKey !== "unknown")
-          .map((item) => [item.monthKey, item.monthLabel])
-      ).entries()
-    )
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => b.value.localeCompare(a.value));
-  }, [filteredByAgent]);
+  const sourceCases =
+    filteredByAgent.length > 0
+      ? filteredByAgent
+      : allCases;
+
+  return Array.from(
+    new Map(
+      sourceCases
+        .filter((item) => item.monthKey !== "unknown")
+        .map((item) => [item.monthKey, item.monthLabel])
+    ).entries()
+  )
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => b.value.localeCompare(a.value));
+}, [filteredByAgent, allCases]);
 
   const yearOptions = useMemo(() => {
     return [
