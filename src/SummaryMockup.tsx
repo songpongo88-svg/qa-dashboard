@@ -324,6 +324,18 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
   });
 }
 
+function emptyAgentPeriodSummary(agent: string, label: string): AgentPeriodSummary {
+  return {
+    agent,
+    label,
+    caseCount: 0,
+    avgScore: 0,
+    grade: "F",
+    revisedCount: 0,
+    incentive: 0,
+  };
+}
+
 function Panel({
   children,
   className = "",
@@ -1007,34 +1019,40 @@ export default function SummaryMockup({
   }, [weekScopedCases]);
 
   const weeklyAgentRows = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
+    const activeAgents =
+      effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
 
-    weekScopedCases.forEach((item) => {
-      const key = `${item.agent}__${item.weekLabel}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(item);
-    });
+    return activeAgents.flatMap((agent) => {
+      const targetCases = weekScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
-    return [...groups.entries()]
-      .map(([key, cases]) => {
-        const [agent] = key.split("__");
+      const groups = new Map<string, CaseItem[]>();
+      targetCases.forEach((item) => {
+        const key = item.weekLabel || "-";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(item);
+      });
+
+      if (!groups.size && selectedWeek !== "all") {
+        return [emptyAgentPeriodSummary(agent, selectedWeek)];
+      }
+
+      return [...groups.entries()].map(([label, cases]) => {
         const summary = summarizeCases(cases);
-
         return {
           agent,
-          label: cases[0]?.weekLabel || "-",
+          label,
           caseCount: summary.caseCount,
           avgScore: summary.avgScore,
           grade: summary.grade,
           revisedCount: summary.revisedCount,
           incentive: summary.incentive,
         };
-      })
-      .sort((a, b) => {
-        if (a.label !== b.label) return a.label.localeCompare(b.label);
-        return a.agent.localeCompare(b.agent);
       });
-  }, [weekScopedCases]);
+    }).sort((a, b) => {
+      if (a.label !== b.label) return a.label.localeCompare(b.label);
+      return a.agent.localeCompare(b.agent);
+    });
+  }, [weekScopedCases, effectiveAgent, selectedWeek]);
 
   const monthlyDashboardRows = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
@@ -1059,34 +1077,35 @@ export default function SummaryMockup({
   }, [monthScopedCases, selectedWeek]);
 
   const monthlyTeamRows = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
+    const activeAgents =
+      effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
 
-    monthScopedCases.forEach((item) => {
-      const key = `${item.agent}__${item.monthKey}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(item);
-    });
+    return activeAgents.map((agent) => {
+      const targetCases = monthScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
-    return [...groups.entries()]
-      .map(([key, cases]) => {
-        const [agent] = key.split("__");
-        const summary = summarizeCases(cases);
+      if (!targetCases.length) {
+        const label =
+          selectedMonth === "all"
+            ? "All Months"
+            : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
+        return emptyAgentPeriodSummary(agent, label);
+      }
 
-        return {
-          agent,
-          label: cases[0]?.monthLabel || "-",
-          caseCount: summary.caseCount,
-          avgScore: summary.avgScore,
-          grade: summary.grade,
-          revisedCount: summary.revisedCount,
-          incentive: summary.incentive,
-        };
-      })
-      .sort((a, b) => {
-        if (a.label !== b.label) return b.label.localeCompare(a.label);
-        return a.agent.localeCompare(b.agent);
-      });
-  }, [monthScopedCases]);
+      const summary = summarizeCases(targetCases);
+      return {
+        agent,
+        label:
+          selectedMonth === "all"
+            ? "All Months"
+            : targetCases[0]?.monthLabel || selectedMonth,
+        caseCount: summary.caseCount,
+        avgScore: summary.avgScore,
+        grade: summary.grade,
+        revisedCount: summary.revisedCount,
+        incentive: summary.incentive,
+      };
+    }).sort((a, b) => a.agent.localeCompare(b.agent));
+  }, [monthScopedCases, effectiveAgent, selectedMonth, monthOptions]);
 
   const yearlyTeamRows = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
@@ -1115,34 +1134,28 @@ export default function SummaryMockup({
   }, [yearScopedCases, selectedWeek, selectedMonth, monthOptions]);
 
   const yearlyAgentRows = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
+    const activeAgents =
+      effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
 
-    yearScopedCases.forEach((item) => {
-      const key = `${item.agent}__${item.yearKey}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(item);
-    });
+    return activeAgents.map((agent) => {
+      const targetCases = yearScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
-    return [...groups.entries()]
-      .map(([key, cases]) => {
-        const [agent] = key.split("__");
-        const summary = summarizeCases(cases);
+      if (!targetCases.length) {
+        return emptyAgentPeriodSummary(agent, selectedYear === "all" ? "All Years" : selectedYear);
+      }
 
-        return {
-          agent,
-          label: cases[0]?.yearKey || "-",
-          caseCount: summary.caseCount,
-          avgScore: summary.avgScore,
-          grade: summary.grade,
-          revisedCount: summary.revisedCount,
-          incentive: summary.incentive,
-        };
-      })
-      .sort((a, b) => {
-        if (a.label !== b.label) return b.label.localeCompare(a.label);
-        return a.agent.localeCompare(b.agent);
-      });
-  }, [yearScopedCases]);
+      const summary = summarizeCases(targetCases);
+      return {
+        agent,
+        label: selectedYear === "all" ? "All Years" : targetCases[0]?.yearKey || selectedYear,
+        caseCount: summary.caseCount,
+        avgScore: summary.avgScore,
+        grade: summary.grade,
+        revisedCount: summary.revisedCount,
+        incentive: summary.incentive,
+      };
+    }).sort((a, b) => a.agent.localeCompare(b.agent));
+  }, [yearScopedCases, effectiveAgent, selectedYear]);
 
   const summaryCards = useMemo(() => {
     const source =
