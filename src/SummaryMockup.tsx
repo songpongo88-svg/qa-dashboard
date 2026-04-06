@@ -632,6 +632,7 @@ export default function SummaryMockup({
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
+  seasonalTheme = false,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
@@ -640,6 +641,7 @@ export default function SummaryMockup({
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
+  seasonalTheme?: boolean;
 }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -941,21 +943,18 @@ export default function SummaryMockup({
   }, [allCases, effectiveAgent]);
 
   const monthOptions = useMemo(() => {
-  const sourceCases =
-    filteredByAgent.length > 0
-      ? filteredByAgent
-      : allCases;
+    const sourceCases = filteredByAgent.length > 0 ? filteredByAgent : allCases;
 
-  return Array.from(
-    new Map(
-      sourceCases
-        .filter((item) => item.monthKey !== "unknown")
-        .map((item) => [item.monthKey, item.monthLabel])
-    ).entries()
-  )
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => b.value.localeCompare(a.value));
-}, [filteredByAgent, allCases]);
+    return Array.from(
+      new Map(
+        sourceCases
+          .filter((item) => item.monthKey !== "unknown")
+          .map((item) => [item.monthKey, item.monthLabel])
+      ).entries()
+    )
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
+  }, [filteredByAgent, allCases]);
 
   const yearOptions = useMemo(() => {
     return [
@@ -1027,36 +1026,38 @@ export default function SummaryMockup({
     const activeAgents =
       effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
 
-    return activeAgents.flatMap((agent) => {
-      const targetCases = weekScopedCases.filter((item) => isSameAgent(item.agent, agent));
+    return activeAgents
+      .flatMap((agent) => {
+        const targetCases = weekScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
-      const groups = new Map<string, CaseItem[]>();
-      targetCases.forEach((item) => {
-        const key = item.weekLabel || "-";
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(item);
+        const groups = new Map<string, CaseItem[]>();
+        targetCases.forEach((item) => {
+          const key = item.weekLabel || "-";
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(item);
+        });
+
+        if (!groups.size && selectedWeek !== "all") {
+          return [emptyAgentPeriodSummary(agent, selectedWeek)];
+        }
+
+        return [...groups.entries()].map(([label, cases]) => {
+          const summary = summarizeCases(cases);
+          return {
+            agent,
+            label,
+            caseCount: summary.caseCount,
+            avgScore: summary.avgScore,
+            grade: summary.grade,
+            revisedCount: summary.revisedCount,
+            incentive: summary.incentive,
+          };
+        });
+      })
+      .sort((a, b) => {
+        if (a.label !== b.label) return a.label.localeCompare(b.label);
+        return a.agent.localeCompare(b.agent);
       });
-
-      if (!groups.size && selectedWeek !== "all") {
-        return [emptyAgentPeriodSummary(agent, selectedWeek)];
-      }
-
-      return [...groups.entries()].map(([label, cases]) => {
-        const summary = summarizeCases(cases);
-        return {
-          agent,
-          label,
-          caseCount: summary.caseCount,
-          avgScore: summary.avgScore,
-          grade: summary.grade,
-          revisedCount: summary.revisedCount,
-          incentive: summary.incentive,
-        };
-      });
-    }).sort((a, b) => {
-      if (a.label !== b.label) return a.label.localeCompare(b.label);
-      return a.agent.localeCompare(b.agent);
-    });
   }, [weekScopedCases, effectiveAgent, selectedWeek]);
 
   const monthlyDashboardRows = useMemo(() => {
@@ -1085,31 +1086,33 @@ export default function SummaryMockup({
     const activeAgents =
       effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
 
-    return activeAgents.map((agent) => {
-      const targetCases = monthScopedCases.filter((item) => isSameAgent(item.agent, agent));
+    return activeAgents
+      .map((agent) => {
+        const targetCases = monthScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
-      if (!targetCases.length) {
-        const label =
-          selectedMonth === "all"
-            ? "All Months"
-            : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
-        return emptyAgentPeriodSummary(agent, label);
-      }
+        if (!targetCases.length) {
+          const label =
+            selectedMonth === "all"
+              ? "All Months"
+              : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
+          return emptyAgentPeriodSummary(agent, label);
+        }
 
-      const summary = summarizeCases(targetCases);
-      return {
-        agent,
-        label:
-          selectedMonth === "all"
-            ? "All Months"
-            : targetCases[0]?.monthLabel || selectedMonth,
-        caseCount: summary.caseCount,
-        avgScore: summary.avgScore,
-        grade: summary.grade,
-        revisedCount: summary.revisedCount,
-        incentive: summary.incentive,
-      };
-    }).sort((a, b) => a.agent.localeCompare(b.agent));
+        const summary = summarizeCases(targetCases);
+        return {
+          agent,
+          label:
+            selectedMonth === "all"
+              ? "All Months"
+              : targetCases[0]?.monthLabel || selectedMonth,
+          caseCount: summary.caseCount,
+          avgScore: summary.avgScore,
+          grade: summary.grade,
+          revisedCount: summary.revisedCount,
+          incentive: summary.incentive,
+        };
+      })
+      .sort((a, b) => a.agent.localeCompare(b.agent));
   }, [monthScopedCases, effectiveAgent, selectedMonth, monthOptions]);
 
   const yearlyTeamRows = useMemo(() => {
@@ -1142,24 +1145,26 @@ export default function SummaryMockup({
     const activeAgents =
       effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
 
-    return activeAgents.map((agent) => {
-      const targetCases = yearScopedCases.filter((item) => isSameAgent(item.agent, agent));
+    return activeAgents
+      .map((agent) => {
+        const targetCases = yearScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
-      if (!targetCases.length) {
-        return emptyAgentPeriodSummary(agent, selectedYear === "all" ? "All Years" : selectedYear);
-      }
+        if (!targetCases.length) {
+          return emptyAgentPeriodSummary(agent, selectedYear === "all" ? "All Years" : selectedYear);
+        }
 
-      const summary = summarizeCases(targetCases);
-      return {
-        agent,
-        label: selectedYear === "all" ? "All Years" : targetCases[0]?.yearKey || selectedYear,
-        caseCount: summary.caseCount,
-        avgScore: summary.avgScore,
-        grade: summary.grade,
-        revisedCount: summary.revisedCount,
-        incentive: summary.incentive,
-      };
-    }).sort((a, b) => a.agent.localeCompare(b.agent));
+        const summary = summarizeCases(targetCases);
+        return {
+          agent,
+          label: selectedYear === "all" ? "All Years" : targetCases[0]?.yearKey || selectedYear,
+          caseCount: summary.caseCount,
+          avgScore: summary.avgScore,
+          grade: summary.grade,
+          revisedCount: summary.revisedCount,
+          incentive: summary.incentive,
+        };
+      })
+      .sort((a, b) => a.agent.localeCompare(b.agent));
   }, [yearScopedCases, effectiveAgent, selectedYear]);
 
   const summaryCards = useMemo(() => {
@@ -1221,13 +1226,25 @@ export default function SummaryMockup({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
-      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
+    <div
+      className={
+        seasonalTheme
+          ? "min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50"
+          : "min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
+      }
+    >
+      <div
+        className={`text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
+          seasonalTheme
+            ? "bg-gradient-to-r from-orange-500 via-pink-500 to-sky-500"
+            : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
+        }`}
+      >
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                QA Summary
+                {seasonalTheme ? "QA Summary • Songkran Theme" : "QA Summary"}
               </div>
               <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
                 Weekly / Monthly / Yearly Summary Workspace
@@ -1253,6 +1270,12 @@ export default function SummaryMockup({
               </div>
             </div>
           </div>
+
+          {seasonalTheme ? (
+            <div className="mt-5 rounded-[24px] border border-white/15 bg-white/12 px-5 py-4 text-sm font-semibold text-white/95 backdrop-blur-sm">
+              🌼 Songkran Theme active until 25 Apr 2026
+            </div>
+          ) : null}
         </div>
       </div>
 
