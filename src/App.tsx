@@ -3,7 +3,6 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
-import CoachingMockup from "./CoachingMockup";
 import EvaluationStudioPage from "./pages/EvaluationStudioPage";
 
 type UserRole = "Agent" | "Supervisor";
@@ -504,7 +503,7 @@ export default function App() {
   const [resetResultMessage, setResetResultMessage] = useState("");
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "rubric" | "coaching" | "evaluation-studio"
+    "dashboard" | "appeal" | "summary" | "rubric" | "evaluation-studio"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
@@ -753,7 +752,7 @@ export default function App() {
                 </div>
 
                 <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, Coaching,
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary,
                   and QA Rubric with role-based visibility for supervisors and agents.
                 </div>
 
@@ -764,7 +763,7 @@ export default function App() {
                   />
                   <LoginFeatureCard
                     title="Review"
-                    desc="Appeal result, coaching, case comparison, and QA rubric reference"
+                    desc="Appeal result, case comparison, and QA rubric reference"
                   />
                   <LoginFeatureCard
                     title="Security"
@@ -971,11 +970,6 @@ export default function App() {
                   onClick={() => setActiveTab("rubric")}
                 />
                 <NavButton
-                  active={activeTab === "coaching"}
-                  label="Coaching"
-                  onClick={() => setActiveTab("coaching")}
-                />
-                <NavButton
                   active={activeTab === "evaluation-studio"}
                   label="Evaluation Studio"
                   onClick={() => setActiveTab("evaluation-studio")}
@@ -1059,8 +1053,6 @@ export default function App() {
           />
         ) : activeTab === "summary" ? (
           <SummaryMockup currentUser={currentUser} />
-        ) : activeTab === "coaching" ? (
-          <CoachingMockup currentUser={currentUser} />
         ) : activeTab === "evaluation-studio" ? (
           <EvaluationStudioPage />
         ) : (
