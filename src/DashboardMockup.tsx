@@ -231,11 +231,11 @@ function excelDateToJSDate(value: any): Date | null {
   const text = String(value).trim();
   if (!text) return null;
 
-  const ddmmyyyy = text.match(
+  const ddmmyyyyMatch = text.match(
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
   );
-  if (ddmmyyyy) {
-    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyy;
+  if (ddmmyyyyMatch) {
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
     return new Date(
       Number(y),
       Number(m) - 1,
@@ -246,86 +246,19 @@ function excelDateToJSDate(value: any): Date | null {
     );
   }
 
-  const yyyymmdd = text.match(
-    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
-  );
-  if (yyyymmdd) {
-    const [, y, m, d, hh = "0", mm = "0", ss = "0"] = yyyymmdd;
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
     return new Date(
-      Number(y),
-      Number(m) - 1,
-      Number(d),
-      Number(hh),
-      Number(mm),
-      Number(ss)
+      parsed.getFullYear(),
+      parsed.getMonth(),
+      parsed.getDate(),
+      parsed.getHours(),
+      parsed.getMinutes(),
+      parsed.getSeconds()
     );
-  }
-
-  const monthName = text.match(
-    /^([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/
-  );
-  if (monthName) {
-    const [, monthText, d, y, hhRaw = "0", mm = "0", ss = "0", ampm] = monthName;
-    const monthMap: Record<string, number> = {
-      january: 0,
-      february: 1,
-      march: 2,
-      april: 3,
-      may: 4,
-      june: 5,
-      july: 6,
-      august: 7,
-      september: 8,
-      october: 9,
-      november: 10,
-      december: 11,
-      jan: 0,
-      feb: 1,
-      mar: 2,
-      apr: 3,
-      jun: 5,
-      jul: 6,
-      aug: 7,
-      sep: 8,
-      oct: 9,
-      nov: 10,
-      dec: 11,
-    };
-
-    const monthIndex = monthMap[monthText.toLowerCase()];
-    if (monthIndex === undefined) return null;
-
-    let hh = Number(hhRaw);
-    if (ampm) {
-      const upper = ampm.toUpperCase();
-      if (upper === "PM" && hh < 12) hh += 12;
-      if (upper === "AM" && hh === 12) hh = 0;
-    }
-
-    return new Date(Number(y), monthIndex, Number(d), hh, Number(mm), Number(ss));
   }
 
   return null;
-}
-
-function formatAuditDate(value: any): string {
-  const dt = excelDateToJSDate(value);
-  if (!dt) return String(value ?? "").trim();
-  const dd = `${dt.getDate()}`.padStart(2, "0");
-  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
-  const yyyy = dt.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-function formatAuditTimestamp(value: any): string {
-  const dt = excelDateToJSDate(value);
-  if (!dt) return "-";
-  const dd = `${dt.getDate()}`.padStart(2, "0");
-  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
-  const yyyy = dt.getFullYear();
-  const hh = `${dt.getHours()}`.padStart(2, "0");
-  const min = `${dt.getMinutes()}`.padStart(2, "0");
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 
 function formatInputDate(value: Date) {
@@ -449,6 +382,92 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
   };
 }
 
+function buildHeaderHelpers(headerRow: any[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+
+  const colIndexes = (name: string) => {
+    const target = normalizeText(name);
+    return normalizedHeaders
+      .map((h, idx) => (h === target ? idx : -1))
+      .filter((idx) => idx >= 0);
+  };
+
+  const getValue = (row: any[], name: string, occurrence = 0) => {
+    const indexes = colIndexes(name);
+    const idx = indexes[occurrence];
+    return idx >= 0 ? row[idx] : null;
+  };
+
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+
+  return { getValue, getLastValue, colIndexes };
+}
+
+function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
+  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
+  const total = baseTopics.reduce((sum, base) => {
+    const active = revisedMap.get(base.code) || base;
+    return sum + active.score;
+  }, 0);
+  return Number(total.toFixed(2));
+}
+
+function getCellDisplayText(
+  sheet: XLSX.WorkSheet,
+  rowIndex1Based: number,
+  colIndex0Based: number
+) {
+  const address = XLSX.utils.encode_cell({
+    r: rowIndex1Based - 1,
+    c: colIndex0Based,
+  });
+  const cell = sheet[address];
+  if (!cell) return "";
+  return String(cell.w ?? cell.v ?? "").trim();
+}
+
+function getCellRawValue(
+  sheet: XLSX.WorkSheet,
+  rowIndex1Based: number,
+  colIndex0Based: number
+) {
+  const address = XLSX.utils.encode_cell({
+    r: rowIndex1Based - 1,
+    c: colIndex0Based,
+  });
+  return sheet[address]?.v;
+}
+
+function formatAuditTimestampFromCell(
+  sheet: XLSX.WorkSheet,
+  rowIndex1Based: number,
+  colIndex0Based: number
+) {
+  const address = XLSX.utils.encode_cell({
+    r: rowIndex1Based - 1,
+    c: colIndex0Based,
+  });
+  const cell = sheet[address];
+  if (!cell) return "-";
+
+  const displayed = String(cell.w ?? "").trim();
+  if (displayed) return displayed;
+
+  const dt = excelDateToJSDate(cell.v);
+  if (!dt) return "-";
+
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  const hh = `${dt.getHours()}`.padStart(2, "0");
+  const min = `${dt.getMinutes()}`.padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
 function Panel({
   children,
   className = "",
@@ -512,7 +531,9 @@ function MetricCard({
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
+        <div
+          className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}
+        >
           {value}
         </div>
         {helper ? <div className="mt-3">{helper}</div> : null}
@@ -682,11 +703,15 @@ function getOriginalTopicMap(topics: Topic[]) {
 }
 
 function normalizeCommentForCompare(value?: string) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeAppealReason(value: unknown) {
-  return String(value ?? "").replace(/\s+/g, " ").trim();
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isNoAppealReason(value: unknown) {
@@ -731,9 +756,7 @@ function hasRealTopicChange(
   const revisedCommentText = normalizeCommentForCompare(String(revisedComment ?? ""));
 
   const scoreChanged =
-    originalScoreNum !== null &&
-    revisedScoreNum !== null &&
-    originalScoreNum !== revisedScoreNum;
+    originalScoreNum !== null && revisedScoreNum !== null && originalScoreNum !== revisedScoreNum;
 
   const commentChanged =
     revisedCommentText !== "" && revisedCommentText !== originalCommentText;
@@ -953,40 +976,6 @@ function DataHealthChecks({
   );
 }
 
-function buildHeaderHelpers(headerRow: any[]) {
-  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
-
-  const colIndexes = (name: string) => {
-    const target = normalizeText(name);
-    return normalizedHeaders
-      .map((h, idx) => (h === target ? idx : -1))
-      .filter((idx) => idx >= 0);
-  };
-
-  const getValue = (row: any[], name: string, occurrence = 0) => {
-    const indexes = colIndexes(name);
-    const idx = indexes[occurrence];
-    return idx >= 0 ? row[idx] : null;
-  };
-
-  const getLastValue = (row: any[], name: string) => {
-    const indexes = colIndexes(name);
-    if (!indexes.length) return null;
-    return row[indexes[indexes.length - 1]];
-  };
-
-  return { getValue, getLastValue };
-}
-
-function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
-  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
-  const total = baseTopics.reduce((sum, base) => {
-    const active = revisedMap.get(base.code) || base;
-    return sum + active.score;
-  }, 0);
-  return Number(total.toFixed(2));
-}
-
 function LogoHeaderBox() {
   return (
     <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
@@ -1120,10 +1109,7 @@ function PremiumReviewMixCard({
                 </div>
 
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full rounded-full ${item.tone}`}
-                    style={{ width: `${pct}%` }}
-                  />
+                  <div className={`h-full rounded-full ${item.tone}`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
@@ -1236,13 +1222,7 @@ function PremiumLineChart({
                 >
                   {item.value.toFixed(1)}
                 </text>
-                <text
-                  x={x}
-                  y={height - 8}
-                  textAnchor="middle"
-                  fontSize="11"
-                  fill="#64748b"
-                >
+                <text x={x} y={height - 8} textAnchor="middle" fontSize="11" fill="#64748b">
                   {item.label}
                 </text>
               </g>
@@ -1347,7 +1327,11 @@ export default function DashboardMockup({
         }
 
         const rawBuffer = await rawResponse.arrayBuffer();
-        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+        const rawWorkbook = XLSX.read(rawBuffer, {
+          type: "array",
+          cellDates: true,
+          raw: true,
+        });
         const rawSheet =
           rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
 
@@ -1373,6 +1357,13 @@ export default function DashboardMockup({
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
         const rawHelper = buildHeaderHelpers(rawHeaderRow);
+
+        const auditDateColIndex = rawHeaderRow.findIndex(
+          (h) => normalizeText(h) === "audit date"
+        );
+        const timestampColIndex = rawHeaderRow.findIndex(
+          (h) => normalizeText(h) === "timestamp"
+        );
 
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
@@ -1424,8 +1415,7 @@ export default function DashboardMockup({
               !Number.isNaN(Number(revisedScoreRaw));
 
             const hasRevisedComment =
-              revisedCommentRaw !== null &&
-              String(revisedCommentRaw).trim() !== "";
+              revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
 
             if (!hasRevisedScore && !hasRevisedComment) return;
 
@@ -1528,9 +1518,7 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "Inquiry");
 
             const weekLabel =
-              rawHelper.getValue(row, "Week Label") ??
-              rawHelper.getValue(row, "Week") ??
-              "-";
+              rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
 
             const caseUrl =
               rawHelper.getValue(row, "Case URL") ??
@@ -1538,8 +1526,24 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "URL") ??
               "";
 
-            const auditRaw = rawHelper.getValue(row, "Audit Date");
-            const auditDateObj = excelDateToJSDate(auditRaw);
+            const sheetRowIndex = rawHeaderIndex + 1 + index + 1;
+
+            const auditDateText =
+              auditDateColIndex >= 0
+                ? getCellDisplayText(rawSheet, sheetRowIndex, auditDateColIndex)
+                : "";
+
+            const auditRawValue =
+              auditDateColIndex >= 0
+                ? getCellRawValue(rawSheet, sheetRowIndex, auditDateColIndex)
+                : rawHelper.getValue(row, "Audit Date");
+
+            const auditDateObj = excelDateToJSDate(auditRawValue || auditDateText);
+
+            const timestampText =
+              timestampColIndex >= 0
+                ? formatAuditTimestampFromCell(rawSheet, sheetRowIndex, timestampColIndex)
+                : "-";
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -1547,9 +1551,9 @@ export default function DashboardMockup({
             return {
               key: `row-${index + 1}-${caseId}`,
               agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
-              auditDate: formatAuditDate(auditRaw),
+              auditDate: auditDateText || String(auditRawValue ?? "").trim(),
               auditDateObj,
-              auditTimestamp: formatAuditTimestamp(auditRaw),
+              auditTimestamp: timestampText || "-",
               monthKey: getMonthKey(auditDateObj),
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
@@ -2078,10 +2082,7 @@ export default function DashboardMockup({
               dashboardSubTab === "overview" ? (
                 <>
                   <Panel>
-                    <PanelHeader
-                      title="Current Viewing Scope"
-                      subtitle="Selected agent and period"
-                    />
+                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
@@ -2161,7 +2162,9 @@ export default function DashboardMockup({
                           ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
                           : "from-amber-50 via-white to-amber-100/70 border-amber-200"
                       }
-                      valueClassName={metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"}
+                      valueClassName={
+                        metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"
+                      }
                       helper={
                         <span
                           className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
@@ -2228,8 +2231,12 @@ export default function DashboardMockup({
                                   A
                                 </span>
                               </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                1,000
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3">
+                                Meets all key standards
+                              </td>
                             </tr>
                             <tr className="bg-white">
                               <td className="border-t border-slate-200 px-4 py-3">80-89</td>
@@ -2239,8 +2246,12 @@ export default function DashboardMockup({
                                   B
                                 </span>
                               </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                700
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3">
+                                Meets most standards
+                              </td>
                             </tr>
                             <tr className="bg-white">
                               <td className="border-t border-slate-200 px-4 py-3">70-79</td>
@@ -2250,19 +2261,27 @@ export default function DashboardMockup({
                                   C
                                 </span>
                               </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                300
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3">
+                                Minimum pass level
+                              </td>
                             </tr>
                             <tr className="bg-white">
                               <td className="border-t border-slate-200 px-4 py-3">60-69</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
+                              <td className="border-t border-slate-200 px-4 py-3">
+                                Improvement Required
+                              </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-center">
                                 <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
                                   D
                                 </span>
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
+                              <td className="border-t border-slate-200 px-4 py-3">
+                                Below company standard
+                              </td>
                             </tr>
                             <tr className="bg-white">
                               <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
@@ -2273,7 +2292,9 @@ export default function DashboardMockup({
                                 </span>
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
+                              <td className="border-t border-slate-200 px-4 py-3">
+                                Significant quality issue
+                              </td>
                             </tr>
                           </tbody>
                         </table>
@@ -2447,10 +2468,7 @@ export default function DashboardMockup({
               ) : (
                 <>
                   <Panel>
-                    <PanelHeader
-                      title="Current Viewing Scope"
-                      subtitle="Selected agent and period"
-                    />
+                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
@@ -2613,7 +2631,9 @@ export default function DashboardMockup({
                             topics={activeSelectedCase.topics}
                             revisedTopics={activeSelectedCase.revisedTopics}
                             reviewStatus={activeSelectedCase.reviewStatus}
-                            displayRevisedTopicCodes={activeSelectedCase.displayRevisedTopicCodes || []}
+                            displayRevisedTopicCodes={
+                              activeSelectedCase.displayRevisedTopicCodes || []
+                            }
                           />
                         </PanelBody>
                       </Panel>
