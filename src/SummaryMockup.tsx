@@ -20,6 +20,7 @@ type CaseItem = {
   auditDateObj: Date | null;
   monthKey: string;
   monthLabel: string;
+  yearKey: string;
   weekLabel: string;
   caseId: string;
   inquiryTh: string;
@@ -42,16 +43,34 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
 };
 
-type CoachingTopicSummary = {
+type TopicSummary = {
   code: string;
   label: string;
   avgScore: number;
-  pct: number;
   max: number;
-  failCount: number;
-  impactedCases: CaseItem[];
-  priority: "High" | "Medium" | "Low";
+  pct: number;
 };
+
+type PeriodSummary = {
+  label: string;
+  caseCount: number;
+  avgScore: number;
+  grade: Grade;
+  revisedCount: number;
+  incentive: number;
+};
+
+type AgentPeriodSummary = {
+  agent: string;
+  label: string;
+  caseCount: number;
+  avgScore: number;
+  grade: Grade;
+  revisedCount: number;
+  incentive: number;
+};
+
+const CASE_TARGET = 10;
 
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
@@ -90,6 +109,14 @@ const AGENT_MASTER = [
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
 
+type SummaryView =
+  | "weekly-dashboard"
+  | "weekly-qa-by-agent"
+  | "monthly-dashboard"
+  | "monthly-team-summary"
+  | "yearly-team-summary"
+  | "yearly-by-agent";
+
 function normalizeText(value: unknown) {
   return String(value ?? "")
     .replace(/\u00A0/g, " ")
@@ -124,6 +151,37 @@ function scoreToGrade(score: number): Grade {
   if (score >= 70) return "C";
   if (score >= 60) return "D";
   return "F";
+}
+
+function getGradeTone(grade: Grade) {
+  switch (grade) {
+    case "A":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "B":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "C":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "D":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    default:
+      return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+}
+
+function formatCurrencyTHB(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getIncentiveValue(caseCount: number, avg: number) {
+  if (caseCount < CASE_TARGET) return 0;
+  if (avg >= 90) return 1000;
+  if (avg >= 80) return 700;
+  if (avg >= 70) return 300;
+  return 0;
 }
 
 function excelDateToJSDate(value: any): Date | null {
@@ -163,6 +221,26 @@ function getMonthLabel(date: Date | null) {
   }).format(date);
 }
 
+function getYearKey(date: Date | null) {
+  if (!date) return "unknown";
+  return String(date.getFullYear());
+}
+
+function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
+  if (!revisedTopics?.length) return topics;
+  const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
+  return topics.map((topic) => revisedMap.get(topic.code) || topic);
+}
+
+function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
+  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
+  const total = baseTopics.reduce((sum, base) => {
+    const active = revisedMap.get(base.code) || base;
+    return sum + active.score;
+  }, 0);
+  return Number(total.toFixed(2));
+}
+
 function buildHeaderHelpers(headerRow: any[]) {
   const normalizedHeaders = headerRow.map((h) => normalizeText(h));
 
@@ -188,338 +266,51 @@ function buildHeaderHelpers(headerRow: any[]) {
   return { getValue, getLastValue };
 }
 
-function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
-  if (!revisedTopics?.length) return topics;
-  const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
-  return topics.map((topic) => revisedMap.get(topic.code) || topic);
-}
-
-function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
-  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
-  const total = baseTopics.reduce((sum, base) => {
-    const active = revisedMap.get(base.code) || base;
-    return sum + active.score;
-  }, 0);
-  return Number(total.toFixed(2));
-}
-
-function getPriority(pct: number, failCount: number): "High" | "Medium" | "Low" {
-  if (pct < 70 || failCount >= 3) return "High";
-  if (pct < 85 || failCount >= 2) return "Medium";
-  return "Low";
-}
-
-function getPriorityTone(priority: "High" | "Medium" | "Low") {
-  switch (priority) {
-    case "High":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    case "Medium":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    default:
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-}
-
-function getGradeTone(grade: Grade) {
-  switch (grade) {
-    case "A":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "B":
-      return "border-sky-200 bg-sky-50 text-sky-700";
-    case "C":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "D":
-      return "border-orange-200 bg-orange-50 text-orange-700";
-    default:
-      return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-}
-
-function getCoachingGuide(topicCode: string) {
-  const map: Record<
-    string,
-    {
-      issue: string;
-      guidance: string[];
-      example: string;
-      target: string;
-    }
-  > = {
-    "1.1": {
-      issue: "การเปิดและปิดบทสนทนายังไม่ครบมาตรฐาน หรือไม่ได้แนะนำตัวชัดเจน",
-      guidance: [
-        "เริ่มต้นด้วยคำทักทายและแจ้งชื่อแอดมินทุกครั้ง",
-        "ก่อนจบเคสควรมีประโยคเสนอความช่วยเหลือเพิ่มเติม",
-        "ปิดบทสนทนาด้วยถ้อยคำมาตรฐานขององค์กร",
-      ],
-      example:
-        "สวัสดีค่ะ แอดมิน [ชื่อ] ยินดีให้บริการค่ะ ... หากต้องการให้แอดมินช่วยเพิ่มเติม สามารถแจ้งได้เลยนะคะ ขอบคุณที่ใช้บริการโรบินฮู้ดค่ะ",
-      target: "ทำให้ทุกเคสมี greeting และ closing ครบถ้วนตามมาตรฐาน",
-    },
-    "1.2": {
-      issue: "ให้ข้อมูลไม่แม่นยำ หรือยังตอบแบบคาดการณ์โดยไม่อ้างอิงข้อมูลจริง",
-      guidance: [
-        "ตรวจสอบข้อมูลจากระบบหรือแหล่งอ้างอิงทางการก่อนตอบ",
-        "หลีกเลี่ยงการรับปากหรือยืนยันสิ่งที่ยังไม่ตรวจสอบ",
-        "ถ้ายังไม่พบข้อมูล ให้แจ้งลูกค้าว่าขอตรวจสอบเพิ่มเติม",
-      ],
-      example:
-        "เบื้องต้นแอดมินขอตรวจสอบข้อมูลจากระบบเพิ่มเติมก่อนนะคะ เพื่อให้ข้อมูลถูกต้องที่สุดค่ะ",
-      target: "ลดการตอบผิดหรือการให้ข้อมูลที่ยังไม่ยืนยัน",
-    },
-    "1.3": {
-      issue: "ขั้นตอนยืนยันตัวตนหรือ PDPA ยังไม่ครบก่อนเปิดเผยข้อมูล",
-      guidance: [
-        "ขอข้อมูลยืนยันตัวตนก่อนทุกครั้งในเคสที่เกี่ยวกับข้อมูลส่วนบุคคล",
-        "หลีกเลี่ยงการเปิดเผยข้อมูลของบุคคลที่สาม",
-        "ตอบเฉพาะข้อมูลที่สอดคล้องกับสิทธิ์การเข้าถึง",
-      ],
-      example:
-        "เพื่อความปลอดภัยของข้อมูล แอดมินขอรบกวนข้อมูลยืนยันตัวตนเพิ่มเติมก่อนนะคะ",
-      target: "ให้ทุกเคสที่มีข้อมูลส่วนบุคคลผ่านมาตรฐาน PDPA",
-    },
-    "2.1": {
-      issue: "คำตอบไม่ตรงกับบริบทเคส หรือยังไม่เชื่อมโยงกับข้อมูลเคสจริง",
-      guidance: [
-        "อ่านบริบทเคสให้ครบก่อนตอบ",
-        "ตรวจสอบ Order ID / Shop ID / Rider ID ให้ตรงกับเคส",
-        "สรุปปัญหาของลูกค้าก่อนให้คำตอบเพื่อยืนยันความเข้าใจ",
-      ],
-      example:
-        "จากเคสนี้พบว่าออเดอร์หมายเลข ... มีสถานะ ... ดังนั้นแนวทางที่ถูกต้องคือ ...",
-      target: "ให้คำตอบตรงประเด็นและตรงบริบททุกเคส",
-    },
-    "2.2": {
-      issue: "ตอบไม่ครบทุกคำถาม หรือขาดข้อมูลสำคัญที่ลูกค้าต้องใช้",
-      guidance: [
-        "ไล่ตรวจทุกประเด็นที่ลูกค้าถามว่าตอบครบหรือไม่",
-        "ถ้ามีหลายคำถาม ให้ตอบแยกเป็นข้อ",
-        "สรุปสิ่งที่ลูกค้าต้องทำต่อให้ครบ",
-      ],
-      example:
-        "เบื้องต้นมี 2 ประเด็นที่แอดมินขอชี้แจงดังนี้ 1) ... 2) ...",
-      target: "ลดเคสที่ตอบไม่ครบและทำให้ลูกค้าไม่ต้องถามซ้ำ",
-    },
-    "2.3": {
-      issue: "คำแนะนำยังไม่เป็นลำดับขั้น หรือไม่ actionable พอ",
-      guidance: [
-        "เขียนคำแนะนำเป็น Step 1 / 2 / 3",
-        "ระบุให้ชัดว่าใครต้องทำอะไร",
-        "ระบุผลที่คาดว่าจะเกิดขึ้นหลังทำแต่ละขั้นตอน",
-      ],
-      example:
-        "แนะนำให้ดำเนินการดังนี้ 1) ตรวจสอบ... 2) กดเมนู... 3) แจ้งกลับพร้อมภาพหน้าจอค่ะ",
-      target: "ทำให้คำตอบนำไปปฏิบัติได้ทันที",
-    },
-    "2.4": {
-      issue: "อ้างอิงข้อมูลไม่ชัดเจน หรือใช้ข้อมูลที่ไม่ใช่แหล่งทางการ",
-      guidance: [
-        "ใช้ข้อมูลจากระบบหรือ KB ล่าสุดเท่านั้น",
-        "หลีกเลี่ยงการอ้างอิงจากความจำหรือข้อมูลเก่า",
-        "ถ้าข้อมูลเปลี่ยนแปลงบ่อยให้ตรวจสอบซ้ำก่อนตอบ",
-      ],
-      example:
-        "จากข้อมูลในระบบล่าสุดและประกาศที่ใช้งานอยู่ในปัจจุบัน แนวทางคือ ...",
-      target: "ให้ทุกคำตอบอ้างอิงแหล่งทางการได้",
-    },
-    "3.1": {
-      issue: "ยังวิเคราะห์สาเหตุไม่ลึกพอ และแนวทางแก้ไม่ตรง root cause",
-      guidance: [
-        "เริ่มจากระบุสาเหตุที่แท้จริงของปัญหา",
-        "แยกอาการของปัญหาออกจากสาเหตุ",
-        "เสนอแนวทางแก้ที่สอดคล้องกับสาเหตุจริง",
-      ],
-      example:
-        "สาเหตุหลักของปัญหานี้คือ ... ดังนั้นแนวทางที่เหมาะสมคือ ...",
-      target: "ทำให้การตอบทุกเคสมี root cause และ resolution ชัดเจน",
-    },
-    "3.2": {
-      issue: "ยังไม่แสดง ownership ชัด หรือส่งต่อโดยไม่มีสรุปที่เพียงพอ",
-      guidance: [
-        "ถ้าต้อง escalate ให้สรุปข้อมูลเคสก่อนส่งต่อทุกครั้ง",
-        "แจ้งลูกค้าให้ชัดว่าใครจะรับเคสต่อ",
-        "หลีกเลี่ยงการโยนเคสโดยไม่มี action ที่ชัดเจน",
-      ],
-      example:
-        "เบื้องต้นแอดมินได้ประสานทีมที่เกี่ยวข้องต่อให้แล้ว พร้อมแนบรายละเอียดเคสครบถ้วนค่ะ",
-      target: "ให้ทุกเคสมี owner และ next owner ชัดเจน",
-    },
-    "3.3": {
-      issue: "ยังไม่บอก next step ชัดเจน หรือไม่ระบุ timeline / owner",
-      guidance: [
-        "ระบุขั้นตอนถัดไปให้ชัดเจน",
-        "บอกว่าใครเป็นผู้ดำเนินการ",
-        "ระบุกรอบเวลาที่ลูกค้าควรได้รับการอัปเดต",
-      ],
-      example:
-        "ขั้นตอนถัดไป ทีมที่เกี่ยวข้องจะตรวจสอบเพิ่มเติมและอัปเดตผลภายใน ... ค่ะ",
-      target: "ทำให้ลูกค้ารู้ว่าต้องรออะไรและเมื่อไร",
-    },
-    "4.1": {
-      issue: "โครงสร้างข้อความยังไม่เป็นระเบียบ อ่านยาก หรือข้อมูลติดกันเกินไป",
-      guidance: [
-        "แบ่งข้อความเป็นย่อหน้าสั้น ๆ",
-        "แยกข้อมูลสำคัญออกเป็น bullet หรือเลขข้อ",
-        "เรียงลำดับจากปัญหา → คำตอบ → next step",
-      ],
-      example:
-        "แอดมินขอชี้แจงดังนี้\n1) ...\n2) ...\n3) ...",
-      target: "เพิ่มความชัดเจนและลดความสับสนในการอ่าน",
-    },
-    "4.2": {
-      issue: "ภาษาไม่กระชับ ชัดเจน หรือมีคำที่คลุมเครือ",
-      guidance: [
-        "ใช้ประโยคสั้นและตรงประเด็น",
-        "หลีกเลี่ยงคำที่ตีความได้หลายแบบ",
-        "ตรวจทานคำสะกดและความเรียบร้อยก่อนส่ง",
-      ],
-      example:
-        "แอดมินขอแจ้งรายละเอียดโดยสรุปดังนี้ค่ะ ...",
-      target: "ให้ภาษาดูมืออาชีพ อ่านง่าย และกระชับ",
-    },
-    "4.3": {
-      issue: "โทนการตอบยังไม่สอดคล้องกับสถานการณ์ โดยเฉพาะเคส complaint",
-      guidance: [
-        "เริ่มต้นด้วย empathy ในเคสที่ลูกค้าได้รับผลกระทบ",
-        "หลีกเลี่ยงโทนแข็ง ห้วน หรือเหมือนปัดความรับผิดชอบ",
-        "ใช้ถ้อยคำสุภาพและเหมาะกับบริบท",
-      ],
-      example:
-        "แอดมินต้องขออภัยในความไม่สะดวกที่เกิดขึ้นด้วยนะคะ",
-      target: "ทำให้โทนการตอบเหมาะสมกับอารมณ์และบริบทของลูกค้า",
-    },
-    "4.4": {
-      issue: "ยังใช้ template แบบตรงเกินไป ไม่ปรับให้เหมาะกับสถานการณ์",
-      guidance: [
-        "ปรับรูปแบบข้อความตามระดับความเร่งด่วนของเคส",
-        "ใช้ template เป็นฐาน แต่เติมบริบทเฉพาะเคสเข้าไป",
-        "แยกโครงสร้างข้อความตามประเภทปัญหา",
-      ],
-      example:
-        "สำหรับกรณีนี้ แอดมินขออธิบายเฉพาะขั้นตอนที่เกี่ยวข้องกับเคสของคุณดังนี้ค่ะ ...",
-      target: "ให้ข้อความดูเป็นธรรมชาติและตรงกับสถานการณ์จริง",
-    },
-    "5.1": {
-      issue: "การทำงานตาม process ยังไม่ครบ หรือใช้ flow ไม่ถูกต้อง",
-      guidance: [
-        "ตรวจสอบ process ที่เกี่ยวข้องก่อนดำเนินการทุกครั้ง",
-        "ใช้ category / flow / tag ให้ถูกต้อง",
-        "ทบทวน SOP และ workflow ของทีมสม่ำเสมอ",
-      ],
-      example:
-        "ดำเนินการตาม flow ที่กำหนดโดยเปิดเคสในหมวด ... และระบุรายละเอียดครบถ้วน",
-      target: "ลดข้อผิดพลาดจากการทำงานไม่ตาม process",
-    },
-    "5.2": {
-      issue: "SLA response ยังไม่สม่ำเสมอ หรือใช้เวลาตอบกลับนานเกินไป",
-      guidance: [
-        "ตอบรับลูกค้าภายใน SLA ก่อน แม้กำลังตรวจสอบ",
-        "ถ้าต้องใช้เวลา ให้แจ้งลูกค้าล่วงหน้า",
-        "ติดตามสถานะเคสระหว่างรอเพื่อไม่ให้เงียบเกิน SLA",
-      ],
-      example:
-        "แอดมินกำลังตรวจสอบรายละเอียดเพิ่มเติมให้นะคะ ขออนุญาตใช้เวลาเล็กน้อยค่ะ",
-      target: "รักษา SLA และลดช่วงเวลาที่ลูกค้ารอโดยไม่มีอัปเดต",
-    },
-    "5.3": {
-      issue: "การบันทึกเคสหรืออัปเดตสถานะยังไม่ครบถ้วน",
-      guidance: [
-        "บันทึก remark และ status ให้ครบทุกครั้ง",
-        "ใช้ชื่อเคสและ tag ให้ตรงมาตรฐาน",
-        "ตรวจสอบก่อนปิดเคสว่ามีข้อมูลตกหล่นหรือไม่",
-      ],
-      example:
-        "ก่อนปิดเคสควรตรวจสอบว่า status, category, และ remark ถูกต้องครบถ้วนแล้ว",
-      target: "ให้ข้อมูลหลังบ้านครบและติดตามเคสย้อนหลังได้ง่าย",
-    },
-  };
-
-  return (
-    map[topicCode] || {
-      issue: "พบโอกาสในการพัฒนาในหัวข้อนี้",
-      guidance: [
-        "ทบทวนบริบทเคสก่อนตอบ",
-        "เพิ่มความชัดเจนของคำอธิบาย",
-        "ระบุ next step ให้ชัดเจนขึ้น",
-      ],
-      example: "แอดมินขอแนะนำแนวทางที่ชัดเจนและสามารถดำเนินการต่อได้ทันทีดังนี้ค่ะ ...",
-      target: "ยกระดับคุณภาพคำตอบให้สอดคล้องกับมาตรฐาน QA",
-    }
-  );
-}
-
-function buildOneOnOneSummary(args: {
-  agentName: string;
-  caseCount: number;
-  averageScore: number;
-  strongestTopic?: CoachingTopicSummary;
-  weakestTopic?: CoachingTopicSummary;
-  focusTopics: CoachingTopicSummary[];
-  monthLabel: string;
-  weekLabel: string;
-}) {
-  const {
-    agentName,
-    caseCount,
-    averageScore,
-    strongestTopic,
-    weakestTopic,
-    focusTopics,
-    monthLabel,
-    weekLabel,
-  } = args;
-
-  const grade = scoreToGrade(averageScore);
-  const focus1 = focusTopics[0];
-  const focus2 = focusTopics[1];
-  const focus3 = focusTopics[2];
-
-  const scopeText =
-    weekLabel === "All Weeks"
-      ? `${monthLabel}`
-      : `${monthLabel} / ${weekLabel}`;
-
-  const overallComment =
-    caseCount === 0
-      ? `ในช่วง ${scopeText} ยังไม่พบเคสประเมินของ ${agentName} จึงยังไม่สามารถสรุปแนวทาง coaching ได้`
-      : `${agentName} มีผลประเมินในช่วง ${scopeText} จำนวน ${caseCount} เคส ค่าเฉลี่ยอยู่ที่ ${averageScore.toFixed(
-          2
-        )} คะแนน อยู่ในระดับ ${grade} โดยภาพรวมยังควรรักษามาตรฐานในหัวข้อที่ทำได้ดี และเร่งพัฒนาในหัวข้อที่มีผลกระทบต่อคุณภาพคำตอบและความชัดเจนของการให้บริการ`;
-
-  const strengthComment =
-    strongestTopic
-      ? `จุดแข็งที่เห็นได้ชัดคือหัวข้อ ${strongestTopic.code} ${strongestTopic.label} โดยมีผลการประเมินเฉลี่ย ${strongestTopic.pct.toFixed(
-          2
-        )}% สะท้อนว่ามีความสามารถในการดำเนินการตามมาตรฐานในหัวข้อนี้ได้ค่อนข้างดี ควรรักษาคุณภาพส่วนนี้ให้สม่ำเสมอในทุกเคส`
-      : `ยังไม่สามารถระบุจุดแข็งได้จากข้อมูลปัจจุบัน`;
-
-  const improvementComment =
-    weakestTopic
-      ? `หัวข้อที่ควรเร่งพัฒนาเป็นลำดับแรกคือ ${weakestTopic.code} ${weakestTopic.label} โดยมีผลการประเมินเฉลี่ย ${weakestTopic.pct.toFixed(
-          2
-        )}% ซึ่งสะท้อนว่ายังมีโอกาสพัฒนาในหัวข้อนี้อย่างชัดเจน โดยควรโฟกัสที่การตอบให้ครบถ้วน ชัดเจน และสอดคล้องกับบริบทเคสมากขึ้น`
-      : `ยังไม่สามารถระบุหัวข้อที่ควรพัฒนาได้จากข้อมูลปัจจุบัน`;
-
-  const focusList = [focus1, focus2, focus3]
-    .filter(Boolean)
-    .map((topic) => `${topic!.code} ${topic!.label}`)
-    .join(" / ");
-
-  const coachingDirection = focusList
-    ? `สำหรับการ coaching รอบนี้ แนะนำให้เน้นติดตามหัวข้อ ${focusList} โดยใช้การ review จากเคสจริงร่วมกับการอธิบาย expected behavior ที่ควรเกิดขึ้นในแต่ละหัวข้อ เพื่อให้น้องสามารถเชื่อมโยงจากข้อผิดพลาดเดิมไปสู่แนวทางการตอบที่ถูกต้องได้ชัดเจนขึ้น`
-    : `สำหรับการ coaching รอบนี้ ควรใช้เคสจริงประกอบการทบทวนเพื่อหาแนวทางพัฒนาที่เหมาะสม`;
-
-  const nextStep = focus1
-    ? `เป้าหมายในรอบถัดไปคือยกระดับหัวข้อ ${focus1.code} ${focus1.label} ให้มีคุณภาพดีขึ้นอย่างต่อเนื่อง พร้อมติดตามผลผ่านการสุ่มเคสและ feedback รายจุด เพื่อให้เห็นพัฒนาการเชิงพฤติกรรมอย่างชัดเจน`
-    : `เป้าหมายในรอบถัดไปคือเพิ่มความสม่ำเสมอของคุณภาพการตอบในทุกเคส`;
+function summarizeCases(cases: CaseItem[]): PeriodSummary {
+  const caseCount = cases.length;
+  const avgScore =
+    cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(caseCount, 1);
+  const revisedCount = cases.filter((item) => item.reviewStatus === "Revised").length;
 
   return {
-    overallComment,
-    strengthComment,
-    improvementComment,
-    coachingDirection,
-    nextStep,
+    label: "-",
+    caseCount,
+    avgScore: Number(avgScore.toFixed(2)),
+    grade: scoreToGrade(avgScore),
+    revisedCount,
+    incentive: getIncentiveValue(caseCount, avgScore),
   };
+}
+
+function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
+  return TOPIC_MASTER.map((master) => {
+    const topics = cases
+      .flatMap((item) =>
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? mergeTopicSet(item.topics, item.revisedTopics)
+          : item.topics
+      )
+      .filter((topic) => topic.code === master.code);
+
+    if (!topics.length) {
+      return {
+        code: master.code,
+        label: master.label,
+        avgScore: 0,
+        max: master.max,
+        pct: 0,
+      };
+    }
+
+    const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
+    return {
+      code: master.code,
+      label: master.label,
+      avgScore: Number(avg.toFixed(2)),
+      max: master.max,
+      pct: Number(((avg / master.max) * 100).toFixed(2)),
+    };
+  });
 }
 
 function Panel({
@@ -604,65 +395,204 @@ function LogoHeaderBox() {
   );
 }
 
-function buildCoachingSummary(cases: CaseItem[]): CoachingTopicSummary[] {
-  return TOPIC_MASTER.map((master) => {
-    const caseTopicPairs = cases.map((item) => {
-      const mergedTopics =
-        item.reviewStatus === "Revised" && item.revisedTopics?.length
-          ? mergeTopicSet(item.topics, item.revisedTopics)
-          : item.topics;
-
-      const topic = mergedTopics.find((t) => t.code === master.code);
-      return { item, topic };
-    });
-
-    const valid = caseTopicPairs.filter((pair) => pair.topic) as {
-      item: CaseItem;
-      topic: Topic;
-    }[];
-
-    if (!valid.length) {
-      return {
-        code: master.code,
-        label: master.label,
-        avgScore: 0,
-        pct: 0,
-        max: master.max,
-        failCount: 0,
-        impactedCases: [],
-        priority: "Low",
-      };
-    }
-
-    const avg = valid.reduce((sum, row) => sum + row.topic.score, 0) / valid.length;
-    const pct = (avg / master.max) * 100;
-
-    const impactedCases = valid
-      .filter((row) => row.topic.pct < 80)
-      .map((row) => row.item);
-
-    const failCount = impactedCases.length;
-    const priority = getPriority(pct, failCount);
-
-    return {
-      code: master.code,
-      label: master.label,
-      avgScore: Number(avg.toFixed(2)),
-      pct: Number(pct.toFixed(2)),
-      max: master.max,
-      failCount,
-      impactedCases,
-      priority,
-    };
-  });
+function ViewButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+        active
+          ? "border border-violet-300 bg-violet-100 text-violet-800"
+          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+      }`}
+    >
+      {label}
+    </button>
+  );
 }
 
-export default function CoachingMockup({ currentUser }: { currentUser: any }) {
+function TopicTable({ topics }: { topics: TopicSummary[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[860px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-3 py-3 text-center">Topic</th>
+            <th className="px-3 py-3 text-left">Description</th>
+            <th className="px-3 py-3 text-center">Avg Score</th>
+            <th className="px-3 py-3 text-center">Max</th>
+            <th className="px-3 py-3 text-center">Avg %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {topics.map((topic) => (
+            <tr key={topic.code} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{topic.code}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{topic.label}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {topic.avgScore.toFixed(2)}
+              </td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{topic.max}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {topic.pct.toFixed(2)}%
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SummaryTable({
+  rows,
+  firstColLabel,
+}: {
+  rows: Array<{
+    label: string;
+    caseCount: number;
+    avgScore: number;
+    grade: Grade;
+    revisedCount: number;
+    incentive: number;
+  }>;
+  firstColLabel: string;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[920px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-4 py-3 text-left">{firstColLabel}</th>
+            <th className="px-4 py-3 text-center">Cases</th>
+            <th className="px-4 py-3 text-center">Average Score</th>
+            <th className="px-4 py-3 text-center">Grade</th>
+            <th className="px-4 py-3 text-center">Revised</th>
+            <th className="px-4 py-3 text-center">Incentive</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? (
+            rows.map((row) => (
+              <tr key={row.label} className="bg-white">
+                <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">
+                  {row.label}
+                </td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                  {row.avgScore.toFixed(2)}
+                </td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(
+                      row.grade
+                    )}`}
+                  >
+                    {row.grade}
+                  </span>
+                </td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                  {formatCurrencyTHB(row.incentive)}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan={6}
+                className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
+              >
+                No data found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AgentPeriodTable({
+  rows,
+  periodLabel,
+}: {
+  rows: AgentPeriodSummary[];
+  periodLabel: string;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[1100px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-4 py-3 text-left">Agent</th>
+            <th className="px-4 py-3 text-left">{periodLabel}</th>
+            <th className="px-4 py-3 text-center">Cases</th>
+            <th className="px-4 py-3 text-center">Average Score</th>
+            <th className="px-4 py-3 text-center">Grade</th>
+            <th className="px-4 py-3 text-center">Revised</th>
+            <th className="px-4 py-3 text-center">Incentive</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? (
+            rows.map((row, index) => (
+              <tr key={`${row.agent}-${row.label}-${index}`} className="bg-white">
+                <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">
+                  {row.agent}
+                </td>
+                <td className="border-t border-slate-200 px-4 py-3">{row.label}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                  {row.avgScore.toFixed(2)}
+                </td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(
+                      row.grade
+                    )}`}
+                  >
+                    {row.grade}
+                  </span>
+                </td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
+                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                  {formatCurrencyTHB(row.incentive)}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan={7}
+                className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
+              >
+                No data found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [viewMode, setViewMode] = useState<SummaryView>("weekly-dashboard");
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
 
   useEffect(() => {
@@ -873,6 +803,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
               auditDateObj,
               monthKey: getMonthKey(auditDateObj),
               monthLabel: getMonthLabel(auditDateObj),
+              yearKey: getYearKey(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
@@ -918,7 +849,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
     }
 
     if (!selectedAgent && visibleAgentList.length) {
-      setSelectedAgent(visibleAgentList[0]);
+      setSelectedAgent("all");
     }
   }, [currentUser, visibleAgentList, selectedAgent]);
 
@@ -927,146 +858,209 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       ? currentUser.agentName
       : selectedAgent;
 
-  const baseAgentCases = useMemo(() => {
-    if (!effectiveAgent) return [];
+  const filteredByAgent = useMemo(() => {
+    if (!effectiveAgent || effectiveAgent === "all") return allCases;
     return allCases.filter((item) => isSameAgent(item.agent, effectiveAgent));
   }, [allCases, effectiveAgent]);
 
   const monthOptions = useMemo(() => {
-    const unique = Array.from(
+    return Array.from(
       new Map(
-        baseAgentCases
+        filteredByAgent
           .filter((item) => item.monthKey !== "unknown")
           .map((item) => [item.monthKey, item.monthLabel])
       ).entries()
     )
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => b.value.localeCompare(a.value));
+  }, [filteredByAgent]);
 
-    return unique;
-  }, [baseAgentCases]);
-
-  useEffect(() => {
-    if (!monthOptions.length) {
-      setSelectedMonth("all");
-      return;
-    }
-
-    if (selectedMonth === "all") return;
-
-    if (!monthOptions.some((item) => item.value === selectedMonth)) {
-      setSelectedMonth(monthOptions[0].value);
-    }
-  }, [monthOptions, selectedMonth]);
-
-  const monthFilteredCases = useMemo(() => {
-    if (selectedMonth === "all") return baseAgentCases;
-    return baseAgentCases.filter((item) => item.monthKey === selectedMonth);
-  }, [baseAgentCases, selectedMonth]);
+  const yearOptions = useMemo(() => {
+    return [...new Set(filteredByAgent.map((item) => item.yearKey).filter((item) => item !== "unknown"))].sort(
+      (a, b) => b.localeCompare(a)
+    );
+  }, [filteredByAgent]);
 
   const weekOptions = useMemo(() => {
-    return [...new Set(monthFilteredCases.map((item) => item.weekLabel).filter(Boolean))].sort();
-  }, [monthFilteredCases]);
+    const source =
+      selectedMonth === "all"
+        ? filteredByAgent
+        : filteredByAgent.filter((item) => item.monthKey === selectedMonth);
 
-  useEffect(() => {
-    if (!weekOptions.length) {
-      setSelectedWeek("all");
-      return;
-    }
+    return [...new Set(source.map((item) => item.weekLabel).filter(Boolean))].sort();
+  }, [filteredByAgent, selectedMonth]);
 
-    if (selectedWeek === "all") return;
+  const monthScopedCases = useMemo(() => {
+    if (selectedMonth === "all") return filteredByAgent;
+    return filteredByAgent.filter((item) => item.monthKey === selectedMonth);
+  }, [filteredByAgent, selectedMonth]);
 
-    if (!weekOptions.includes(selectedWeek)) {
-      setSelectedWeek("all");
-    }
-  }, [weekOptions, selectedWeek]);
+  const yearScopedCases = useMemo(() => {
+    if (selectedYear === "all") return filteredByAgent;
+    return filteredByAgent.filter((item) => item.yearKey === selectedYear);
+  }, [filteredByAgent, selectedYear]);
 
-  const agentCases = useMemo(() => {
-    if (selectedWeek === "all") return monthFilteredCases;
-    return monthFilteredCases.filter((item) => item.weekLabel === selectedWeek);
-  }, [monthFilteredCases, selectedWeek]);
+  const weekScopedCases = useMemo(() => {
+    if (selectedWeek === "all") return monthScopedCases;
+    return monthScopedCases.filter((item) => item.weekLabel === selectedWeek);
+  }, [monthScopedCases, selectedWeek]);
 
-  const currentAverage =
-    agentCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(agentCases.length, 1);
-
-  const coachingTopics = useMemo(() => {
-    return buildCoachingSummary(agentCases).sort((a, b) => {
-      const pA = a.priority === "High" ? 3 : a.priority === "Medium" ? 2 : 1;
-      const pB = b.priority === "High" ? 3 : b.priority === "Medium" ? 2 : 1;
-      if (pB !== pA) return pB - pA;
-      if (a.pct !== b.pct) return a.pct - b.pct;
-      return a.code.localeCompare(b.code);
+  const weeklyDashboardRows = useMemo(() => {
+    const groups = new Map<string, CaseItem[]>();
+    weekScopedCases.forEach((item) => {
+      const key = item.weekLabel || "-";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
     });
-  }, [agentCases]);
 
-  const strongestTopic = useMemo(() => {
-    return [...buildCoachingSummary(agentCases)].sort((a, b) => b.pct - a.pct)[0];
-  }, [agentCases]);
-
-  const weakestTopic = useMemo(() => {
-    return [...buildCoachingSummary(agentCases)].sort((a, b) => a.pct - b.pct)[0];
-  }, [agentCases]);
-
-  const focusTopics = coachingTopics.slice(0, 5);
-
-  const caseEvidenceRows = useMemo(() => {
-    const focusCodes = new Set(focusTopics.map((item) => item.code));
-    return agentCases
-      .map((item) => {
-        const mergedTopics =
-          item.reviewStatus === "Revised" && item.revisedTopics?.length
-            ? mergeTopicSet(item.topics, item.revisedTopics)
-            : item.topics;
-
-        const issues = mergedTopics
-          .filter((topic) => focusCodes.has(topic.code) && topic.pct < 80)
-          .map((topic) => `${topic.code} ${topic.label}`);
-
-        return {
-          ...item,
-          issues,
-        };
+    return [...groups.entries()]
+      .map(([label, cases]) => {
+        const summary = summarizeCases(cases);
+        return { ...summary, label };
       })
-      .filter((item) => item.issues.length > 0)
-      .sort((a, b) => a.finalScore - b.finalScore);
-  }, [agentCases, focusTopics]);
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [weekScopedCases]);
 
-  const currentMonthLabel =
-    selectedMonth === "all"
-      ? "All Months"
-      : monthOptions.find((item) => item.value === selectedMonth)?.label || selectedMonth;
+  const weeklyAgentRows = useMemo(() => {
+    const groups = new Map<string, CaseItem[]>();
 
-  const currentWeekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
-
-  const currentScopeLabel = `${currentMonthLabel} • ${currentWeekLabel}`;
-
-  const oneOnOneSummary = useMemo(() => {
-    return buildOneOnOneSummary({
-      agentName: effectiveAgent || "-",
-      caseCount: agentCases.length,
-      averageScore: currentAverage,
-      strongestTopic,
-      weakestTopic,
-      focusTopics,
-      monthLabel: currentMonthLabel,
-      weekLabel: currentWeekLabel,
+    weekScopedCases.forEach((item) => {
+      const key = `${item.agent}__${item.weekLabel}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
     });
-  }, [
-    effectiveAgent,
-    agentCases.length,
-    currentAverage,
-    strongestTopic,
-    weakestTopic,
-    focusTopics,
-    currentMonthLabel,
-    currentWeekLabel,
-  ]);
+
+    return [...groups.entries()]
+      .map(([key, cases]) => {
+        const [agent, label] = key.split("__");
+        const summary = summarizeCases(cases);
+        return { agent, label, ...summary };
+      })
+      .sort((a, b) => {
+        if (a.label !== b.label) return a.label.localeCompare(b.label);
+        return a.agent.localeCompare(b.agent);
+      });
+  }, [weekScopedCases]);
+
+  const monthlyDashboardRows = useMemo(() => {
+    const groups = new Map<string, CaseItem[]>();
+    monthScopedCases.forEach((item) => {
+      const key = item.monthKey;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    });
+
+    return [...groups.entries()]
+      .map(([key, cases]) => {
+        const summary = summarizeCases(cases);
+        const label = cases[0]?.monthLabel || key;
+        return { ...summary, label };
+      })
+      .sort((a, b) => b.label.localeCompare(a.label));
+  }, [monthScopedCases]);
+
+  const monthlyTeamRows = useMemo(() => {
+    const groups = new Map<string, CaseItem[]>();
+
+    monthScopedCases.forEach((item) => {
+      const key = `${item.agent}__${item.monthKey}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    });
+
+    return [...groups.entries()]
+      .map(([key, cases]) => {
+        const [agent] = key.split("__");
+        const summary = summarizeCases(cases);
+        const label = cases[0]?.monthLabel || "-";
+        return { agent, label, ...summary };
+      })
+      .sort((a, b) => {
+        if (a.label !== b.label) return b.label.localeCompare(a.label);
+        return a.agent.localeCompare(b.agent);
+      });
+  }, [monthScopedCases]);
+
+  const yearlyTeamRows = useMemo(() => {
+    const groups = new Map<string, CaseItem[]>();
+
+    yearScopedCases.forEach((item) => {
+      const key = item.yearKey;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    });
+
+    return [...groups.entries()]
+      .map(([label, cases]) => {
+        const summary = summarizeCases(cases);
+        return { ...summary, label };
+      })
+      .sort((a, b) => b.label.localeCompare(a.label));
+  }, [yearScopedCases]);
+
+  const yearlyAgentRows = useMemo(() => {
+    const groups = new Map<string, CaseItem[]>();
+
+    yearScopedCases.forEach((item) => {
+      const key = `${item.agent}__${item.yearKey}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    });
+
+    return [...groups.entries()]
+      .map(([key, cases]) => {
+        const [agent, label] = key.split("__");
+        const summary = summarizeCases(cases);
+        return { agent, label, ...summary };
+      })
+      .sort((a, b) => {
+        if (a.label !== b.label) return b.label.localeCompare(a.label);
+        return a.agent.localeCompare(b.agent);
+      });
+  }, [yearScopedCases]);
+
+  const summaryCards = useMemo(() => {
+    const source =
+      viewMode === "weekly-dashboard" || viewMode === "weekly-qa-by-agent"
+        ? weekScopedCases
+        : viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary"
+        ? monthScopedCases
+        : yearScopedCases;
+
+    const avg = source.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(source.length, 1);
+    const revisedCount = source.filter((item) => item.reviewStatus === "Revised").length;
+    const incentive = getIncentiveValue(source.length, avg);
+
+    return {
+      caseCount: source.length,
+      avgScore: avg,
+      grade: scoreToGrade(avg),
+      revisedCount,
+      incentive,
+      topicSummary: buildTopicSummary(source),
+    };
+  }, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases]);
+
+  const currentScopeText = useMemo(() => {
+    const agentText =
+      currentUser?.role === "Agent"
+        ? currentUser.agentName
+        : effectiveAgent === "all" || !effectiveAgent
+        ? "All Agents"
+        : effectiveAgent;
+
+    return `${agentText} • Month: ${
+      selectedMonth === "all" ? "All" : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth
+    } • Week: ${selectedWeek === "all" ? "All" : selectedWeek} • Year: ${
+      selectedYear === "all" ? "All" : selectedYear
+    }`;
+  }, [currentUser, effectiveAgent, selectedMonth, selectedWeek, selectedYear, monthOptions]);
 
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด Coaching Dashboard...
+          กำลังโหลด Summary Dashboard...
         </div>
       </div>
     );
@@ -1090,13 +1084,14 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                QA Coaching
+                QA Summary
               </div>
               <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
-                Agent Coaching Workspace
+                Weekly / Monthly / Yearly Summary Workspace
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                สรุปหัวข้อที่ต้องพัฒนา แนวทางการปรับปรุง และ case evidence รายบุคคลเพื่อใช้ในการ coaching
+                รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard,
+                Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว
               </div>
             </div>
 
@@ -1107,10 +1102,10 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                   Robinhood QA
                 </div>
                 <div className="mt-1 text-lg font-semibold text-white">
-                  Coaching & Development Plan
+                  Summary Performance Center
                 </div>
                 <div className="mt-1 text-sm text-violet-100/90">
-                  Focus area / case evidence / action plan
+                  Weekly / Monthly / Yearly team and agent summary
                 </div>
               </div>
             </div>
@@ -1123,28 +1118,58 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
           <div className="space-y-6">
             <Panel className="sticky top-4">
               <PanelHeader
-                title="Coaching Controls"
-                subtitle="Select agent, month, and week for coaching summary"
+                title="Summary Controls"
+                subtitle="Select summary type and filter scope"
               />
               <PanelBody className="space-y-5">
+                <div className="flex flex-wrap gap-2">
+                  <ViewButton
+                    active={viewMode === "weekly-dashboard"}
+                    label="Weekly Dashboard"
+                    onClick={() => setViewMode("weekly-dashboard")}
+                  />
+                  <ViewButton
+                    active={viewMode === "weekly-qa-by-agent"}
+                    label="Weekly QA by Agent"
+                    onClick={() => setViewMode("weekly-qa-by-agent")}
+                  />
+                  <ViewButton
+                    active={viewMode === "monthly-dashboard"}
+                    label="Monthly Dashboard"
+                    onClick={() => setViewMode("monthly-dashboard")}
+                  />
+                  <ViewButton
+                    active={viewMode === "monthly-team-summary"}
+                    label="Monthly Team Summary"
+                    onClick={() => setViewMode("monthly-team-summary")}
+                  />
+                  <ViewButton
+                    active={viewMode === "yearly-team-summary"}
+                    label="Yearly Team Summary"
+                    onClick={() => setViewMode("yearly-team-summary")}
+                  />
+                  <ViewButton
+                    active={viewMode === "yearly-by-agent"}
+                    label="Yearly by Agent"
+                    onClick={() => setViewMode("yearly-by-agent")}
+                  />
+                </div>
+
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Agent
                   </div>
                   {currentUser?.role === "Agent" ? (
                     <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {effectiveAgent || "-"}
+                      {currentUser.agentName}
                     </div>
                   ) : (
                     <select
                       value={selectedAgent}
-                      onChange={(e) => {
-                        setSelectedAgent(e.target.value);
-                        setSelectedMonth("all");
-                        setSelectedWeek("all");
-                      }}
+                      onChange={(e) => setSelectedAgent(e.target.value)}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
+                      <option value="all">All Agents</option>
                       {visibleAgentList.map((agent) => (
                         <option key={agent} value={agent}>
                           {agent}
@@ -1193,14 +1218,29 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                   </select>
                 </div>
 
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Year
+                  </div>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="all">All Years</option>
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
                     Current Scope
                   </div>
-                  <div className="mt-2 text-sm font-semibold text-slate-800">{currentScopeLabel}</div>
-                  <div className="mt-2 text-sm leading-6 text-slate-700">
-                    ใช้สำหรับสรุปหัวข้อที่ควรพัฒนา พร้อมแนวทาง coaching ที่นำไปใช้ต่อกับน้องแต่ละคนได้ทันที
-                  </div>
+                  <div className="mt-2 text-sm font-semibold text-slate-800">{currentScopeText}</div>
                 </div>
               </PanelBody>
             </Panel>
@@ -1209,400 +1249,117 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <MetricCard
-                title="Selected Agent"
-                value={effectiveAgent || "-"}
-                sub="Current coaching target"
-                accent="from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
-                valueClassName="text-violet-900 text-[22px] lg:text-[24px]"
-              />
-              <MetricCard
-                title="Reviewed Cases"
-                value={String(agentCases.length)}
-                sub={currentScopeLabel}
+                title="Total Cases"
+                value={String(summaryCards.caseCount)}
+                sub="Current summary scope"
                 accent="from-sky-50 via-white to-sky-100/70 border-sky-200"
                 valueClassName="text-sky-700"
               />
               <MetricCard
                 title="Average Score"
-                value={currentAverage.toFixed(2)}
+                value={summaryCards.avgScore.toFixed(2)}
                 sub="Average quality score"
                 accent="from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
                 valueClassName="text-violet-900"
               />
               <MetricCard
                 title="Current Grade"
-                value={scoreToGrade(currentAverage)}
-                sub="Current overall grade"
+                value={summaryCards.grade}
+                sub="Calculated from current scope"
                 accent="from-white via-amber-50/50 to-amber-100/70 border-amber-200"
                 valueClassName="text-amber-700"
               />
               <MetricCard
-                title="Main Focus"
-                value={weakestTopic?.code || "-"}
-                sub={weakestTopic?.label || "No focus topic"}
+                title="Revised Cases"
+                value={String(summaryCards.revisedCount)}
+                sub="Appeal updated cases"
                 accent="from-rose-50 via-white to-rose-100/70 border-rose-200"
                 valueClassName="text-rose-700"
               />
+              <MetricCard
+                title="Estimated Incentive"
+                value={formatCurrencyTHB(summaryCards.incentive)}
+                sub="Only paid when casesครบ 10"
+                accent="from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
+                valueClassName="text-fuchsia-700"
+              />
             </div>
 
-            <Panel>
-              <PanelHeader
-                title="One-on-One Coaching Summary"
-                subtitle="Auto-generated summary for coaching discussion"
-              />
-              <PanelBody className="space-y-4">
-                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-                  <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
-                    Overall Summary
-                  </div>
-                  <div className="mt-2 text-sm leading-7 text-slate-700">
-                    {oneOnOneSummary.overallComment}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      Strength to Maintain
-                    </div>
-                    <div className="mt-2 text-sm leading-7 text-slate-700">
-                      {oneOnOneSummary.strengthComment}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                      Main Improvement Area
-                    </div>
-                    <div className="mt-2 text-sm leading-7 text-slate-700">
-                      {oneOnOneSummary.improvementComment}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                  <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                    Coaching Direction
-                  </div>
-                  <div className="mt-2 text-sm leading-7 text-slate-700">
-                    {oneOnOneSummary.coachingDirection}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-                  <div className="text-xs font-bold uppercase tracking-wide text-sky-700">
-                    Next Coaching Target
-                  </div>
-                  <div className="mt-2 text-sm leading-7 text-slate-700">
-                    {oneOnOneSummary.nextStep}
-                  </div>
-                </div>
-              </PanelBody>
-            </Panel>
-
-            <div className="grid gap-6 xl:grid-cols-2">
+            {(viewMode === "weekly-dashboard" || viewMode === "monthly-dashboard" || viewMode === "yearly-team-summary") && (
               <Panel>
                 <PanelHeader
-                  title="Coaching Snapshot"
-                  subtitle="Overall view of strengths and development areas"
+                  title={
+                    viewMode === "weekly-dashboard"
+                      ? "Weekly Dashboard"
+                      : viewMode === "monthly-dashboard"
+                      ? "Monthly Dashboard"
+                      : "Yearly Team Summary"
+                  }
+                  subtitle="Summary by selected period"
                 />
-                <PanelBody className="space-y-4">
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      Strength
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-slate-900">
-                      {strongestTopic ? `${strongestTopic.code} ${strongestTopic.label}` : "-"}
-                    </div>
-                    <div className="mt-1 text-xs text-emerald-700">
-                      Average {strongestTopic ? strongestTopic.pct.toFixed(2) : "0.00"}%
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                      Main Improvement Area
-                    </div>
-                    <div className="mt-2 text-sm font-semibold text-slate-900">
-                      {weakestTopic ? `${weakestTopic.code} ${weakestTopic.label}` : "-"}
-                    </div>
-                    <div className="mt-1 text-xs text-rose-700">
-                      Average {weakestTopic ? weakestTopic.pct.toFixed(2) : "0.00"}%
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      QA Coaching Summary
-                    </div>
-                    <div className="mt-2 text-sm leading-7 text-slate-700">
-                      {effectiveAgent
-                        ? `${effectiveAgent} ควรเน้นพัฒนาเรื่อง ${weakestTopic?.code || "-"} ${
-                            weakestTopic?.label || ""
-                          } เป็นลำดับแรก โดยควบคู่กับการทบทวน ${
-                            focusTopics[1]?.code || "-"
-                          } ${focusTopics[1]?.label || ""} เพื่อยกระดับคุณภาพคำตอบให้ครบถ้วน ชัดเจน และสอดคล้องกับมาตรฐาน QA มากขึ้น`
-                        : "-"}
-                    </div>
-                  </div>
+                <PanelBody>
+                  <SummaryTable
+                    firstColLabel={
+                      viewMode === "weekly-dashboard"
+                        ? "Week"
+                        : viewMode === "monthly-dashboard"
+                        ? "Month"
+                        : "Year"
+                    }
+                    rows={
+                      viewMode === "weekly-dashboard"
+                        ? weeklyDashboardRows
+                        : viewMode === "monthly-dashboard"
+                        ? monthlyDashboardRows
+                        : yearlyTeamRows
+                    }
+                  />
                 </PanelBody>
               </Panel>
+            )}
 
+            {(viewMode === "weekly-qa-by-agent" ||
+              viewMode === "monthly-team-summary" ||
+              viewMode === "yearly-by-agent") && (
               <Panel>
                 <PanelHeader
-                  title="Top Priority Topics"
-                  subtitle="Topics that should be coached first"
+                  title={
+                    viewMode === "weekly-qa-by-agent"
+                      ? "Weekly QA by Agent"
+                      : viewMode === "monthly-team-summary"
+                      ? "Monthly Team Summary"
+                      : "Yearly by Agent"
+                  }
+                  subtitle="Agent level breakdown"
                 />
-                <PanelBody className="space-y-3">
-                  {focusTopics.length ? (
-                    focusTopics.map((topic) => (
-                      <div
-                        key={topic.code}
-                        className="rounded-2xl border border-violet-100 bg-white px-4 py-4 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-bold text-slate-900">
-                              {topic.code} {topic.label}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-500">
-                              Avg {topic.avgScore.toFixed(2)} / {topic.max} ({topic.pct.toFixed(2)}%)
-                            </div>
-                          </div>
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityTone(
-                              topic.priority
-                            )}`}
-                          >
-                            {topic.priority}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 text-xs text-slate-600">
-                          พบใน {topic.failCount} case(s) ที่ยังต้องพัฒนา
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-slate-500">No coaching data</div>
-                  )}
+                <PanelBody>
+                  <AgentPeriodTable
+                    periodLabel={
+                      viewMode === "weekly-qa-by-agent"
+                        ? "Week"
+                        : viewMode === "monthly-team-summary"
+                        ? "Month"
+                        : "Year"
+                    }
+                    rows={
+                      viewMode === "weekly-qa-by-agent"
+                        ? weeklyAgentRows
+                        : viewMode === "monthly-team-summary"
+                        ? monthlyTeamRows
+                        : yearlyAgentRows
+                    }
+                  />
                 </PanelBody>
               </Panel>
-            </div>
+            )}
 
             <Panel>
               <PanelHeader
-                title="Coaching Focus Area"
-                subtitle="Detailed coaching analysis by topic"
+                title="Topic Performance Summary"
+                subtitle="Average topic performance in current scope"
               />
-              <PanelBody className="space-y-5">
-                {focusTopics.length ? (
-                  focusTopics.map((topic) => {
-                    const guide = getCoachingGuide(topic.code);
-
-                    return (
-                      <div
-                        key={topic.code}
-                        className="rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/40 p-5 shadow-sm"
-                      >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div>
-                            <div className="text-lg font-bold tracking-tight text-slate-900">
-                              {topic.code} {topic.label}
-                            </div>
-                            <div className="mt-1 text-sm text-slate-500">
-                              Avg {topic.avgScore.toFixed(2)} / {topic.max} · {topic.pct.toFixed(2)}%
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityTone(
-                                topic.priority
-                              )}`}
-                            >
-                              {topic.priority} Priority
-                            </span>
-                            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                              {topic.failCount} impacted case(s)
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-                            <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                              Issue Found
-                            </div>
-                            <div className="mt-2 text-sm leading-7 text-slate-700">{guide.issue}</div>
-                          </div>
-
-                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                              Target Improvement
-                            </div>
-                            <div className="mt-2 text-sm leading-7 text-slate-700">{guide.target}</div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-                            <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
-                              Recommended Guidance
-                            </div>
-                            <div className="mt-3 space-y-2">
-                              {guide.guidance.map((item, index) => (
-                                <div
-                                  key={index}
-                                  className="rounded-xl border border-violet-100 bg-white px-3 py-3 text-sm leading-6 text-slate-700"
-                                >
-                                  {index + 1}. {item}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                              Example Coaching Message
-                            </div>
-                            <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700">
-                              {guide.example}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-sm text-slate-500">No coaching focus area</div>
-                )}
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader
-                title="Case-based Coaching Evidence"
-                subtitle="Cases that support the coaching recommendation"
-              />
-              <PanelBody className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="min-w-[1100px] w-full text-sm">
-                    <thead>
-                      <tr className="bg-violet-950 text-[11px] text-white">
-                        <th className="px-4 py-3 text-left">Audit Date</th>
-                        <th className="px-4 py-3 text-left">Case ID</th>
-                        <th className="px-4 py-3 text-left">Inquiry</th>
-                        <th className="px-4 py-3 text-center">Final Score</th>
-                        <th className="px-4 py-3 text-center">Grade</th>
-                        <th className="px-4 py-3 text-left">Topic Evidence</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {caseEvidenceRows.length ? (
-                        caseEvidenceRows.map((item) => (
-                          <tr key={item.key} className="bg-white">
-                            <td className="border-t border-slate-200 px-4 py-3">{item.auditDate}</td>
-                            <td className="border-t border-slate-200 px-4 py-3 font-semibold text-violet-700">
-                              {item.caseId}
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                              {item.inquiryTh}
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-center">
-                              {item.finalScore.toFixed(2)}
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-center">
-                              <span
-                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(
-                                  item.grade
-                                )}`}
-                              >
-                                {item.grade}
-                              </span>
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                              {item.issues.join(", ")}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={6}
-                            className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
-                          >
-                            No case evidence found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader
-                title="Coaching Action Plan"
-                subtitle="Suggested development plan for the selected agent"
-              />
-              <PanelBody className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="min-w-[1100px] w-full text-sm">
-                    <thead>
-                      <tr className="bg-violet-950 text-[11px] text-white">
-                        <th className="px-4 py-3 text-left">Topic</th>
-                        <th className="px-4 py-3 text-left">Expected Behavior</th>
-                        <th className="px-4 py-3 text-left">Practice Method</th>
-                        <th className="px-4 py-3 text-left">Owner</th>
-                        <th className="px-4 py-3 text-left">Suggested Target</th>
-                        <th className="px-4 py-3 text-left">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {focusTopics.length ? (
-                        focusTopics.map((topic) => {
-                          const guide = getCoachingGuide(topic.code);
-
-                          return (
-                            <tr key={topic.code} className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">
-                                {topic.code} {topic.label}
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                {guide.target}
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                Review sample cases / practice reply structure / QA feedback follow-up
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                QA / Supervisor / Agent
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                Within next coaching cycle
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                  In Progress
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={6}
-                            className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
-                          >
-                            No action plan available
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+              <PanelBody>
+                <TopicTable topics={summaryCards.topicSummary} />
               </PanelBody>
             </Panel>
           </div>
