@@ -261,6 +261,26 @@ function excelDateToJSDate(value: any): Date | null {
   return null;
 }
 
+function formatAuditDate(value: any): string {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return String(value ?? "").trim();
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatAuditTimestamp(value: any): string {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return "-";
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  const hh = `${dt.getHours()}`.padStart(2, "0");
+  const min = `${dt.getMinutes()}`.padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
 function formatInputDate(value: Date) {
   const year = value.getFullYear();
   const month = `${value.getMonth() + 1}`.padStart(2, "0");
@@ -382,92 +402,6 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
   };
 }
 
-function buildHeaderHelpers(headerRow: any[]) {
-  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
-
-  const colIndexes = (name: string) => {
-    const target = normalizeText(name);
-    return normalizedHeaders
-      .map((h, idx) => (h === target ? idx : -1))
-      .filter((idx) => idx >= 0);
-  };
-
-  const getValue = (row: any[], name: string, occurrence = 0) => {
-    const indexes = colIndexes(name);
-    const idx = indexes[occurrence];
-    return idx >= 0 ? row[idx] : null;
-  };
-
-  const getLastValue = (row: any[], name: string) => {
-    const indexes = colIndexes(name);
-    if (!indexes.length) return null;
-    return row[indexes[indexes.length - 1]];
-  };
-
-  return { getValue, getLastValue, colIndexes };
-}
-
-function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
-  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
-  const total = baseTopics.reduce((sum, base) => {
-    const active = revisedMap.get(base.code) || base;
-    return sum + active.score;
-  }, 0);
-  return Number(total.toFixed(2));
-}
-
-function getCellDisplayText(
-  sheet: XLSX.WorkSheet,
-  rowIndex1Based: number,
-  colIndex0Based: number
-) {
-  const address = XLSX.utils.encode_cell({
-    r: rowIndex1Based - 1,
-    c: colIndex0Based,
-  });
-  const cell = sheet[address];
-  if (!cell) return "";
-  return String(cell.w ?? cell.v ?? "").trim();
-}
-
-function getCellRawValue(
-  sheet: XLSX.WorkSheet,
-  rowIndex1Based: number,
-  colIndex0Based: number
-) {
-  const address = XLSX.utils.encode_cell({
-    r: rowIndex1Based - 1,
-    c: colIndex0Based,
-  });
-  return sheet[address]?.v;
-}
-
-function formatAuditTimestampFromCell(
-  sheet: XLSX.WorkSheet,
-  rowIndex1Based: number,
-  colIndex0Based: number
-) {
-  const address = XLSX.utils.encode_cell({
-    r: rowIndex1Based - 1,
-    c: colIndex0Based,
-  });
-  const cell = sheet[address];
-  if (!cell) return "-";
-
-  const displayed = String(cell.w ?? "").trim();
-  if (displayed) return displayed;
-
-  const dt = excelDateToJSDate(cell.v);
-  if (!dt) return "-";
-
-  const dd = `${dt.getDate()}`.padStart(2, "0");
-  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
-  const yyyy = dt.getFullYear();
-  const hh = `${dt.getHours()}`.padStart(2, "0");
-  const min = `${dt.getMinutes()}`.padStart(2, "0");
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
-}
-
 function Panel({
   children,
   className = "",
@@ -487,14 +421,21 @@ function Panel({
 function PanelHeader({
   title,
   subtitle,
+  rightSlot,
 }: {
   title: string;
   subtitle?: string;
+  rightSlot?: React.ReactNode;
 }) {
   return (
     <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
-      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
-      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+        {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
+      </div>
     </div>
   );
 }
@@ -531,9 +472,7 @@ function MetricCard({
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div
-          className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}
-        >
+        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
           {value}
         </div>
         {helper ? <div className="mt-3">{helper}</div> : null}
@@ -703,15 +642,11 @@ function getOriginalTopicMap(topics: Topic[]) {
 }
 
 function normalizeCommentForCompare(value?: string) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function normalizeAppealReason(value: unknown) {
-  return String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
 function isNoAppealReason(value: unknown) {
@@ -756,10 +691,11 @@ function hasRealTopicChange(
   const revisedCommentText = normalizeCommentForCompare(String(revisedComment ?? ""));
 
   const scoreChanged =
-    originalScoreNum !== null && revisedScoreNum !== null && originalScoreNum !== revisedScoreNum;
+    originalScoreNum !== null &&
+    revisedScoreNum !== null &&
+    originalScoreNum !== revisedScoreNum;
 
-  const commentChanged =
-    revisedCommentText !== "" && revisedCommentText !== originalCommentText;
+  const commentChanged = revisedCommentText !== "" && revisedCommentText !== originalCommentText;
 
   return scoreChanged || commentChanged;
 }
@@ -845,9 +781,7 @@ function CaseDetailTopicTable({
                     </div>
 
                     <div className="shrink-0 rounded-xl bg-violet-50 px-3 py-2 text-right">
-                      <div className="text-[9px] uppercase tracking-wide text-slate-500">
-                        Score
-                      </div>
+                      <div className="text-[9px] uppercase tracking-wide text-slate-500">Score</div>
                       <div className="text-sm font-bold text-slate-900">
                         {shownTopic.score}/{shownTopic.max}
                       </div>
@@ -974,6 +908,40 @@ function DataHealthChecks({
       ))}
     </div>
   );
+}
+
+function buildHeaderHelpers(headerRow: any[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+
+  const colIndexes = (name: string) => {
+    const target = normalizeText(name);
+    return normalizedHeaders
+      .map((h, idx) => (h === target ? idx : -1))
+      .filter((idx) => idx >= 0);
+  };
+
+  const getValue = (row: any[], name: string, occurrence = 0) => {
+    const indexes = colIndexes(name);
+    const idx = indexes[occurrence];
+    return idx >= 0 ? row[idx] : null;
+  };
+
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+
+  return { getValue, getLastValue };
+}
+
+function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
+  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
+  const total = baseTopics.reduce((sum, base) => {
+    const active = revisedMap.get(base.code) || base;
+    return sum + active.score;
+  }, 0);
+  return Number(total.toFixed(2));
 }
 
 function LogoHeaderBox() {
@@ -1109,7 +1077,10 @@ function PremiumReviewMixCard({
                 </div>
 
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className={`h-full rounded-full ${item.tone}`} style={{ width: `${pct}%` }} />
+                  <div
+                    className={`h-full rounded-full ${item.tone}`}
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
               </div>
             );
@@ -1222,7 +1193,13 @@ function PremiumLineChart({
                 >
                   {item.value.toFixed(1)}
                 </text>
-                <text x={x} y={height - 8} textAnchor="middle" fontSize="11" fill="#64748b">
+                <text
+                  x={x}
+                  y={height - 8}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill="#64748b"
+                >
                   {item.label}
                 </text>
               </g>
@@ -1264,9 +1241,171 @@ function QuickCaseSearchCard({
       </div>
 
       <div className="mt-2 line-clamp-2 text-[12px] leading-5 text-slate-700">{item.inquiryTh}</div>
-
-      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open in Case Detail</div>
+      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open Case Panel</div>
     </button>
+  );
+}
+
+function SlideOverCasePanel({
+  open,
+  onClose,
+  item,
+}: {
+  open: boolean;
+  onClose: () => void;
+  item: CaseItem | null;
+}) {
+  if (!open || !item) return null;
+
+  return (
+    <div className="fixed inset-0 z-[90]">
+      <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="absolute inset-y-0 right-0 w-full max-w-[980px] overflow-hidden border-l border-violet-200 bg-[#f8f5ff] shadow-[0_20px_60px_rgba(15,23,42,0.25)]">
+        <div className="flex h-full flex-col">
+          <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 px-5 py-4 text-white">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-200">
+                  Case Detail
+                </div>
+                <div className="mt-1 text-xl font-extrabold tracking-tight">{item.caseId}</div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold">
+                    {item.agent}
+                  </span>
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold">
+                    {item.auditDate}
+                  </span>
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold">
+                    {item.weekLabel}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            <div className="space-y-5">
+              <Panel>
+                <PanelHeader
+                  title="Case Information"
+                  subtitle="Selected case overview and review status"
+                />
+                <PanelBody className="space-y-5">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                          {item.caseId}
+                        </span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
+                            item.grade
+                          )}`}
+                        >
+                          Grade {item.grade}
+                        </span>
+                        <ReviewStatusBadge item={item} />
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Agent
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {item.agent}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Audit Date
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {item.auditDate}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Timestamp
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {item.auditTimestamp || "-"}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Week
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {item.weekLabel}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Final Score
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-900">
+                            {item.finalScore.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Customer Inquiry
+                        </div>
+                        <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
+                          {item.inquiryTh || "-"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {item.caseUrl ? (
+                      <a
+                        href={item.caseUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                      >
+                        Open Case URL
+                      </a>
+                    ) : null}
+                  </div>
+                </PanelBody>
+              </Panel>
+
+              <Panel>
+                <PanelHeader
+                  title="Topic Detail"
+                  subtitle="Original / Revised topic comparison"
+                />
+                <PanelBody>
+                  <CaseDetailTopicTable
+                    topics={item.topics}
+                    revisedTopics={item.revisedTopics}
+                    reviewStatus={item.reviewStatus}
+                    displayRevisedTopicCodes={item.displayRevisedTopicCodes || []}
+                  />
+                </PanelBody>
+              </Panel>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1297,6 +1436,7 @@ export default function DashboardMockup({
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+  const [showCasePanel, setShowCasePanel] = useState(false);
 
   useEffect(() => {
     if (
@@ -1327,11 +1467,7 @@ export default function DashboardMockup({
         }
 
         const rawBuffer = await rawResponse.arrayBuffer();
-        const rawWorkbook = XLSX.read(rawBuffer, {
-          type: "array",
-          cellDates: true,
-          raw: true,
-        });
+        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
         const rawSheet =
           rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
 
@@ -1357,13 +1493,6 @@ export default function DashboardMockup({
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
         const rawHelper = buildHeaderHelpers(rawHeaderRow);
-
-        const auditDateColIndex = rawHeaderRow.findIndex(
-          (h) => normalizeText(h) === "audit date"
-        );
-        const timestampColIndex = rawHeaderRow.findIndex(
-          (h) => normalizeText(h) === "timestamp"
-        );
 
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
@@ -1415,7 +1544,8 @@ export default function DashboardMockup({
               !Number.isNaN(Number(revisedScoreRaw));
 
             const hasRevisedComment =
-              revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
+              revisedCommentRaw !== null &&
+              String(revisedCommentRaw).trim() !== "";
 
             if (!hasRevisedScore && !hasRevisedComment) return;
 
@@ -1518,7 +1648,9 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "Inquiry");
 
             const weekLabel =
-              rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
+              rawHelper.getValue(row, "Week Label") ??
+              rawHelper.getValue(row, "Week") ??
+              "-";
 
             const caseUrl =
               rawHelper.getValue(row, "Case URL") ??
@@ -1526,24 +1658,8 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "URL") ??
               "";
 
-            const sheetRowIndex = rawHeaderIndex + 1 + index + 1;
-
-            const auditDateText =
-              auditDateColIndex >= 0
-                ? getCellDisplayText(rawSheet, sheetRowIndex, auditDateColIndex)
-                : "";
-
-            const auditRawValue =
-              auditDateColIndex >= 0
-                ? getCellRawValue(rawSheet, sheetRowIndex, auditDateColIndex)
-                : rawHelper.getValue(row, "Audit Date");
-
-            const auditDateObj = excelDateToJSDate(auditRawValue || auditDateText);
-
-            const timestampText =
-              timestampColIndex >= 0
-                ? formatAuditTimestampFromCell(rawSheet, sheetRowIndex, timestampColIndex)
-                : "-";
+            const auditRaw = rawHelper.getValue(row, "Audit Date");
+            const auditDateObj = excelDateToJSDate(auditRaw);
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -1551,9 +1667,9 @@ export default function DashboardMockup({
             return {
               key: `row-${index + 1}-${caseId}`,
               agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
-              auditDate: auditDateText || String(auditRawValue ?? "").trim(),
+              auditDate: formatAuditDate(auditRaw),
               auditDateObj,
-              auditTimestamp: timestampText || "-",
+              auditTimestamp: formatAuditTimestamp(auditRaw),
               monthKey: getMonthKey(auditDateObj),
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
@@ -1667,11 +1783,15 @@ export default function DashboardMockup({
 
   const searchedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
-    if (!keyword) return dateFilteredCases;
-    return dateFilteredCases.filter((item) =>
-      String(item.caseId || "").toLowerCase().includes(keyword)
-    );
-  }, [dateFilteredCases, caseIdSearch]);
+
+    if (keyword) {
+      return agentCases.filter((item) =>
+        String(item.caseId || "").toLowerCase().includes(keyword)
+      );
+    }
+
+    return dateFilteredCases;
+  }, [agentCases, dateFilteredCases, caseIdSearch]);
 
   const weekLabels = useMemo(() => {
     return [...new Set(searchedCases.map((item) => item.weekLabel).filter(Boolean))].sort();
@@ -1703,6 +1823,7 @@ export default function DashboardMockup({
   useEffect(() => {
     if (!dashboardCases.length) {
       if (selectedCaseKey !== "") setSelectedCaseKey("");
+      setShowCasePanel(false);
       return;
     }
 
@@ -1717,6 +1838,17 @@ export default function DashboardMockup({
     if (!dashboardCases.length) return;
     setSelectedCaseKey(dashboardCases[0].key);
   }, [caseIdSearch, dashboardCases]);
+
+  useEffect(() => {
+    if (dashboardSubTab !== "case-detail") {
+      setShowCasePanel(false);
+      return;
+    }
+
+    if (selectedCaseKey && activeSelectedCase) {
+      setShowCasePanel(true);
+    }
+  }, [dashboardSubTab, selectedCaseKey, activeSelectedCase]);
 
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
@@ -1746,10 +1878,10 @@ export default function DashboardMockup({
     const keyword = caseIdSearch.trim().toLowerCase();
     if (!keyword) return [];
 
-    return dateFilteredCases
+    return agentCases
       .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
       .slice(0, 8);
-  }, [dateFilteredCases, caseIdSearch]);
+  }, [agentCases, caseIdSearch]);
 
   const scoreDistributionData = useMemo(() => {
     const buckets = [
@@ -1841,828 +1973,743 @@ export default function DashboardMockup({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
-      <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
-        <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-4xl">
-              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                QA Dashboard
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]">
+        <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)]">
+          <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-4xl">
+                <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
+                  QA Dashboard
+                </div>
+                <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
+                  Agent Performance Dashboard
+                </div>
+                <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
+                  Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
+                  Appleal ROWDATA
+                </div>
               </div>
-              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
-                Agent Performance Dashboard
-              </div>
-              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
-                Appleal ROWDATA
-              </div>
-            </div>
 
-            <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
-              <LogoHeaderBox />
-              <div className="hidden sm:block">
-                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
-                  Robinhood QA
-                </div>
-                <div className="mt-1 text-lg font-semibold text-white">
-                  Quality Monitoring Workspace
-                </div>
-                <div className="mt-1 text-sm text-violet-100/90">
-                  Corporate dashboard for audit tracking and case review
+              <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+                <LogoHeaderBox />
+                <div className="hidden sm:block">
+                  <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+                    Robinhood QA
+                  </div>
+                  <div className="mt-1 text-lg font-semibold text-white">
+                    Quality Monitoring Workspace
+                  </div>
+                  <div className="mt-1 text-sm text-violet-100/90">
+                    Corporate dashboard for audit tracking and case review
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <Panel className="sticky top-4">
-              <PanelHeader
-                title="Quick Controls"
-                subtitle="Filter by agent, month, case ID, date range and week"
-              />
-              <PanelBody className="space-y-5">
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Agent
-                  </div>
-                  {currentUser?.role === "Agent" ? (
-                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {effectiveSelectedAgent || "-"}
+        <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+          <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+            <div className="space-y-6">
+              <Panel className="sticky top-4">
+                <PanelHeader
+                  title="Quick Controls"
+                  subtitle="Filter by agent, month, case ID, date range and week"
+                />
+                <PanelBody className="space-y-5">
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                      Agent
                     </div>
-                  ) : (
+                    {currentUser?.role === "Agent" ? (
+                      <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                        {effectiveSelectedAgent || "-"}
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedAgent}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSelectedAgent(value);
+                          onSelectedAgentChange?.(value);
+                          setSelectedWeek("all");
+                          setSelectedCaseKey("");
+                        }}
+                        className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      >
+                        <option value="">All Agents</option>
+                        {visibleAgentList.map((agent) => (
+                          <option key={agent} value={agent}>
+                            {agent}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                      Month
+                    </div>
                     <select
-                      value={selectedAgent}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSelectedAgent(value);
-                        onSelectedAgentChange?.(value);
-                        setSelectedWeek("all");
-                        setSelectedCaseKey("");
-                        setSelectedMonthKey("all");
-                      }}
+                      value={selectedMonthKey}
+                      onChange={(e) => setSelectedMonthKey(e.target.value)}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
-                      <option value="">All Agents</option>
-                      {visibleAgentList.map((agent) => (
-                        <option key={agent} value={agent}>
-                          {agent}
+                      <option value="all">Current Month</option>
+                      {monthOptions.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
                         </option>
                       ))}
                     </select>
-                  )}
-                </div>
-
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Month
                   </div>
-                  <select
-                    value={selectedMonthKey}
-                    onChange={(e) => setSelectedMonthKey(e.target.value)}
-                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                  >
-                    <option value="all">Current Month</option>
-                    {monthOptions.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Search Case ID
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                      Search Case ID
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={caseIdSearch}
+                        onChange={(e) => {
+                          setCaseIdSearch(e.target.value);
+                          setSelectedCaseKey("");
+                        }}
+                        placeholder="ค้นหาเลขเคสได้เลย ไม่ต้องเลือกเดือนก่อน"
+                        className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      />
+                      <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={caseIdSearch}
-                      onChange={(e) => {
-                        setCaseIdSearch(e.target.value);
+
+                  {caseIdSearch.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCaseIdSearch("");
                         setSelectedCaseKey("");
                       }}
-                      placeholder="ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือก Agent"
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    />
-                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      Clear Search
+                    </button>
+                  ) : null}
 
-                {caseIdSearch.trim() ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCaseIdSearch("");
-                      setSelectedCaseKey("");
-                    }}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Clear Search
-                  </button>
-                ) : null}
-
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                  <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                      Date From
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                    <div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                        Date From
+                      </div>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      />
                     </div>
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    />
+
+                    <div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                        Date To
+                      </div>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                      Date To
+                      Week
                     </div>
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
+                    <select
+                      value={selectedWeek}
+                      onChange={(e) => setSelectedWeek(e.target.value)}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Week
-                  </div>
-                  <select
-                    value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(e.target.value)}
-                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    disabled={!searchedCases.length}
-                  >
-                    <option value="all">All Weeks</option>
-                    {weekLabels.map((week) => (
-                      <option key={week} value={week}>
-                        {week}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
-              <PanelBody className="space-y-3">
-                {!searchedCases.length ? (
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
-                    ไม่พบข้อมูลในช่วงที่เลือก
-                  </div>
-                ) : (
-                  <>
-                    <WeeklySnapshotCard
-                      label="All Weeks"
-                      caseCount={searchedCases.length}
-                      averageDisplay={buildAgentSummary(searchedCases).averageDisplay}
-                      isActive={selectedWeek === "all"}
-                      onClick={() => setSelectedWeek("all")}
-                    />
-
-                    {weekLabels.map((week) => {
-                      const weekCases = searchedCases.filter((item) => item.weekLabel === week);
-                      const weekSummary = buildAgentSummary(weekCases);
-
-                      return (
-                        <WeeklySnapshotCard
-                          key={week}
-                          label={week}
-                          caseCount={weekCases.length}
-                          averageDisplay={weekSummary.averageDisplay}
-                          isActive={selectedWeek === week}
-                          onClick={() => setSelectedWeek(week)}
-                        />
-                      );
-                    })}
-                  </>
-                )}
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Data Health Checks" subtitle="System and data validation status" />
-              <PanelBody>
-                <DataHealthChecks
-                  caseCount={allCases.length}
-                  agentCount={visibleAgentList.length}
-                  appealCount={appealMergeCount}
-                />
-              </PanelBody>
-            </Panel>
-          </div>
-
-          <div className="space-y-6">
-            {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
-              dashboardSubTab === "overview" ? (
-                <>
-                  <Panel>
-                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
-                    <PanelBody>
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                            Viewing Agent
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {effectiveSelectedAgent || "All Agents"}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
-                            Viewing Month
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {currentViewingMonthLabel}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                            Viewing Week
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {selectedWeek === "all" ? "All Weeks" : selectedWeek}
-                          </div>
-                        </div>
-                      </div>
-                    </PanelBody>
-                  </Panel>
-
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <MetricCard
-                      title="Average Score"
-                      value={metricAverageDisplay}
-                      sub={`${metricCaseCount} case(s) in current view`}
-                      accent="from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
-                      valueClassName="text-violet-900"
-                      helper={
-                        <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                          Team Score
-                        </span>
-                      }
-                    />
-
-                    <MetricCard
-                      title="Current Grade"
-                      value={currentGradeDisplay}
-                      sub={currentGradeSub}
-                      accent={currentGradeTone(currentGradeDisplay).card}
-                      valueClassName={currentGradeTone(currentGradeDisplay).levelText}
-                      helper={
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(
-                              currentGradeDisplay
-                            ).badge}`}
-                          >
-                            Grade {currentGradeDisplay}
-                          </span>
-                          <span
-                            className={`text-[12px] font-semibold ${currentGradeTone(currentGradeDisplay).levelText}`}
-                          >
-                            Status: {currentGradeTone(currentGradeDisplay).level}
-                          </span>
-                        </div>
-                      }
-                    />
-
-                    <MetricCard
-                      title="Evaluation Progress"
-                      value={`${metricCaseCount}/${CASE_TARGET}`}
-                      sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
-                      accent={
-                        metricCaseCount >= CASE_TARGET
-                          ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
-                          : "from-amber-50 via-white to-amber-100/70 border-amber-200"
-                      }
-                      valueClassName={
-                        metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"
-                      }
-                      helper={
-                        <span
-                          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                            metricCaseCount >= CASE_TARGET
-                              ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-                              : "border-amber-200 bg-amber-100 text-amber-700"
-                          }`}
-                        >
-                          {metricCaseCount >= CASE_TARGET ? "Completed" : "In Progress"}
-                        </span>
-                      }
-                    />
-
-                    <MetricCard
-                      title="Estimated Incentive"
-                      value={incentiveDisplay}
-                      sub={incentiveRemark}
-                      accent="from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
-                      valueClassName="text-fuchsia-700"
-                      helper={
-                        <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
-                          Monthly Estimate
-                        </span>
-                      }
-                    />
-
-                    <MetricCard
-                      title="Review Mix"
-                      value={`${revisedCount}`}
-                      sub="Revised case(s) in current view"
-                      accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
-                      valueClassName="text-sky-700"
-                      helper={
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                          Revised Cases
-                        </span>
-                      }
-                    />
-                  </div>
-
-                  <Panel>
-                    <PanelHeader
-                      title="QA Grade & Incentive Guide"
-                      subtitle="Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month"
-                    />
-                    <PanelBody className="p-0">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-[860px] w-full text-sm">
-                          <thead>
-                            <tr className="bg-violet-950 text-[11px] text-white">
-                              <th className="px-4 py-3 text-left">Score Range</th>
-                              <th className="px-4 py-3 text-left">Level</th>
-                              <th className="px-4 py-3 text-center">Grade</th>
-                              <th className="px-4 py-3 text-center">Incentive (THB)</th>
-                              <th className="px-4 py-3 text-left">Meaning</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">90-100</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                  A
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                1,000
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3">
-                                Meets all key standards
-                              </td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">80-89</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                                  B
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                700
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3">
-                                Meets most standards
-                              </td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">70-79</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Fair</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                  C
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                300
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3">
-                                Minimum pass level
-                              </td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">60-69</td>
-                              <td className="border-t border-slate-200 px-4 py-3">
-                                Improvement Required
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                                  D
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">
-                                Below company standard
-                              </td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Fail</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                                  F
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">
-                                Significant quality issue
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </PanelBody>
-                  </Panel>
-
-                  <Panel>
-                    <PanelHeader
-                      title="Overview Filters"
-                      subtitle="Control which cases are shown in overview"
-                    />
-                    <PanelBody className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("all")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "all"
-                              ? "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          All Cases
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("originalOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "originalOnly"
-                              ? "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Original Only
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("revisedOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "revisedOnly"
-                              ? "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Revised Only
-                        </button>
-                      </div>
-
-                      {caseIdSearch.trim() ? (
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
-                            Quick Case Search Result
-                          </div>
-
-                          <div className="mt-3 space-y-3">
-                            {overviewCaseSearchResults.length ? (
-                              overviewCaseSearchResults.map((item) => (
-                                <QuickCaseSearchCard
-                                  key={item.key}
-                                  item={item}
-                                  onOpen={() => {
-                                    setSelectedCaseKey(item.key);
-                                    onOpenCaseDetail?.();
-                                  }}
-                                />
-                              ))
-                            ) : (
-                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                ไม่พบเลขเคสที่ค้นหา
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-                    </PanelBody>
-                  </Panel>
-
-                  <div className="grid gap-6 xl:grid-cols-2">
-                    <PremiumBarChart
-                      title="Score Distribution"
-                      subtitle="Case count by score range"
-                      data={scoreDistributionData}
-                    />
-
-                    <PremiumReviewMixCard
-                      title="Review Status Mix"
-                      subtitle="Original vs Revised in current view"
-                      data={reviewMixChartData}
-                    />
-                  </div>
-
-                  <PremiumLineChart
-                    title="Weekly Score Trend"
-                    subtitle="Average score by visible week"
-                    data={weeklyTrendData}
-                  />
-
-                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-                    <Panel>
-                      <PanelHeader
-                        title="Topic Performance"
-                        subtitle="Average topic score in current view"
-                      />
-                      <PanelBody>
-                        <TopicPerformanceTable items={summary.topicPerformance} />
-                      </PanelBody>
-                    </Panel>
-
-                    <Panel>
-                      <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
-                      <PanelBody>
-                        <GradeMix gradeCounts={summary.gradeCounts} />
-                      </PanelBody>
-                    </Panel>
-                  </div>
-
-                  <div className="grid gap-6 xl:grid-cols-2">
-                    <Panel>
-                      <PanelHeader title="Strongest Topics" subtitle="Top 3 topics in current view" />
-                      <PanelBody className="space-y-3">
-                        {strongestTopics.length ? (
-                          strongestTopics.map((topic) => (
-                            <div
-                              key={topic.code}
-                              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"
-                            >
-                              <div className="text-sm font-bold text-slate-900">
-                                {topic.code} {topic.label}
-                              </div>
-                              <div className="mt-1 text-xs text-emerald-700">
-                                {topic.pct}% average
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-slate-500">No data</div>
-                        )}
-                      </PanelBody>
-                    </Panel>
-
-                    <Panel>
-                      <PanelHeader
-                        title="Coaching Focus"
-                        subtitle="Top 3 weakest topics in current view"
-                      />
-                      <PanelBody className="space-y-3">
-                        {weakestTopics.length ? (
-                          weakestTopics.map((topic) => (
-                            <div
-                              key={topic.code}
-                              className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3"
-                            >
-                              <div className="text-sm font-bold text-slate-900">
-                                {topic.code} {topic.label}
-                              </div>
-                              <div className="mt-1 text-xs text-rose-700">
-                                {topic.pct}% average
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-slate-500">No data</div>
-                        )}
-                      </PanelBody>
-                    </Panel>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Panel>
-                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
-                    <PanelBody>
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                            Viewing Agent
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {effectiveSelectedAgent || "All Agents"}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
-                            Viewing Month
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {currentViewingMonthLabel}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                            Viewing Week
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {selectedWeek === "all" ? "All Weeks" : selectedWeek}
-                          </div>
-                        </div>
-                      </div>
-                    </PanelBody>
-                  </Panel>
-
-                  <Panel>
-                    <PanelHeader
-                      title="Case Navigator"
-                      subtitle="Select a case to review detailed topic scoring"
-                    />
-                    <PanelBody>
-                      {!dashboardCases.length ? (
-                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          ไม่พบข้อมูลในช่วงที่เลือก
-                        </div>
-                      ) : (
-                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                          {dashboardCases.map((item) => (
-                            <CaseNavigatorCard
-                              key={item.key}
-                              item={item}
-                              isSelected={activeSelectedCase?.key === item.key}
-                              onSelect={() => setSelectedCaseKey(item.key)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </PanelBody>
-                  </Panel>
-
-                  {activeSelectedCase ? (
-                    <>
-                      <Panel>
-                        <PanelHeader
-                          title="Case Information"
-                          subtitle="Selected case overview and review status"
-                        />
-                        <PanelBody className="space-y-5">
-                          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                            <div className="space-y-3">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                                  {activeSelectedCase.caseId}
-                                </span>
-                                <span
-                                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
-                                    activeSelectedCase.grade
-                                  )}`}
-                                >
-                                  Grade {activeSelectedCase.grade}
-                                </span>
-                                <ReviewStatusBadge item={activeSelectedCase} />
-                              </div>
-
-                              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    Agent
-                                  </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                                    {activeSelectedCase.agent}
-                                  </div>
-                                </div>
-
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    Audit Date
-                                  </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                                    {activeSelectedCase.auditDate}
-                                  </div>
-                                </div>
-
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    Timestamp
-                                  </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                                    {activeSelectedCase.auditTimestamp || "-"}
-                                  </div>
-                                </div>
-
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    Week
-                                  </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                                    {activeSelectedCase.weekLabel}
-                                  </div>
-                                </div>
-
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    Final Score
-                                  </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-900">
-                                    {activeSelectedCase.finalScore.toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                  Customer Inquiry
-                                </div>
-                                <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
-                                  {activeSelectedCase.inquiryTh || "-"}
-                                </div>
-                              </div>
-                            </div>
-
-                            {activeSelectedCase.caseUrl ? (
-                              <a
-                                href={activeSelectedCase.caseUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-                              >
-                                Open Case URL
-                              </a>
-                            ) : null}
-                          </div>
-                        </PanelBody>
-                      </Panel>
-
-                      <Panel>
-                        <PanelHeader
-                          title="Topic Detail"
-                          subtitle="Original / Revised topic comparison"
-                        />
-                        <PanelBody>
-                          <CaseDetailTopicTable
-                            topics={activeSelectedCase.topics}
-                            revisedTopics={activeSelectedCase.revisedTopics}
-                            reviewStatus={activeSelectedCase.reviewStatus}
-                            displayRevisedTopicCodes={
-                              activeSelectedCase.displayRevisedTopicCodes || []
-                            }
-                          />
-                        </PanelBody>
-                      </Panel>
-                    </>
-                  ) : (
-                    <Panel>
-                      <PanelHeader title="Case Detail" />
-                      <PanelBody>
-                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          ไม่พบเคสที่ตรงกับเงื่อนไขที่ค้นหา
-                        </div>
-                      </PanelBody>
-                    </Panel>
-                  )}
-                </>
-              )
-            ) : (
-              <Panel>
-                <PanelHeader title="Dashboard" />
-                <PanelBody>
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                    กรุณาเลือก Agent หรือค้นหา Case ID
+                      disabled={!searchedCases.length}
+                    >
+                      <option value="all">All Weeks</option>
+                      {weekLabels.map((week) => (
+                        <option key={week} value={week}>
+                          {week}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </PanelBody>
               </Panel>
-            )}
+
+              <Panel>
+                <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
+                <PanelBody className="space-y-3">
+                  {!searchedCases.length ? (
+                    <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
+                      ไม่พบข้อมูลในช่วงที่เลือก
+                    </div>
+                  ) : (
+                    <>
+                      <WeeklySnapshotCard
+                        label="All Weeks"
+                        caseCount={searchedCases.length}
+                        averageDisplay={buildAgentSummary(searchedCases).averageDisplay}
+                        isActive={selectedWeek === "all"}
+                        onClick={() => setSelectedWeek("all")}
+                      />
+
+                      {weekLabels.map((week) => {
+                        const weekCases = searchedCases.filter((item) => item.weekLabel === week);
+                        const weekSummary = buildAgentSummary(weekCases);
+
+                        return (
+                          <WeeklySnapshotCard
+                            key={week}
+                            label={week}
+                            caseCount={weekCases.length}
+                            averageDisplay={weekSummary.averageDisplay}
+                            isActive={selectedWeek === week}
+                            onClick={() => setSelectedWeek(week)}
+                          />
+                        );
+                      })}
+                    </>
+                  )}
+                </PanelBody>
+              </Panel>
+
+              <Panel>
+                <PanelHeader title="Data Health Checks" subtitle="System and data validation status" />
+                <PanelBody>
+                  <DataHealthChecks
+                    caseCount={allCases.length}
+                    agentCount={visibleAgentList.length}
+                    appealCount={appealMergeCount}
+                  />
+                </PanelBody>
+              </Panel>
+            </div>
+
+            <div className="space-y-6">
+              {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
+                dashboardSubTab === "overview" ? (
+                  <>
+                    <Panel>
+                      <PanelHeader
+                        title="Current Viewing Scope"
+                        subtitle="Selected agent and period"
+                      />
+                      <PanelBody>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                              Viewing Agent
+                            </div>
+                            <div className="mt-2 text-sm font-bold text-slate-900">
+                              {effectiveSelectedAgent || "All Agents"}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                              Viewing Month
+                            </div>
+                            <div className="mt-2 text-sm font-bold text-slate-900">
+                              {currentViewingMonthLabel}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                              Viewing Week
+                            </div>
+                            <div className="mt-2 text-sm font-bold text-slate-900">
+                              {selectedWeek === "all" ? "All Weeks" : selectedWeek}
+                            </div>
+                          </div>
+                        </div>
+                      </PanelBody>
+                    </Panel>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                      <MetricCard
+                        title="Average Score"
+                        value={metricAverageDisplay}
+                        sub={`${metricCaseCount} case(s) in current view`}
+                        accent="from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
+                        valueClassName="text-violet-900"
+                        helper={
+                          <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
+                            Team Score
+                          </span>
+                        }
+                      />
+
+                      <MetricCard
+                        title="Current Grade"
+                        value={currentGradeDisplay}
+                        sub={currentGradeSub}
+                        accent={currentGradeTone(currentGradeDisplay).card}
+                        valueClassName={currentGradeTone(currentGradeDisplay).levelText}
+                        helper={
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(
+                                currentGradeDisplay
+                              ).badge}`}
+                            >
+                              Grade {currentGradeDisplay}
+                            </span>
+                            <span
+                              className={`text-[12px] font-semibold ${currentGradeTone(currentGradeDisplay).levelText}`}
+                            >
+                              Status: {currentGradeTone(currentGradeDisplay).level}
+                            </span>
+                          </div>
+                        }
+                      />
+
+                      <MetricCard
+                        title="Evaluation Progress"
+                        value={`${metricCaseCount}/${CASE_TARGET}`}
+                        sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
+                        accent={
+                          metricCaseCount >= CASE_TARGET
+                            ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                            : "from-amber-50 via-white to-amber-100/70 border-amber-200"
+                        }
+                        valueClassName={
+                          metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"
+                        }
+                        helper={
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                              metricCaseCount >= CASE_TARGET
+                                ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                                : "border-amber-200 bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {metricCaseCount >= CASE_TARGET ? "Completed" : "In Progress"}
+                          </span>
+                        }
+                      />
+
+                      <MetricCard
+                        title="Estimated Incentive"
+                        value={incentiveDisplay}
+                        sub={incentiveRemark}
+                        accent="from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
+                        valueClassName="text-fuchsia-700"
+                        helper={
+                          <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
+                            Monthly Estimate
+                          </span>
+                        }
+                      />
+
+                      <MetricCard
+                        title="Review Mix"
+                        value={`${revisedCount}`}
+                        sub="Revised case(s) in current view"
+                        accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
+                        valueClassName="text-sky-700"
+                        helper={
+                          <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                            Revised Cases
+                          </span>
+                        }
+                      />
+                    </div>
+
+                    <Panel>
+                      <PanelHeader
+                        title="QA Grade & Incentive Guide"
+                        subtitle="Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month"
+                      />
+                      <PanelBody className="p-0">
+                        <div className="overflow-x-auto">
+                          <table className="min-w-[860px] w-full text-sm">
+                            <thead>
+                              <tr className="bg-violet-950 text-[11px] text-white">
+                                <th className="px-4 py-3 text-left">Score Range</th>
+                                <th className="px-4 py-3 text-left">Level</th>
+                                <th className="px-4 py-3 text-center">Grade</th>
+                                <th className="px-4 py-3 text-center">Incentive (THB)</th>
+                                <th className="px-4 py-3 text-left">Meaning</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    A
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  1,000
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3">
+                                  Meets all key standards
+                                </td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">80-89</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                    B
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  700
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3">
+                                  Meets most standards
+                                </td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">70-79</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                    C
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  300
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3">
+                                  Minimum pass level
+                                </td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">60-69</td>
+                                <td className="border-t border-slate-200 px-4 py-3">
+                                  Improvement Required
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                    D
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  0
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3">
+                                  Below company standard
+                                </td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fail</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                    F
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  0
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3">
+                                  Significant quality issue
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </PanelBody>
+                    </Panel>
+
+                    <Panel>
+                      <PanelHeader
+                        title="Overview Filters"
+                        subtitle="Control which cases are shown in overview"
+                      />
+                      <PanelBody className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setOverviewMode("all")}
+                            className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                              overviewMode === "all"
+                                ? "border-violet-400 bg-violet-100 text-violet-800"
+                                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                            }`}
+                          >
+                            All Cases
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setOverviewMode("originalOnly")}
+                            className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                              overviewMode === "originalOnly"
+                                ? "border-violet-400 bg-violet-100 text-violet-800"
+                                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                            }`}
+                          >
+                            Original Only
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setOverviewMode("revisedOnly")}
+                            className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                              overviewMode === "revisedOnly"
+                                ? "border-violet-400 bg-violet-100 text-violet-800"
+                                : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                            }`}
+                          >
+                            Revised Only
+                          </button>
+                        </div>
+
+                        {caseIdSearch.trim() ? (
+                          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                            <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                              Quick Case Search Result
+                            </div>
+
+                            <div className="mt-3 space-y-3">
+                              {overviewCaseSearchResults.length ? (
+                                overviewCaseSearchResults.map((item) => (
+                                  <QuickCaseSearchCard
+                                    key={item.key}
+                                    item={item}
+                                    onOpen={() => {
+                                      setSelectedCaseKey(item.key);
+                                      onOpenCaseDetail?.();
+                                    }}
+                                  />
+                                ))
+                              ) : (
+                                <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                  ไม่พบเลขเคสที่ค้นหา
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </PanelBody>
+                    </Panel>
+
+                    <div className="grid gap-6 xl:grid-cols-2">
+                      <PremiumBarChart
+                        title="Score Distribution"
+                        subtitle="Case count by score range"
+                        data={scoreDistributionData}
+                      />
+
+                      <PremiumReviewMixCard
+                        title="Review Status Mix"
+                        subtitle="Original vs Revised in current view"
+                        data={reviewMixChartData}
+                      />
+                    </div>
+
+                    <PremiumLineChart
+                      title="Weekly Score Trend"
+                      subtitle="Average score by visible week"
+                      data={weeklyTrendData}
+                    />
+
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                      <Panel>
+                        <PanelHeader
+                          title="Topic Performance"
+                          subtitle="Average topic score in current view"
+                        />
+                        <PanelBody>
+                          <TopicPerformanceTable items={summary.topicPerformance} />
+                        </PanelBody>
+                      </Panel>
+
+                      <Panel>
+                        <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
+                        <PanelBody>
+                          <GradeMix gradeCounts={summary.gradeCounts} />
+                        </PanelBody>
+                      </Panel>
+                    </div>
+
+                    <div className="grid gap-6 xl:grid-cols-2">
+                      <Panel>
+                        <PanelHeader title="Strongest Topics" subtitle="Top 3 topics in current view" />
+                        <PanelBody className="space-y-3">
+                          {strongestTopics.length ? (
+                            strongestTopics.map((topic) => (
+                              <div
+                                key={topic.code}
+                                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"
+                              >
+                                <div className="text-sm font-bold text-slate-900">
+                                  {topic.code} {topic.label}
+                                </div>
+                                <div className="mt-1 text-xs text-emerald-700">
+                                  {topic.pct}% average
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-slate-500">No data</div>
+                          )}
+                        </PanelBody>
+                      </Panel>
+
+                      <Panel>
+                        <PanelHeader
+                          title="Coaching Focus"
+                          subtitle="Top 3 weakest topics in current view"
+                        />
+                        <PanelBody className="space-y-3">
+                          {weakestTopics.length ? (
+                            weakestTopics.map((topic) => (
+                              <div
+                                key={topic.code}
+                                className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3"
+                              >
+                                <div className="text-sm font-bold text-slate-900">
+                                  {topic.code} {topic.label}
+                                </div>
+                                <div className="mt-1 text-xs text-rose-700">
+                                  {topic.pct}% average
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-slate-500">No data</div>
+                          )}
+                        </PanelBody>
+                      </Panel>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Panel>
+                      <PanelHeader
+                        title="Current Viewing Scope"
+                        subtitle="Selected agent and period"
+                      />
+                      <PanelBody>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                              Viewing Agent
+                            </div>
+                            <div className="mt-2 text-sm font-bold text-slate-900">
+                              {effectiveSelectedAgent || "All Agents"}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                              Viewing Month
+                            </div>
+                            <div className="mt-2 text-sm font-bold text-slate-900">
+                              {currentViewingMonthLabel}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                              Viewing Week
+                            </div>
+                            <div className="mt-2 text-sm font-bold text-slate-900">
+                              {selectedWeek === "all" ? "All Weeks" : selectedWeek}
+                            </div>
+                          </div>
+                        </div>
+                      </PanelBody>
+                    </Panel>
+
+                    <Panel>
+                      <PanelHeader
+                        title="Case Navigator"
+                        subtitle="Click a case card to open the slide-over detail panel"
+                        rightSlot={
+                          activeSelectedCase ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowCasePanel(true)}
+                              className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+                            >
+                              Open Selected Case
+                            </button>
+                          ) : null
+                        }
+                      />
+                      <PanelBody>
+                        {!dashboardCases.length ? (
+                          <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
+                            ไม่พบข้อมูลในช่วงที่เลือก
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4 text-sm text-violet-800">
+                              ตอนนี้หน้า Case Detail เปลี่ยนเป็นแบบ Slide-over แล้ว
+                              กดที่การ์ดเคสเพื่อเปิดรายละเอียดจากด้านขวาได้เลย
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                              {dashboardCases.map((item) => (
+                                <CaseNavigatorCard
+                                  key={item.key}
+                                  item={item}
+                                  isSelected={activeSelectedCase?.key === item.key}
+                                  onSelect={() => {
+                                    setSelectedCaseKey(item.key);
+                                    setShowCasePanel(true);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </PanelBody>
+                    </Panel>
+                  </>
+                )
+              ) : (
+                <Panel>
+                  <PanelHeader title="Dashboard" />
+                  <PanelBody>
+                    <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
+                      กรุณาเลือก Agent หรือค้นหา Case ID
+                    </div>
+                  </PanelBody>
+                </Panel>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <SlideOverCasePanel
+        open={showCasePanel}
+        onClose={() => setShowCasePanel(false)}
+        item={activeSelectedCase}
+      />
+    </>
   );
 }
