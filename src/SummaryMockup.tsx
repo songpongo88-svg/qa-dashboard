@@ -971,9 +971,18 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
 
     return [...groups.entries()]
       .map(([key, cases]) => {
-        const [agent, label] = key.split("__");
+        const [agent] = key.split("__");
         const summary = summarizeCases(cases);
-        return { agent, label, ...summary };
+
+        return {
+          agent,
+          label: cases[0]?.weekLabel || "-",
+          caseCount: summary.caseCount,
+          avgScore: summary.avgScore,
+          grade: summary.grade,
+          revisedCount: summary.revisedCount,
+          incentive: summary.incentive,
+        };
       })
       .sort((a, b) => {
         if (a.label !== b.label) return a.label.localeCompare(b.label);
@@ -1016,8 +1025,16 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
       .map(([key, cases]) => {
         const [agent] = key.split("__");
         const summary = summarizeCases(cases);
-        const label = cases[0]?.monthLabel || "-";
-        return { agent, label, ...summary };
+
+        return {
+          agent,
+          label: cases[0]?.monthLabel || "-",
+          caseCount: summary.caseCount,
+          avgScore: summary.avgScore,
+          grade: summary.grade,
+          revisedCount: summary.revisedCount,
+          incentive: summary.incentive,
+        };
       })
       .sort((a, b) => {
         if (a.label !== b.label) return b.label.localeCompare(a.label);
