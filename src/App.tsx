@@ -96,9 +96,9 @@ const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Sunijtra",
     password: "Sj#6Qm1!Ty",
-    displayName: "Sunijtra Siritan",
+    displayName: "Sunijtra Siritip",
     role: "Agent",
-    agentName: "Sunijtra Siritan",
+    agentName: "Sunijtra Siritip",
   },
   {
     username: "Supakrit",
