@@ -59,6 +59,8 @@ type AppealMergeItem = {
 };
 
 const CASE_TARGET = 10;
+const TODAY = new Date();
+const FIRST_DAY_OF_CURRENT_MONTH = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
@@ -207,7 +209,7 @@ function formatInputDate(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function parseExcelDateTime(value: any): Date | null {
+function excelDateToJSDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -217,6 +219,7 @@ function parseExcelDateTime(value: any): Date | null {
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
+
     return new Date(
       parsed.y,
       parsed.m - 1,
@@ -240,6 +243,7 @@ function parseExcelDateTime(value: any): Date | null {
   const ddmmyyyy = text.match(
     /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2})[:.](\d{2})(?::(\d{2}))?)?$/
   );
+
   if (ddmmyyyy) {
     const [, dd, mm, yyyy, hh = "0", min = "0", ss = "0"] = ddmmyyyy;
     return new Date(
@@ -256,8 +260,18 @@ function parseExcelDateTime(value: any): Date | null {
 }
 
 function formatAuditDate(value: any): string {
-  const dt = parseExcelDateTime(value);
-  if (!dt) return String(value ?? "");
+  if (typeof value === "string" && value.trim()) {
+    const raw = value.trim();
+    const onlyDate = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (onlyDate) {
+      const [, dd, mm, yyyy] = onlyDate;
+      return `${dd.padStart(2, "0")}/${mm.padStart(2, "0")}/${yyyy}`;
+    }
+  }
+
+  const dt = excelDateToJSDate(value);
+  if (!dt) return String(value ?? "").trim();
+
   const day = `${dt.getDate()}`.padStart(2, "0");
   const month = `${dt.getMonth() + 1}`.padStart(2, "0");
   const year = dt.getFullYear();
@@ -265,45 +279,43 @@ function formatAuditDate(value: any): string {
 }
 
 function formatAuditTimestamp(value: any): string {
-  const dt = parseExcelDateTime(value);
+  if (typeof value === "string" && value.trim()) {
+    const text = value.trim();
+    const parsed = excelDateToJSDate(text);
+    if (!parsed) return text;
+
+    const day = `${parsed.getDate()}`.padStart(2, "0");
+    const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+    const year = parsed.getFullYear();
+    const hour = `${parsed.getHours()}`.padStart(2, "0");
+    const minute = `${parsed.getMinutes()}`.padStart(2, "0");
+
+    return `${day}/${month}/${year} ${hour}:${minute}`;
+  }
+
+  const dt = excelDateToJSDate(value);
   if (!dt) return String(value ?? "").trim() || "-";
+
   const day = `${dt.getDate()}`.padStart(2, "0");
   const month = `${dt.getMonth() + 1}`.padStart(2, "0");
   const year = dt.getFullYear();
   const hour = `${dt.getHours()}`.padStart(2, "0");
   const minute = `${dt.getMinutes()}`.padStart(2, "0");
+
   return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
-function formatMonthLabel(date: Date | null): string {
-  if (!date) return "Unknown";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
-function formatMonthKey(date: Date | null): string {
-  if (!date) return "unknown";
-  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
-}
-
-function parseAuditDateString(value: string) {
-  const [day, month, year] = value.split("/").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function isWithinDateRange(dateObj: Date | null, from?: string, to?: string) {
-  if (!dateObj) return false;
+function isWithinDateRange(auditDateObj: Date | null, from?: string, to?: string) {
+  if (!auditDateObj) return false;
 
   if (from) {
     const fromDate = new Date(`${from}T00:00:00`);
-    if (dateObj < fromDate) return false;
+    if (auditDateObj < fromDate) return false;
   }
 
   if (to) {
     const toDate = new Date(`${to}T23:59:59.999`);
-    if (dateObj > toDate) return false;
+    if (auditDateObj > toDate) return false;
   }
 
   return true;
@@ -920,6 +932,21 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
   return Number(total.toFixed(2));
 }
 
+function getMonthKey(date: Date | null) {
+  if (!date) return "unknown";
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getMonthLabel(date: Date | null) {
+  if (!date) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 function LogoHeaderBox() {
   return (
     <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
@@ -1244,8 +1271,8 @@ export default function DashboardMockup({
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>("all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>(formatInputDate(FIRST_DAY_OF_CURRENT_MONTH));
+  const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
 
@@ -1475,7 +1502,7 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "Timestamp") ??
               rawHelper.getValue(row, "Audit Date");
 
-            const auditDateObj = parseExcelDateTime(auditRaw);
+            const auditDateObj = excelDateToJSDate(auditRaw);
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -1486,8 +1513,8 @@ export default function DashboardMockup({
               auditDate: formatAuditDate(auditRaw),
               auditTimestamp: formatAuditTimestamp(auditRaw),
               auditDateObj,
-              monthKey: formatMonthKey(auditDateObj),
-              monthLabel: formatMonthLabel(auditDateObj),
+              monthKey: getMonthKey(auditDateObj),
+              monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
@@ -1577,28 +1604,22 @@ export default function DashboardMockup({
     if (!monthOptions.length) return;
 
     if (selectedMonthKey === "all") {
-      const latestMonth = monthOptions[0];
-      if (latestMonth) {
-        setSelectedMonthKey(latestMonth.value);
-      }
       return;
     }
 
     const exists = monthOptions.some((m) => m.value === selectedMonthKey);
     if (!exists) {
-      setSelectedMonthKey(monthOptions[0].value);
+      setSelectedMonthKey("all");
     }
   }, [monthOptions, selectedMonthKey]);
 
   useEffect(() => {
-    if (!monthOptions.length) return;
+    if (selectedMonthKey === "all") return;
 
-    const activeMonth =
-      selectedMonthKey === "all" ? monthOptions[0] : monthOptions.find((m) => m.value === selectedMonthKey);
+    const targetMonth = monthOptions.find((m) => m.value === selectedMonthKey);
+    if (!targetMonth) return;
 
-    if (!activeMonth) return;
-
-    const [year, month] = activeMonth.value.split("-").map(Number);
+    const [year, month] = selectedMonthKey.split("-").map(Number);
     if (!year || !month) return;
 
     const start = new Date(year, month - 1, 1);
@@ -1606,7 +1627,8 @@ export default function DashboardMockup({
 
     setDateFrom(formatInputDate(start));
     setDateTo(formatInputDate(end));
-  }, [selectedMonthKey, monthOptions, effectiveSelectedAgent]);
+    setSelectedWeek("all");
+  }, [selectedMonthKey, monthOptions]);
 
   const dateFilteredCases = useMemo(() => {
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
@@ -1679,7 +1701,7 @@ export default function DashboardMockup({
 
   const currentGradeSub =
     metricCaseCount === 0
-      ? "No evaluated case in selected period"
+      ? "No evaluated case in selected month"
       : metricCaseCount < CASE_TARGET
       ? "Grade will appear when completed 10 cases"
       : "Calculated from current average score";
@@ -1758,15 +1780,10 @@ export default function DashboardMockup({
     }));
   }, [searchedCases]);
 
-  const viewingAgentName =
+  const viewingAgentLabel =
     currentUser?.role === "Agent"
       ? currentUser.agentName
       : effectiveSelectedAgent || "All Agents";
-
-  const activeMonthLabel =
-    selectedMonthKey === "all"
-      ? "All Months"
-      : monthOptions.find((m) => m.value === selectedMonthKey)?.label || selectedMonthKey;
 
   if (isLoading) {
     return (
@@ -1843,7 +1860,7 @@ export default function DashboardMockup({
                   </div>
                   {currentUser?.role === "Agent" ? (
                     <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {viewingAgentName || "-"}
+                      {effectiveSelectedAgent || "-"}
                     </div>
                   ) : (
                     <select
@@ -1853,7 +1870,10 @@ export default function DashboardMockup({
                         setSelectedAgent(value);
                         onSelectedAgentChange?.(value);
                         setSelectedWeek("all");
+                        setSelectedMonthKey("all");
                         setSelectedCaseKey("");
+                        setDateFrom(formatInputDate(FIRST_DAY_OF_CURRENT_MONTH));
+                        setDateTo(formatInputDate(TODAY));
                       }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
@@ -1871,21 +1891,40 @@ export default function DashboardMockup({
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
                     Viewing Agent
                   </div>
-                  <div className="mt-2 text-sm font-bold text-slate-900">{viewingAgentName}</div>
+                  <div className="mt-2 text-sm font-bold text-slate-900">
+                    {viewingAgentLabel}
+                  </div>
                 </div>
 
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Month Buttons
+                    Month
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedMonthKey("all");
+                        setDateFrom(formatInputDate(FIRST_DAY_OF_CURRENT_MONTH));
+                        setDateTo(formatInputDate(TODAY));
+                        setSelectedWeek("all");
+                        setSelectedCaseKey("");
+                      }}
+                      className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                        selectedMonthKey === "all"
+                          ? "border-violet-400 bg-violet-100 text-violet-800"
+                          : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                      }`}
+                    >
+                      Current Month
+                    </button>
+
                     {monthOptions.map((month) => (
                       <button
                         key={month.value}
                         type="button"
                         onClick={() => {
                           setSelectedMonthKey(month.value);
-                          setSelectedWeek("all");
                           setSelectedCaseKey("");
                         }}
                         className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
@@ -1900,13 +1939,6 @@ export default function DashboardMockup({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-fuchsia-100 bg-fuchsia-50 px-4 py-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
-                    Selected Month
-                  </div>
-                  <div className="mt-2 text-sm font-bold text-slate-900">{activeMonthLabel}</div>
-                </div>
-
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Search Case ID
@@ -1919,7 +1951,7 @@ export default function DashboardMockup({
                         setCaseIdSearch(e.target.value);
                         setSelectedCaseKey("");
                       }}
-                      placeholder="ค้นหาเลขเคสได้ทันที"
+                      placeholder="ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือก Agent"
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
@@ -1962,7 +1994,10 @@ export default function DashboardMockup({
                     <input
                       type="date"
                       value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
+                      onChange={(e) => {
+                        setDateFrom(e.target.value);
+                        setSelectedMonthKey("all");
+                      }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                   </div>
@@ -1974,7 +2009,10 @@ export default function DashboardMockup({
                     <input
                       type="date"
                       value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
+                      onChange={(e) => {
+                        setDateTo(e.target.value);
+                        setSelectedMonthKey("all");
+                      }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                   </div>
@@ -2054,42 +2092,6 @@ export default function DashboardMockup({
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
-                  <Panel>
-                    <PanelBody>
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                            Viewing Agent
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">{viewingAgentName}</div>
-                        </div>
-
-                        <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
-                            Viewing Month
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">{activeMonthLabel}</div>
-                        </div>
-
-                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
-                            Date Range
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">
-                            {dateFrom || "-"} to {dateTo || "-"}
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                            Week Filter
-                          </div>
-                          <div className="mt-2 text-sm font-bold text-slate-900">{selectedWeek}</div>
-                        </div>
-                      </div>
-                    </PanelBody>
-                  </Panel>
-
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <MetricCard
                       title="Average Score"
@@ -2422,16 +2424,7 @@ export default function DashboardMockup({
                 </>
               ) : (
                 <>
-                  {!activeSelectedCase ? (
-                    <Panel>
-                      <PanelHeader title="Case Detail" />
-                      <PanelBody>
-                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          ไม่พบเคสที่ตรงกับเงื่อนไขที่ค้นหา
-                        </div>
-                      </PanelBody>
-                    </Panel>
-                  ) : (
+                  {activeSelectedCase ? (
                     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                       <div className="space-y-6">
                         <Panel>
@@ -2495,21 +2488,23 @@ export default function DashboardMockup({
 
                                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                                     <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                      Month
-                                    </div>
-                                    <div className="mt-1 text-sm font-semibold text-slate-900">
-                                      {activeSelectedCase.monthLabel}
-                                    </div>
-                                  </div>
-
-                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                                       Final Score
                                     </div>
                                     <div className="mt-1 text-sm font-semibold text-slate-900">
                                       {activeSelectedCase.finalScore.toFixed(2)}
                                     </div>
                                   </div>
+
+                                  {typeof activeSelectedCase.previousScore === "number" ? (
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                        Previous Score
+                                      </div>
+                                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                                        {activeSelectedCase.previousScore.toFixed(2)}
+                                      </div>
+                                    </div>
+                                  ) : null}
                                 </div>
 
                                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
@@ -2556,7 +2551,7 @@ export default function DashboardMockup({
                         <Panel className="sticky top-4">
                           <PanelHeader
                             title="Case Navigator"
-                            subtitle="Select a case from the right panel"
+                            subtitle="Select a case to review detailed topic scoring"
                           />
                           <PanelBody>
                             {!dashboardCases.length ? (
@@ -2579,6 +2574,15 @@ export default function DashboardMockup({
                         </Panel>
                       </div>
                     </div>
+                  ) : (
+                    <Panel>
+                      <PanelHeader title="Case Detail" />
+                      <PanelBody>
+                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
+                          ไม่พบเคสที่ตรงกับเงื่อนไขที่ค้นหา
+                        </div>
+                      </PanelBody>
+                    </Panel>
                   )}
                 </>
               )
