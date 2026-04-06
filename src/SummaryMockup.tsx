@@ -70,6 +70,18 @@ type AgentPeriodSummary = {
   incentive: number;
 };
 
+type PeriodTableRow = {
+  label: string;
+  weekLabel?: string;
+  monthLabel?: string;
+  yearLabel?: string;
+  caseCount: number;
+  avgScore: number;
+  grade: Grade;
+  revisedCount: number;
+  incentive: number;
+};
+
 const CASE_TARGET = 10;
 
 const TOPIC_MASTER = [
@@ -454,23 +466,27 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
 function SummaryTable({
   rows,
   firstColLabel,
+  showWeek = false,
+  showMonth = false,
+  showYear = false,
 }: {
-  rows: Array<{
-    label: string;
-    caseCount: number;
-    avgScore: number;
-    grade: Grade;
-    revisedCount: number;
-    incentive: number;
-  }>;
+  rows: PeriodTableRow[];
   firstColLabel: string;
+  showWeek?: boolean;
+  showMonth?: boolean;
+  showYear?: boolean;
 }) {
+  const colSpan = 6 + (showWeek ? 1 : 0) + (showMonth ? 1 : 0) + (showYear ? 1 : 0);
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[920px] w-full text-sm">
+      <table className="min-w-[1100px] w-full text-sm">
         <thead>
           <tr className="bg-violet-950 text-[11px] text-white">
             <th className="px-4 py-3 text-left">{firstColLabel}</th>
+            {showWeek ? <th className="px-4 py-3 text-left">Week</th> : null}
+            {showMonth ? <th className="px-4 py-3 text-left">Month</th> : null}
+            {showYear ? <th className="px-4 py-3 text-left">Year</th> : null}
             <th className="px-4 py-3 text-center">Cases</th>
             <th className="px-4 py-3 text-center">Average Score</th>
             <th className="px-4 py-3 text-center">Grade</th>
@@ -481,10 +497,28 @@ function SummaryTable({
         <tbody>
           {rows.length ? (
             rows.map((row) => (
-              <tr key={row.label} className="bg-white">
+              <tr
+                key={`${row.label}-${row.weekLabel || ""}-${row.monthLabel || ""}-${row.yearLabel || ""}`}
+                className="bg-white"
+              >
                 <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">
                   {row.label}
                 </td>
+                {showWeek ? (
+                  <td className="border-t border-slate-200 px-4 py-3">
+                    {row.weekLabel || "-"}
+                  </td>
+                ) : null}
+                {showMonth ? (
+                  <td className="border-t border-slate-200 px-4 py-3">
+                    {row.monthLabel || "-"}
+                  </td>
+                ) : null}
+                {showYear ? (
+                  <td className="border-t border-slate-200 px-4 py-3">
+                    {row.yearLabel || "-"}
+                  </td>
+                ) : null}
                 <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
                 <td className="border-t border-slate-200 px-4 py-3 text-center">
                   {row.avgScore.toFixed(2)}
@@ -507,7 +541,7 @@ function SummaryTable({
           ) : (
             <tr>
               <td
-                colSpan={6}
+                colSpan={colSpan}
                 className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
               >
                 No data found
@@ -880,14 +914,14 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     );
   }, [filteredByAgent]);
 
-  const weekOptions = useMemo(() => {
-    const source =
-      selectedMonth === "all"
-        ? filteredByAgent
-        : filteredByAgent.filter((item) => item.monthKey === selectedMonth);
-
-    return [...new Set(source.map((item) => item.weekLabel).filter(Boolean))].sort();
+  const monthScopedForWeekOptions = useMemo(() => {
+    if (selectedMonth === "all") return filteredByAgent;
+    return filteredByAgent.filter((item) => item.monthKey === selectedMonth);
   }, [filteredByAgent, selectedMonth]);
+
+  const weekOptions = useMemo(() => {
+    return [...new Set(monthScopedForWeekOptions.map((item) => item.weekLabel).filter(Boolean))].sort();
+  }, [monthScopedForWeekOptions]);
 
   const monthScopedCases = useMemo(() => {
     if (selectedMonth === "all") return filteredByAgent;
@@ -915,7 +949,13 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     return [...groups.entries()]
       .map(([label, cases]) => {
         const summary = summarizeCases(cases);
-        return { ...summary, label };
+        return {
+          ...summary,
+          label,
+          weekLabel: label,
+          monthLabel: cases[0]?.monthLabel || "-",
+          yearLabel: cases[0]?.yearKey || "-",
+        };
       })
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [weekScopedCases]);
@@ -952,11 +992,16 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     return [...groups.entries()]
       .map(([key, cases]) => {
         const summary = summarizeCases(cases);
-        const label = cases[0]?.monthLabel || key;
-        return { ...summary, label };
+        return {
+          ...summary,
+          label: cases[0]?.monthLabel || key,
+          weekLabel: selectedWeek === "all" ? "All Weeks" : selectedWeek,
+          monthLabel: cases[0]?.monthLabel || "-",
+          yearLabel: cases[0]?.yearKey || "-",
+        };
       })
       .sort((a, b) => b.label.localeCompare(a.label));
-  }, [monthScopedCases]);
+  }, [monthScopedCases, selectedWeek]);
 
   const monthlyTeamRows = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
@@ -992,10 +1037,19 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     return [...groups.entries()]
       .map(([label, cases]) => {
         const summary = summarizeCases(cases);
-        return { ...summary, label };
+        return {
+          ...summary,
+          label,
+          weekLabel: selectedWeek === "all" ? "All Weeks" : selectedWeek,
+          monthLabel:
+            selectedMonth === "all"
+              ? "All Months"
+              : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth,
+          yearLabel: label,
+        };
       })
       .sort((a, b) => b.label.localeCompare(a.label));
-  }, [yearScopedCases]);
+  }, [yearScopedCases, selectedWeek, selectedMonth, monthOptions]);
 
   const yearlyAgentRows = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
@@ -1040,20 +1094,20 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
     };
   }, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases]);
 
-  const currentScopeText = useMemo(() => {
-    const agentText =
-      currentUser?.role === "Agent"
-        ? currentUser.agentName
-        : effectiveAgent === "all" || !effectiveAgent
-        ? "All Agents"
-        : effectiveAgent;
+  const viewingAgentText =
+    currentUser?.role === "Agent"
+      ? currentUser.agentName
+      : !effectiveAgent || effectiveAgent === "all"
+      ? "All Agents"
+      : effectiveAgent;
 
-    return `${agentText} • Month: ${
-      selectedMonth === "all" ? "All" : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth
-    } • Week: ${selectedWeek === "all" ? "All" : selectedWeek} • Year: ${
-      selectedYear === "all" ? "All" : selectedYear
-    }`;
-  }, [currentUser, effectiveAgent, selectedMonth, selectedWeek, selectedYear, monthOptions]);
+  const viewingMonthText =
+    selectedMonth === "all"
+      ? "All Months"
+      : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
+
+  const viewingWeekText = selectedWeek === "all" ? "All Weeks" : selectedWeek;
+  const viewingYearText = selectedYear === "all" ? "All Years" : selectedYear;
 
   if (isLoading) {
     return (
@@ -1234,13 +1288,6 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                     ))}
                   </select>
                 </div>
-
-                <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                    Current Scope
-                  </div>
-                  <div className="mt-2 text-sm font-semibold text-slate-800">{currentScopeText}</div>
-                </div>
               </PanelBody>
             </Panel>
           </div>
@@ -1284,7 +1331,55 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
               />
             </div>
 
-            {(viewMode === "weekly-dashboard" || viewMode === "monthly-dashboard" || viewMode === "yearly-team-summary") && (
+            <Panel>
+              <PanelHeader
+                title="Current Viewing Scope"
+                subtitle="Current selected agent and period"
+              />
+              <PanelBody>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                      Viewing Agent
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">
+                      {viewingAgentText}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                      Viewing Month
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">
+                      {viewingMonthText}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                      Viewing Week
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">
+                      {viewingWeekText}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                      Viewing Year
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">
+                      {viewingYearText}
+                    </div>
+                  </div>
+                </div>
+              </PanelBody>
+            </Panel>
+
+            {(viewMode === "weekly-dashboard" ||
+              viewMode === "monthly-dashboard" ||
+              viewMode === "yearly-team-summary") && (
               <Panel>
                 <PanelHeader
                   title={
@@ -1294,17 +1389,14 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                       ? "Monthly Dashboard"
                       : "Yearly Team Summary"
                   }
-                  subtitle="Summary by selected period"
+                  subtitle={`Viewing: ${viewingAgentText} • Week: ${viewingWeekText} • Month: ${viewingMonthText} • Year: ${viewingYearText}`}
                 />
                 <PanelBody>
                   <SummaryTable
-                    firstColLabel={
-                      viewMode === "weekly-dashboard"
-                        ? "Week"
-                        : viewMode === "monthly-dashboard"
-                        ? "Month"
-                        : "Year"
-                    }
+                    firstColLabel="Summary"
+                    showWeek={true}
+                    showMonth={true}
+                    showYear={true}
                     rows={
                       viewMode === "weekly-dashboard"
                         ? weeklyDashboardRows
@@ -1329,7 +1421,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                       ? "Monthly Team Summary"
                       : "Yearly by Agent"
                   }
-                  subtitle="Agent level breakdown"
+                  subtitle={`Viewing: ${viewingAgentText} • Week: ${viewingWeekText} • Month: ${viewingMonthText} • Year: ${viewingYearText}`}
                 />
                 <PanelBody>
                   <AgentPeriodTable
@@ -1355,7 +1447,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
             <Panel>
               <PanelHeader
                 title="Topic Performance Summary"
-                subtitle="Average topic performance in current scope"
+                subtitle={`Average topic performance in current scope • ${viewingAgentText}`}
               />
               <PanelBody>
                 <TopicTable topics={summaryCards.topicSummary} />
