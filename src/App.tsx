@@ -921,98 +921,103 @@ export default function App() {
 
       <div className="min-h-screen bg-slate-100">
         <div className="border-b border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30 backdrop-blur-sm">
-          <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-3 sm:px-5 lg:px-6 2xl:px-8 xl:flex-row xl:items-center xl:justify-between">
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">
-                Robinhood QA
-              </div>
-              <div className="mt-1 truncate text-xl font-extrabold tracking-tight text-slate-800 sm:text-2xl">
-                Welcome, {welcomeName}
-              </div>
-              <div className="mt-1 text-sm text-slate-500">
-                Role: <span className="font-semibold text-slate-700">{currentUser.role}</span>
-                {" · "}
-                Agent Name:{" "}
-                <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
-              </div>
-            </div>
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-5 lg:px-6 2xl:px-8">
+            <div className="grid gap-4 xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] xl:items-start">
+              <div className="min-w-0 rounded-[24px] border border-violet-200/70 bg-white/85 px-5 py-4 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">
+                  Robinhood QA
+                </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-violet-200/80 bg-white/80 px-2 py-2 shadow-sm">
-                <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
-                  Performance
-                </span>
+                <div className="mt-1 break-words text-xl font-extrabold leading-tight tracking-tight text-slate-800 sm:text-2xl">
+                  Welcome, {welcomeName}
+                </div>
 
-                <NavButton
-                  active={activeTab === "dashboard"}
-                  label="Dashboard"
-                  onClick={() => setActiveTab("dashboard")}
-                />
-                <NavButton
-                  active={activeTab === "summary"}
-                  label="Summary"
-                  onClick={() => setActiveTab("summary")}
-                />
+                <div className="mt-2 space-y-1 text-sm text-slate-500">
+                  <div>
+                    Role: <span className="font-semibold text-slate-700">{currentUser.role}</span>
+                  </div>
+                  <div>
+                    Agent Name:{" "}
+                    <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-fuchsia-200/80 bg-white/80 px-2 py-2 shadow-sm">
-                <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
-                  Review
-                </span>
+              <div className="grid gap-3">
+                <div className="flex flex-wrap items-center gap-3 rounded-[24px] border border-violet-200/80 bg-white/85 px-3 py-3 shadow-sm">
+                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
+                    Performance
+                  </span>
 
-                <NavButton
-                  active={activeTab === "appeal"}
-                  label="Appeal"
-                  onClick={() => setActiveTab("appeal")}
-                />
-                <NavButton
-                  active={activeTab === "rubric"}
-                  label="QA Rubric"
-                  onClick={() => setActiveTab("rubric")}
-                />
-                <NavButton
-                  active={activeTab === "evaluation-studio"}
-                  label="Evaluation Studio"
-                  onClick={() => setActiveTab("evaluation-studio")}
-                />
-              </div>
+                  <NavButton
+                    active={activeTab === "dashboard"}
+                    label="Dashboard"
+                    onClick={() => setActiveTab("dashboard")}
+                  />
+                  <NavButton
+                    active={activeTab === "summary"}
+                    label="Summary"
+                    onClick={() => setActiveTab("summary")}
+                  />
 
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 shadow-sm">
-                <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                  Account
-                </span>
+                  <span className="ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
+                    Review
+                  </span>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetChangePasswordState();
-                    setShowChangePasswordModal(true);
-                  }}
-                  className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-violet-700"
-                >
-                  Change Password
-                </button>
+                  <NavButton
+                    active={activeTab === "appeal"}
+                    label="Appeal"
+                    onClick={() => setActiveTab("appeal")}
+                  />
+                  <NavButton
+                    active={activeTab === "rubric"}
+                    label="QA Rubric"
+                    onClick={() => setActiveTab("rubric")}
+                  />
+                  <NavButton
+                    active={activeTab === "evaluation-studio"}
+                    label="Evaluation Studio"
+                    onClick={() => setActiveTab("evaluation-studio")}
+                  />
+                </div>
 
-                {currentUser.role === "Supervisor" ? (
+                <div className="flex flex-wrap items-center gap-3 rounded-[24px] border border-slate-200 bg-white/85 px-3 py-3 shadow-sm">
+                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                    Account
+                  </span>
+
                   <button
                     type="button"
                     onClick={() => {
-                      resetPasswordModalState();
-                      setShowResetPasswordModal(true);
+                      resetChangePasswordState();
+                      setShowChangePasswordModal(true);
                     }}
-                    className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-amber-700"
+                    className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-violet-700"
                   >
-                    Reset Password
+                    Change Password
                   </button>
-                ) : null}
 
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-rose-700"
-                >
-                  Log Out
-                </button>
+                  {currentUser.role === "Supervisor" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetPasswordModalState();
+                        setShowResetPasswordModal(true);
+                      }}
+                      className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-amber-700"
+                    >
+                      Reset Password
+                    </button>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-rose-700"
+                  >
+                    Log Out
+                  </button>
+                </div>
               </div>
             </div>
           </div>
