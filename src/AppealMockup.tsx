@@ -345,16 +345,22 @@ function ScoreCard({
   );
 }
 
-function AppealClosedBanner() {
+function AppealClosedBanner({ seasonalTheme = false }: { seasonalTheme?: boolean }) {
   return (
-    <div className="rounded-[30px] border border-rose-300 bg-gradient-to-r from-rose-700 via-rose-700 to-red-600 px-6 py-6 text-white shadow-[0_18px_40px_rgba(190,24,93,0.18)]">
+    <div
+      className={`rounded-[30px] px-6 py-6 text-white shadow-[0_18px_40px_rgba(190,24,93,0.18)] ${
+        seasonalTheme
+          ? "border border-orange-200 bg-gradient-to-r from-orange-500 via-pink-500 to-sky-500"
+          : "border border-rose-300 bg-gradient-to-r from-rose-700 via-rose-700 to-red-600"
+      }`}
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="text-xs font-bold uppercase tracking-[0.26em] text-rose-100">
-            Appeal Closed
+            {seasonalTheme ? "Songkran Theme" : "Appeal Closed"}
           </div>
           <div className="mt-2 text-2xl font-extrabold tracking-tight">
-            This appeal has been finalized
+            {seasonalTheme ? "Appeal Review • Songkran Edition" : "This appeal has been finalized"}
           </div>
           <div className="mt-2 text-sm leading-6 text-rose-50/95">
             เคสนี้ได้พิจารณาอุทธรณ์เสร็จสิ้นแล้ว และไม่สามารถยื่นอุทธรณ์เพิ่มเติมได้อีก
@@ -536,10 +542,12 @@ export default function AppealMockup({
   currentUser,
   externalSelectedAgent,
   onSelectedAgentChange,
+  seasonalTheme = false,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
   onSelectedAgentChange?: (agentName: string) => void;
+  seasonalTheme?: boolean;
 }) {
   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1040,8 +1048,20 @@ export default function AppealMockup({
   }
 
   return (
-    <div className="space-y-6">
-      <AppealClosedBanner />
+    <div
+      className={
+        seasonalTheme
+          ? "space-y-6 rounded-[32px] bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50 p-2"
+          : "space-y-6"
+      }
+    >
+      {seasonalTheme ? (
+        <div className="rounded-[28px] border border-orange-200 bg-white/80 px-5 py-4 text-sm font-semibold text-orange-700 shadow-sm">
+          🌼 Songkran Theme active until 25 Apr 2026
+        </div>
+      ) : null}
+
+      <AppealClosedBanner seasonalTheme={seasonalTheme} />
 
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <Panel className="h-fit">
