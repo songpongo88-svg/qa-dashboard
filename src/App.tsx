@@ -320,9 +320,7 @@ function ChangePasswordModal({
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-xl font-bold text-slate-900">Change Password</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Update your password for this browser.
-        </div>
+        <div className="mt-2 text-sm text-slate-500">Update your password for this browser.</div>
 
         <div className="mt-6 space-y-4">
           <div>
@@ -338,9 +336,7 @@ function ChangePasswordModal({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              New Password
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">New Password</label>
             <input
               type="password"
               value={newPasswordInput}
@@ -424,9 +420,7 @@ function ResetPasswordModal({
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              Select Agent
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Select Agent</label>
             <select
               value={selectedUsername}
               onChange={(e) => setSelectedUsername(e.target.value)}
@@ -506,7 +500,10 @@ export default function App() {
     "dashboard" | "appeal" | "summary" | "rubric" | "evaluation-studio"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
+
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
+  const [selectedMonthGlobal, setSelectedMonthGlobal] = useState("all");
+  const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -565,6 +562,8 @@ export default function App() {
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
     setSelectedAgentGlobal("");
+    setSelectedMonthGlobal("all");
+    setSelectedWeekGlobal("all");
     setShowChangePasswordModal(false);
     setShowResetPasswordModal(false);
     resetChangePasswordState();
@@ -660,6 +659,8 @@ export default function App() {
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
     setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
+    setSelectedMonthGlobal("all");
+    setSelectedWeekGlobal("all");
   };
 
   const handleStayLoggedIn = () => {
@@ -752,8 +753,8 @@ export default function App() {
                 </div>
 
                 <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary,
-                  and QA Rubric with role-based visibility for supervisors and agents.
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA
+                  Rubric with role-based visibility for supervisors and agents.
                 </div>
 
                 <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
@@ -1038,7 +1039,11 @@ export default function App() {
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
               externalSelectedAgent={selectedAgentGlobal}
+              externalSelectedMonthKey={selectedMonthGlobal}
+              externalSelectedWeek={selectedWeekGlobal}
               onSelectedAgentChange={setSelectedAgentGlobal}
+              onSelectedMonthKeyChange={setSelectedMonthGlobal}
+              onSelectedWeekChange={setSelectedWeekGlobal}
               onOpenCaseDetail={() => {
                 setActiveTab("dashboard");
                 setDashboardSubTab("case-detail");
@@ -1052,7 +1057,15 @@ export default function App() {
             onSelectedAgentChange={setSelectedAgentGlobal}
           />
         ) : activeTab === "summary" ? (
-          <SummaryMockup currentUser={currentUser} />
+          <SummaryMockup
+            currentUser={currentUser}
+            externalSelectedAgent={selectedAgentGlobal}
+            externalSelectedMonth={selectedMonthGlobal}
+            externalSelectedWeek={selectedWeekGlobal}
+            onSelectedAgentChange={setSelectedAgentGlobal}
+            onSelectedMonthChange={setSelectedMonthGlobal}
+            onSelectedWeekChange={setSelectedWeekGlobal}
+          />
         ) : activeTab === "evaluation-studio" ? (
           <EvaluationStudioPage />
         ) : (
