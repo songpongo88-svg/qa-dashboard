@@ -505,19 +505,13 @@ function SummaryTable({
                   {row.label}
                 </td>
                 {showWeek ? (
-                  <td className="border-t border-slate-200 px-4 py-3">
-                    {row.weekLabel || "-"}
-                  </td>
+                  <td className="border-t border-slate-200 px-4 py-3">{row.weekLabel || "-"}</td>
                 ) : null}
                 {showMonth ? (
-                  <td className="border-t border-slate-200 px-4 py-3">
-                    {row.monthLabel || "-"}
-                  </td>
+                  <td className="border-t border-slate-200 px-4 py-3">{row.monthLabel || "-"}</td>
                 ) : null}
                 {showYear ? (
-                  <td className="border-t border-slate-200 px-4 py-3">
-                    {row.yearLabel || "-"}
-                  </td>
+                  <td className="border-t border-slate-200 px-4 py-3">{row.yearLabel || "-"}</td>
                 ) : null}
                 <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
                 <td className="border-t border-slate-200 px-4 py-3 text-center">
@@ -618,15 +612,53 @@ function AgentPeriodTable({
   );
 }
 
-export default function SummaryMockup({ currentUser }: { currentUser: any }) {
+export default function SummaryMockup({
+  currentUser,
+  externalSelectedAgent,
+  externalSelectedMonth,
+  externalSelectedWeek,
+  onSelectedAgentChange,
+  onSelectedMonthChange,
+  onSelectedWeekChange,
+}: {
+  currentUser: any;
+  externalSelectedAgent?: string;
+  externalSelectedMonth?: string;
+  externalSelectedWeek?: string;
+  onSelectedAgentChange?: (agent: string) => void;
+  onSelectedMonthChange?: (month: string) => void;
+  onSelectedWeekChange?: (week: string) => void;
+}) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [viewMode, setViewMode] = useState<SummaryView>("weekly-dashboard");
-  const [selectedAgent, setSelectedAgent] = useState<string>("");
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
+  const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
-  const [selectedWeek, setSelectedWeek] = useState<string>("all");
+  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
+
+  useEffect(() => {
+    if (
+      typeof externalSelectedAgent === "string" &&
+      externalSelectedAgent !== selectedAgent &&
+      currentUser?.role !== "Agent"
+    ) {
+      setSelectedAgent(externalSelectedAgent);
+    }
+  }, [externalSelectedAgent, selectedAgent, currentUser]);
+
+  useEffect(() => {
+    if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
+      setSelectedMonth(externalSelectedMonth);
+    }
+  }, [externalSelectedMonth, selectedMonth]);
+
+  useEffect(() => {
+    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
+      setSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek, selectedWeek]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -909,9 +941,9 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   }, [filteredByAgent]);
 
   const yearOptions = useMemo(() => {
-    return [...new Set(filteredByAgent.map((item) => item.yearKey).filter((item) => item !== "unknown"))].sort(
-      (a, b) => b.localeCompare(a)
-    );
+    return [
+      ...new Set(filteredByAgent.map((item) => item.yearKey).filter((item) => item !== "unknown")),
+    ].sort((a, b) => b.localeCompare(a));
   }, [filteredByAgent]);
 
   const monthScopedForWeekOptions = useMemo(() => {
@@ -922,6 +954,20 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
   const weekOptions = useMemo(() => {
     return [...new Set(monthScopedForWeekOptions.map((item) => item.weekLabel).filter(Boolean))].sort();
   }, [monthScopedForWeekOptions]);
+
+  useEffect(() => {
+    if (selectedMonth !== "all" && !monthOptions.some((item) => item.value === selectedMonth)) {
+      setSelectedMonth("all");
+      onSelectedMonthChange?.("all");
+    }
+  }, [selectedMonth, monthOptions, onSelectedMonthChange]);
+
+  useEffect(() => {
+    if (selectedWeek !== "all" && !weekOptions.includes(selectedWeek)) {
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+    }
+  }, [selectedWeek, weekOptions, onSelectedWeekChange]);
 
   const monthScopedCases = useMemo(() => {
     if (selectedMonth === "all") return filteredByAgent;
@@ -1169,8 +1215,8 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                 Weekly / Monthly / Yearly Summary Workspace
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard,
-                Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว
+                รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team
+                Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว
               </div>
             </div>
 
@@ -1196,10 +1242,7 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel className="sticky top-4">
-              <PanelHeader
-                title="Summary Controls"
-                subtitle="Select summary type and filter scope"
-              />
+              <PanelHeader title="Summary Controls" subtitle="Select summary type and filter scope" />
               <PanelBody className="space-y-5">
                 <div className="flex flex-wrap gap-2">
                   <ViewButton
@@ -1245,7 +1288,11 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   ) : (
                     <select
                       value={selectedAgent}
-                      onChange={(e) => setSelectedAgent(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedAgent(value);
+                        onSelectedAgentChange?.(value);
+                      }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
                       <option value="all">All Agents</option>
@@ -1265,8 +1312,11 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   <select
                     value={selectedMonth}
                     onChange={(e) => {
-                      setSelectedMonth(e.target.value);
+                      const value = e.target.value;
+                      setSelectedMonth(value);
+                      onSelectedMonthChange?.(value);
                       setSelectedWeek("all");
+                      onSelectedWeekChange?.("all");
                     }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
@@ -1285,7 +1335,11 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
                   </div>
                   <select
                     value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedWeek(value);
+                      onSelectedWeekChange?.(value);
+                    }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
                     <option value="all">All Weeks</option>
@@ -1358,46 +1412,35 @@ export default function SummaryMockup({ currentUser }: { currentUser: any }) {
             </div>
 
             <Panel>
-              <PanelHeader
-                title="Current Viewing Scope"
-                subtitle="Current selected agent and period"
-              />
+              <PanelHeader title="Current Viewing Scope" subtitle="Current selected agent and period" />
               <PanelBody>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
                       Viewing Agent
                     </div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
-                      {viewingAgentText}
-                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">{viewingAgentText}</div>
                   </div>
 
                   <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
                       Viewing Month
                     </div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
-                      {viewingMonthText}
-                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">{viewingMonthText}</div>
                   </div>
 
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
                       Viewing Week
                     </div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
-                      {viewingWeekText}
-                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">{viewingWeekText}</div>
                   </div>
 
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
                       Viewing Year
                     </div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
-                      {viewingYearText}
-                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">{viewingYearText}</div>
                   </div>
                 </div>
               </PanelBody>
