@@ -3,6 +3,7 @@ import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
+import CoachingMockup from "./CoachingMockup";
 import EvaluationStudioPage from "./pages/EvaluationStudioPage";
 
 type UserRole = "Agent" | "Supervisor";
@@ -658,7 +659,7 @@ export default function App() {
   const [resetResultMessage, setResetResultMessage] = useState("");
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "rubric" | "evaluation-studio"
+    "dashboard" | "appeal" | "summary" | "coaching" | "rubric" | "evaluation-studio"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
 
@@ -931,7 +932,7 @@ export default function App() {
                 </div>
 
                 <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, and QA
+                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, Coaching, and QA
                   Rubric with role-based visibility for supervisors and agents.
                 </div>
 
@@ -948,7 +949,7 @@ export default function App() {
                   />
                   <LoginFeatureCard
                     title="Review"
-                    desc="Appeal result, case comparison, and QA rubric reference"
+                    desc="Appeal result, case comparison, coaching, and QA rubric reference"
                   />
                   <LoginFeatureCard
                     title="Security"
@@ -1191,6 +1192,12 @@ export default function App() {
                     onClick={() => setActiveTab("summary")}
                     songkranTheme={songkranTheme}
                   />
+                  <NavButton
+                    active={activeTab === "coaching"}
+                    label="Coaching"
+                    onClick={() => setActiveTab("coaching")}
+                    songkranTheme={songkranTheme}
+                  />
 
                   <span className="ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
                     Review
@@ -1316,6 +1323,8 @@ export default function App() {
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
+        ) : activeTab === "coaching" ? (
+          <CoachingMockup currentUser={currentUser} />
         ) : activeTab === "evaluation-studio" ? (
           <EvaluationStudioPage />
         ) : (
