@@ -935,7 +935,7 @@ export default function SummaryMockup({
             });
 
             if (
-              originalScoreRaw !== revisedScoreRaw ||
+              Number(originalScoreRaw ?? 0) !== Number(revisedScoreRaw ?? originalScoreRaw ?? 0) ||
               String(originalCommentRaw ?? "").trim() !== String(revisedCommentRaw ?? "").trim()
             ) {
               displayRevisedTopicCodes.push(topic.code);
@@ -1059,9 +1059,14 @@ export default function SummaryMockup({
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
 
+    const effectiveMonthForVisibility =
+      selectedMonth !== "all"
+        ? selectedMonth
+        : monthOptions?.[0]?.value || "all";
+
     const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
       .map((name) => toTitleCaseName(name))
-      .filter((name) => !shouldHideAgentByMonth(name, selectedMonth))
+      .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility))
       .sort((a, b) => a.localeCompare(b));
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
