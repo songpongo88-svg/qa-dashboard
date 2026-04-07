@@ -124,6 +124,11 @@ const AGENT_MASTER = [
   "Wachiraporn Chailittichai",
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
+
+const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
+  "Arisa Aiemrit": "2026-04",
+};
+
 type SummaryView =
   | "weekly-dashboard"
   | "weekly-qa-by-agent"
@@ -149,6 +154,23 @@ function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
 }
 
+function toTitleCaseName(value: string) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      if (!part) return part;
+      if (part.includes("-")) {
+        return part
+          .split("-")
+          .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p))
+          .join("-");
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 function isSameAgent(a: string, b: string) {
   const na = normalizeText(a);
   const nb = normalizeText(b);
@@ -163,6 +185,19 @@ function isSameAgent(a: string, b: string) {
     ca.includes(cb) ||
     cb.includes(ca)
   );
+}
+
+function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
+  if (!selectedMonthKey || selectedMonthKey === "all") return false;
+
+  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
+    isSameAgent(name, agentName)
+  );
+
+  if (!matchedEntry) return false;
+
+  const [, hideFromMonth] = matchedEntry;
+  return selectedMonthKey >= hideFromMonth;
 }
 
 function isNewPolicyMonth(monthKey: string) {
@@ -990,7 +1025,7 @@ export default function SummaryMockup({
 
             return {
               key: `row-${index + 1}-${caseId}`,
-              agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
+              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: formatAuditDate(auditDateRaw),
               auditDateObj,
               monthKey,
@@ -1023,16 +1058,18 @@ export default function SummaryMockup({
 
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
-    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) =>
-      a.localeCompare(b)
-    );
+
+    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
+      .map((name) => toTitleCaseName(name))
+      .filter((name) => !shouldHideAgentByMonth(name, selectedMonth))
+      .sort((a, b) => a.localeCompare(b));
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser]);
+  }, [allCases, currentUser, selectedMonth]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
@@ -1044,6 +1081,18 @@ export default function SummaryMockup({
       setSelectedAgent("all");
     }
   }, [currentUser, visibleAgentList, selectedAgent]);
+
+  useEffect(() => {
+    if (
+      currentUser?.role !== "Agent" &&
+      selectedAgent !== "all" &&
+      selectedAgent &&
+      !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))
+    ) {
+      setSelectedAgent("all");
+      onSelectedAgentChange?.("all");
+    }
+  }, [selectedAgent, visibleAgentList, currentUser, onSelectedAgentChange]);
 
   const effectiveAgent =
     currentUser?.role === "Agent" && currentUser.agentName
@@ -1137,7 +1186,9 @@ export default function SummaryMockup({
 
   const weeklyAgentRows = useMemo(() => {
     const activeAgents =
-      effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
+      effectiveAgent && effectiveAgent !== "all"
+        ? [toTitleCaseName(effectiveAgent)]
+        : visibleAgentList;
 
     return activeAgents
       .flatMap((agent) => {
@@ -1173,7 +1224,7 @@ export default function SummaryMockup({
         if (a.label !== b.label) return a.label.localeCompare(b.label);
         return a.agent.localeCompare(b.agent);
       });
-  }, [weekScopedCases, effectiveAgent, selectedWeek]);
+  }, [weekScopedCases, effectiveAgent, selectedWeek, visibleAgentList]);
 
   const monthlyDashboardRows = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
@@ -1199,7 +1250,9 @@ export default function SummaryMockup({
 
   const monthlyTeamRows = useMemo(() => {
     const activeAgents =
-      effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
+      effectiveAgent && effectiveAgent !== "all"
+        ? [toTitleCaseName(effectiveAgent)]
+        : visibleAgentList;
 
     return activeAgents
       .map((agent) => {
@@ -1231,7 +1284,7 @@ export default function SummaryMockup({
         };
       })
       .sort((a, b) => a.agent.localeCompare(b.agent));
-  }, [monthScopedCases, effectiveAgent, selectedMonth, monthOptions]);
+  }, [monthScopedCases, effectiveAgent, selectedMonth, monthOptions, visibleAgentList]);
 
   const yearlyTeamRows = useMemo(() => {
     const groups = new Map<string, CaseItem[]>();
@@ -1261,7 +1314,9 @@ export default function SummaryMockup({
 
   const yearlyAgentRows = useMemo(() => {
     const activeAgents =
-      effectiveAgent && effectiveAgent !== "all" ? [effectiveAgent] : AGENT_MASTER;
+      effectiveAgent && effectiveAgent !== "all"
+        ? [toTitleCaseName(effectiveAgent)]
+        : visibleAgentList;
 
     return activeAgents
       .map((agent) => {
@@ -1289,43 +1344,43 @@ export default function SummaryMockup({
         };
       })
       .sort((a, b) => a.agent.localeCompare(b.agent));
-  }, [yearScopedCases, effectiveAgent, selectedYear]);
+  }, [yearScopedCases, effectiveAgent, selectedYear, visibleAgentList]);
 
   const summaryCards = useMemo(() => {
-  const source =
-    viewMode === "weekly-dashboard" || viewMode === "weekly-qa-by-agent"
-      ? weekScopedCases
-      : viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary"
-      ? monthScopedCases
-      : yearScopedCases;
+    const source =
+      viewMode === "weekly-dashboard" || viewMode === "weekly-qa-by-agent"
+        ? weekScopedCases
+        : viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary"
+        ? monthScopedCases
+        : yearScopedCases;
 
-  const avg = source.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(source.length, 1);
-  const revisedCount = source.filter((item) => item.reviewStatus === "Revised").length;
+    const avg = source.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(source.length, 1);
+    const revisedCount = source.filter((item) => item.reviewStatus === "Revised").length;
 
-  const policyMonthKey =
-    selectedMonth !== "all"
-      ? selectedMonth
-      : getPolicyMonthKeyForCases(source);
+    const policyMonthKey =
+      selectedMonth !== "all"
+        ? selectedMonth
+        : getPolicyMonthKeyForCases(source);
 
-  const incentive = getIncentiveValue(source.length, avg, policyMonthKey);
+    const incentive = getIncentiveValue(source.length, avg, policyMonthKey);
 
-  return {
-    caseCount: source.length,
-    avgScore: avg,
-    grade: scoreToGrade(avg, policyMonthKey),
-    revisedCount,
-    incentive,
-    topicSummary: buildTopicSummary(source),
-    policyMonthKey,
-  };
-}, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases, selectedMonth]);
+    return {
+      caseCount: source.length,
+      avgScore: avg,
+      grade: scoreToGrade(avg, policyMonthKey),
+      revisedCount,
+      incentive,
+      topicSummary: buildTopicSummary(source),
+      policyMonthKey,
+    };
+  }, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases, selectedMonth]);
 
   const viewingAgentText =
     currentUser?.role === "Agent"
-      ? currentUser.agentName
+      ? toTitleCaseName(currentUser.agentName)
       : !effectiveAgent || effectiveAgent === "all"
       ? "All Agents"
-      : effectiveAgent;
+      : toTitleCaseName(effectiveAgent);
 
   const viewingMonthText =
     selectedMonth === "all"
@@ -1462,7 +1517,7 @@ export default function SummaryMockup({
                   </div>
                   {currentUser?.role === "Agent" ? (
                     <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {currentUser.agentName}
+                      {toTitleCaseName(currentUser.agentName)}
                     </div>
                   ) : (
                     <select
