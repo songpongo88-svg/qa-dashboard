@@ -89,6 +89,8 @@ const AGENT_MASTER = [
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
 
+const NEW_POLICY_START_MONTH_KEY = "2026-04";
+
 function normalizeText(value: unknown) {
   return String(value ?? "")
     .replace(/\u00A0/g, " ")
@@ -117,7 +119,18 @@ function isSameAgent(a: string, b: string) {
   );
 }
 
-function scoreToGrade(score: number): Grade {
+function isNewPolicyMonth(monthKey: string) {
+  return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
+}
+
+function scoreToGrade(score: number, monthKey: string): Grade {
+  if (isNewPolicyMonth(monthKey)) {
+    if (score >= 90) return "A";
+    if (score >= 85) return "B";
+    if (score >= 80) return "C";
+    return "D";
+  }
+
   if (score >= 90) return "A";
   if (score >= 80) return "B";
   if (score >= 70) return "C";
@@ -133,6 +146,18 @@ function excelDateToJSDate(value: any): Date | null {
     if (!parsed) return null;
     return new Date(parsed.y, parsed.m - 1, parsed.d);
   }
+
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const ddmmyyyyMatch = text.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (ddmmyyyyMatch) {
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+  }
+
   const asDate = new Date(value);
   if (!Number.isNaN(asDate.getTime())) return asDate;
   return null;
@@ -456,6 +481,7 @@ function buildOneOnOneSummary(args: {
   focusTopics: CoachingTopicSummary[];
   monthLabel: string;
   weekLabel: string;
+  monthKey: string;
 }) {
   const {
     agentName,
@@ -466,9 +492,10 @@ function buildOneOnOneSummary(args: {
     focusTopics,
     monthLabel,
     weekLabel,
+    monthKey,
   } = args;
 
-  const grade = scoreToGrade(averageScore);
+  const grade = scoreToGrade(averageScore, monthKey);
   const focus1 = focusTopics[0];
   const focus2 = focusTopics[1];
   const focus3 = focusTopics[2];
@@ -861,6 +888,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
 
             const auditDateRaw = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(auditDateRaw);
+            const monthKey = getMonthKey(auditDateObj);
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -870,7 +898,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
               agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
               auditDate: formatAuditDate(auditDateRaw),
               auditDateObj,
-              monthKey: getMonthKey(auditDateObj),
+              monthKey,
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
@@ -878,7 +906,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
-              grade: scoreToGrade(finalScoreVal),
+              grade: scoreToGrade(finalScoreVal, monthKey),
               reviewStatus,
               topics,
               revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
@@ -988,6 +1016,13 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
   const currentAverage =
     agentCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(agentCases.length, 1);
 
+  const currentPolicyMonthKey =
+    selectedMonth !== "all"
+      ? selectedMonth
+      : [...new Set(agentCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
+          .sort((a, b) => a.localeCompare(b))
+          .slice(-1)[0] || "unknown";
+
   const coachingTopics = useMemo(() => {
     return buildCoachingSummary(agentCases).sort((a, b) => {
       const pA = a.priority === "High" ? 3 : a.priority === "Medium" ? 2 : 1;
@@ -1049,6 +1084,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       focusTopics,
       monthLabel: currentMonthLabel,
       weekLabel: currentWeekLabel,
+      monthKey: currentPolicyMonthKey,
     });
   }, [
     effectiveAgent,
@@ -1059,6 +1095,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
     focusTopics,
     currentMonthLabel,
     currentWeekLabel,
+    currentPolicyMonthKey,
   ]);
 
   if (isLoading) {
@@ -1206,7 +1243,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
           </div>
 
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
               <MetricCard
                 title="Selected Agent"
                 value={effectiveAgent || "-"}
@@ -1230,8 +1267,8 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
               />
               <MetricCard
                 title="Current Grade"
-                value={scoreToGrade(currentAverage)}
-                sub="Current overall grade"
+                value={scoreToGrade(currentAverage, currentPolicyMonthKey)}
+                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "New Criteria" : "Previous Criteria"}
                 accent="from-white via-amber-50/50 to-amber-100/70 border-amber-200"
                 valueClassName="text-amber-700"
               />
@@ -1241,6 +1278,13 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                 sub={weakestTopic?.label || "No focus topic"}
                 accent="from-rose-50 via-white to-rose-100/70 border-rose-200"
                 valueClassName="text-rose-700"
+              />
+              <MetricCard
+                title="Policy Month"
+                value={currentPolicyMonthKey === "unknown" ? "-" : currentPolicyMonthKey}
+                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "New Criteria" : "Previous Criteria"}
+                accent="from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                valueClassName="text-emerald-700"
               />
             </div>
 
