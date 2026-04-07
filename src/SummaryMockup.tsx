@@ -1293,28 +1293,33 @@ export default function SummaryMockup({
   }, [yearScopedCases, effectiveAgent, selectedYear]);
 
   const summaryCards = useMemo(() => {
-    const source =
-      viewMode === "weekly-dashboard" || viewMode === "weekly-qa-by-agent"
-        ? weekScopedCases
-        : viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary"
-        ? monthScopedCases
-        : yearScopedCases;
+  const source =
+    viewMode === "weekly-dashboard" || viewMode === "weekly-qa-by-agent"
+      ? weekScopedCases
+      : viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary"
+      ? monthScopedCases
+      : yearScopedCases;
 
-    const avg = source.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(source.length, 1);
-    const revisedCount = source.filter((item) => item.reviewStatus === "Revised").length;
-    const policyMonthKey = getPolicyMonthKeyForCases(source);
-    const incentive = getIncentiveValue(source.length, avg, policyMonthKey);
+  const avg = source.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(source.length, 1);
+  const revisedCount = source.filter((item) => item.reviewStatus === "Revised").length;
 
-    return {
-      caseCount: source.length,
-      avgScore: avg,
-      grade: scoreToGrade(avg, policyMonthKey),
-      revisedCount,
-      incentive,
-      topicSummary: buildTopicSummary(source),
-      policyMonthKey,
-    };
-  }, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases]);
+  const policyMonthKey =
+    selectedMonth !== "all"
+      ? selectedMonth
+      : getPolicyMonthKeyForCases(source);
+
+  const incentive = getIncentiveValue(source.length, avg, policyMonthKey);
+
+  return {
+    caseCount: source.length,
+    avgScore: avg,
+    grade: scoreToGrade(avg, policyMonthKey),
+    revisedCount,
+    incentive,
+    topicSummary: buildTopicSummary(source),
+    policyMonthKey,
+  };
+}, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases, selectedMonth]);
 
   const viewingAgentText =
     currentUser?.role === "Agent"
