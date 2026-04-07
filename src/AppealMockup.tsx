@@ -24,6 +24,8 @@ type AppealCaseItem = {
   caseId: string;
   agent: string;
   auditDate: string;
+  auditDateObj: Date | null;
+  monthKey: string;
   weekLabel: string;
   inquiry: string;
   previousScore: number;
@@ -78,6 +80,7 @@ const TOPIC_MASTER = [
 ] as const;
 
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
 function isSongkranThemeActive() {
   const now = new Date();
@@ -119,6 +122,10 @@ function isSameAgent(a: string, b: string) {
   );
 }
 
+function isNewPolicyMonth(monthKey: string) {
+  return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
+}
+
 function buildHeaderHelpers(headerRow: any[]) {
   const normalizedHeaders = headerRow.map((h) => normalizeText(h));
 
@@ -158,7 +165,14 @@ function getFirstNonEmptyValue(
   return null;
 }
 
-function scoreToGrade(score: number): Grade {
+function scoreToGrade(score: number, monthKey: string): Grade {
+  if (isNewPolicyMonth(monthKey)) {
+    if (score >= 90) return "A";
+    if (score >= 85) return "B";
+    if (score >= 80) return "C";
+    return "D";
+  }
+
   if (score >= 90) return "A";
   if (score >= 80) return "B";
   if (score >= 70) return "C";
@@ -204,7 +218,22 @@ function parseExcelDate(value: any): Date | null {
   const direct2 = new Date(cleaned);
   if (!Number.isNaN(direct2.getTime())) return direct2;
 
+  const ddmmyyyyMatch = text.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (ddmmyyyyMatch) {
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+  }
+
   return null;
+}
+
+function getMonthKey(date: Date | null) {
+  if (!date) return "unknown";
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 function formatDateOnly(value: any): string {
@@ -595,7 +624,16 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
           </div>
         ) : null}
 
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Original Comment
+            </div>
+            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
+              {topic.originalComment || "No original comment"}
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
               Revised Comment
@@ -732,9 +770,14 @@ export default function AppealMockup({
                     ""
                 ).trim();
 
-            const auditDate = rawRow
-              ? formatDateOnly(rawHelper.getValue(rawRow, "Audit Date"))
-              : formatDateOnly(appealHelper.getValue(row, "Audit Date"));
+            const auditRaw = rawRow
+              ? rawHelper.getValue(rawRow, "Audit Date")
+              : appealHelper.getValue(row, "Audit Date");
+
+            const auditDateObj = parseExcelDate(auditRaw);
+            const monthKey = getMonthKey(auditDateObj);
+
+            const auditDate = formatDateOnly(auditRaw);
 
             const weekLabel = rawRow
               ? String(
@@ -905,12 +948,14 @@ export default function AppealMockup({
               caseId,
               agent,
               auditDate,
+              auditDateObj,
+              monthKey,
               weekLabel,
               inquiry,
               previousScore,
               finalScore,
               reviewStatus: changedTopics.length ? "Revised" : "Original",
-              grade: scoreToGrade(finalScore),
+              grade: scoreToGrade(finalScore, monthKey),
               appealVersion: String(appealVersionRaw ?? "-").trim() || "-",
               appealSubmitDateTime: formatDateTimeOrRaw(appealSubmitRaw),
               appealResultDateTime: formatDateTimeOrRaw(appealResultRaw),
@@ -992,6 +1037,8 @@ export default function AppealMockup({
   const selectedCase =
     filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
 
+  const selectedCaseUsesNewPolicy = selectedCase ? isNewPolicyMonth(selectedCase.monthKey) : false;
+
   const handleGeneratePdf = () => {
     if (!selectedCase) return;
 
@@ -1063,10 +1110,12 @@ export default function AppealMockup({
     addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
     addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
     addLabelValue("Appeal Version", selectedCase.appealVersion || "-");
+    addLabelValue("Month Key", selectedCase.monthKey || "-");
     addLabelValue(
       "Score",
       `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`
     );
+    addLabelValue("Grade", selectedCase.grade);
 
     addSectionTitle("Customer Inquiry");
     addLine(selectedCase.inquiry || "-");
@@ -1092,6 +1141,7 @@ export default function AppealMockup({
         if (topic.appealReason) {
           addLine(`Appeal Reason: ${topic.appealReason}`, 9, [71, 85, 105], 4);
         }
+        addLine(`Original Comment: ${topic.originalComment || "-"}`, 9, [71, 85, 105], 4);
         addLine(`Revised Comment: ${topic.comment || "-"}`, 9, [71, 85, 105], 6);
       });
     }
@@ -1214,7 +1264,11 @@ export default function AppealMockup({
                   title="Grade"
                   value={selectedCase.grade}
                   tone={gradeTone(selectedCase.grade)}
-                  sub={selectedCase.reviewStatus}
+                  sub={
+                    selectedCaseUsesNewPolicy
+                      ? `${selectedCase.reviewStatus} • New Criteria`
+                      : `${selectedCase.reviewStatus} • Previous Criteria`
+                  }
                 />
               </div>
 
@@ -1277,6 +1331,24 @@ export default function AppealMockup({
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
                           {selectedCase.reviewStatus}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Month Key
+                        </div>
+                        <div className="mt-2 text-sm font-bold text-slate-900">
+                          {selectedCase.monthKey || "-"}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Grade Policy
+                        </div>
+                        <div className="mt-2 text-sm font-bold text-slate-900">
+                          {selectedCaseUsesNewPolicy ? "New Criteria" : "Previous Criteria"}
                         </div>
                       </div>
                     </div>
@@ -1349,6 +1421,17 @@ export default function AppealMockup({
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
                         {selectedCase.appealChannel || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Grade Rule
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-900">
+                        {selectedCaseUsesNewPolicy
+                          ? "Use score criteria from April 2026 onward"
+                          : "Use previous score criteria"}
                       </div>
                     </div>
 
