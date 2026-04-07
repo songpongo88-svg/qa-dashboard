@@ -174,6 +174,27 @@ function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
   return selectedMonthKey >= hideFromMonth;
 }
 
+function getEffectiveMonthKeyFromDateRange(dateFrom?: string, dateTo?: string) {
+  const today = new Date();
+  const fallback = `${today.getFullYear()}-${`${today.getMonth() + 1}`.padStart(2, "0")}`;
+
+  if (dateTo) {
+    const toDate = new Date(`${dateTo}T12:00:00`);
+    if (!Number.isNaN(toDate.getTime())) {
+      return `${toDate.getFullYear()}-${`${toDate.getMonth() + 1}`.padStart(2, "0")}`;
+    }
+  }
+
+  if (dateFrom) {
+    const fromDate = new Date(`${dateFrom}T12:00:00`);
+    if (!Number.isNaN(fromDate.getTime())) {
+      return `${fromDate.getFullYear()}-${`${fromDate.getMonth() + 1}`.padStart(2, "0")}`;
+    }
+  }
+
+  return fallback;
+}
+
 function isNewPolicyMonth(monthKey: string) {
   return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
 }
@@ -1695,6 +1716,11 @@ export default function DashboardMockup({
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
+  const effectiveMonthKeyForAgentVisibility = useMemo(() => {
+    if (selectedMonthKey && selectedMonthKey !== "all") return selectedMonthKey;
+    return getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
+  }, [selectedMonthKey, dateFrom, dateTo]);
+
   useEffect(() => {
     if (
       currentUser?.role !== "Agent" &&
@@ -1975,7 +2001,7 @@ export default function DashboardMockup({
 
     const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
       .map((name) => toTitleCaseName(name))
-      .filter((name) => !shouldHideAgentByMonth(name, selectedMonthKey))
+      .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility))
       .sort((a, b) => a.localeCompare(b));
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
@@ -1983,7 +2009,7 @@ export default function DashboardMockup({
     }
 
     return mergedAgents;
-  }, [allCases, currentUser, selectedMonthKey]);
+  }, [allCases, currentUser, effectiveMonthKeyForAgentVisibility]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
