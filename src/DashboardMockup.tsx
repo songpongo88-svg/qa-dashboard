@@ -58,9 +58,18 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
 };
 
+type IncentiveResult = {
+  total: number;
+  cash: number;
+  promo: number;
+  label: string;
+  remark: string;
+};
+
 const CASE_TARGET = 10;
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
@@ -131,7 +140,23 @@ function isSameAgent(a: string, b: string) {
   );
 }
 
-function scoreToGrade(score: number): Grade {
+function isNewPolicyMonth(monthKey: string) {
+  return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
+}
+
+function isSpecialIncentiveMonth(monthKey: string) {
+  if (!isNewPolicyMonth(monthKey)) return false;
+  return monthKey.endsWith("-01") || monthKey.endsWith("-04");
+}
+
+function scoreToGrade(score: number, monthKey: string): Grade {
+  if (isNewPolicyMonth(monthKey)) {
+    if (score >= 90) return "A";
+    if (score >= 85) return "B";
+    if (score >= 80) return "C";
+    return "D";
+  }
+
   if (score >= 90) return "A";
   if (score >= 80) return "B";
   if (score >= 70) return "C";
@@ -336,20 +361,138 @@ function formatCurrencyTHB(value: number) {
   }).format(value);
 }
 
-function getIncentiveValue(caseCount: number, avg: number) {
-  if (caseCount < CASE_TARGET) return 0;
-  if (avg >= 90) return 1000;
-  if (avg >= 80) return 700;
-  if (avg >= 70) return 300;
-  return 0;
+function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
+  if (isNewPolicyMonth(monthKey)) {
+    if (isSpecialIncentiveMonth(monthKey)) {
+      switch (grade) {
+        case "A":
+          return {
+            total: 1000,
+            cash: 700,
+            promo: 300,
+            label: "700 Cash + 300 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        case "B":
+          return {
+            total: 700,
+            cash: 500,
+            promo: 200,
+            label: "500 Cash + 200 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        case "C":
+          return {
+            total: 500,
+            cash: 350,
+            promo: 150,
+            label: "350 Cash + 150 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        default:
+          return {
+            total: 0,
+            cash: 0,
+            promo: 0,
+            label: "No Incentive",
+            remark: "Below incentive criteria",
+          };
+      }
+    }
+
+    switch (grade) {
+      case "A":
+        return {
+          total: 1000,
+          cash: 1000,
+          promo: 0,
+          label: "1,000 THB",
+          remark: "Excellent",
+        };
+      case "B":
+        return {
+          total: 700,
+          cash: 700,
+          promo: 0,
+          label: "700 THB",
+          remark: "Good",
+        };
+      case "C":
+        return {
+          total: 500,
+          cash: 500,
+          promo: 0,
+          label: "500 THB",
+          remark: "Fair",
+        };
+      default:
+        return {
+          total: 0,
+          cash: 0,
+          promo: 0,
+          label: "No Incentive",
+          remark: "Improvement Required",
+        };
+    }
+  }
+
+  switch (grade) {
+    case "A":
+      return {
+        total: 1000,
+        cash: 1000,
+        promo: 0,
+        label: "1,000 THB",
+        remark: "Excellent",
+      };
+    case "B":
+      return {
+        total: 700,
+        cash: 700,
+        promo: 0,
+        label: "700 THB",
+        remark: "Good",
+      };
+    case "C":
+      return {
+        total: 300,
+        cash: 300,
+        promo: 0,
+        label: "300 THB",
+        remark: "Fair",
+      };
+    case "D":
+      return {
+        total: 0,
+        cash: 0,
+        promo: 0,
+        label: "No Incentive",
+        remark: "Improvement Required",
+      };
+    default:
+      return {
+        total: 0,
+        cash: 0,
+        promo: 0,
+        label: "No Incentive",
+        remark: "Fail",
+      };
+  }
 }
 
-function getIncentiveRemark(caseCount: number, avg: number) {
-  if (caseCount < CASE_TARGET) return "ยังประเมินไม่ครบ 10 เคส";
-  if (avg >= 90) return "Excellent";
-  if (avg >= 80) return "Good";
-  if (avg >= 70) return "Fair";
-  return "Improvement Required";
+function getIncentiveResult(caseCount: number, avg: number, monthKey: string): IncentiveResult {
+  if (caseCount < CASE_TARGET) {
+    return {
+      total: 0,
+      cash: 0,
+      promo: 0,
+      label: "0 THB",
+      remark: "ยังประเมินไม่ครบ 10 เคส",
+    };
+  }
+
+  const grade = scoreToGrade(avg, monthKey);
+  return getIncentiveByGrade(grade, monthKey);
 }
 
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
@@ -1752,6 +1895,7 @@ export default function DashboardMockup({
 
             const auditRaw = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(auditRaw);
+            const monthKey = getMonthKey(auditDateObj);
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -1762,7 +1906,7 @@ export default function DashboardMockup({
               auditDate: formatAuditDate(auditRaw),
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(auditRaw),
-              monthKey: getMonthKey(auditDateObj),
+              monthKey,
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
@@ -1771,7 +1915,7 @@ export default function DashboardMockup({
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
-              grade: scoreToGrade(finalScoreVal),
+              grade: scoreToGrade(finalScoreVal, monthKey),
               reviewStatus,
               topics,
               revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
@@ -1943,24 +2087,36 @@ export default function DashboardMockup({
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;
 
+  const effectiveViewMonthKey =
+    selectedMonthKey === "all"
+      ? getMonthKey(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
+      : selectedMonthKey;
+
   const currentGradeDisplay =
     metricCaseCount === 0
-      ? "F"
+      ? isNewPolicyMonth(effectiveViewMonthKey)
+        ? "D"
+        : "F"
       : metricCaseCount < CASE_TARGET
       ? "-"
-      : scoreToGrade(Number(metricAverageDisplay));
+      : scoreToGrade(Number(metricAverageDisplay), effectiveViewMonthKey);
 
   const currentGradeSub =
     metricCaseCount === 0
       ? "No evaluated case in selected month"
       : metricCaseCount < CASE_TARGET
       ? "Grade will appear when completed 10 cases"
-      : "Calculated from current average score";
+      : isNewPolicyMonth(effectiveViewMonthKey)
+      ? "Calculated from new criteria (effective Apr 2026 onward)"
+      : "Calculated from previous criteria";
 
-  const incentiveDisplay = formatCurrencyTHB(
-    getIncentiveValue(metricCaseCount, Number(metricAverageDisplay))
+  const incentiveResult = getIncentiveResult(
+    metricCaseCount,
+    Number(metricAverageDisplay),
+    effectiveViewMonthKey
   );
-  const incentiveRemark = getIncentiveRemark(metricCaseCount, Number(metricAverageDisplay));
+  const incentiveDisplay = formatCurrencyTHB(incentiveResult.total);
+  const incentiveRemark = incentiveResult.remark;
 
   const overviewCaseSearchResults = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
@@ -1972,6 +2128,25 @@ export default function DashboardMockup({
   }, [agentCases, caseIdSearch]);
 
   const scoreDistributionData = useMemo(() => {
+    if (isNewPolicyMonth(effectiveViewMonthKey)) {
+      const buckets = [
+        { label: "90-100", value: 0 },
+        { label: "85-89", value: 0 },
+        { label: "80-84", value: 0 },
+        { label: "<80", value: 0 },
+      ];
+
+      dashboardCases.forEach((item) => {
+        const score = item.finalScore;
+        if (score >= 90) buckets[0].value += 1;
+        else if (score >= 85) buckets[1].value += 1;
+        else if (score >= 80) buckets[2].value += 1;
+        else buckets[3].value += 1;
+      });
+
+      return buckets;
+    }
+
     const buckets = [
       { label: "90-100", value: 0 },
       { label: "80-89", value: 0 },
@@ -1990,7 +2165,7 @@ export default function DashboardMockup({
     });
 
     return buckets;
-  }, [dashboardCases]);
+  }, [dashboardCases, effectiveViewMonthKey]);
 
   const reviewMixChartData = useMemo(() => {
     const revised = dashboardCases.filter((item) => item.reviewStatus === "Revised").length;
@@ -2461,9 +2636,17 @@ export default function DashboardMockup({
                       }
                       valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
                       helper={
-                        <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
-                          Monthly Estimate
-                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
+                            Monthly Estimate
+                          </span>
+                          {incentiveResult.promo > 0 ? (
+                            <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-700">
+                              Cash {formatCurrencyTHB(incentiveResult.cash)} + Promo{" "}
+                              {formatCurrencyTHB(incentiveResult.promo)}
+                            </span>
+                          ) : null}
+                        </div>
                       }
                     />
 
@@ -2484,79 +2667,236 @@ export default function DashboardMockup({
                   <Panel>
                     <PanelHeader
                       title="QA Grade & Incentive Guide"
-                      subtitle="Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month"
+                      subtitle={
+                        isNewPolicyMonth(effectiveViewMonthKey)
+                          ? "New criteria applies from April 2026 onward. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                          : "Previous criteria remains for months before April 2026. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                      }
                     />
-                    <PanelBody className="p-0">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-[860px] w-full text-sm">
-                          <thead>
-                            <tr className="bg-violet-950 text-[11px] text-white">
-                              <th className="px-4 py-3 text-left">Score Range</th>
-                              <th className="px-4 py-3 text-left">Level</th>
-                              <th className="px-4 py-3 text-center">Grade</th>
-                              <th className="px-4 py-3 text-center">Incentive (THB)</th>
-                              <th className="px-4 py-3 text-left">Meaning</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">90-100</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                  A
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">80-89</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                                  B
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">70-79</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Fair</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                  C
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">60-69</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                                  D
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
-                            </tr>
-                            <tr className="bg-white">
-                              <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Fail</td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                                  F
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                              <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                    <PanelBody className="space-y-6">
+                      {isNewPolicyMonth(effectiveViewMonthKey) ? (
+                        <>
+                          <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                            <table className="min-w-[860px] w-full text-sm">
+                              <thead>
+                                <tr className="bg-violet-950 text-[11px] text-white">
+                                  <th className="px-4 py-3 text-left">Score Range</th>
+                                  <th className="px-4 py-3 text-left">Level</th>
+                                  <th className="px-4 py-3 text-center">Grade</th>
+                                  <th className="px-4 py-3 text-left">Meaning</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                      A
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Meets all key standards
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">85-89</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                      B
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Meets most standards
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">80-84</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                      C
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Acceptable but still has gaps
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">&lt;80</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Improvement Required
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                      D
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Below company standard
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="grid gap-6 xl:grid-cols-2">
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                              <table className="min-w-[420px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-slate-900 text-[11px] text-white">
+                                    <th className="px-4 py-3 text-left">General Month</th>
+                                    <th className="px-4 py-3 text-center">Grade</th>
+                                    <th className="px-4 py-3 text-center">Incentive</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">
+                                      Improvement Required
+                                    </td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                              <table className="min-w-[520px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-fuchsia-700 text-[11px] text-white">
+                                    <th className="px-4 py-3 text-left">January / April</th>
+                                    <th className="px-4 py-3 text-center">Grade</th>
+                                    <th className="px-4 py-3 text-center">Cash</th>
+                                    <th className="px-4 py-3 text-center">RBH Promo</th>
+                                    <th className="px-4 py-3 text-center">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">200</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">350</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">
+                                      Improvement Required
+                                    </td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-[860px] w-full text-sm">
+                            <thead>
+                              <tr className="bg-violet-950 text-[11px] text-white">
+                                <th className="px-4 py-3 text-left">Score Range</th>
+                                <th className="px-4 py-3 text-left">Level</th>
+                                <th className="px-4 py-3 text-center">Grade</th>
+                                <th className="px-4 py-3 text-center">Incentive (THB)</th>
+                                <th className="px-4 py-3 text-left">Meaning</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    A
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">80-89</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                    B
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">70-79</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                    C
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">60-69</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                    D
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fail</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                    F
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </PanelBody>
                   </Panel>
 
