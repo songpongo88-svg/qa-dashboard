@@ -75,7 +75,7 @@ const TOPIC_MASTER = [
 
 const AGENT_MASTER = [
   "Anucha Makundin",
-  "Arisa aiemrit",
+  "Arisa Aiemrit",
   "Chatkonnaphat Bhusomya",
   "Jariyawadee Taboodda",
   "Jureeporn Piddum",
@@ -85,7 +85,7 @@ const AGENT_MASTER = [
   "Sunijtra Siritip",
   "Supakrit Promkhamnoi",
   "Suphitcha Keawliam",
-  "Wachiraporn chailittichai",
+  "Wachiraporn Chailittichai",
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
 
