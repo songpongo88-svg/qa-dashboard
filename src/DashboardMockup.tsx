@@ -106,6 +106,11 @@ const AGENT_MASTER = [
   "Wachiraporn Chailittichai",
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
+
+const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
+  "Arisa Aiemrit": "2026-04",
+};
+
 function isSongkranThemeActive() {
   const now = new Date();
   return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
@@ -123,6 +128,23 @@ function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
 }
 
+function toTitleCaseName(value: string) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      if (!part) return part;
+      if (part.includes("-")) {
+        return part
+          .split("-")
+          .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p))
+          .join("-");
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 function isSameAgent(a: string, b: string) {
   const na = normalizeText(a);
   const nb = normalizeText(b);
@@ -137,6 +159,19 @@ function isSameAgent(a: string, b: string) {
     ca.includes(cb) ||
     cb.includes(ca)
   );
+}
+
+function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
+  if (!selectedMonthKey || selectedMonthKey === "all") return false;
+
+  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
+    isSameAgent(name, agentName)
+  );
+
+  if (!matchedEntry) return false;
+
+  const [, hideFromMonth] = matchedEntry;
+  return selectedMonthKey >= hideFromMonth;
 }
 
 function isNewPolicyMonth(monthKey: string) {
@@ -1901,7 +1936,7 @@ export default function DashboardMockup({
 
             return {
               key: `row-${index + 1}-${caseId}`,
-              agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
+              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: formatAuditDate(auditRaw),
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(auditRaw),
@@ -1937,16 +1972,18 @@ export default function DashboardMockup({
 
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
-    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) =>
-      a.localeCompare(b)
-    );
+
+    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
+      .map((name) => toTitleCaseName(name))
+      .filter((name) => !shouldHideAgentByMonth(name, selectedMonthKey))
+      .sort((a, b) => a.localeCompare(b));
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser]);
+  }, [allCases, currentUser, selectedMonthKey]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
