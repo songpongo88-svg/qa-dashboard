@@ -448,7 +448,8 @@ function getCoachingGuide(topicCode: string) {
         "หลีกเลี่ยงโทนแข็ง ห้วน หรือเหมือนปัดความรับผิดชอบ",
         "ใช้ถ้อยคำสุภาพและเหมาะกับบริบท",
       ],
-      example: "แอดมินต้องขออภัยในความไม่สะดวกที่เกิดขึ้นด้วยนะคะ",
+      example:
+        "แอดมินต้องขออภัยในความไม่สะดวกที่เกิดขึ้นด้วยนะคะ",
       target: "ทำให้โทนการตอบเหมาะสมกับอารมณ์และบริบทของลูกค้า",
     },
     "4.4": {
@@ -505,8 +506,7 @@ function getCoachingGuide(topicCode: string) {
         "เพิ่มความชัดเจนของคำอธิบาย",
         "ระบุ next step ให้ชัดเจนขึ้น",
       ],
-      example:
-        "แอดมินขอแนะนำแนวทางที่ชัดเจนและสามารถดำเนินการต่อได้ทันทีดังนี้ค่ะ ...",
+      example: "แอดมินขอแนะนำแนวทางที่ชัดเจนและสามารถดำเนินการต่อได้ทันทีดังนี้ค่ะ ...",
       target: "ยกระดับคุณภาพคำตอบให้สอดคล้องกับมาตรฐาน QA",
     }
   );
@@ -540,7 +540,10 @@ function buildOneOnOneSummary(args: {
   const focus2 = focusTopics[1];
   const focus3 = focusTopics[2];
 
-  const scopeText = weekLabel === "All Weeks" ? `${monthLabel}` : `${monthLabel} / ${weekLabel}`;
+  const scopeText =
+    weekLabel === "All Weeks"
+      ? `${monthLabel}`
+      : `${monthLabel} / ${weekLabel}`;
 
   const overallComment =
     caseCount === 0
@@ -588,11 +591,11 @@ function buildOneOnOneSummary(args: {
 function SongkranBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute left-0 top-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
-      <div className="absolute right-6 top-8 h-32 w-32 rounded-full bg-fuchsia-300/18 blur-3xl" />
-      <div className="absolute left-1/4 bottom-0 h-36 w-36 rounded-full bg-sky-300/16 blur-3xl" />
-      <div className="absolute right-1/3 bottom-2 h-24 w-24 rounded-full bg-violet-300/16 blur-2xl" />
-      <div className="absolute left-[15%] top-[15%] h-3 w-3 rounded-full bg-white/80" />
+      <div className="absolute left-4 top-8 h-28 w-28 rounded-full bg-cyan-300/18 blur-3xl" />
+      <div className="absolute right-8 top-10 h-32 w-32 rounded-full bg-fuchsia-300/18 blur-3xl" />
+      <div className="absolute left-1/3 bottom-0 h-36 w-36 rounded-full bg-sky-300/14 blur-3xl" />
+      <div className="absolute right-1/4 bottom-6 h-20 w-20 rounded-full bg-violet-300/14 blur-2xl" />
+      <div className="absolute left-[11%] top-[16%] h-3 w-3 rounded-full bg-white/80" />
       <div className="absolute right-[14%] top-[12%] h-4 w-4 rounded-full bg-cyan-200/70" />
     </div>
   );
@@ -623,13 +626,17 @@ function Panel({
   children: React.ReactNode;
   className?: string;
 }) {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
     <div
-      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
+      className={`relative overflow-hidden rounded-[30px] border shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${
+        songkranTheme
+          ? "border-cyan-200/80 bg-white/95"
+          : "border-violet-200/80 bg-white/95"
+      } ${className}`}
     >
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
-      ) : null}
+      {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" /> : null}
       {children}
     </div>
   );
@@ -681,19 +688,25 @@ function MetricCard({
   accent?: string;
   valueClassName?: string;
 }) {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
     <div
       className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
     >
-      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      {isSongkranThemeActive() ? (
+      <div
+        className={`h-1.5 ${
+          songkranTheme
+            ? "bg-gradient-to-r from-sky-600 via-cyan-500 to-fuchsia-500"
+            : "bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500"
+        }`}
+      />
+      {songkranTheme ? (
         <span className="pointer-events-none absolute right-3 top-3 h-3 w-3 rounded-full bg-cyan-300/70" />
       ) : null}
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div
-          className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}
-        >
+        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
           {value}
         </div>
         <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
@@ -703,11 +716,11 @@ function MetricCard({
 }
 
 function LogoHeaderBox() {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
     <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
-      ) : null}
+      {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" /> : null}
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
@@ -839,4 +852,1069 @@ export default function CoachingMockup({
         }
 
         const rawBuffer = await rawResponse.arrayBuffer();
-        const rawWorkbook =
+        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+        const rawSheet =
+          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
+
+        const rawHeaderIndex = (() => {
+          for (let i = 0; i < rawRows.length; i++) {
+            const row = (rawRows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            if (normalized.includes("agent name") && normalized.includes("case id")) return i;
+          }
+          return -1;
+        })();
+
+        if (rawHeaderIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
+        }
+
+        const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
+        const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
+        const rawHelper = buildHeaderHelpers(rawHeaderRow);
+
+        const appealBuffer = await appealResponse.arrayBuffer();
+        const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
+        const appealSheet =
+          appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
+
+        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
+
+        const appealHeaderIndex = (() => {
+          for (let i = 0; i < appealRows.length; i++) {
+            const row = (appealRows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            if (normalized.includes("case id")) return i;
+          }
+          return -1;
+        })();
+
+        if (appealHeaderIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ Appleal ROWDATA.xlsx");
+        }
+
+        const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
+        const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
+        const appealHelper = buildHeaderHelpers(appealHeaderRow);
+
+        const appealMap = new Map<string, AppealMergeItem>();
+
+        appealDataRows.forEach((row) => {
+          const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
+          if (!caseId) return;
+
+          const revisedTopics: Topic[] = [];
+          const displayRevisedTopicCodes: string[] = [];
+
+          TOPIC_MASTER.forEach((topic) => {
+            const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
+            const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
+            const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
+            const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
+
+            const hasRevisedScore =
+              revisedScoreRaw !== null &&
+              revisedScoreRaw !== "" &&
+              !Number.isNaN(Number(revisedScoreRaw));
+
+            const hasRevisedComment =
+              revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
+
+            if (!hasRevisedScore && !hasRevisedComment) return;
+
+            const score = hasRevisedScore ? Number(revisedScoreRaw) : Number(originalScoreRaw ?? 0);
+            const comment = hasRevisedComment
+              ? String(revisedCommentRaw).trim()
+              : String(originalCommentRaw ?? "").trim();
+
+            revisedTopics.push({
+              code: topic.code,
+              label: topic.label,
+              score,
+              max: topic.max,
+              pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+              comment,
+            });
+
+            if (
+              Number(originalScoreRaw ?? 0) !== Number(revisedScoreRaw ?? originalScoreRaw ?? 0) ||
+              String(originalCommentRaw ?? "").trim() !== String(revisedCommentRaw ?? "").trim()
+            ) {
+              displayRevisedTopicCodes.push(topic.code);
+            }
+          });
+
+          const explicitFinalScore = appealHelper.getLastValue(row, "Final Score");
+          const explicitOriginalFinalScore = appealHelper.getValue(row, "Final Score", 0);
+
+          const finalScore =
+            explicitFinalScore !== null &&
+            explicitFinalScore !== "" &&
+            !Number.isNaN(Number(explicitFinalScore))
+              ? Number(explicitFinalScore)
+              : undefined;
+
+          const previousScore =
+            explicitOriginalFinalScore !== null &&
+            explicitOriginalFinalScore !== "" &&
+            !Number.isNaN(Number(explicitOriginalFinalScore))
+              ? Number(explicitOriginalFinalScore)
+              : undefined;
+
+          if (!revisedTopics.length && finalScore === undefined) return;
+
+          appealMap.set(caseId, {
+            caseId,
+            finalScore,
+            previousScore,
+            reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
+            revisedTopics,
+            displayRevisedTopicCodes,
+          });
+        });
+
+        const mapped: CaseItem[] = rawDataRows
+          .filter(
+            (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
+          )
+          .map((row, index) => {
+            const topics: Topic[] = TOPIC_MASTER.map((topic) => {
+              const scoreVal = Number(rawHelper.getValue(row, `${topic.code} Score`) || 0);
+              const score = Number.isFinite(scoreVal) ? scoreVal : 0;
+              const commentVal = rawHelper.getValue(row, `${topic.code} Comment`);
+
+              return {
+                code: topic.code,
+                label: topic.label,
+                score,
+                max: topic.max,
+                pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+                comment: commentVal ? String(commentVal).trim() : "",
+              };
+            });
+
+            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
+            const mergedAppeal = appealMap.get(caseId);
+
+            const baseFinalScore =
+              Number(rawHelper.getValue(row, "Final Score")) ||
+              topics.reduce((sum, topic) => sum + topic.score, 0);
+
+            const finalScoreVal =
+              mergedAppeal?.finalScore ??
+              (mergedAppeal?.revisedTopics?.length
+                ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics)
+                : baseFinalScore);
+
+            const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
+
+            const inquiry =
+              rawHelper.getValue(row, "Customer Inquiry") ??
+              rawHelper.getValue(row, "Inquiry TH") ??
+              rawHelper.getValue(row, "Inquiry");
+
+            const weekLabel =
+              rawHelper.getValue(row, "Week Label") ??
+              rawHelper.getValue(row, "Week") ??
+              "-";
+
+            const auditDateRaw = rawHelper.getValue(row, "Audit Date");
+            const auditDateObj = excelDateToJSDate(auditDateRaw);
+            const monthKey = getMonthKey(auditDateObj);
+
+            const reviewStatus: ReviewStatus =
+              mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
+
+            return {
+              key: `row-${index + 1}-${caseId}`,
+              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
+              auditDate: formatAuditDate(auditDateRaw),
+              auditDateObj,
+              monthKey,
+              monthLabel: getMonthLabel(auditDateObj),
+              weekLabel: String(weekLabel || "-").trim(),
+              caseId,
+              inquiryTh: inquiry ? String(inquiry).trim() : "-",
+              inquiryEn: inquiry ? String(inquiry).trim() : "-",
+              finalScore: finalScoreVal,
+              previousScore: previousScoreVal,
+              grade: scoreToGrade(finalScoreVal, monthKey),
+              reviewStatus,
+              topics,
+              revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
+              displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
+            };
+          });
+
+        setAllCases(mapped.filter((item) => item.agent && item.caseId));
+      } catch (error: any) {
+        setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadWorkbook();
+  }, []);
+
+  const latestMonthKey = useMemo(() => {
+    return (
+      [...new Set(allCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
+        .sort((a, b) => b.localeCompare(a))[0] || "all"
+    );
+  }, [allCases]);
+
+  const visibleAgentList = useMemo(() => {
+    const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
+
+    const effectiveMonthForVisibility =
+      selectedMonth !== "all" ? selectedMonth : latestMonthKey;
+
+    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
+      .map((name) => toTitleCaseName(name))
+      .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility))
+      .sort((a, b) => a.localeCompare(b));
+
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
+    }
+
+    return mergedAgents;
+  }, [allCases, currentUser, selectedMonth, latestMonthKey]);
+
+  useEffect(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      const normalizedAgent = toTitleCaseName(currentUser.agentName);
+      setSelectedAgent(normalizedAgent);
+      onSelectedAgentChange?.(normalizedAgent);
+      return;
+    }
+
+    if (!selectedAgent && visibleAgentList.length) {
+      const firstAgent = visibleAgentList[0];
+      setSelectedAgent(firstAgent);
+      onSelectedAgentChange?.(firstAgent);
+    }
+  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
+
+  useEffect(() => {
+    if (
+      currentUser?.role !== "Agent" &&
+      selectedAgent &&
+      !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))
+    ) {
+      const fallback = visibleAgentList[0] || "";
+      setSelectedAgent(fallback);
+      onSelectedAgentChange?.(fallback);
+      setSelectedMonth("all");
+      onSelectedMonthChange?.("all");
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+    }
+  }, [
+    selectedAgent,
+    visibleAgentList,
+    currentUser,
+    onSelectedAgentChange,
+    onSelectedMonthChange,
+    onSelectedWeekChange,
+  ]);
+
+  const effectiveAgent =
+    currentUser?.role === "Agent" && currentUser.agentName
+      ? toTitleCaseName(currentUser.agentName)
+      : selectedAgent;
+
+  const baseAgentCases = useMemo(() => {
+    if (!effectiveAgent) return [];
+    return allCases.filter((item) => isSameAgent(item.agent, effectiveAgent));
+  }, [allCases, effectiveAgent]);
+
+  const monthOptions = useMemo(() => {
+    const unique = Array.from(
+      new Map(
+        baseAgentCases
+          .filter((item) => item.monthKey !== "unknown")
+          .map((item) => [item.monthKey, item.monthLabel])
+      ).entries()
+    )
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
+
+    return unique;
+  }, [baseAgentCases]);
+
+  useEffect(() => {
+    if (!monthOptions.length) {
+      setSelectedMonth("all");
+      return;
+    }
+
+    if (selectedMonth === "all") return;
+
+    if (!monthOptions.some((item) => item.value === selectedMonth)) {
+      const fallbackMonth = monthOptions[0].value;
+      setSelectedMonth(fallbackMonth);
+      onSelectedMonthChange?.(fallbackMonth);
+    }
+  }, [monthOptions, selectedMonth, onSelectedMonthChange]);
+
+  const monthFilteredCases = useMemo(() => {
+    if (selectedMonth === "all") return baseAgentCases;
+    return baseAgentCases.filter((item) => item.monthKey === selectedMonth);
+  }, [baseAgentCases, selectedMonth]);
+
+  const weekOptions = useMemo(() => {
+    return [...new Set(monthFilteredCases.map((item) => item.weekLabel).filter(Boolean))].sort();
+  }, [monthFilteredCases]);
+
+  useEffect(() => {
+    if (!weekOptions.length) {
+      setSelectedWeek("all");
+      return;
+    }
+
+    if (selectedWeek === "all") return;
+
+    if (!weekOptions.includes(selectedWeek)) {
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+    }
+  }, [weekOptions, selectedWeek, onSelectedWeekChange]);
+
+  const agentCases = useMemo(() => {
+    if (selectedWeek === "all") return monthFilteredCases;
+    return monthFilteredCases.filter((item) => item.weekLabel === selectedWeek);
+  }, [monthFilteredCases, selectedWeek]);
+
+  const currentAverage =
+    agentCases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(agentCases.length, 1);
+
+  const currentPolicyMonthKey =
+    selectedMonth !== "all"
+      ? selectedMonth
+      : [...new Set(agentCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
+          .sort((a, b) => a.localeCompare(b))
+          .slice(-1)[0] || "unknown";
+
+  const coachingTopics = useMemo(() => {
+    return buildCoachingSummary(agentCases).sort((a, b) => {
+      const pA = a.priority === "High" ? 3 : a.priority === "Medium" ? 2 : 1;
+      const pB = b.priority === "High" ? 3 : b.priority === "Medium" ? 2 : 1;
+      if (pB !== pA) return pB - pA;
+      if (a.pct !== b.pct) return a.pct - b.pct;
+      return a.code.localeCompare(b.code);
+    });
+  }, [agentCases]);
+
+  const strongestTopic = useMemo(() => {
+    return [...buildCoachingSummary(agentCases)].sort((a, b) => b.pct - a.pct)[0];
+  }, [agentCases]);
+
+  const weakestTopic = useMemo(() => {
+    return [...buildCoachingSummary(agentCases)].sort((a, b) => a.pct - b.pct)[0];
+  }, [agentCases]);
+
+  const focusTopics = coachingTopics.slice(0, 5);
+
+  const caseEvidenceRows = useMemo(() => {
+    const focusCodes = new Set(focusTopics.map((item) => item.code));
+    return agentCases
+      .map((item) => {
+        const mergedTopics =
+          item.reviewStatus === "Revised" && item.revisedTopics?.length
+            ? mergeTopicSet(item.topics, item.revisedTopics)
+            : item.topics;
+
+        const issues = mergedTopics
+          .filter((topic) => focusCodes.has(topic.code) && topic.pct < 80)
+          .map((topic) => `${topic.code} ${topic.label}`);
+
+        return {
+          ...item,
+          issues,
+        };
+      })
+      .filter((item) => item.issues.length > 0)
+      .sort((a, b) => a.finalScore - b.finalScore);
+  }, [agentCases, focusTopics]);
+
+  const currentMonthLabel =
+    selectedMonth === "all"
+      ? "All Months"
+      : monthOptions.find((item) => item.value === selectedMonth)?.label || selectedMonth;
+
+  const currentWeekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
+  const currentScopeLabel = `${currentMonthLabel} • ${currentWeekLabel}`;
+
+  const oneOnOneSummary = useMemo(() => {
+    return buildOneOnOneSummary({
+      agentName: effectiveAgent || "-",
+      caseCount: agentCases.length,
+      averageScore: currentAverage,
+      strongestTopic,
+      weakestTopic,
+      focusTopics,
+      monthLabel: currentMonthLabel,
+      weekLabel: currentWeekLabel,
+      monthKey: currentPolicyMonthKey,
+    });
+  }, [
+    effectiveAgent,
+    agentCases.length,
+    currentAverage,
+    strongestTopic,
+    weakestTopic,
+    focusTopics,
+    currentMonthLabel,
+    currentWeekLabel,
+    currentPolicyMonthKey,
+  ]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
+          กำลังโหลด Coaching Dashboard...
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
+        <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
+          <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
+          <div className="mt-2 text-sm">{loadError}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`relative min-h-screen ${
+        songkranTheme
+          ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
+          : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
+      }`}
+    >
+      {songkranTheme ? <SongkranBackdrop /> : null}
+
+      <div
+        className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
+          songkranTheme
+            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-700"
+            : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
+        }`}
+      >
+        {songkranTheme ? <SongkranBackdrop /> : null}
+
+        <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-4xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
+                QA Coaching
+              </div>
+              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
+                Agent Coaching Workspace
+              </div>
+              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
+                สรุปหัวข้อที่ต้องพัฒนา แนวทางการปรับปรุง และ case evidence รายบุคคลเพื่อใช้ในการ coaching
+              </div>
+              {songkranTheme ? (
+                <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
+                  Songkran Theme Active
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+              <LogoHeaderBox />
+              <div className="hidden sm:block">
+                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
+                  Robinhood QA
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">
+                  Coaching & Development Plan
+                </div>
+                <div className="mt-1 text-sm text-violet-100/90">
+                  Focus area / case evidence / action plan
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+        <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="space-y-6">
+            <Panel className="sticky top-4">
+              <PanelHeader
+                title="Coaching Controls"
+                subtitle="Select agent, month, and week for coaching summary"
+              />
+              <PanelBody className="space-y-5">
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Agent
+                  </div>
+                  {currentUser?.role === "Agent" ? (
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                      {effectiveAgent || "-"}
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedAgent}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedAgent(value);
+                        onSelectedAgentChange?.(value);
+                        setSelectedMonth("all");
+                        onSelectedMonthChange?.("all");
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                      }}
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    >
+                      {visibleAgentList.map((agent) => (
+                        <option key={agent} value={agent}>
+                          {agent}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Month
+                  </div>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedMonth(value);
+                      onSelectedMonthChange?.(value);
+                      setSelectedWeek("all");
+                      onSelectedWeekChange?.("all");
+                    }}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="all">All Months</option>
+                    {monthOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Week
+                  </div>
+                  <select
+                    value={selectedWeek}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedWeek(value);
+                      onSelectedWeekChange?.(value);
+                    }}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="all">All Weeks</option>
+                    {weekOptions.map((week) => (
+                      <option key={week} value={week}>
+                        {week}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div
+                  className={`rounded-2xl px-4 py-4 ${
+                    songkranTheme
+                      ? "border border-cyan-100 bg-cyan-50"
+                      : "border border-violet-100 bg-violet-50"
+                  }`}
+                >
+                  <div
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      songkranTheme ? "text-cyan-700" : "text-violet-700"
+                    }`}
+                  >
+                    Current Scope
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-slate-800">{currentScopeLabel}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-700">
+                    ใช้สำหรับสรุปหัวข้อที่ควรพัฒนา พร้อมแนวทาง coaching ที่นำไปใช้ต่อกับน้องแต่ละคนได้ทันที
+                  </div>
+                </div>
+              </PanelBody>
+            </Panel>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+              <MetricCard
+                title="Selected Agent"
+                value={effectiveAgent || "-"}
+                sub="Current coaching target"
+                accent={
+                  songkranTheme
+                    ? "from-white via-cyan-50/50 to-fuchsia-50/60 border-cyan-200/80"
+                    : "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
+                }
+                valueClassName={`${songkranTheme ? "text-cyan-700" : "text-violet-900"} text-[22px] lg:text-[24px]`}
+              />
+              <MetricCard
+                title="Reviewed Cases"
+                value={String(agentCases.length)}
+                sub={currentScopeLabel}
+                accent="from-sky-50 via-white to-sky-100/70 border-sky-200"
+                valueClassName="text-sky-700"
+              />
+              <MetricCard
+                title="Average Score"
+                value={currentAverage.toFixed(2)}
+                sub="Average quality score"
+                accent={
+                  songkranTheme
+                    ? "from-white via-cyan-50/50 to-fuchsia-50/60 border-cyan-200/80"
+                    : "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
+                }
+                valueClassName={songkranTheme ? "text-cyan-700" : "text-violet-900"}
+              />
+              <MetricCard
+                title="Current Grade"
+                value={scoreToGrade(currentAverage, currentPolicyMonthKey)}
+                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "New Criteria" : "Previous Criteria"}
+                accent="from-white via-amber-50/50 to-amber-100/70 border-amber-200"
+                valueClassName="text-amber-700"
+              />
+              <MetricCard
+                title="Main Focus"
+                value={weakestTopic?.code || "-"}
+                sub={weakestTopic?.label || "No focus topic"}
+                accent="from-rose-50 via-white to-rose-100/70 border-rose-200"
+                valueClassName="text-rose-700"
+              />
+              <MetricCard
+                title="Policy Month"
+                value={currentPolicyMonthKey === "unknown" ? "-" : currentPolicyMonthKey}
+                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "New Criteria" : "Previous Criteria"}
+                accent="from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                valueClassName="text-emerald-700"
+              />
+            </div>
+
+            <Panel>
+              <PanelHeader
+                title="One-on-One Coaching Summary"
+                subtitle="Auto-generated summary for coaching discussion"
+              />
+              <PanelBody className="space-y-4">
+                <div
+                  className={`rounded-2xl px-4 py-4 ${
+                    songkranTheme
+                      ? "border border-cyan-200 bg-cyan-50"
+                      : "border border-violet-200 bg-violet-50"
+                  }`}
+                >
+                  <div
+                    className={`text-xs font-bold uppercase tracking-wide ${
+                      songkranTheme ? "text-cyan-700" : "text-violet-700"
+                    }`}
+                  >
+                    Overall Summary
+                  </div>
+                  <div className="mt-2 text-sm leading-7 text-slate-700">
+                    {oneOnOneSummary.overallComment}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Strength to Maintain
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-slate-700">
+                      {oneOnOneSummary.strengthComment}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                      Main Improvement Area
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-slate-700">
+                      {oneOnOneSummary.improvementComment}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                    Coaching Direction
+                  </div>
+                  <div className="mt-2 text-sm leading-7 text-slate-700">
+                    {oneOnOneSummary.coachingDirection}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                    Next Coaching Target
+                  </div>
+                  <div className="mt-2 text-sm leading-7 text-slate-700">
+                    {oneOnOneSummary.nextStep}
+                  </div>
+                </div>
+              </PanelBody>
+            </Panel>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Panel>
+                <PanelHeader
+                  title="Coaching Snapshot"
+                  subtitle="Overall view of strengths and development areas"
+                />
+                <PanelBody className="space-y-4">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Strength
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">
+                      {strongestTopic ? `${strongestTopic.code} ${strongestTopic.label}` : "-"}
+                    </div>
+                    <div className="mt-1 text-xs text-emerald-700">
+                      Average {strongestTopic ? strongestTopic.pct.toFixed(2) : "0.00"}%
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                      Main Improvement Area
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">
+                      {weakestTopic ? `${weakestTopic.code} ${weakestTopic.label}` : "-"}
+                    </div>
+                    <div className="mt-1 text-xs text-rose-700">
+                      Average {weakestTopic ? weakestTopic.pct.toFixed(2) : "0.00"}%
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      QA Coaching Summary
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-slate-700">
+                      {effectiveAgent
+                        ? `${effectiveAgent} ควรเน้นพัฒนาเรื่อง ${weakestTopic?.code || "-"} ${
+                            weakestTopic?.label || ""
+                          } เป็นลำดับแรก โดยควบคู่กับการทบทวน ${
+                            focusTopics[1]?.code || "-"
+                          } ${focusTopics[1]?.label || ""} เพื่อยกระดับคุณภาพคำตอบให้ครบถ้วน ชัดเจน และสอดคล้องกับมาตรฐาน QA มากขึ้น`
+                        : "-"}
+                    </div>
+                  </div>
+                </PanelBody>
+              </Panel>
+
+              <Panel>
+                <PanelHeader
+                  title="Top Priority Topics"
+                  subtitle="Topics that should be coached first"
+                />
+                <PanelBody className="space-y-3">
+                  {focusTopics.length ? (
+                    focusTopics.map((topic) => (
+                      <div
+                        key={topic.code}
+                        className="relative rounded-2xl border border-violet-100 bg-white px-4 py-4 shadow-sm"
+                      >
+                        {songkranTheme ? (
+                          <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
+                        ) : null}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-bold text-slate-900">
+                              {topic.code} {topic.label}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              Avg {topic.avgScore.toFixed(2)} / {topic.max} ({topic.pct.toFixed(2)}%)
+                            </div>
+                          </div>
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityTone(
+                              topic.priority
+                            )}`}
+                          >
+                            {topic.priority}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 text-xs text-slate-600">
+                          พบใน {topic.failCount} case(s) ที่ยังต้องพัฒนา
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-slate-500">No coaching data</div>
+                  )}
+                </PanelBody>
+              </Panel>
+            </div>
+
+            <Panel>
+              <PanelHeader
+                title="Coaching Focus Area"
+                subtitle="Detailed coaching analysis by topic"
+              />
+              <PanelBody className="space-y-5">
+                {focusTopics.length ? (
+                  focusTopics.map((topic) => {
+                    const guide = getCoachingGuide(topic.code);
+
+                    return (
+                      <div
+                        key={topic.code}
+                        className={`relative rounded-[24px] border p-5 shadow-sm ${
+                          songkranTheme
+                            ? "border-cyan-200/80 bg-gradient-to-br from-white via-cyan-50/30 to-fuchsia-50/40"
+                            : "border-violet-200/80 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/40"
+                        }`}
+                      >
+                        {songkranTheme ? (
+                          <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
+                        ) : null}
+
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <div className="text-lg font-bold tracking-tight text-slate-900">
+                              {topic.code} {topic.label}
+                            </div>
+                            <div className="mt-1 text-sm text-slate-500">
+                              Avg {topic.avgScore.toFixed(2)} / {topic.max} · {topic.pct.toFixed(2)}%
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityTone(
+                                topic.priority
+                              )}`}
+                            >
+                              {topic.priority} Priority
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                              {topic.failCount} impacted case(s)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+                          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                            <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                              Issue Found
+                            </div>
+                            <div className="mt-2 text-sm leading-7 text-slate-700">{guide.issue}</div>
+                          </div>
+
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                              Target Improvement
+                            </div>
+                            <div className="mt-2 text-sm leading-7 text-slate-700">{guide.target}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                          <div
+                            className={`rounded-2xl px-4 py-4 ${
+                              songkranTheme
+                                ? "border border-cyan-200 bg-cyan-50"
+                                : "border border-violet-200 bg-violet-50"
+                            }`}
+                          >
+                            <div
+                              className={`text-xs font-bold uppercase tracking-wide ${
+                                songkranTheme ? "text-cyan-700" : "text-violet-700"
+                              }`}
+                            >
+                              Recommended Guidance
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {guide.guidance.map((item, index) => (
+                                <div
+                                  key={index}
+                                  className="rounded-xl border border-violet-100 bg-white px-3 py-3 text-sm leading-6 text-slate-700"
+                                >
+                                  {index + 1}. {item}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                              Example Coaching Message
+                            </div>
+                            <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700">
+                              {guide.example}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-sm text-slate-500">No coaching focus area</div>
+                )}
+              </PanelBody>
+            </Panel>
+
+            <Panel>
+              <PanelHeader
+                title="Case-based Coaching Evidence"
+                subtitle="Cases that support the coaching recommendation"
+              />
+              <PanelBody className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1100px] w-full text-sm">
+                    <thead>
+                      <tr className="bg-violet-950 text-[11px] text-white">
+                        <th className="px-4 py-3 text-left">Audit Date</th>
+                        <th className="px-4 py-3 text-left">Case ID</th>
+                        <th className="px-4 py-3 text-left">Inquiry</th>
+                        <th className="px-4 py-3 text-center">Final Score</th>
+                        <th className="px-4 py-3 text-center">Grade</th>
+                        <th className="px-4 py-3 text-left">Topic Evidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {caseEvidenceRows.length ? (
+                        caseEvidenceRows.map((item) => (
+                          <tr key={item.key} className="bg-white">
+                            <td className="border-t border-slate-200 px-4 py-3">{item.auditDate}</td>
+                            <td className="border-t border-slate-200 px-4 py-3 font-semibold text-violet-700">
+                              {item.caseId}
+                            </td>
+                            <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                              {item.inquiryTh}
+                            </td>
+                            <td className="border-t border-slate-200 px-4 py-3 text-center">
+                              {item.finalScore.toFixed(2)}
+                            </td>
+                            <td className="border-t border-slate-200 px-4 py-3 text-center">
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(
+                                  item.grade
+                                )}`}
+                              >
+                                {item.grade}
+                              </span>
+                            </td>
+                            <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                              {item.issues.join(", ")}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
+                          >
+                            No case evidence found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </PanelBody>
+            </Panel>
+
+            <Panel>
+              <PanelHeader
+                title="Coaching Action Plan"
+                subtitle="Suggested development plan for the selected agent"
+              />
+              <PanelBody className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1100px] w-full text-sm">
+                    <thead>
+                      <tr className="bg-violet-950 text-[11px] text-white">
+                        <th className="px-4 py-3 text-left">Topic</th>
+                        <th className="px-4 py-3 text-left">Expected Behavior</th>
+                        <th className="px-4 py-3 text-left">Practice Method</th>
+                        <th className="px-4 py-3 text-left">Owner</th>
+                        <th className="px-4 py-3 text-left">Suggested Target</th>
+                        <th className="px-4 py-3 text-left">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {focusTopics.length ? (
+                        focusTopics.map((topic) => {
+                          const guide = getCoachingGuide(topic.code);
+
+                          return (
+                            <tr key={topic.code} className="bg-white">
+                              <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">
+                                {topic.code} {topic.label}
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                                {guide.target}
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                                Review sample cases / practice reply structure / QA feedback follow-up
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                                QA / Supervisor / Agent
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                                Within next coaching cycle
+                              </td>
+                              <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
+                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                  In Progress
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
+                          >
+                            No action plan available
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </PanelBody>
+            </Panel>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
