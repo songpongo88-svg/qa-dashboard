@@ -83,6 +83,7 @@ type PeriodTableRow = {
 };
 
 const CASE_TARGET = 10;
+const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
@@ -127,6 +128,11 @@ type SummaryView =
   | "monthly-team-summary"
   | "yearly-team-summary"
   | "yearly-by-agent";
+
+function isSongkranThemeActive() {
+  const now = new Date();
+  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
+}
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -336,6 +342,37 @@ function emptyAgentPeriodSummary(agent: string, label: string): AgentPeriodSumma
   };
 }
 
+function SongkranBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-0 top-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
+      <div className="absolute right-6 top-8 h-32 w-32 rounded-full bg-fuchsia-300/18 blur-3xl" />
+      <div className="absolute left-1/4 bottom-0 h-36 w-36 rounded-full bg-sky-300/16 blur-3xl" />
+      <div className="absolute right-1/3 bottom-2 h-24 w-24 rounded-full bg-violet-300/16 blur-2xl" />
+      <div className="absolute left-[15%] top-[15%] h-3 w-3 rounded-full bg-white/80" />
+      <div className="absolute right-[14%] top-[12%] h-4 w-4 rounded-full bg-cyan-200/70" />
+    </div>
+  );
+}
+
+function SongkranFlowerCorner({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div className={`pointer-events-none absolute ${className}`}>
+      <div className="relative h-12 w-12">
+        <span className="absolute left-4 top-0 h-4 w-4 rounded-full bg-pink-300/70" />
+        <span className="absolute left-0 top-4 h-4 w-4 rounded-full bg-fuchsia-300/70" />
+        <span className="absolute left-4 top-8 h-4 w-4 rounded-full bg-cyan-300/70" />
+        <span className="absolute left-8 top-4 h-4 w-4 rounded-full bg-sky-300/70" />
+        <span className="absolute left-4 top-4 h-4 w-4 rounded-full bg-white/85 shadow-sm" />
+      </div>
+    </div>
+  );
+}
+
 function Panel({
   children,
   className = "",
@@ -345,8 +382,11 @@ function Panel({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
+      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
     >
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
+      ) : null}
       {children}
     </div>
   );
@@ -359,8 +399,16 @@ function PanelHeader({
   title: string;
   subtitle?: string;
 }) {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
-    <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+    <div
+      className={`border-b px-5 py-4 ${
+        songkranTheme
+          ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
+          : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
+      }`}
+    >
       <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
@@ -392,9 +440,12 @@ function MetricCard({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
+      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
     >
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
+      {isSongkranThemeActive() ? (
+        <span className="pointer-events-none absolute right-3 top-3 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
         <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
@@ -408,11 +459,14 @@ function MetricCard({
 
 function LogoHeaderBox() {
   return (
-    <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
+    <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
+      ) : null}
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="h-16 w-16 object-contain lg:h-20 lg:w-20"
+        className="relative z-10 h-16 w-16 object-contain lg:h-20 lg:w-20"
       />
     </div>
   );
@@ -427,17 +481,24 @@ function ViewButton({
   label: string;
   onClick: () => void;
 }) {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`relative overflow-hidden rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
         active
-          ? "border border-violet-300 bg-violet-100 text-violet-800"
+          ? songkranTheme
+            ? "border border-cyan-300 bg-gradient-to-r from-cyan-100 via-sky-100 to-fuchsia-100 text-cyan-800"
+            : "border border-violet-300 bg-violet-100 text-violet-800"
           : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
-      {label}
+      {active && songkranTheme ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/80" />
+      ) : null}
+      <span className="relative z-10">{label}</span>
     </button>
   );
 }
@@ -632,7 +693,6 @@ export default function SummaryMockup({
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
-  seasonalTheme = false,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
@@ -641,7 +701,6 @@ export default function SummaryMockup({
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
-  seasonalTheme?: boolean;
 }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -651,6 +710,8 @@ export default function SummaryMockup({
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
+
+  const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   useEffect(() => {
     if (
@@ -1227,24 +1288,28 @@ export default function SummaryMockup({
 
   return (
     <div
-      className={
-        seasonalTheme
-          ? "min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50"
-          : "min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
-      }
+      className={`relative min-h-screen ${
+        songkranTheme
+          ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
+          : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
+      }`}
     >
+      {songkranTheme ? <SongkranBackdrop /> : null}
+
       <div
-        className={`text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
-          seasonalTheme
-            ? "bg-gradient-to-r from-orange-500 via-pink-500 to-sky-500"
+        className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
+          songkranTheme
+            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-600"
             : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
         }`}
       >
+        {songkranTheme ? <SongkranBackdrop /> : null}
+
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                {seasonalTheme ? "QA Summary • Songkran Theme" : "QA Summary"}
+                QA Summary
               </div>
               <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
                 Weekly / Monthly / Yearly Summary Workspace
@@ -1253,6 +1318,11 @@ export default function SummaryMockup({
                 รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team
                 Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว
               </div>
+              {songkranTheme ? (
+                <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
+                  Songkran Theme Active
+                </div>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
@@ -1270,12 +1340,6 @@ export default function SummaryMockup({
               </div>
             </div>
           </div>
-
-          {seasonalTheme ? (
-            <div className="mt-5 rounded-[24px] border border-white/15 bg-white/12 px-5 py-4 text-sm font-semibold text-white/95 backdrop-blur-sm">
-              🌼 Songkran Theme active until 25 Apr 2026
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -1426,8 +1490,12 @@ export default function SummaryMockup({
                 title="Average Score"
                 value={summaryCards.avgScore.toFixed(2)}
                 sub="Average quality score"
-                accent="from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
-                valueClassName="text-violet-900"
+                accent={
+                  songkranTheme
+                    ? "from-white via-cyan-50/50 to-fuchsia-50/60 border-cyan-200/80"
+                    : "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
+                }
+                valueClassName={songkranTheme ? "text-cyan-700" : "text-violet-900"}
               />
               <MetricCard
                 title="Current Grade"
@@ -1447,8 +1515,12 @@ export default function SummaryMockup({
                 title="Estimated Incentive"
                 value={formatCurrencyTHB(summaryCards.incentive)}
                 sub="Only paid when casesครบ 10"
-                accent="from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
-                valueClassName="text-fuchsia-700"
+                accent={
+                  songkranTheme
+                    ? "from-white via-cyan-50/50 to-fuchsia-100/60 border-cyan-200"
+                    : "from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
+                }
+                valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
               />
             </div>
 
