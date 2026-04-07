@@ -77,6 +77,13 @@ const TOPIC_MASTER = [
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
 
+const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+
+function isSongkranThemeActive() {
+  const now = new Date();
+  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
+}
+
 function normalizeText(value: unknown) {
   return String(value ?? "")
     .replace(/\u00A0/g, " ")
@@ -284,6 +291,37 @@ function topicScoreStatusTone(originalScore: number, revisedScore: number) {
   };
 }
 
+function SongkranBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-4 top-8 h-28 w-28 rounded-full bg-cyan-300/18 blur-3xl" />
+      <div className="absolute right-8 top-10 h-32 w-32 rounded-full bg-fuchsia-300/18 blur-3xl" />
+      <div className="absolute left-1/3 bottom-0 h-36 w-36 rounded-full bg-sky-300/14 blur-3xl" />
+      <div className="absolute right-1/4 bottom-6 h-20 w-20 rounded-full bg-violet-300/14 blur-2xl" />
+      <div className="absolute left-[11%] top-[16%] h-3 w-3 rounded-full bg-white/80" />
+      <div className="absolute right-[14%] top-[12%] h-4 w-4 rounded-full bg-cyan-200/70" />
+    </div>
+  );
+}
+
+function SongkranFlowerCorner({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div className={`pointer-events-none absolute ${className}`}>
+      <div className="relative h-12 w-12">
+        <span className="absolute left-4 top-0 h-4 w-4 rounded-full bg-pink-300/70" />
+        <span className="absolute left-0 top-4 h-4 w-4 rounded-full bg-fuchsia-300/70" />
+        <span className="absolute left-4 top-8 h-4 w-4 rounded-full bg-cyan-300/70" />
+        <span className="absolute left-8 top-4 h-4 w-4 rounded-full bg-sky-300/70" />
+        <span className="absolute left-4 top-4 h-4 w-4 rounded-full bg-white/85 shadow-sm" />
+      </div>
+    </div>
+  );
+}
+
 function Panel({
   children,
   className = "",
@@ -293,8 +331,11 @@ function Panel({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_12px_34px_rgba(76,29,149,0.08)] ${className}`}
+      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_12px_34px_rgba(76,29,149,0.08)] ${className}`}
     >
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
+      ) : null}
       {children}
     </div>
   );
@@ -308,7 +349,13 @@ function PanelHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+    <div
+      className={`border-b px-5 py-4 ${
+        isSongkranThemeActive()
+          ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
+          : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
+      }`}
+    >
       <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
@@ -337,7 +384,10 @@ function ScoreCard({
   sub?: string;
 }) {
   return (
-    <div className={`rounded-[24px] border p-5 ${tone}`}>
+    <div className={`relative overflow-hidden rounded-[24px] border p-5 ${tone}`}>
+      {isSongkranThemeActive() ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
       <div className="text-xs font-semibold uppercase tracking-[0.18em]">{title}</div>
       <div className="mt-3 text-3xl font-extrabold tracking-tight">{value}</div>
       {sub ? <div className="mt-2 text-xs opacity-80">{sub}</div> : null}
@@ -345,30 +395,34 @@ function ScoreCard({
   );
 }
 
-function AppealClosedBanner({ seasonalTheme = false }: { seasonalTheme?: boolean }) {
+function AppealClosedBanner() {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
     <div
-      className={`rounded-[30px] px-6 py-6 text-white shadow-[0_18px_40px_rgba(190,24,93,0.18)] ${
-        seasonalTheme
-          ? "border border-orange-200 bg-gradient-to-r from-orange-500 via-pink-500 to-sky-500"
-          : "border border-rose-300 bg-gradient-to-r from-rose-700 via-rose-700 to-red-600"
+      className={`relative overflow-hidden rounded-[30px] border px-6 py-6 text-white shadow-[0_18px_40px_rgba(190,24,93,0.18)] ${
+        songkranTheme
+          ? "border-cyan-200 bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-600"
+          : "border-rose-300 bg-gradient-to-r from-rose-700 via-rose-700 to-red-600"
       }`}
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {songkranTheme ? <SongkranBackdrop /> : null}
+
+      <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="text-xs font-bold uppercase tracking-[0.26em] text-rose-100">
-            {seasonalTheme ? "Songkran Theme" : "Appeal Closed"}
+            Appeal Closed
           </div>
           <div className="mt-2 text-2xl font-extrabold tracking-tight">
-            {seasonalTheme ? "Appeal Review • Songkran Edition" : "This appeal has been finalized"}
+            This appeal has been finalized
           </div>
-          <div className="mt-2 text-sm leading-6 text-rose-50/95">
+          <div className="mt-2 text-sm leading-6 text-white/95">
             เคสนี้ได้พิจารณาอุทธรณ์เสร็จสิ้นแล้ว และไม่สามารถยื่นอุทธรณ์เพิ่มเติมได้อีก
           </div>
         </div>
 
         <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-100">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
             Final Status
           </div>
           <div className="mt-1 text-lg font-bold">Case Closed</div>
@@ -387,16 +441,24 @@ function QuickCaseCard({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-[22px] border p-4 text-left transition ${
+      className={`relative w-full overflow-hidden rounded-[22px] border p-4 text-left transition ${
         isSelected
-          ? "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_22px_rgba(109,40,217,0.14)]"
+          ? songkranTheme
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_22px_rgba(34,211,238,0.16)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_22px_rgba(109,40,217,0.14)]"
           : "border-violet-100 bg-white hover:border-violet-300 hover:bg-violet-50/70"
       }`}
     >
+      {songkranTheme ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
+
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-900">{item.caseId}</div>
@@ -442,8 +504,18 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
   const statusTone = topicScoreStatusTone(originalScore, revisedScore);
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-violet-200 bg-white shadow-[0_10px_28px_rgba(76,29,149,0.08)]">
-      <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+    <div className="relative overflow-hidden rounded-[26px] border border-violet-200 bg-white shadow-[0_10px_28px_rgba(76,29,149,0.08)]">
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
+      ) : null}
+
+      <div
+        className={`border-b px-5 py-4 ${
+          isSongkranThemeActive()
+            ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
+            : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
+        }`}
+      >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">
@@ -542,12 +614,10 @@ export default function AppealMockup({
   currentUser,
   externalSelectedAgent,
   onSelectedAgentChange,
-  seasonalTheme = false,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
   onSelectedAgentChange?: (agentName: string) => void;
-  seasonalTheme?: boolean;
 }) {
   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -555,6 +625,8 @@ export default function AppealMockup({
   const [selectedCaseKey, setSelectedCaseKey] = useState("");
   const [searchCaseId, setSearchCaseId] = useState("");
   const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
+
+  const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   useEffect(() => {
     if (
@@ -1048,20 +1120,10 @@ export default function AppealMockup({
   }
 
   return (
-    <div
-      className={
-        seasonalTheme
-          ? "space-y-6 rounded-[32px] bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50 p-2"
-          : "space-y-6"
-      }
-    >
-      {seasonalTheme ? (
-        <div className="rounded-[28px] border border-orange-200 bg-white/80 px-5 py-4 text-sm font-semibold text-orange-700 shadow-sm">
-          🌼 Songkran Theme active until 25 Apr 2026
-        </div>
-      ) : null}
+    <div className="relative space-y-6">
+      {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <AppealClosedBanner seasonalTheme={seasonalTheme} />
+      <AppealClosedBanner />
 
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <Panel className="h-fit">
