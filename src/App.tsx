@@ -34,9 +34,9 @@ const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Arisa",
     password: "Ri$4Kq2@Zm",
-    displayName: "Arisa aiemrit",
+    displayName: "Arisa Aiemrit",
     role: "Agent",
-    agentName: "Arisa aiemrit",
+    agentName: "Arisa Aiemrit",
   },
   {
     username: "Chatkonnaphat",
@@ -118,9 +118,9 @@ const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Wachiraporn",
     password: "wL7$cl2@",
-    displayName: "Wachiraporn chailittichai",
+    displayName: "Wachiraporn Chailittichai",
     role: "Agent",
-    agentName: "Wachiraporn chailittichai",
+    agentName: "Wachiraporn Chailittichai",
   },
   {
     username: "Wassana",
@@ -1324,7 +1324,15 @@ export default function App() {
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
         ) : activeTab === "coaching" ? (
-          <CoachingMockup currentUser={currentUser} />
+          <CoachingMockup
+            currentUser={currentUser}
+            externalSelectedAgent={selectedAgentGlobal}
+            externalSelectedMonth={selectedMonthGlobal}
+            externalSelectedWeek={selectedWeekGlobal}
+            onSelectedAgentChange={setSelectedAgentGlobal}
+            onSelectedMonthChange={setSelectedMonthGlobal}
+            onSelectedWeekChange={setSelectedWeekGlobal}
+          />
         ) : activeTab === "evaluation-studio" ? (
           <EvaluationStudioPage />
         ) : (
