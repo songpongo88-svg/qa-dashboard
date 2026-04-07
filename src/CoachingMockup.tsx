@@ -717,13 +717,53 @@ function buildCoachingSummary(cases: CaseItem[]): CoachingTopicSummary[] {
   });
 }
 
-export default function CoachingMockup({ currentUser }: { currentUser: any }) {
+type CoachingMockupProps = {
+  currentUser: any;
+  externalSelectedAgent?: string;
+  externalSelectedMonth?: string;
+  externalSelectedWeek?: string;
+  onSelectedAgentChange?: (agent: string) => void;
+  onSelectedMonthChange?: (month: string) => void;
+  onSelectedWeekChange?: (week: string) => void;
+};
+
+export default function CoachingMockup({
+  currentUser,
+  externalSelectedAgent,
+  externalSelectedMonth,
+  externalSelectedWeek,
+  onSelectedAgentChange,
+  onSelectedMonthChange,
+  onSelectedWeekChange,
+}: CoachingMockupProps) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [selectedAgent, setSelectedAgent] = useState<string>("");
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
-  const [selectedWeek, setSelectedWeek] = useState<string>("all");
+  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
+  const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
+  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
+
+  useEffect(() => {
+    if (
+      currentUser?.role !== "Agent" &&
+      typeof externalSelectedAgent === "string" &&
+      externalSelectedAgent !== selectedAgent
+    ) {
+      setSelectedAgent(externalSelectedAgent);
+    }
+  }, [externalSelectedAgent, currentUser, selectedAgent]);
+
+  useEffect(() => {
+    if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
+      setSelectedMonth(externalSelectedMonth);
+    }
+  }, [externalSelectedMonth, selectedMonth]);
+
+  useEffect(() => {
+    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
+      setSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek, selectedWeek]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -976,14 +1016,18 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      setSelectedAgent(toTitleCaseName(currentUser.agentName));
+      const normalizedAgent = toTitleCaseName(currentUser.agentName);
+      setSelectedAgent(normalizedAgent);
+      onSelectedAgentChange?.(normalizedAgent);
       return;
     }
 
     if (!selectedAgent && visibleAgentList.length) {
-      setSelectedAgent(visibleAgentList[0]);
+      const firstAgent = visibleAgentList[0];
+      setSelectedAgent(firstAgent);
+      onSelectedAgentChange?.(firstAgent);
     }
-  }, [currentUser, visibleAgentList, selectedAgent]);
+  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
 
   useEffect(() => {
     if (
@@ -991,11 +1035,22 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
       selectedAgent &&
       !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))
     ) {
-      setSelectedAgent(visibleAgentList[0] || "");
+      const fallback = visibleAgentList[0] || "";
+      setSelectedAgent(fallback);
+      onSelectedAgentChange?.(fallback);
       setSelectedMonth("all");
+      onSelectedMonthChange?.("all");
       setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
     }
-  }, [selectedAgent, visibleAgentList, currentUser]);
+  }, [
+    selectedAgent,
+    visibleAgentList,
+    currentUser,
+    onSelectedAgentChange,
+    onSelectedMonthChange,
+    onSelectedWeekChange,
+  ]);
 
   const effectiveAgent =
     currentUser?.role === "Agent" && currentUser.agentName
@@ -1030,9 +1085,11 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
     if (selectedMonth === "all") return;
 
     if (!monthOptions.some((item) => item.value === selectedMonth)) {
-      setSelectedMonth(monthOptions[0].value);
+      const fallbackMonth = monthOptions[0].value;
+      setSelectedMonth(fallbackMonth);
+      onSelectedMonthChange?.(fallbackMonth);
     }
-  }, [monthOptions, selectedMonth]);
+  }, [monthOptions, selectedMonth, onSelectedMonthChange]);
 
   const monthFilteredCases = useMemo(() => {
     if (selectedMonth === "all") return baseAgentCases;
@@ -1053,8 +1110,9 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
 
     if (!weekOptions.includes(selectedWeek)) {
       setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
     }
-  }, [weekOptions, selectedWeek]);
+  }, [weekOptions, selectedWeek, onSelectedWeekChange]);
 
   const agentCases = useMemo(() => {
     if (selectedWeek === "all") return monthFilteredCases;
@@ -1223,9 +1281,13 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                     <select
                       value={selectedAgent}
                       onChange={(e) => {
-                        setSelectedAgent(e.target.value);
+                        const value = e.target.value;
+                        setSelectedAgent(value);
+                        onSelectedAgentChange?.(value);
                         setSelectedMonth("all");
+                        onSelectedMonthChange?.("all");
                         setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
                       }}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     >
@@ -1245,8 +1307,11 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                   <select
                     value={selectedMonth}
                     onChange={(e) => {
-                      setSelectedMonth(e.target.value);
+                      const value = e.target.value;
+                      setSelectedMonth(value);
+                      onSelectedMonthChange?.(value);
                       setSelectedWeek("all");
+                      onSelectedWeekChange?.("all");
                     }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
@@ -1265,7 +1330,11 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
                   </div>
                   <select
                     value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedWeek(value);
+                      onSelectedWeekChange?.(value);
+                    }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
                     <option value="all">All Weeks</option>
