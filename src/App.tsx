@@ -136,6 +136,14 @@ const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 
+const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
+const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+
+function isSongkranThemeActive() {
+  const now = new Date();
+  return now >= SONGKRAN_THEME_START && now <= SONGKRAN_THEME_END;
+}
+
 function readStoredUser(): CurrentUser | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -188,19 +196,148 @@ function getEffectivePassword(account: UserAccount) {
   return overrides[account.username.trim().toLowerCase()] || account.password;
 }
 
-function isSongkranThemeActive(now = new Date()) {
-  const start = new Date(2026, 3, 1, 0, 0, 0, 0);
-  const end = new Date(2026, 3, 25, 23, 59, 59, 999);
-  return now >= start && now <= end;
+function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-[-60px] top-[-30px] h-44 w-44 rounded-full bg-cyan-300/25 blur-3xl" />
+      <div className="absolute right-[-20px] top-8 h-36 w-36 rounded-full bg-fuchsia-300/20 blur-3xl" />
+      <div className="absolute bottom-[-30px] left-1/4 h-44 w-44 rounded-full bg-sky-300/18 blur-3xl" />
+      <div className="absolute bottom-2 right-1/4 h-28 w-28 rounded-full bg-violet-300/18 blur-2xl" />
+
+      <div className="absolute left-[8%] top-[16%] h-4 w-4 rounded-full bg-cyan-200/80" />
+      <div className="absolute left-[13%] top-[26%] h-2.5 w-2.5 rounded-full bg-white/80" />
+      <div className="absolute left-[20%] top-[12%] h-3.5 w-3.5 rounded-full bg-sky-300/70" />
+      <div className="absolute right-[12%] top-[18%] h-4 w-4 rounded-full bg-fuchsia-300/60" />
+      <div className="absolute right-[18%] top-[11%] h-2.5 w-2.5 rounded-full bg-white/85" />
+      <div className="absolute right-[8%] bottom-[18%] h-3.5 w-3.5 rounded-full bg-cyan-300/60" />
+      <div className="absolute left-[12%] bottom-[15%] h-3.5 w-3.5 rounded-full bg-pink-300/50" />
+
+      {!compact ? (
+        <>
+          <div className="absolute left-4 top-4 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/90 backdrop-blur-sm">
+            Songkran Festival
+          </div>
+          <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
+            Auto reset after 25 Apr 2026
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function SongkranFlowerCorner({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div className={`pointer-events-none absolute ${className}`}>
+      <div className="relative h-12 w-12">
+        <span className="absolute left-4 top-0 h-4 w-4 rounded-full bg-pink-300/70" />
+        <span className="absolute left-0 top-4 h-4 w-4 rounded-full bg-fuchsia-300/70" />
+        <span className="absolute left-4 top-8 h-4 w-4 rounded-full bg-cyan-300/70" />
+        <span className="absolute left-8 top-4 h-4 w-4 rounded-full bg-sky-300/70" />
+        <span className="absolute left-4 top-4 h-4 w-4 rounded-full bg-white/85 shadow-sm" />
+      </div>
+    </div>
+  );
+}
+
+function SongkranBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold text-cyan-700 shadow-sm">
+      Songkran Theme
+    </span>
+  );
+}
+
+function FestiveIllustration() {
+  return (
+    <div className="relative mt-8 h-[280px] w-full overflow-hidden rounded-[30px] border border-white/15 bg-white/10 backdrop-blur-sm">
+      <svg viewBox="0 0 700 360" className="h-full w-full">
+        <defs>
+          <linearGradient id="waterRibbon1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7dd3fc" />
+            <stop offset="50%" stopColor="#22d3ee" />
+            <stop offset="100%" stopColor="#e879f9" />
+          </linearGradient>
+          <linearGradient id="waterRibbon2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f9a8d4" />
+            <stop offset="50%" stopColor="#93c5fd" />
+            <stop offset="100%" stopColor="#67e8f9" />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M-20 230 C 90 170, 150 280, 260 220 S 430 160, 540 210 S 650 250, 740 205"
+          fill="none"
+          stroke="url(#waterRibbon1)"
+          strokeWidth="18"
+          strokeLinecap="round"
+          opacity="0.9"
+        />
+        <path
+          d="M-10 270 C 90 220, 180 320, 300 260 S 460 200, 560 255 S 650 300, 730 250"
+          fill="none"
+          stroke="url(#waterRibbon2)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          opacity="0.8"
+        />
+
+        <circle cx="120" cy="120" r="56" fill="#ffffff" fillOpacity="0.15" />
+        <circle cx="540" cy="90" r="44" fill="#ffffff" fillOpacity="0.12" />
+        <circle cx="610" cy="145" r="12" fill="#bae6fd" fillOpacity="0.9" />
+        <circle cx="585" cy="115" r="8" fill="#ffffff" fillOpacity="0.85" />
+        <circle cx="155" cy="88" r="9" fill="#f9a8d4" fillOpacity="0.8" />
+        <circle cx="190" cy="112" r="6" fill="#ffffff" fillOpacity="0.8" />
+
+        <g transform="translate(250,70)">
+          <rect x="0" y="70" width="130" height="118" rx="18" fill="#ffffff" fillOpacity="0.16" />
+          <rect x="24" y="42" width="82" height="46" rx="16" fill="#e0f2fe" fillOpacity="0.8" />
+          <rect x="48" y="0" width="34" height="64" rx="12" fill="#67e8f9" />
+          <circle cx="65" cy="0" r="14" fill="#ffffff" fillOpacity="0.95" />
+          <path
+            d="M65 0 C 105 35, 125 45, 145 40"
+            fill="none"
+            stroke="#ffffff"
+            strokeOpacity="0.8"
+            strokeWidth="8"
+            strokeLinecap="round"
+          />
+          <circle cx="150" cy="38" r="10" fill="#ffffff" fillOpacity="0.85" />
+          <circle cx="165" cy="55" r="6" fill="#ffffff" fillOpacity="0.7" />
+        </g>
+
+        <g transform="translate(90,225)">
+          <circle cx="18" cy="18" r="18" fill="#f9a8d4" fillOpacity="0.9" />
+          <circle cx="0" cy="36" r="18" fill="#c4b5fd" fillOpacity="0.9" />
+          <circle cx="36" cy="36" r="18" fill="#67e8f9" fillOpacity="0.9" />
+          <circle cx="18" cy="54" r="18" fill="#93c5fd" fillOpacity="0.9" />
+          <circle cx="18" cy="36" r="16" fill="#ffffff" fillOpacity="0.95" />
+        </g>
+
+        <g transform="translate(560,245)">
+          <circle cx="14" cy="14" r="14" fill="#f9a8d4" fillOpacity="0.85" />
+          <circle cx="0" cy="28" r="14" fill="#67e8f9" fillOpacity="0.85" />
+          <circle cx="28" cy="28" r="14" fill="#c4b5fd" fillOpacity="0.85" />
+          <circle cx="14" cy="42" r="14" fill="#93c5fd" fillOpacity="0.85" />
+          <circle cx="14" cy="28" r="12" fill="#ffffff" fillOpacity="0.95" />
+        </g>
+      </svg>
+    </div>
+  );
 }
 
 function LogoBox() {
   return (
-    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm sm:h-20 sm:w-20 sm:rounded-[26px]">
+    <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm sm:h-20 sm:w-20 sm:rounded-[26px]">
+      <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="h-10 w-10 object-contain sm:h-14 sm:w-14"
+        className="relative z-10 h-10 w-10 object-contain sm:h-14 sm:w-14"
       />
     </div>
   );
@@ -210,22 +347,32 @@ function NavButton({
   active,
   label,
   onClick,
+  songkranTheme = false,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
+  songkranTheme?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`relative overflow-hidden rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
         active
-          ? "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
+          ? songkranTheme
+            ? "border border-cyan-200 bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-400 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]"
+            : "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
           : "border border-transparent bg-transparent text-slate-600 hover:bg-white hover:text-violet-700"
       }`}
     >
-      {label}
+      {active && songkranTheme ? (
+        <>
+          <span className="pointer-events-none absolute -left-3 top-1 h-6 w-6 rounded-full bg-white/25 blur-sm" />
+          <span className="pointer-events-none absolute right-2 bottom-1 h-3.5 w-3.5 rounded-full bg-white/30" />
+        </>
+      ) : null}
+      <span className="relative z-10">{label}</span>
     </button>
   );
 }
@@ -234,22 +381,29 @@ function DashboardSubButton({
   active,
   label,
   onClick,
+  songkranTheme = false,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
+  songkranTheme?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      className={`relative overflow-hidden rounded-2xl px-4 py-2 text-sm font-semibold transition ${
         active
-          ? "border border-violet-300 bg-violet-100 text-violet-800"
+          ? songkranTheme
+            ? "border border-cyan-200 bg-gradient-to-r from-cyan-100 via-sky-100 to-fuchsia-100 text-cyan-800 shadow-sm"
+            : "border border-violet-300 bg-violet-100 text-violet-800"
           : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
-      {label}
+      {active && songkranTheme ? (
+        <span className="pointer-events-none absolute right-1 top-1 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
+      <span className="relative z-10">{label}</span>
     </button>
   );
 }
@@ -477,7 +631,8 @@ function LoginFeatureCard({
   desc: string;
 }) {
   return (
-    <div className="rounded-[20px] border border-white/15 bg-white/10 p-3.5 backdrop-blur-sm">
+    <div className="relative overflow-hidden rounded-[20px] border border-white/15 bg-white/10 p-3.5 backdrop-blur-sm">
+      <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
       <div className="text-[11px] uppercase tracking-[0.18em] text-violet-100/80">{title}</div>
       <div className="mt-2 text-sm font-semibold leading-6 text-white/95">{desc}</div>
     </div>
@@ -519,7 +674,7 @@ export default function App() {
     return currentUser.displayName || currentUser.username;
   }, [currentUser]);
 
-  const seasonalTheme = useMemo(() => isSongkranThemeActive(), []);
+  const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   useEffect(() => {
     if (currentUser) {
@@ -739,27 +894,30 @@ export default function App() {
   if (!currentUser) {
     return (
       <div
-        className={
-          seasonalTheme
-            ? "min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50"
-            : "min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50"
-        }
+        className={`relative min-h-screen ${
+          songkranTheme
+            ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
+            : "bg-gradient-to-br from-violet-50 via-white to-fuchsia-50"
+        }`}
       >
+        {songkranTheme ? <SongkranBackdrop /> : null}
+
         <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4 py-4 sm:px-5 lg:px-6">
           <div className="grid w-full max-w-[1020px] overflow-hidden rounded-[24px] border border-violet-200/70 bg-white shadow-[0_18px_56px_rgba(76,29,149,0.10)] lg:grid-cols-[1fr_0.94fr]">
             <div
               className={`relative overflow-hidden p-5 text-white sm:p-6 lg:p-7 ${
-                seasonalTheme
-                  ? "bg-gradient-to-br from-orange-500 via-pink-500 to-sky-500"
+                songkranTheme
+                  ? "bg-gradient-to-br from-sky-700 via-cyan-600 to-fuchsia-600"
                   : "bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700"
               }`}
             >
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_28%)]" />
+              {songkranTheme ? <SongkranBackdrop compact /> : null}
 
               <div className="relative z-10">
                 <div className="flex items-start justify-between gap-4">
                   <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100">
-                    {seasonalTheme ? "Songkran Theme" : "Secure Access"}
+                    Secure Access
                   </div>
                   <LogoBox />
                 </div>
@@ -777,9 +935,9 @@ export default function App() {
                   Rubric with role-based visibility for supervisors and agents.
                 </div>
 
-                {seasonalTheme ? (
-                  <div className="mt-4 rounded-[20px] border border-white/15 bg-white/12 px-4 py-3 text-sm font-semibold text-white/95 backdrop-blur-sm">
-                    🌼 สงกรานต์ธีมเปิดใช้งานอัตโนมัติถึง 25 เม.ย. 2026 และหลังจากนั้นระบบจะกลับธีมเดิมเอง
+                {songkranTheme ? (
+                  <div className="mt-4">
+                    <SongkranBadge />
                   </div>
                 ) : null}
 
@@ -801,6 +959,8 @@ export default function App() {
                     desc="Responsive layout optimized for common laptop browser size"
                   />
                 </div>
+
+                {songkranTheme ? <FestiveIllustration /> : null}
 
                 <div className="mt-6 flex items-center gap-4 rounded-[22px] border border-white/15 bg-white/10 px-4 py-3.5 backdrop-blur-sm">
                   <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
@@ -825,16 +985,17 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white p-5 sm:p-6 lg:p-7">
+            <div className="relative bg-white p-5 sm:p-6 lg:p-7">
+              {songkranTheme ? (
+                <SongkranFlowerCorner className="right-2 top-2 opacity-80" />
+              ) : null}
+
               <div className="mx-auto w-full max-w-[400px]">
                 <div className="flex justify-center lg:justify-start">
-                  <div
-                    className={`flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border shadow-sm ${
-                      seasonalTheme
-                        ? "border-orange-200 bg-orange-50"
-                        : "border-violet-200 bg-violet-50"
-                    }`}
-                  >
+                  <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm">
+                    {songkranTheme ? (
+                      <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-cyan-300/80" />
+                    ) : null}
                     <img
                       src="/robinhood-logo.png"
                       alt="Robinhood"
@@ -844,11 +1005,7 @@ export default function App() {
                 </div>
 
                 <div className="mt-5">
-                  <div
-                    className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${
-                      seasonalTheme ? "text-orange-600" : "text-violet-700"
-                    }`}
-                  >
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">
                     Sign In
                   </div>
                   <div className="mt-2 text-[26px] font-bold tracking-tight text-slate-900 sm:text-[30px]">
@@ -902,8 +1059,8 @@ export default function App() {
                     type="button"
                     onClick={handleLogin}
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95 ${
-                      seasonalTheme
-                        ? "bg-gradient-to-r from-orange-500 via-pink-500 to-sky-500"
+                      songkranTheme
+                        ? "bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500"
                         : "bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600"
                     }`}
                   >
@@ -959,38 +1116,40 @@ export default function App() {
         resultMessage={resetResultMessage}
       />
 
-      <div
-        className={
-          seasonalTheme
-            ? "min-h-screen bg-gradient-to-br from-orange-50 via-rose-50 to-sky-50"
-            : "min-h-screen bg-slate-100"
-        }
-      >
+      <div className="min-h-screen bg-slate-100">
         <div
-          className={`border-b backdrop-blur-sm ${
-            seasonalTheme
-              ? "border-orange-100 bg-gradient-to-r from-white via-orange-50/50 to-sky-50/40"
+          className={`relative border-b backdrop-blur-sm ${
+            songkranTheme
+              ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60"
               : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"
           }`}
         >
+          {songkranTheme ? <SongkranBackdrop compact /> : null}
+
           <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-5 lg:px-6 2xl:px-8">
             <div className="grid gap-4 xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] xl:items-start">
               <div
-                className={`min-w-0 rounded-[24px] border bg-white/85 px-5 py-4 shadow-sm ${
-                  seasonalTheme ? "border-orange-200/70" : "border-violet-200/70"
+                className={`relative min-w-0 rounded-[24px] border bg-white/90 px-5 py-4 shadow-sm ${
+                  songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"
                 }`}
               >
-                <div
-                  className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${
-                    seasonalTheme ? "text-orange-600" : "text-violet-700"
-                  }`}
-                >
+                {songkranTheme ? (
+                  <SongkranFlowerCorner className="-right-2 -top-2 opacity-80" />
+                ) : null}
+
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">
                   Robinhood QA
                 </div>
 
                 <div className="mt-1 break-words text-xl font-extrabold leading-tight tracking-tight text-slate-800 sm:text-2xl">
                   Welcome, {welcomeName}
                 </div>
+
+                {songkranTheme ? (
+                  <div className="mt-3">
+                    <SongkranBadge />
+                  </div>
+                ) : null}
 
                 <div className="mt-2 space-y-1 text-sm text-slate-500">
                   <div>
@@ -1001,25 +1160,22 @@ export default function App() {
                     <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
                   </div>
                 </div>
-
-                {seasonalTheme ? (
-                  <div className="mt-3 inline-flex rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
-                    🌼 Songkran Theme active until 25 Apr 2026
-                  </div>
-                ) : null}
               </div>
 
               <div className="grid gap-3">
                 <div
-                  className={`flex flex-wrap items-center gap-3 rounded-[24px] border bg-white/85 px-3 py-3 shadow-sm ${
-                    seasonalTheme ? "border-orange-200/80" : "border-violet-200/80"
+                  className={`relative flex flex-wrap items-center gap-3 overflow-hidden rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${
+                    songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"
                   }`}
                 >
-                  <span
-                    className={`px-2 text-[11px] font-bold uppercase tracking-[0.16em] ${
-                      seasonalTheme ? "text-orange-500" : "text-violet-500"
-                    }`}
-                  >
+                  {songkranTheme ? (
+                    <>
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-sky-400 to-fuchsia-400" />
+                      <div className="pointer-events-none absolute left-0 right-0 top-1 h-6 bg-[linear-gradient(90deg,rgba(125,211,252,0.10)_0%,rgba(34,211,238,0.18)_35%,rgba(232,121,249,0.12)_100%)]" />
+                    </>
+                  ) : null}
+
+                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
                     Performance
                   </span>
 
@@ -1027,18 +1183,16 @@ export default function App() {
                     active={activeTab === "dashboard"}
                     label="Dashboard"
                     onClick={() => setActiveTab("dashboard")}
+                    songkranTheme={songkranTheme}
                   />
                   <NavButton
                     active={activeTab === "summary"}
                     label="Summary"
                     onClick={() => setActiveTab("summary")}
+                    songkranTheme={songkranTheme}
                   />
 
-                  <span
-                    className={`ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] ${
-                      seasonalTheme ? "text-sky-500" : "text-fuchsia-500"
-                    }`}
-                  >
+                  <span className="ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
                     Review
                   </span>
 
@@ -1046,20 +1200,31 @@ export default function App() {
                     active={activeTab === "appeal"}
                     label="Appeal"
                     onClick={() => setActiveTab("appeal")}
+                    songkranTheme={songkranTheme}
                   />
                   <NavButton
                     active={activeTab === "rubric"}
                     label="QA Rubric"
                     onClick={() => setActiveTab("rubric")}
+                    songkranTheme={songkranTheme}
                   />
                   <NavButton
                     active={activeTab === "evaluation-studio"}
                     label="Evaluation Studio"
                     onClick={() => setActiveTab("evaluation-studio")}
+                    songkranTheme={songkranTheme}
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 rounded-[24px] border border-slate-200 bg-white/85 px-3 py-3 shadow-sm">
+                <div
+                  className={`relative flex flex-wrap items-center gap-3 rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${
+                    songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"
+                  }`}
+                >
+                  {songkranTheme ? (
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-fuchsia-300 via-cyan-300 to-sky-300" />
+                  ) : null}
+
                   <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
                     Account
                   </span>
@@ -1109,11 +1274,13 @@ export default function App() {
                   active={dashboardSubTab === "overview"}
                   label="Overview"
                   onClick={() => setDashboardSubTab("overview")}
+                  songkranTheme={songkranTheme}
                 />
                 <DashboardSubButton
                   active={dashboardSubTab === "case-detail"}
                   label="Case Detail"
                   onClick={() => setDashboardSubTab("case-detail")}
+                  songkranTheme={songkranTheme}
                 />
               </div>
             </div>
@@ -1131,7 +1298,6 @@ export default function App() {
                 setActiveTab("dashboard");
                 setDashboardSubTab("case-detail");
               }}
-              seasonalTheme={seasonalTheme}
             />
           </div>
         ) : activeTab === "appeal" ? (
@@ -1139,7 +1305,6 @@ export default function App() {
             currentUser={currentUser}
             externalSelectedAgent={selectedAgentGlobal}
             onSelectedAgentChange={setSelectedAgentGlobal}
-            seasonalTheme={seasonalTheme}
           />
         ) : activeTab === "summary" ? (
           <SummaryMockup
@@ -1150,7 +1315,6 @@ export default function App() {
             onSelectedAgentChange={setSelectedAgentGlobal}
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
-            seasonalTheme={seasonalTheme}
           />
         ) : activeTab === "evaluation-studio" ? (
           <EvaluationStudioPage />
