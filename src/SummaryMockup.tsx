@@ -58,6 +58,7 @@ type PeriodSummary = {
   grade: Grade;
   revisedCount: number;
   incentive: number;
+  policyMonthKey: string;
 };
 
 type AgentPeriodSummary = {
@@ -68,6 +69,7 @@ type AgentPeriodSummary = {
   grade: Grade;
   revisedCount: number;
   incentive: number;
+  policyMonthKey: string;
 };
 
 type PeriodTableRow = {
@@ -80,10 +82,12 @@ type PeriodTableRow = {
   grade: Grade;
   revisedCount: number;
   incentive: number;
+  policyMonthKey: string;
 };
 
 const CASE_TARGET = 10;
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
@@ -162,7 +166,23 @@ function isSameAgent(a: string, b: string) {
   );
 }
 
-function scoreToGrade(score: number): Grade {
+function isNewPolicyMonth(monthKey: string) {
+  return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
+}
+
+function isSpecialIncentiveMonth(monthKey: string) {
+  if (!isNewPolicyMonth(monthKey)) return false;
+  return monthKey.endsWith("-01") || monthKey.endsWith("-04");
+}
+
+function scoreToGrade(score: number, monthKey: string): Grade {
+  if (isNewPolicyMonth(monthKey)) {
+    if (score >= 90) return "A";
+    if (score >= 85) return "B";
+    if (score >= 80) return "C";
+    return "D";
+  }
+
   if (score >= 90) return "A";
   if (score >= 80) return "B";
   if (score >= 70) return "C";
@@ -193,8 +213,25 @@ function formatCurrencyTHB(value: number) {
   }).format(value);
 }
 
-function getIncentiveValue(caseCount: number, avg: number) {
+function getPolicyMonthKeyForCases(cases: CaseItem[]) {
+  const validMonthKeys = cases
+    .map((item) => item.monthKey)
+    .filter((item) => item && item !== "unknown")
+    .sort((a, b) => a.localeCompare(b));
+
+  return validMonthKeys.length ? validMonthKeys[validMonthKeys.length - 1] : "unknown";
+}
+
+function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
   if (caseCount < CASE_TARGET) return 0;
+
+  if (isNewPolicyMonth(monthKey)) {
+    if (avg >= 90) return 1000;
+    if (avg >= 85) return 700;
+    if (avg >= 80) return 500;
+    return 0;
+  }
+
   if (avg >= 90) return 1000;
   if (avg >= 80) return 700;
   if (avg >= 70) return 300;
@@ -209,6 +246,18 @@ function excelDateToJSDate(value: any): Date | null {
     if (!parsed) return null;
     return new Date(parsed.y, parsed.m - 1, parsed.d);
   }
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const ddmmyyyyMatch = text.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (ddmmyyyyMatch) {
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+  }
+
   const asDate = new Date(value);
   if (!Number.isNaN(asDate.getTime())) return asDate;
   return null;
@@ -288,14 +337,16 @@ function summarizeCases(cases: CaseItem[]): PeriodSummary {
   const avgScore =
     cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(caseCount, 1);
   const revisedCount = cases.filter((item) => item.reviewStatus === "Revised").length;
+  const policyMonthKey = getPolicyMonthKeyForCases(cases);
 
   return {
     label: "-",
     caseCount,
     avgScore: Number(avgScore.toFixed(2)),
-    grade: scoreToGrade(avgScore),
+    grade: scoreToGrade(avgScore, policyMonthKey),
     revisedCount,
-    incentive: getIncentiveValue(caseCount, avgScore),
+    incentive: getIncentiveValue(caseCount, avgScore, policyMonthKey),
+    policyMonthKey,
   };
 }
 
@@ -330,15 +381,16 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
   });
 }
 
-function emptyAgentPeriodSummary(agent: string, label: string): AgentPeriodSummary {
+function emptyAgentPeriodSummary(agent: string, label: string, policyMonthKey = "unknown"): AgentPeriodSummary {
   return {
     agent,
     label,
     caseCount: 0,
     avgScore: 0,
-    grade: "F",
+    grade: scoreToGrade(0, policyMonthKey),
     revisedCount: 0,
     incentive: 0,
+    policyMonthKey,
   };
 }
 
@@ -932,6 +984,7 @@ export default function SummaryMockup({
 
             const auditDateRaw = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(auditDateRaw);
+            const monthKey = getMonthKey(auditDateObj);
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -941,7 +994,7 @@ export default function SummaryMockup({
               agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
               auditDate: formatAuditDate(auditDateRaw),
               auditDateObj,
-              monthKey: getMonthKey(auditDateObj),
+              monthKey,
               monthLabel: getMonthLabel(auditDateObj),
               yearKey: getYearKey(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
@@ -950,7 +1003,7 @@ export default function SummaryMockup({
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
-              grade: scoreToGrade(finalScoreVal),
+              grade: scoreToGrade(finalScoreVal, monthKey),
               reviewStatus,
               topics,
               revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
@@ -1099,7 +1152,8 @@ export default function SummaryMockup({
         });
 
         if (!groups.size && selectedWeek !== "all") {
-          return [emptyAgentPeriodSummary(agent, selectedWeek)];
+          const policyMonthKey = getPolicyMonthKeyForCases(weekScopedCases);
+          return [emptyAgentPeriodSummary(agent, selectedWeek, policyMonthKey)];
         }
 
         return [...groups.entries()].map(([label, cases]) => {
@@ -1112,6 +1166,7 @@ export default function SummaryMockup({
             grade: summary.grade,
             revisedCount: summary.revisedCount,
             incentive: summary.incentive,
+            policyMonthKey: summary.policyMonthKey,
           };
         });
       })
@@ -1156,7 +1211,9 @@ export default function SummaryMockup({
             selectedMonth === "all"
               ? "All Months"
               : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
-          return emptyAgentPeriodSummary(agent, label);
+          const policyMonthKey =
+            selectedMonth === "all" ? getPolicyMonthKeyForCases(monthScopedCases) : selectedMonth;
+          return emptyAgentPeriodSummary(agent, label, policyMonthKey);
         }
 
         const summary = summarizeCases(targetCases);
@@ -1171,6 +1228,7 @@ export default function SummaryMockup({
           grade: summary.grade,
           revisedCount: summary.revisedCount,
           incentive: summary.incentive,
+          policyMonthKey: summary.policyMonthKey,
         };
       })
       .sort((a, b) => a.agent.localeCompare(b.agent));
@@ -1211,7 +1269,12 @@ export default function SummaryMockup({
         const targetCases = yearScopedCases.filter((item) => isSameAgent(item.agent, agent));
 
         if (!targetCases.length) {
-          return emptyAgentPeriodSummary(agent, selectedYear === "all" ? "All Years" : selectedYear);
+          const policyMonthKey = getPolicyMonthKeyForCases(yearScopedCases);
+          return emptyAgentPeriodSummary(
+            agent,
+            selectedYear === "all" ? "All Years" : selectedYear,
+            policyMonthKey
+          );
         }
 
         const summary = summarizeCases(targetCases);
@@ -1223,6 +1286,7 @@ export default function SummaryMockup({
           grade: summary.grade,
           revisedCount: summary.revisedCount,
           incentive: summary.incentive,
+          policyMonthKey: summary.policyMonthKey,
         };
       })
       .sort((a, b) => a.agent.localeCompare(b.agent));
@@ -1238,15 +1302,17 @@ export default function SummaryMockup({
 
     const avg = source.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(source.length, 1);
     const revisedCount = source.filter((item) => item.reviewStatus === "Revised").length;
-    const incentive = getIncentiveValue(source.length, avg);
+    const policyMonthKey = getPolicyMonthKeyForCases(source);
+    const incentive = getIncentiveValue(source.length, avg, policyMonthKey);
 
     return {
       caseCount: source.length,
       avgScore: avg,
-      grade: scoreToGrade(avg),
+      grade: scoreToGrade(avg, policyMonthKey),
       revisedCount,
       incentive,
       topicSummary: buildTopicSummary(source),
+      policyMonthKey,
     };
   }, [viewMode, weekScopedCases, monthScopedCases, yearScopedCases]);
 
@@ -1264,6 +1330,10 @@ export default function SummaryMockup({
 
   const viewingWeekText = selectedWeek === "all" ? "All Weeks" : selectedWeek;
   const viewingYearText = selectedYear === "all" ? "All Years" : selectedYear;
+
+  const policyText = isNewPolicyMonth(summaryCards.policyMonthKey)
+    ? "New Criteria"
+    : "Previous Criteria";
 
   if (isLoading) {
     return (
@@ -1299,7 +1369,7 @@ export default function SummaryMockup({
       <div
         className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
           songkranTheme
-            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-600"
+            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-700"
             : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
         }`}
       >
@@ -1478,7 +1548,7 @@ export default function SummaryMockup({
           </div>
 
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
               <MetricCard
                 title="Total Cases"
                 value={String(summaryCards.caseCount)}
@@ -1500,7 +1570,7 @@ export default function SummaryMockup({
               <MetricCard
                 title="Current Grade"
                 value={summaryCards.grade}
-                sub="Calculated from current scope"
+                sub={policyText}
                 accent="from-white via-amber-50/50 to-amber-100/70 border-amber-200"
                 valueClassName="text-amber-700"
               />
@@ -1514,7 +1584,11 @@ export default function SummaryMockup({
               <MetricCard
                 title="Estimated Incentive"
                 value={formatCurrencyTHB(summaryCards.incentive)}
-                sub="Only paid when casesครบ 10"
+                sub={
+                  isSpecialIncentiveMonth(summaryCards.policyMonthKey)
+                    ? "Jan/Apr special month"
+                    : "Only paid when casesครบ 10"
+                }
                 accent={
                   songkranTheme
                     ? "from-white via-cyan-50/50 to-fuchsia-100/60 border-cyan-200"
@@ -1522,12 +1596,19 @@ export default function SummaryMockup({
                 }
                 valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
               />
+              <MetricCard
+                title="Policy Month"
+                value={summaryCards.policyMonthKey === "unknown" ? "-" : summaryCards.policyMonthKey}
+                sub={policyText}
+                accent="from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                valueClassName="text-emerald-700"
+              />
             </div>
 
             <Panel>
               <PanelHeader title="Current Viewing Scope" subtitle="Current selected agent and period" />
               <PanelBody>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
                       Viewing Agent
@@ -1554,6 +1635,13 @@ export default function SummaryMockup({
                       Viewing Year
                     </div>
                     <div className="mt-2 text-sm font-bold text-slate-900">{viewingYearText}</div>
+                  </div>
+
+                  <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                      Grade Policy
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-slate-900">{policyText}</div>
                   </div>
                 </div>
               </PanelBody>
