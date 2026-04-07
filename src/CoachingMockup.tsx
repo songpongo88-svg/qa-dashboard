@@ -91,6 +91,10 @@ const AGENT_MASTER = [
 
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
+const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
+  "Arisa Aiemrit": "2026-04",
+};
+
 function normalizeText(value: unknown) {
   return String(value ?? "")
     .replace(/\u00A0/g, " ")
@@ -101,6 +105,23 @@ function normalizeText(value: unknown) {
 
 function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
+}
+
+function toTitleCaseName(value: string) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      if (!part) return part;
+      if (part.includes("-")) {
+        return part
+          .split("-")
+          .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p))
+          .join("-");
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
 }
 
 function isSameAgent(a: string, b: string) {
@@ -117,6 +138,19 @@ function isSameAgent(a: string, b: string) {
     ca.includes(cb) ||
     cb.includes(ca)
   );
+}
+
+function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
+  if (!selectedMonthKey || selectedMonthKey === "all") return false;
+
+  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
+    isSameAgent(name, agentName)
+  );
+
+  if (!matchedEntry) return false;
+
+  const [, hideFromMonth] = matchedEntry;
+  return selectedMonthKey >= hideFromMonth;
 }
 
 function isNewPolicyMonth(monthKey: string) {
@@ -895,7 +929,7 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
 
             return {
               key: `row-${index + 1}-${caseId}`,
-              agent: String(rawHelper.getValue(row, "Agent Name")).trim(),
+              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: formatAuditDate(auditDateRaw),
               auditDateObj,
               monthKey,
@@ -927,20 +961,22 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
 
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
-    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])].sort((a, b) =>
-      a.localeCompare(b)
-    );
+
+    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
+      .map((name) => toTitleCaseName(name))
+      .filter((name) => !shouldHideAgentByMonth(name, selectedMonth))
+      .sort((a, b) => a.localeCompare(b));
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser]);
+  }, [allCases, currentUser, selectedMonth]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      setSelectedAgent(currentUser.agentName);
+      setSelectedAgent(toTitleCaseName(currentUser.agentName));
       return;
     }
 
@@ -949,9 +985,21 @@ export default function CoachingMockup({ currentUser }: { currentUser: any }) {
     }
   }, [currentUser, visibleAgentList, selectedAgent]);
 
+  useEffect(() => {
+    if (
+      currentUser?.role !== "Agent" &&
+      selectedAgent &&
+      !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))
+    ) {
+      setSelectedAgent(visibleAgentList[0] || "");
+      setSelectedMonth("all");
+      setSelectedWeek("all");
+    }
+  }, [selectedAgent, visibleAgentList, currentUser]);
+
   const effectiveAgent =
     currentUser?.role === "Agent" && currentUser.agentName
-      ? currentUser.agentName
+      ? toTitleCaseName(currentUser.agentName)
       : selectedAgent;
 
   const baseAgentCases = useMemo(() => {
