@@ -187,6 +187,20 @@ function isSameAgent(a: string, b: string) {
   );
 }
 
+function getUniqueNormalizedAgents(agentNames: string[]) {
+  const result: string[] = [];
+
+  agentNames
+    .map((name) => toTitleCaseName(String(name || "").trim()))
+    .filter(Boolean)
+    .forEach((name) => {
+      const exists = result.some((item) => isSameAgent(item, name));
+      if (!exists) result.push(name);
+    });
+
+  return result.sort((a, b) => a.localeCompare(b));
+}
+
 function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
   if (!selectedMonthKey || selectedMonthKey === "all") return false;
 
@@ -792,7 +806,7 @@ export default function SummaryMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [viewMode, setViewMode] = useState<SummaryView>("weekly-dashboard");
-  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
+  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "all");
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
@@ -1056,29 +1070,50 @@ export default function SummaryMockup({
     loadWorkbook();
   }, []);
 
+  const latestMonthKey = useMemo(() => {
+    return (
+      [...new Set(allCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
+        .sort((a, b) => b.localeCompare(a))[0] || "all"
+    );
+  }, [allCases]);
+
+  const monthOptions = useMemo(() => {
+    const sourceCases = allCases;
+
+    return Array.from(
+      new Map(
+        sourceCases
+          .filter((item) => item.monthKey !== "unknown")
+          .map((item) => [item.monthKey, item.monthLabel])
+      ).entries()
+    )
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
+  }, [allCases]);
+
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
 
     const effectiveMonthForVisibility =
       selectedMonth !== "all"
         ? selectedMonth
-        : monthOptions?.[0]?.value || "all";
+        : latestMonthKey;
 
-    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
-      .map((name) => toTitleCaseName(name))
-      .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility))
-      .sort((a, b) => a.localeCompare(b));
+    const mergedAgents = getUniqueNormalizedAgents([...AGENT_MASTER, ...agentsFromCases]).filter(
+      (name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility)
+    );
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser, selectedMonth]);
+  }, [allCases, currentUser, selectedMonth, latestMonthKey]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      setSelectedAgent(currentUser.agentName);
+      const normalizedAgent = toTitleCaseName(currentUser.agentName);
+      setSelectedAgent(normalizedAgent);
       return;
     }
 
@@ -1108,20 +1143,6 @@ export default function SummaryMockup({
     if (!effectiveAgent || effectiveAgent === "all") return allCases;
     return allCases.filter((item) => isSameAgent(item.agent, effectiveAgent));
   }, [allCases, effectiveAgent]);
-
-  const monthOptions = useMemo(() => {
-    const sourceCases = filteredByAgent.length > 0 ? filteredByAgent : allCases;
-
-    return Array.from(
-      new Map(
-        sourceCases
-          .filter((item) => item.monthKey !== "unknown")
-          .map((item) => [item.monthKey, item.monthLabel])
-      ).entries()
-    )
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => b.value.localeCompare(a.value));
-  }, [filteredByAgent, allCases]);
 
   const yearOptions = useMemo(() => {
     return [
