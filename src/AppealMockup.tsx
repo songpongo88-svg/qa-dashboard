@@ -59,6 +59,10 @@ const AGENT_MASTER = [
   "Wassana Phothong",
 ].sort((a, b) => a.localeCompare(b));
 
+const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
+  "Arisa Aiemrit": "2026-04",
+};
+
 const TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
@@ -106,6 +110,23 @@ function normalizeCaseId(value: unknown) {
     .toUpperCase();
 }
 
+function toTitleCaseName(value: string) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      if (!part) return part;
+      if (part.includes("-")) {
+        return part
+          .split("-")
+          .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p))
+          .join("-");
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 function isSameAgent(a: string, b: string) {
   const na = normalizeText(a);
   const nb = normalizeText(b);
@@ -120,6 +141,19 @@ function isSameAgent(a: string, b: string) {
     ca.includes(cb) ||
     cb.includes(ca)
   );
+}
+
+function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
+  if (!selectedMonthKey || selectedMonthKey === "all" || selectedMonthKey === "unknown") return false;
+
+  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
+    isSameAgent(name, agentName)
+  );
+
+  if (!matchedEntry) return false;
+
+  const [, hideFromMonth] = matchedEntry;
+  return selectedMonthKey >= hideFromMonth;
 }
 
 function isNewPolicyMonth(monthKey: string) {
@@ -752,9 +786,11 @@ export default function AppealMockup({
             const normalizedCaseId = normalizeCaseId(caseId);
             const rawRow = rawCaseMap.get(normalizedCaseId);
 
-            const agent = rawRow
+            const rawAgent = rawRow
               ? String(rawHelper.getValue(rawRow, "Agent Name") ?? "").trim()
               : String(appealHelper.getValue(row, "Agent Name") ?? "").trim();
+
+            const agent = toTitleCaseName(rawAgent);
 
             const inquiry = rawRow
               ? String(
@@ -776,7 +812,6 @@ export default function AppealMockup({
 
             const auditDateObj = parseExcelDate(auditRaw);
             const monthKey = getMonthKey(auditDateObj);
-
             const auditDate = formatDateOnly(auditRaw);
 
             const weekLabel = rawRow
@@ -981,20 +1016,42 @@ export default function AppealMockup({
     loadWorkbook();
   }, []);
 
+  const latestMonthKey = useMemo(() => {
+    return (
+      [...new Set(allCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
+        .sort((a, b) => b.localeCompare(a))[0] || "all"
+    );
+  }, [allCases]);
+
   const visibleAgentList = useMemo(() => {
-    const merged = [...new Set([...AGENT_MASTER, ...allCases.map((item) => item.agent).filter(Boolean)])];
+    const effectiveMonthForVisibility =
+      currentUser?.role === "Agent" ? "all" : latestMonthKey;
+
+    const merged = [
+      ...new Set([
+        ...AGENT_MASTER,
+        ...allCases.map((item) => toTitleCaseName(item.agent)).filter(Boolean),
+      ]),
+    ]
+      .map((agent) => toTitleCaseName(agent))
+      .filter((agent) => !shouldHideAgentByMonth(agent, effectiveMonthForVisibility));
+
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return merged.filter((agent) => isSameAgent(agent, currentUser.agentName));
+      return merged
+        .filter((agent) => isSameAgent(agent, currentUser.agentName))
+        .sort((a, b) => a.localeCompare(b));
     }
+
     return merged.sort((a, b) => a.localeCompare(b));
-  }, [allCases, currentUser]);
+  }, [allCases, currentUser, latestMonthKey]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      if (!isSameAgent(selectedAgent || "", currentUser.agentName)) {
-        setSelectedAgent(currentUser.agentName);
+      const agentName = toTitleCaseName(currentUser.agentName);
+      if (!isSameAgent(selectedAgent || "", agentName)) {
+        setSelectedAgent(agentName);
       }
-      onSelectedAgentChange?.(currentUser.agentName);
+      onSelectedAgentChange?.(agentName);
       return;
     }
 
@@ -1006,8 +1063,8 @@ export default function AppealMockup({
 
   const effectiveSelectedAgent =
     currentUser?.role === "Agent" && currentUser.agentName
-      ? String(currentUser.agentName).trim()
-      : String(selectedAgent || "").trim();
+      ? toTitleCaseName(String(currentUser.agentName).trim())
+      : toTitleCaseName(String(selectedAgent || "").trim());
 
   const baseVisibleCases = useMemo(() => {
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
