@@ -128,6 +128,10 @@ function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
 }
 
+function canonicalAgentKey(value: unknown) {
+  return compactText(value);
+}
+
 function toTitleCaseName(value: string) {
   return String(value || "")
     .trim()
@@ -146,19 +150,23 @@ function toTitleCaseName(value: string) {
 }
 
 function isSameAgent(a: string, b: string) {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  const ca = compactText(a);
-  const cb = compactText(b);
+  if (!a || !b) return false;
+  return canonicalAgentKey(a) === canonicalAgentKey(b);
+}
 
-  return (
-    na === nb ||
-    ca === cb ||
-    na.includes(nb) ||
-    nb.includes(na) ||
-    ca.includes(cb) ||
-    cb.includes(ca)
-  );
+function dedupeAgentNames(names: string[]) {
+  const map = new Map<string, string>();
+
+  for (const rawName of names) {
+    const cleaned = toTitleCaseName(String(rawName || "").trim());
+    const key = canonicalAgentKey(cleaned);
+    if (!key) continue;
+    if (!map.has(key)) {
+      map.set(key, cleaned);
+    }
+  }
+
+  return [...map.values()].sort((a, b) => a.localeCompare(b));
 }
 
 function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
@@ -1220,6 +1228,16 @@ function LogoHeaderBox() {
   );
 }
 
+async function fetchFirstAvailable(urls: string[]) {
+  for (const url of urls) {
+    const response = await fetch(url);
+    if (response.ok) {
+      return { response, matchedUrl: url };
+    }
+  }
+  throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
+}
+
 function PremiumBarChart({
   title,
   subtitle,
@@ -1752,16 +1770,15 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const [rawResponse, appealResponse] = await Promise.all([
-          fetch("/QA_RawData1.xlsx"),
-          fetch("/Appleal ROWDATA.xlsx"),
+        const rawResponse = await fetch("/QA_RawData1.xlsx");
+        const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
+          "/Appleal ROWDATA.xlsx",
+          "/Appeal ROWDATA.xlsx",
+          "/Appeal_ROWDATA.xlsx",
         ]);
 
         if (!rawResponse.ok) {
           throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
-        }
-        if (!appealResponse.ok) {
-          throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
         }
 
         const rawBuffer = await rawResponse.arrayBuffer();
@@ -1813,7 +1830,7 @@ export default function DashboardMockup({
         })();
 
         if (appealHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ Appleal ROWDATA.xlsx");
+          throw new Error(`ไม่พบแถว Header ในไฟล์ ${matchedUrl.replace("/", "")}`);
         }
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
@@ -1999,10 +2016,9 @@ export default function DashboardMockup({
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
 
-    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
-      .map((name) => toTitleCaseName(name))
-      .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility))
-      .sort((a, b) => a.localeCompare(b));
+    const mergedAgents = dedupeAgentNames([...AGENT_MASTER, ...agentsFromCases]).filter(
+      (name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility)
+    );
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
@@ -2013,10 +2029,11 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      if (!isSameAgent(selectedAgent || "", currentUser.agentName)) {
-        setSelectedAgent(currentUser.agentName);
+      const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
+      if (!isSameAgent(selectedAgent || "", lockedAgent)) {
+        setSelectedAgent(lockedAgent);
       }
-      onSelectedAgentChange?.(currentUser.agentName);
+      onSelectedAgentChange?.(lockedAgent);
       return;
     }
 
@@ -2028,7 +2045,7 @@ export default function DashboardMockup({
 
   const effectiveSelectedAgent =
     currentUser?.role === "Agent" && currentUser.agentName
-      ? String(currentUser.agentName).trim()
+      ? toTitleCaseName(String(currentUser.agentName).trim())
       : String(selectedAgent || "").trim();
 
   const agentCases = useMemo(() => {
@@ -2277,7 +2294,7 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด QA_RawData1.xlsx + Appleal ROWDATA.xlsx...
+          กำลังโหลด QA_RawData1.xlsx + Appeal ROWDATA...
         </div>
       </div>
     );
@@ -2290,7 +2307,8 @@ export default function DashboardMockup({
           <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
           <div className="mt-3 text-sm text-slate-600">
-            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx และ public/Appleal ROWDATA.xlsx
+            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx และไฟล์ appeal ใช้ชื่อใดชื่อหนึ่งใน:
+            Appleal ROWDATA.xlsx / Appeal ROWDATA.xlsx / Appeal_ROWDATA.xlsx
           </div>
         </div>
       </div>
@@ -2387,7 +2405,7 @@ export default function DashboardMockup({
                     >
                       <option value="">All Agents</option>
                       {visibleAgentList.map((agent) => (
-                        <option key={agent} value={agent}>
+                        <option key={canonicalAgentKey(agent)} value={agent}>
                           {agent}
                         </option>
                       ))}
