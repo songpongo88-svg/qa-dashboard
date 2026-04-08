@@ -295,19 +295,14 @@ function reviewTone(reviewStatus: ReviewStatus) {
     : "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+/**
+ * แก้ปัญหา date ลด 1 วันจาก Excel
+ * - ถ้า XLSX ส่ง Date object มาแบบ UTC midnight จะใช้ค่า UTC date แทน
+ * - ถ้าเป็น serial number จะ parse ตรง ๆ
+ * - ถ้าเป็น string dd/MM/yyyy จะ parse แบบ local ปกติ
+ */
 function excelDateToJSDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return new Date(
-      value.getFullYear(),
-      value.getMonth(),
-      value.getDate(),
-      value.getHours(),
-      value.getMinutes(),
-      value.getSeconds()
-    );
-  }
 
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
@@ -316,9 +311,20 @@ function excelDateToJSDate(value: any): Date | null {
       parsed.y,
       parsed.m - 1,
       parsed.d,
-      parsed.H || 0,
-      parsed.M || 0,
-      parsed.S || 0
+      parsed.H ?? 12,
+      parsed.M ?? 0,
+      parsed.S ?? 0
+    );
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(
+      value.getUTCFullYear(),
+      value.getUTCMonth(),
+      value.getUTCDate(),
+      value.getUTCHours() || 12,
+      value.getUTCMinutes() || 0,
+      value.getUTCSeconds() || 0
     );
   }
 
@@ -329,19 +335,25 @@ function excelDateToJSDate(value: any): Date | null {
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
   );
   if (ddmmyyyyMatch) {
-    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
+    const [, d, m, y, hh = "12", mm = "0", ss = "0"] = ddmmyyyyMatch;
     return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+  }
+
+  const ymdMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0);
   }
 
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
     return new Date(
-      parsed.getFullYear(),
-      parsed.getMonth(),
-      parsed.getDate(),
-      parsed.getHours(),
-      parsed.getMinutes(),
-      parsed.getSeconds()
+      parsed.getUTCFullYear(),
+      parsed.getUTCMonth(),
+      parsed.getUTCDate(),
+      parsed.getUTCHours() || 12,
+      parsed.getUTCMinutes() || 0,
+      parsed.getUTCSeconds() || 0
     );
   }
 
@@ -607,294 +619,73 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
   };
 }
 
-function SongkranBackdrop() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute left-[-40px] top-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
-      <div className="absolute right-0 top-12 h-36 w-36 rounded-full bg-fuchsia-300/20 blur-3xl" />
-      <div className="absolute left-1/3 bottom-0 h-40 w-40 rounded-full bg-sky-300/15 blur-3xl" />
-      <div className="absolute right-1/4 bottom-4 h-28 w-28 rounded-full bg-violet-300/15 blur-3xl" />
-      <div className="absolute left-[10%] top-[20%] h-3 w-3 rounded-full bg-white/80" />
-      <div className="absolute left-[18%] top-[12%] h-4 w-4 rounded-full bg-cyan-300/60" />
-      <div className="absolute right-[12%] top-[18%] h-3 w-3 rounded-full bg-pink-300/50" />
-    </div>
-  );
-}
-
-function SongkranFlowerCorner({
-  className = "",
-}: {
-  className?: string;
-}) {
-  return (
-    <div className={`pointer-events-none absolute ${className}`}>
-      <div className="relative h-12 w-12">
-        <span className="absolute left-4 top-0 h-4 w-4 rounded-full bg-pink-300/70" />
-        <span className="absolute left-0 top-4 h-4 w-4 rounded-full bg-fuchsia-300/70" />
-        <span className="absolute left-4 top-8 h-4 w-4 rounded-full bg-cyan-300/70" />
-        <span className="absolute left-8 top-4 h-4 w-4 rounded-full bg-sky-300/70" />
-        <span className="absolute left-4 top-4 h-4 w-4 rounded-full bg-white/85 shadow-sm" />
-      </div>
-    </div>
-  );
-}
-
-function Panel({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
-    >
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
-      ) : null}
-      {children}
-    </div>
-  );
-}
-
-function PanelHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
-  const songkranTheme = isSongkranThemeActive();
-
-  return (
-    <div
-      className={`border-b px-5 py-4 ${
-        songkranTheme
-          ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
-          : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
-      }`}
-    >
-      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
-      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
-    </div>
-  );
-}
-
-function PanelBody({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <div className={`p-5 lg:p-6 ${className}`}>{children}</div>;
-}
-
-function MetricCard({
-  title,
-  value,
-  sub,
-  accent = "from-white via-violet-50/40 to-fuchsia-50/60 border-violet-200/70",
-  valueClassName = "text-slate-900",
-  helper,
-}: {
-  title: string;
-  value: string;
-  sub: string;
-  accent?: string;
-  valueClassName?: string;
-  helper?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
-    >
-      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      {isSongkranThemeActive() ? (
-        <span className="pointer-events-none absolute right-3 top-3 h-3 w-3 rounded-full bg-cyan-300/70" />
-      ) : null}
-      <div className="p-5 lg:p-6">
-        <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
-          {value}
-        </div>
-        {helper ? <div className="mt-3">{helper}</div> : null}
-        <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
-      </div>
-    </div>
-  );
-}
-
-function WeeklySnapshotCard({
-  label,
+function DataHealthChecks({
   caseCount,
-  averageDisplay,
-  isActive,
-  onClick,
+  agentCount,
+  appealCount,
 }: {
-  label: string;
   caseCount: number;
-  averageDisplay: string;
-  isActive: boolean;
-  onClick: () => void;
+  agentCount: number;
+  appealCount: number;
 }) {
-  const songkranTheme = isSongkranThemeActive();
+  const tests = [
+    { name: "Raw data loaded", pass: caseCount > 0 },
+    { name: "Agent list built", pass: agentCount > 0 },
+    { name: "Appeal merge loaded", pass: appealCount > 0 },
+    { name: "Case URL available", pass: true },
+  ];
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative w-full overflow-hidden rounded-[22px] border px-4 py-4 text-left transition-all duration-200 ${
-        isActive
-          ? songkranTheme
-            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.18)]"
-            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.18)]"
-          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/70 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
-      }`}
-    >
-      {songkranTheme && isActive ? (
-        <span className="pointer-events-none absolute right-2 top-2 h-3.5 w-3.5 rounded-full bg-cyan-300/80" />
-      ) : null}
-
-      <div className="font-semibold text-slate-900">{label}</div>
-      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
-          <div className="text-slate-500">Average Score</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{averageDisplay}</div>
+    <div className="space-y-2">
+      {tests.map((test) => (
+        <div
+          key={test.name}
+          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
+            test.pass
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+        >
+          <span>{test.name}</span>
+          <span className="font-semibold">{test.pass ? "PASS" : "FAIL"}</span>
         </div>
-        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
-          <div className="text-slate-500">Cases</div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">{caseCount}</div>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function CaseNavigatorCard({
-  item,
-  isSelected,
-  onSelect,
-}: {
-  item: CaseItem;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  const songkranTheme = isSongkranThemeActive();
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      className={`relative h-full cursor-pointer overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-200 ${
-        isSelected
-          ? songkranTheme
-            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
-            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.16)]"
-          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/60 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
-      }`}
-    >
-      {songkranTheme ? (
-        <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 rounded-full bg-cyan-300/70" />
-      ) : null}
-
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
-          <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
-        </div>
-
-        <div className="flex flex-col items-end gap-1">
-          <span
-            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
-              item.grade
-            )}`}
-          >
-            {item.grade}
-          </span>
-
-          {item.reviewStatus === "Revised" ? (
-            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-              Revised
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="mt-3 min-h-[2.75rem] text-[12px] font-medium leading-5 text-slate-800">
-        {item.inquiryTh}
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
-        <span>{item.weekLabel}</span>
-        {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
-          <span className="font-semibold text-violet-700">
-            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
-          </span>
-        ) : (
-          <span>{item.reviewStatus}</span>
-        )}
-      </div>
+      ))}
     </div>
   );
 }
 
-function ReviewStatusBadge({ item }: { item: CaseItem }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span
-        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${reviewTone(
-          item.reviewStatus
-        )}`}
-      >
-        {item.reviewStatus}
-      </span>
-      {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
-        <span className="text-xs font-medium text-violet-700">
-          {Math.round(item.previousScore)} → {Math.round(item.finalScore)}
-        </span>
-      ) : null}
-    </div>
-  );
+function buildHeaderHelpers(headerRow: any[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+
+  const colIndexes = (name: string) => {
+    const target = normalizeText(name);
+    return normalizedHeaders
+      .map((h, idx) => (h === target ? idx : -1))
+      .filter((idx) => idx >= 0);
+  };
+
+  const getValue = (row: any[], name: string, occurrence = 0) => {
+    const indexes = colIndexes(name);
+    const idx = indexes[occurrence];
+    return idx >= 0 ? row[idx] : null;
+  };
+
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+
+  return { getValue, getLastValue };
 }
 
-function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[860px] w-full text-sm">
-        <thead>
-          <tr className="bg-violet-950 text-[11px] text-white">
-            <th className="px-3 py-3">Topic</th>
-            <th className="px-3 py-3 text-left">Description</th>
-            <th className="px-3 py-3">Avg Score</th>
-            <th className="px-3 py-3">Max</th>
-            <th className="px-3 py-3">Avg %</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((entry) => (
-            <tr key={entry.code} className="bg-white">
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.code}</td>
-              <td className="border-t border-slate-200 px-3 py-3">{entry.label}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {entry.pct === "-" ? "-" : `${entry.pct}%`}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
+  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
+  const total = baseTopics.reduce((sum, base) => {
+    const active = revisedMap.get(base.code) || base;
+    return sum + active.score;
+  }, 0);
+  return Number(total.toFixed(2));
 }
 
 function getOriginalTopicMap(topics: Topic[]) {
@@ -967,6 +758,25 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
   const commentChanged = hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment);
 
   return scoreChanged || commentChanged;
+}
+
+function ReviewStatusBadge({ item }: { item: CaseItem }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${reviewTone(
+          item.reviewStatus
+        )}`}
+      >
+        {item.reviewStatus}
+      </span>
+      {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
+        <span className="text-xs font-medium text-violet-700">
+          {Math.round(item.previousScore)} → {Math.round(item.finalScore)}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function CaseDetailTopicTable({
@@ -1144,96 +954,357 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
   );
 }
 
-function DataHealthChecks({
-  caseCount,
-  agentCount,
-  appealCount,
-}: {
-  caseCount: number;
-  agentCount: number;
-  appealCount: number;
-}) {
-  const tests = [
-    { name: "Raw data loaded", pass: caseCount > 0 },
-    { name: "Agent list built", pass: agentCount > 0 },
-    { name: "Appeal merge loaded", pass: appealCount > 0 },
-    { name: "Case URL available", pass: true },
-  ];
-
+function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
   return (
-    <div className="space-y-2">
-      {tests.map((test) => (
-        <div
-          key={test.name}
-          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
-            test.pass
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
-          }`}
-        >
-          <span>{test.name}</span>
-          <span className="font-semibold">{test.pass ? "PASS" : "FAIL"}</span>
-        </div>
-      ))}
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[860px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-3 py-3">Topic</th>
+            <th className="px-3 py-3 text-left">Description</th>
+            <th className="px-3 py-3">Avg Score</th>
+            <th className="px-3 py-3">Max</th>
+            <th className="px-3 py-3">Avg %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((entry) => (
+            <tr key={entry.code} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.code}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{entry.label}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.pct === "-" ? "-" : `${entry.pct}%`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function buildHeaderHelpers(headerRow: any[]) {
-  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+function WeeklySnapshotCard({
+  label,
+  caseCount,
+  averageDisplay,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  caseCount: number;
+  averageDisplay: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const songkranTheme = isSongkranThemeActive();
 
-  const colIndexes = (name: string) => {
-    const target = normalizeText(name);
-    return normalizedHeaders
-      .map((h, idx) => (h === target ? idx : -1))
-      .filter((idx) => idx >= 0);
-  };
-
-  const getValue = (row: any[], name: string, occurrence = 0) => {
-    const indexes = colIndexes(name);
-    const idx = indexes[occurrence];
-    return idx >= 0 ? row[idx] : null;
-  };
-
-  const getLastValue = (row: any[], name: string) => {
-    const indexes = colIndexes(name);
-    if (!indexes.length) return null;
-    return row[indexes[indexes.length - 1]];
-  };
-
-  return { getValue, getLastValue };
-}
-
-function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
-  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
-  const total = baseTopics.reduce((sum, base) => {
-    const active = revisedMap.get(base.code) || base;
-    return sum + active.score;
-  }, 0);
-  return Number(total.toFixed(2));
-}
-
-function LogoHeaderBox() {
   return (
-    <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-full overflow-hidden rounded-[22px] border px-4 py-4 text-left transition-all duration-200 ${
+        isActive
+          ? songkranTheme
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.18)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.18)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/70 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
+      }`}
+    >
+      {songkranTheme && isActive ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3.5 w-3.5 rounded-full bg-cyan-300/80" />
       ) : null}
-      <img
-        src="/robinhood-logo.png"
-        alt="Robinhood Logo"
-        className="relative z-10 h-16 w-16 object-contain lg:h-20 lg:w-20"
-      />
+
+      <div className="font-semibold text-slate-900">{label}</div>
+      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
+          <div className="text-slate-500">Average Score</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{averageDisplay}</div>
+        </div>
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
+          <div className="text-slate-500">Cases</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{caseCount}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/**
+ * แก้ตรงนี้:
+ * - Original ต้องโชว์ Score ด้วย
+ * - Revised โชว์ old → new
+ * - วันที่ใช้ auditDate ที่ parse ใหม่แล้ว
+ */
+function CaseNavigatorCard({
+  item,
+  isSelected,
+  onSelect,
+}: {
+  item: CaseItem;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const songkranTheme = isSongkranThemeActive();
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`relative h-full cursor-pointer overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-200 ${
+        isSelected
+          ? songkranTheme
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.16)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/60 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
+      }`}
+    >
+      {songkranTheme ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
+          <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
+        </div>
+
+        <div className="flex flex-col items-end gap-1">
+          <span
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+              item.grade
+            )}`}
+          >
+            {item.grade}
+          </span>
+
+          {item.reviewStatus === "Revised" ? (
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+              Revised
+            </span>
+          ) : (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+              Original
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 min-h-[2.75rem] text-[12px] font-medium leading-5 text-slate-800">
+        {item.inquiryTh}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
+        <span>{item.weekLabel}</span>
+
+        {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
+          <span className="font-semibold text-violet-700">
+            Score {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
+          </span>
+        ) : (
+          <span className="font-semibold text-slate-700">Score {item.finalScore.toFixed(0)}</span>
+        )}
+      </div>
     </div>
+  );
+}
+
+function SlideOverCaseDetail({
+  open,
+  caseItem,
+  onClose,
+}: {
+  open: boolean;
+  caseItem: CaseItem | null;
+  onClose: () => void;
+}) {
+  if (!open || !caseItem) return null;
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      <div className="relative z-10 flex h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[30px] border border-violet-200 bg-[#f8f6ff] shadow-2xl">
+        <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                Case Detail
+              </div>
+              <div className="mt-1 truncate text-lg font-bold text-slate-900">{caseItem.caseId}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-6 p-5 lg:p-6">
+          <Panel>
+            <PanelHeader
+              title="Case Information"
+              subtitle="Selected case overview and review status"
+            />
+            <PanelBody className="space-y-5">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {caseItem.caseId}
+                    </span>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
+                        caseItem.grade
+                      )}`}
+                    >
+                      Grade {caseItem.grade}
+                    </span>
+                    <ReviewStatusBadge item={caseItem} />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Agent
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">{caseItem.agent}</div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Audit Date
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {caseItem.auditDate}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Timestamp
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {caseItem.auditTimestamp || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Week
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {caseItem.weekLabel}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Final Score
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">
+                        {caseItem.finalScore.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Customer Inquiry
+                    </div>
+                    <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
+                      {caseItem.inquiryTh || "-"}
+                    </div>
+                  </div>
+                </div>
+
+                {caseItem.caseUrl ? (
+                  <a
+                    href={caseItem.caseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                  >
+                    Open Case URL
+                  </a>
+                ) : null}
+              </div>
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
+            <PanelBody>
+              <CaseDetailTopicTable
+                topics={caseItem.topics}
+                revisedTopics={caseItem.revisedTopics}
+                reviewStatus={caseItem.reviewStatus}
+                displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
+              />
+            </PanelBody>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickCaseSearchCard({
+  item,
+  onOpen,
+}: {
+  item: CaseItem;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+    >
+      {isSongkranThemeActive() ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
+          <div className="mt-1 text-[11px] text-slate-500">
+            {item.agent} · {item.auditDate}
+          </div>
+        </div>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
+          {item.grade}
+        </span>
+      </div>
+
+      <div className="mt-2 line-clamp-2 text-[12px] leading-5 text-slate-700">{item.inquiryTh}</div>
+
+      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open in Case Detail</div>
+    </button>
   );
 }
 
 async function fetchFirstAvailable(urls: string[]) {
   for (const url of urls) {
     const response = await fetch(url);
-    if (response.ok) {
-      return { response, matchedUrl: url };
-    }
+    if (response.ok) return { response, matchedUrl: url };
   }
   throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
@@ -1511,190 +1582,6 @@ function PremiumLineChart({
   );
 }
 
-function QuickCaseSearchCard({
-  item,
-  onOpen,
-}: {
-  item: CaseItem;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
-    >
-      {isSongkranThemeActive() ? (
-        <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
-      ) : null}
-
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
-          <div className="mt-1 text-[11px] text-slate-500">
-            {item.agent} · {item.auditDate}
-          </div>
-        </div>
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
-            item.grade
-          )}`}
-        >
-          {item.grade}
-        </span>
-      </div>
-
-      <div className="mt-2 line-clamp-2 text-[12px] leading-5 text-slate-700">{item.inquiryTh}</div>
-
-      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open in Case Detail</div>
-    </button>
-  );
-}
-
-function SlideOverCaseDetail({
-  open,
-  caseItem,
-  onClose,
-}: {
-  open: boolean;
-  caseItem: CaseItem | null;
-  onClose: () => void;
-}) {
-  if (!open || !caseItem) return null;
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
-      <div className="absolute inset-0" onClick={onClose} />
-
-      <div className="relative z-10 flex h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[30px] border border-violet-200 bg-[#f8f6ff] shadow-2xl">
-        <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                Case Detail
-              </div>
-              <div className="mt-1 truncate text-lg font-bold text-slate-900">{caseItem.caseId}</div>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-6 p-5 lg:p-6">
-          <Panel>
-            <PanelHeader
-              title="Case Information"
-              subtitle="Selected case overview and review status"
-            />
-            <PanelBody className="space-y-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {caseItem.caseId}
-                    </span>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
-                        caseItem.grade
-                      )}`}
-                    >
-                      Grade {caseItem.grade}
-                    </span>
-                    <ReviewStatusBadge item={caseItem} />
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Agent
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">{caseItem.agent}</div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Audit Date
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">
-                        {caseItem.auditDate}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Timestamp
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">
-                        {caseItem.auditTimestamp || "-"}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Week
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">
-                        {caseItem.weekLabel}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Final Score
-                      </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">
-                        {caseItem.finalScore.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      Customer Inquiry
-                    </div>
-                    <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
-                      {caseItem.inquiryTh || "-"}
-                    </div>
-                  </div>
-                </div>
-
-                {caseItem.caseUrl ? (
-                  <a
-                    href={caseItem.caseUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-                  >
-                    Open Case URL
-                  </a>
-                ) : null}
-              </div>
-            </PanelBody>
-          </Panel>
-
-          <Panel>
-            <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
-            <PanelBody>
-              <CaseDetailTopicTable
-                topics={caseItem.topics}
-                revisedTopics={caseItem.revisedTopics}
-                reviewStatus={caseItem.reviewStatus}
-                displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
-              />
-            </PanelBody>
-          </Panel>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
@@ -1771,7 +1658,7 @@ export default function DashboardMockup({
         setLoadError("");
 
         const rawResponse = await fetch("/QA_RawData1.xlsx");
-        const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
+        const { response: appealResponse } = await fetchFirstAvailable([
           "/Appleal ROWDATA.xlsx",
           "/Appeal ROWDATA.xlsx",
           "/Appeal_ROWDATA.xlsx",
@@ -1830,7 +1717,7 @@ export default function DashboardMockup({
         })();
 
         if (appealHeaderIndex === -1) {
-          throw new Error(`ไม่พบแถว Header ในไฟล์ ${matchedUrl.replace("/", "")}`);
+          throw new Error("ไม่พบแถว Header ในไฟล์ Appeal ROWDATA");
         }
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
@@ -2345,7 +2232,7 @@ export default function DashboardMockup({
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
                 Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
-                Appleal ROWDATA
+                Appeal ROWDATA
               </div>
               {songkranTheme ? (
                 <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
@@ -2744,319 +2631,6 @@ export default function DashboardMockup({
                     />
                   </div>
 
-                  <Panel>
-                    <PanelHeader
-                      title="QA Grade & Incentive Guide"
-                      subtitle={
-                        isNewPolicyMonth(effectiveViewMonthKey)
-                          ? "New criteria applies from April 2026 onward. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
-                          : "Previous criteria remains for months before April 2026. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
-                      }
-                    />
-                    <PanelBody className="space-y-6">
-                      {isNewPolicyMonth(effectiveViewMonthKey) ? (
-                        <>
-                          <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                            <table className="min-w-[860px] w-full text-sm">
-                              <thead>
-                                <tr className="bg-violet-950 text-[11px] text-white">
-                                  <th className="px-4 py-3 text-left">Score Range</th>
-                                  <th className="px-4 py-3 text-left">Level</th>
-                                  <th className="px-4 py-3 text-center">Grade</th>
-                                  <th className="px-4 py-3 text-left">Meaning</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr className="bg-white">
-                                  <td className="border-t border-slate-200 px-4 py-3">90-100</td>
-                                  <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
-                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                    <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                      A
-                                    </span>
-                                  </td>
-                                  <td className="border-t border-slate-200 px-4 py-3">
-                                    Meets all key standards
-                                  </td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="border-t border-slate-200 px-4 py-3">85-89</td>
-                                  <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                                      B
-                                    </span>
-                                  </td>
-                                  <td className="border-t border-slate-200 px-4 py-3">
-                                    Meets most standards
-                                  </td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="border-t border-slate-200 px-4 py-3">80-84</td>
-                                  <td className="border-t border-slate-200 px-4 py-3">Fair</td>
-                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                      C
-                                    </span>
-                                  </td>
-                                  <td className="border-t border-slate-200 px-4 py-3">
-                                    Acceptable but still has gaps
-                                  </td>
-                                </tr>
-                                <tr className="bg-white">
-                                  <td className="border-t border-slate-200 px-4 py-3">&lt;80</td>
-                                  <td className="border-t border-slate-200 px-4 py-3">
-                                    Improvement Required
-                                  </td>
-                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                    <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                                      D
-                                    </span>
-                                  </td>
-                                  <td className="border-t border-slate-200 px-4 py-3">
-                                    Below company standard
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-
-                          <div className="grid gap-6 xl:grid-cols-2">
-                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                              <table className="min-w-[420px] w-full text-sm">
-                                <thead>
-                                  <tr className="bg-slate-900 text-[11px] text-white">
-                                    <th className="px-4 py-3 text-left">General Month</th>
-                                    <th className="px-4 py-3 text-center">Grade</th>
-                                    <th className="px-4 py-3 text-center">Incentive</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
-                                  </tr>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                                  </tr>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
-                                  </tr>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">
-                                      Improvement Required
-                                    </td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-
-                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                              <table className="min-w-[520px] w-full text-sm">
-                                <thead>
-                                  <tr className="bg-fuchsia-700 text-[11px] text-white">
-                                    <th className="px-4 py-3 text-left">January / April</th>
-                                    <th className="px-4 py-3 text-center">Grade</th>
-                                    <th className="px-4 py-3 text-center">Cash</th>
-                                    <th className="px-4 py-3 text-center">RBH Promo</th>
-                                    <th className="px-4 py-3 text-center">Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
-                                  </tr>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">200</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                                  </tr>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">350</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
-                                  </tr>
-                                  <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">
-                                      Improvement Required
-                                    </td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-[860px] w-full text-sm">
-                            <thead>
-                              <tr className="bg-violet-950 text-[11px] text-white">
-                                <th className="px-4 py-3 text-left">Score Range</th>
-                                <th className="px-4 py-3 text-left">Level</th>
-                                <th className="px-4 py-3 text-center">Grade</th>
-                                <th className="px-4 py-3 text-center">Incentive (THB)</th>
-                                <th className="px-4 py-3 text-left">Meaning</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr className="bg-white">
-                                <td className="border-t border-slate-200 px-4 py-3">90-100</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                    A
-                                  </span>
-                                </td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
-                              </tr>
-                              <tr className="bg-white">
-                                <td className="border-t border-slate-200 px-4 py-3">80-89</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                                    B
-                                  </span>
-                                </td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
-                              </tr>
-                              <tr className="bg-white">
-                                <td className="border-t border-slate-200 px-4 py-3">70-79</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Fair</td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                  <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                    C
-                                  </span>
-                                </td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
-                              </tr>
-                              <tr className="bg-white">
-                                <td className="border-t border-slate-200 px-4 py-3">60-69</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                                    D
-                                  </span>
-                                </td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
-                              </tr>
-                              <tr className="bg-white">
-                                <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Fail</td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                                  <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                                    F
-                                  </span>
-                                </td>
-                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </PanelBody>
-                  </Panel>
-
-                  <Panel>
-                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
-                    <PanelBody className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("all")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "all"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          All Cases
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("originalOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "originalOnly"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Original Only
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("revisedOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "revisedOnly"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Revised Only
-                        </button>
-                      </div>
-
-                      {caseIdSearch.trim() ? (
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
-                            Quick Case Search Result
-                          </div>
-
-                          <div className="mt-3 space-y-3">
-                            {overviewCaseSearchResults.length ? (
-                              overviewCaseSearchResults.map((item) => (
-                                <QuickCaseSearchCard
-                                  key={item.key}
-                                  item={item}
-                                  onOpen={() => {
-                                    setSelectedCaseKey(item.key);
-                                    onOpenCaseDetail?.();
-                                    setSlideOverOpen(true);
-                                  }}
-                                />
-                              ))
-                            ) : (
-                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                ไม่พบเลขเคสที่ค้นหา
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-                    </PanelBody>
-                  </Panel>
-
                   <div className="grid gap-6 xl:grid-cols-2">
                     <PremiumBarChart
                       title="Score Distribution"
@@ -3136,6 +2710,83 @@ export default function DashboardMockup({
                       </PanelBody>
                     </Panel>
                   </div>
+
+                  <Panel>
+                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
+                    <PanelBody className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("all")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "all"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          All Cases
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("originalOnly")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "originalOnly"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          Original Only
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("revisedOnly")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "revisedOnly"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          Revised Only
+                        </button>
+                      </div>
+
+                      {caseIdSearch.trim() ? (
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                            Quick Case Search Result
+                          </div>
+
+                          <div className="mt-3 space-y-3">
+                            {overviewCaseSearchResults.length ? (
+                              overviewCaseSearchResults.map((item) => (
+                                <QuickCaseSearchCard
+                                  key={item.key}
+                                  item={item}
+                                  onOpen={() => {
+                                    setSelectedCaseKey(item.key);
+                                    onOpenCaseDetail?.();
+                                    setSlideOverOpen(true);
+                                  }}
+                                />
+                              ))
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                ไม่พบเลขเคสที่ค้นหา
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </PanelBody>
+                  </Panel>
                 </>
               ) : (
                 <>
