@@ -128,6 +128,10 @@ function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
 }
 
+function canonicalAgentKey(value: unknown) {
+  return compactText(value);
+}
+
 function toTitleCaseName(value: string) {
   return String(value || "")
     .trim()
@@ -146,19 +150,8 @@ function toTitleCaseName(value: string) {
 }
 
 function isSameAgent(a: string, b: string) {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  const ca = compactText(a);
-  const cb = compactText(b);
-
-  return (
-    na === nb ||
-    ca === cb ||
-    na.includes(nb) ||
-    nb.includes(na) ||
-    ca.includes(cb) ||
-    cb.includes(ca)
-  );
+  if (!a || !b) return false;
+  return canonicalAgentKey(a) === canonicalAgentKey(b);
 }
 
 function dedupeAgentNames(names: string[]) {
@@ -166,7 +159,7 @@ function dedupeAgentNames(names: string[]) {
 
   for (const rawName of names) {
     const cleaned = toTitleCaseName(String(rawName || "").trim());
-    const key = compactText(cleaned);
+    const key = canonicalAgentKey(cleaned);
     if (!key) continue;
     if (!map.has(key)) {
       map.set(key, cleaned);
@@ -305,28 +298,27 @@ function reviewTone(reviewStatus: ReviewStatus) {
 function excelDateToJSDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
 
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+      value.getHours(),
+      value.getMinutes(),
+      value.getSeconds()
+    );
+  }
+
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-
     return new Date(
       parsed.y,
       parsed.m - 1,
       parsed.d,
-      parsed.H ?? 12,
-      parsed.M ?? 0,
-      parsed.S ?? 0
-    );
-  }
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return new Date(
-      value.getUTCFullYear(),
-      value.getUTCMonth(),
-      value.getUTCDate(),
-      12,
-      value.getUTCMinutes ? value.getUTCMinutes() : 0,
-      value.getUTCSeconds ? value.getUTCSeconds() : 0
+      parsed.H || 0,
+      parsed.M || 0,
+      parsed.S || 0
     );
   }
 
@@ -337,25 +329,19 @@ function excelDateToJSDate(value: any): Date | null {
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
   );
   if (ddmmyyyyMatch) {
-    const [, d, m, y, hh = "12", mm = "0", ss = "0"] = ddmmyyyyMatch;
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
     return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
-  }
-
-  const ymdMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (ymdMatch) {
-    const [, y, m, d] = ymdMatch;
-    return new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0);
   }
 
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
     return new Date(
-      parsed.getUTCFullYear(),
-      parsed.getUTCMonth(),
-      parsed.getUTCDate(),
-      parsed.getUTCHours() || 12,
-      parsed.getUTCMinutes() || 0,
-      parsed.getUTCSeconds() || 0
+      parsed.getFullYear(),
+      parsed.getMonth(),
+      parsed.getDate(),
+      parsed.getHours(),
+      parsed.getMinutes(),
+      parsed.getSeconds()
     );
   }
 
@@ -365,7 +351,6 @@ function excelDateToJSDate(value: any): Date | null {
 function formatAuditDate(value: any): string {
   const dt = excelDateToJSDate(value);
   if (!dt) return String(value ?? "").trim();
-
   const dd = `${dt.getDate()}`.padStart(2, "0");
   const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
   const yyyy = dt.getFullYear();
@@ -375,13 +360,11 @@ function formatAuditDate(value: any): string {
 function formatAuditTimestamp(value: any): string {
   const dt = excelDateToJSDate(value);
   if (!dt) return "-";
-
   const dd = `${dt.getDate()}`.padStart(2, "0");
   const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
   const yyyy = dt.getFullYear();
   const hh = `${dt.getHours()}`.padStart(2, "0");
   const min = `${dt.getMinutes()}`.padStart(2, "0");
-
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 
@@ -743,6 +726,52 @@ function MetricCard({
   );
 }
 
+function WeeklySnapshotCard({
+  label,
+  caseCount,
+  averageDisplay,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  caseCount: number;
+  averageDisplay: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const songkranTheme = isSongkranThemeActive();
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-full overflow-hidden rounded-[22px] border px-4 py-4 text-left transition-all duration-200 ${
+        isActive
+          ? songkranTheme
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.18)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.18)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/70 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
+      }`}
+    >
+      {songkranTheme && isActive ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3.5 w-3.5 rounded-full bg-cyan-300/80" />
+      ) : null}
+
+      <div className="font-semibold text-slate-900">{label}</div>
+      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
+          <div className="text-slate-500">Average Score</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{averageDisplay}</div>
+        </div>
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
+          <div className="text-slate-500">Cases</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{caseCount}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function CaseNavigatorCard({
   item,
   isSelected,
@@ -796,11 +825,7 @@ function CaseNavigatorCard({
             <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
               Revised
             </span>
-          ) : (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-              Original
-            </span>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -810,13 +835,12 @@ function CaseNavigatorCard({
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
         <span>{item.weekLabel}</span>
-
         {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
           <span className="font-semibold text-violet-700">
-            Score {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
+            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
           </span>
         ) : (
-          <span className="font-semibold text-slate-700">Score {item.finalScore.toFixed(0)}</span>
+          <span>{item.reviewStatus}</span>
         )}
       </div>
     </div>
@@ -1132,7 +1156,7 @@ function DataHealthChecks({
   const tests = [
     { name: "Raw data loaded", pass: caseCount > 0 },
     { name: "Agent list built", pass: agentCount > 0 },
-    { name: "Appeal merge loaded", pass: appealCount >= 0 },
+    { name: "Appeal merge loaded", pass: appealCount > 0 },
     { name: "Case URL available", pass: true },
   ];
 
@@ -1153,6 +1177,31 @@ function DataHealthChecks({
       ))}
     </div>
   );
+}
+
+function buildHeaderHelpers(headerRow: any[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+
+  const colIndexes = (name: string) => {
+    const target = normalizeText(name);
+    return normalizedHeaders
+      .map((h, idx) => (h === target ? idx : -1))
+      .filter((idx) => idx >= 0);
+  };
+
+  const getValue = (row: any[], name: string, occurrence = 0) => {
+    const indexes = colIndexes(name);
+    const idx = indexes[occurrence];
+    return idx >= 0 ? row[idx] : null;
+  };
+
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+
+  return { getValue, getLastValue };
 }
 
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
@@ -1182,7 +1231,9 @@ function LogoHeaderBox() {
 async function fetchFirstAvailable(urls: string[]) {
   for (const url of urls) {
     const response = await fetch(url);
-    if (response.ok) return { response, matchedUrl: url };
+    if (response.ok) {
+      return { response, matchedUrl: url };
+    }
   }
   throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
@@ -1360,7 +1411,9 @@ function PremiumLineChart({
     return `${x},${y}`;
   });
 
-  const gradientStrokeId = isSongkranThemeActive() ? "lineStrokeSongkran" : "lineStrokePremium";
+  const gradientStrokeId = isSongkranThemeActive()
+    ? "lineStrokeSongkran"
+    : "lineStrokePremium";
 
   return (
     <div className="relative rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
@@ -1535,7 +1588,10 @@ function SlideOverCaseDetail({
 
         <div className="flex-1 overflow-y-auto space-y-6 p-5 lg:p-6">
           <Panel>
-            <PanelHeader title="Case Information" subtitle="Selected case overview and review status" />
+            <PanelHeader
+              title="Case Information"
+              subtitle="Selected case overview and review status"
+            />
             <PanelBody className="space-y-5">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-3">
@@ -1639,31 +1695,6 @@ function SlideOverCaseDetail({
   );
 }
 
-function buildHeaderHelpers(headerRow: any[]) {
-  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
-
-  const colIndexes = (name: string) => {
-    const target = normalizeText(name);
-    return normalizedHeaders
-      .map((h, idx) => (h === target ? idx : -1))
-      .filter((idx) => idx >= 0);
-  };
-
-  const getValue = (row: any[], name: string, occurrence = 0) => {
-    const indexes = colIndexes(name);
-    const idx = indexes[occurrence];
-    return idx >= 0 ? row[idx] : null;
-  };
-
-  const getLastValue = (row: any[], name: string) => {
-    const indexes = colIndexes(name);
-    if (!indexes.length) return null;
-    return row[indexes[indexes.length - 1]];
-  };
-
-  return { getValue, getLastValue };
-}
-
 export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
@@ -1740,7 +1771,7 @@ export default function DashboardMockup({
         setLoadError("");
 
         const rawResponse = await fetch("/QA_RawData1.xlsx");
-        const { response: appealResponse } = await fetchFirstAvailable([
+        const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
           "/Appleal ROWDATA.xlsx",
           "/Appeal ROWDATA.xlsx",
           "/Appeal_ROWDATA.xlsx",
@@ -1799,7 +1830,7 @@ export default function DashboardMockup({
         })();
 
         if (appealHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ Appeal ROWDATA");
+          throw new Error(`ไม่พบแถว Header ในไฟล์ ${matchedUrl.replace("/", "")}`);
         }
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
@@ -1923,8 +1954,7 @@ export default function DashboardMockup({
                 ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics)
                 : baseFinalScore);
 
-            const previousScoreVal =
-              mergedAppeal?.displayRevisedTopicCodes?.length ? mergedAppeal?.previousScore ?? baseFinalScore : undefined;
+            const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
 
             const inquiry =
               rawHelper.getValue(row, "Customer Inquiry") ??
@@ -2314,8 +2344,8 @@ export default function DashboardMockup({
                 Agent Performance Dashboard
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 + Appeal
-                ROWDATA
+                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
+                Appleal ROWDATA
               </div>
               {songkranTheme ? (
                 <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
@@ -2375,7 +2405,7 @@ export default function DashboardMockup({
                     >
                       <option value="">All Agents</option>
                       {visibleAgentList.map((agent) => (
-                        <option key={compactText(agent)} value={agent}>
+                        <option key={canonicalAgentKey(agent)} value={agent}>
                           {agent}
                         </option>
                       ))}
@@ -2714,6 +2744,319 @@ export default function DashboardMockup({
                     />
                   </div>
 
+                  <Panel>
+                    <PanelHeader
+                      title="QA Grade & Incentive Guide"
+                      subtitle={
+                        isNewPolicyMonth(effectiveViewMonthKey)
+                          ? "New criteria applies from April 2026 onward. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                          : "Previous criteria remains for months before April 2026. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                      }
+                    />
+                    <PanelBody className="space-y-6">
+                      {isNewPolicyMonth(effectiveViewMonthKey) ? (
+                        <>
+                          <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                            <table className="min-w-[860px] w-full text-sm">
+                              <thead>
+                                <tr className="bg-violet-950 text-[11px] text-white">
+                                  <th className="px-4 py-3 text-left">Score Range</th>
+                                  <th className="px-4 py-3 text-left">Level</th>
+                                  <th className="px-4 py-3 text-center">Grade</th>
+                                  <th className="px-4 py-3 text-left">Meaning</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                      A
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Meets all key standards
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">85-89</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                      B
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Meets most standards
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">80-84</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                      C
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Acceptable but still has gaps
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">&lt;80</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Improvement Required
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                      D
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Below company standard
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="grid gap-6 xl:grid-cols-2">
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                              <table className="min-w-[420px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-slate-900 text-[11px] text-white">
+                                    <th className="px-4 py-3 text-left">General Month</th>
+                                    <th className="px-4 py-3 text-center">Grade</th>
+                                    <th className="px-4 py-3 text-center">Incentive</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">
+                                      Improvement Required
+                                    </td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                              <table className="min-w-[520px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-fuchsia-700 text-[11px] text-white">
+                                    <th className="px-4 py-3 text-left">January / April</th>
+                                    <th className="px-4 py-3 text-center">Grade</th>
+                                    <th className="px-4 py-3 text-center">Cash</th>
+                                    <th className="px-4 py-3 text-center">RBH Promo</th>
+                                    <th className="px-4 py-3 text-center">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">200</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">350</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">
+                                      Improvement Required
+                                    </td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-[860px] w-full text-sm">
+                            <thead>
+                              <tr className="bg-violet-950 text-[11px] text-white">
+                                <th className="px-4 py-3 text-left">Score Range</th>
+                                <th className="px-4 py-3 text-left">Level</th>
+                                <th className="px-4 py-3 text-center">Grade</th>
+                                <th className="px-4 py-3 text-center">Incentive (THB)</th>
+                                <th className="px-4 py-3 text-left">Meaning</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    A
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">80-89</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                    B
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">70-79</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                    C
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">60-69</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                    D
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fail</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                    F
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </PanelBody>
+                  </Panel>
+
+                  <Panel>
+                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
+                    <PanelBody className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("all")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "all"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          All Cases
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("originalOnly")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "originalOnly"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          Original Only
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("revisedOnly")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "revisedOnly"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          Revised Only
+                        </button>
+                      </div>
+
+                      {caseIdSearch.trim() ? (
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                            Quick Case Search Result
+                          </div>
+
+                          <div className="mt-3 space-y-3">
+                            {overviewCaseSearchResults.length ? (
+                              overviewCaseSearchResults.map((item) => (
+                                <QuickCaseSearchCard
+                                  key={item.key}
+                                  item={item}
+                                  onOpen={() => {
+                                    setSelectedCaseKey(item.key);
+                                    onOpenCaseDetail?.();
+                                    setSlideOverOpen(true);
+                                  }}
+                                />
+                              ))
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                ไม่พบเลขเคสที่ค้นหา
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </PanelBody>
+                  </Panel>
+
                   <div className="grid gap-6 xl:grid-cols-2">
                     <PremiumBarChart
                       title="Score Distribution"
@@ -2793,83 +3136,6 @@ export default function DashboardMockup({
                       </PanelBody>
                     </Panel>
                   </div>
-
-                  <Panel>
-                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
-                    <PanelBody className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("all")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "all"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          All Cases
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("originalOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "originalOnly"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Original Only
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOverviewMode("revisedOnly")}
-                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
-                            overviewMode === "revisedOnly"
-                              ? songkranTheme
-                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
-                                : "border-violet-400 bg-violet-100 text-violet-800"
-                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                          }`}
-                        >
-                          Revised Only
-                        </button>
-                      </div>
-
-                      {caseIdSearch.trim() ? (
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
-                            Quick Case Search Result
-                          </div>
-
-                          <div className="mt-3 space-y-3">
-                            {overviewCaseSearchResults.length ? (
-                              overviewCaseSearchResults.map((item) => (
-                                <QuickCaseSearchCard
-                                  key={item.key}
-                                  item={item}
-                                  onOpen={() => {
-                                    setSelectedCaseKey(item.key);
-                                    onOpenCaseDetail?.();
-                                    setSlideOverOpen(true);
-                                  }}
-                                />
-                              ))
-                            ) : (
-                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                ไม่พบเลขเคสที่ค้นหา
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-                    </PanelBody>
-                  </Panel>
                 </>
               ) : (
                 <>
