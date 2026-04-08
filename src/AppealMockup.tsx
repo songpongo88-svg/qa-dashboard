@@ -144,7 +144,9 @@ function isSameAgent(a: string, b: string) {
 }
 
 function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
-  if (!selectedMonthKey || selectedMonthKey === "all" || selectedMonthKey === "unknown") return false;
+  if (!selectedMonthKey || selectedMonthKey === "all" || selectedMonthKey === "unknown") {
+    return false;
+  }
 
   const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
     isSameAgent(name, agentName)
@@ -154,6 +156,20 @@ function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
 
   const [, hideFromMonth] = matchedEntry;
   return selectedMonthKey >= hideFromMonth;
+}
+
+function getUniqueNormalizedAgents(agentNames: string[]) {
+  const result: string[] = [];
+
+  agentNames
+    .map((name) => toTitleCaseName(String(name || "").trim()))
+    .filter(Boolean)
+    .forEach((name) => {
+      const exists = result.some((item) => isSameAgent(item, name));
+      if (!exists) result.push(name);
+    });
+
+  return result.sort((a, b) => a.localeCompare(b));
 }
 
 function isNewPolicyMonth(monthKey: string) {
@@ -1027,22 +1043,16 @@ export default function AppealMockup({
     const effectiveMonthForVisibility =
       currentUser?.role === "Agent" ? "all" : latestMonthKey;
 
-    const merged = [
-      ...new Set([
-        ...AGENT_MASTER,
-        ...allCases.map((item) => toTitleCaseName(item.agent)).filter(Boolean),
-      ]),
-    ]
-      .map((agent) => toTitleCaseName(agent))
-      .filter((agent) => !shouldHideAgentByMonth(agent, effectiveMonthForVisibility));
+    const mergedAgents = getUniqueNormalizedAgents([
+      ...AGENT_MASTER,
+      ...allCases.map((item) => item.agent).filter(Boolean),
+    ]).filter((agent) => !shouldHideAgentByMonth(agent, effectiveMonthForVisibility));
 
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return merged
-        .filter((agent) => isSameAgent(agent, currentUser.agentName))
-        .sort((a, b) => a.localeCompare(b));
+      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
-    return merged.sort((a, b) => a.localeCompare(b));
+    return mergedAgents;
   }, [allCases, currentUser, latestMonthKey]);
 
   useEffect(() => {
