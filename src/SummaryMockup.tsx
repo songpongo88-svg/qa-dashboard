@@ -154,6 +154,10 @@ function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
 }
 
+function canonicalAgentKey(value: unknown) {
+  return compactText(value);
+}
+
 function toTitleCaseName(value: string) {
   return String(value || "")
     .trim()
@@ -172,33 +176,21 @@ function toTitleCaseName(value: string) {
 }
 
 function isSameAgent(a: string, b: string) {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  const ca = compactText(a);
-  const cb = compactText(b);
-
-  return (
-    na === nb ||
-    ca === cb ||
-    na.includes(nb) ||
-    nb.includes(na) ||
-    ca.includes(cb) ||
-    cb.includes(ca)
-  );
+  if (!a || !b) return false;
+  return canonicalAgentKey(a) === canonicalAgentKey(b);
 }
 
 function getUniqueNormalizedAgents(agentNames: string[]) {
-  const result: string[] = [];
+  const map = new Map<string, string>();
 
-  agentNames
-    .map((name) => toTitleCaseName(String(name || "").trim()))
-    .filter(Boolean)
-    .forEach((name) => {
-      const exists = result.some((item) => isSameAgent(item, name));
-      if (!exists) result.push(name);
-    });
+  for (const rawName of agentNames) {
+    const cleaned = toTitleCaseName(String(rawName || "").trim());
+    const key = canonicalAgentKey(cleaned);
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, cleaned);
+  }
 
-  return result.sort((a, b) => a.localeCompare(b));
+  return [...map.values()].sort((a, b) => a.localeCompare(b));
 }
 
 function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
@@ -287,12 +279,30 @@ function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
 }
 
 function excelDateToJSDate(value: any): Date | null {
-  if (!value && value !== 0) return null;
-  if (value instanceof Date) return value;
+  if (value === null || value === undefined || value === "") return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+      value.getHours(),
+      value.getMinutes(),
+      value.getSeconds()
+    );
+  }
+
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-    return new Date(parsed.y, parsed.m - 1, parsed.d);
+    return new Date(
+      parsed.y,
+      parsed.m - 1,
+      parsed.d,
+      parsed.H || 0,
+      parsed.M || 0,
+      parsed.S || 0
+    );
   }
 
   const text = String(value).trim();
@@ -306,7 +316,7 @@ function excelDateToJSDate(value: any): Date | null {
     return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
   }
 
-  const asDate = new Date(value);
+  const asDate = new Date(text);
   if (!Number.isNaN(asDate.getTime())) return asDate;
   return null;
 }
@@ -785,6 +795,16 @@ function AgentPeriodTable({
   );
 }
 
+async function fetchFirstAvailable(urls: string[]) {
+  for (const url of urls) {
+    const response = await fetch(url);
+    if (response.ok) {
+      return { response, matchedUrl: url };
+    }
+  }
+  throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
+}
+
 export default function SummaryMockup({
   currentUser,
   externalSelectedAgent,
@@ -841,16 +861,15 @@ export default function SummaryMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const [rawResponse, appealResponse] = await Promise.all([
-          fetch("/QA_RawData1.xlsx"),
-          fetch("/Appleal ROWDATA.xlsx"),
+        const rawResponse = await fetch("/QA_RawData1.xlsx");
+        const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
+          "/Appleal ROWDATA.xlsx",
+          "/Appeal ROWDATA.xlsx",
+          "/Appeal_ROWDATA.xlsx",
         ]);
 
         if (!rawResponse.ok) {
           throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
-        }
-        if (!appealResponse.ok) {
-          throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
         }
 
         const rawBuffer = await rawResponse.arrayBuffer();
@@ -902,7 +921,7 @@ export default function SummaryMockup({
         })();
 
         if (appealHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ Appleal ROWDATA.xlsx");
+          throw new Error(`ไม่พบแถว Header ในไฟล์ ${matchedUrl.replace("/", "")}`);
         }
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
@@ -1112,8 +1131,10 @@ export default function SummaryMockup({
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      const normalizedAgent = toTitleCaseName(currentUser.agentName);
-      setSelectedAgent(normalizedAgent);
+      const normalizedAgent = toTitleCaseName(String(currentUser.agentName).trim());
+      if (!isSameAgent(selectedAgent, normalizedAgent)) {
+        setSelectedAgent(normalizedAgent);
+      }
       return;
     }
 
@@ -1136,7 +1157,7 @@ export default function SummaryMockup({
 
   const effectiveAgent =
     currentUser?.role === "Agent" && currentUser.agentName
-      ? currentUser.agentName
+      ? toTitleCaseName(String(currentUser.agentName).trim())
       : selectedAgent;
 
   const filteredByAgent = useMemo(() => {
@@ -1403,7 +1424,7 @@ export default function SummaryMockup({
 
   const viewingAgentText =
     currentUser?.role === "Agent"
-      ? toTitleCaseName(currentUser.agentName)
+      ? toTitleCaseName(String(currentUser.agentName).trim())
       : !effectiveAgent || effectiveAgent === "all"
       ? "All Agents"
       : toTitleCaseName(effectiveAgent);
@@ -1543,7 +1564,7 @@ export default function SummaryMockup({
                   </div>
                   {currentUser?.role === "Agent" ? (
                     <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {toTitleCaseName(currentUser.agentName)}
+                      {toTitleCaseName(String(currentUser.agentName).trim())}
                     </div>
                   ) : (
                     <select
@@ -1557,7 +1578,7 @@ export default function SummaryMockup({
                     >
                       <option value="all">All Agents</option>
                       {visibleAgentList.map((agent) => (
-                        <option key={agent} value={agent}>
+                        <option key={canonicalAgentKey(agent)} value={agent}>
                           {agent}
                         </option>
                       ))}
