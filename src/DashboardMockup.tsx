@@ -1289,6 +1289,51 @@ async function fetchFirstAvailable(urls: string[]) {
   throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
 
+
+function getGoogleDriveFileId(url: string) {
+  const value = String(url || "").trim();
+  if (!value) return "";
+
+  const patterns = [
+    /[?&]id=([^&#]+)/i,
+    /\/file\/d\/([^/]+)/i,
+    /\/thumbnail\?id=([^&#]+)/i,
+    /\/uc\?(?:[^#]*&)?id=([^&#]+)/i,
+    /\/d\/([^/]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return "";
+}
+
+function buildCaseImagePreviewCandidates(url?: string) {
+  const value = String(url || "").trim();
+  if (!value) return [];
+
+  const driveFileId = getGoogleDriveFileId(value);
+  if (!driveFileId) return [value];
+
+  return [
+    `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w1600`,
+    `https://drive.google.com/uc?export=view&id=${driveFileId}`,
+    value,
+  ].filter(Boolean);
+}
+
+function getCaseImageOpenUrl(url?: string) {
+  const value = String(url || "").trim();
+  if (!value) return "";
+
+  const driveFileId = getGoogleDriveFileId(value);
+  if (!driveFileId) return value;
+
+  return `https://drive.google.com/file/d/${driveFileId}/view`;
+}
+
 function PremiumBarChart({
   title,
   subtitle,
@@ -1611,7 +1656,24 @@ function SlideOverCaseDetail({
   caseItem: CaseItem | null;
   onClose: () => void;
 }) {
+  const imagePreviewCandidates = useMemo(
+    () => buildCaseImagePreviewCandidates(caseItem?.caseImageUrl),
+    [caseItem?.caseImageUrl]
+  );
+  const imageOpenUrl = useMemo(
+    () => getCaseImageOpenUrl(caseItem?.caseImageUrl),
+    [caseItem?.caseImageUrl]
+  );
+  const [imagePreviewIndex, setImagePreviewIndex] = useState(0);
+
+  useEffect(() => {
+    setImagePreviewIndex(0);
+  }, [caseItem?.caseImageUrl]);
+
   if (!open || !caseItem) return null;
+
+  const activeImagePreviewUrl = imagePreviewCandidates[imagePreviewIndex] || "";
+  const canShowImagePreview = Boolean(activeImagePreviewUrl) && imagePreviewIndex < imagePreviewCandidates.length;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
@@ -1730,13 +1792,26 @@ function SlideOverCaseDetail({
                       </div>
                       {caseItem.caseImageUrl ? (
                         <div className="mt-3 space-y-3">
-                          <img
-                            src={caseItem.caseImageUrl}
-                            alt={`Case attachment ${caseItem.caseId}`}
-                            className="max-h-[280px] w-full rounded-2xl border border-slate-200 object-contain bg-slate-50"
-                          />
+                          {canShowImagePreview ? (
+                            <img
+                              src={activeImagePreviewUrl}
+                              alt={`Case attachment ${caseItem.caseId}`}
+                              className="max-h-[280px] w-full rounded-2xl border border-slate-200 object-contain bg-slate-50"
+                              referrerPolicy="no-referrer"
+                              onError={() => {
+                                setImagePreviewIndex((prev) => {
+                                  if (prev < imagePreviewCandidates.length - 1) return prev + 1;
+                                  return imagePreviewCandidates.length;
+                                });
+                              }}
+                            />
+                          ) : (
+                            <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500">
+                              Image preview unavailable
+                            </div>
+                          )}
                           <a
-                            href={caseItem.caseImageUrl}
+                            href={imageOpenUrl || caseItem.caseImageUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
