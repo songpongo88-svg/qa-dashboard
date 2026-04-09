@@ -1231,6 +1231,51 @@ function buildHeaderHelpers(headerRow: any[]) {
   return { getValue, getLastValue };
 }
 
+function normalizeAssetUrl(raw: unknown) {
+  const value = String(raw ?? "").trim();
+  if (!value) return "";
+
+  const driveIdFromOpen = value.match(/[?&]id=([^&#]+)/i)?.[1];
+  if (driveIdFromOpen) {
+    return `https://drive.google.com/uc?export=view&id=${driveIdFromOpen}`;
+  }
+
+  const driveIdFromFile = value.match(/\/file\/d\/([^\/]+)/i)?.[1];
+  if (driveIdFromFile) {
+    return `https://drive.google.com/uc?export=view&id=${driveIdFromFile}`;
+  }
+
+  const driveIdFromUc = value.match(/[?&]export=view&id=([^&#]+)/i)?.[1] || value.match(/[?&]export=download&id=([^&#]+)/i)?.[1];
+  if (driveIdFromUc) {
+    return `https://drive.google.com/uc?export=view&id=${driveIdFromUc}`;
+  }
+
+  return value;
+}
+
+function getCasePdfActionLabel(url: string, caseId: string) {
+  const lower = String(url || '').toLowerCase();
+  if (lower.includes('-revised.pdf')) return `${caseId} Revised PDF`;
+  if (lower.includes('-original.pdf')) return `${caseId} Original PDF`;
+  if (lower.endsWith('.pdf')) return `${caseId} PDF`;
+  return caseId;
+}
+
+async function urlExists(url: string) {
+  if (!url) return false;
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (response.ok) return true;
+  } catch {}
+
+  try {
+    const response = await fetch(url, { method: 'GET' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 function getFirstAvailableHeaderValue(
   helper: ReturnType<typeof buildHeaderHelpers>,
   row: any[],
@@ -1605,17 +1650,53 @@ function SlideOverCaseDetail({
   if (!open || !caseItem) return null;
 
   const resolvedPdfLinks = {
-    original:
+    original: normalizeAssetUrl(
       String(caseItem.casePdfOriginalUrl || "").trim() ||
-      String(caseItem.casePdfUrl || "").trim() ||
-      (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-original.pdf` : "") ||
-      (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}.pdf` : ""),
-    revised:
+        String(caseItem.casePdfUrl || "").trim() ||
+        (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-original.pdf` : "") ||
+        (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}.pdf` : "")
+    ),
+    revised: normalizeAssetUrl(
       String(caseItem.casePdfRevisedUrl || "").trim() ||
-      (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-revised.pdf` : ""),
+        (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-revised.pdf` : "")
+    ),
   };
 
-  const primaryPdfUrl = resolvedPdfLinks.original || resolvedPdfLinks.revised || "";
+  const normalizedImageUrl = normalizeAssetUrl(caseItem.caseImageUrl || "");
+  const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
+  const [verifiedImageUrl, setVerifiedImageUrl] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAssets = async () => {
+      const pdfCandidates = [
+        resolvedPdfLinks.original
+          ? { label: getCasePdfActionLabel(resolvedPdfLinks.original, caseItem.caseId), url: resolvedPdfLinks.original, tone: "amber" }
+          : null,
+        resolvedPdfLinks.revised
+          ? { label: getCasePdfActionLabel(resolvedPdfLinks.revised, caseItem.caseId), url: resolvedPdfLinks.revised, tone: "violet" }
+          : null,
+      ].filter(Boolean) as { label: string; url: string; tone: string }[];
+
+      const checked = await Promise.all(
+        pdfCandidates.map(async (item) => ((await urlExists(item.url)) ? item : null))
+      );
+
+      const imageOk = normalizedImageUrl ? await urlExists(normalizedImageUrl) : false;
+
+      if (!cancelled) {
+        const uniquePdfs = checked.filter(Boolean).filter((item, index, arr) => arr.findIndex((entry) => entry?.url === item?.url) === index) as { label: string; url: string; tone: string }[];
+        setAvailablePdfUrls(uniquePdfs);
+        setVerifiedImageUrl(imageOk ? normalizedImageUrl : "");
+      }
+    };
+
+    checkAssets();
+    return () => {
+      cancelled = true;
+    };
+  }, [caseItem.caseId, normalizedImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
 
   return (
     <div className="fixed inset-0 z-[90] bg-slate-900/45">
@@ -1733,19 +1814,26 @@ function SlideOverCaseDetail({
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">🖼️</span>
                         <span>Case Image</span>
                       </div>
-                      {caseItem.caseImageUrl ? (
+                      {verifiedImageUrl ? (
                         <div className="mt-3 space-y-3">
-                          <div className="rounded-2xl border border-sky-100 bg-white/90 px-3 py-3 text-xs leading-5 text-slate-600">
-                            Image attachment is available for this case.
+                          <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
+                            <img
+                              src={verifiedImageUrl}
+                              alt={`Case attachment ${caseItem.caseId}`}
+                              className="h-36 w-full rounded-xl object-cover"
+                            />
                           </div>
-                          <a
-                            href={caseItem.caseImageUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
-                          >
-                            Open Image Attachment
-                          </a>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <a
+                              href={verifiedImageUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                            >
+                              Open Image Attachment
+                            </a>
+                            <div className="text-[11px] font-medium text-sky-700">{caseItem.caseId} Image Attachment</div>
+                          </div>
                         </div>
                       ) : (
                         <div className="mt-3 rounded-2xl border border-dashed border-sky-200 bg-white/85 px-3 py-3 text-sm leading-6 text-slate-500">
@@ -1758,46 +1846,41 @@ function SlideOverCaseDetail({
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
                         Case PDF
                       </div>
-                      {primaryPdfUrl ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {resolvedPdfLinks.original ? (
-                            <>
-                              <a
-                                href={resolvedPdfLinks.original}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                              >
-                                Open Original PDF
-                              </a>
-                              <a
-                                href={resolvedPdfLinks.original}
-                                download
-                                className="inline-flex rounded-xl border border-amber-200 bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-200"
-                              >
-                                Download Original
-                              </a>
-                            </>
-                          ) : null}
-                          {resolvedPdfLinks.revised ? (
-                            <>
-                              <a
-                                href={resolvedPdfLinks.revised}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                              >
-                                Open Revised PDF
-                              </a>
-                              <a
-                                href={resolvedPdfLinks.revised}
-                                download
-                                className="inline-flex rounded-xl border border-violet-200 bg-violet-100 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-200"
-                              >
-                                Download Revised
-                              </a>
-                            </>
-                          ) : null}
+                      {availablePdfUrls.length ? (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {availablePdfUrls.map((item) => {
+                            const isViolet = item.tone === "violet";
+                            const openClass = isViolet
+                              ? "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                              : "border-amber-200 bg-white text-amber-700 hover:bg-amber-50";
+                            const downloadClass = isViolet
+                              ? "border-violet-200 bg-violet-100 text-violet-800 hover:bg-violet-200"
+                              : "border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200";
+                            return (
+                              <div key={item.url} className="rounded-2xl border border-slate-200 bg-white/90 p-3">
+                                <div className="flex flex-wrap gap-2">
+                                  <a
+                                    href={item.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
+                                  >
+                                    Open PDF
+                                  </a>
+                                  <a
+                                    href={item.url}
+                                    download
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${downloadClass}`}
+                                  >
+                                    Download PDF
+                                  </a>
+                                </div>
+                                <div className={`mt-2 text-[11px] font-medium ${isViolet ? "text-violet-700" : "text-amber-700"}`}>
+                                  {item.label}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="mt-2 min-h-[72px] text-sm leading-6 text-slate-500">-</div>
@@ -2130,42 +2213,49 @@ export default function DashboardMockup({
               "Description",
             ], inquiry || "-");
 
-            const caseImageUrl = getFirstAvailableHeaderValue(rawHelper, row, [
-              "Case Image URL / ภาพประกอบเคส",
-              "ภาพประกอบเคส",
-              "Case Image URL",
-              "Case Image",
-              "Image URL",
-              "Attachment URL",
-              "Case Attachment",
-              "Attachment",
-            ], "");
+            const caseImageUrl = normalizeAssetUrl(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case Image URL / ภาพประกอบเคส",
+                "ภาพประกอบเคส",
+                "Case Image URL",
+                "Case Image",
+                "Image URL",
+                "Attachment URL",
+                "Case Attachment",
+                "Attachment",
+                "Case Image Link",
+                "Image Link",
+                "Link ภาพประกอบเคส",
+                "ภาพเคส",
+                "รูปภาพเคส",
+              ], "")
+            );
 
-            const casePdfOriginalUrl = String(
+            const casePdfOriginalUrl = normalizeAssetUrl(
               getFirstAvailableHeaderValue(rawHelper, row, [
                 "Case PDF Original URL",
                 "Case PDF Original",
                 "PDF Original URL",
                 "Original PDF URL",
               ], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")
-            ).trim();
+            );
 
-            const casePdfRevisedUrl = String(
+            const casePdfRevisedUrl = normalizeAssetUrl(
               getFirstAvailableHeaderValue(rawHelper, row, [
                 "Case PDF Revised URL",
                 "Case PDF Revised",
                 "PDF Revised URL",
                 "Revised PDF URL",
               ], caseId ? `/case-pdfs/${caseId}-revised.pdf` : "")
-            ).trim();
+            );
 
-            const casePdfUrl = String(
+            const casePdfUrl = normalizeAssetUrl(
               getFirstAvailableHeaderValue(rawHelper, row, [
                 "Case PDF URL",
                 "Case PDF",
                 "PDF URL",
               ], caseId ? `/case-pdfs/${caseId}.pdf` : "")
-            ).trim();
+            );
 
             const auditRaw = rawHelper.getValue(row, "Audit Date");
             const timestampRaw =
