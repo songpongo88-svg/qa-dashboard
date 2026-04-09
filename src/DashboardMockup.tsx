@@ -1231,6 +1231,21 @@ function buildHeaderHelpers(headerRow: any[]) {
   return { getValue, getLastValue };
 }
 
+function getFirstAvailableHeaderValue(
+  helper: ReturnType<typeof buildHeaderHelpers>,
+  row: any[],
+  headers: string[],
+  fallback: any = ""
+) {
+  for (const header of headers) {
+    const value = helper.getValue(row, header);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return fallback;
+}
+
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
   const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
   const total = baseTopics.reduce((sum, base) => {
@@ -1589,8 +1604,18 @@ function SlideOverCaseDetail({
 }) {
   if (!open || !caseItem) return null;
 
-  const primaryPdfUrl =
-    String(caseItem.casePdfOriginalUrl || "").trim() || String(caseItem.casePdfUrl || "").trim();
+  const resolvedPdfLinks = {
+    original:
+      String(caseItem.casePdfOriginalUrl || "").trim() ||
+      String(caseItem.casePdfUrl || "").trim() ||
+      (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-original.pdf` : "") ||
+      (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}.pdf` : ""),
+    revised:
+      String(caseItem.casePdfRevisedUrl || "").trim() ||
+      (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-revised.pdf` : ""),
+  };
+
+  const primaryPdfUrl = resolvedPdfLinks.original || resolvedPdfLinks.revised || "";
 
   return (
     <div className="fixed inset-0 z-[90] bg-slate-900/45">
@@ -1735,21 +1760,44 @@ function SlideOverCaseDetail({
                       </div>
                       {primaryPdfUrl ? (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          <a
-                            href={primaryPdfUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                          >
-                            Open PDF
-                          </a>
-                          <a
-                            href={primaryPdfUrl}
-                            download
-                            className="inline-flex rounded-xl border border-amber-200 bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-200"
-                          >
-                            Download PDF
-                          </a>
+                          {resolvedPdfLinks.original ? (
+                            <>
+                              <a
+                                href={resolvedPdfLinks.original}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                              >
+                                Open Original PDF
+                              </a>
+                              <a
+                                href={resolvedPdfLinks.original}
+                                download
+                                className="inline-flex rounded-xl border border-amber-200 bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-200"
+                              >
+                                Download Original
+                              </a>
+                            </>
+                          ) : null}
+                          {resolvedPdfLinks.revised ? (
+                            <>
+                              <a
+                                href={resolvedPdfLinks.revised}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                              >
+                                Open Revised PDF
+                              </a>
+                              <a
+                                href={resolvedPdfLinks.revised}
+                                download
+                                className="inline-flex rounded-xl border border-violet-200 bg-violet-100 px-3 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-200"
+                              >
+                                Download Revised
+                              </a>
+                            </>
+                          ) : null}
                         </div>
                       ) : (
                         <div className="mt-2 min-h-[72px] text-sm leading-6 text-slate-500">-</div>
@@ -2051,20 +2099,77 @@ export default function DashboardMockup({
             const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
 
             const inquiry =
-              rawHelper.getValue(row, "Customer Inquiry") ??
-              rawHelper.getValue(row, "Inquiry TH") ??
-              rawHelper.getValue(row, "Inquiry");
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Customer Inquiry",
+                "Inquiry TH",
+                "Inquiry",
+                "หัวข้อที่ลูกค้าติดต่อ",
+                "หัวข้อเคส",
+              ]) ?? "-";
 
-            const weekLabel =
-              rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
+            const weekLabel = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Week Label",
+              "Week",
+              "Week label",
+            ], "-");
 
-            const caseUrl =
-              rawHelper.getValue(row, "Case URL") ??
-              rawHelper.getValue(row, "Case Url") ??
-              rawHelper.getValue(row, "URL") ??
-              "";
+            const caseUrl = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Case URL",
+              "Case Url",
+              "URL",
+            ], "");
+
+            const caseDescription = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Case Description / รายละเอียดเคส คำอธิบายเคส",
+              "รายละเอียดเคส คำอธิบายเคส",
+              "Case Description",
+              "รายละเอียดเคส",
+              "คำอธิบายเคส",
+              "Case Detail",
+              "Detail",
+              "Description",
+            ], inquiry || "-");
+
+            const caseImageUrl = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Case Image URL / ภาพประกอบเคส",
+              "ภาพประกอบเคส",
+              "Case Image URL",
+              "Case Image",
+              "Image URL",
+              "Attachment URL",
+              "Case Attachment",
+              "Attachment",
+            ], "");
+
+            const casePdfOriginalUrl = String(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case PDF Original URL",
+                "Case PDF Original",
+                "PDF Original URL",
+                "Original PDF URL",
+              ], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")
+            ).trim();
+
+            const casePdfRevisedUrl = String(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case PDF Revised URL",
+                "Case PDF Revised",
+                "PDF Revised URL",
+                "Revised PDF URL",
+              ], caseId ? `/case-pdfs/${caseId}-revised.pdf` : "")
+            ).trim();
+
+            const casePdfUrl = String(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case PDF URL",
+                "Case PDF",
+                "PDF URL",
+              ], caseId ? `/case-pdfs/${caseId}.pdf` : "")
+            ).trim();
 
             const auditRaw = rawHelper.getValue(row, "Audit Date");
+            const timestampRaw =
+              getFirstAvailableHeaderValue(rawHelper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
             const auditDateObj = excelDateToJSDate(auditRaw);
             const monthKey = getMonthKey(auditDateObj);
 
@@ -2076,7 +2181,7 @@ export default function DashboardMockup({
               agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: formatAuditDate(auditRaw),
               auditDateObj,
-              auditTimestamp: formatAuditTimestamp(auditRaw),
+              auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
@@ -2084,6 +2189,11 @@ export default function DashboardMockup({
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
+              caseDescription: caseDescription ? String(caseDescription).trim() : "",
+              caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
+              casePdfUrl,
+              casePdfOriginalUrl,
+              casePdfRevisedUrl,
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
               grade: scoreToGrade(finalScoreVal, monthKey),
