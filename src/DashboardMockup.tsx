@@ -1056,99 +1056,153 @@ function CaseDetailTopicTable({
   const originalMap = getOriginalTopicMap(topics);
   const displayCodeSet = new Set(displayRevisedTopicCodes);
 
-  const displayTopicsBase =
-    reviewStatus === "Revised" && revisedTopics?.length
-      ? topics.map((originalTopic) => {
-          const revisedTopic = revisedTopics.find((item) => item.code === originalTopic.code);
-          return revisedTopic || originalTopic;
-        })
-      : topics;
+  const rows = topics
+    .map((originalTopic) => {
+      const revisedTopic =
+        reviewStatus === "Revised" && revisedTopics?.length
+          ? revisedTopics.find((item) => item.code === originalTopic.code)
+          : undefined;
+      const allowedToShowRevised = displayCodeSet.has(originalTopic.code);
+      const changed =
+        reviewStatus === "Revised" &&
+        allowedToShowRevised &&
+        !!revisedTopic &&
+        isTopicChanged(originalTopic, revisedTopic);
+      const shownTopic = changed && revisedTopic ? revisedTopic : originalTopic;
+      if (!shownTopic || shownTopic.max <= 0) return null;
+      const pct = Number(shownTopic.pct || 0);
+      let statusLabel = "Need Improvement";
+      let statusClass = "border-rose-200 bg-rose-50 text-rose-700";
+      if (pct >= 90) {
+        statusLabel = "Excellent";
+        statusClass = "border-emerald-200 bg-emerald-50 text-emerald-700";
+      } else if (pct >= 80) {
+        statusLabel = "Good";
+        statusClass = "border-sky-200 bg-sky-50 text-sky-700";
+      } else if (pct >= 60) {
+        statusLabel = "Fair";
+        statusClass = "border-amber-200 bg-amber-50 text-amber-700";
+      }
 
-  const displayTopics = displayTopicsBase.filter((topic) => topic.max > 0);
-
-  const getStatusMeta = (pct: number) => {
-    if (pct >= 90) return { label: "Excellent", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-    if (pct >= 80) return { label: "Good", className: "bg-sky-50 text-sky-700 border-sky-200" };
-    if (pct >= 60) return { label: "Fair", className: "bg-amber-50 text-amber-700 border-amber-200" };
-    return { label: "Need Improvement", className: "bg-rose-50 text-rose-700 border-rose-200" };
-  };
+      return {
+        originalTopic,
+        revisedTopic,
+        shownTopic,
+        changed,
+        pct,
+        statusLabel,
+        statusClass,
+      };
+    })
+    .filter(Boolean) as Array<{
+      originalTopic: Topic;
+      revisedTopic?: Topic;
+      shownTopic: Topic;
+      changed: boolean;
+      pct: number;
+      statusLabel: string;
+      statusClass: string;
+    }>;
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_14px_40px_rgba(109,40,217,0.10)]">
-      <div className="overflow-x-auto">
-        <table className="min-w-[1180px] w-full border-separate border-spacing-0 text-sm">
-          <thead>
-            <tr className="bg-gradient-to-r from-violet-800 via-violet-700 to-fuchsia-700 text-white">
-              <th className="px-4 py-4 text-center text-[12px] font-semibold">Topic</th>
-              <th className="px-5 py-4 text-left text-[12px] font-semibold">Description</th>
-              <th className="px-4 py-4 text-center text-[12px] font-semibold">Score</th>
-              <th className="px-4 py-4 text-center text-[12px] font-semibold">Max</th>
-              <th className="px-4 py-4 text-center text-[12px] font-semibold">Score %</th>
-              <th className="px-4 py-4 text-center text-[12px] font-semibold">Status</th>
-              <th className="px-5 py-4 text-left text-[12px] font-semibold">Evaluation Comment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayTopics.length ? (
-              displayTopics.map((topic) => {
-                const originalTopic = originalMap.get(topic.code);
-                const revisedTopic =
-                  reviewStatus === "Revised" && revisedTopics?.length
-                    ? revisedTopics.find((item) => item.code === topic.code)
-                    : undefined;
-                const changed =
-                  reviewStatus === "Revised" &&
-                  displayCodeSet.has(topic.code) &&
-                  !!revisedTopic &&
-                  isTopicChanged(originalTopic, revisedTopic);
-                const shownTopic = changed && revisedTopic ? revisedTopic : topic;
-                const statusMeta = getStatusMeta(shownTopic.pct);
-                const commentText = changed && originalTopic && revisedTopic
-                  ? `Original: ${originalTopic.comment || "-"}
-
-Revised: ${revisedTopic.comment || "-"}`
-                  : (originalTopic || shownTopic).comment || "ยังไม่มี Evaluation Comment";
-
-                return (
-                  <tr key={`${shownTopic.code}-${shownTopic.label}`} className="align-top odd:bg-white even:bg-violet-50/35">
-                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center font-semibold text-slate-900">
-                      <div className="mx-auto inline-flex min-w-[54px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-bold text-violet-700">
-                        {shownTopic.code}
+    <div className="overflow-x-auto rounded-[24px] border border-violet-200 bg-white shadow-sm">
+      <table className="min-w-[1200px] w-full border-collapse text-sm">
+        <thead>
+          <tr className="bg-gradient-to-r from-violet-800 via-violet-700 to-fuchsia-700 text-white">
+            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Topic</th>
+            <th className="border-r border-white/20 px-5 py-4 text-left font-semibold">Description</th>
+            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Score</th>
+            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Max</th>
+            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Score %</th>
+            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Status</th>
+            <th className="px-5 py-4 text-center font-semibold">Evaluation Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? rows.map((row, index) => (
+            <tr
+              key={`${row.shownTopic.code}-${index}`}
+              className={index % 2 === 0 ? "bg-white" : "bg-violet-50/35"}
+            >
+              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle font-semibold text-slate-900">
+                <div className="mx-auto inline-flex min-w-[58px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                  {row.shownTopic.code}
+                </div>
+              </td>
+              <td className="border-r border-t border-slate-200 px-5 py-6 align-middle text-[14px] leading-7 text-slate-800">
+                <div className="font-semibold text-slate-900">{row.shownTopic.label}</div>
+                {row.changed && row.revisedTopic ? (
+                  <div className="mt-3 inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700">
+                    Revised topic applied
+                  </div>
+                ) : null}
+              </td>
+              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle">
+                {row.changed && row.revisedTopic ? (
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                      Original {row.originalTopic.score}
+                    </div>
+                    <div className="inline-flex items-center rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800 shadow-sm">
+                      Revised {row.revisedTopic.score}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-lg font-bold text-slate-900">{row.shownTopic.score}</div>
+                )}
+              </td>
+              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle text-base font-semibold text-slate-800">
+                {row.shownTopic.max}
+              </td>
+              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle">
+                <div className={`mx-auto inline-flex min-w-[88px] items-center justify-center rounded-2xl border px-3 py-2 text-sm font-bold ${row.changed ? "border-violet-200 bg-violet-50 text-violet-800" : "border-emerald-100 bg-emerald-50/70 text-slate-900"}`}>
+                  {row.pct.toFixed(1)}%
+                </div>
+              </td>
+              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${row.statusClass}`}>
+                  {row.statusLabel}
+                </span>
+              </td>
+              <td className="border-t border-slate-200 px-5 py-6 align-middle">
+                {row.changed && row.revisedTopic ? (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Original Comment</div>
+                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
+                        {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
                       </div>
-                    </td>
-                    <td className="border-r border-b border-violet-100 px-5 py-4 text-[13px] font-semibold leading-6 text-slate-900">
-                      {shownTopic.label}
-                    </td>
-                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center text-[14px] font-bold text-slate-900">
-                      {changed && originalTopic && revisedTopic ? `${originalTopic.score} → ${revisedTopic.score}` : shownTopic.score}
-                    </td>
-                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center text-[14px] font-semibold text-slate-900">
-                      {shownTopic.max}
-                    </td>
-                    <td className="border-r border-b border-violet-100 bg-lime-50/60 px-4 py-4 text-center text-[14px] font-semibold text-slate-900">
-                      {shownTopic.pct.toFixed(1)}%
-                    </td>
-                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${statusMeta.className}`}>
-                        {statusMeta.label}
-                      </span>
-                    </td>
-                    <td className="border-b border-violet-100 px-5 py-4 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
-                      {commentText}
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
-                  No topic detail found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </div>
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Revised Comment</div>
+                        <span className="rounded-full border border-violet-300 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                          {row.originalTopic.score} → {row.revisedTopic.score}
+                        </span>
+                      </div>
+                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                        {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="whitespace-pre-line text-[13px] leading-6 text-slate-700">
+                      {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
+                    </div>
+                  </div>
+                )}
+              </td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
+                No topic detail available
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1998,6 +2052,51 @@ function SlideOverCaseDetail({
                     >
                       {caseItem.reviewStatus}
                     </button>
+                    {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (verifiedImagePdfUrls.length) {
+                            setPreviewAsset({
+                              type: "pdf",
+                              url: verifiedImagePdfUrls[0].url,
+                              title: verifiedImagePdfUrls[0].label,
+                            });
+                            return;
+                          }
+                          if (verifiedImageUrls.length) {
+                            setPreviewAsset({
+                              type: "image",
+                              url: verifiedImageUrls[0],
+                              title: `${caseItem.caseId} Case Image`,
+                              index: 0,
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-[12px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100"
+                        title="Open case image"
+                      >
+                        <span>🖼️</span>
+                        <span>Case Image</span>
+                      </button>
+                    ) : null}
+                    {availablePdfUrls.length ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewAsset({
+                            type: "pdf",
+                            url: availablePdfUrls[0].url,
+                            title: availablePdfUrls[0].label,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-[12px] font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100"
+                        title="Open case PDF"
+                      >
+                        <span>📎</span>
+                        <span>Case PDF</span>
+                      </button>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
@@ -2100,11 +2199,22 @@ function SlideOverCaseDetail({
                         <span>Case Image</span>
                       </div>
                       {verifiedImagePdfUrls.length ? (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-3 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-lg">📄</div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900">Case Image is a PDF file</div>
+                                <div className="mt-1 text-xs leading-5 text-slate-500">
+                                  ปุ่มหลักจะเปิด PDF viewer และปุ่มข้าง ๆ ใช้สำหรับดาวน์โหลดไฟล์แนบ
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              title="Open Case Image PDF Viewer"
                               onClick={() =>
                                 setPreviewAsset({
                                   type: "pdf",
@@ -2112,19 +2222,18 @@ function SlideOverCaseDetail({
                                   title: verifiedImagePdfUrls[0].label,
                                 })
                               }
-                              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-white text-lg text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
                             >
-                              📄
+                              Open PDF Viewer
                             </button>
                             {verifiedImagePdfUrls.map((item, index) => (
                               <a
                                 key={`${item.url}-download-${index}`}
                                 href={item.rawUrl || item.url}
                                 download
-                                title={verifiedImagePdfUrls.length > 1 ? `Download Case Image PDF ${index + 1}` : "Download Case Image PDF"}
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-100 text-lg text-sky-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-200"
+                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
                               >
-                                ⬇️
+                                {verifiedImagePdfUrls.length > 1 ? `Download PDF ${index + 1}` : "Download PDF"}
                               </a>
                             ))}
                           </div>
@@ -2133,11 +2242,51 @@ function SlideOverCaseDetail({
                           </div>
                         </div>
                       ) : verifiedImageUrls.length ? (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-3">
+                          <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
+                            <img
+                              src={verifiedImageUrls[0]}
+                              alt={`Case attachment ${caseItem.caseId}`}
+                              className="h-24 w-full rounded-xl object-cover"
+                              onError={() => setVerifiedImageUrls((current) => current.slice(1))}
+                            />
+                            {verifiedImageUrls.length > 1 ? (
+                              <div className="absolute right-3 top-3 rounded-full border border-sky-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-sm">
+                                {verifiedImageUrls.length} images
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {verifiedImageUrls.length > 1 ? (
+                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                              {verifiedImageUrls.slice(0, 10).map((url, index) => (
+                                <button
+                                  key={`${url}-${index}`}
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewAsset({
+                                      type: "image",
+                                      url,
+                                      title: `${caseItem.caseId} Image Attachment ${index + 1}/${verifiedImageUrls.length}`,
+                                      items: verifiedImageUrls,
+                                      index,
+                                    })
+                                  }
+                                  className="overflow-hidden rounded-xl border border-sky-100 bg-white shadow-sm hover:border-sky-300"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${caseItem.caseId} thumbnail ${index + 1}`}
+                                    className="h-12 w-full object-cover"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              title="Open Case Image Viewer"
                               onClick={() =>
                                 setPreviewAsset({
                                   type: "image",
@@ -2147,19 +2296,18 @@ function SlideOverCaseDetail({
                                   index: 0,
                                 })
                               }
-                              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-white text-lg text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
                             >
-                              🖼️
+                              Open Image Viewer
                             </button>
                             {verifiedImageUrls.map((url, index) => (
                               <a
                                 key={`${url}-download-${index}`}
                                 href={rawImageUrls[index] || url}
                                 download
-                                title={verifiedImageUrls.length > 1 ? `Download Image ${index + 1}` : "Download Image"}
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-100 text-lg text-sky-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-200"
+                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
                               >
-                                ⬇️
+                                {verifiedImageUrls.length > 1 ? `Download ${index + 1}` : "Download Image"}
                               </a>
                             ))}
                           </div>
@@ -2194,7 +2342,6 @@ function SlideOverCaseDetail({
                                 <div className="flex flex-wrap gap-2">
                                   <button
                                     type="button"
-                                    title={`Open ${item.label}`}
                                     onClick={() =>
                                       setPreviewAsset({
                                         type: "pdf",
@@ -2203,17 +2350,16 @@ function SlideOverCaseDetail({
                                         title: item.label,
                                       })
                                     }
-                                    className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-lg shadow-sm transition hover:-translate-y-0.5 ${openClass}`}
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
                                   >
-                                    📄
+                                    Open PDF
                                   </button>
                                   <a
                                     href={item.url}
                                     download
-                                    title={`Download ${item.label}`}
-                                    className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-lg shadow-sm transition hover:-translate-y-0.5 ${downloadClass}`}
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${downloadClass}`}
                                   >
-                                    ⬇️
+                                    Download PDF
                                   </a>
                                 </div>
                                 <div className={`mt-2 text-[11px] font-medium ${isViolet ? "text-violet-700" : "text-amber-700"}`}>
@@ -2244,7 +2390,7 @@ function SlideOverCaseDetail({
           </Panel>
 
           <Panel>
-            <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
+            <PanelHeader title="Topic Detail" subtitle="Premium topic review with highlighted revised score changes" />
             <PanelBody>
               <CaseDetailTopicTable
                 topics={caseItem.topics}
@@ -2568,16 +2714,17 @@ export default function DashboardMockup({
               "URL",
             ], "");
 
-            const caseDescription = getFirstAvailableHeaderValue(rawHelper, row, [
+            const rawCaseDescription = getFirstAvailableHeaderValue(rawHelper, row, [
               "Case Description / รายละเอียดเคส คำอธิบายเคส",
               "รายละเอียดเคส คำอธิบายเคส",
               "Case Description",
               "รายละเอียดเคส",
               "คำอธิบายเคส",
-              "Case Detail",
-              "Detail",
-              "Description",
-            ], inquiry || "-");
+            ], "");
+
+            const caseDescription = isNewPolicyMonth(monthKey)
+              ? String(rawCaseDescription || "").trim()
+              : "";
 
             const caseImageUrl = normalizeAssetUrl(
               getFirstAvailableHeaderValue(rawHelper, row, [
@@ -2642,7 +2789,7 @@ export default function DashboardMockup({
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
-              caseDescription: caseDescription ? String(caseDescription).trim() : "",
+              caseDescription: String(caseDescription || "").trim(),
               caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
               casePdfUrl,
               casePdfOriginalUrl,
