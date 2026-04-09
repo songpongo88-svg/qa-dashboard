@@ -2053,49 +2053,91 @@ function SlideOverCaseDetail({
                       {caseItem.reviewStatus}
                     </button>
                     {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (verifiedImagePdfUrls.length) {
-                            setPreviewAsset({
-                              type: "pdf",
-                              url: verifiedImagePdfUrls[0].url,
-                              title: verifiedImagePdfUrls[0].label,
-                            });
-                            return;
-                          }
-                          if (verifiedImageUrls.length) {
-                            setPreviewAsset({
-                              type: "image",
-                              url: verifiedImageUrls[0],
-                              title: `${caseItem.caseId} Case Image`,
-                              index: 0,
-                            });
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-[12px] font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100"
-                        title="Open case image"
-                      >
-                        <span>🖼️</span>
-                        <span>Case Image</span>
-                      </button>
+                      <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-sky-200 bg-sky-50/90 px-2 py-1 shadow-sm">
+                        <span className="text-[11px] font-semibold text-sky-700">Case Image</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (verifiedImagePdfUrls.length) {
+                              setPreviewAsset({
+                                type: "pdf",
+                                url: verifiedImagePdfUrls[0].url,
+                                title: verifiedImagePdfUrls[0].label,
+                                downloadUrl: verifiedImagePdfUrls[0].url,
+                              });
+                              return;
+                            }
+                            if (verifiedImageUrls.length) {
+                              setPreviewAsset({
+                                type: "image",
+                                url: verifiedImageUrls[0],
+                                title: `${caseItem.caseId} Case Image`,
+                                items: verifiedImageUrls,
+                                index: 0,
+                                downloadUrl: verifiedImageUrls[0],
+                              });
+                            }
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-white text-[13px] text-sky-700 transition hover:bg-sky-100"
+                          title="Open case image"
+                        >
+                          👁
+                        </button>
+                        <a
+                          href={verifiedImagePdfUrls.length ? verifiedImagePdfUrls[0].url : verifiedImageUrls[0]}
+                          download
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-white text-[13px] text-sky-700 transition hover:bg-sky-100"
+                          title="Download case image"
+                        >
+                          ⬇
+                        </a>
+                      </div>
                     ) : null}
                     {availablePdfUrls.length ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewAsset({
-                            type: "pdf",
-                            url: availablePdfUrls[0].url,
-                            title: availablePdfUrls[0].label,
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-[12px] font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100"
-                        title="Open case PDF"
-                      >
-                        <span>📎</span>
-                        <span>Case PDF</span>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {availablePdfUrls.map((item) => {
+                          const toneClass =
+                            item.tone === "violet"
+                              ? "border-violet-200 bg-violet-50 text-violet-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700";
+                          const iconClass =
+                            item.tone === "violet"
+                              ? "border-violet-200 text-violet-700 hover:bg-violet-100"
+                              : "border-amber-200 text-amber-700 hover:bg-amber-100";
+
+                          return (
+                            <div
+                              key={item.label}
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 shadow-sm ${toneClass}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewAsset({
+                                    type: "pdf",
+                                    url: item.url,
+                                    title: item.label,
+                                    downloadUrl: item.url,
+                                  })
+                                }
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white text-[13px] transition ${iconClass}`}
+                                title={`Open ${item.label}`}
+                              >
+                                👁
+                              </button>
+                              <a
+                                href={item.url}
+                                download
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white text-[13px] transition ${iconClass}`}
+                                title={`Download ${item.label}`}
+                              >
+                                ⬇
+                              </a>
+                              <span className="pr-2 text-[11px] font-semibold">{item.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     ) : null}
                   </div>
 
@@ -2193,6 +2235,7 @@ function SlideOverCaseDetail({
                   </div>
 
 
+                </div>
               </div>
             </PanelBody>
           </Panel>
