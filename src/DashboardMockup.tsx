@@ -1231,28 +1231,35 @@ function buildHeaderHelpers(headerRow: any[]) {
   return { getValue, getLastValue };
 }
 
+function extractGoogleDriveId(raw: unknown) {
+  const value = String(raw ?? "").trim();
+  if (!value) return "";
+
+  return (
+    value.match(/[?&]id=([^&#]+)/i)?.[1] ||
+    value.match(/\/file\/d\/([^\/]+)/i)?.[1] ||
+    value.match(/[?&]export=view&id=([^&#]+)/i)?.[1] ||
+    value.match(/[?&]export=download&id=([^&#]+)/i)?.[1] ||
+    ""
+  );
+}
+
 function normalizeAssetUrl(raw: unknown) {
   const value = String(raw ?? "").trim();
   if (!value) return "";
 
-  const driveIdFromOpen = value.match(/[?&]id=([^&#]+)/i)?.[1];
-  if (driveIdFromOpen) {
-    return `https://drive.google.com/uc?export=view&id=${driveIdFromOpen}`;
-  }
-
-  const driveIdFromFile = value.match(/\/file\/d\/([^\/]+)/i)?.[1];
-  if (driveIdFromFile) {
-    return `https://drive.google.com/uc?export=view&id=${driveIdFromFile}`;
-  }
-
-  const driveIdFromUc =
-    value.match(/[?&]export=view&id=([^&#]+)/i)?.[1] ||
-    value.match(/[?&]export=download&id=([^&#]+)/i)?.[1];
-  if (driveIdFromUc) {
-    return `https://drive.google.com/uc?export=view&id=${driveIdFromUc}`;
+  const driveId = extractGoogleDriveId(value);
+  if (driveId) {
+    return `https://drive.google.com/uc?export=view&id=${driveId}`;
   }
 
   return value;
+}
+
+function getGoogleDriveImagePreviewUrl(raw: unknown) {
+  const driveId = extractGoogleDriveId(raw);
+  if (!driveId) return "";
+  return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
 }
 
 function isGoogleDriveAssetUrl(url: string) {
@@ -1680,6 +1687,9 @@ function SlideOverCaseDetail({
   };
 
   const normalizedImageUrl = normalizeAssetUrl(caseItem.caseImageUrl || "");
+  const googleDriveImagePreviewUrl = getGoogleDriveImagePreviewUrl(caseItem.caseImageUrl || normalizedImageUrl);
+  const preferredImageUrl = googleDriveImagePreviewUrl || normalizedImageUrl;
+  const imageOpenUrl = String(caseItem.caseImageUrl || "").trim() || normalizedImageUrl;
   const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
   const [verifiedImageUrl, setVerifiedImageUrl] = useState("");
 
@@ -1700,10 +1710,10 @@ function SlideOverCaseDetail({
         pdfCandidates.map(async (item) => ((await urlExists(item.url)) ? item : null))
       );
 
-      const imageOk = normalizedImageUrl
-        ? isGoogleDriveAssetUrl(normalizedImageUrl)
+      const imageOk = preferredImageUrl
+        ? isGoogleDriveAssetUrl(preferredImageUrl)
           ? true
-          : await urlExists(normalizedImageUrl)
+          : await urlExists(preferredImageUrl)
         : false;
 
       if (!cancelled) {
@@ -1715,7 +1725,7 @@ function SlideOverCaseDetail({
           tone: string;
         }[];
         setAvailablePdfUrls(uniquePdfs);
-        setVerifiedImageUrl(imageOk ? normalizedImageUrl : "");
+        setVerifiedImageUrl(imageOk ? preferredImageUrl : "");
       }
     };
 
@@ -1723,7 +1733,7 @@ function SlideOverCaseDetail({
     return () => {
       cancelled = true;
     };
-  }, [caseItem.caseId, normalizedImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
+  }, [caseItem.caseId, preferredImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
 
   return (
     <div className="fixed inset-0 z-[90] bg-slate-900/45">
@@ -1853,7 +1863,7 @@ function SlideOverCaseDetail({
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <a
-                              href={verifiedImageUrl}
+                              href={imageOpenUrl || verifiedImageUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
