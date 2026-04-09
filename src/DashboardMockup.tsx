@@ -26,6 +26,11 @@ type CaseItem = {
   caseUrl?: string;
   inquiryTh: string;
   inquiryEn: string;
+  caseDescription?: string;
+  caseImageUrl?: string;
+  casePdfUrl?: string;
+  casePdfOriginalUrl?: string;
+  casePdfRevisedUrl?: string;
   finalScore: number;
   previousScore?: number;
   grade: Grade;
@@ -1583,6 +1588,9 @@ function SlideOverCaseDetail({
   onClose: () => void;
 }) {
   if (!open || !caseItem) return null;
+
+  const primaryPdfUrl =
+    String(caseItem.casePdfOriginalUrl || "").trim() || String(caseItem.casePdfUrl || "").trim();
 
   return (
     <div className="fixed inset-0 z-[90] bg-slate-900/45">
