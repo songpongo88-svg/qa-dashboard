@@ -76,7 +76,7 @@ const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
-const TOPIC_MASTER = [
+const LEGACY_TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
   { code: "1.3", label: "PDPA & Policy", max: 5 },
@@ -95,6 +95,26 @@ const TOPIC_MASTER = [
   { code: "5.2", label: "SLA Compliance", max: 5 },
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
+
+const APRIL_2026_TOPIC_MASTER = [
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+] as const;
+
+type TopicMasterItem = { code: string; label: string; max: number };
+
+function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
+  return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
+}
 
 const AGENT_MASTER = [
   "Anucha Makundin",
@@ -408,6 +428,21 @@ function getMonthLabel(date: Date | null) {
   }).format(date);
 }
 
+function formatAuditDateExact(value: any): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "string") {
+    const text = value.trim();
+    const direct = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (direct) {
+      const [, d, m, y] = direct;
+      return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+    }
+  }
+
+  return formatAuditDate(value);
+}
+
 function isWithinDateRange(dateObj: Date | null, from?: string, to?: string) {
   if (!dateObj) return false;
 
@@ -589,7 +624,7 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
   const gradeCounts: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
   for (const item of cases) gradeCounts[item.grade] += 1;
 
-  const topicPerformance = TOPIC_MASTER.map((master) => {
+  const topicPerformance = getTopicMasterByMonth(getPolicyMonthKeyForCases(cases)).map((master) => {
     const topics = cases
       .flatMap((item) =>
         item.reviewStatus === "Revised" && item.revisedTopics?.length
@@ -1010,13 +1045,15 @@ function CaseDetailTopicTable({
   const originalMap = getOriginalTopicMap(topics);
   const displayCodeSet = new Set(displayRevisedTopicCodes);
 
-  const displayTopics =
+  const displayTopicsBase =
     reviewStatus === "Revised" && revisedTopics?.length
       ? topics.map((originalTopic) => {
           const revisedTopic = revisedTopics.find((item) => item.code === originalTopic.code);
           return revisedTopic || originalTopic;
         })
       : topics;
+
+  const displayTopics = displayTopicsBase.filter((topic) => topic.max > 0);
 
   const columns = [
     displayTopics.filter((_, i) => i % 2 === 0),
@@ -2422,7 +2459,7 @@ export default function DashboardMockup({
           const revisedTopics: Topic[] = [];
           const displayRevisedTopicCodes: string[] = [];
 
-          TOPIC_MASTER.forEach((topic) => {
+          LEGACY_TOPIC_MASTER.forEach((topic) => {
             const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
             const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
             const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
@@ -2502,7 +2539,17 @@ export default function DashboardMockup({
             (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
           )
           .map((row, index) => {
-            const topics: Topic[] = TOPIC_MASTER.map((topic) => {
+            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
+            const mergedAppeal = appealMap.get(caseId);
+
+            const auditRaw = rawHelper.getValue(row, "Audit Date");
+            const timestampRaw =
+              getFirstAvailableHeaderValue(rawHelper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
+            const auditDateObj = excelDateToJSDate(auditRaw);
+            const monthKey = getMonthKey(auditDateObj);
+            const topicMaster = getTopicMasterByMonth(monthKey);
+
+            const topics: Topic[] = topicMaster.map((topic) => {
               const scoreVal = Number(rawHelper.getValue(row, `${topic.code} Score`) || 0);
               const score = Number.isFinite(scoreVal) ? scoreVal : 0;
               const commentVal = rawHelper.getValue(row, `${topic.code} Comment`);
@@ -2516,9 +2563,6 @@ export default function DashboardMockup({
                 comment: commentVal ? String(commentVal).trim() : "",
               };
             });
-
-            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
-            const mergedAppeal = appealMap.get(caseId);
 
             const baseFinalScore =
               Number(rawHelper.getValue(row, "Final Score")) ||
@@ -2608,19 +2652,13 @@ export default function DashboardMockup({
               ], caseId ? `/case-pdfs/${caseId}.pdf` : "")
             );
 
-            const auditRaw = rawHelper.getValue(row, "Audit Date");
-            const timestampRaw =
-              getFirstAvailableHeaderValue(rawHelper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
-            const auditDateObj = excelDateToJSDate(auditRaw);
-            const monthKey = getMonthKey(auditDateObj);
-
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
 
             return {
               key: `row-${index + 1}-${caseId}`,
               agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
-              auditDate: formatAuditDate(auditRaw),
+              auditDate: formatAuditDateExact(auditRaw),
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
