@@ -242,6 +242,19 @@ function gradeTone(grade: Grade) {
   }
 }
 
+function scoreBadgeTone(score: number) {
+  if (score >= 90) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (score >= 85) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  if (score >= 80) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
 function currentGradeTone(value: string) {
   switch (value) {
     case "A":
@@ -810,6 +823,15 @@ function CaseNavigatorCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
+          <div className="mt-2">
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
+                item.finalScore
+              )}`}
+            >
+              Score {item.finalScore.toFixed(2)}
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col items-end gap-1">
@@ -1673,21 +1695,29 @@ function SlideOverCaseDetail({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-cyan-50 px-4 py-4 shadow-sm">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
-                        Case Image
+                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-cyan-50 to-violet-50 px-4 py-4 shadow-sm shadow-sky-100/60">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">🖼️</span>
+                        <span>Case Image</span>
                       </div>
                       {caseItem.caseImageUrl ? (
-                        <a
-                          href={caseItem.caseImageUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
-                        >
-                          Open Image Attachment
-                        </a>
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-2xl border border-sky-100 bg-white/90 px-3 py-3 text-xs leading-5 text-slate-600">
+                            Image attachment is available for this case.
+                          </div>
+                          <a
+                            href={caseItem.caseImageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                          >
+                            Open Image Attachment
+                          </a>
+                        </div>
                       ) : (
-                        <div className="mt-2 min-h-[72px] text-sm leading-6 text-slate-500">-</div>
+                        <div className="mt-3 rounded-2xl border border-dashed border-sky-200 bg-white/85 px-3 py-3 text-sm leading-6 text-slate-500">
+                          No image attachment
+                        </div>
                       )}
                     </div>
 
