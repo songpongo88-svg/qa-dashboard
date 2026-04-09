@@ -1262,6 +1262,21 @@ function getGoogleDriveImagePreviewUrl(raw: unknown) {
   return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
 }
 
+function splitAssetUrls(raw: unknown) {
+  const value = String(raw ?? "").trim();
+  if (!value) return [];
+
+  const urlMatches = value.match(/https?:\/\/[^\s,|;]+/g);
+  const parts = urlMatches?.length
+    ? urlMatches
+    : value
+        .split(/[\n,|;]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+  return [...new Set(parts)];
+}
+
 function isGoogleDriveAssetUrl(url: string) {
   const value = String(url || "").toLowerCase();
   return (
@@ -1687,16 +1702,20 @@ function SlideOverCaseDetail({
     ),
   };
 
-  const normalizedImageUrl = normalizeAssetUrl(caseItem.caseImageUrl || "");
-  const googleDriveImagePreviewUrl = getGoogleDriveImagePreviewUrl(caseItem.caseImageUrl || normalizedImageUrl);
-  const preferredImageUrl = googleDriveImagePreviewUrl || normalizedImageUrl;
-  const imageOpenUrl = String(caseItem.caseImageUrl || "").trim() || normalizedImageUrl;
+  const rawImageUrls = splitAssetUrls(caseItem.caseImageUrl || "");
+  const normalizedImageUrls = rawImageUrls.map((url) => normalizeAssetUrl(url)).filter(Boolean);
+  const imagePreviewCandidates = normalizedImageUrls.map((url, index) => {
+    const rawUrl = rawImageUrls[index] || url;
+    return getGoogleDriveImagePreviewUrl(rawUrl) || url;
+  });
   const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
-  const [verifiedImageUrl, setVerifiedImageUrl] = useState("");
+  const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
   const [previewAsset, setPreviewAsset] = useState<{
     type: "image" | "pdf";
     url: string;
     title: string;
+    items?: string[];
+    index?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -1716,11 +1735,16 @@ function SlideOverCaseDetail({
         pdfCandidates.map(async (item) => ((await urlExists(item.url)) ? item : null))
       );
 
-      const imageOk = preferredImageUrl
-        ? isGoogleDriveAssetUrl(preferredImageUrl)
-          ? true
-          : await urlExists(preferredImageUrl)
-        : false;
+      const checkedImages = await Promise.all(
+        imagePreviewCandidates.map(async (item) => {
+          const imageOk = item
+            ? isGoogleDriveAssetUrl(item)
+              ? true
+              : await urlExists(item)
+            : false;
+          return imageOk ? item : null;
+        })
+      );
 
       if (!cancelled) {
         const uniquePdfs = checked
@@ -1731,7 +1755,9 @@ function SlideOverCaseDetail({
           tone: string;
         }[];
         setAvailablePdfUrls(uniquePdfs);
-        setVerifiedImageUrl(imageOk ? preferredImageUrl : "");
+        setVerifiedImageUrls(
+          checkedImages.filter(Boolean).filter((item, index, arr) => arr.indexOf(item) === index) as string[]
+        );
       }
     };
 
@@ -1739,7 +1765,7 @@ function SlideOverCaseDetail({
     return () => {
       cancelled = true;
     };
-  }, [caseItem.caseId, preferredImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
+  }, [caseItem.caseId, caseItem.caseImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
 
   return (
     <div className="fixed inset-0 z-[90] bg-slate-900/45">
@@ -1782,12 +1808,62 @@ function SlideOverCaseDetail({
                   className="h-full w-full bg-white"
                 />
               ) : (
-                <div className="flex h-full items-center justify-center overflow-auto bg-slate-100 p-4">
-                  <img
-                    src={previewAsset.url}
-                    alt={previewAsset.title}
-                    className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
-                  />
+                <div className="relative flex h-full items-center justify-center overflow-hidden bg-slate-100 p-4">
+                  {previewAsset.items && previewAsset.items.length > 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewAsset((current) => {
+                            if (!current || current.type !== "image" || !current.items?.length) return current;
+                            const nextIndex =
+                              ((current.index ?? 0) - 1 + current.items.length) % current.items.length;
+                            return {
+                              ...current,
+                              url: current.items[nextIndex],
+                              index: nextIndex,
+                              title: `${caseItem.caseId} Image Attachment ${nextIndex + 1}/${current.items.length}`,
+                            };
+                          })
+                        }
+                        className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewAsset((current) => {
+                            if (!current || current.type !== "image" || !current.items?.length) return current;
+                            const nextIndex = ((current.index ?? 0) + 1) % current.items.length;
+                            return {
+                              ...current,
+                              url: current.items[nextIndex],
+                              index: nextIndex,
+                              title: `${caseItem.caseId} Image Attachment ${nextIndex + 1}/${current.items.length}`,
+                            };
+                          })
+                        }
+                        className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
+                      >
+                        ›
+                      </button>
+                    </>
+                  ) : null}
+
+                  <div className="flex h-full w-full items-center justify-center overflow-auto">
+                    <img
+                      src={previewAsset.url}
+                      alt={previewAsset.title}
+                      className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
+                    />
+                  </div>
+
+                  {previewAsset.items && previewAsset.items.length > 1 ? (
+                    <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow">
+                      Image {(previewAsset.index ?? 0) + 1} / {previewAsset.items.length}
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -1907,39 +1983,79 @@ function SlideOverCaseDetail({
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">🖼️</span>
                         <span>Case Image</span>
                       </div>
-                      {verifiedImageUrl ? (
+                      {verifiedImageUrls.length ? (
                         <div className="mt-3 space-y-3">
-                          <div className="overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
+                          <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
                             <img
-                              src={verifiedImageUrl}
+                              src={verifiedImageUrls[0]}
                               alt={`Case attachment ${caseItem.caseId}`}
                               className="h-36 w-full rounded-xl object-cover"
-                              onError={() => setVerifiedImageUrl("")}
+                              onError={() => setVerifiedImageUrls((current) => current.slice(1))}
                             />
+                            {verifiedImageUrls.length > 1 ? (
+                              <div className="absolute right-4 top-4 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-sky-700 shadow-sm">
+                                {verifiedImageUrls.length} images
+                              </div>
+                            ) : null}
                           </div>
+
+                          {verifiedImageUrls.length > 1 ? (
+                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                              {verifiedImageUrls.slice(0, 10).map((url, index) => (
+                                <button
+                                  key={`${url}-${index}`}
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewAsset({
+                                      type: "image",
+                                      url,
+                                      title: `${caseItem.caseId} Image Attachment ${index + 1}/${verifiedImageUrls.length}`,
+                                      items: verifiedImageUrls,
+                                      index,
+                                    })
+                                  }
+                                  className="overflow-hidden rounded-xl border border-sky-100 bg-white shadow-sm hover:border-sky-300"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${caseItem.caseId} thumbnail ${index + 1}`}
+                                    className="h-16 w-full object-cover"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
                               onClick={() =>
                                 setPreviewAsset({
                                   type: "image",
-                                  url: verifiedImageUrl,
-                                  title: `${caseItem.caseId} Image Attachment`,
+                                  url: verifiedImageUrls[0],
+                                  title: `${caseItem.caseId} Image Attachment 1/${verifiedImageUrls.length}`,
+                                  items: verifiedImageUrls,
+                                  index: 0,
                                 })
                               }
                               className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
                             >
                               Open Image Attachment
                             </button>
-                            <a
-                              href={imageOpenUrl || verifiedImageUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
-                            >
-                              Open in New Tab
-                            </a>
-                            <div className="text-[11px] font-medium text-sky-700">{caseItem.caseId} Image Attachment</div>
+                            {verifiedImageUrls.map((url, index) => (
+                              <a
+                                key={`${url}-open-${index}`}
+                                href={rawImageUrls[index] || url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
+                              >
+                                {verifiedImageUrls.length > 1 ? `Open ${index + 1}` : "Open in New Tab"}
+                              </a>
+                            ))}
+                            <div className="text-[11px] font-medium text-sky-700">
+                              {caseItem.caseId} Image Attachment{verifiedImageUrls.length > 1 ? ` · ${verifiedImageUrls.length} files` : ""}
+                            </div>
                           </div>
                         </div>
                       ) : (
