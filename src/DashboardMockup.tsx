@@ -29,6 +29,8 @@ type CaseItem = {
   caseDescription?: string;
   caseImageUrl?: string;
   casePdfUrl?: string;
+  casePdfOriginalUrl?: string;
+  casePdfRevisedUrl?: string;
   finalScore: number;
   previousScore?: number;
   grade: Grade;
@@ -1666,15 +1668,59 @@ function SlideOverCaseDetail({
     [caseItem?.caseImageUrl]
   );
   const [imagePreviewIndex, setImagePreviewIndex] = useState(0);
+  const [resolvedPdfLinks, setResolvedPdfLinks] = useState<{ original: string; revised: string }>({
+    original: "",
+    revised: "",
+  });
 
   useEffect(() => {
     setImagePreviewIndex(0);
   }, [caseItem?.caseImageUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolvePdfLinks() {
+      const tryResolve = async (candidates: string[]) => {
+        for (const candidate of candidates) {
+          const url = String(candidate || "").trim();
+          if (!url) continue;
+
+          try {
+            const response = await fetch(url, { method: "HEAD" });
+            if (response.ok) return url;
+          } catch {}
+
+          try {
+            const response = await fetch(url);
+            if (response.ok) return url;
+          } catch {}
+        }
+
+        return "";
+      };
+
+      const original = await tryResolve([caseItem?.casePdfOriginalUrl || "", caseItem?.casePdfUrl || ""]);
+      const revised = await tryResolve([caseItem?.casePdfRevisedUrl || ""]);
+
+      if (!cancelled) {
+        setResolvedPdfLinks({ original, revised });
+      }
+    }
+
+    setResolvedPdfLinks({ original: "", revised: "" });
+    resolvePdfLinks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseItem?.casePdfOriginalUrl, caseItem?.casePdfRevisedUrl, caseItem?.casePdfUrl]);
+
   if (!open || !caseItem) return null;
 
   const activeImagePreviewUrl = imagePreviewCandidates[imagePreviewIndex] || "";
   const canShowImagePreview = Boolean(activeImagePreviewUrl) && imagePreviewIndex < imagePreviewCandidates.length;
+  const hasAnyPdf = Boolean(resolvedPdfLinks.original || resolvedPdfLinks.revised);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
@@ -1829,31 +1875,65 @@ function SlideOverCaseDetail({
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         ไฟล์ PDF เคส / Case PDF
                       </div>
-                      {caseItem.casePdfUrl ? (
-                        <div className="mt-3 space-y-4">
-                          <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
-                            <div className="flex flex-col items-center gap-2 text-slate-600">
-                              <div className="text-5xl leading-none">📄</div>
-                              <div className="text-xs font-semibold text-slate-500">{caseItem.caseId}.pdf</div>
+                      {hasAnyPdf ? (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          {resolvedPdfLinks.original ? (
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                              <div className="flex min-h-[108px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
+                                <div className="flex flex-col items-center gap-2 text-slate-600">
+                                  <div className="text-5xl leading-none">📄</div>
+                                  <div className="text-center text-[11px] font-semibold text-slate-500">Original PDF</div>
+                                  <div className="text-center text-[10px] text-slate-400">{caseItem.caseId}</div>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <a
+                                  href={resolvedPdfLinks.original}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                                >
+                                  Open PDF
+                                </a>
+                                <a
+                                  href={resolvedPdfLinks.original}
+                                  download
+                                  className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                  Download PDF
+                                </a>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <a
-                              href={caseItem.casePdfUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                            >
-                              Open PDF
-                            </a>
-                            <a
-                              href={caseItem.casePdfUrl}
-                              download
-                              className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                            >
-                              Download PDF
-                            </a>
-                          </div>
+                          ) : null}
+
+                          {resolvedPdfLinks.revised ? (
+                            <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-3">
+                              <div className="flex min-h-[108px] items-center justify-center rounded-2xl border border-violet-200 bg-white">
+                                <div className="flex flex-col items-center gap-2 text-violet-700">
+                                  <div className="text-5xl leading-none">📄</div>
+                                  <div className="text-center text-[11px] font-semibold">Revised PDF</div>
+                                  <div className="text-center text-[10px] text-violet-400">{caseItem.caseId}</div>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <a
+                                  href={resolvedPdfLinks.revised}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex rounded-xl border border-violet-200 bg-violet-100 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-200"
+                                >
+                                  Open Revised
+                                </a>
+                                <a
+                                  href={resolvedPdfLinks.revised}
+                                  download
+                                  className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                  Download Revised
+                                </a>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : (
                         <div className="mt-2 text-sm leading-6 text-slate-800">-</div>
@@ -2204,6 +2284,8 @@ export default function DashboardMockup({
               "";
 
             const casePdfUrl = caseId ? `/case-pdfs/${caseId}.pdf` : "";
+            const casePdfOriginalUrl = caseId ? `/case-pdfs/${caseId}-original.pdf` : "";
+            const casePdfRevisedUrl = caseId ? `/case-pdfs/${caseId}-revised.pdf` : "";
 
             return {
               key: `row-${index + 1}-${caseId}`,
@@ -2221,6 +2303,8 @@ export default function DashboardMockup({
               caseDescription: caseDescription ? String(caseDescription).trim() : "",
               caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
               casePdfUrl,
+              casePdfOriginalUrl,
+              casePdfRevisedUrl,
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
               grade: scoreToGrade(finalScoreVal, monthKey),
