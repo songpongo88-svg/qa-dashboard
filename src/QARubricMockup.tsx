@@ -527,6 +527,40 @@ const APR_2026_RUBRIC: RubricVersion = {
 };
 
 const RUBRICS: RubricVersion[] = [MARCH_2026_RUBRIC, APR_2026_RUBRIC];
+const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+
+function isSongkranThemeActive() {
+  const now = new Date();
+  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
+}
+
+function SongkranBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-[-40px] top-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
+      <div className="absolute right-0 top-12 h-36 w-36 rounded-full bg-fuchsia-300/20 blur-3xl" />
+      <div className="absolute left-1/3 bottom-0 h-40 w-40 rounded-full bg-sky-300/15 blur-3xl" />
+      <div className="absolute right-1/4 bottom-4 h-28 w-28 rounded-full bg-violet-300/15 blur-3xl" />
+      <div className="absolute left-5 bottom-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">🔫💦</div>
+      <div className="absolute right-5 top-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">🪣🌸</div>
+    </div>
+  );
+}
+
+function SongkranFlowerCorner({ className = "" }: { className?: string }) {
+  return (
+    <div className={`pointer-events-none absolute ${className}`}>
+      <div className="relative h-12 w-12">
+        <span className="absolute left-4 top-0 h-4 w-4 rounded-full bg-pink-300/70" />
+        <span className="absolute left-0 top-4 h-4 w-4 rounded-full bg-fuchsia-300/70" />
+        <span className="absolute left-4 top-8 h-4 w-4 rounded-full bg-cyan-300/70" />
+        <span className="absolute left-8 top-4 h-4 w-4 rounded-full bg-sky-300/70" />
+        <span className="absolute left-4 top-4 h-4 w-4 rounded-full bg-white/85 shadow-sm" />
+      </div>
+    </div>
+  );
+}
+
 
 function formatDate(isoDate?: string) {
   if (!isoDate) return "Present";
@@ -584,13 +618,16 @@ export default function QARubricMockup({
     (sum, section) => sum + section.topics.length,
     0
   );
+  const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   const isCurrentDefault = selectedKey === getAutoRubricKey();
 
   return (
     <div className="min-h-screen bg-slate-100 p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white shadow-xl">
+      <div className="relative mx-auto max-w-7xl">
+        {songkranTheme ? <SongkranBackdrop /> : null}
+        <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white shadow-xl">
+          {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" /> : null}
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
             Robinhood QA Rubric
           </div>
