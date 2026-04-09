@@ -1105,45 +1105,45 @@ function CaseDetailTopicTable({
     }>;
 
   return (
-    <div className="overflow-x-auto rounded-[24px] border border-violet-200 bg-white shadow-sm">
-      <table className="min-w-[1200px] w-full border-collapse text-sm">
+    <div className="overflow-x-auto rounded-[28px] border border-violet-200/80 bg-white shadow-[0_18px_48px_rgba(109,40,217,0.10)]">
+      <table className="min-w-[1220px] w-full border-collapse text-sm">
         <thead>
-          <tr className="bg-gradient-to-r from-violet-800 via-violet-700 to-fuchsia-700 text-white">
-            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Topic</th>
-            <th className="border-r border-white/20 px-5 py-4 text-left font-semibold">Description</th>
-            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Score</th>
-            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Max</th>
-            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Score %</th>
-            <th className="border-r border-white/20 px-4 py-4 text-center font-semibold">Status</th>
-            <th className="px-5 py-4 text-center font-semibold">Evaluation Comment</th>
+          <tr className="bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#7c3aed] text-white shadow-sm">
+            <th className="border-r border-white/15 px-4 py-4 text-center text-[13px] font-semibold">Topic</th>
+            <th className="border-r border-white/15 px-5 py-4 text-left text-[13px] font-semibold">Description</th>
+            <th className="border-r border-white/15 px-4 py-4 text-center text-[13px] font-semibold">Score</th>
+            <th className="border-r border-white/15 px-4 py-4 text-center text-[13px] font-semibold">Max</th>
+            <th className="border-r border-white/15 px-4 py-4 text-center text-[13px] font-semibold">Score %</th>
+            <th className="border-r border-white/15 px-4 py-4 text-center text-[13px] font-semibold">Status</th>
+            <th className="px-5 py-4 text-center text-[13px] font-semibold">Evaluation Comment</th>
           </tr>
         </thead>
         <tbody>
           {rows.length ? rows.map((row, index) => (
             <tr
               key={`${row.shownTopic.code}-${index}`}
-              className={index % 2 === 0 ? "bg-white" : "bg-violet-50/35"}
+              className={index % 2 === 0 ? "bg-white" : "bg-gradient-to-r from-violet-50/55 via-fuchsia-50/35 to-white"}
             >
-              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle font-semibold text-slate-900">
+              <td className="border-r border-t border-violet-100 px-4 py-6 text-center align-middle font-semibold text-slate-900">
                 <div className="mx-auto inline-flex min-w-[58px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
                   {row.shownTopic.code}
                 </div>
               </td>
-              <td className="border-r border-t border-slate-200 px-5 py-6 align-middle text-[14px] leading-7 text-slate-800">
+              <td className="border-r border-t border-violet-100 px-5 py-6 align-middle text-[14px] leading-7 text-slate-800">
                 <div className="font-semibold text-slate-900">{row.shownTopic.label}</div>
                 {row.changed && row.revisedTopic ? (
-                  <div className="mt-3 inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700">
+                  <div className="mt-3 inline-flex items-center rounded-full border border-violet-300 bg-gradient-to-r from-violet-100 to-fuchsia-100 px-3 py-1 text-[11px] font-semibold text-violet-800">
                     Revised topic applied
                   </div>
                 ) : null}
               </td>
-              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle">
+              <td className="border-r border-t border-violet-100 px-4 py-6 text-center align-middle">
                 {row.changed && row.revisedTopic ? (
                   <div className="space-y-2">
-                    <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                    <div className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
                       Original {row.originalTopic.score}
                     </div>
-                    <div className="inline-flex items-center rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-xs font-bold text-violet-800 shadow-sm">
+                    <div className="inline-flex items-center rounded-full border border-violet-300 bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
                       Revised {row.revisedTopic.score}
                     </div>
                   </div>
@@ -1151,29 +1151,29 @@ function CaseDetailTopicTable({
                   <div className="text-lg font-bold text-slate-900">{row.shownTopic.score}</div>
                 )}
               </td>
-              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle text-base font-semibold text-slate-800">
+              <td className="border-r border-t border-violet-100 px-4 py-6 text-center align-middle text-base font-semibold text-slate-800">
                 {row.shownTopic.max}
               </td>
-              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle">
-                <div className={`mx-auto inline-flex min-w-[88px] items-center justify-center rounded-2xl border px-3 py-2 text-sm font-bold ${row.changed ? "border-violet-200 bg-violet-50 text-violet-800" : "border-emerald-100 bg-emerald-50/70 text-slate-900"}`}>
+              <td className="border-r border-t border-violet-100 px-4 py-6 text-center align-middle">
+                <div className={`mx-auto inline-flex min-w-[94px] items-center justify-center rounded-2xl border px-3 py-2 text-sm font-bold shadow-sm ${row.changed ? "border-violet-300 bg-violet-100 text-violet-900" : "border-violet-200 bg-violet-50 text-violet-900"}`}>
                   {row.pct.toFixed(1)}%
                 </div>
               </td>
-              <td className="border-r border-t border-slate-200 px-4 py-6 text-center align-middle">
-                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${row.statusClass}`}>
+              <td className="border-r border-t border-violet-100 px-4 py-6 text-center align-middle">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold shadow-sm ${row.statusClass}`}>
                   {row.statusLabel}
                 </span>
               </td>
-              <td className="border-t border-slate-200 px-5 py-6 align-middle">
+              <td className="border-t border-violet-100 px-5 py-6 align-middle">
                 {row.changed && row.revisedTopic ? (
                   <div className="space-y-3">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-slate-50 to-violet-50/40 px-4 py-3">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Original Comment</div>
                       <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
                         {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 shadow-sm">
+                    <div className="rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-4 py-3 shadow-sm shadow-violet-100/80">
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Revised Comment</div>
                         <span className="rounded-full border border-violet-300 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
@@ -1186,7 +1186,7 @@ function CaseDetailTopicTable({
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-slate-50 to-violet-50/40 px-4 py-3">
                     <div className="whitespace-pre-line text-[13px] leading-6 text-slate-700">
                       {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
                     </div>
@@ -2192,198 +2192,6 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="grid gap-3 lg:grid-cols-12">
-                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-cyan-50 to-violet-50 px-4 py-4 shadow-sm shadow-sky-100/60 lg:col-span-6 xl:col-span-5">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">🖼️</span>
-                        <span>Case Image</span>
-                      </div>
-                      {verifiedImagePdfUrls.length ? (
-                        <div className="mt-3 space-y-3">
-                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-3 shadow-sm">
-                            <div className="flex items-start gap-3">
-                              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-lg">📄</div>
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-slate-900">Case Image is a PDF file</div>
-                                <div className="mt-1 text-xs leading-5 text-slate-500">
-                                  ปุ่มหลักจะเปิด PDF viewer และปุ่มข้าง ๆ ใช้สำหรับดาวน์โหลดไฟล์แนบ
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreviewAsset({
-                                  type: "pdf",
-                                  url: verifiedImagePdfUrls[0].url,
-                                  title: verifiedImagePdfUrls[0].label,
-                                })
-                              }
-                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
-                            >
-                              Open PDF Viewer
-                            </button>
-                            {verifiedImagePdfUrls.map((item, index) => (
-                              <a
-                                key={`${item.url}-download-${index}`}
-                                href={item.rawUrl || item.url}
-                                download
-                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
-                              >
-                                {verifiedImagePdfUrls.length > 1 ? `Download PDF ${index + 1}` : "Download PDF"}
-                              </a>
-                            ))}
-                          </div>
-                          <div className="text-[11px] font-medium text-sky-700">
-                            {caseItem.caseId} Case Image PDF{verifiedImagePdfUrls.length > 1 ? ` · ${verifiedImagePdfUrls.length} files` : ""}
-                          </div>
-                        </div>
-                      ) : verifiedImageUrls.length ? (
-                        <div className="mt-3 space-y-3">
-                          <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
-                            <img
-                              src={verifiedImageUrls[0]}
-                              alt={`Case attachment ${caseItem.caseId}`}
-                              className="h-24 w-full rounded-xl object-cover"
-                              onError={() => setVerifiedImageUrls((current) => current.slice(1))}
-                            />
-                            {verifiedImageUrls.length > 1 ? (
-                              <div className="absolute right-3 top-3 rounded-full border border-sky-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-sm">
-                                {verifiedImageUrls.length} images
-                              </div>
-                            ) : null}
-                          </div>
-
-                          {verifiedImageUrls.length > 1 ? (
-                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                              {verifiedImageUrls.slice(0, 10).map((url, index) => (
-                                <button
-                                  key={`${url}-${index}`}
-                                  type="button"
-                                  onClick={() =>
-                                    setPreviewAsset({
-                                      type: "image",
-                                      url,
-                                      title: `${caseItem.caseId} Image Attachment ${index + 1}/${verifiedImageUrls.length}`,
-                                      items: verifiedImageUrls,
-                                      index,
-                                    })
-                                  }
-                                  className="overflow-hidden rounded-xl border border-sky-100 bg-white shadow-sm hover:border-sky-300"
-                                >
-                                  <img
-                                    src={url}
-                                    alt={`${caseItem.caseId} thumbnail ${index + 1}`}
-                                    className="h-12 w-full object-cover"
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreviewAsset({
-                                  type: "image",
-                                  url: verifiedImageUrls[0],
-                                  title: `${caseItem.caseId} Image Attachment 1/${verifiedImageUrls.length}`,
-                                  items: verifiedImageUrls,
-                                  index: 0,
-                                })
-                              }
-                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
-                            >
-                              Open Image Viewer
-                            </button>
-                            {verifiedImageUrls.map((url, index) => (
-                              <a
-                                key={`${url}-download-${index}`}
-                                href={rawImageUrls[index] || url}
-                                download
-                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
-                              >
-                                {verifiedImageUrls.length > 1 ? `Download ${index + 1}` : "Download Image"}
-                              </a>
-                            ))}
-                          </div>
-                          <div className="text-[11px] font-medium text-sky-700">
-                            {caseItem.caseId} Image Attachment{verifiedImageUrls.length > 1 ? ` · ${verifiedImageUrls.length} files` : ""}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-3 rounded-2xl border border-dashed border-sky-200 bg-white/85 px-3 py-3 text-sm leading-6 text-slate-500">
-                          No image attachment
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 px-4 py-4 shadow-sm lg:col-span-6 xl:col-span-4">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700">📎</span>
-                        <span>Case PDF</span>
-                      </div>
-                      {availablePdfUrls.length ? (
-                        <div className="mt-3 grid gap-2">
-                          {availablePdfUrls.map((item) => {
-                            const isViolet = item.tone === "violet";
-                            const openClass = isViolet
-                              ? "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
-                              : "border-amber-200 bg-white text-amber-700 hover:bg-amber-50";
-                            const downloadClass = isViolet
-                              ? "border-violet-200 bg-violet-100 text-violet-800 hover:bg-violet-200"
-                              : "border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200";
-                            return (
-                              <div key={item.url} className="rounded-2xl border border-slate-200 bg-white/90 p-3">
-                                <div className="flex flex-wrap gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setPreviewAsset({
-                                        type: "pdf",
-                                        url: getGoogleDrivePdfViewerUrl(item.url) || item.url,
-                                        downloadUrl: item.url,
-                                        title: item.label,
-                                      })
-                                    }
-                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
-                                  >
-                                    Open PDF
-                                  </button>
-                                  <a
-                                    href={item.url}
-                                    download
-                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${downloadClass}`}
-                                  >
-                                    Download PDF
-                                  </a>
-                                </div>
-                                <div className={`mt-2 text-[11px] font-medium ${isViolet ? "text-violet-700" : "text-amber-700"}`}>
-                                  {item.label}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="mt-2 min-h-[72px] text-sm leading-6 text-slate-500">-</div>
-                      )}
-                    </div>
-
-                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm lg:col-span-12 xl:col-span-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                        Topic Detail View
-                      </div>
-                      <div className="mt-2 text-sm leading-6 text-slate-700">
-                        ตารางด้านล่างจะแสดงผลแบบเดียวกันทุกเดือน โดยรวม Topic, Score, Score %, Status และ Evaluation Comment ไว้ในหน้าเดียวเพื่ออ่านง่ายขึ้น
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
               </div>
             </PanelBody>
