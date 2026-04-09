@@ -2027,8 +2027,21 @@ function SlideOverCaseDetail({
                           Grade {caseItem.grade}
                         </span>
                       </div>
+                      {caseItem.caseUrl ? (
+                        <a
+                          href={caseItem.caseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex rounded-2xl border border-white/25 bg-white/15 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20"
+                        >
+                          Open Case URL
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-              </PanelBody>
+              </div>
+            </PanelBody>
           </Panel>
 
           <Panel>
