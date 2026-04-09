@@ -2100,22 +2100,11 @@ function SlideOverCaseDetail({
                         <span>Case Image</span>
                       </div>
                       {verifiedImagePdfUrls.length ? (
-                        <div className="mt-3 space-y-3">
-                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-3 shadow-sm">
-                            <div className="flex items-start gap-3">
-                              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-lg">📄</div>
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-slate-900">Case Image is a PDF file</div>
-                                <div className="mt-1 text-xs leading-5 text-slate-500">
-                                  ปุ่มหลักจะเปิด PDF viewer และปุ่มข้าง ๆ ใช้สำหรับดาวน์โหลดไฟล์แนบ
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
+                        <div className="mt-3 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
+                              title="Open Case Image PDF Viewer"
                               onClick={() =>
                                 setPreviewAsset({
                                   type: "pdf",
@@ -2123,18 +2112,19 @@ function SlideOverCaseDetail({
                                   title: verifiedImagePdfUrls[0].label,
                                 })
                               }
-                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-white text-lg text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
                             >
-                              Open PDF Viewer
+                              📄
                             </button>
                             {verifiedImagePdfUrls.map((item, index) => (
                               <a
                                 key={`${item.url}-download-${index}`}
                                 href={item.rawUrl || item.url}
                                 download
-                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
+                                title={verifiedImagePdfUrls.length > 1 ? `Download Case Image PDF ${index + 1}` : "Download Case Image PDF"}
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-100 text-lg text-sky-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-200"
                               >
-                                {verifiedImagePdfUrls.length > 1 ? `Download PDF ${index + 1}` : "Download PDF"}
+                                ⬇️
                               </a>
                             ))}
                           </div>
@@ -2143,51 +2133,11 @@ function SlideOverCaseDetail({
                           </div>
                         </div>
                       ) : verifiedImageUrls.length ? (
-                        <div className="mt-3 space-y-3">
-                          <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
-                            <img
-                              src={verifiedImageUrls[0]}
-                              alt={`Case attachment ${caseItem.caseId}`}
-                              className="h-24 w-full rounded-xl object-cover"
-                              onError={() => setVerifiedImageUrls((current) => current.slice(1))}
-                            />
-                            {verifiedImageUrls.length > 1 ? (
-                              <div className="absolute right-3 top-3 rounded-full border border-sky-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-sm">
-                                {verifiedImageUrls.length} images
-                              </div>
-                            ) : null}
-                          </div>
-
-                          {verifiedImageUrls.length > 1 ? (
-                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-                              {verifiedImageUrls.slice(0, 10).map((url, index) => (
-                                <button
-                                  key={`${url}-${index}`}
-                                  type="button"
-                                  onClick={() =>
-                                    setPreviewAsset({
-                                      type: "image",
-                                      url,
-                                      title: `${caseItem.caseId} Image Attachment ${index + 1}/${verifiedImageUrls.length}`,
-                                      items: verifiedImageUrls,
-                                      index,
-                                    })
-                                  }
-                                  className="overflow-hidden rounded-xl border border-sky-100 bg-white shadow-sm hover:border-sky-300"
-                                >
-                                  <img
-                                    src={url}
-                                    alt={`${caseItem.caseId} thumbnail ${index + 1}`}
-                                    className="h-12 w-full object-cover"
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-
+                        <div className="mt-3 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
+                              title="Open Case Image Viewer"
                               onClick={() =>
                                 setPreviewAsset({
                                   type: "image",
@@ -2197,18 +2147,19 @@ function SlideOverCaseDetail({
                                   index: 0,
                                 })
                               }
-                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-white text-lg text-sky-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50"
                             >
-                              Open Image Viewer
+                              🖼️
                             </button>
                             {verifiedImageUrls.map((url, index) => (
                               <a
                                 key={`${url}-download-${index}`}
                                 href={rawImageUrls[index] || url}
                                 download
-                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
+                                title={verifiedImageUrls.length > 1 ? `Download Image ${index + 1}` : "Download Image"}
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-200 bg-sky-100 text-lg text-sky-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-200"
                               >
-                                {verifiedImageUrls.length > 1 ? `Download ${index + 1}` : "Download Image"}
+                                ⬇️
                               </a>
                             ))}
                           </div>
@@ -2243,6 +2194,7 @@ function SlideOverCaseDetail({
                                 <div className="flex flex-wrap gap-2">
                                   <button
                                     type="button"
+                                    title={`Open ${item.label}`}
                                     onClick={() =>
                                       setPreviewAsset({
                                         type: "pdf",
@@ -2251,16 +2203,17 @@ function SlideOverCaseDetail({
                                         title: item.label,
                                       })
                                     }
-                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
+                                    className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-lg shadow-sm transition hover:-translate-y-0.5 ${openClass}`}
                                   >
-                                    Open PDF
+                                    📄
                                   </button>
                                   <a
                                     href={item.url}
                                     download
-                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${downloadClass}`}
+                                    title={`Download ${item.label}`}
+                                    className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-lg shadow-sm transition hover:-translate-y-0.5 ${downloadClass}`}
                                   >
-                                    Download PDF
+                                    ⬇️
                                   </a>
                                 </div>
                                 <div className={`mt-2 text-[11px] font-medium ${isViolet ? "text-violet-700" : "text-amber-700"}`}>
