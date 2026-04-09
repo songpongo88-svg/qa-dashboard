@@ -28,6 +28,7 @@ type CaseItem = {
   inquiryEn: string;
   caseDescription?: string;
   caseImageUrl?: string;
+  casePdfUrl?: string;
   finalScore: number;
   previousScore?: number;
   grade: Grade;
@@ -1334,6 +1335,12 @@ function getCaseImageOpenUrl(url?: string) {
   return `https://drive.google.com/file/d/${driveFileId}/view`;
 }
 
+function getCasePdfUrl(caseId?: string) {
+  const value = String(caseId || "").trim();
+  if (!value) return "";
+  return `/case-pdfs/${encodeURIComponent(value)}.pdf`;
+}
+
 function PremiumBarChart({
   title,
   subtitle,
@@ -1674,6 +1681,7 @@ function SlideOverCaseDetail({
 
   const activeImagePreviewUrl = imagePreviewCandidates[imagePreviewIndex] || "";
   const canShowImagePreview = Boolean(activeImagePreviewUrl) && imagePreviewIndex < imagePreviewCandidates.length;
+  const casePdfUrl = caseItem.casePdfUrl || getCasePdfUrl(caseItem.caseId);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
@@ -1826,15 +1834,50 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
 
-                {caseItem.caseUrl ? (
-                  <a
-                    href={caseItem.caseUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-                  >
-                    Open Case URL
-                  </a>
+                <div className="flex flex-wrap gap-3">
+                  {caseItem.caseUrl ? (
+                    <a
+                      href={caseItem.caseUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                    >
+                      Open Case URL
+                    </a>
+                  ) : null}
+
+                  {casePdfUrl ? (
+                    <>
+                      <a
+                        href={casePdfUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                      >
+                        Open PDF
+                      </a>
+                      <a
+                        href={casePdfUrl}
+                        download
+                        className="inline-flex rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+                      >
+                        Download PDF
+                      </a>
+                    </>
+                  ) : null}
+                </div>
+
+                {casePdfUrl ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      ไฟล์ PDF เคส / Case PDF
+                    </div>
+                    <iframe
+                      src={casePdfUrl}
+                      title={`Case PDF ${caseItem.caseId}`}
+                      className="h-[520px] w-full rounded-2xl border border-slate-200 bg-slate-50"
+                    />
+                  </div>
                 ) : null}
               </div>
             </PanelBody>
@@ -2182,6 +2225,7 @@ export default function DashboardMockup({
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               caseDescription: caseDescription ? String(caseDescription).trim() : "",
               caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
+              casePdfUrl: getCasePdfUrl(caseId),
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
               grade: scoreToGrade(finalScoreVal, monthKey),
