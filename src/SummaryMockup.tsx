@@ -176,20 +176,11 @@ function isSameAgent(a: string, b: string) {
   const nb = normalizeText(b);
   const ca = compactText(a);
   const cb = compactText(b);
-
-  return (
-    na === nb ||
-    ca === cb ||
-    na.includes(nb) ||
-    nb.includes(na) ||
-    ca.includes(cb) ||
-    cb.includes(ca)
-  );
+  return na === nb || ca === cb || na.includes(nb) || nb.includes(na) || ca.includes(cb) || cb.includes(ca);
 }
 
 function getUniqueNormalizedAgents(agentNames: string[]) {
   const result: string[] = [];
-
   agentNames
     .map((name) => toTitleCaseName(String(name || "").trim()))
     .filter(Boolean)
@@ -197,21 +188,14 @@ function getUniqueNormalizedAgents(agentNames: string[]) {
       const exists = result.some((item) => isSameAgent(item, name));
       if (!exists) result.push(name);
     });
-
   return result.sort((a, b) => a.localeCompare(b));
 }
 
 function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
   if (!selectedMonthKey || selectedMonthKey === "all") return false;
-
-  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
-    isSameAgent(name, agentName)
-  );
-
+  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) => isSameAgent(name, agentName));
   if (!matchedEntry) return false;
-
-  const [, hideFromMonth] = matchedEntry;
-  return selectedMonthKey >= hideFromMonth;
+  return selectedMonthKey >= matchedEntry[1];
 }
 
 function isNewPolicyMonth(monthKey: string) {
@@ -225,7 +209,6 @@ function scoreToGrade(score: number, monthKey: string): Grade {
     if (score >= 80) return "C";
     return "D";
   }
-
   if (score >= 90) return "A";
   if (score >= 80) return "B";
   if (score >= 70) return "C";
@@ -261,20 +244,17 @@ function getPolicyMonthKeyForCases(cases: CaseItem[]) {
     .map((item) => item.monthKey)
     .filter((item) => item && item !== "unknown")
     .sort((a, b) => a.localeCompare(b));
-
   return validMonthKeys.length ? validMonthKeys[validMonthKeys.length - 1] : "unknown";
 }
 
 function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
   if (caseCount < CASE_TARGET) return 0;
-
   if (isNewPolicyMonth(monthKey)) {
     if (avg >= 90) return 1000;
     if (avg >= 85) return 700;
     if (avg >= 80) return 500;
     return 0;
   }
-
   if (avg >= 90) return 1000;
   if (avg >= 80) return 700;
   if (avg >= 70) return 300;
@@ -282,44 +262,32 @@ function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
 }
 
 function excelDateToJSDate(value: any): Date | null {
-  if (value === null || value === undefined || value === "") return null;
-
+  if (!value && value !== 0) return null;
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-    return new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
+    return new Date(parsed.y, parsed.m - 1, parsed.d);
   }
-
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return new Date(
-      value.getFullYear(),
-      value.getMonth(),
-      value.getDate(),
-      value.getHours(),
-      value.getMinutes(),
-      value.getSeconds()
-    );
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
   }
-
   const text = String(value).trim();
   if (!text) return null;
-
-  const ddmmyyyyMatch = text.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
-  );
+  const ddmmyyyyMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (ddmmyyyyMatch) {
-    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
-    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+    const [, d, m, y] = ddmmyyyyMatch;
+    return new Date(Number(y), Number(m) - 1, Number(d));
   }
-
   const asDate = new Date(text);
-  if (!Number.isNaN(asDate.getTime())) return asDate;
+  if (!Number.isNaN(asDate.getTime())) {
+    return new Date(asDate.getFullYear(), asDate.getMonth(), asDate.getDate());
+  }
   return null;
 }
 
 function formatAuditDate(value: any): string {
   const dt = excelDateToJSDate(value);
-  if (!dt) return String(value ?? "");
+  if (!dt) return String(value ?? "").trim();
   const day = `${dt.getDate()}`.padStart(2, "0");
   const month = `${dt.getMonth() + 1}`.padStart(2, "0");
   const year = dt.getFullYear();
@@ -328,17 +296,12 @@ function formatAuditDate(value: any): string {
 
 function getMonthKey(date: Date | null) {
   if (!date) return "unknown";
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  return `${year}-${month}`;
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
 }
 
 function getMonthLabel(date: Date | null) {
   if (!date) return "Unknown";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
 }
 
 function getYearKey(date: Date | null) {
@@ -363,45 +326,57 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
 
 function buildHeaderHelpers(headerRow: any[]) {
   const normalizedHeaders = headerRow.map((h) => normalizeText(h));
-
   const colIndexes = (name: string) => {
     const target = normalizeText(name);
-    return normalizedHeaders
-      .map((h, idx) => (h === target ? idx : -1))
-      .filter((idx) => idx >= 0);
+    return normalizedHeaders.map((h, idx) => (h === target ? idx : -1)).filter((idx) => idx >= 0);
   };
-
   const getValue = (row: any[], name: string, occurrence = 0) => {
     const indexes = colIndexes(name);
     const idx = indexes[occurrence];
     return idx >= 0 ? row[idx] : null;
   };
-
   const getLastValue = (row: any[], name: string) => {
     const indexes = colIndexes(name);
     if (!indexes.length) return null;
     return row[indexes[indexes.length - 1]];
   };
-
   return { getValue, getLastValue };
 }
 
-async function fetchFirstAvailable(urls: string[]) {
-  let lastError: Error | null = null;
+function normalizeAppealReason(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
 
-  for (const url of urls) {
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      if (response.ok) {
-        return { response, matchedUrl: url };
-      }
-      lastError = new Error(`ไม่พบไฟล์ ${url}`);
-    } catch (error: any) {
-      lastError = error;
-    }
-  }
+function isNoAppealReason(value: unknown) {
+  const text = normalizeAppealReason(value);
+  if (!text) return false;
+  const normalized = text.toLowerCase();
+  return normalized === "ไม่อุทธรณ์หัวข้อนี้" || normalized === "not appeal" || normalized === "no appeal" || normalized.includes("ไม่อุทธรณ์");
+}
 
-  throw lastError || new Error("ไม่พบไฟล์ที่ต้องการ");
+function normalizeCommentForCompare(value?: string) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function hasMeaningfulTextChange(originalValue?: string, revisedValue?: string) {
+  const original = normalizeCommentForCompare(originalValue);
+  const revised = normalizeCommentForCompare(revisedValue);
+  if (!revised) return false;
+  if (!original) return revised.length > 0;
+  return original !== revised;
+}
+
+function hasRealTopicChange(
+  originalScore: unknown,
+  revisedScore: unknown,
+  originalComment: unknown,
+  revisedComment: unknown
+) {
+  const originalScoreNum = originalScore !== null && originalScore !== "" && !Number.isNaN(Number(originalScore)) ? Number(originalScore) : null;
+  const revisedScoreNum = revisedScore !== null && revisedScore !== "" && !Number.isNaN(Number(revisedScore)) ? Number(revisedScore) : null;
+  const scoreChanged = revisedScoreNum !== null && revisedScoreNum !== originalScoreNum;
+  const commentChanged = hasMeaningfulTextChange(String(originalComment ?? ""), String(revisedComment ?? ""));
+  return scoreChanged || commentChanged;
 }
 
 function summarizeCases(cases: CaseItem[]): PeriodSummary {
@@ -409,7 +384,6 @@ function summarizeCases(cases: CaseItem[]): PeriodSummary {
   const avgScore = cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(caseCount, 1);
   const revisedCount = cases.filter((item) => item.reviewStatus === "Revised").length;
   const policyMonthKey = getPolicyMonthKeyForCases(cases);
-
   return {
     label: "-",
     caseCount,
@@ -424,21 +398,11 @@ function summarizeCases(cases: CaseItem[]): PeriodSummary {
 function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
   return TOPIC_MASTER.map((master) => {
     const topics = cases
-      .flatMap((item) =>
-        item.reviewStatus === "Revised" && item.revisedTopics?.length
-          ? mergeTopicSet(item.topics, item.revisedTopics)
-          : item.topics
-      )
+      .flatMap((item) => (item.reviewStatus === "Revised" && item.revisedTopics?.length ? mergeTopicSet(item.topics, item.revisedTopics) : item.topics))
       .filter((topic) => topic.code === master.code);
 
     if (!topics.length) {
-      return {
-        code: master.code,
-        label: master.label,
-        avgScore: 0,
-        max: master.max,
-        pct: 0,
-      };
+      return { code: master.code, label: master.label, avgScore: 0, max: master.max, pct: 0 };
     }
 
     const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
@@ -450,19 +414,6 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
       pct: Number(((avg / master.max) * 100).toFixed(2)),
     };
   });
-}
-
-function emptyAgentPeriodSummary(agent: string, label: string, policyMonthKey = "unknown"): AgentPeriodSummary {
-  return {
-    agent,
-    label,
-    caseCount: 0,
-    avgScore: 0,
-    grade: scoreToGrade(0, policyMonthKey),
-    revisedCount: 0,
-    incentive: 0,
-    policyMonthKey,
-  };
 }
 
 function SongkranFlowerCorner({ className = "" }: { className?: string }) {
@@ -481,12 +432,8 @@ function SongkranFlowerCorner({ className = "" }: { className?: string }) {
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
-    >
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
-      ) : null}
+    <div className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}>
+      {isSongkranThemeActive() ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" /> : null}
       {children}
     </div>
   );
@@ -494,15 +441,8 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
 
 function PanelHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const songkranTheme = isSongkranThemeActive();
-
   return (
-    <div
-      className={`border-b px-5 py-4 ${
-        songkranTheme
-          ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
-          : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
-      }`}
-    >
+    <div className={`border-b px-5 py-4 ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50" : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"}`}>
       <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
@@ -527,15 +467,11 @@ function MetricCard({
   valueClassName?: string;
 }) {
   return (
-    <div
-      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
-    >
+    <div className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}>
       <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
-          {value}
-        </div>
+        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>{value}</div>
         <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
       </div>
     </div>
@@ -545,32 +481,19 @@ function MetricCard({
 function LogoHeaderBox() {
   return (
     <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
-      ) : null}
-      <img
-        src="/robinhood-logo.png"
-        alt="Robinhood Logo"
-        className="relative z-10 h-16 w-16 object-contain lg:h-20 lg:w-20"
-      />
+      {isSongkranThemeActive() ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" /> : null}
+      <img src="/robinhood-logo.png" alt="Robinhood Logo" className="relative z-10 h-16 w-16 object-contain lg:h-20 lg:w-20" />
     </div>
   );
 }
 
 function ViewButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   const songkranTheme = isSongkranThemeActive();
-
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative overflow-hidden rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-        active
-          ? songkranTheme
-            ? "border border-cyan-300 bg-gradient-to-r from-cyan-100 via-sky-100 to-fuchsia-100 text-cyan-800"
-            : "border border-violet-300 bg-violet-100 text-violet-800"
-          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-      }`}
+      className={`relative overflow-hidden rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${active ? songkranTheme ? "border border-cyan-300 bg-gradient-to-r from-cyan-100 via-sky-100 to-fuchsia-100 text-cyan-800" : "border border-violet-300 bg-violet-100 text-violet-800" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
     >
       <span className="relative z-10">{label}</span>
     </button>
@@ -606,21 +529,8 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
-function SummaryTable({
-  rows,
-  firstColLabel,
-  showWeek = false,
-  showMonth = false,
-  showYear = false,
-}: {
-  rows: PeriodTableRow[];
-  firstColLabel: string;
-  showWeek?: boolean;
-  showMonth?: boolean;
-  showYear?: boolean;
-}) {
+function SummaryTable({ rows, firstColLabel, showWeek = false, showMonth = false, showYear = false }: { rows: PeriodTableRow[]; firstColLabel: string; showWeek?: boolean; showMonth?: boolean; showYear?: boolean }) {
   const colSpan = 6 + (showWeek ? 1 : 0) + (showMonth ? 1 : 0) + (showYear ? 1 : 0);
-
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
       <table className="min-w-[1100px] w-full text-sm">
@@ -638,29 +548,21 @@ function SummaryTable({
           </tr>
         </thead>
         <tbody>
-          {rows.length ? (
-            rows.map((row) => (
-              <tr key={`${row.label}-${row.weekLabel || ""}-${row.monthLabel || ""}-${row.yearLabel || ""}`} className="bg-white">
-                <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{row.label}</td>
-                {showWeek ? <td className="border-t border-slate-200 px-4 py-3">{row.weekLabel || "-"}</td> : null}
-                {showMonth ? <td className="border-t border-slate-200 px-4 py-3">{row.monthLabel || "-"}</td> : null}
-                {showYear ? <td className="border-t border-slate-200 px-4 py-3">{row.yearLabel || "-"}</td> : null}
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.avgScore.toFixed(2)}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>
-                    {row.grade}
-                  </span>
-                </td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td>
-              </tr>
-            ))
-          ) : (
+          {rows.length ? rows.map((row) => (
+            <tr key={`${row.label}-${row.weekLabel || ""}-${row.monthLabel || ""}-${row.yearLabel || ""}`} className="bg-white">
+              <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{row.label}</td>
+              {showWeek ? <td className="border-t border-slate-200 px-4 py-3">{row.weekLabel || "-"}</td> : null}
+              {showMonth ? <td className="border-t border-slate-200 px-4 py-3">{row.monthLabel || "-"}</td> : null}
+              {showYear ? <td className="border-t border-slate-200 px-4 py-3">{row.yearLabel || "-"}</td> : null}
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.avgScore.toFixed(2)}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span></td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td>
+            </tr>
+          )) : (
             <tr>
-              <td colSpan={colSpan} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
-                No data found
-              </td>
+              <td colSpan={colSpan} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No data found</td>
             </tr>
           )}
         </tbody>
@@ -685,27 +587,19 @@ function AgentPeriodTable({ rows, periodLabel }: { rows: AgentPeriodSummary[]; p
           </tr>
         </thead>
         <tbody>
-          {rows.length ? (
-            rows.map((row, index) => (
-              <tr key={`${row.agent}-${row.label}-${index}`} className="bg-white">
-                <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{row.agent}</td>
-                <td className="border-t border-slate-200 px-4 py-3">{row.label}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.avgScore.toFixed(2)}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>
-                    {row.grade}
-                  </span>
-                </td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
-                <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td>
-              </tr>
-            ))
-          ) : (
+          {rows.length ? rows.map((row, index) => (
+            <tr key={`${row.agent}-${row.label}-${index}`} className="bg-white">
+              <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{row.agent}</td>
+              <td className="border-t border-slate-200 px-4 py-3">{row.label}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.avgScore.toFixed(2)}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span></td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
+              <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td>
+            </tr>
+          )) : (
             <tr>
-              <td colSpan={7} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
-                No data found
-              </td>
+              <td colSpan={7} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No data found</td>
             </tr>
           )}
         </tbody>
@@ -714,56 +608,38 @@ function AgentPeriodTable({ rows, periodLabel }: { rows: AgentPeriodSummary[]; p
   );
 }
 
-function CaseListTable({
-  rows,
-  title,
-  subtitle,
-}: {
-  rows: CaseItem[];
-  title: string;
-  subtitle?: string;
-}) {
+function CaseListTable({ title, cases }: { title: string; cases: CaseItem[] }) {
   return (
     <Panel>
-      <PanelHeader title={title} subtitle={subtitle} />
+      <PanelHeader title={title} subtitle="Example case list for current selected view" />
       <PanelBody>
         <div className="overflow-x-auto rounded-2xl border border-violet-100">
           <table className="min-w-[1100px] w-full text-sm">
             <thead>
               <tr className="bg-violet-950 text-[11px] text-white">
                 <th className="px-4 py-3 text-center">Seq</th>
-                <th className="px-4 py-3 text-left">Audit Date</th>
+                <th className="px-4 py-3 text-center">Audit Date</th>
                 <th className="px-4 py-3 text-left">Case ID</th>
                 <th className="px-4 py-3 text-left">Inquiry</th>
                 <th className="px-4 py-3 text-center">Final Score</th>
                 <th className="px-4 py-3 text-center">Grade</th>
                 <th className="px-4 py-3 text-center">Review</th>
-                <th className="px-4 py-3 text-left">Agent</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length ? (
-                rows.map((item, index) => (
-                  <tr key={`${item.key}-${index}`} className="bg-white">
-                    <td className="border-t border-slate-200 px-4 py-3 text-center">{index + 1}</td>
-                    <td className="border-t border-slate-200 px-4 py-3">{item.auditDate}</td>
-                    <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{item.caseId}</td>
-                    <td className="border-t border-slate-200 px-4 py-3 leading-5 text-slate-800">{item.inquiryTh || "-"}</td>
-                    <td className="border-t border-slate-200 px-4 py-3 text-center font-semibold text-slate-900">{item.finalScore.toFixed(2)}</td>
-                    <td className="border-t border-slate-200 px-4 py-3 text-center">
-                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(item.grade)}`}>
-                        {item.grade}
-                      </span>
-                    </td>
-                    <td className="border-t border-slate-200 px-4 py-3 text-center">{item.reviewStatus}</td>
-                    <td className="border-t border-slate-200 px-4 py-3">{item.agent}</td>
-                  </tr>
-                ))
-              ) : (
+              {cases.length ? cases.map((item, index) => (
+                <tr key={item.key} className="bg-white align-top">
+                  <td className="border-t border-slate-200 px-4 py-3 text-center">{index + 1}</td>
+                  <td className="border-t border-slate-200 px-4 py-3 text-center">{item.auditDate}</td>
+                  <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{item.caseId}</td>
+                  <td className="border-t border-slate-200 px-4 py-3 leading-5 text-slate-800">{item.inquiryTh || "-"}</td>
+                  <td className="border-t border-slate-200 px-4 py-3 text-center">{item.finalScore.toFixed(2)}</td>
+                  <td className="border-t border-slate-200 px-4 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(item.grade)}`}>{item.grade}</span></td>
+                  <td className="border-t border-slate-200 px-4 py-3 text-center">{item.reviewStatus}</td>
+                </tr>
+              )) : (
                 <tr>
-                  <td colSpan={8} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
-                    No case list found
-                  </td>
+                  <td colSpan={7} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No case list for current selection</td>
                 </tr>
               )}
             </tbody>
@@ -772,6 +648,14 @@ function CaseListTable({
       </PanelBody>
     </Panel>
   );
+}
+
+async function fetchFirstAvailable(urls: string[]) {
+  for (const url of urls) {
+    const response = await fetch(`${url}?v=${Date.now()}`, { cache: "no-store" });
+    if (response.ok) return { response, matchedUrl: url };
+  }
+  throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
 
 export default function SummaryMockup({
@@ -794,6 +678,7 @@ export default function SummaryMockup({
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [viewMode, setViewMode] = useState<SummaryView>("weekly-dashboard");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "all");
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
@@ -803,11 +688,7 @@ export default function SummaryMockup({
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   useEffect(() => {
-    if (
-      typeof externalSelectedAgent === "string" &&
-      externalSelectedAgent !== selectedAgent &&
-      currentUser?.role !== "Agent"
-    ) {
+    if (typeof externalSelectedAgent === "string" && externalSelectedAgent !== selectedAgent && currentUser?.role !== "Agent") {
       setSelectedAgent(externalSelectedAgent);
     }
   }, [externalSelectedAgent, selectedAgent, currentUser]);
@@ -830,182 +711,132 @@ export default function SummaryMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const rawResponse = await fetch("/QA_RawData1.xlsx", { cache: "no-store" });
-        const { response: appealResponse } = await fetchFirstAvailable([
-          "/Appleal ROWDATA.xlsx",
-          "/Appeal ROWDATA.xlsx",
-          "/Appeal_ROWDATA.xlsx",
-        ]);
+        const rawFile = await fetchFirstAvailable(["/QA_RawData1.xlsx", "/QA_RawData1(1).xlsx", "/QA_RawData1(2).xlsx"]);
+        const appealFile = await fetchFirstAvailable(["/Appleal ROWDATA.xlsx", "/Appeal ROWDATA.xlsx"]);
 
-        if (!rawResponse.ok) {
-          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
-        }
-
-        const rawBuffer = await rawResponse.arrayBuffer();
+        const rawBuffer = await rawFile.response.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: false });
         const rawSheet = rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, { header: 1, defval: null, raw: true });
 
-        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
-          header: 1,
-          defval: null,
-          raw: true,
+        const rawHeaderIndex = rawRows.findIndex((row) => {
+          const normalized = (row || []).map((v: any) => normalizeText(v));
+          return normalized.includes("agent name") && normalized.includes("case id");
         });
-
-        const rawHeaderIndex = (() => {
-          for (let i = 0; i < rawRows.length; i++) {
-            const row = (rawRows[i] || []) as any[];
-            const normalized = row.map((v) => normalizeText(v));
-            if (normalized.includes("agent name") && normalized.includes("case id")) return i;
-          }
-          return -1;
-        })();
-
-        if (rawHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
-        }
+        if (rawHeaderIndex === -1) throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
         const rawHelper = buildHeaderHelpers(rawHeaderRow);
 
-        const appealBuffer = await appealResponse.arrayBuffer();
+        const appealBuffer = await appealFile.response.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: false });
-        const appealSheet =
-          appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
+        const appealSheet = appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
+        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, { header: 1, defval: null, raw: true });
 
-        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
-          header: 1,
-          defval: null,
-          raw: true,
+        const appealHeaderIndex = appealRows.findIndex((row) => {
+          const normalized = (row || []).map((v: any) => normalizeText(v));
+          return normalized.includes("case id");
         });
+        if (appealHeaderIndex === -1) throw new Error("ไม่พบแถว Header ในไฟล์ Appleal ROWDATA.xlsx");
 
-        const appealHeaderIndex = (() => {
-          for (let i = 0; i < appealRows.length; i++) {
-            const row = (appealRows[i] || []) as any[];
-            const normalized = row.map((v) => normalizeText(v));
-            if (normalized.includes("case id")) return i;
-          }
-          return -1;
-        })();
-
+        const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
+        const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
+        const appealHelper = buildHeaderHelpers(appealHeaderRow);
         const appealMap = new Map<string, AppealMergeItem>();
 
-        if (appealHeaderIndex >= 0) {
-          const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
-          const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
-          const appealHelper = buildHeaderHelpers(appealHeaderRow);
+        appealDataRows.forEach((row) => {
+          const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
+          if (!caseId) return;
 
-          appealDataRows.forEach((row) => {
-            const caseId = String(appealHelper.getValue(row, "Case ID") || "").trim();
-            if (!caseId) return;
+          const revisedTopics: Topic[] = [];
+          const displayRevisedTopicCodes: string[] = [];
 
-            const revisedTopics: Topic[] = [];
-            const displayRevisedTopicCodes: string[] = [];
+          TOPIC_MASTER.forEach((topic) => {
+            const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
+            const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
+            const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
+            const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
+            const appealReasonRaw = appealHelper.getValue(row, `${topic.code} Appeal Reason`);
 
-            TOPIC_MASTER.forEach((topicMaster) => {
-              const scoreValue =
-                appealHelper.getValue(row, `${topicMaster.code} Revised Score`) ??
-                appealHelper.getValue(row, `${topicMaster.code} Score`) ??
-                appealHelper.getValue(row, topicMaster.code);
+            const hasRevisedScore = revisedScoreRaw !== null && revisedScoreRaw !== "" && !Number.isNaN(Number(revisedScoreRaw));
+            const hasRevisedComment = revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
+            if (!hasRevisedScore && !hasRevisedComment) return;
 
-              const commentValue =
-                appealHelper.getValue(row, `${topicMaster.code} Revised Comment`) ??
-                appealHelper.getValue(row, `${topicMaster.code} Comment`);
+            const score = hasRevisedScore ? Number(revisedScoreRaw) : Number(originalScoreRaw ?? 0);
+            const comment = hasRevisedComment ? String(revisedCommentRaw).trim() : String(originalCommentRaw ?? "").trim();
 
-              if (scoreValue !== null && scoreValue !== "" && !Number.isNaN(Number(scoreValue))) {
-                revisedTopics.push({
-                  code: topicMaster.code,
-                  label: topicMaster.label,
-                  score: Number(scoreValue),
-                  max: topicMaster.max,
-                  pct: Number(((Number(scoreValue) / topicMaster.max) * 100).toFixed(2)),
-                  comment: commentValue ? String(commentValue).trim() : "",
-                });
-                displayRevisedTopicCodes.push(topicMaster.code);
-              }
+            revisedTopics.push({
+              code: topic.code,
+              label: topic.label,
+              score,
+              max: topic.max,
+              pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+              comment,
             });
 
-            const finalScoreRaw =
-              appealHelper.getValue(row, "Final Score") ??
-              appealHelper.getValue(row, "Revised Final Score") ??
-              null;
-            const previousScoreRaw =
-              appealHelper.getValue(row, "Previous Score") ??
-              appealHelper.getValue(row, "Original Final Score") ??
-              null;
-
-            appealMap.set(caseId, {
-              caseId,
-              finalScore:
-                finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
-                  ? Number(finalScoreRaw)
-                  : undefined,
-              previousScore:
-                previousScoreRaw !== null && previousScoreRaw !== "" && !Number.isNaN(Number(previousScoreRaw))
-                  ? Number(previousScoreRaw)
-                  : undefined,
-              reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
-              revisedTopics,
-              displayRevisedTopicCodes,
-            });
+            if (!isNoAppealReason(appealReasonRaw) && hasRealTopicChange(originalScoreRaw, revisedScoreRaw, originalCommentRaw, revisedCommentRaw)) {
+              displayRevisedTopicCodes.push(topic.code);
+            }
           });
-        }
+
+          const explicitFinalScore = appealHelper.getLastValue(row, "Final Score");
+          const explicitOriginalFinalScore = appealHelper.getValue(row, "Final Score", 0);
+
+          const finalScore = explicitFinalScore !== null && explicitFinalScore !== "" && !Number.isNaN(Number(explicitFinalScore)) ? Number(explicitFinalScore) : undefined;
+          const previousScore = explicitOriginalFinalScore !== null && explicitOriginalFinalScore !== "" && !Number.isNaN(Number(explicitOriginalFinalScore)) ? Number(explicitOriginalFinalScore) : undefined;
+
+          if (!revisedTopics.length && finalScore === undefined) return;
+
+          appealMap.set(caseId, {
+            caseId,
+            finalScore,
+            previousScore,
+            reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
+            revisedTopics,
+            displayRevisedTopicCodes,
+          });
+        });
+
+        setAppealMergeCount(appealMap.size);
 
         const mapped = rawDataRows
-          .map((row, index): CaseItem | null => {
-            const caseId = String(rawHelper.getValue(row, "Case ID") || "").trim();
+          .map((row, index) => {
+            const caseId = String(rawHelper.getValue(row, "Case ID") ?? "").trim();
             if (!caseId) return null;
 
-            const topics: Topic[] = TOPIC_MASTER.map((master) => {
-              const scoreRaw =
-                rawHelper.getValue(row, `${master.code} Score`) ??
-                rawHelper.getValue(row, master.code) ??
-                0;
-              const score = !Number.isNaN(Number(scoreRaw)) ? Number(scoreRaw) : 0;
-              const comment = rawHelper.getValue(row, `${master.code} Comment`);
+            const topics: Topic[] = TOPIC_MASTER.map((topic) => {
+              const scoreRaw = rawHelper.getValue(row, `${topic.code} Score`);
+              const commentRaw = rawHelper.getValue(row, `${topic.code} Comment`);
+              const score = scoreRaw !== null && scoreRaw !== "" && !Number.isNaN(Number(scoreRaw)) ? Number(scoreRaw) : 0;
               return {
-                code: master.code,
-                label: master.label,
+                code: topic.code,
+                label: topic.label,
                 score,
-                max: master.max,
-                pct: Number(((score / master.max) * 100).toFixed(2)),
-                comment: comment ? String(comment).trim() : "",
+                max: topic.max,
+                pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+                comment: String(commentRaw ?? "").trim(),
               };
             });
 
             const mergedAppeal = appealMap.get(caseId);
-
-            const finalScoreRaw =
-              rawHelper.getValue(row, "Final Score") ??
-              rawHelper.getValue(row, "QA Score") ??
-              rawHelper.getLastValue(row, "Final Score") ??
-              calcMergedFinalScore(topics, mergedAppeal?.revisedTopics || []);
-
-            const baseFinalScore = !Number.isNaN(Number(finalScoreRaw)) ? Number(finalScoreRaw) : 0;
-            const finalScoreVal = mergedAppeal?.finalScore ?? calcMergedFinalScore(topics, mergedAppeal?.revisedTopics || []) || baseFinalScore;
+            const finalScoreRaw = rawHelper.getValue(row, "Final Score");
+            const baseFinalScore = finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
+              ? Number(finalScoreRaw)
+              : topics.reduce((sum, topic) => sum + topic.score, 0);
+            const finalScoreVal = mergedAppeal?.finalScore ?? (mergedAppeal?.revisedTopics?.length ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics) : baseFinalScore);
             const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
 
-            const inquiry =
-              rawHelper.getValue(row, "Customer Inquiry") ??
-              rawHelper.getValue(row, "Inquiry TH") ??
-              rawHelper.getValue(row, "Inquiry") ??
-              "-";
-
-            const weekLabel =
-              rawHelper.getValue(row, "Week Label") ??
-              rawHelper.getValue(row, "Week") ??
-              "-";
-
-            const auditDateRaw = rawHelper.getValue(row, "Audit Date") ?? rawHelper.getValue(row, "Timestamp");
+            const inquiry = rawHelper.getValue(row, "Customer Inquiry") ?? rawHelper.getValue(row, "Inquiry TH") ?? rawHelper.getValue(row, "Inquiry");
+            const weekLabel = rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
+            const auditDateRaw = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(auditDateRaw);
             const monthKey = getMonthKey(auditDateObj);
-
-            const reviewStatus: ReviewStatus =
-              mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
+            const reviewStatus: ReviewStatus = mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
 
             return {
               key: `row-${index + 1}-${caseId}`,
-              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name") || "").trim()),
+              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name") ?? "").trim()),
               auditDate: formatAuditDate(auditDateRaw),
               auditDateObj,
               monthKey,
@@ -1022,11 +853,11 @@ export default function SummaryMockup({
               topics,
               revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
               displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
-            };
+            } satisfies CaseItem;
           })
-          .filter((item): item is CaseItem => Boolean(item));
+          .filter((item): item is CaseItem => Boolean(item && item.agent && item.caseId));
 
-        setAllCases(mapped.filter((item) => item.agent && item.caseId));
+        setAllCases(mapped);
       } catch (error: any) {
         setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
       } finally {
@@ -1037,277 +868,116 @@ export default function SummaryMockup({
     loadWorkbook();
   }, []);
 
-  const latestMonthKey = useMemo(() => {
-    return (
-      [...new Set(allCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
-        .sort((a, b) => b.localeCompare(a))[0] || "all"
-    );
+  const latestMonthKey = useMemo(() => ([...new Set(allCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))].sort((a, b) => b.localeCompare(a))[0] || "all"), [allCases]);
+
+  const monthOptions = useMemo(() => {
+    return Array.from(new Map(allCases.filter((item) => item.monthKey !== "unknown").map((item) => [item.monthKey, item.monthLabel])).entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
   }, [allCases]);
+
+  const yearOptions = useMemo(() => [...new Set(allCases.map((item) => item.yearKey).filter((item) => item !== "unknown"))].sort((a, b) => b.localeCompare(a)), [allCases]);
 
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
     const effectiveMonthForVisibility = selectedMonth !== "all" ? selectedMonth : latestMonthKey;
-
-    const mergedAgents = getUniqueNormalizedAgents([...AGENT_MASTER, ...agentsFromCases]).filter(
-      (name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility)
-    );
-
+    const mergedAgents = getUniqueNormalizedAgents([...AGENT_MASTER, ...agentsFromCases]).filter((name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility));
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
-
     return mergedAgents;
   }, [allCases, currentUser, selectedMonth, latestMonthKey]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
-      if (!isSameAgent(selectedAgent || "", lockedAgent)) {
-        setSelectedAgent(lockedAgent);
-      }
-      onSelectedAgentChange?.(lockedAgent);
-      return;
+      setSelectedAgent(toTitleCaseName(currentUser.agentName));
     }
+  }, [currentUser]);
 
-    if (selectedAgent !== "all" && selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
-      setSelectedAgent("all");
-      onSelectedAgentChange?.("all");
+  useEffect(() => {
+    if (selectedMonth === "all" && latestMonthKey !== "all") {
+      setSelectedMonth(latestMonthKey);
+      onSelectedMonthChange?.(latestMonthKey);
     }
-  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
+  }, [latestMonthKey]);
 
-  const effectiveAgent =
-    currentUser?.role === "Agent" && currentUser.agentName
-      ? toTitleCaseName(String(currentUser.agentName).trim())
-      : String(selectedAgent || "all").trim();
-
-  const baseAgentCases = useMemo(() => {
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return allCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
-    }
-    if (!effectiveAgent || effectiveAgent === "all") return allCases;
-    return allCases.filter((item) => isSameAgent(item.agent, effectiveAgent));
-  }, [allCases, effectiveAgent, currentUser]);
-
-  const monthOptions = useMemo(() => {
-    const sourceCases = baseAgentCases.length > 0 ? baseAgentCases : allCases;
-    return Array.from(
-      new Map(
-        sourceCases
-          .filter((item) => item.monthKey !== "unknown")
-          .map((item) => [item.monthKey, item.monthLabel])
-      ).entries()
-    )
-      .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => b.value.localeCompare(a.value));
-  }, [baseAgentCases, allCases]);
-
-  const weekOptions = useMemo(() => {
-    const sourceCases = selectedMonth === "all"
-      ? baseAgentCases
-      : baseAgentCases.filter((item) => item.monthKey === selectedMonth);
-
-    return [...new Set(sourceCases.map((item) => item.weekLabel).filter(Boolean))].sort((a, b) => b.localeCompare(a));
-  }, [baseAgentCases, selectedMonth]);
-
-  const yearOptions = useMemo(() => {
-    return [...new Set(baseAgentCases.map((item) => item.yearKey).filter((item) => item !== "unknown"))].sort((a, b) => b.localeCompare(a));
-  }, [baseAgentCases]);
-
-  const monthScopedCases = useMemo(() => {
-    let result = [...baseAgentCases];
-    if (selectedMonth !== "all") result = result.filter((item) => item.monthKey === selectedMonth);
-    if (selectedWeek !== "all") result = result.filter((item) => item.weekLabel === selectedWeek);
-    return result.sort((a, b) => {
-      const t1 = a.auditDateObj?.getTime() || 0;
-      const t2 = b.auditDateObj?.getTime() || 0;
-      return t2 - t1;
+  const filteredCases = useMemo(() => {
+    return allCases.filter((item) => {
+      if (selectedAgent !== "all" && !isSameAgent(item.agent, selectedAgent)) return false;
+      if (selectedMonth !== "all" && item.monthKey !== selectedMonth) return false;
+      if (selectedYear !== "all" && item.yearKey !== selectedYear) return false;
+      if (selectedWeek !== "all" && item.weekLabel !== selectedWeek) return false;
+      return true;
     });
-  }, [baseAgentCases, selectedMonth, selectedWeek]);
+  }, [allCases, selectedAgent, selectedMonth, selectedYear, selectedWeek]);
 
-  const yearScopedCases = useMemo(() => {
-    let result = [...baseAgentCases];
-    if (selectedYear !== "all") result = result.filter((item) => item.yearKey === selectedYear);
-    if (selectedMonth !== "all") result = result.filter((item) => item.monthKey === selectedMonth);
-    if (selectedWeek !== "all") result = result.filter((item) => item.weekLabel === selectedWeek);
-    return result.sort((a, b) => {
-      const t1 = a.auditDateObj?.getTime() || 0;
-      const t2 = b.auditDateObj?.getTime() || 0;
-      return t2 - t1;
+  const summary = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
+  const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
+
+  const weekOptions = useMemo(() => [...new Set(filteredCases.map((item) => item.weekLabel).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [filteredCases]);
+
+  const weeklyRows = useMemo<PeriodTableRow[]>(() => {
+    const grouped = new Map<string, CaseItem[]>();
+    filteredCases.forEach((item) => {
+      const bucket = grouped.get(item.weekLabel) || [];
+      bucket.push(item);
+      grouped.set(item.weekLabel, bucket);
     });
-  }, [baseAgentCases, selectedYear, selectedMonth, selectedWeek]);
+    return [...grouped.entries()].map(([label, cases]) => {
+      const s = summarizeCases(cases);
+      return { label, weekLabel: label, caseCount: s.caseCount, avgScore: s.avgScore, grade: s.grade, revisedCount: s.revisedCount, incentive: s.incentive, policyMonthKey: s.policyMonthKey };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  }, [filteredCases]);
 
-  const overallCases = useMemo(() => {
-    if (viewMode === "yearly-team-summary" || viewMode === "yearly-by-agent") return yearScopedCases;
-    return monthScopedCases;
-  }, [viewMode, monthScopedCases, yearScopedCases]);
-
-  const overviewSummary = useMemo(() => summarizeCases(overallCases), [overallCases]);
-  const topicSummary = useMemo(() => buildTopicSummary(overallCases), [overallCases]);
-
-  const weeklyDashboardRows = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
-    monthScopedCases.forEach((item) => {
-      const key = item.weekLabel || "-";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(item);
+  const monthlyRows = useMemo<PeriodTableRow[]>(() => {
+    const grouped = new Map<string, CaseItem[]>();
+    filteredCases.forEach((item) => {
+      const bucket = grouped.get(item.monthKey) || [];
+      bucket.push(item);
+      grouped.set(item.monthKey, bucket);
     });
+    return [...grouped.entries()].map(([monthKey, cases]) => {
+      const s = summarizeCases(cases);
+      return { label: cases[0]?.monthLabel || monthKey, monthLabel: cases[0]?.monthLabel || monthKey, caseCount: s.caseCount, avgScore: s.avgScore, grade: s.grade, revisedCount: s.revisedCount, incentive: s.incentive, policyMonthKey: s.policyMonthKey };
+    }).sort((a, b) => a.monthLabel!.localeCompare(b.monthLabel!));
+  }, [filteredCases]);
 
-    return [...groups.entries()]
-      .map(([label, cases]) => {
-        const summary = summarizeCases(cases);
-        return {
-          ...summary,
-          label,
-          weekLabel: label,
-          monthLabel: cases[0]?.monthLabel || "-",
-          yearLabel: cases[0]?.yearKey || "-",
-        };
-      })
-      .sort((a, b) => b.label.localeCompare(a.label));
-  }, [monthScopedCases]);
-
-  const weeklyQaByAgentRows = useMemo(() => {
-    const activeAgents = effectiveAgent && effectiveAgent !== "all" ? [toTitleCaseName(effectiveAgent)] : visibleAgentList;
-
-    return activeAgents
-      .map((agent) => {
-        const targetCases = monthScopedCases.filter((item) => isSameAgent(item.agent, agent));
-        if (!targetCases.length) {
-          return emptyAgentPeriodSummary(agent, selectedWeek === "all" ? "All Weeks" : selectedWeek, selectedMonth === "all" ? latestMonthKey : selectedMonth);
-        }
-        const summary = summarizeCases(targetCases);
-        return {
-          agent,
-          label: selectedWeek === "all" ? "All Weeks" : targetCases[0]?.weekLabel || selectedWeek,
-          caseCount: summary.caseCount,
-          avgScore: summary.avgScore,
-          grade: summary.grade,
-          revisedCount: summary.revisedCount,
-          incentive: summary.incentive,
-          policyMonthKey: summary.policyMonthKey,
-        };
-      })
-      .sort((a, b) => a.agent.localeCompare(b.agent));
-  }, [monthScopedCases, effectiveAgent, visibleAgentList, selectedWeek, selectedMonth, latestMonthKey]);
-
-  const monthlyDashboardRows = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
-    monthScopedCases.forEach((item) => {
-      const key = item.monthKey;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(item);
+  const yearlyRows = useMemo<PeriodTableRow[]>(() => {
+    const grouped = new Map<string, CaseItem[]>();
+    filteredCases.forEach((item) => {
+      const bucket = grouped.get(item.yearKey) || [];
+      bucket.push(item);
+      grouped.set(item.yearKey, bucket);
     });
+    return [...grouped.entries()].map(([yearKey, cases]) => {
+      const s = summarizeCases(cases);
+      return { label: yearKey, yearLabel: yearKey, caseCount: s.caseCount, avgScore: s.avgScore, grade: s.grade, revisedCount: s.revisedCount, incentive: s.incentive, policyMonthKey: s.policyMonthKey };
+    }).sort((a, b) => b.label.localeCompare(a.label));
+  }, [filteredCases]);
 
-    return [...groups.entries()]
-      .map(([key, cases]) => {
-        const summary = summarizeCases(cases);
-        return {
-          ...summary,
-          label: cases[0]?.monthLabel || key,
-          weekLabel: selectedWeek === "all" ? "All Weeks" : selectedWeek,
-          monthLabel: cases[0]?.monthLabel || "-",
-          yearLabel: cases[0]?.yearKey || "-",
-        };
-      })
-      .sort((a, b) => b.label.localeCompare(a.label));
-  }, [monthScopedCases, selectedWeek]);
-
-  const monthlyTeamRows = useMemo(() => {
-    const activeAgents = effectiveAgent && effectiveAgent !== "all" ? [toTitleCaseName(effectiveAgent)] : visibleAgentList;
-
-    return activeAgents
-      .map((agent) => {
-        const targetCases = monthScopedCases.filter((item) => isSameAgent(item.agent, agent));
-
-        if (!targetCases.length) {
-          const label =
-            selectedMonth === "all"
-              ? "All Months"
-              : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
-          const policyMonthKey = selectedMonth === "all" ? getPolicyMonthKeyForCases(monthScopedCases) : selectedMonth;
-          return emptyAgentPeriodSummary(agent, label, policyMonthKey);
-        }
-
-        const summary = summarizeCases(targetCases);
-        return {
-          agent,
-          label: selectedMonth === "all" ? "All Months" : targetCases[0]?.monthLabel || selectedMonth,
-          caseCount: summary.caseCount,
-          avgScore: summary.avgScore,
-          grade: summary.grade,
-          revisedCount: summary.revisedCount,
-          incentive: summary.incentive,
-          policyMonthKey: summary.policyMonthKey,
-        };
-      })
-      .sort((a, b) => a.agent.localeCompare(b.agent));
-  }, [monthScopedCases, effectiveAgent, selectedMonth, monthOptions, visibleAgentList]);
-
-  const yearlyTeamRows = useMemo(() => {
-    const groups = new Map<string, CaseItem[]>();
-    yearScopedCases.forEach((item) => {
-      const key = item.yearKey;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(item);
+  const byAgentRows = useMemo<AgentPeriodSummary[]>(() => {
+    const grouped = new Map<string, CaseItem[]>();
+    filteredCases.forEach((item) => {
+      const key = `${item.agent}__${viewMode.includes("yearly") ? item.yearKey : item.monthLabel}`;
+      const bucket = grouped.get(key) || [];
+      bucket.push(item);
+      grouped.set(key, bucket);
     });
+    return [...grouped.entries()].map(([key, cases]) => {
+      const [agent, label] = key.split("__");
+      const s = summarizeCases(cases);
+      return { agent, label, caseCount: s.caseCount, avgScore: s.avgScore, grade: s.grade, revisedCount: s.revisedCount, incentive: s.incentive, policyMonthKey: s.policyMonthKey };
+    }).sort((a, b) => a.agent.localeCompare(b.agent) || a.label.localeCompare(b.label));
+  }, [filteredCases, viewMode]);
 
-    return [...groups.entries()]
-      .map(([label, cases]) => {
-        const summary = summarizeCases(cases);
-        return {
-          ...summary,
-          label,
-          weekLabel: selectedWeek === "all" ? "All Weeks" : selectedWeek,
-          monthLabel: selectedMonth === "all" ? "All Months" : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth,
-          yearLabel: label,
-        };
-      })
-      .sort((a, b) => b.label.localeCompare(a.label));
-  }, [yearScopedCases, selectedWeek, selectedMonth, monthOptions]);
-
-  const yearlyAgentRows = useMemo(() => {
-    const activeAgents = effectiveAgent && effectiveAgent !== "all" ? [toTitleCaseName(effectiveAgent)] : visibleAgentList;
-
-    return activeAgents
-      .map((agent) => {
-        const targetCases = yearScopedCases.filter((item) => isSameAgent(item.agent, agent));
-        if (!targetCases.length) {
-          const label = selectedYear === "all" ? "All Years" : selectedYear;
-          return emptyAgentPeriodSummary(agent, label, getPolicyMonthKeyForCases(yearScopedCases));
-        }
-        const summary = summarizeCases(targetCases);
-        return {
-          agent,
-          label: selectedYear === "all" ? "All Years" : targetCases[0]?.yearKey || selectedYear,
-          caseCount: summary.caseCount,
-          avgScore: summary.avgScore,
-          grade: summary.grade,
-          revisedCount: summary.revisedCount,
-          incentive: summary.incentive,
-          policyMonthKey: summary.policyMonthKey,
-        };
-      })
-      .sort((a, b) => a.agent.localeCompare(b.agent));
-  }, [yearScopedCases, effectiveAgent, visibleAgentList, selectedYear]);
-
-  const caseListRows = useMemo(() => {
-    switch (viewMode) {
-      case "weekly-dashboard":
-        return monthScopedCases;
-      case "weekly-qa-by-agent":
-        return monthScopedCases;
-      case "monthly-dashboard":
-        return monthScopedCases;
-      case "monthly-team-summary":
-        return monthScopedCases;
-      case "yearly-team-summary":
-        return yearScopedCases;
-      case "yearly-by-agent":
-        return yearScopedCases;
-      default:
-        return monthScopedCases;
-    }
-  }, [viewMode, monthScopedCases, yearScopedCases]);
+  const caseListForCurrentView = useMemo(() => {
+    const sorter = (a: CaseItem, b: CaseItem) => {
+      const ta = a.auditDateObj?.getTime() || 0;
+      const tb = b.auditDateObj?.getTime() || 0;
+      return ta - tb || a.caseId.localeCompare(b.caseId);
+    };
+    return [...filteredCases].sort(sorter).slice(0, 50);
+  }, [filteredCases]);
 
   const caseListTitle = useMemo(() => {
     switch (viewMode) {
@@ -1328,177 +998,129 @@ export default function SummaryMockup({
     }
   }, [viewMode]);
 
-  const caseListSubtitle = useMemo(() => {
-    const agentText = effectiveAgent && effectiveAgent !== "all" ? effectiveAgent : "All Agents";
-    const monthText = selectedMonth === "all" ? "All Months" : monthOptions.find((m) => m.value === selectedMonth)?.label || selectedMonth;
-    const weekText = selectedWeek === "all" ? "All Weeks" : selectedWeek;
-    const yearText = selectedYear === "all" ? "All Years" : selectedYear;
-
-    if (viewMode === "yearly-team-summary" || viewMode === "yearly-by-agent") {
-      return `${agentText} • ${yearText} • ${monthText} • ${weekText}`;
-    }
-    return `${agentText} • ${monthText} • ${weekText}`;
-  }, [effectiveAgent, selectedMonth, selectedWeek, selectedYear, monthOptions, viewMode]);
-
-  const currentRowsBlock = useMemo(() => {
-    switch (viewMode) {
-      case "weekly-dashboard":
-        return <SummaryTable rows={weeklyDashboardRows} firstColLabel="Week" showMonth showYear />;
-      case "weekly-qa-by-agent":
-        return <AgentPeriodTable rows={weeklyQaByAgentRows} periodLabel="Week" />;
-      case "monthly-dashboard":
-        return <SummaryTable rows={monthlyDashboardRows} firstColLabel="Month" showWeek showYear />;
-      case "monthly-team-summary":
-        return <AgentPeriodTable rows={monthlyTeamRows} periodLabel="Month" />;
-      case "yearly-team-summary":
-        return <SummaryTable rows={yearlyTeamRows} firstColLabel="Year" showMonth showWeek />;
-      case "yearly-by-agent":
-        return <AgentPeriodTable rows={yearlyAgentRows} periodLabel="Year" />;
-      default:
-        return null;
-    }
-  }, [viewMode, weeklyDashboardRows, weeklyQaByAgentRows, monthlyDashboardRows, monthlyTeamRows, yearlyTeamRows, yearlyAgentRows]);
-
   if (isLoading) {
-    return (
-      <div className="rounded-[32px] border border-violet-200 bg-white/95 p-10 text-center shadow-[0_14px_40px_rgba(76,29,149,0.10)]">
-        <div className="text-lg font-semibold text-slate-800">Loading summary...</div>
-      </div>
-    );
+    return <div className="p-6 text-sm text-slate-600">Loading summary...</div>;
   }
 
   if (loadError) {
-    return (
-      <div className="rounded-[32px] border border-rose-200 bg-rose-50 p-8 text-rose-700 shadow-[0_14px_40px_rgba(244,63,94,0.10)]">
-        {loadError}
-      </div>
-    );
+    return <div className="p-6 text-sm text-rose-600">{loadError}</div>;
   }
 
   return (
-    <div className="relative space-y-6">
-      <div className={`relative overflow-hidden rounded-[34px] border ${songkranTheme ? "border-cyan-200 bg-gradient-to-br from-violet-900 via-violet-800 to-fuchsia-700" : "border-violet-200 bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700"} px-6 py-6 text-white shadow-[0_18px_45px_rgba(76,29,149,0.22)] lg:px-8 lg:py-8`}>
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.35em] text-white/70">QA Summary</div>
-            <div className="mt-2 text-3xl font-black tracking-tight lg:text-[40px]">Performance Summary Overview</div>
-            <div className="mt-2 max-w-3xl text-sm leading-6 text-white/80">
-              Weekly, monthly, and yearly summary with topic trend and example case list by selected tab.
+    <div className="min-h-screen bg-[#fcfbff] text-slate-900">
+      <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-4 lg:px-6">
+        <Panel className="overflow-hidden border-0 bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700 text-white shadow-[0_18px_60px_rgba(76,29,149,0.35)]">
+          <div className="relative overflow-hidden px-6 py-7 lg:px-8 lg:py-8">
+            {songkranTheme ? <div className="pointer-events-none absolute inset-0 overflow-hidden"><div className="absolute left-0 top-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" /><div className="absolute right-6 top-8 h-32 w-32 rounded-full bg-fuchsia-300/18 blur-3xl" /></div> : null}
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">QA Summary</div>
+                <h1 className="mt-2 text-3xl font-black tracking-tight lg:text-4xl">Weekly / Monthly / Yearly Summary</h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-violet-100">Review performance overview with case list examples for each summary tab.</p>
+              </div>
+              <LogoHeaderBox />
             </div>
           </div>
-          <LogoHeaderBox />
-        </div>
-      </div>
+        </Panel>
 
-      <Panel>
-        <PanelHeader title="Summary Filter" subtitle="Filter by agent, month, week, and year" />
-        <PanelBody>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <label className="block">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Agent</div>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-300"
-                value={effectiveAgent || "all"}
-                disabled={currentUser?.role === "Agent"}
-                onChange={(e) => {
-                  setSelectedAgent(e.target.value);
-                  onSelectedAgentChange?.(e.target.value);
-                }}
-              >
-                {currentUser?.role !== "Agent" ? <option value="all">All Agents</option> : null}
-                {visibleAgentList.map((agent) => (
-                  <option key={agent} value={agent}>{agent}</option>
-                ))}
-              </select>
-            </label>
+        <Panel>
+          <PanelHeader title="Control Panel" subtitle="Choose tab, agent, month, week, and year" />
+          <PanelBody>
+            <div className="grid gap-4 xl:grid-cols-5">
+              <div className="xl:col-span-2">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">View</div>
+                <div className="flex flex-wrap gap-2">
+                  <ViewButton active={viewMode === "weekly-dashboard"} label="Weekly Dashboard" onClick={() => setViewMode("weekly-dashboard")} />
+                  <ViewButton active={viewMode === "weekly-qa-by-agent"} label="Weekly QA by Agent" onClick={() => setViewMode("weekly-qa-by-agent")} />
+                  <ViewButton active={viewMode === "monthly-dashboard"} label="Monthly Dashboard" onClick={() => setViewMode("monthly-dashboard")} />
+                  <ViewButton active={viewMode === "monthly-team-summary"} label="Monthly Team Summary" onClick={() => setViewMode("monthly-team-summary")} />
+                  <ViewButton active={viewMode === "yearly-team-summary"} label="Yearly Team Summary" onClick={() => setViewMode("yearly-team-summary")} />
+                  <ViewButton active={viewMode === "yearly-by-agent"} label="Yearly by Agent" onClick={() => setViewMode("yearly-by-agent")} />
+                </div>
+              </div>
 
-            <label className="block">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Month</div>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-300"
-                value={selectedMonth}
-                onChange={(e) => {
-                  setSelectedMonth(e.target.value);
-                  onSelectedMonthChange?.(e.target.value);
-                }}
-              >
-                <option value="all">All Months</option>
-                {monthOptions.map((month) => (
-                  <option key={month.value} value={month.value}>{month.label}</option>
-                ))}
-              </select>
-            </label>
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent</div>
+                {currentUser?.role === "Agent" ? (
+                  <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">{toTitleCaseName(currentUser.agentName)}</div>
+                ) : (
+                  <select value={selectedAgent} onChange={(e) => { const value = e.target.value; setSelectedAgent(value); onSelectedAgentChange?.(value); }} className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                    <option value="all">All Agents</option>
+                    {visibleAgentList.map((agent) => <option key={agent} value={agent}>{agent}</option>)}
+                  </select>
+                )}
+              </div>
 
-            <label className="block">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Week</div>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-300"
-                value={selectedWeek}
-                onChange={(e) => {
-                  setSelectedWeek(e.target.value);
-                  onSelectedWeekChange?.(e.target.value);
-                }}
-              >
-                <option value="all">All Weeks</option>
-                {weekOptions.map((week) => (
-                  <option key={week} value={week}>{week}</option>
-                ))}
-              </select>
-            </label>
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Month</div>
+                <select value={selectedMonth} onChange={(e) => { const value = e.target.value; setSelectedMonth(value); onSelectedMonthChange?.(value); }} className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                  <option value="all">All Months</option>
+                  {monthOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </div>
 
-            <label className="block">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Year</div>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-300"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-              >
-                <option value="all">All Years</option>
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </label>
-
-            <div className="block">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Current View</div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-                {viewMode}
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Week</div>
+                <select value={selectedWeek} onChange={(e) => { const value = e.target.value; setSelectedWeek(value); onSelectedWeekChange?.(value); }} className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                  <option value="all">All Weeks</option>
+                  {weekOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
               </div>
             </div>
-          </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            <ViewButton active={viewMode === "weekly-dashboard"} label="Weekly Dashboard" onClick={() => setViewMode("weekly-dashboard")} />
-            <ViewButton active={viewMode === "weekly-qa-by-agent"} label="Weekly QA by Agent" onClick={() => setViewMode("weekly-qa-by-agent")} />
-            <ViewButton active={viewMode === "monthly-dashboard"} label="Monthly Dashboard" onClick={() => setViewMode("monthly-dashboard")} />
-            <ViewButton active={viewMode === "monthly-team-summary"} label="Monthly Team Summary" onClick={() => setViewMode("monthly-team-summary")} />
-            <ViewButton active={viewMode === "yearly-team-summary"} label="Yearly Team Summary" onClick={() => setViewMode("yearly-team-summary")} />
-            <ViewButton active={viewMode === "yearly-by-agent"} label="Yearly by Agent" onClick={() => setViewMode("yearly-by-agent")} />
-          </div>
-        </PanelBody>
-      </Panel>
+            <div className="mt-4 grid gap-4 md:grid-cols-4">
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Year</div>
+                <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                  <option value="all">All Years</option>
+                  {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        <MetricCard title="Cases" value={`${overviewSummary.caseCount}`} sub="Case(s) in current view" accent="from-white via-violet-50/40 to-fuchsia-50/60 border-violet-200/70" valueClassName="text-violet-700" />
-        <MetricCard title="Average Score" value={overviewSummary.avgScore.toFixed(2)} sub="Average QA score in current view" accent="from-white via-sky-50/40 to-cyan-50/60 border-sky-200/70" valueClassName="text-sky-700" />
-        <MetricCard title="Grade" value={overviewSummary.grade} sub="Current calculated grade" accent="from-white via-emerald-50/40 to-lime-50/60 border-emerald-200/70" valueClassName="text-emerald-700" />
-        <MetricCard title="Estimated Incentive" value={formatCurrencyTHB(overviewSummary.incentive)} sub="Based on current filtered result" accent="from-white via-fuchsia-50/40 to-violet-50/60 border-fuchsia-200/70" valueClassName="text-fuchsia-700" />
+              <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-4 text-sm text-slate-700 md:col-span-3">
+                Current view shows <span className="font-bold text-slate-900">{filteredCases.length}</span> case(s) and <span className="font-bold text-slate-900">{appealMergeCount}</span> appeal merge row(s).
+              </div>
+            </div>
+          </PanelBody>
+        </Panel>
+
+        <div className="grid gap-6 xl:grid-cols-4">
+          <MetricCard title="Cases" value={`${summary.caseCount}`} sub="Visible cases in current scope" />
+          <MetricCard title="Average Score" value={summary.avgScore.toFixed(2)} sub="Average score in current scope" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" valueClassName="text-sky-700" />
+          <MetricCard title="Grade" value={summary.grade} sub="Calculated from visible scope" accent="from-white via-emerald-50/50 to-lime-100/60 border-emerald-200" valueClassName="text-emerald-700" />
+          <MetricCard title="Incentive" value={formatCurrencyTHB(summary.incentive)} sub="Current incentive result by current view" accent="from-white via-amber-50/50 to-orange-100/60 border-amber-200" valueClassName="text-amber-700" />
+        </div>
+
+        {(viewMode === "weekly-dashboard" || viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary" || viewMode === "yearly-team-summary") && (
+          <Panel>
+            <PanelHeader title="Summary Table" subtitle="Main summary table for selected tab" />
+            <PanelBody>
+              {viewMode === "weekly-dashboard" && <SummaryTable rows={weeklyRows} firstColLabel="Label" showWeek />}
+              {viewMode === "monthly-dashboard" && <SummaryTable rows={monthlyRows} firstColLabel="Label" showMonth />}
+              {viewMode === "monthly-team-summary" && <SummaryTable rows={monthlyRows} firstColLabel="Team / Month" showMonth />}
+              {viewMode === "yearly-team-summary" && <SummaryTable rows={yearlyRows} firstColLabel="Year" showYear />}
+            </PanelBody>
+          </Panel>
+        )}
+
+        {(viewMode === "weekly-qa-by-agent" || viewMode === "yearly-by-agent") && (
+          <Panel>
+            <PanelHeader title="Agent Summary Table" subtitle="Agent-based summary for selected tab" />
+            <PanelBody>
+              <AgentPeriodTable rows={byAgentRows} periodLabel={viewMode === "yearly-by-agent" ? "Year" : "Month / Period"} />
+            </PanelBody>
+          </Panel>
+        )}
+
+        <Panel>
+          <PanelHeader title="Topic Performance" subtitle="Topic average in current selected scope" />
+          <PanelBody>
+            <TopicTable topics={topicSummary} />
+          </PanelBody>
+        </Panel>
+
+        <CaseListTable title={caseListTitle} cases={caseListForCurrentView} />
       </div>
-
-      <Panel>
-        <PanelHeader title="Summary Table" subtitle="Summary result by current tab" />
-        <PanelBody>{currentRowsBlock}</PanelBody>
-      </Panel>
-
-      <Panel>
-        <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
-        <PanelBody>
-          <TopicTable topics={topicSummary} />
-        </PanelBody>
-      </Panel>
-
-      <CaseListTable rows={caseListRows} title={caseListTitle} subtitle={caseListSubtitle} />
     </div>
   );
 }
