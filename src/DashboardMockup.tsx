@@ -611,6 +611,17 @@ function getIncentiveResult(caseCount: number, avg: number, monthKey: string): I
   return getIncentiveByGrade(grade, monthKey);
 }
 
+
+
+function getPolicyMonthKeyForCases(cases: CaseItem[]) {
+  const validMonthKeys = cases
+    .map((item) => item.monthKey)
+    .filter((item) => item && item !== "unknown")
+    .sort((a, b) => a.localeCompare(b));
+
+  return validMonthKeys.length ? validMonthKeys[validMonthKeys.length - 1] : "unknown";
+}
+
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
   if (!revisedTopics?.length) return topics;
   const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
