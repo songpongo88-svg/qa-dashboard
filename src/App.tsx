@@ -200,11 +200,11 @@ function getEffectivePassword(account: UserAccount) {
 function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-cyan-200/20 via-fuchsia-200/15 to-sky-200/20" />
       <div className="absolute left-[-60px] top-[-30px] h-44 w-44 rounded-full bg-cyan-300/25 blur-3xl" />
       <div className="absolute right-[-20px] top-8 h-36 w-36 rounded-full bg-fuchsia-300/20 blur-3xl" />
       <div className="absolute bottom-[-30px] left-1/4 h-44 w-44 rounded-full bg-sky-300/18 blur-3xl" />
       <div className="absolute bottom-2 right-1/4 h-28 w-28 rounded-full bg-violet-300/18 blur-2xl" />
-
       <div className="absolute left-[8%] top-[16%] h-4 w-4 rounded-full bg-cyan-200/80" />
       <div className="absolute left-[13%] top-[26%] h-2.5 w-2.5 rounded-full bg-white/80" />
       <div className="absolute left-[20%] top-[12%] h-3.5 w-3.5 rounded-full bg-sky-300/70" />
@@ -213,13 +213,21 @@ function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
       <div className="absolute right-[8%] bottom-[18%] h-3.5 w-3.5 rounded-full bg-cyan-300/60" />
       <div className="absolute left-[12%] bottom-[15%] h-3.5 w-3.5 rounded-full bg-pink-300/50" />
 
+      <div className="absolute left-6 bottom-5 hidden rounded-[28px] border border-white/20 bg-white/10 px-4 py-3 text-3xl shadow-[0_8px_24px_rgba(14,165,233,0.18)] backdrop-blur md:flex">
+        <span>🔫</span>
+        <span className="ml-2">💦</span>
+      </div>
+      <div className="absolute right-6 top-5 hidden rounded-[28px] border border-white/20 bg-white/10 px-4 py-3 text-3xl shadow-[0_8px_24px_rgba(217,70,239,0.18)] backdrop-blur md:flex">
+        <span>🪣</span>
+        <span className="ml-2">🌸</span>
+      </div>
       {!compact ? (
         <>
           <div className="absolute left-4 top-4 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/90 backdrop-blur-sm">
             Songkran Festival
           </div>
           <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
-            Auto reset after 25 Apr 2026
+            Water splash theme · resets after 25 Apr 2026
           </div>
         </>
       ) : null}
