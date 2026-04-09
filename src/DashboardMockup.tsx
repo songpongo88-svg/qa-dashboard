@@ -1786,7 +1786,7 @@ export default function DashboardMockup({
         ]);
 
         const rawBuffer = await rawResponse.arrayBuffer();
-        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: false });
         const rawSheet =
           rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
 
@@ -1814,7 +1814,7 @@ export default function DashboardMockup({
         const rawHelper = buildHeaderHelpers(rawHeaderRow);
 
         const appealBuffer = await appealResponse.arrayBuffer();
-        const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
+        const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: false });
         const appealSheet =
           appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
 
