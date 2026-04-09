@@ -1066,131 +1066,88 @@ function CaseDetailTopicTable({
 
   const displayTopics = displayTopicsBase.filter((topic) => topic.max > 0);
 
-  const columns = [
-    displayTopics.filter((_, i) => i % 2 === 0),
-    displayTopics.filter((_, i) => i % 2 === 1),
-  ];
-
-  const getTone = (pct: number): [string, string] => {
-    if (pct >= 80) return ["ดี", "bg-emerald-50 text-emerald-700 border-emerald-200"];
-    if (pct >= 60) return ["กลาง", "bg-amber-50 text-amber-700 border-amber-200"];
-    return ["ควรปรับปรุง", "bg-rose-50 text-rose-700 border-rose-200"];
+  const getStatusMeta = (pct: number) => {
+    if (pct >= 90) return { label: "Excellent", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    if (pct >= 80) return { label: "Good", className: "bg-sky-50 text-sky-700 border-sky-200" };
+    if (pct >= 60) return { label: "Fair", className: "bg-amber-50 text-amber-700 border-amber-200" };
+    return { label: "Need Improvement", className: "bg-rose-50 text-rose-700 border-rose-200" };
   };
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 xl:grid-cols-2">
-        {columns.map((group, idx) => (
-          <div key={idx} className="space-y-3">
-            {group.map((topic) => {
-              const [label, wrap] = getTone(topic.pct);
-              const originalTopic = originalMap.get(topic.code);
-              const revisedTopic =
-                reviewStatus === "Revised" && revisedTopics?.length
-                  ? revisedTopics.find((item) => item.code === topic.code)
-                  : undefined;
+    <div className="overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_14px_40px_rgba(109,40,217,0.10)]">
+      <div className="overflow-x-auto">
+        <table className="min-w-[1180px] w-full border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="bg-gradient-to-r from-violet-800 via-violet-700 to-fuchsia-700 text-white">
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Topic</th>
+              <th className="px-5 py-4 text-left text-[12px] font-semibold">Description</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Score</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Max</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Score %</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Status</th>
+              <th className="px-5 py-4 text-left text-[12px] font-semibold">Evaluation Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayTopics.length ? (
+              displayTopics.map((topic) => {
+                const originalTopic = originalMap.get(topic.code);
+                const revisedTopic =
+                  reviewStatus === "Revised" && revisedTopics?.length
+                    ? revisedTopics.find((item) => item.code === topic.code)
+                    : undefined;
+                const changed =
+                  reviewStatus === "Revised" &&
+                  displayCodeSet.has(topic.code) &&
+                  !!revisedTopic &&
+                  isTopicChanged(originalTopic, revisedTopic);
+                const shownTopic = changed && revisedTopic ? revisedTopic : topic;
+                const statusMeta = getStatusMeta(shownTopic.pct);
+                const commentText = changed && originalTopic && revisedTopic
+                  ? `Original: ${originalTopic.comment || "-"}
 
-              const allowedToShowRevised = displayCodeSet.has(topic.code);
+Revised: ${revisedTopic.comment || "-"}`
+                  : (originalTopic || shownTopic).comment || "ยังไม่มี Evaluation Comment";
 
-              const changed =
-                reviewStatus === "Revised" &&
-                allowedToShowRevised &&
-                !!revisedTopic &&
-                isTopicChanged(originalTopic, revisedTopic);
-
-              const shownTopic = changed && revisedTopic ? revisedTopic : topic;
-
-              return (
-                <div
-                  key={`${shownTopic.code}-${shownTopic.label}`}
-                  className="relative rounded-2xl border border-violet-100 bg-white p-4 shadow-sm"
-                >
-                  {isSongkranThemeActive() ? (
-                    <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
-                  ) : null}
-
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                return (
+                  <tr key={`${shownTopic.code}-${shownTopic.label}`} className="align-top odd:bg-white even:bg-violet-50/35">
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center font-semibold text-slate-900">
+                      <div className="mx-auto inline-flex min-w-[54px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-bold text-violet-700">
                         {shownTopic.code}
                       </div>
-                      <div className="mt-1 text-xs font-semibold leading-5 text-slate-900">
-                        {shownTopic.label}
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 rounded-xl bg-violet-50 px-3 py-2 text-right">
-                      <div className="text-[9px] uppercase tracking-wide text-slate-500">
-                        Score
-                      </div>
-                      <div className="text-sm font-bold text-slate-900">
-                        {shownTopic.score}/{shownTopic.max}
-                      </div>
-                    </div>
-                  </div>
-
-                  {changed && originalTopic && revisedTopic ? (
-                    <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-[12px] text-violet-800">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-semibold">Revised Topic</span>
-                        <span className="rounded-full border border-violet-300 px-2 py-0.5 text-[10px] font-semibold">
-                          {originalTopic.score} → {revisedTopic.score}
-                        </span>
-                      </div>
-
-                      {hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment) ? (
-                        <div className="mt-2 text-[11px] text-violet-700">Comment updated</div>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div className={`mt-3 rounded-xl border px-3 py-2 text-[11px] ${wrap}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-medium">Percent</div>
-                        <div className="mt-1 text-sm font-semibold">{shownTopic.pct}%</div>
-                      </div>
-                      <span className="rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold">
-                        {label}
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-5 py-4 text-[13px] font-semibold leading-6 text-slate-900">
+                      {shownTopic.label}
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center text-[14px] font-bold text-slate-900">
+                      {changed && originalTopic && revisedTopic ? `${originalTopic.score} → ${revisedTopic.score}` : shownTopic.score}
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center text-[14px] font-semibold text-slate-900">
+                      {shownTopic.max}
+                    </td>
+                    <td className="border-r border-b border-violet-100 bg-lime-50/60 px-4 py-4 text-center text-[14px] font-semibold text-slate-900">
+                      {shownTopic.pct.toFixed(1)}%
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${statusMeta.className}`}>
+                        {statusMeta.label}
                       </span>
-                    </div>
-                  </div>
-
-                  {changed && originalTopic && revisedTopic ? (
-                    <div className="mt-3 space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          Original Comment
-                        </div>
-                        <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-                          {originalTopic.comment || "ยังไม่มี Evaluation Comment"}
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-                          Revised Comment
-                        </div>
-                        <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                          {revisedTopic.comment || "ยังไม่มี Revised Comment"}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                        Evaluation Comment
-                      </div>
-                      <div className="mt-1 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-                        {(originalTopic || shownTopic).comment || "ยังไม่มี Evaluation Comment"}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                    </td>
+                    <td className="border-b border-violet-100 px-5 py-4 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                      {commentText}
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  No topic detail found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -2102,30 +2059,31 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-sm">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
-                        Case Description
-                      </div>
-                      <div className="mt-2 min-h-[72px] whitespace-pre-line text-sm leading-6 text-slate-800">
-                        {caseItem.caseDescription || "-"}
-                      </div>
+                  <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
+                      <span>Case Description</span>
                     </div>
+                    <div className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-800">
+                      {caseItem.caseDescription || "-"}
+                    </div>
+                  </div>
 
-                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-cyan-50 to-violet-50 px-4 py-4 shadow-sm shadow-sky-100/60">
+                  <div className="grid gap-3 lg:grid-cols-12">
+                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-cyan-50 to-violet-50 px-4 py-4 shadow-sm shadow-sky-100/60 lg:col-span-6 xl:col-span-5">
                       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">🖼️</span>
                         <span>Case Image</span>
                       </div>
                       {verifiedImagePdfUrls.length ? (
                         <div className="mt-3 space-y-3">
-                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-4 shadow-sm">
+                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-3 shadow-sm">
                             <div className="flex items-start gap-3">
-                              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-xl">📄</div>
+                              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-lg">📄</div>
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold text-slate-900">Case Image is a PDF file</div>
                                 <div className="mt-1 text-xs leading-5 text-slate-500">
-                                  ช่อง Case Image ของเคสนี้เป็นลิงก์ PDF ดังนั้นปุ่มหลักจะเปิด PDF viewer ทันที และปุ่มด้านข้างจะเป็นปุ่มดาวน์โหลดไฟล์
+                                  ปุ่มหลักจะเปิด PDF viewer และปุ่มข้าง ๆ ใช้สำหรับดาวน์โหลดไฟล์แนบ
                                 </div>
                               </div>
                             </div>
@@ -2155,9 +2113,9 @@ function SlideOverCaseDetail({
                                 {verifiedImagePdfUrls.length > 1 ? `Download PDF ${index + 1}` : "Download PDF"}
                               </a>
                             ))}
-                            <div className="text-[11px] font-medium text-sky-700">
-                              {caseItem.caseId} Case Image PDF{verifiedImagePdfUrls.length > 1 ? ` · ${verifiedImagePdfUrls.length} files` : ""}
-                            </div>
+                          </div>
+                          <div className="text-[11px] font-medium text-sky-700">
+                            {caseItem.caseId} Case Image PDF{verifiedImagePdfUrls.length > 1 ? ` · ${verifiedImagePdfUrls.length} files` : ""}
                           </div>
                         </div>
                       ) : verifiedImageUrls.length ? (
@@ -2166,11 +2124,11 @@ function SlideOverCaseDetail({
                             <img
                               src={verifiedImageUrls[0]}
                               alt={`Case attachment ${caseItem.caseId}`}
-                              className="h-36 w-full rounded-xl object-cover"
+                              className="h-24 w-full rounded-xl object-cover"
                               onError={() => setVerifiedImageUrls((current) => current.slice(1))}
                             />
                             {verifiedImageUrls.length > 1 ? (
-                              <div className="absolute right-4 top-4 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-sky-700 shadow-sm">
+                              <div className="absolute right-3 top-3 rounded-full border border-sky-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-sm">
                                 {verifiedImageUrls.length} images
                               </div>
                             ) : null}
@@ -2196,7 +2154,7 @@ function SlideOverCaseDetail({
                                   <img
                                     src={url}
                                     alt={`${caseItem.caseId} thumbnail ${index + 1}`}
-                                    className="h-16 w-full object-cover"
+                                    className="h-12 w-full object-cover"
                                   />
                                 </button>
                               ))}
@@ -2229,9 +2187,9 @@ function SlideOverCaseDetail({
                                 {verifiedImageUrls.length > 1 ? `Download ${index + 1}` : "Download Image"}
                               </a>
                             ))}
-                            <div className="text-[11px] font-medium text-sky-700">
-                              {caseItem.caseId} Image Attachment{verifiedImageUrls.length > 1 ? ` · ${verifiedImageUrls.length} files` : ""}
-                            </div>
+                          </div>
+                          <div className="text-[11px] font-medium text-sky-700">
+                            {caseItem.caseId} Image Attachment{verifiedImageUrls.length > 1 ? ` · ${verifiedImageUrls.length} files` : ""}
                           </div>
                         </div>
                       ) : (
@@ -2241,12 +2199,13 @@ function SlideOverCaseDetail({
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 px-4 py-4 shadow-sm">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                        Case PDF
+                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 px-4 py-4 shadow-sm lg:col-span-6 xl:col-span-4">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700">📎</span>
+                        <span>Case PDF</span>
                       </div>
                       {availablePdfUrls.length ? (
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div className="mt-3 grid gap-2">
                           {availablePdfUrls.map((item) => {
                             const isViolet = item.tone === "violet";
                             const openClass = isViolet
@@ -2274,16 +2233,6 @@ function SlideOverCaseDetail({
                                   </button>
                                   <a
                                     href={item.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${isViolet
-                                      ? "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                                      : "border-amber-200 bg-white text-amber-700 hover:bg-amber-50"}`}
-                                  >
-                                    Open in New Tab
-                                  </a>
-                                  <a
-                                    href={item.url}
                                     download
                                     className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${downloadClass}`}
                                   >
@@ -2300,6 +2249,15 @@ function SlideOverCaseDetail({
                       ) : (
                         <div className="mt-2 min-h-[72px] text-sm leading-6 text-slate-500">-</div>
                       )}
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm lg:col-span-12 xl:col-span-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                        Topic Detail View
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-slate-700">
+                        ตารางด้านล่างจะแสดงผลแบบเดียวกันทุกเดือน โดยรวม Topic, Score, Score %, Status และ Evaluation Comment ไว้ในหน้าเดียวเพื่ออ่านง่ายขึ้น
+                      </div>
                     </div>
                   </div>
                 </div>
