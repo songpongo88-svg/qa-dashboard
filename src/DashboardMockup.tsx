@@ -1742,10 +1742,10 @@ function SlideOverCaseDetail({
   const hasAnyPdf = Boolean(resolvedPdfLinks.original || resolvedPdfLinks.revised);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
+    <div className="fixed inset-0 z-[90] bg-slate-900/45">
       <div className="absolute inset-0" onClick={onClose} />
 
-      <div className="relative z-10 flex h-[92vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[30px] border border-violet-200 bg-[#f8f6ff] shadow-2xl">
+      <div className="relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff]">
         <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
             <div className="min-w-0">
