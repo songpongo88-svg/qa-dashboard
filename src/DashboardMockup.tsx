@@ -1288,9 +1288,26 @@ function isGoogleDriveAssetUrl(url: string) {
   );
 }
 
-function isPdfAssetUrl(url: string) {
+function hasImageAssetExtension(url: string) {
   const value = String(url || "").toLowerCase().split("#")[0].split("?")[0];
-  return value.endsWith('.pdf') || String(url || "").toLowerCase().includes('application/pdf');
+  return [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg", ".avif"].some((ext) =>
+    value.endsWith(ext)
+  );
+}
+
+function isLikelyGoogleDrivePdf(url: string) {
+  const lower = String(url || "").toLowerCase();
+  if (!lower) return false;
+  if (!isGoogleDriveAssetUrl(lower)) return false;
+  if (lower.includes("thumbnail?")) return false;
+  if (hasImageAssetExtension(lower)) return false;
+  return true;
+}
+
+function isPdfAssetUrl(url: string) {
+  const original = String(url || "").toLowerCase();
+  const value = original.split("#")[0].split("?")[0];
+  return value.endsWith('.pdf') || original.includes('application/pdf') || isLikelyGoogleDrivePdf(original);
 }
 
 function getCasePdfActionLabel(url: string, caseId: string) {
@@ -1749,15 +1766,18 @@ function SlideOverCaseDetail({
 
       const checkedImages = await Promise.all(
         imageAssetCandidates.map(async (item, index) => {
-          if (!item?.previewUrl) return null;
+          if (!item?.previewUrl && !item?.url) return null;
 
-          if (item.isPdf) {
-            const pdfOk = isGoogleDriveAssetUrl(item.url) ? true : await urlExists(item.url);
+          const shouldUsePdfMode = item.isPdf || isLikelyGoogleDrivePdf(item.rawUrl) || isLikelyGoogleDrivePdf(item.url);
+
+          if (shouldUsePdfMode) {
+            const pdfTargetUrl = item.rawUrl || item.url;
+            const pdfOk = isGoogleDriveAssetUrl(pdfTargetUrl) ? true : await urlExists(pdfTargetUrl);
             return pdfOk
               ? {
                   kind: "pdf" as const,
                   rawUrl: item.rawUrl,
-                  url: item.url,
+                  url: pdfTargetUrl,
                   label:
                     imageAssetCandidates.length > 1
                       ? `${caseItem.caseId} Image Attachment PDF ${index + 1}`
