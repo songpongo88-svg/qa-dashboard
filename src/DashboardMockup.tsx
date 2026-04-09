@@ -1268,6 +1268,7 @@ function isGoogleDriveAssetUrl(url: string) {
     value.includes("drive.google.com/uc?") ||
     value.includes("drive.google.com/open?") ||
     value.includes("drive.google.com/file/d/") ||
+    value.includes("drive.google.com/thumbnail?") ||
     value.includes("googleusercontent.com")
   );
 }
