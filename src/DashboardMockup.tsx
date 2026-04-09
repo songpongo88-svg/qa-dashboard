@@ -26,6 +26,11 @@ type CaseItem = {
   caseUrl?: string;
   inquiryTh: string;
   inquiryEn: string;
+  caseDescription?: string;
+  caseImageUrl?: string;
+  casePdfUrl?: string;
+  casePdfOriginalUrl?: string;
+  casePdfRevisedUrl?: string;
   finalScore: number;
   previousScore?: number;
   grade: Grade;
@@ -71,7 +76,7 @@ const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
-const TOPIC_MASTER = [
+const LEGACY_TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
   { code: "1.3", label: "PDPA & Policy", max: 5 },
@@ -90,6 +95,36 @@ const TOPIC_MASTER = [
   { code: "5.2", label: "SLA Compliance", max: 5 },
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
+
+const APRIL_TOPIC_MASTER = [
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+] as const;
+
+const ALL_TOPIC_MASTER = [
+  ...APRIL_TOPIC_MASTER,
+  ...LEGACY_TOPIC_MASTER.filter(
+    (legacy) => !APRIL_TOPIC_MASTER.some((april) => april.code === legacy.code)
+  ),
+] as const;
+
+function getTopicMasterForMonth(monthKey: string) {
+  return isNewPolicyMonth(monthKey) ? APRIL_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
+}
+
+function getTopicSortValue(code: string) {
+  const [group = "0", sub = "0"] = String(code || "").split(".");
+  return Number(group) * 100 + Number(sub);
+}
 
 const AGENT_MASTER = [
   "Anucha Makundin",
@@ -571,34 +606,50 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
   const gradeCounts: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
   for (const item of cases) gradeCounts[item.grade] += 1;
 
-  const topicPerformance = TOPIC_MASTER.map((master) => {
-    const topics = cases
-      .flatMap((item) =>
-        item.reviewStatus === "Revised" && item.revisedTopics?.length
-          ? mergeTopicSet(item.topics, item.revisedTopics)
-          : item.topics
-      )
-      .filter((topic) => topic.code === master.code);
+  const topicMetaMap = new Map<string, { label: string; max: number }>();
+  cases.forEach((item) => {
+    const activeTopics =
+      item.reviewStatus === "Revised" && item.revisedTopics?.length
+        ? mergeTopicSet(item.topics, item.revisedTopics)
+        : item.topics;
 
-    if (!topics.length) {
-      return {
-        code: master.code,
-        label: master.label,
-        avgScore: "-",
-        max: master.max,
-        pct: "-",
-      };
-    }
-
-    const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
-    return {
-      code: master.code,
-      label: master.label,
-      avgScore: avg.toFixed(2),
-      max: master.max,
-      pct: ((avg / master.max) * 100).toFixed(2),
-    };
+    activeTopics.forEach((topic) => {
+      if (!topicMetaMap.has(topic.code)) {
+        topicMetaMap.set(topic.code, { label: topic.label, max: topic.max });
+      }
+    });
   });
+
+  const topicPerformance = [...topicMetaMap.entries()]
+    .sort((a, b) => getTopicSortValue(a[0]) - getTopicSortValue(b[0]))
+    .map(([code, meta]) => {
+      const topics = cases
+        .flatMap((item) =>
+          item.reviewStatus === "Revised" && item.revisedTopics?.length
+            ? mergeTopicSet(item.topics, item.revisedTopics)
+            : item.topics
+        )
+        .filter((topic) => topic.code === code);
+
+      if (!topics.length) {
+        return {
+          code,
+          label: meta.label,
+          avgScore: "-",
+          max: meta.max,
+          pct: "-",
+        };
+      }
+
+      const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
+      return {
+        code,
+        label: meta.label,
+        avgScore: avg.toFixed(2),
+        max: meta.max,
+        pct: ((avg / meta.max) * 100).toFixed(2),
+      };
+    });
 
   return {
     averageDisplay: average.toFixed(2),
@@ -810,6 +861,9 @@ function CaseNavigatorCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
+          <div className="mt-1 text-[11px] font-semibold text-slate-700">
+            Score {item.finalScore.toFixed(2)}
+          </div>
         </div>
 
         <div className="flex flex-col items-end gap-1">
@@ -1238,6 +1292,51 @@ async function fetchFirstAvailable(urls: string[]) {
   throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
 
+
+function getGoogleDriveFileId(url: string) {
+  const value = String(url || "").trim();
+  if (!value) return "";
+
+  const patterns = [
+    /[?&]id=([^&#]+)/i,
+    /\/file\/d\/([^/]+)/i,
+    /\/thumbnail\?id=([^&#]+)/i,
+    /\/uc\?(?:[^#]*&)?id=([^&#]+)/i,
+    /\/d\/([^/]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return "";
+}
+
+function buildCaseImagePreviewCandidates(url?: string) {
+  const value = String(url || "").trim();
+  if (!value) return [];
+
+  const driveFileId = getGoogleDriveFileId(value);
+  if (!driveFileId) return [value];
+
+  return [
+    `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w1600`,
+    `https://drive.google.com/uc?export=view&id=${driveFileId}`,
+    value,
+  ].filter(Boolean);
+}
+
+function getCaseImageOpenUrl(url?: string) {
+  const value = String(url || "").trim();
+  if (!value) return "";
+
+  const driveFileId = getGoogleDriveFileId(value);
+  if (!driveFileId) return value;
+
+  return `https://drive.google.com/file/d/${driveFileId}/view`;
+}
+
 function PremiumBarChart({
   title,
   subtitle,
@@ -1560,7 +1659,68 @@ function SlideOverCaseDetail({
   caseItem: CaseItem | null;
   onClose: () => void;
 }) {
+  const imagePreviewCandidates = useMemo(
+    () => buildCaseImagePreviewCandidates(caseItem?.caseImageUrl),
+    [caseItem?.caseImageUrl]
+  );
+  const imageOpenUrl = useMemo(
+    () => getCaseImageOpenUrl(caseItem?.caseImageUrl),
+    [caseItem?.caseImageUrl]
+  );
+  const [imagePreviewIndex, setImagePreviewIndex] = useState(0);
+  const [resolvedPdfLinks, setResolvedPdfLinks] = useState<{ original: string; revised: string }>({
+    original: "",
+    revised: "",
+  });
+
+  useEffect(() => {
+    setImagePreviewIndex(0);
+  }, [caseItem?.caseImageUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolvePdfLinks() {
+      const tryResolve = async (candidates: string[]) => {
+        for (const candidate of candidates) {
+          const url = String(candidate || "").trim();
+          if (!url) continue;
+
+          try {
+            const response = await fetch(url, { method: "HEAD" });
+            if (response.ok) return url;
+          } catch {}
+
+          try {
+            const response = await fetch(url);
+            if (response.ok) return url;
+          } catch {}
+        }
+
+        return "";
+      };
+
+      const original = await tryResolve([caseItem?.casePdfOriginalUrl || "", caseItem?.casePdfUrl || ""]);
+      const revised = await tryResolve([caseItem?.casePdfRevisedUrl || ""]);
+
+      if (!cancelled) {
+        setResolvedPdfLinks({ original, revised });
+      }
+    }
+
+    setResolvedPdfLinks({ original: "", revised: "" });
+    resolvePdfLinks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseItem?.casePdfOriginalUrl, caseItem?.casePdfRevisedUrl, caseItem?.casePdfUrl]);
+
   if (!open || !caseItem) return null;
+
+  const activeImagePreviewUrl = imagePreviewCandidates[imagePreviewIndex] || "";
+  const canShowImagePreview = Boolean(activeImagePreviewUrl) && imagePreviewIndex < imagePreviewCandidates.length;
+  const hasAnyPdf = Boolean(resolvedPdfLinks.original || resolvedPdfLinks.revised);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
@@ -1594,7 +1754,7 @@ function SlideOverCaseDetail({
             />
             <PanelBody className="space-y-5">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-3">
+                <div className="min-w-0 flex-1 space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
                       {caseItem.caseId}
@@ -1610,83 +1770,78 @@ function SlideOverCaseDetail({
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div className="min-h-[108px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-h-[92px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Agent
                       </div>
-                      <div className="mt-2 text-[15px] font-semibold leading-6 text-slate-900">
-                        {caseItem.agent}
-                      </div>
+                      <div className="mt-2 text-sm font-semibold leading-6 text-slate-900 break-words">{caseItem.agent}</div>
                     </div>
 
-                    <div className="min-h-[108px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-h-[92px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Audit Date
                       </div>
-                      <div className="mt-2 text-[15px] font-semibold leading-6 text-slate-900">
+                      <div className="mt-2 text-sm font-semibold leading-6 text-slate-900">
                         {caseItem.auditDate}
                       </div>
                     </div>
 
-                    <div className="min-h-[108px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-h-[92px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Timestamp
                       </div>
-                      <div className="mt-2 text-[15px] font-semibold leading-6 text-slate-900">
+                      <div className="mt-2 text-sm font-semibold leading-6 text-slate-900">
                         {caseItem.auditTimestamp || "-"}
                       </div>
                     </div>
 
-                    <div className="min-h-[108px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-h-[92px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Week
                       </div>
-                      <div className="mt-2 text-[15px] font-semibold leading-6 text-slate-900">
+                      <div className="mt-2 text-sm font-semibold leading-6 text-slate-900 break-words">
                         {caseItem.weekLabel}
                       </div>
                     </div>
 
-                    <div className="min-h-[108px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-h-[92px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Final Score
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-bold shadow-sm ${scoreBadgeTone(
-                          caseItem.finalScore
-                        )}`}>
-                          {caseItem.finalScore.toFixed(2)}
-                        </span>
+                      <div className="mt-2 text-sm font-semibold leading-6 text-slate-900">
+                        {caseItem.finalScore.toFixed(2)}
                       </div>
                     </div>
 
-                    <div className="min-h-[108px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 min-h-[92px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         ไฟล์ PDF เคส / Case PDF
                       </div>
-                      {caseItem.casePdfUrl ? (
-                        <div className="mt-2 flex h-[68px] items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="text-3xl leading-none">📄</div>
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold text-slate-900">
-                                {caseItem.caseId}.pdf
-                              </div>
-                              <div className="text-[11px] text-slate-500">PDF attachment</div>
-                            </div>
-                          </div>
-                          <a
-                            href={caseItem.casePdfUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="shrink-0 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                          >
-                            Open
-                          </a>
+                      {hasAnyPdf ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {resolvedPdfLinks.original ? (
+                            <a
+                              href={resolvedPdfLinks.original}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                            >
+                              Original PDF
+                            </a>
+                          ) : null}
+                          {resolvedPdfLinks.revised ? (
+                            <a
+                              href={resolvedPdfLinks.revised}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-xl border border-violet-200 bg-violet-100 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-200"
+                            >
+                              Revised PDF
+                            </a>
+                          ) : null}
                         </div>
                       ) : (
-                        <div className="mt-2 flex h-[68px] items-center rounded-2xl border border-dashed border-slate-200 bg-white px-3 text-sm text-slate-500">
-                          No PDF attached
-                        </div>
+                        <div className="mt-2 text-sm leading-6 text-slate-800">-</div>
                       )}
                     </div>
                   </div>
@@ -1701,7 +1856,7 @@ function SlideOverCaseDetail({
                   </div>
 
                   <div className="grid gap-3 xl:grid-cols-2">
-                    <div className="min-h-[220px] rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 min-h-[220px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         รายละเอียดเคส / Case Description
                       </div>
@@ -1710,7 +1865,7 @@ function SlideOverCaseDetail({
                       </div>
                     </div>
 
-                    <div className="min-h-[220px] rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 min-h-[220px]">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         ภาพประกอบเคส / Case Image
                       </div>
@@ -1748,7 +1903,6 @@ function SlideOverCaseDetail({
                       )}
                     </div>
                   </div>
-</div>
                 </div>
 
                 {caseItem.caseUrl ? (
@@ -1756,7 +1910,7 @@ function SlideOverCaseDetail({
                     href={caseItem.caseUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                    className="shrink-0 inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
                   >
                     Open Case URL
                   </a>
@@ -1933,7 +2087,7 @@ export default function DashboardMockup({
           const revisedTopics: Topic[] = [];
           const displayRevisedTopicCodes: string[] = [];
 
-          TOPIC_MASTER.forEach((topic) => {
+          ALL_TOPIC_MASTER.forEach((topic) => {
             const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
             const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
             const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
@@ -2013,8 +2167,38 @@ export default function DashboardMockup({
             (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
           )
           .map((row, index) => {
-            const topics: Topic[] = TOPIC_MASTER.map((topic) => {
-              const scoreVal = Number(rawHelper.getValue(row, `${topic.code} Score`) || 0);
+            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
+            const mergedAppeal = appealMap.get(caseId);
+
+            const inquiry =
+              rawHelper.getValue(row, "Customer Inquiry") ??
+              rawHelper.getValue(row, "Customer Inquiry ") ??
+              rawHelper.getValue(row, "Inquiry TH") ??
+              rawHelper.getValue(row, "Inquiry");
+
+            const weekLabel =
+              rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
+
+            const caseUrl =
+              rawHelper.getValue(row, "Case URL") ??
+              rawHelper.getValue(row, "Case URL ") ??
+              rawHelper.getValue(row, "Case Url") ??
+              rawHelper.getValue(row, "URL") ??
+              "";
+
+            const auditRaw =
+              rawHelper.getValue(row, "Audit Date") ??
+              rawHelper.getValue(row, "Case Audit Date") ??
+              rawHelper.getValue(row, "Timestamp");
+            const timestampRaw =
+              rawHelper.getValue(row, "Timestamp") ?? rawHelper.getValue(row, "Audit Date");
+            const auditDateObj = excelDateToJSDate(auditRaw);
+            const monthKey = getMonthKey(auditDateObj);
+            const topicMaster = getTopicMasterForMonth(monthKey);
+
+            const topics: Topic[] = topicMaster.map((topic) => {
+              const scoreRaw = rawHelper.getValue(row, `${topic.code} Score`);
+              const scoreVal = Number(scoreRaw || 0);
               const score = Number.isFinite(scoreVal) ? scoreVal : 0;
               const commentVal = rawHelper.getValue(row, `${topic.code} Comment`);
 
@@ -2028,48 +2212,50 @@ export default function DashboardMockup({
               };
             });
 
-            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
-            const mergedAppeal = appealMap.get(caseId);
-
             const baseFinalScore =
-              Number(rawHelper.getValue(row, "Final Score")) ||
+              Number(rawHelper.getLastValue(row, "Final Score")) ||
               topics.reduce((sum, topic) => sum + topic.score, 0);
+
+            const filteredRevisedTopics =
+              mergedAppeal?.revisedTopics?.filter((topic) =>
+                topicMaster.some((masterTopic) => masterTopic.code === topic.code)
+              ) || [];
 
             const finalScoreVal =
               mergedAppeal?.finalScore ??
-              (mergedAppeal?.revisedTopics?.length
-                ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics)
+              (filteredRevisedTopics.length
+                ? calcMergedFinalScore(topics, filteredRevisedTopics)
                 : baseFinalScore);
 
             const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
 
-            const inquiry =
-              rawHelper.getValue(row, "Customer Inquiry") ??
-              rawHelper.getValue(row, "Inquiry TH") ??
-              rawHelper.getValue(row, "Inquiry");
+            const reviewStatus: ReviewStatus =
+              (mergedAppeal?.displayRevisedTopicCodes || []).some((code) =>
+                topicMaster.some((topic) => topic.code === code)
+              )
+                ? "Revised"
+                : "Original";
 
-            const weekLabel =
-              rawHelper.getValue(row, "Week Label") ?? rawHelper.getValue(row, "Week") ?? "-";
-
-            const caseUrl =
-              rawHelper.getValue(row, "Case URL") ??
-              rawHelper.getValue(row, "Case Url") ??
-              rawHelper.getValue(row, "URL") ??
+            const caseDescription =
+              rawHelper.getValue(row, "Case Description / รายละเอียดเคส คำอธิบายเคส") ??
+              rawHelper.getValue(row, "รายละเอียดเคส คำอธิบายเคส") ??
               "";
 
-            const auditRaw = rawHelper.getValue(row, "Audit Date");
-            const auditDateObj = excelDateToJSDate(auditRaw);
-            const monthKey = getMonthKey(auditDateObj);
+            const caseImageUrl =
+              rawHelper.getValue(row, "Case Image URL / ภาพประกอบเคส") ??
+              rawHelper.getValue(row, "ภาพประกอบเคส") ??
+              "";
 
-            const reviewStatus: ReviewStatus =
-              mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
+            const casePdfUrl = caseId ? `/case-pdfs/${caseId}.pdf` : "";
+            const casePdfOriginalUrl = caseId ? `/case-pdfs/${caseId}-original.pdf` : "";
+            const casePdfRevisedUrl = caseId ? `/case-pdfs/${caseId}-revised.pdf` : "";
 
             return {
               key: `row-${index + 1}-${caseId}`,
               agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: formatAuditDate(auditRaw),
               auditDateObj,
-              auditTimestamp: formatAuditTimestamp(auditRaw),
+              auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
@@ -2077,13 +2263,21 @@ export default function DashboardMockup({
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
+              caseDescription: caseDescription ? String(caseDescription).trim() : "",
+              caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
+              casePdfUrl,
+              casePdfOriginalUrl,
+              casePdfRevisedUrl,
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
               grade: scoreToGrade(finalScoreVal, monthKey),
               reviewStatus,
               topics,
-              revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
-              displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
+              revisedTopics: filteredRevisedTopics.length ? filteredRevisedTopics : null,
+              displayRevisedTopicCodes:
+                (mergedAppeal?.displayRevisedTopicCodes || []).filter((code) =>
+                  topicMaster.some((topic) => topic.code === code)
+                ),
             };
           });
 
