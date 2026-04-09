@@ -1233,7 +1233,8 @@ function LogoHeaderBox() {
 
 async function fetchFirstAvailable(urls: string[]) {
   for (const url of urls) {
-    const response = await fetch(url);
+    const cacheBustUrl = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+    const response = await fetch(cacheBustUrl, { cache: "no-store" });
     if (response.ok) {
       return { response, matchedUrl: url };
     }
@@ -1773,16 +1774,16 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const rawResponse = await fetch("/QA_RawData1.xlsx");
+        const { response: rawResponse } = await fetchFirstAvailable([
+          "/QA_RawData1.xlsx",
+          "/QA_RawData1(1).xlsx",
+        ]);
         const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
           "/Appleal ROWDATA.xlsx",
+          "/Appleal ROWDATA(1).xlsx",
           "/Appeal ROWDATA.xlsx",
           "/Appeal_ROWDATA.xlsx",
         ]);
-
-        if (!rawResponse.ok) {
-          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
-        }
 
         const rawBuffer = await rawResponse.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
