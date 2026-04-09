@@ -2033,75 +2033,63 @@ function SlideOverCaseDetail({
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 xl:col-span-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Agent
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">👤</span>
+                        <span>Agent</span>
                       </div>
-                      <div className="mt-1 text-base font-semibold text-slate-900">{caseItem.agent}</div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent}</div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 xl:col-span-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Audit Date
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">📅</span>
+                        <span>Audit Date</span>
                       </div>
-                      <div className="mt-1 text-base font-semibold text-slate-900">
-                        {caseItem.auditDate}
-                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate}</div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 xl:col-span-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Timestamp
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
+                        <span>Timestamp</span>
                       </div>
-                      <div className="mt-1 text-base font-semibold text-slate-900">
-                        {caseItem.auditTimestamp || "-"}
-                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 xl:col-span-5">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Week
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">🗓️</span>
+                        <span>Week</span>
                       </div>
-                      <div className="mt-1 text-base font-semibold text-slate-900">
-                        {caseItem.weekLabel}
-                      </div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel}</div>
                     </div>
 
-                    <div className="overflow-hidden rounded-[24px] border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3 shadow-sm xl:col-span-7">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="rounded-[24px] border border-violet-300 bg-gradient-to-br from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-4 text-white shadow-[0_12px_30px_rgba(124,58,237,0.22)] xl:col-span-2">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-100">
                             Final Score
                           </div>
-                          <div className="mt-1 flex items-end gap-3">
-                            <div className="text-2xl font-extrabold tracking-tight text-slate-900">
-                              {caseItem.finalScore.toFixed(2)}
-                            </div>
-                            <span
-                              className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${scoreBadgeTone(
-                                caseItem.finalScore
-                              )}`}
-                            >
-                              Grade {caseItem.grade}
-                            </span>
+                          <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">
+                            {caseItem.finalScore.toFixed(2)}
                           </div>
                         </div>
-
-                        {caseItem.caseUrl ? (
-                          <a
-                            href={caseItem.caseUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center justify-center rounded-2xl border border-violet-200 bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
-                          >
-                            Open Case URL
-                          </a>
-                        ) : (
-                          <div className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-400">
-                            No Case URL
-                          </div>
-                        )}
+                        <span className="inline-flex rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/95">
+                          Grade {caseItem.grade}
+                        </span>
                       </div>
+
+                      {caseItem.caseUrl ? (
+                        <a
+                          href={caseItem.caseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/25 bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+                        >
+                          Open Case URL
+                        </a>
+                      ) : null}
                     </div>
                   </div>
 
