@@ -1693,6 +1693,11 @@ function SlideOverCaseDetail({
   const imageOpenUrl = String(caseItem.caseImageUrl || "").trim() || normalizedImageUrl;
   const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
   const [verifiedImageUrl, setVerifiedImageUrl] = useState("");
+  const [previewAsset, setPreviewAsset] = useState<{
+    type: "image" | "pdf";
+    url: string;
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1739,6 +1744,56 @@ function SlideOverCaseDetail({
   return (
     <div className="fixed inset-0 z-[90] bg-slate-900/45">
       <div className="absolute inset-0" onClick={onClose} />
+
+      {previewAsset ? (
+        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 lg:p-6">
+          <div className="absolute inset-0" onClick={() => setPreviewAsset(null)} />
+          <div className="relative z-10 flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 lg:px-5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold text-slate-900">{previewAsset.title}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Preview mode · {previewAsset.type === "pdf" ? "PDF" : "Image"}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewAsset.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                >
+                  Open in New Tab
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewAsset(null)}
+                  className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 bg-slate-100">
+              {previewAsset.type === "pdf" ? (
+                <iframe
+                  src={previewAsset.url}
+                  title={previewAsset.title}
+                  className="h-full w-full bg-white"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center overflow-auto bg-slate-100 p-4">
+                  <img
+                    src={previewAsset.url}
+                    alt={previewAsset.title}
+                    className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff] shadow-2xl">
         <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
@@ -1863,13 +1918,26 @@ function SlideOverCaseDetail({
                             />
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewAsset({
+                                  type: "image",
+                                  url: verifiedImageUrl,
+                                  title: `${caseItem.caseId} Image Attachment`,
+                                })
+                              }
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                            >
+                              Open Image Attachment
+                            </button>
                             <a
                               href={imageOpenUrl || verifiedImageUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                              className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
                             >
-                              Open Image Attachment
+                              Open in New Tab
                             </a>
                             <div className="text-[11px] font-medium text-sky-700">{caseItem.caseId} Image Attachment</div>
                           </div>
@@ -1898,13 +1966,28 @@ function SlideOverCaseDetail({
                             return (
                               <div key={item.url} className="rounded-2xl border border-slate-200 bg-white/90 p-3">
                                 <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPreviewAsset({
+                                        type: "pdf",
+                                        url: item.url,
+                                        title: item.label,
+                                      })
+                                    }
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
+                                  >
+                                    Open PDF
+                                  </button>
                                   <a
                                     href={item.url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${isViolet
+                                      ? "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                                      : "border-amber-200 bg-white text-amber-700 hover:bg-amber-50"}`}
                                   >
-                                    Open PDF
+                                    Open in New Tab
                                   </a>
                                   <a
                                     href={item.url}
