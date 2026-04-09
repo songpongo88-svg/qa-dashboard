@@ -1245,12 +1245,24 @@ function normalizeAssetUrl(raw: unknown) {
     return `https://drive.google.com/uc?export=view&id=${driveIdFromFile}`;
   }
 
-  const driveIdFromUc = value.match(/[?&]export=view&id=([^&#]+)/i)?.[1] || value.match(/[?&]export=download&id=([^&#]+)/i)?.[1];
+  const driveIdFromUc =
+    value.match(/[?&]export=view&id=([^&#]+)/i)?.[1] ||
+    value.match(/[?&]export=download&id=([^&#]+)/i)?.[1];
   if (driveIdFromUc) {
     return `https://drive.google.com/uc?export=view&id=${driveIdFromUc}`;
   }
 
   return value;
+}
+
+function isGoogleDriveAssetUrl(url: string) {
+  const value = String(url || "").toLowerCase();
+  return (
+    value.includes("drive.google.com/uc?") ||
+    value.includes("drive.google.com/open?") ||
+    value.includes("drive.google.com/file/d/") ||
+    value.includes("googleusercontent.com")
+  );
 }
 
 function getCasePdfActionLabel(url: string, caseId: string) {
@@ -1263,13 +1275,18 @@ function getCasePdfActionLabel(url: string, caseId: string) {
 
 async function urlExists(url: string) {
   if (!url) return false;
+
+  if (isGoogleDriveAssetUrl(url)) {
+    return true;
+  }
+
   try {
-    const response = await fetch(url, { method: 'HEAD' });
+    const response = await fetch(url, { method: "HEAD" });
     if (response.ok) return true;
   } catch {}
 
   try {
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetch(url, { method: "GET" });
     return response.ok;
   } catch {
     return false;
@@ -1683,10 +1700,20 @@ function SlideOverCaseDetail({
         pdfCandidates.map(async (item) => ((await urlExists(item.url)) ? item : null))
       );
 
-      const imageOk = normalizedImageUrl ? await urlExists(normalizedImageUrl) : false;
+      const imageOk = normalizedImageUrl
+        ? isGoogleDriveAssetUrl(normalizedImageUrl)
+          ? true
+          : await urlExists(normalizedImageUrl)
+        : false;
 
       if (!cancelled) {
-        const uniquePdfs = checked.filter(Boolean).filter((item, index, arr) => arr.findIndex((entry) => entry?.url === item?.url) === index) as { label: string; url: string; tone: string }[];
+        const uniquePdfs = checked
+          .filter(Boolean)
+          .filter((item, index, arr) => arr.findIndex((entry) => entry?.url === item?.url) === index) as {
+          label: string;
+          url: string;
+          tone: string;
+        }[];
         setAvailablePdfUrls(uniquePdfs);
         setVerifiedImageUrl(imageOk ? normalizedImageUrl : "");
       }
@@ -1821,6 +1848,7 @@ function SlideOverCaseDetail({
                               src={verifiedImageUrl}
                               alt={`Case attachment ${caseItem.caseId}`}
                               className="h-36 w-full rounded-xl object-cover"
+                              onError={() => setVerifiedImageUrl("")}
                             />
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
