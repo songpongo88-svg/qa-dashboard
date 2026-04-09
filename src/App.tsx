@@ -1,242 +1,747 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import DashboardMockup from "./DashboardMockup";
-import AppealMockup from "./AppealMockup";
-import QARubricMockup from "./QARubricMockup";
-import SummaryMockup from "./SummaryMockup";
-import CoachingMockup from "./CoachingMockup";
-import EvaluationStudioPage from "./pages/EvaluationStudioPage";
+import React, { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 
-type UserRole = "Agent" | "Supervisor";
+type Grade = "A" | "B" | "C" | "D" | "F";
+type ReviewStatus = "Original" | "Revised";
 
-type UserAccount = {
-  username: string;
-  password: string;
-  displayName: string;
-  role: UserRole;
-  agentName: string;
+type Topic = {
+  code: string;
+  label: string;
+  score: number;
+  max: number;
+  pct: number;
+  comment?: string;
 };
 
-type CurrentUser = {
-  username: string;
-  displayName: string;
-  role: UserRole;
-  agentName: string;
+type CaseItem = {
+  key: string;
+  agent: string;
+  auditDate: string;
+  auditDateObj: Date | null;
+  auditTimestamp: string;
+  monthKey: string;
+  monthLabel: string;
+  weekLabel: string;
+  caseId: string;
+  caseUrl?: string;
+  inquiryTh: string;
+  inquiryEn: string;
+  caseDescription?: string;
+  caseImageUrl?: string;
+  casePdfUrl?: string;
+  casePdfOriginalUrl?: string;
+  casePdfRevisedUrl?: string;
+  finalScore: number;
+  previousScore?: number;
+  grade: Grade;
+  reviewStatus: ReviewStatus;
+  topics: Topic[];
+  revisedTopics?: Topic[] | null;
+  displayRevisedTopicCodes?: string[];
 };
 
-const USER_ACCOUNTS: UserAccount[] = [
-  {
-    username: "Anucha",
-    password: "Mk!A7p9#L2",
-    displayName: "Anucha Makundin",
-    role: "Supervisor",
-    agentName: "Anucha Makundin",
-  },
-  {
-    username: "Arisa",
-    password: "Ri$4Kq2@Zm",
-    displayName: "Arisa Aiemrit",
-    role: "Agent",
-    agentName: "Arisa Aiemrit",
-  },
-  {
-    username: "Chatkonnaphat",
-    password: "Ct#8Lm3!Qa",
-    displayName: "Chatkonnaphat Bhusomya",
-    role: "Agent",
-    agentName: "Chatkonnaphat Bhusomya",
-  },
-  {
-    username: "Jariyawadee",
-    password: "Jy@5Nx9#Wp",
-    displayName: "Jariyawadee Taboodda",
-    role: "Agent",
-    agentName: "Jariyawadee Taboodda",
-  },
-  {
-    username: "Jureeporn",
-    password: "Jp!6Vr2@Kd",
-    displayName: "Jureeporn Piddum",
-    role: "Agent",
-    agentName: "Jureeporn Piddum",
-  },
-  {
-    username: "Krivut",
-    password: "Kv#9Ts4!Mb",
-    displayName: "Krivut Vongkampan",
-    role: "Supervisor",
-    agentName: "Krivut Vongkampan",
-  },
-  {
-    username: "Natcha",
-    password: "Nc@7Pw3#Lf",
-    displayName: "Natcha Chai-in",
-    role: "Agent",
-    agentName: "Natcha Chai-in",
-  },
-  {
-    username: "Nattapol",
-    password: "Np!4Xz8@Hr",
-    displayName: "Nattapol Suprom",
-    role: "Agent",
-    agentName: "Nattapol Suprom",
-  },
-  {
-    username: "Phrommarin",
-    password: "RBH1234",
-    displayName: "Phrommarin Thaithorn",
-    role: "Supervisor",
-    agentName: "Phrommarin Thaithorn",
-  },
-  {
-    username: "Songpon",
-    password: "Boom@4421L",
-    displayName: "Songpon Phothong",
-    role: "Supervisor",
-    agentName: "Songpon Phothong",
-  },
-  {
-    username: "Sunijtra",
-    password: "Sj#6Qm1!Ty",
-    displayName: "Sunijtra Siritip",
-    role: "Agent",
-    agentName: "Sunijtra Siritip",
-  },
-  {
-    username: "Supakrit",
-    password: "sP9#kM4!",
-    displayName: "Supakrit Promkhamnoi",
-    role: "Agent",
-    agentName: "Supakrit Promkhamnoi",
-  },
-  {
-    username: "Suphitcha",
-    password: "Sp@8Ld2#Vk",
-    displayName: "Suphitcha Keawliam",
-    role: "Supervisor",
-    agentName: "Suphitcha Keawliam",
-  },
-  {
-    username: "Wachiraporn",
-    password: "wL7$cl2@",
-    displayName: "Wachiraporn Chailittichai",
-    role: "Agent",
-    agentName: "Wachiraporn Chailittichai",
-  },
-  {
-    username: "Wassana",
-    password: "Ws!3Kr7@Pn",
-    displayName: "Wassana Phothong",
-    role: "Agent",
-    agentName: "Wassana Phothong",
-  },
-];
+type TopicSummary = {
+  code: string;
+  label: string;
+  avgScore: string;
+  max: number;
+  pct: string;
+};
 
-const STORAGE_KEY = "qa_current_user";
-const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
-const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
-const WARNING_BEFORE_MS = 1 * 60 * 1000;
-const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
+type Summary = {
+  averageDisplay: string;
+  gradeCounts: Record<Grade, number>;
+  topicPerformance: TopicSummary[];
+};
 
-const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
+type AppealMergeItem = {
+  caseId: string;
+  finalScore?: number;
+  previousScore?: number;
+  reviewStatus?: ReviewStatus;
+  revisedTopics: Topic[];
+  displayRevisedTopicCodes: string[];
+};
+
+type IncentiveResult = {
+  total: number;
+  cash: number;
+  promo: number;
+  label: string;
+  remark: string;
+};
+
+const CASE_TARGET = 10;
+const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+const NEW_POLICY_START_MONTH_KEY = "2026-04";
+
+const LEGACY_TOPIC_MASTER = [
+  { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
+  { code: "1.2", label: "Accuracy of Information", max: 5 },
+  { code: "1.3", label: "PDPA & Policy", max: 5 },
+  { code: "2.1", label: "Case Accuracy", max: 5 },
+  { code: "2.2", label: "Completeness", max: 5 },
+  { code: "2.3", label: "Clear Actionable Guidance", max: 5 },
+  { code: "2.4", label: "Official Sources", max: 5 },
+  { code: "3.1", label: "Root Cause & Resolution", max: 10 },
+  { code: "3.2", label: "Case Ownership", max: 5 },
+  { code: "3.3", label: "Clear Next Step Guidance", max: 5 },
+  { code: "4.1", label: "Message Structure", max: 5 },
+  { code: "4.2", label: "Language Quality", max: 5 },
+  { code: "4.3", label: "Tone & Empathy", max: 5 },
+  { code: "4.4", label: "Adaptation to Context", max: 5 },
+  { code: "5.1", label: "Work Process Compliance", max: 10 },
+  { code: "5.2", label: "SLA Compliance", max: 5 },
+  { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
+] as const;
+
+const APRIL_2026_TOPIC_MASTER = [
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+] as const;
+
+type TopicMasterItem = { code: string; label: string; max: number };
+
+function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
+  return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
+}
+
+const AGENT_MASTER = [
+  "Anucha Makundin",
+  "Arisa Aiemrit",
+  "Chatkonnaphat Bhusomya",
+  "Jariyawadee Taboodda",
+  "Jureeporn Piddum",
+  "Krivut Vongkampan",
+  "Natcha Chai-in",
+  "Nattapol Suprom",
+  "Sunijtra Siritip",
+  "Supakrit Promkhamnoi",
+  "Suphitcha Keawliam",
+  "Wachiraporn Chailittichai",
+  "Wassana Phothong",
+].sort((a, b) => a.localeCompare(b));
+
+const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
+  "Arisa Aiemrit": "2026-04",
+};
 
 function isSongkranThemeActive() {
   const now = new Date();
-  return now >= SONGKRAN_THEME_START && now <= SONGKRAN_THEME_END;
+  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
 }
 
-function readStoredUser(): CurrentUser | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CurrentUser;
-    if (
-      !parsed ||
-      typeof parsed.username !== "string" ||
-      typeof parsed.displayName !== "string" ||
-      typeof parsed.role !== "string" ||
-      typeof parsed.agentName !== "string"
-    ) {
-      return null;
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function compactText(value: unknown) {
+  return normalizeText(value).replace(/[^a-z0-9]/g, "");
+}
+
+function canonicalAgentKey(value: unknown) {
+  return compactText(value);
+}
+
+function toTitleCaseName(value: string) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      if (!part) return part;
+      if (part.includes("-")) {
+        return part
+          .split("-")
+          .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p))
+          .join("-");
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+function isSameAgent(a: string, b: string) {
+  if (!a || !b) return false;
+  return canonicalAgentKey(a) === canonicalAgentKey(b);
+}
+
+function dedupeAgentNames(names: string[]) {
+  const map = new Map<string, string>();
+
+  for (const rawName of names) {
+    const cleaned = toTitleCaseName(String(rawName || "").trim());
+    const key = canonicalAgentKey(cleaned);
+    if (!key) continue;
+    if (!map.has(key)) {
+      map.set(key, cleaned);
     }
-    return parsed;
-  } catch {
-    return null;
+  }
+
+  return [...map.values()].sort((a, b) => a.localeCompare(b));
+}
+
+function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
+  if (!selectedMonthKey || selectedMonthKey === "all") return false;
+
+  const matchedEntry = Object.entries(RESIGNED_AGENT_HIDE_AFTER).find(([name]) =>
+    isSameAgent(name, agentName)
+  );
+
+  if (!matchedEntry) return false;
+
+  const [, hideFromMonth] = matchedEntry;
+  return selectedMonthKey >= hideFromMonth;
+}
+
+function getEffectiveMonthKeyFromDateRange(dateFrom?: string, dateTo?: string) {
+  const today = new Date();
+  const fallback = `${today.getFullYear()}-${`${today.getMonth() + 1}`.padStart(2, "0")}`;
+
+  if (dateTo) {
+    const toDate = new Date(`${dateTo}T12:00:00`);
+    if (!Number.isNaN(toDate.getTime())) {
+      return `${toDate.getFullYear()}-${`${toDate.getMonth() + 1}`.padStart(2, "0")}`;
+    }
+  }
+
+  if (dateFrom) {
+    const fromDate = new Date(`${dateFrom}T12:00:00`);
+    if (!Number.isNaN(fromDate.getTime())) {
+      return `${fromDate.getFullYear()}-${`${fromDate.getMonth() + 1}`.padStart(2, "0")}`;
+    }
+  }
+
+  return fallback;
+}
+
+function isNewPolicyMonth(monthKey: string) {
+  return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
+}
+
+function isSpecialIncentiveMonth(monthKey: string) {
+  if (!isNewPolicyMonth(monthKey)) return false;
+  return monthKey.endsWith("-01") || monthKey.endsWith("-04");
+}
+
+function scoreToGrade(score: number, monthKey: string): Grade {
+  if (isNewPolicyMonth(monthKey)) {
+    if (score >= 90) return "A";
+    if (score >= 85) return "B";
+    if (score >= 80) return "C";
+    return "D";
+  }
+
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  return "F";
+}
+
+function gradeTone(grade: Grade) {
+  switch (grade) {
+    case "A":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "B":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "C":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "D":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    default:
+      return "border-rose-200 bg-rose-50 text-rose-700";
   }
 }
 
-function readPasswordOverrides(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(PASSWORD_OVERRIDE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
+function scoreBadgeTone(score: number) {
+  if (score >= 90) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (score >= 85) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  if (score >= 80) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
+function currentGradeTone(value: string) {
+  switch (value) {
+    case "A":
+      return {
+        card: "from-emerald-50 via-white to-emerald-100/70 border-emerald-200",
+        badge: "border-emerald-200 bg-emerald-100 text-emerald-700",
+        level: "Excellent",
+        levelText: "text-emerald-700",
+      };
+    case "B":
+      return {
+        card: "from-sky-50 via-white to-sky-100/70 border-sky-200",
+        badge: "border-sky-200 bg-sky-100 text-sky-700",
+        level: "Good",
+        levelText: "text-sky-700",
+      };
+    case "C":
+      return {
+        card: "from-amber-50 via-white to-amber-100/70 border-amber-200",
+        badge: "border-amber-200 bg-amber-100 text-amber-700",
+        level: "Fair",
+        levelText: "text-amber-700",
+      };
+    case "D":
+      return {
+        card: "from-orange-50 via-white to-orange-100/70 border-orange-200",
+        badge: "border-orange-200 bg-orange-100 text-orange-700",
+        level: "Improvement Required",
+        levelText: "text-orange-700",
+      };
+    case "F":
+      return {
+        card: "from-rose-50 via-white to-rose-100/70 border-rose-200",
+        badge: "border-rose-200 bg-rose-100 text-rose-700",
+        level: "Fail",
+        levelText: "text-rose-700",
+      };
+    default:
+      return {
+        card: "from-slate-50 via-white to-slate-100 border-slate-200",
+        badge: "border-slate-200 bg-slate-100 text-slate-700",
+        level: "Pending",
+        levelText: "text-slate-600",
+      };
   }
 }
 
-function writePasswordOverrides(value: Record<string, string>) {
-  localStorage.setItem(PASSWORD_OVERRIDE_KEY, JSON.stringify(value));
+function reviewTone(reviewStatus: ReviewStatus) {
+  return reviewStatus === "Revised"
+    ? "border-violet-200 bg-violet-50 text-violet-700"
+    : "border-slate-200 bg-slate-50 text-slate-700";
 }
 
-function savePasswordOverride(username: string, newPassword: string) {
-  const current = readPasswordOverrides();
-  current[username.trim().toLowerCase()] = newPassword;
-  writePasswordOverrides(current);
+function excelDateToJSDate(value: any): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+      value.getHours(),
+      value.getMinutes(),
+      value.getSeconds()
+    );
+  }
+
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (!parsed) return null;
+    return new Date(
+      parsed.y,
+      parsed.m - 1,
+      parsed.d,
+      parsed.H || 0,
+      parsed.M || 0,
+      parsed.S || 0
+    );
+  }
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const ddmmyyyyMatch = text.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+  );
+  if (ddmmyyyyMatch) {
+    const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return new Date(
+      parsed.getFullYear(),
+      parsed.getMonth(),
+      parsed.getDate(),
+      parsed.getHours(),
+      parsed.getMinutes(),
+      parsed.getSeconds()
+    );
+  }
+
+  return null;
 }
 
-function removePasswordOverride(username: string) {
-  const current = readPasswordOverrides();
-  delete current[username.trim().toLowerCase()];
-  writePasswordOverrides(current);
+function formatAuditDate(value: any): string {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return String(value ?? "").trim();
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
-function getEffectivePassword(account: UserAccount) {
-  const overrides = readPasswordOverrides();
-  return overrides[account.username.trim().toLowerCase()] || account.password;
+function formatAuditTimestamp(value: any): string {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return "-";
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const yyyy = dt.getFullYear();
+  const hh = `${dt.getHours()}`.padStart(2, "0");
+  const min = `${dt.getMinutes()}`.padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 
-function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
+function formatInputDate(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, "0");
+  const day = `${value.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getMonthKey(date: Date | null) {
+  if (!date) return "unknown";
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function getMonthLabel(date: Date | null) {
+  if (!date) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatAuditDateExact(value: any): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "string") {
+    const text = value.trim();
+    const direct = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (direct) {
+      const [, d, m, y] = direct;
+      return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+    }
+  }
+
+  return formatAuditDate(value);
+}
+
+function isWithinDateRange(dateObj: Date | null, from?: string, to?: string) {
+  if (!dateObj) return false;
+
+  const checkDate = new Date(
+    dateObj.getFullYear(),
+    dateObj.getMonth(),
+    dateObj.getDate(),
+    12,
+    0,
+    0,
+    0
+  );
+
+  if (from) {
+    const fromDate = new Date(`${from}T00:00:00`);
+    if (checkDate < fromDate) return false;
+  }
+
+  if (to) {
+    const toDate = new Date(`${to}T23:59:59`);
+    if (checkDate > toDate) return false;
+  }
+
+  return true;
+}
+
+function formatCurrencyTHB(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
+  if (isNewPolicyMonth(monthKey)) {
+    if (isSpecialIncentiveMonth(monthKey)) {
+      switch (grade) {
+        case "A":
+          return {
+            total: 1000,
+            cash: 700,
+            promo: 300,
+            label: "700 Cash + 300 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        case "B":
+          return {
+            total: 700,
+            cash: 500,
+            promo: 200,
+            label: "500 Cash + 200 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        case "C":
+          return {
+            total: 500,
+            cash: 350,
+            promo: 150,
+            label: "350 Cash + 150 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        default:
+          return {
+            total: 0,
+            cash: 0,
+            promo: 0,
+            label: "No Incentive",
+            remark: "Below incentive criteria",
+          };
+      }
+    }
+
+    switch (grade) {
+      case "A":
+        return {
+          total: 1000,
+          cash: 1000,
+          promo: 0,
+          label: "1,000 THB",
+          remark: "Excellent",
+        };
+      case "B":
+        return {
+          total: 700,
+          cash: 700,
+          promo: 0,
+          label: "700 THB",
+          remark: "Good",
+        };
+      case "C":
+        return {
+          total: 500,
+          cash: 500,
+          promo: 0,
+          label: "500 THB",
+          remark: "Fair",
+        };
+      default:
+        return {
+          total: 0,
+          cash: 0,
+          promo: 0,
+          label: "No Incentive",
+          remark: "Improvement Required",
+        };
+    }
+  }
+
+  switch (grade) {
+    case "A":
+      return {
+        total: 1000,
+        cash: 1000,
+        promo: 0,
+        label: "1,000 THB",
+        remark: "Excellent",
+      };
+    case "B":
+      return {
+        total: 700,
+        cash: 700,
+        promo: 0,
+        label: "700 THB",
+        remark: "Good",
+      };
+    case "C":
+      return {
+        total: 300,
+        cash: 300,
+        promo: 0,
+        label: "300 THB",
+        remark: "Fair",
+      };
+    case "D":
+      return {
+        total: 0,
+        cash: 0,
+        promo: 0,
+        label: "No Incentive",
+        remark: "Improvement Required",
+      };
+    default:
+      return {
+        total: 0,
+        cash: 0,
+        promo: 0,
+        label: "No Incentive",
+        remark: "Fail",
+      };
+  }
+}
+
+function getIncentiveResult(caseCount: number, avg: number, monthKey: string): IncentiveResult {
+  if (caseCount < CASE_TARGET) {
+    return {
+      total: 0,
+      cash: 0,
+      promo: 0,
+      label: "0 THB",
+      remark: "ยังประเมินไม่ครบ 10 เคส",
+    };
+  }
+
+  const grade = scoreToGrade(avg, monthKey);
+  return getIncentiveByGrade(grade, monthKey);
+}
+
+
+
+function getPolicyMonthKeyForCases(cases: CaseItem[]) {
+  const validMonthKeys = cases
+    .map((item) => item.monthKey)
+    .filter((item) => item && item !== "unknown")
+    .sort((a, b) => a.localeCompare(b));
+
+  return validMonthKeys.length ? validMonthKeys[validMonthKeys.length - 1] : "unknown";
+}
+
+function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
+  if (!revisedTopics?.length) return topics;
+  const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
+  return topics.map((topic) => revisedMap.get(topic.code) || topic);
+}
+
+function buildAgentSummary(cases: CaseItem[]): Summary {
+  const average =
+    cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(cases.length, 1);
+
+  const gradeCounts: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+  for (const item of cases) gradeCounts[item.grade] += 1;
+
+  const topicPerformance = getTopicMasterByMonth(getPolicyMonthKeyForCases(cases)).map((master) => {
+    const topics = cases
+      .flatMap((item) =>
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? mergeTopicSet(item.topics, item.revisedTopics)
+          : item.topics
+      )
+      .filter((topic) => topic.code === master.code);
+
+    if (!topics.length) {
+      return {
+        code: master.code,
+        label: master.label,
+        avgScore: "-",
+        max: master.max,
+        pct: "-",
+      };
+    }
+
+    const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
+    return {
+      code: master.code,
+      label: master.label,
+      avgScore: avg.toFixed(2),
+      max: master.max,
+      pct: ((avg / master.max) * 100).toFixed(2),
+    };
+  });
+
+  return {
+    averageDisplay: average.toFixed(2),
+    gradeCounts,
+    topicPerformance,
+  };
+}
+
+function SongkranBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-cyan-200/20 via-fuchsia-200/15 to-sky-200/20" />
-      <div className="absolute left-[-60px] top-[-30px] h-44 w-44 rounded-full bg-cyan-300/25 blur-3xl" />
-      <div className="absolute right-[-20px] top-8 h-36 w-36 rounded-full bg-fuchsia-300/20 blur-3xl" />
-      <div className="absolute bottom-[-30px] left-1/4 h-44 w-44 rounded-full bg-sky-300/18 blur-3xl" />
-      <div className="absolute bottom-2 right-1/4 h-28 w-28 rounded-full bg-violet-300/18 blur-2xl" />
-      <div className="absolute left-[8%] top-[16%] h-4 w-4 rounded-full bg-cyan-200/80" />
-      <div className="absolute left-[13%] top-[26%] h-2.5 w-2.5 rounded-full bg-white/80" />
-      <div className="absolute left-[20%] top-[12%] h-3.5 w-3.5 rounded-full bg-sky-300/70" />
-      <div className="absolute right-[12%] top-[18%] h-4 w-4 rounded-full bg-fuchsia-300/60" />
-      <div className="absolute right-[18%] top-[11%] h-2.5 w-2.5 rounded-full bg-white/85" />
-      <div className="absolute right-[8%] bottom-[18%] h-3.5 w-3.5 rounded-full bg-cyan-300/60" />
-      <div className="absolute left-[12%] bottom-[15%] h-3.5 w-3.5 rounded-full bg-pink-300/50" />
+      <div className="absolute -left-10 top-6 h-44 w-44 rounded-full bg-cyan-300/18 blur-3xl" />
+      <div className="absolute right-0 top-10 h-40 w-40 rounded-full bg-fuchsia-300/18 blur-3xl" />
+      <div className="absolute left-1/3 bottom-0 h-44 w-44 rounded-full bg-sky-300/14 blur-3xl" />
+      <div className="absolute right-1/4 bottom-2 h-28 w-28 rounded-full bg-violet-300/14 blur-3xl" />
 
-      <div className="absolute left-6 bottom-5 hidden rounded-[28px] border border-white/20 bg-white/10 px-4 py-3 text-3xl shadow-[0_8px_24px_rgba(14,165,233,0.18)] backdrop-blur md:flex">
-        <span>🔫</span>
-        <span className="ml-2">💦</span>
+      <div className="absolute left-[6%] top-[16%] rotate-[-10deg] opacity-85">
+        <svg width="170" height="120" viewBox="0 0 170 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="34" cy="30" r="13" fill="rgba(255,255,255,0.78)" />
+          <rect x="22" y="45" width="28" height="34" rx="14" fill="rgba(34,211,238,0.28)" />
+          <path d="M52 54C72 48 91 49 111 59" stroke="rgba(255,255,255,0.72)" stroke-width="6" stroke-linecap="round" />
+          <path d="M110 59C127 58 141 61 157 72" stroke="rgba(125,211,252,0.72)" stroke-width="5" stroke-linecap="round" />
+          <path d="M120 43L140 38L145 47L125 52Z" fill="rgba(255,255,255,0.85)" />
+          <path d="M143 40C151 39 158 41 166 47" stroke="rgba(255,255,255,0.78)" stroke-width="4" stroke-linecap="round" />
+          <path d="M150 56C156 52 162 52 168 57" stroke="rgba(34,211,238,0.82)" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M144 62C151 60 158 62 166 70" stroke="rgba(56,189,248,0.75)" stroke-width="3" stroke-linecap="round" />
+          <circle cx="160" cy="50" r="3.2" fill="rgba(255,255,255,0.9)" />
+          <circle cx="154" cy="66" r="2.8" fill="rgba(255,255,255,0.8)" />
+        </svg>
       </div>
-      <div className="absolute right-6 top-5 hidden rounded-[28px] border border-white/20 bg-white/10 px-4 py-3 text-3xl shadow-[0_8px_24px_rgba(217,70,239,0.18)] backdrop-blur md:flex">
-        <span>🪣</span>
-        <span className="ml-2">🌸</span>
+
+      <div className="absolute right-[5%] top-[10%] rotate-[8deg] opacity-80">
+        <svg width="170" height="126" viewBox="0 0 170 126" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="132" cy="28" r="13" fill="rgba(255,255,255,0.8)" />
+          <rect x="116" y="43" width="30" height="38" rx="15" fill="rgba(217,70,239,0.20)" />
+          <path d="M115 57C95 49 76 50 58 58" stroke="rgba(255,255,255,0.7)" stroke-width="6" stroke-linecap="round" />
+          <path d="M59 58C43 57 28 61 12 73" stroke="rgba(196,181,253,0.8)" stroke-width="5" stroke-linecap="round" />
+          <path d="M47 42L27 37L22 46L42 51Z" fill="rgba(255,255,255,0.86)" />
+          <path d="M25 39C17 39 10 42 4 47" stroke="rgba(255,255,255,0.78)" stroke-width="4" stroke-linecap="round" />
+          <path d="M20 57C14 53 8 53 2 58" stroke="rgba(125,211,252,0.86)" stroke-width="3.4" stroke-linecap="round" />
+          <path d="M26 64C18 62 10 64 2 72" stroke="rgba(56,189,248,0.76)" stroke-width="3" stroke-linecap="round" />
+          <circle cx="8" cy="50" r="3.1" fill="rgba(255,255,255,0.9)" />
+          <circle cx="15" cy="66" r="2.9" fill="rgba(255,255,255,0.8)" />
+        </svg>
       </div>
-      {!compact ? (
-        <>
-          <div className="absolute left-4 top-4 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/90 backdrop-blur-sm">
-            Songkran Festival
-          </div>
-          <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
-            Water splash theme · resets after 25 Apr 2026
-          </div>
-        </>
-      ) : null}
+
+      <div className="absolute left-[24%] top-[10%] text-2xl opacity-70">💦</div>
+      <div className="absolute left-[28%] top-[7%] text-xl opacity-70">🌸</div>
+      <div className="absolute right-[23%] top-[9%] text-2xl opacity-70">🔫</div>
+      <div className="absolute right-[19%] top-[14%] text-xl opacity-65">💦</div>
+      <div className="absolute left-[12%] bottom-[14%] text-2xl opacity-65">🪣</div>
+      <div className="absolute right-[12%] bottom-[12%] text-2xl opacity-60">🌼</div>
+
+      <div className="absolute left-[18%] bottom-[8%] h-16 w-40 rounded-full border border-white/20 bg-white/10 blur-[1px]" />
+      <div className="absolute right-[16%] bottom-[10%] h-14 w-36 rounded-full border border-white/20 bg-white/10 blur-[1px]" />
+
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
     </div>
   );
 }
 
 function SongkranFlowerCorner({
   className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div className={`pointer-events-none absolute ${className}`}>
+      <div className="relative h-16 w-16">
+        <span className="absolute left-6 top-0 h-5 w-5 rounded-full bg-pink-300/75" />
+        <span className="absolute left-0 top-6 h-5 w-5 rounded-full bg-fuchsia-300/75" />
+        <span className="absolute left-6 top-12 h-5 w-5 rounded-full bg-cyan-300/75" />
+        <span className="absolute left-12 top-6 h-5 w-5 rounded-full bg-sky-300/75" />
+        <span className="absolute left-6 top-6 h-5 w-5 rounded-full bg-white/90 shadow-sm" />
+        <span className="absolute -right-1 top-1 text-sm opacity-75">💦</span>
+        <span className="absolute -left-1 bottom-0 text-sm opacity-70">🌸</span>
+      </div>
+    </div>
+  );
 }: {
   className?: string;
 }) {
@@ -253,835 +758,2292 @@ function SongkranFlowerCorner({
   );
 }
 
-function SongkranBadge() {
+function Panel({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-semibold text-cyan-700 shadow-sm">
-      Songkran Theme
-    </span>
-  );
-}
-
-function FestiveIllustration() {
-  return (
-    <div className="relative mt-8 h-[280px] w-full overflow-hidden rounded-[30px] border border-white/15 bg-white/10 backdrop-blur-sm">
-      <svg viewBox="0 0 700 360" className="h-full w-full">
-        <defs>
-          <linearGradient id="waterRibbon1" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#7dd3fc" />
-            <stop offset="50%" stopColor="#22d3ee" />
-            <stop offset="100%" stopColor="#e879f9" />
-          </linearGradient>
-          <linearGradient id="waterRibbon2" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f9a8d4" />
-            <stop offset="50%" stopColor="#93c5fd" />
-            <stop offset="100%" stopColor="#67e8f9" />
-          </linearGradient>
-        </defs>
-
-        <path
-          d="M-20 230 C 90 170, 150 280, 260 220 S 430 160, 540 210 S 650 250, 740 205"
-          fill="none"
-          stroke="url(#waterRibbon1)"
-          strokeWidth="18"
-          strokeLinecap="round"
-          opacity="0.9"
-        />
-        <path
-          d="M-10 270 C 90 220, 180 320, 300 260 S 460 200, 560 255 S 650 300, 730 250"
-          fill="none"
-          stroke="url(#waterRibbon2)"
-          strokeWidth="12"
-          strokeLinecap="round"
-          opacity="0.8"
-        />
-
-        <circle cx="120" cy="120" r="56" fill="#ffffff" fillOpacity="0.15" />
-        <circle cx="540" cy="90" r="44" fill="#ffffff" fillOpacity="0.12" />
-        <circle cx="610" cy="145" r="12" fill="#bae6fd" fillOpacity="0.9" />
-        <circle cx="585" cy="115" r="8" fill="#ffffff" fillOpacity="0.85" />
-        <circle cx="155" cy="88" r="9" fill="#f9a8d4" fillOpacity="0.8" />
-        <circle cx="190" cy="112" r="6" fill="#ffffff" fillOpacity="0.8" />
-
-        <g transform="translate(250,70)">
-          <rect x="0" y="70" width="130" height="118" rx="18" fill="#ffffff" fillOpacity="0.16" />
-          <rect x="24" y="42" width="82" height="46" rx="16" fill="#e0f2fe" fillOpacity="0.8" />
-          <rect x="48" y="0" width="34" height="64" rx="12" fill="#67e8f9" />
-          <circle cx="65" cy="0" r="14" fill="#ffffff" fillOpacity="0.95" />
-          <path
-            d="M65 0 C 105 35, 125 45, 145 40"
-            fill="none"
-            stroke="#ffffff"
-            strokeOpacity="0.8"
-            strokeWidth="8"
-            strokeLinecap="round"
-          />
-          <circle cx="150" cy="38" r="10" fill="#ffffff" fillOpacity="0.85" />
-          <circle cx="165" cy="55" r="6" fill="#ffffff" fillOpacity="0.7" />
-        </g>
-
-        <g transform="translate(90,225)">
-          <circle cx="18" cy="18" r="18" fill="#f9a8d4" fillOpacity="0.9" />
-          <circle cx="0" cy="36" r="18" fill="#c4b5fd" fillOpacity="0.9" />
-          <circle cx="36" cy="36" r="18" fill="#67e8f9" fillOpacity="0.9" />
-          <circle cx="18" cy="54" r="18" fill="#93c5fd" fillOpacity="0.9" />
-          <circle cx="18" cy="36" r="16" fill="#ffffff" fillOpacity="0.95" />
-        </g>
-
-        <g transform="translate(560,245)">
-          <circle cx="14" cy="14" r="14" fill="#f9a8d4" fillOpacity="0.85" />
-          <circle cx="0" cy="28" r="14" fill="#67e8f9" fillOpacity="0.85" />
-          <circle cx="28" cy="28" r="14" fill="#c4b5fd" fillOpacity="0.85" />
-          <circle cx="14" cy="42" r="14" fill="#93c5fd" fillOpacity="0.85" />
-          <circle cx="14" cy="28" r="12" fill="#ffffff" fillOpacity="0.95" />
-        </g>
-      </svg>
+    <div
+      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
+    >
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-1 -top-1 scale-90 opacity-80" />
+      ) : null}
+      {children}
     </div>
   );
 }
 
-function LogoBox() {
+function PanelHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  const songkranTheme = isSongkranThemeActive();
+
   return (
-    <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.16)] backdrop-blur-sm sm:h-20 sm:w-20 sm:rounded-[26px]">
-      <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
+    <div
+      className={`border-b px-5 py-4 ${
+        songkranTheme
+          ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
+          : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
+      }`}
+    >
+      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
+      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+    </div>
+  );
+}
+
+function PanelBody({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={`p-5 lg:p-6 ${className}`}>{children}</div>;
+}
+
+function MetricCard({
+  title,
+  value,
+  sub,
+  accent = "from-white via-violet-50/40 to-fuchsia-50/60 border-violet-200/70",
+  valueClassName = "text-slate-900",
+  helper,
+}: {
+  title: string;
+  value: string;
+  sub: string;
+  accent?: string;
+  valueClassName?: string;
+  helper?: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
+    >
+      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
+      {isSongkranThemeActive() ? (
+        <span className="pointer-events-none absolute right-3 top-3 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
+      <div className="p-5 lg:p-6">
+        <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
+        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
+          {value}
+        </div>
+        {helper ? <div className="mt-3">{helper}</div> : null}
+        <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+function WeeklySnapshotCard({
+  label,
+  caseCount,
+  averageDisplay,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  caseCount: number;
+  averageDisplay: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const songkranTheme = isSongkranThemeActive();
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-full overflow-hidden rounded-[22px] border px-4 py-4 text-left transition-all duration-200 ${
+        isActive
+          ? songkranTheme
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 via-sky-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.18)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-100 via-violet-50 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.18)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/70 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
+      }`}
+    >
+      {songkranTheme && isActive ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3.5 w-3.5 rounded-full bg-cyan-300/80" />
+      ) : null}
+
+      <div className="font-semibold text-slate-900">{label}</div>
+      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
+          <div className="text-slate-500">Average Score</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{averageDisplay}</div>
+        </div>
+        <div className="rounded-2xl border border-violet-100 bg-white/90 p-3">
+          <div className="text-slate-500">Cases</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{caseCount}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function CaseNavigatorCard({
+  item,
+  isSelected,
+  onSelect,
+}: {
+  item: CaseItem;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const songkranTheme = isSongkranThemeActive();
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`relative h-full cursor-pointer overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-200 ${
+        isSelected
+          ? songkranTheme
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 via-sky-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-100 via-violet-50 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.16)]"
+          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/60 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
+      }`}
+    >
+      {songkranTheme ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 rounded-full bg-cyan-300/70" />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
+          <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
+          <div className="mt-2">
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
+                item.finalScore
+              )}`}
+            >
+              Score {item.finalScore.toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-1">
+          <span
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+              item.grade
+            )}`}
+          >
+            {item.grade}
+          </span>
+
+          {item.reviewStatus === "Revised" ? (
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+              Revised
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-3 min-h-[2.75rem] text-[12px] font-medium leading-5 text-slate-800">
+        {item.inquiryTh}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
+        <span>{item.weekLabel}</span>
+        {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
+          <span className="font-semibold text-violet-700">
+            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
+          </span>
+        ) : (
+          <span>{item.reviewStatus}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReviewStatusBadge({ item }: { item: CaseItem }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${reviewTone(
+          item.reviewStatus
+        )}`}
+      >
+        {item.reviewStatus}
+      </span>
+      {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
+        <span className="text-xs font-medium text-violet-700">
+          {Math.round(item.previousScore)} → {Math.round(item.finalScore)}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+      <table className="min-w-[860px] w-full text-sm">
+        <thead>
+          <tr className="bg-violet-950 text-[11px] text-white">
+            <th className="px-3 py-3">Topic</th>
+            <th className="px-3 py-3 text-left">Description</th>
+            <th className="px-3 py-3">Avg Score</th>
+            <th className="px-3 py-3">Max</th>
+            <th className="px-3 py-3">Avg %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((entry) => (
+            <tr key={entry.code} className="bg-white">
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.code}</td>
+              <td className="border-t border-slate-200 px-3 py-3">{entry.label}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
+              <td className="border-t border-slate-200 px-3 py-3 text-center">
+                {entry.pct === "-" ? "-" : `${entry.pct}%`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function getOriginalTopicMap(topics: Topic[]) {
+  return new Map(topics.map((topic) => [topic.code, topic]));
+}
+
+function normalizeCommentForCompare(value?: string) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeAppealReason(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function isNoAppealReason(value: unknown) {
+  const text = normalizeAppealReason(value);
+  if (!text) return false;
+  const normalized = text.toLowerCase();
+  return (
+    normalized === "ไม่อุทธรณ์หัวข้อนี้" ||
+    normalized === "not appeal" ||
+    normalized === "no appeal" ||
+    normalized.includes("ไม่อุทธรณ์")
+  );
+}
+
+function hasMeaningfulTextChange(originalValue?: string, revisedValue?: string) {
+  const original = normalizeCommentForCompare(originalValue);
+  const revised = normalizeCommentForCompare(revisedValue);
+
+  if (!revised) return false;
+  if (!original) return revised.length > 0;
+
+  return original !== revised;
+}
+
+function hasRealTopicChange(
+  originalScore: unknown,
+  revisedScore: unknown,
+  originalComment: unknown,
+  revisedComment: unknown
+) {
+  const originalScoreNum =
+    originalScore !== null && originalScore !== "" && !Number.isNaN(Number(originalScore))
+      ? Number(originalScore)
+      : null;
+
+  const revisedScoreNum =
+    revisedScore !== null && revisedScore !== "" && !Number.isNaN(Number(revisedScore))
+      ? Number(revisedScore)
+      : null;
+
+  const originalCommentText = normalizeCommentForCompare(String(originalComment ?? ""));
+  const revisedCommentText = normalizeCommentForCompare(String(revisedComment ?? ""));
+
+  const scoreChanged =
+    originalScoreNum !== null &&
+    revisedScoreNum !== null &&
+    originalScoreNum !== revisedScoreNum;
+
+  const commentChanged = revisedCommentText !== "" && revisedCommentText !== originalCommentText;
+
+  return scoreChanged || commentChanged;
+}
+
+function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
+  if (!originalTopic) return false;
+
+  const scoreChanged = Number(originalTopic.score) !== Number(revisedTopic.score);
+  const commentChanged = hasMeaningfulTextChange(originalTopic.comment, revisedTopic.comment);
+
+  return scoreChanged || commentChanged;
+}
+
+function CaseDetailTopicTable({
+  topics,
+  revisedTopics,
+  reviewStatus,
+  displayRevisedTopicCodes = [],
+}: {
+  topics: Topic[];
+  revisedTopics?: Topic[] | null;
+  reviewStatus?: ReviewStatus;
+  displayRevisedTopicCodes?: string[];
+}) {
+  const originalMap = getOriginalTopicMap(topics);
+  const displayCodeSet = new Set(displayRevisedTopicCodes);
+
+  const displayTopicsBase =
+    reviewStatus === "Revised" && revisedTopics?.length
+      ? topics.map((originalTopic) => {
+          const revisedTopic = revisedTopics.find((item) => item.code === originalTopic.code);
+          return revisedTopic || originalTopic;
+        })
+      : topics;
+
+  const displayTopics = displayTopicsBase.filter((topic) => topic.max > 0);
+
+  const getStatusMeta = (pct: number) => {
+    if (pct >= 90) return { label: "Excellent", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    if (pct >= 80) return { label: "Good", className: "bg-sky-50 text-sky-700 border-sky-200" };
+    if (pct >= 60) return { label: "Fair", className: "bg-amber-50 text-amber-700 border-amber-200" };
+    return { label: "Need Improvement", className: "bg-rose-50 text-rose-700 border-rose-200" };
+  };
+
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_14px_40px_rgba(109,40,217,0.10)]">
+      <div className="overflow-x-auto">
+        <table className="min-w-[1180px] w-full border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="bg-gradient-to-r from-violet-800 via-violet-700 to-fuchsia-700 text-white">
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Topic</th>
+              <th className="px-5 py-4 text-left text-[12px] font-semibold">Description</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Score</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Max</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Score %</th>
+              <th className="px-4 py-4 text-center text-[12px] font-semibold">Status</th>
+              <th className="px-5 py-4 text-left text-[12px] font-semibold">Evaluation Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayTopics.length ? (
+              displayTopics.map((topic) => {
+                const originalTopic = originalMap.get(topic.code);
+                const revisedTopic =
+                  reviewStatus === "Revised" && revisedTopics?.length
+                    ? revisedTopics.find((item) => item.code === topic.code)
+                    : undefined;
+                const changed =
+                  reviewStatus === "Revised" &&
+                  displayCodeSet.has(topic.code) &&
+                  !!revisedTopic &&
+                  isTopicChanged(originalTopic, revisedTopic);
+                const shownTopic = changed && revisedTopic ? revisedTopic : topic;
+                const statusMeta = getStatusMeta(shownTopic.pct);
+                const commentText = changed && originalTopic && revisedTopic
+                  ? `Original: ${originalTopic.comment || "-"}
+
+Revised: ${revisedTopic.comment || "-"}`
+                  : (originalTopic || shownTopic).comment || "ยังไม่มี Evaluation Comment";
+
+                return (
+                  <tr key={`${shownTopic.code}-${shownTopic.label}`} className="align-top odd:bg-white even:bg-violet-50/35">
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center font-semibold text-slate-900">
+                      <div className="mx-auto inline-flex min-w-[54px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-bold text-violet-700">
+                        {shownTopic.code}
+                      </div>
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-5 py-4 text-[13px] font-semibold leading-6 text-slate-900">
+                      {shownTopic.label}
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center text-[14px] font-bold text-slate-900">
+                      {changed && originalTopic && revisedTopic ? `${originalTopic.score} → ${revisedTopic.score}` : shownTopic.score}
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center text-[14px] font-semibold text-slate-900">
+                      {shownTopic.max}
+                    </td>
+                    <td className="border-r border-b border-violet-100 bg-lime-50/60 px-4 py-4 text-center text-[14px] font-semibold text-slate-900">
+                      {shownTopic.pct.toFixed(1)}%
+                    </td>
+                    <td className="border-r border-b border-violet-100 px-4 py-4 text-center">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${statusMeta.className}`}>
+                        {statusMeta.label}
+                      </span>
+                    </td>
+                    <td className="border-b border-violet-100 px-5 py-4 text-[13px] leading-6 text-slate-800 whitespace-pre-line">
+                      {commentText}
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  No topic detail found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
+  return (
+    <div className="space-y-3">
+      {(Object.keys(gradeCounts) as Grade[]).map((grade) => (
+        <div
+          key={grade}
+          className="relative flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
+        >
+          {isSongkranThemeActive() ? (
+            <span className="pointer-events-none absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
+          ) : null}
+          <span
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}
+          >
+            {grade}
+          </span>
+          <span className="text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s)</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DataHealthChecks({
+  caseCount,
+  agentCount,
+  appealCount,
+}: {
+  caseCount: number;
+  agentCount: number;
+  appealCount: number;
+}) {
+  const tests = [
+    { name: "Raw data loaded", pass: caseCount > 0 },
+    { name: "Agent list built", pass: agentCount > 0 },
+    { name: "Appeal merge loaded", pass: appealCount > 0 },
+    { name: "Case URL available", pass: true },
+  ];
+
+  return (
+    <div className="space-y-2">
+      {tests.map((test) => (
+        <div
+          key={test.name}
+          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
+            test.pass
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+        >
+          <span>{test.name}</span>
+          <span className="font-semibold">{test.pass ? "PASS" : "FAIL"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function buildHeaderHelpers(headerRow: any[]) {
+  const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+
+  const colIndexes = (name: string) => {
+    const target = normalizeText(name);
+    return normalizedHeaders
+      .map((h, idx) => (h === target ? idx : -1))
+      .filter((idx) => idx >= 0);
+  };
+
+  const getValue = (row: any[], name: string, occurrence = 0) => {
+    const indexes = colIndexes(name);
+    const idx = indexes[occurrence];
+    return idx >= 0 ? row[idx] : null;
+  };
+
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+
+  return { getValue, getLastValue };
+}
+
+function extractGoogleDriveId(raw: unknown) {
+  const value = String(raw ?? "").trim();
+  if (!value) return "";
+
+  return (
+    value.match(/[?&]id=([^&#]+)/i)?.[1] ||
+    value.match(/\/file\/d\/([^\/]+)/i)?.[1] ||
+    value.match(/[?&]export=view&id=([^&#]+)/i)?.[1] ||
+    value.match(/[?&]export=download&id=([^&#]+)/i)?.[1] ||
+    ""
+  );
+}
+
+function normalizeAssetUrl(raw: unknown) {
+  const value = String(raw ?? "").trim();
+  if (!value) return "";
+
+  const driveId = extractGoogleDriveId(value);
+  if (driveId) {
+    return `https://drive.google.com/uc?export=view&id=${driveId}`;
+  }
+
+  return value;
+}
+
+function getGoogleDriveImagePreviewUrl(raw: unknown) {
+  const driveId = extractGoogleDriveId(raw);
+  if (!driveId) return "";
+  return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
+}
+
+function getGoogleDrivePdfViewerUrl(raw: unknown) {
+  const driveId = extractGoogleDriveId(raw);
+  if (!driveId) return "";
+  return `https://drive.google.com/file/d/${driveId}/preview`;
+}
+
+function splitAssetUrls(raw: unknown) {
+  const value = String(raw ?? "").trim();
+  if (!value) return [];
+
+  const urlMatches = value.match(/https?:\/\/[^\s,|;]+/g);
+  const parts = urlMatches?.length
+    ? urlMatches
+    : value
+        .split(/[\n,|;]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+  return [...new Set(parts)];
+}
+
+function isGoogleDriveAssetUrl(url: string) {
+  const value = String(url || "").toLowerCase();
+  return (
+    value.includes("drive.google.com/uc?") ||
+    value.includes("drive.google.com/open?") ||
+    value.includes("drive.google.com/file/d/") ||
+    value.includes("drive.google.com/thumbnail?") ||
+    value.includes("googleusercontent.com")
+  );
+}
+
+function hasImageAssetExtension(url: string) {
+  const value = String(url || "").toLowerCase().split("#")[0].split("?")[0];
+  return [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg", ".avif"].some((ext) =>
+    value.endsWith(ext)
+  );
+}
+
+function isLikelyGoogleDrivePdf(url: string) {
+  const lower = String(url || "").toLowerCase();
+  if (!lower) return false;
+  if (!isGoogleDriveAssetUrl(lower)) return false;
+  if (lower.includes("thumbnail?")) return false;
+  if (hasImageAssetExtension(lower)) return false;
+  return true;
+}
+
+function isPdfAssetUrl(url: string) {
+  const original = String(url || "").toLowerCase();
+  const value = original.split("#")[0].split("?")[0];
+  return value.endsWith('.pdf') || original.includes('application/pdf') || isLikelyGoogleDrivePdf(original);
+}
+
+function getCasePdfActionLabel(url: string, caseId: string) {
+  const lower = String(url || '').toLowerCase();
+  if (lower.includes('-revised.pdf')) return `${caseId} Revised PDF`;
+  if (lower.includes('-original.pdf')) return `${caseId} Original PDF`;
+  if (lower.endsWith('.pdf')) return `${caseId} PDF`;
+  return caseId;
+}
+
+async function urlExists(url: string) {
+  if (!url) return false;
+
+  if (isGoogleDriveAssetUrl(url)) {
+    return true;
+  }
+
+  try {
+    const response = await fetch(url, { method: "HEAD" });
+    if (response.ok) return true;
+  } catch {}
+
+  try {
+    const response = await fetch(url, { method: "GET" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function getFirstAvailableHeaderValue(
+  helper: ReturnType<typeof buildHeaderHelpers>,
+  row: any[],
+  headers: string[],
+  fallback: any = ""
+) {
+  for (const header of headers) {
+    const value = helper.getValue(row, header);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return fallback;
+}
+
+function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
+  const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
+  const total = baseTopics.reduce((sum, base) => {
+    const active = revisedMap.get(base.code) || base;
+    return sum + active.score;
+  }, 0);
+  return Number(total.toFixed(2));
+}
+
+function LogoHeaderBox() {
+  return (
+    <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" />
+      ) : null}
       <img
         src="/robinhood-logo.png"
         alt="Robinhood Logo"
-        className="relative z-10 h-10 w-10 object-contain sm:h-14 sm:w-14"
+        className="relative z-10 h-16 w-16 object-contain lg:h-20 lg:w-20"
       />
     </div>
   );
 }
 
-function NavButton({
-  active,
-  label,
-  onClick,
-  songkranTheme = false,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-  songkranTheme?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative overflow-hidden rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-        active
-          ? songkranTheme
-            ? "border border-cyan-200 bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-400 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]"
-            : "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
-          : "border border-transparent bg-transparent text-slate-600 hover:bg-white hover:text-violet-700"
-      }`}
-    >
-      {active && songkranTheme ? (
-        <>
-          <span className="pointer-events-none absolute -left-3 top-1 h-6 w-6 rounded-full bg-white/25 blur-sm" />
-          <span className="pointer-events-none absolute right-2 bottom-1 h-3.5 w-3.5 rounded-full bg-white/30" />
-        </>
-      ) : null}
-      <span className="relative z-10">{label}</span>
-    </button>
-  );
+async function fetchFirstAvailable(urls: string[]) {
+  for (const url of urls) {
+    const response = await fetch(url);
+    if (response.ok) {
+      return { response, matchedUrl: url };
+    }
+  }
+  throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
 
-function DashboardSubButton({
-  active,
-  label,
-  onClick,
-  songkranTheme = false,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-  songkranTheme?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative overflow-hidden rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-        active
-          ? songkranTheme
-            ? "border border-cyan-200 bg-gradient-to-r from-cyan-100 via-sky-100 to-fuchsia-100 text-cyan-800 shadow-sm"
-            : "border border-violet-300 bg-violet-100 text-violet-800"
-          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-      }`}
-    >
-      {active && songkranTheme ? (
-        <span className="pointer-events-none absolute right-1 top-1 h-3 w-3 rounded-full bg-cyan-300/70" />
-      ) : null}
-      <span className="relative z-10">{label}</span>
-    </button>
-  );
-}
-
-function SessionWarningModal({
-  open,
-  onStayLoggedIn,
-  onLogoutNow,
-}: {
-  open: boolean;
-  onStayLoggedIn: () => void;
-  onLogoutNow: () => void;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 px-4">
-      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-        <div className="text-lg font-bold text-slate-900">Session Timeout Warning</div>
-        <div className="mt-3 text-sm leading-6 text-slate-600">
-          You have been inactive for a while. Your session will be logged out automatically in
-          1 minute unless you choose to stay signed in.
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onLogoutNow}
-            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-          >
-            Log Out Now
-          </button>
-          <button
-            type="button"
-            onClick={onStayLoggedIn}
-            className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"
-          >
-            Stay Logged In
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChangePasswordModal({
-  open,
-  onClose,
-  currentPasswordInput,
-  setCurrentPasswordInput,
-  newPasswordInput,
-  setNewPasswordInput,
-  confirmNewPasswordInput,
-  setConfirmNewPasswordInput,
-  error,
-  success,
-  onSubmit,
-}: {
-  open: boolean;
-  onClose: () => void;
-  currentPasswordInput: string;
-  setCurrentPasswordInput: (value: string) => void;
-  newPasswordInput: string;
-  setNewPasswordInput: (value: string) => void;
-  confirmNewPasswordInput: string;
-  setConfirmNewPasswordInput: (value: string) => void;
-  error: string;
-  success: string;
-  onSubmit: () => void;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
-      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-        <div className="text-xl font-bold text-slate-900">Change Password</div>
-        <div className="mt-2 text-sm text-slate-500">Update your password for this browser.</div>
-
-        <div className="mt-6 space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              Current Password
-            </label>
-            <input
-              type="password"
-              value={currentPasswordInput}
-              onChange={(e) => setCurrentPasswordInput(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">New Password</label>
-            <input
-              type="password"
-              value={newPasswordInput}
-              onChange={(e) => setNewPasswordInput(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              value={confirmNewPasswordInput}
-              onChange={(e) => setConfirmNewPasswordInput(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-            />
-          </div>
-
-          {error ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-              {error}
-            </div>
-          ) : null}
-
-          {success ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              {success}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800"
-          >
-            Save Password
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResetPasswordModal({
-  open,
-  onClose,
-  selectedUsername,
-  setSelectedUsername,
-  onReset,
-  resultMessage,
-}: {
-  open: boolean;
-  onClose: () => void;
-  selectedUsername: string;
-  setSelectedUsername: (value: string) => void;
-  onReset: () => void;
-  resultMessage: string;
-}) {
-  if (!open) return null;
-
-  const resettableUsers = USER_ACCOUNTS.filter((item) => item.role === "Agent");
-
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
-      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-        <div className="text-xl font-bold text-slate-900">Reset Password</div>
-        <div className="mt-2 text-sm text-slate-500">
-          Supervisor can reset agent password back to default.
-        </div>
-
-        <div className="mt-6 space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">Select Agent</label>
-            <select
-              value={selectedUsername}
-              onChange={(e) => setSelectedUsername(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-            >
-              <option value="">Select Agent</option>
-              {resettableUsers.map((item) => (
-                <option key={item.username} value={item.username}>
-                  {item.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {resultMessage ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-              {resultMessage}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onReset}
-            className="rounded-2xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
-          >
-            Reset to Default
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LoginFeatureCard({
+function PremiumBarChart({
   title,
-  desc,
+  subtitle,
+  data,
+  height = 240,
 }: {
-  title: string;
-  desc: string;
+  title?: string;
+  subtitle?: string;
+  data: { label: string; value: number }[];
+  height?: number;
 }) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+
   return (
-    <div className="relative overflow-hidden rounded-[20px] border border-white/15 bg-white/10 p-3.5 backdrop-blur-sm">
-      <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
-      <div className="text-[11px] uppercase tracking-[0.18em] text-violet-100/80">{title}</div>
-      <div className="mt-2 text-sm font-semibold leading-6 text-white/95">{desc}</div>
+    <div className="relative rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-1 -top-1 scale-90 opacity-80" />
+      ) : null}
+
+      {title ? (
+        <div className="mb-4">
+          <div className="text-sm font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+      ) : null}
+
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between pb-7 pt-2">
+          {[0, 1, 2, 3].map((line) => (
+            <div key={line} className="border-t border-dashed border-violet-100" />
+          ))}
+        </div>
+
+        <div className="relative flex items-end gap-4" style={{ height }}>
+          {data.map((item) => {
+            const barHeight = Math.max((item.value / max) * (height - 50), item.value > 0 ? 18 : 6);
+
+            return (
+              <div key={item.label} className="flex flex-1 flex-col items-center justify-end gap-2">
+                <div className="text-xs font-bold text-slate-700">{item.value}</div>
+
+                <div className="relative flex w-full items-end justify-center">
+                  <div
+                    className={`w-full rounded-t-[18px] shadow-[0_12px_24px_rgba(124,58,237,0.22)] transition-all duration-300 ${
+                      isSongkranThemeActive()
+                        ? "bg-gradient-to-t from-sky-600 via-cyan-500 to-fuchsia-400"
+                        : "bg-gradient-to-t from-violet-800 via-violet-600 to-fuchsia-400"
+                    }`}
+                    style={{ height: barHeight }}
+                  >
+                    <div className="h-3 w-full rounded-t-[18px] bg-white/20" />
+                  </div>
+                </div>
+
+                <div className="text-center text-[11px] font-medium leading-4 text-slate-500">
+                  {item.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
 
-export default function App() {
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [showSessionWarning, setShowSessionWarning] = useState(false);
+function PremiumReviewMixCard({
+  title,
+  subtitle,
+  data,
+}: {
+  title?: string;
+  subtitle?: string;
+  data: { label: string; value: number; tone: string }[];
+}) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const first = data[0]?.value || 0;
+  const firstPct = total > 0 ? (first / total) * 100 : 0;
 
-  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
-  const [newPasswordInput, setNewPasswordInput] = useState("");
-  const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState("");
-  const [changePasswordError, setChangePasswordError] = useState("");
-  const [changePasswordSuccess, setChangePasswordSuccess] = useState("");
+  return (
+    <div className="relative rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-1 -top-1 scale-90 opacity-80" />
+      ) : null}
 
-  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
-  const [resetTargetUsername, setResetTargetUsername] = useState("");
-  const [resetResultMessage, setResetResultMessage] = useState("");
+      {title ? (
+        <div className="mb-4">
+          <div className="text-sm font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+      ) : null}
 
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "coaching" | "rubric" | "evaluation-studio"
-  >("dashboard");
-  const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
+      <div className="grid gap-5 lg:grid-cols-[180px_minmax(0,1fr)] lg:items-center">
+        <div className="flex items-center justify-center">
+          <div
+            className="relative h-40 w-40 rounded-full"
+            style={{
+              background: `conic-gradient(#94a3b8 0% ${firstPct}%, ${
+                isSongkranThemeActive() ? "#06b6d4" : "#7c3aed"
+              } ${firstPct}% 100%)`,
+            }}
+          >
+            <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full bg-white shadow-inner">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Total
+              </div>
+              <div className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">
+                {total}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">cases</div>
+            </div>
+          </div>
+        </div>
 
-  const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
-  const [selectedMonthGlobal, setSelectedMonthGlobal] = useState("all");
-  const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
+        <div className="space-y-3">
+          {data.map((item) => {
+            const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0.0";
 
-  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+            return (
+              <div
+                key={item.label}
+                className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-3.5 w-3.5 rounded-full ${item.tone}`} />
+                    <span className="text-sm font-semibold text-slate-800">{item.label}</span>
+                  </div>
+                  <div className="text-sm font-extrabold text-slate-900">
+                    {item.value}
+                    <span className="ml-1 text-slate-400">({pct}%)</span>
+                  </div>
+                </div>
 
-  const welcomeName = useMemo(() => {
-    if (!currentUser) return "";
-    return currentUser.displayName || currentUser.username;
-  }, [currentUser]);
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${item.tone}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PremiumLineChart({
+  title,
+  subtitle,
+  data,
+  height = 240,
+}: {
+  title?: string;
+  subtitle?: string;
+  data: { label: string; value: number }[];
+  height?: number;
+}) {
+  const width = 640;
+  const padding = 28;
+  const values = data.map((d) => d.value);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+
+  const points = data.map((item, index) => {
+    const x =
+      data.length === 1
+        ? width / 2
+        : padding + (index * (width - padding * 2)) / (data.length - 1);
+    const y = padding + ((max - item.value) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  });
+
+  const gradientStrokeId = isSongkranThemeActive()
+    ? "lineStrokeSongkran"
+    : "lineStrokePremium";
+
+  return (
+    <div className="relative rounded-[28px] border border-violet-200/70 bg-gradient-to-br from-white via-violet-50/30 to-fuchsia-50/50 p-5 shadow-[0_10px_30px_rgba(91,33,182,0.08)]">
+      {isSongkranThemeActive() ? (
+        <SongkranFlowerCorner className="-right-1 -top-1 scale-90 opacity-80" />
+      ) : null}
+
+      {title ? (
+        <div className="mb-4">
+          <div className="text-sm font-bold tracking-tight text-slate-900">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[640px] w-full">
+          {[0, 1, 2, 3].map((line) => {
+            const y = padding + (line * (height - padding * 2)) / 3;
+            return (
+              <line
+                key={line}
+                x1={padding}
+                x2={width - padding}
+                y1={y}
+                y2={y}
+                stroke="#e9d5ff"
+                strokeDasharray="4 6"
+              />
+            );
+          })}
+
+          <defs>
+            <linearGradient id="lineFillPremium" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(124,58,237,0.25)" />
+              <stop offset="100%" stopColor="rgba(124,58,237,0.02)" />
+            </linearGradient>
+            <linearGradient id="lineStrokePremium" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#7c3aed" />
+              <stop offset="100%" stopColor="#d946ef" />
+            </linearGradient>
+            <linearGradient id="lineStrokeSongkran" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#0ea5e9" />
+              <stop offset="50%" stopColor="#06b6d4" />
+              <stop offset="100%" stopColor="#d946ef" />
+            </linearGradient>
+          </defs>
+
+          {points.length > 1 ? (
+            <>
+              <polygon
+                points={`${points.join(" ")} ${width - padding},${height - padding} ${padding},${height - padding}`}
+                fill="url(#lineFillPremium)"
+              />
+              <polyline
+                fill="none"
+                stroke={`url(#${gradientStrokeId})`}
+                strokeWidth="4"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                points={points.join(" ")}
+              />
+            </>
+          ) : null}
+
+          {data.map((item, index) => {
+            const x =
+              data.length === 1
+                ? width / 2
+                : padding + (index * (width - padding * 2)) / (data.length - 1);
+            const y = padding + ((max - item.value) / range) * (height - padding * 2);
+
+            return (
+              <g key={item.label}>
+                <circle cx={x} cy={y} r="6" fill={isSongkranThemeActive() ? "#06b6d4" : "#7c3aed"} />
+                <circle cx={x} cy={y} r="12" fill="rgba(124,58,237,0.12)" />
+                <text
+                  x={x}
+                  y={y - 14}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill="#475569"
+                  fontWeight="700"
+                >
+                  {item.value.toFixed(1)}
+                </text>
+                <text x={x} y={height - 8} textAnchor="middle" fontSize="11" fill="#64748b">
+                  {item.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function QuickCaseSearchCard({
+  item,
+  onOpen,
+}: {
+  item: CaseItem;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+    >
+      {isSongkranThemeActive() ? (
+        <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
+          <div className="mt-1 text-[11px] text-slate-500">
+            {item.agent} · {item.auditDate}
+          </div>
+        </div>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            item.grade
+          )}`}
+        >
+          {item.grade}
+        </span>
+      </div>
+
+      <div className="mt-2 line-clamp-2 text-[12px] leading-5 text-slate-700">{item.inquiryTh}</div>
+
+      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open in Case Detail</div>
+    </button>
+  );
+}
+
+function SlideOverCaseDetail({
+  open,
+  caseItem,
+  onClose,
+}: {
+  open: boolean;
+  caseItem: CaseItem | null;
+  onClose: () => void;
+}) {
+  if (!open || !caseItem) return null;
+
+  const resolvedPdfLinks = {
+    original: normalizeAssetUrl(
+      String(caseItem.casePdfOriginalUrl || "").trim() ||
+        String(caseItem.casePdfUrl || "").trim() ||
+        (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-original.pdf` : "") ||
+        (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}.pdf` : "")
+    ),
+    revised: normalizeAssetUrl(
+      String(caseItem.casePdfRevisedUrl || "").trim() ||
+        (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-revised.pdf` : "")
+    ),
+  };
+
+  const rawImageUrls = splitAssetUrls(caseItem.caseImageUrl || "");
+  const normalizedImageUrls = rawImageUrls.map((url) => normalizeAssetUrl(url)).filter(Boolean);
+  const imageAssetCandidates = normalizedImageUrls.map((url, index) => {
+    const rawUrl = rawImageUrls[index] || url;
+    const isPdf = isPdfAssetUrl(rawUrl) || isPdfAssetUrl(url);
+    return {
+      rawUrl,
+      url,
+      isPdf,
+      previewUrl: isPdf ? url : (getGoogleDriveImagePreviewUrl(rawUrl) || url),
+    };
+  });
+  const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
+  const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
+  const [verifiedImagePdfUrls, setVerifiedImagePdfUrls] = useState<{ rawUrl: string; url: string; label: string }[]>([]);
+  const [previewAsset, setPreviewAsset] = useState<{
+    type: "image" | "pdf";
+    url: string;
+    title: string;
+    downloadUrl?: string;
+    items?: string[];
+    index?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAssets = async () => {
+      const pdfCandidates = [
+        resolvedPdfLinks.original
+          ? { label: getCasePdfActionLabel(resolvedPdfLinks.original, caseItem.caseId), url: resolvedPdfLinks.original, tone: "amber" }
+          : null,
+        resolvedPdfLinks.revised
+          ? { label: getCasePdfActionLabel(resolvedPdfLinks.revised, caseItem.caseId), url: resolvedPdfLinks.revised, tone: "violet" }
+          : null,
+      ].filter(Boolean) as { label: string; url: string; tone: string }[];
+
+      const checked = await Promise.all(
+        pdfCandidates.map(async (item) => ((await urlExists(item.url)) ? item : null))
+      );
+
+      const checkedImages = await Promise.all(
+        imageAssetCandidates.map(async (item, index) => {
+          if (!item?.previewUrl && !item?.url) return null;
+
+          const shouldUsePdfMode = item.isPdf || isLikelyGoogleDrivePdf(item.rawUrl) || isLikelyGoogleDrivePdf(item.url);
+
+          if (shouldUsePdfMode) {
+            const pdfTargetUrl = item.rawUrl || item.url;
+            const pdfOk = isGoogleDriveAssetUrl(pdfTargetUrl) ? true : await urlExists(pdfTargetUrl);
+            return pdfOk
+              ? {
+                  kind: "pdf" as const,
+                  rawUrl: item.rawUrl,
+                  url: getGoogleDrivePdfViewerUrl(pdfTargetUrl) || pdfTargetUrl,
+                  downloadUrl: normalizeAssetUrl(pdfTargetUrl) || pdfTargetUrl,
+                  label:
+                    imageAssetCandidates.length > 1
+                      ? `${caseItem.caseId} Image Attachment PDF ${index + 1}`
+                      : `${caseItem.caseId} Image Attachment PDF`,
+                }
+              : null;
+          }
+
+          const imageOk = isGoogleDriveAssetUrl(item.previewUrl) ? true : await urlExists(item.previewUrl);
+          return imageOk
+            ? {
+                kind: "image" as const,
+                rawUrl: item.rawUrl,
+                url: item.previewUrl,
+              }
+            : null;
+        })
+      );
+
+      if (!cancelled) {
+        const uniquePdfs = checked
+          .filter(Boolean)
+          .filter((item, index, arr) => arr.findIndex((entry) => entry?.url === item?.url) === index) as {
+          label: string;
+          url: string;
+          tone: string;
+        }[];
+        setAvailablePdfUrls(uniquePdfs);
+        setVerifiedImageUrls(
+          checkedImages
+            .filter((item): item is { kind: "image"; rawUrl: string; url: string } => !!item && item.kind === "image")
+            .map((item) => item.url)
+            .filter((item, index, arr) => arr.indexOf(item) === index)
+        );
+        setVerifiedImagePdfUrls(
+          checkedImages
+            .filter((item): item is { kind: "pdf"; rawUrl: string; url: string; downloadUrl: string; label: string } => !!item && item.kind === "pdf")
+            .filter((item, index, arr) => arr.findIndex((entry) => entry.downloadUrl === item.downloadUrl) === index)
+        );
+      }
+    };
+
+    checkAssets();
+    return () => {
+      cancelled = true;
+    };
+  }, [caseItem.caseId, caseItem.caseImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-slate-900/45">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      {previewAsset ? (
+        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 lg:p-6">
+          <div className="absolute inset-0" onClick={() => setPreviewAsset(null)} />
+          <div className="relative z-10 flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 lg:px-5">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold text-slate-900">{previewAsset.title}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Preview mode · {previewAsset.type === "pdf" ? "PDF" : "Image"}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewAsset.downloadUrl || previewAsset.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                download
+                >
+                  Download File
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewAsset(null)}
+                  className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 bg-slate-100">
+              {previewAsset.type === "pdf" ? (
+                <iframe
+                  key={previewAsset.url}
+                  src={previewAsset.url}
+                  title={previewAsset.title}
+                  className="h-full w-full bg-white"
+                  allow="autoplay"
+                />
+              ) : (
+                <div className="relative flex h-full items-center justify-center overflow-hidden bg-slate-100 p-4">
+                  {previewAsset.items && previewAsset.items.length > 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewAsset((current) => {
+                            if (!current || current.type !== "image" || !current.items?.length) return current;
+                            const nextIndex =
+                              ((current.index ?? 0) - 1 + current.items.length) % current.items.length;
+                            return {
+                              ...current,
+                              url: current.items[nextIndex],
+                              index: nextIndex,
+                              title: `${caseItem.caseId} Image Attachment ${nextIndex + 1}/${current.items.length}`,
+                            };
+                          })
+                        }
+                        className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewAsset((current) => {
+                            if (!current || current.type !== "image" || !current.items?.length) return current;
+                            const nextIndex = ((current.index ?? 0) + 1) % current.items.length;
+                            return {
+                              ...current,
+                              url: current.items[nextIndex],
+                              index: nextIndex,
+                              title: `${caseItem.caseId} Image Attachment ${nextIndex + 1}/${current.items.length}`,
+                            };
+                          })
+                        }
+                        className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
+                      >
+                        ›
+                      </button>
+                    </>
+                  ) : null}
+
+                  <div className="flex h-full w-full items-center justify-center overflow-auto">
+                    <img
+                      src={previewAsset.url}
+                      alt={previewAsset.title}
+                      className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
+                    />
+                  </div>
+
+                  {previewAsset.items && previewAsset.items.length > 1 ? (
+                    <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow">
+                      Image {(previewAsset.index ?? 0) + 1} / {previewAsset.items.length}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff] shadow-2xl">
+        <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                Case Detail
+              </div>
+              <div className="mt-1 truncate text-lg font-bold text-slate-900">{caseItem.caseId}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-6 p-5 lg:p-6">
+          <Panel>
+            <PanelHeader
+              title="Case Information"
+              subtitle="Selected case overview and review status"
+            />
+            <PanelBody className="space-y-5">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {caseItem.caseId}
+                    </span>
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${gradeTone(
+                        caseItem.grade
+                      )}`}
+                    >
+                      Grade {caseItem.grade}
+                    </span>
+                    <ReviewStatusBadge item={caseItem} />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">👤</span>
+                        <span>Agent</span>
+                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">📅</span>
+                        <span>Audit Date</span>
+                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
+                        <span>Timestamp</span>
+                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">🗓️</span>
+                        <span>Week</span>
+                      </div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-300 bg-gradient-to-br from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-4 text-white shadow-[0_12px_30px_rgba(124,58,237,0.22)] xl:col-span-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-100">
+                            Final Score
+                          </div>
+                          <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">
+                            {caseItem.finalScore.toFixed(2)}
+                          </div>
+                        </div>
+                        <span className="inline-flex rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/95">
+                          Grade {caseItem.grade}
+                        </span>
+                      </div>
+
+                      {caseItem.caseUrl ? (
+                        <a
+                          href={caseItem.caseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/25 bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+                        >
+                          Open Case URL
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Customer Inquiry
+                    </div>
+                    <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-800">
+                      {caseItem.inquiryTh || "-"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
+                      <span>Case Description</span>
+                    </div>
+                    <div className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-800">
+                      {caseItem.caseDescription || "-"}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 lg:grid-cols-12">
+                    <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-cyan-50 to-violet-50 px-4 py-4 shadow-sm shadow-sky-100/60 lg:col-span-6 xl:col-span-5">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">🖼️</span>
+                        <span>Case Image</span>
+                      </div>
+                      {verifiedImagePdfUrls.length ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-3 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-lg">📄</div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900">Case Image is a PDF file</div>
+                                <div className="mt-1 text-xs leading-5 text-slate-500">
+                                  ปุ่มหลักจะเปิด PDF viewer และปุ่มข้าง ๆ ใช้สำหรับดาวน์โหลดไฟล์แนบ
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewAsset({
+                                  type: "pdf",
+                                  url: verifiedImagePdfUrls[0].url,
+                                  title: verifiedImagePdfUrls[0].label,
+                                })
+                              }
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                            >
+                              Open PDF Viewer
+                            </button>
+                            {verifiedImagePdfUrls.map((item, index) => (
+                              <a
+                                key={`${item.url}-download-${index}`}
+                                href={item.rawUrl || item.url}
+                                download
+                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
+                              >
+                                {verifiedImagePdfUrls.length > 1 ? `Download PDF ${index + 1}` : "Download PDF"}
+                              </a>
+                            ))}
+                          </div>
+                          <div className="text-[11px] font-medium text-sky-700">
+                            {caseItem.caseId} Case Image PDF{verifiedImagePdfUrls.length > 1 ? ` · ${verifiedImagePdfUrls.length} files` : ""}
+                          </div>
+                        </div>
+                      ) : verifiedImageUrls.length ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-white/95 p-2 shadow-sm">
+                            <img
+                              src={verifiedImageUrls[0]}
+                              alt={`Case attachment ${caseItem.caseId}`}
+                              className="h-24 w-full rounded-xl object-cover"
+                              onError={() => setVerifiedImageUrls((current) => current.slice(1))}
+                            />
+                            {verifiedImageUrls.length > 1 ? (
+                              <div className="absolute right-3 top-3 rounded-full border border-sky-200 bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-sky-700 shadow-sm">
+                                {verifiedImageUrls.length} images
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {verifiedImageUrls.length > 1 ? (
+                            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                              {verifiedImageUrls.slice(0, 10).map((url, index) => (
+                                <button
+                                  key={`${url}-${index}`}
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewAsset({
+                                      type: "image",
+                                      url,
+                                      title: `${caseItem.caseId} Image Attachment ${index + 1}/${verifiedImageUrls.length}`,
+                                      items: verifiedImageUrls,
+                                      index,
+                                    })
+                                  }
+                                  className="overflow-hidden rounded-xl border border-sky-100 bg-white shadow-sm hover:border-sky-300"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${caseItem.caseId} thumbnail ${index + 1}`}
+                                    className="h-12 w-full object-cover"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewAsset({
+                                  type: "image",
+                                  url: verifiedImageUrls[0],
+                                  title: `${caseItem.caseId} Image Attachment 1/${verifiedImageUrls.length}`,
+                                  items: verifiedImageUrls,
+                                  index: 0,
+                                })
+                              }
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                            >
+                              Open Image Viewer
+                            </button>
+                            {verifiedImageUrls.map((url, index) => (
+                              <a
+                                key={`${url}-download-${index}`}
+                                href={rawImageUrls[index] || url}
+                                download
+                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
+                              >
+                                {verifiedImageUrls.length > 1 ? `Download ${index + 1}` : "Download Image"}
+                              </a>
+                            ))}
+                          </div>
+                          <div className="text-[11px] font-medium text-sky-700">
+                            {caseItem.caseId} Image Attachment{verifiedImageUrls.length > 1 ? ` · ${verifiedImageUrls.length} files` : ""}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 rounded-2xl border border-dashed border-sky-200 bg-white/85 px-3 py-3 text-sm leading-6 text-slate-500">
+                          No image attachment
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 px-4 py-4 shadow-sm lg:col-span-6 xl:col-span-4">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700">📎</span>
+                        <span>Case PDF</span>
+                      </div>
+                      {availablePdfUrls.length ? (
+                        <div className="mt-3 grid gap-2">
+                          {availablePdfUrls.map((item) => {
+                            const isViolet = item.tone === "violet";
+                            const openClass = isViolet
+                              ? "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                              : "border-amber-200 bg-white text-amber-700 hover:bg-amber-50";
+                            const downloadClass = isViolet
+                              ? "border-violet-200 bg-violet-100 text-violet-800 hover:bg-violet-200"
+                              : "border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200";
+                            return (
+                              <div key={item.url} className="rounded-2xl border border-slate-200 bg-white/90 p-3">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPreviewAsset({
+                                        type: "pdf",
+                                        url: getGoogleDrivePdfViewerUrl(item.url) || item.url,
+                                        downloadUrl: item.url,
+                                        title: item.label,
+                                      })
+                                    }
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${openClass}`}
+                                  >
+                                    Open PDF
+                                  </button>
+                                  <a
+                                    href={item.url}
+                                    download
+                                    className={`inline-flex rounded-xl border px-3 py-2 text-xs font-semibold ${downloadClass}`}
+                                  >
+                                    Download PDF
+                                  </a>
+                                </div>
+                                <div className={`mt-2 text-[11px] font-medium ${isViolet ? "text-violet-700" : "text-amber-700"}`}>
+                                  {item.label}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mt-2 min-h-[72px] text-sm leading-6 text-slate-500">-</div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm lg:col-span-12 xl:col-span-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                        Topic Detail View
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-slate-700">
+                        ตารางด้านล่างจะแสดงผลแบบเดียวกันทุกเดือน โดยรวม Topic, Score, Score %, Status และ Evaluation Comment ไว้ในหน้าเดียวเพื่ออ่านง่ายขึ้น
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Topic Detail" subtitle="Original / Revised topic comparison" />
+            <PanelBody>
+              <CaseDetailTopicTable
+                topics={caseItem.topics}
+                revisedTopics={caseItem.revisedTopics}
+                reviewStatus={caseItem.reviewStatus}
+                displayRevisedTopicCodes={caseItem.displayRevisedTopicCodes || []}
+              />
+            </PanelBody>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardMockup({
+  currentUser,
+  dashboardSubTab,
+  externalSelectedAgent,
+  externalSelectedMonthKey,
+  externalSelectedWeek,
+  onSelectedAgentChange,
+  onSelectedMonthKeyChange,
+  onSelectedWeekChange,
+  onOpenCaseDetail,
+}: {
+  currentUser: any;
+  dashboardSubTab: "overview" | "case-detail";
+  externalSelectedAgent?: string;
+  externalSelectedMonthKey?: string;
+  externalSelectedWeek?: string;
+  onSelectedAgentChange?: (agentName: string) => void;
+  onSelectedMonthKeyChange?: (monthKey: string) => void;
+  onSelectedWeekChange?: (week: string) => void;
+  onOpenCaseDetail?: () => void;
+}) {
+  const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+
+  const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(externalSelectedMonthKey || "all");
+  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
+  const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
+  const [caseIdSearch, setCaseIdSearch] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
+  const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
+  const [appealMergeCount, setAppealMergeCount] = useState(0);
+  const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
+  const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
+  const effectiveMonthKeyForAgentVisibility = useMemo(() => {
+    if (selectedMonthKey && selectedMonthKey !== "all") return selectedMonthKey;
+    return getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
+  }, [selectedMonthKey, dateFrom, dateTo]);
+
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+    if (
+      currentUser?.role !== "Agent" &&
+      typeof externalSelectedAgent === "string" &&
+      externalSelectedAgent !== selectedAgent
+    ) {
+      setSelectedAgent(externalSelectedAgent);
     }
-  }, [currentUser]);
+  }, [externalSelectedAgent, currentUser, selectedAgent]);
+
+  useEffect(() => {
+    if (
+      typeof externalSelectedMonthKey === "string" &&
+      externalSelectedMonthKey !== selectedMonthKey
+    ) {
+      setSelectedMonthKey(externalSelectedMonthKey);
+    }
+  }, [externalSelectedMonthKey, selectedMonthKey]);
+
+  useEffect(() => {
+    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
+      setSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek, selectedWeek]);
+
+  useEffect(() => {
+    const loadWorkbook = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+
+        const rawResponse = await fetch("/QA_RawData1.xlsx");
+        const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
+          "/Appleal ROWDATA.xlsx",
+          "/Appeal ROWDATA.xlsx",
+          "/Appeal_ROWDATA.xlsx",
+        ]);
+
+        if (!rawResponse.ok) {
+          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+        }
+
+        const rawBuffer = await rawResponse.arrayBuffer();
+        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+        const rawSheet =
+          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+
+        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
+
+        const rawHeaderIndex = (() => {
+          for (let i = 0; i < rawRows.length; i++) {
+            const row = (rawRows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            if (normalized.includes("agent name") && normalized.includes("case id")) return i;
+          }
+          return -1;
+        })();
+
+        if (rawHeaderIndex === -1) {
+          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
+        }
+
+        const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
+        const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
+        const rawHelper = buildHeaderHelpers(rawHeaderRow);
+
+        const auditDateColumnIndex = rawHeaderRow.findIndex(
+          (header) => normalizeText(header) === "audit date"
+        );
+
+        function getRawSheetFormattedDisplay(rowOffset: number, columnIndex: number) {
+          if (columnIndex < 0) return "";
+          const cellAddress = XLSX.utils.encode_cell({
+            r: rawHeaderIndex + 1 + rowOffset,
+            c: columnIndex,
+          });
+          const cell = rawSheet[cellAddress];
+          if (!cell) return "";
+          try {
+            return String(XLSX.utils.format_cell(cell) || "").trim();
+          } catch {
+            return String((cell as any).w || (cell as any).v || "").trim();
+          }
+        }
+
+        const appealBuffer = await appealResponse.arrayBuffer();
+        const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: true });
+        const appealSheet =
+          appealWorkbook.Sheets["Appeal_Data"] || appealWorkbook.Sheets[appealWorkbook.SheetNames[0]];
+
+        const appealRows = XLSX.utils.sheet_to_json<any[]>(appealSheet, {
+          header: 1,
+          defval: null,
+          raw: true,
+        });
+
+        const appealHeaderIndex = (() => {
+          for (let i = 0; i < appealRows.length; i++) {
+            const row = (appealRows[i] || []) as any[];
+            const normalized = row.map((v) => normalizeText(v));
+            if (normalized.includes("case id")) return i;
+          }
+          return -1;
+        })();
+
+        if (appealHeaderIndex === -1) {
+          throw new Error(`ไม่พบแถว Header ในไฟล์ ${matchedUrl.replace("/", "")}`);
+        }
+
+        const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
+        const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
+        const appealHelper = buildHeaderHelpers(appealHeaderRow);
+
+        const appealMap = new Map<string, AppealMergeItem>();
+
+        appealDataRows.forEach((row) => {
+          const caseId = String(appealHelper.getValue(row, "Case ID") ?? "").trim();
+          if (!caseId) return;
+
+          const revisedTopics: Topic[] = [];
+          const displayRevisedTopicCodes: string[] = [];
+
+          LEGACY_TOPIC_MASTER.forEach((topic) => {
+            const originalScoreRaw = appealHelper.getValue(row, `${topic.code} Score`);
+            const revisedScoreRaw = appealHelper.getValue(row, `${topic.code} Revised Score`);
+            const originalCommentRaw = appealHelper.getValue(row, `${topic.code} Comment`);
+            const revisedCommentRaw = appealHelper.getValue(row, `${topic.code} Revised Comment`);
+            const appealReasonRaw = appealHelper.getValue(row, `${topic.code} Appeal Reason`);
+
+            const hasRevisedScore =
+              revisedScoreRaw !== null &&
+              revisedScoreRaw !== "" &&
+              !Number.isNaN(Number(revisedScoreRaw));
+
+            const hasRevisedComment =
+              revisedCommentRaw !== null && String(revisedCommentRaw).trim() !== "";
+
+            if (!hasRevisedScore && !hasRevisedComment) return;
+
+            const score = hasRevisedScore ? Number(revisedScoreRaw) : Number(originalScoreRaw ?? 0);
+            const comment = hasRevisedComment
+              ? String(revisedCommentRaw).trim()
+              : String(originalCommentRaw ?? "").trim();
+
+            revisedTopics.push({
+              code: topic.code,
+              label: topic.label,
+              score,
+              max: topic.max,
+              pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+              comment,
+            });
+
+            const appealedThisTopic = !isNoAppealReason(appealReasonRaw);
+            const changedThisTopic = hasRealTopicChange(
+              originalScoreRaw,
+              revisedScoreRaw,
+              originalCommentRaw,
+              revisedCommentRaw
+            );
+
+            if (appealedThisTopic && changedThisTopic) {
+              displayRevisedTopicCodes.push(topic.code);
+            }
+          });
+
+          const explicitFinalScore = appealHelper.getLastValue(row, "Final Score");
+          const explicitOriginalFinalScore = appealHelper.getValue(row, "Final Score", 0);
+
+          const finalScore =
+            explicitFinalScore !== null &&
+            explicitFinalScore !== "" &&
+            !Number.isNaN(Number(explicitFinalScore))
+              ? Number(explicitFinalScore)
+              : undefined;
+
+          const previousScore =
+            explicitOriginalFinalScore !== null &&
+            explicitOriginalFinalScore !== "" &&
+            !Number.isNaN(Number(explicitOriginalFinalScore))
+              ? Number(explicitOriginalFinalScore)
+              : undefined;
+
+          if (!revisedTopics.length && finalScore === undefined) return;
+
+          appealMap.set(caseId, {
+            caseId,
+            finalScore,
+            previousScore,
+            reviewStatus: displayRevisedTopicCodes.length ? "Revised" : "Original",
+            revisedTopics,
+            displayRevisedTopicCodes,
+          });
+        });
+
+        setAppealMergeCount(appealMap.size);
+
+        const mapped: CaseItem[] = rawDataRows
+          .filter(
+            (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
+          )
+          .map((row, index) => {
+            const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
+            const mergedAppeal = appealMap.get(caseId);
+
+            const auditRaw = rawHelper.getValue(row, "Audit Date");
+            const timestampRaw =
+              getFirstAvailableHeaderValue(rawHelper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
+            const auditDateObj = excelDateToJSDate(auditRaw);
+            const monthKey = getMonthKey(auditDateObj);
+            const topicMaster = getTopicMasterByMonth(monthKey);
+
+            const topics: Topic[] = topicMaster.map((topic) => {
+              const scoreVal = Number(rawHelper.getValue(row, `${topic.code} Score`) || 0);
+              const score = Number.isFinite(scoreVal) ? scoreVal : 0;
+              const commentVal = rawHelper.getValue(row, `${topic.code} Comment`);
+
+              return {
+                code: topic.code,
+                label: topic.label,
+                score,
+                max: topic.max,
+                pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
+                comment: commentVal ? String(commentVal).trim() : "",
+              };
+            });
+
+            const baseFinalScore =
+              Number(rawHelper.getValue(row, "Final Score")) ||
+              topics.reduce((sum, topic) => sum + topic.score, 0);
+
+            const finalScoreVal =
+              mergedAppeal?.finalScore ??
+              (mergedAppeal?.revisedTopics?.length
+                ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics)
+                : baseFinalScore);
+
+            const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
+
+            const inquiry =
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Customer Inquiry",
+                "Inquiry TH",
+                "Inquiry",
+                "หัวข้อที่ลูกค้าติดต่อ",
+                "หัวข้อเคส",
+              ]) ?? "-";
+
+            const weekLabel = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Week Label",
+              "Week",
+              "Week label",
+            ], "-");
+
+            const caseUrl = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Case URL",
+              "Case Url",
+              "URL",
+            ], "");
+
+            const caseDescription = getFirstAvailableHeaderValue(rawHelper, row, [
+              "Case Description / รายละเอียดเคส คำอธิบายเคส",
+              "รายละเอียดเคส คำอธิบายเคส",
+              "Case Description",
+              "รายละเอียดเคส",
+              "คำอธิบายเคส",
+              "Case Detail",
+              "Detail",
+              "Description",
+            ], inquiry || "-");
+
+            const caseImageUrl = normalizeAssetUrl(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case Image URL / ภาพประกอบเคส",
+                "ภาพประกอบเคส",
+                "Case Image URL",
+                "Case Image",
+                "Image URL",
+                "Attachment URL",
+                "Case Attachment",
+                "Attachment",
+                "Case Image Link",
+                "Image Link",
+                "Link ภาพประกอบเคส",
+                "ภาพเคส",
+                "รูปภาพเคส",
+              ], "")
+            );
+
+            const casePdfOriginalUrl = normalizeAssetUrl(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case PDF Original URL",
+                "Case PDF Original",
+                "PDF Original URL",
+                "Original PDF URL",
+              ], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")
+            );
+
+            const casePdfRevisedUrl = normalizeAssetUrl(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case PDF Revised URL",
+                "Case PDF Revised",
+                "PDF Revised URL",
+                "Revised PDF URL",
+              ], caseId ? `/case-pdfs/${caseId}-revised.pdf` : "")
+            );
+
+            const casePdfUrl = normalizeAssetUrl(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Case PDF URL",
+                "Case PDF",
+                "PDF URL",
+              ], caseId ? `/case-pdfs/${caseId}.pdf` : "")
+            );
+
+            const reviewStatus: ReviewStatus =
+              mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
+
+            const auditDateDisplay =
+              getRawSheetFormattedDisplay(index, auditDateColumnIndex) || formatAuditDateExact(auditRaw);
+
+            return {
+              key: `row-${index + 1}-${caseId}`,
+              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
+              auditDate: auditDateDisplay,
+              auditDateObj,
+              auditTimestamp: formatAuditTimestamp(timestampRaw),
+              monthKey,
+              monthLabel: getMonthLabel(auditDateObj),
+              weekLabel: String(weekLabel || "-").trim(),
+              caseId,
+              caseUrl: caseUrl ? String(caseUrl).trim() : "",
+              inquiryTh: inquiry ? String(inquiry).trim() : "-",
+              inquiryEn: inquiry ? String(inquiry).trim() : "-",
+              caseDescription: caseDescription ? String(caseDescription).trim() : "",
+              caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
+              casePdfUrl,
+              casePdfOriginalUrl,
+              casePdfRevisedUrl,
+              finalScore: finalScoreVal,
+              previousScore: previousScoreVal,
+              grade: scoreToGrade(finalScoreVal, monthKey),
+              reviewStatus,
+              topics,
+              revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
+              displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
+            };
+          });
+
+        const cleaned = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
+        setAllCases(cleaned);
+      } catch (error: any) {
+        console.error("Load Error:", error);
+        setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadWorkbook();
+  }, []);
+
+  const visibleAgentList = useMemo(() => {
+    const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
+
+    const mergedAgents = dedupeAgentNames([...AGENT_MASTER, ...agentsFromCases]).filter(
+      (name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility)
+    );
+
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
+    }
+
+    return mergedAgents;
+  }, [allCases, currentUser, effectiveMonthKeyForAgentVisibility]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      setSelectedAgentGlobal(currentUser.agentName);
-    }
-  }, [currentUser]);
-
-  const clearSessionTimers = () => {
-    if (warningTimerRef.current) {
-      clearTimeout(warningTimerRef.current);
-      warningTimerRef.current = null;
+      const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
+      if (!isSameAgent(selectedAgent || "", lockedAgent)) {
+        setSelectedAgent(lockedAgent);
+      }
+      onSelectedAgentChange?.(lockedAgent);
+      return;
     }
 
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = null;
+    if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
+      setSelectedAgent("");
+      onSelectedAgentChange?.("");
     }
-  };
+  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
 
-  const resetPasswordModalState = () => {
-    setResetTargetUsername("");
-    setResetResultMessage("");
-  };
+  const effectiveSelectedAgent =
+    currentUser?.role === "Agent" && currentUser.agentName
+      ? toTitleCaseName(String(currentUser.agentName).trim())
+      : String(selectedAgent || "").trim();
 
-  const resetChangePasswordState = () => {
-    setCurrentPasswordInput("");
-    setNewPasswordInput("");
-    setConfirmNewPasswordInput("");
-    setChangePasswordError("");
-    setChangePasswordSuccess("");
-  };
+  const agentCases = useMemo(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return allCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+    }
 
-  const handleLogout = () => {
-    clearSessionTimers();
-    setShowSessionWarning(false);
-    setCurrentUser(null);
-    setUsername("");
-    setPassword("");
-    setLoginError("");
-    setActiveTab("dashboard");
-    setDashboardSubTab("overview");
-    setSelectedAgentGlobal("");
-    setSelectedMonthGlobal("all");
-    setSelectedWeekGlobal("all");
-    setShowChangePasswordModal(false);
-    setShowResetPasswordModal(false);
-    resetChangePasswordState();
-    resetPasswordModalState();
-    localStorage.removeItem(STORAGE_KEY);
-  };
+    if (!effectiveSelectedAgent) {
+      return allCases;
+    }
 
-  const startSessionTimers = () => {
-    clearSessionTimers();
-    setShowSessionWarning(false);
+    return allCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
+  }, [allCases, effectiveSelectedAgent, currentUser]);
 
-    warningTimerRef.current = setTimeout(() => {
-      setShowSessionWarning(true);
-    }, WARNING_TIME_MS);
+  const monthOptions = useMemo(() => {
+    const sourceCases = allCases;
 
-    inactivityTimerRef.current = setTimeout(() => {
-      handleLogout();
-      window.alert("You have been logged out due to 30 minutes of inactivity.");
-    }, INACTIVITY_LIMIT_MS);
-  };
-
-  const resetInactivityTimer = () => {
-    if (!currentUser) return;
-    startSessionTimers();
-  };
+    return Array.from(
+      new Map(
+        sourceCases
+          .filter((item) => item.monthKey !== "unknown")
+          .map((item) => [item.monthKey, item.monthLabel])
+      ).entries()
+    )
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => b.value.localeCompare(a.value));
+  }, [agentCases, allCases]);
 
   useEffect(() => {
-    if (!currentUser) {
-      clearSessionTimers();
-      setShowSessionWarning(false);
+    if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
+      setSelectedMonthKey("all");
+      onSelectedMonthKeyChange?.("all");
+    }
+  }, [selectedMonthKey, monthOptions, onSelectedMonthKeyChange]);
+
+  useEffect(() => {
+    if (selectedMonthKey === "all") {
+      const firstDay = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+      setDateFrom(formatInputDate(firstDay));
+      setDateTo(formatInputDate(TODAY));
       return;
     }
 
-    const activityEvents: Array<keyof WindowEventMap> = [
-      "mousemove",
-      "mousedown",
-      "keydown",
-      "scroll",
-      "touchstart",
+    const [year, month] = selectedMonthKey.split("-").map(Number);
+    if (!year || !month) return;
+
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+
+    setDateFrom(formatInputDate(firstDay));
+    setDateTo(formatInputDate(lastDay));
+  }, [selectedMonthKey]);
+
+  const dateFilteredCases = useMemo(() => {
+    return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
+  }, [agentCases, dateFrom, dateTo]);
+
+  const searchScopedCases = useMemo(() => {
+    const keyword = caseIdSearch.trim().toLowerCase();
+    if (!keyword) return dateFilteredCases;
+    return agentCases.filter((item) => String(item.caseId || "").toLowerCase().includes(keyword));
+  }, [agentCases, dateFilteredCases, caseIdSearch]);
+
+  const weekLabels = useMemo(() => {
+    return [...new Set(searchScopedCases.map((item) => item.weekLabel).filter(Boolean))].sort();
+  }, [searchScopedCases]);
+
+  useEffect(() => {
+    if (selectedWeek !== "all" && !weekLabels.includes(selectedWeek)) {
+      setSelectedWeek("all");
+      onSelectedWeekChange?.("all");
+    }
+  }, [selectedWeek, weekLabels, onSelectedWeekChange]);
+
+  const dashboardCasesBase = useMemo(() => {
+    if (selectedWeek === "all") return searchScopedCases;
+    return searchScopedCases.filter((item) => item.weekLabel === selectedWeek);
+  }, [searchScopedCases, selectedWeek]);
+
+  const revisedCount = useMemo(
+    () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
+    [dashboardCasesBase]
+  );
+
+  const dashboardCases = useMemo(() => {
+    if (overviewMode === "revisedOnly") {
+      return dashboardCasesBase.filter((item) => item.reviewStatus === "Revised");
+    }
+    if (overviewMode === "originalOnly") {
+      return dashboardCasesBase.filter((item) => item.reviewStatus === "Original");
+    }
+    return dashboardCasesBase;
+  }, [dashboardCasesBase, overviewMode]);
+
+  const activeSelectedCase = useMemo(() => {
+    if (!selectedCaseKey) return null;
+    return dashboardCases.find((item) => item.key === selectedCaseKey) || null;
+  }, [dashboardCases, selectedCaseKey]);
+
+  useEffect(() => {
+    if (!dashboardCases.length) {
+      if (selectedCaseKey !== "") setSelectedCaseKey("");
+      if (slideOverOpen) setSlideOverOpen(false);
+      return;
+    }
+
+    if (!selectedCaseKey) return;
+
+    const stillExists = dashboardCases.some((item) => item.key === selectedCaseKey);
+    if (!stillExists) {
+      setSelectedCaseKey("");
+      setSlideOverOpen(false);
+    }
+  }, [dashboardCases, selectedCaseKey, slideOverOpen]);
+
+  const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
+
+  const metricAverageDisplay = summary.averageDisplay;
+  const metricCaseCount = dashboardCases.length;
+
+  const effectiveViewMonthKey =
+    selectedMonthKey === "all"
+      ? getMonthKey(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
+      : selectedMonthKey;
+
+  const currentGradeDisplay =
+    metricCaseCount === 0
+      ? isNewPolicyMonth(effectiveViewMonthKey)
+        ? "D"
+        : "F"
+      : metricCaseCount < CASE_TARGET
+      ? "-"
+      : scoreToGrade(Number(metricAverageDisplay), effectiveViewMonthKey);
+
+  const currentGradeSub =
+    metricCaseCount === 0
+      ? "No evaluated case in selected month"
+      : metricCaseCount < CASE_TARGET
+      ? "Grade will appear when completed 10 cases"
+      : isNewPolicyMonth(effectiveViewMonthKey)
+      ? "Calculated from new criteria (effective Apr 2026 onward)"
+      : "Calculated from previous criteria";
+
+  const incentiveResult = getIncentiveResult(
+    metricCaseCount,
+    Number(metricAverageDisplay),
+    effectiveViewMonthKey
+  );
+  const incentiveDisplay = formatCurrencyTHB(incentiveResult.total);
+  const incentiveRemark = incentiveResult.remark;
+
+  const overviewCaseSearchResults = useMemo(() => {
+    const keyword = caseIdSearch.trim().toLowerCase();
+    if (!keyword) return [];
+
+    return agentCases
+      .filter((item) => String(item.caseId || "").toLowerCase().includes(keyword))
+      .slice(0, 8);
+  }, [agentCases, caseIdSearch]);
+
+  const scoreDistributionData = useMemo(() => {
+    if (isNewPolicyMonth(effectiveViewMonthKey)) {
+      const buckets = [
+        { label: "90-100", value: 0 },
+        { label: "85-89", value: 0 },
+        { label: "80-84", value: 0 },
+        { label: "<80", value: 0 },
+      ];
+
+      dashboardCases.forEach((item) => {
+        const score = item.finalScore;
+        if (score >= 90) buckets[0].value += 1;
+        else if (score >= 85) buckets[1].value += 1;
+        else if (score >= 80) buckets[2].value += 1;
+        else buckets[3].value += 1;
+      });
+
+      return buckets;
+    }
+
+    const buckets = [
+      { label: "90-100", value: 0 },
+      { label: "80-89", value: 0 },
+      { label: "70-79", value: 0 },
+      { label: "60-69", value: 0 },
+      { label: "<60", value: 0 },
     ];
 
-    const handleUserActivity = () => {
-      if (showSessionWarning) return;
-      resetInactivityTimer();
-    };
-
-    startSessionTimers();
-
-    activityEvents.forEach((eventName) => {
-      window.addEventListener(eventName, handleUserActivity);
+    dashboardCases.forEach((item) => {
+      const score = item.finalScore;
+      if (score >= 90) buckets[0].value += 1;
+      else if (score >= 80) buckets[1].value += 1;
+      else if (score >= 70) buckets[2].value += 1;
+      else if (score >= 60) buckets[3].value += 1;
+      else buckets[4].value += 1;
     });
 
-    return () => {
-      activityEvents.forEach((eventName) => {
-        window.removeEventListener(eventName, handleUserActivity);
-      });
-      clearSessionTimers();
-    };
-  }, [currentUser, showSessionWarning]);
+    return buckets;
+  }, [dashboardCases, effectiveViewMonthKey]);
 
-  const handleLogin = () => {
-    const normalizedUsername = username.trim().toLowerCase();
-    const normalizedPassword = password.trim();
+  const reviewMixChartData = useMemo(() => {
+    const revised = dashboardCases.filter((item) => item.reviewStatus === "Revised").length;
+    const original = dashboardCases.filter((item) => item.reviewStatus === "Original").length;
 
-    const matchedUser = USER_ACCOUNTS.find((item) => {
-      const normalizedItemUsername = item.username.trim().toLowerCase();
-      const effectivePassword = getEffectivePassword(item);
+    return [
+      { label: "Original", value: original, tone: "bg-slate-400" },
+      { label: "Revised", value: revised, tone: songkranTheme ? "bg-cyan-500" : "bg-violet-600" },
+    ];
+  }, [dashboardCases, songkranTheme]);
 
-      return (
-        normalizedItemUsername === normalizedUsername &&
-        effectivePassword === normalizedPassword
-      );
+  const weakestTopics = useMemo(() => {
+    return summary.topicPerformance
+      .filter((item) => item.pct !== "-")
+      .sort((a, b) => Number(a.pct) - Number(b.pct))
+      .slice(0, 3);
+  }, [summary]);
+
+  const strongestTopics = useMemo(() => {
+    return summary.topicPerformance
+      .filter((item) => item.pct !== "-")
+      .sort((a, b) => Number(b.pct) - Number(a.pct))
+      .slice(0, 3);
+  }, [summary]);
+
+  const weeklyTrendData = useMemo(() => {
+    const weekMap = new Map<string, number[]>();
+
+    searchScopedCases.forEach((item) => {
+      const week = item.weekLabel || "Unknown";
+      if (!weekMap.has(week)) weekMap.set(week, []);
+      weekMap.get(week)!.push(item.finalScore);
     });
 
-    if (!matchedUser) {
-      setLoginError("Invalid username or password");
-      return;
-    }
+    return [...weekMap.entries()].map(([label, scores]) => ({
+      label,
+      value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
+    }));
+  }, [searchScopedCases]);
 
-    const nextUser: CurrentUser = {
-      username: matchedUser.username,
-      displayName: matchedUser.displayName,
-      role: matchedUser.role,
-      agentName: matchedUser.agentName,
-    };
+  const currentViewingMonthLabel =
+    selectedMonthKey === "all"
+      ? getMonthLabel(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
+      : monthOptions.find((m) => m.value === selectedMonthKey)?.label || "-";
 
-    setCurrentUser(nextUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-
-    setLoginError("");
-    setUsername("");
-    setPassword("");
-    setActiveTab("dashboard");
-    setDashboardSubTab("overview");
-    setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
-    setSelectedMonthGlobal("all");
-    setSelectedWeekGlobal("all");
-  };
-
-  const handleStayLoggedIn = () => {
-    startSessionTimers();
-  };
-
-  const handleChangePassword = () => {
-    if (!currentUser) return;
-
-    const account = USER_ACCOUNTS.find(
-      (item) => item.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase()
-    );
-
-    if (!account) {
-      setChangePasswordError("User account not found");
-      setChangePasswordSuccess("");
-      return;
-    }
-
-    const effectivePassword = getEffectivePassword(account);
-
-    if (currentPasswordInput !== effectivePassword) {
-      setChangePasswordError("Current password is incorrect");
-      setChangePasswordSuccess("");
-      return;
-    }
-
-    if (!newPasswordInput.trim()) {
-      setChangePasswordError("New password cannot be empty");
-      setChangePasswordSuccess("");
-      return;
-    }
-
-    if (newPasswordInput.length < 6) {
-      setChangePasswordError("New password must be at least 6 characters");
-      setChangePasswordSuccess("");
-      return;
-    }
-
-    if (newPasswordInput !== confirmNewPasswordInput) {
-      setChangePasswordError("New password and confirm password do not match");
-      setChangePasswordSuccess("");
-      return;
-    }
-
-    savePasswordOverride(currentUser.username, newPasswordInput);
-
-    setChangePasswordError("");
-    setChangePasswordSuccess("Password changed successfully");
-    setCurrentPasswordInput("");
-    setNewPasswordInput("");
-    setConfirmNewPasswordInput("");
-
-    setTimeout(() => {
-      setShowChangePasswordModal(false);
-      setChangePasswordSuccess("");
-    }, 1000);
-  };
-
-  const handleResetPasswordToDefault = () => {
-    if (!resetTargetUsername) return;
-    removePasswordOverride(resetTargetUsername);
-    const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
-    const targetName = targetAccount?.displayName || resetTargetUsername;
-    setResetResultMessage(`Password for ${targetName} has been reset to default.`);
-  };
-
-  if (!currentUser) {
+  if (isLoading) {
     return (
-      <div
-        className={`relative min-h-screen ${
-          songkranTheme
-            ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
-            : "bg-gradient-to-br from-violet-50 via-white to-fuchsia-50"
-        }`}
-      >
-        {songkranTheme ? <SongkranBackdrop /> : null}
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
+          กำลังโหลด QA_RawData1.xlsx + Appeal ROWDATA...
+        </div>
+      </div>
+    );
+  }
 
-        <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4 py-4 sm:px-5 lg:px-6">
-          <div className="grid w-full max-w-[1020px] overflow-hidden rounded-[24px] border border-violet-200/70 bg-white shadow-[0_18px_56px_rgba(76,29,149,0.10)] lg:grid-cols-[1fr_0.94fr]">
-            <div
-              className={`relative overflow-hidden p-5 text-white sm:p-6 lg:p-7 ${
-                songkranTheme
-                  ? "bg-gradient-to-br from-sky-700 via-cyan-600 to-fuchsia-600"
-                  : "bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700"
-              }`}
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_28%)]" />
-              {songkranTheme ? <SongkranBackdrop compact /> : null}
-
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100">
-                    Secure Access
-                  </div>
-                  <LogoBox />
-                </div>
-
-                <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">
-                  Robinhood Customer Service QA
-                </div>
-
-                <div className="mt-3 text-[28px] font-bold tracking-tight sm:text-[34px]">
-                  QA Monitoring Workspace
-                </div>
-
-                <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, Coaching, and QA
-                  Rubric with role-based visibility for supervisors and agents.
-                </div>
-
-                {songkranTheme ? (
-                  <div className="mt-4">
-                    <SongkranBadge />
-                  </div>
-                ) : null}
-
-                <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                  <LoginFeatureCard
-                    title="Performance"
-                    desc="Dashboard, KPI, grade, incentive, trend, and summary view"
-                  />
-                  <LoginFeatureCard
-                    title="Review"
-                    desc="Appeal result, case comparison, coaching, and QA rubric reference"
-                  />
-                  <LoginFeatureCard
-                    title="Security"
-                    desc="Password control, session timeout, and supervisor reset tools"
-                  />
-                  <LoginFeatureCard
-                    title="Workspace"
-                    desc="Responsive layout optimized for common laptop browser size"
-                  />
-                </div>
-
-                {songkranTheme ? <FestiveIllustration /> : null}
-
-                <div className="mt-6 flex items-center gap-4 rounded-[22px] border border-white/15 bg-white/10 px-4 py-3.5 backdrop-blur-sm">
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
-                    <img
-                      src="/robinhood-logo.png"
-                      alt="Robinhood"
-                      className="h-8 w-8 object-contain"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-200">
-                      Enterprise Access
-                    </div>
-                    <div className="mt-1 text-sm font-semibold text-white sm:text-base">
-                      Customer Service Quality Monitoring Platform
-                    </div>
-                    <div className="mt-1 text-xs text-violet-100/80 sm:text-sm">
-                      Optimized to fit browser view without manual zoom out
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative bg-white p-5 sm:p-6 lg:p-7">
-              {songkranTheme ? (
-                <SongkranFlowerCorner className="right-2 top-2 opacity-80" />
-              ) : null}
-
-              <div className="mx-auto w-full max-w-[400px]">
-                <div className="flex justify-center lg:justify-start">
-                  <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm">
-                    {songkranTheme ? (
-                      <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-cyan-300/80" />
-                    ) : null}
-                    <img
-                      src="/robinhood-logo.png"
-                      alt="Robinhood"
-                      className="h-9 w-9 object-contain"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">
-                    Sign In
-                  </div>
-                  <div className="mt-2 text-[26px] font-bold tracking-tight text-slate-900 sm:text-[30px]">
-                    Welcome back
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-slate-500">
-                    Enter your credentials to access the Robinhood QA workspace.
-                  </div>
-                </div>
-
-                <div className="mt-7 space-y-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-800">
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleLogin();
-                      }}
-                      placeholder="Enter username"
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-800">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleLogin();
-                      }}
-                      placeholder="Enter password"
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-                    />
-                  </div>
-
-                  {loginError ? (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-                      {loginError}
-                    </div>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    onClick={handleLogin}
-                    className={`w-full rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95 ${
-                      songkranTheme
-                        ? "bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500"
-                        : "bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600"
-                    }`}
-                  >
-                    Sign In
-                  </button>
-                </div>
-
-                <div className="mt-5 text-center text-xs leading-5 text-slate-400 lg:text-left">
-                  This login layout is responsive and sized for standard laptop browser view.
-                </div>
-              </div>
-            </div>
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
+        <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
+          <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
+          <div className="mt-2 text-sm">{loadError}</div>
+          <div className="mt-3 text-sm text-slate-600">
+            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData1.xlsx และไฟล์ appeal ใช้ชื่อใดชื่อหนึ่งใน:
+            Appleal ROWDATA.xlsx / Appeal ROWDATA.xlsx / Appeal_ROWDATA.xlsx
           </div>
         </div>
       </div>
@@ -1089,264 +3051,913 @@ export default function App() {
   }
 
   return (
-    <>
-      <SessionWarningModal
-        open={showSessionWarning}
-        onStayLoggedIn={handleStayLoggedIn}
-        onLogoutNow={handleLogout}
-      />
+    <div
+      className={`relative min-h-screen ${
+        songkranTheme
+          ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
+          : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
+      }`}
+    >
+      {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <ChangePasswordModal
-        open={showChangePasswordModal}
-        onClose={() => {
-          setShowChangePasswordModal(false);
-          resetChangePasswordState();
-        }}
-        currentPasswordInput={currentPasswordInput}
-        setCurrentPasswordInput={setCurrentPasswordInput}
-        newPasswordInput={newPasswordInput}
-        setNewPasswordInput={setNewPasswordInput}
-        confirmNewPasswordInput={confirmNewPasswordInput}
-        setConfirmNewPasswordInput={setConfirmNewPasswordInput}
-        error={changePasswordError}
-        success={changePasswordSuccess}
-        onSubmit={handleChangePassword}
-      />
+      <div
+        className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
+          songkranTheme
+            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-600"
+            : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
+        }`}
+      >
+        {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <ResetPasswordModal
-        open={showResetPasswordModal}
-        onClose={() => {
-          setShowResetPasswordModal(false);
-          resetPasswordModalState();
-        }}
-        selectedUsername={resetTargetUsername}
-        setSelectedUsername={setResetTargetUsername}
-        onReset={handleResetPasswordToDefault}
-        resultMessage={resetResultMessage}
-      />
+        <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-4xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
+                QA Dashboard
+              </div>
+              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
+                Agent Performance Dashboard
+              </div>
+              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
+                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
+                Appleal ROWDATA
+              </div>
+              {songkranTheme ? (
+                <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
+                  Songkran Festival Theme • Auto reset after 25 Apr 2026
+                </div>
+              ) : null}
+            </div>
 
-      <div className="min-h-screen bg-slate-100">
-        <div
-          className={`relative border-b backdrop-blur-sm ${
-            songkranTheme
-              ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60"
-              : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"
-          }`}
-        >
-          {songkranTheme ? <SongkranBackdrop compact /> : null}
-
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-5 lg:px-6 2xl:px-8">
-            <div className="grid gap-4 xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] xl:items-start">
-              <div
-                className={`relative min-w-0 rounded-[24px] border bg-white/90 px-5 py-4 shadow-sm ${
-                  songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"
-                }`}
-              >
-                {songkranTheme ? (
-                  <SongkranFlowerCorner className="-right-2 -top-2 opacity-80" />
-                ) : null}
-
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">
+            <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+              <LogoHeaderBox />
+              <div className="hidden sm:block">
+                <div className="text-xs font-semibold uppercase tracking-[0.28em] text-violet-200">
                   Robinhood QA
                 </div>
-
-                <div className="mt-1 break-words text-xl font-extrabold leading-tight tracking-tight text-slate-800 sm:text-2xl">
-                  Welcome, {welcomeName}
+                <div className="mt-1 text-lg font-semibold text-white">
+                  Quality Monitoring Workspace
                 </div>
-
-                {songkranTheme ? (
-                  <div className="mt-3">
-                    <SongkranBadge />
-                  </div>
-                ) : null}
-
-                <div className="mt-2 space-y-1 text-sm text-slate-500">
-                  <div>
-                    Role: <span className="font-semibold text-slate-700">{currentUser.role}</span>
-                  </div>
-                  <div>
-                    Agent Name:{" "}
-                    <span className="font-semibold text-slate-700">{currentUser.agentName}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3">
-                <div
-                  className={`relative flex flex-wrap items-center gap-3 overflow-hidden rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${
-                    songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"
-                  }`}
-                >
-                  {songkranTheme ? (
-                    <>
-                      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-sky-400 to-fuchsia-400" />
-                      <div className="pointer-events-none absolute left-0 right-0 top-1 h-6 bg-[linear-gradient(90deg,rgba(125,211,252,0.10)_0%,rgba(34,211,238,0.18)_35%,rgba(232,121,249,0.12)_100%)]" />
-                    </>
-                  ) : null}
-
-                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">
-                    Performance
-                  </span>
-
-                  <NavButton
-                    active={activeTab === "dashboard"}
-                    label="Dashboard"
-                    onClick={() => setActiveTab("dashboard")}
-                    songkranTheme={songkranTheme}
-                  />
-                  <NavButton
-                    active={activeTab === "summary"}
-                    label="Summary"
-                    onClick={() => setActiveTab("summary")}
-                    songkranTheme={songkranTheme}
-                  />
-                  <NavButton
-                    active={activeTab === "coaching"}
-                    label="Coaching"
-                    onClick={() => setActiveTab("coaching")}
-                    songkranTheme={songkranTheme}
-                  />
-
-                  <span className="ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">
-                    Review
-                  </span>
-
-                  <NavButton
-                    active={activeTab === "appeal"}
-                    label="Appeal"
-                    onClick={() => setActiveTab("appeal")}
-                    songkranTheme={songkranTheme}
-                  />
-                  <NavButton
-                    active={activeTab === "rubric"}
-                    label="QA Rubric"
-                    onClick={() => setActiveTab("rubric")}
-                    songkranTheme={songkranTheme}
-                  />
-                  <NavButton
-                    active={activeTab === "evaluation-studio"}
-                    label="Evaluation Studio"
-                    onClick={() => setActiveTab("evaluation-studio")}
-                    songkranTheme={songkranTheme}
-                  />
-                </div>
-
-                <div
-                  className={`relative flex flex-wrap items-center gap-3 rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${
-                    songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"
-                  }`}
-                >
-                  {songkranTheme ? (
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-fuchsia-300 via-cyan-300 to-sky-300" />
-                  ) : null}
-
-                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                    Account
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetChangePasswordState();
-                      setShowChangePasswordModal(true);
-                    }}
-                    className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-violet-700"
-                  >
-                    Change Password
-                  </button>
-
-                  {currentUser.role === "Supervisor" ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        resetPasswordModalState();
-                        setShowResetPasswordModal(true);
-                      }}
-                      className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-amber-700"
-                    >
-                      Reset Password
-                    </button>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-rose-700"
-                  >
-                    Log Out
-                  </button>
+                <div className="mt-1 text-sm text-violet-100/90">
+                  Corporate dashboard for audit tracking and case review
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {activeTab === "dashboard" ? (
-          <div>
-            <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 sm:px-5 lg:px-6 2xl:px-8">
-              <div className="flex flex-wrap gap-2">
-                <DashboardSubButton
-                  active={dashboardSubTab === "overview"}
-                  label="Overview"
-                  onClick={() => setDashboardSubTab("overview")}
-                  songkranTheme={songkranTheme}
-                />
-                <DashboardSubButton
-                  active={dashboardSubTab === "case-detail"}
-                  label="Case Detail"
-                  onClick={() => setDashboardSubTab("case-detail")}
-                  songkranTheme={songkranTheme}
-                />
-              </div>
-            </div>
-
-            <DashboardMockup
-              currentUser={currentUser}
-              dashboardSubTab={dashboardSubTab}
-              externalSelectedAgent={selectedAgentGlobal}
-              externalSelectedMonthKey={selectedMonthGlobal}
-              externalSelectedWeek={selectedWeekGlobal}
-              onSelectedAgentChange={setSelectedAgentGlobal}
-              onSelectedMonthKeyChange={setSelectedMonthGlobal}
-              onSelectedWeekChange={setSelectedWeekGlobal}
-              onOpenCaseDetail={() => {
-                setActiveTab("dashboard");
-                setDashboardSubTab("case-detail");
-              }}
-            />
-          </div>
-        ) : activeTab === "appeal" ? (
-          <AppealMockup
-            currentUser={currentUser}
-            externalSelectedAgent={selectedAgentGlobal}
-            onSelectedAgentChange={setSelectedAgentGlobal}
-          />
-        ) : activeTab === "summary" ? (
-          <SummaryMockup
-            currentUser={currentUser}
-            externalSelectedAgent={selectedAgentGlobal}
-            externalSelectedMonth={selectedMonthGlobal}
-            externalSelectedWeek={selectedWeekGlobal}
-            onSelectedAgentChange={setSelectedAgentGlobal}
-            onSelectedMonthChange={setSelectedMonthGlobal}
-            onSelectedWeekChange={setSelectedWeekGlobal}
-          />
-        ) : activeTab === "coaching" ? (
-          <CoachingMockup
-            currentUser={currentUser}
-            externalSelectedAgent={selectedAgentGlobal}
-            externalSelectedMonth={selectedMonthGlobal}
-            externalSelectedWeek={selectedWeekGlobal}
-            onSelectedAgentChange={setSelectedAgentGlobal}
-            onSelectedMonthChange={setSelectedMonthGlobal}
-            onSelectedWeekChange={setSelectedWeekGlobal}
-          />
-        ) : activeTab === "evaluation-studio" ? (
-          <EvaluationStudioPage />
-        ) : (
-          <QARubricMockup />
-        )}
       </div>
-    </>
+
+      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+          <div className="space-y-6">
+            <Panel className="sticky top-4">
+              <PanelHeader
+                title="Quick Controls"
+                subtitle="Filter by agent, month, case ID, date range and week"
+              />
+              <PanelBody className="space-y-5">
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Agent
+                  </div>
+                  {currentUser?.role === "Agent" ? (
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                      {effectiveSelectedAgent || "-"}
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedAgent}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedAgent(value);
+                        onSelectedAgentChange?.(value);
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    >
+                      <option value="">All Agents</option>
+                      {visibleAgentList.map((agent) => (
+                        <option key={canonicalAgentKey(agent)} value={agent}>
+                          {agent}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Month
+                  </div>
+                  <select
+                    value={selectedMonthKey}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedMonthKey(value);
+                      onSelectedMonthKeyChange?.(value);
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="all">Current Month</option>
+                    {monthOptions.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Search Case ID
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={caseIdSearch}
+                      onChange={(e) => {
+                        setCaseIdSearch(e.target.value);
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                      placeholder="ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือกเดือน"
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    />
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {caseIdSearch.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCaseIdSearch("");
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Clear Search
+                  </button>
+                ) : null}
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                      Date From
+                    </div>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => {
+                        setDateFrom(e.target.value);
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                      Date To
+                    </div>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => {
+                        setDateTo(e.target.value);
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                    Week
+                  </div>
+                  <select
+                    value={selectedWeek}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedWeek(value);
+                      onSelectedWeekChange?.(value);
+                      setSelectedCaseKey("");
+                      setSlideOverOpen(false);
+                    }}
+                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    disabled={!searchScopedCases.length}
+                  >
+                    <option value="all">All Weeks</option>
+                    {weekLabels.map((week) => (
+                      <option key={week} value={week}>
+                        {week}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </PanelBody>
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
+              <PanelBody className="space-y-3">
+                {!searchScopedCases.length ? (
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
+                    ไม่พบข้อมูลในช่วงที่เลือก
+                  </div>
+                ) : (
+                  <>
+                    <WeeklySnapshotCard
+                      label="All Weeks"
+                      caseCount={searchScopedCases.length}
+                      averageDisplay={buildAgentSummary(searchScopedCases).averageDisplay}
+                      isActive={selectedWeek === "all"}
+                      onClick={() => {
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                      }}
+                    />
+
+                    {weekLabels.map((week) => {
+                      const weekCases = searchScopedCases.filter((item) => item.weekLabel === week);
+                      const weekSummary = buildAgentSummary(weekCases);
+
+                      return (
+                        <WeeklySnapshotCard
+                          key={week}
+                          label={week}
+                          caseCount={weekCases.length}
+                          averageDisplay={weekSummary.averageDisplay}
+                          isActive={selectedWeek === week}
+                          onClick={() => {
+                            setSelectedWeek(week);
+                            onSelectedWeekChange?.(week);
+                          }}
+                        />
+                      );
+                    })}
+                  </>
+                )}
+              </PanelBody>
+            </Panel>
+
+            <Panel>
+              <PanelHeader title="Data Health Checks" subtitle="System and data validation status" />
+              <PanelBody>
+                <DataHealthChecks
+                  caseCount={allCases.length}
+                  agentCount={visibleAgentList.length}
+                  appealCount={appealMergeCount}
+                />
+              </PanelBody>
+            </Panel>
+          </div>
+
+          <div className="space-y-6">
+            {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
+              dashboardSubTab === "overview" ? (
+                <>
+                  <Panel>
+                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
+                    <PanelBody>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                            Viewing Agent
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-slate-900">
+                            {effectiveSelectedAgent || "All Agents"}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                            Viewing Month
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-slate-900">
+                            {currentViewingMonthLabel}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                            Viewing Week
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-slate-900">
+                            {selectedWeek === "all" ? "All Weeks" : selectedWeek}
+                          </div>
+                        </div>
+                      </div>
+                    </PanelBody>
+                  </Panel>
+
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <MetricCard
+                      title="Average Score"
+                      value={metricAverageDisplay}
+                      sub={`${metricCaseCount} case(s) in current view`}
+                      accent={
+                        songkranTheme
+                          ? "from-white via-cyan-50/50 to-fuchsia-50/60 border-cyan-200/80"
+                          : "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
+                      }
+                      valueClassName={songkranTheme ? "text-cyan-700" : "text-violet-900"}
+                      helper={
+                        <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
+                          Team Score
+                        </span>
+                      }
+                    />
+
+                    <MetricCard
+                      title="Current Grade"
+                      value={currentGradeDisplay}
+                      sub={currentGradeSub}
+                      accent={currentGradeTone(currentGradeDisplay).card}
+                      valueClassName={currentGradeTone(currentGradeDisplay).levelText}
+                      helper={
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(
+                              currentGradeDisplay
+                            ).badge}`}
+                          >
+                            Grade {currentGradeDisplay}
+                          </span>
+                          <span
+                            className={`text-[12px] font-semibold ${currentGradeTone(currentGradeDisplay).levelText}`}
+                          >
+                            Status: {currentGradeTone(currentGradeDisplay).level}
+                          </span>
+                        </div>
+                      }
+                    />
+
+                    <MetricCard
+                      title="Evaluation Progress"
+                      value={`${metricCaseCount}/${CASE_TARGET}`}
+                      sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
+                      accent={
+                        metricCaseCount >= CASE_TARGET
+                          ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                          : "from-amber-50 via-white to-amber-100/70 border-amber-200"
+                      }
+                      valueClassName={metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"}
+                      helper={
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                            metricCaseCount >= CASE_TARGET
+                              ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                              : "border-amber-200 bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {metricCaseCount >= CASE_TARGET ? "Completed" : "In Progress"}
+                        </span>
+                      }
+                    />
+
+                    <MetricCard
+                      title="Estimated Incentive"
+                      value={incentiveDisplay}
+                      sub={incentiveRemark}
+                      accent={
+                        songkranTheme
+                          ? "from-white via-cyan-50/50 to-fuchsia-100/60 border-cyan-200"
+                          : "from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
+                      }
+                      valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
+                      helper={
+                        <div className="flex flex-wrap gap-2">
+                          <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
+                            Monthly Estimate
+                          </span>
+                          {incentiveResult.promo > 0 ? (
+                            <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-700">
+                              Cash {formatCurrencyTHB(incentiveResult.cash)} + Promo{" "}
+                              {formatCurrencyTHB(incentiveResult.promo)}
+                            </span>
+                          ) : null}
+                        </div>
+                      }
+                    />
+
+                    <MetricCard
+                      title="Review Mix"
+                      value={`${revisedCount}`}
+                      sub="Revised case(s) in current view"
+                      accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
+                      valueClassName="text-sky-700"
+                      helper={
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                          Revised Cases
+                        </span>
+                      }
+                    />
+                  </div>
+
+                  <Panel>
+                    <PanelHeader
+                      title="QA Grade & Incentive Guide"
+                      subtitle={
+                        isNewPolicyMonth(effectiveViewMonthKey)
+                          ? "New criteria applies from April 2026 onward. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                          : "Previous criteria remains for months before April 2026. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                      }
+                    />
+                    <PanelBody className="space-y-6">
+                      {isNewPolicyMonth(effectiveViewMonthKey) ? (
+                        <>
+                          <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                            <table className="min-w-[860px] w-full text-sm">
+                              <thead>
+                                <tr className="bg-violet-950 text-[11px] text-white">
+                                  <th className="px-4 py-3 text-left">Score Range</th>
+                                  <th className="px-4 py-3 text-left">Level</th>
+                                  <th className="px-4 py-3 text-center">Grade</th>
+                                  <th className="px-4 py-3 text-left">Meaning</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                      A
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Meets all key standards
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">85-89</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                      B
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Meets most standards
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">80-84</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                      C
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Acceptable but still has gaps
+                                  </td>
+                                </tr>
+                                <tr className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">&lt;80</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Improvement Required
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                      D
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3">
+                                    Below company standard
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="grid gap-6 xl:grid-cols-2">
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                              <table className="min-w-[420px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-slate-900 text-[11px] text-white">
+                                    <th className="px-4 py-3 text-left">General Month</th>
+                                    <th className="px-4 py-3 text-center">Grade</th>
+                                    <th className="px-4 py-3 text-center">Incentive</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">
+                                      Improvement Required
+                                    </td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                              <table className="min-w-[520px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-fuchsia-700 text-[11px] text-white">
+                                    <th className="px-4 py-3 text-left">January / April</th>
+                                    <th className="px-4 py-3 text-center">Grade</th>
+                                    <th className="px-4 py-3 text-center">Cash</th>
+                                    <th className="px-4 py-3 text-center">RBH Promo</th>
+                                    <th className="px-4 py-3 text-center">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">200</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">350</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">
+                                      Improvement Required
+                                    </td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-[860px] w-full text-sm">
+                            <thead>
+                              <tr className="bg-violet-950 text-[11px] text-white">
+                                <th className="px-4 py-3 text-left">Score Range</th>
+                                <th className="px-4 py-3 text-left">Level</th>
+                                <th className="px-4 py-3 text-center">Grade</th>
+                                <th className="px-4 py-3 text-center">Incentive (THB)</th>
+                                <th className="px-4 py-3 text-left">Meaning</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">90-100</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    A
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Meets all key standards</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">80-89</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                                    B
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Meets most standards</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">70-79</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                    C
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Minimum pass level</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">60-69</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
+                                    D
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Below company standard</td>
+                              </tr>
+                              <tr className="bg-white">
+                                <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Fail</td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                  <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                                    F
+                                  </span>
+                                </td>
+                                <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Significant quality issue</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </PanelBody>
+                  </Panel>
+
+                  <Panel>
+                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
+                    <PanelBody className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("all")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "all"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          All Cases
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("originalOnly")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "originalOnly"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          Original Only
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOverviewMode("revisedOnly")}
+                          className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                            overviewMode === "revisedOnly"
+                              ? songkranTheme
+                                ? "border-cyan-300 bg-cyan-100 text-cyan-800"
+                                : "border-violet-400 bg-violet-100 text-violet-800"
+                              : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                          }`}
+                        >
+                          Revised Only
+                        </button>
+                      </div>
+
+                      {caseIdSearch.trim() ? (
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                            Quick Case Search Result
+                          </div>
+
+                          <div className="mt-3 space-y-3">
+                            {overviewCaseSearchResults.length ? (
+                              overviewCaseSearchResults.map((item) => (
+                                <QuickCaseSearchCard
+                                  key={item.key}
+                                  item={item}
+                                  onOpen={() => {
+                                    setSelectedCaseKey(item.key);
+                                    onOpenCaseDetail?.();
+                                    setSlideOverOpen(true);
+                                  }}
+                                />
+                              ))
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                ไม่พบเลขเคสที่ค้นหา
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </PanelBody>
+                  </Panel>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <PremiumBarChart
+                      title="Score Distribution"
+                      subtitle="Case count by score range"
+                      data={scoreDistributionData}
+                    />
+
+                    <PremiumReviewMixCard
+                      title="Review Status Mix"
+                      subtitle="Original vs Revised in current view"
+                      data={reviewMixChartData}
+                    />
+                  </div>
+
+                  <PremiumLineChart
+                    title="Weekly Score Trend"
+                    subtitle="Average score by visible week"
+                    data={weeklyTrendData}
+                  />
+
+                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                    <Panel>
+                      <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
+                      <PanelBody>
+                        <TopicPerformanceTable items={summary.topicPerformance} />
+                      </PanelBody>
+                    </Panel>
+
+                    <Panel>
+                      <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
+                      <PanelBody>
+                        <GradeMix gradeCounts={summary.gradeCounts} />
+                      </PanelBody>
+                    </Panel>
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Panel>
+                      <PanelHeader title="Strongest Topics" subtitle="Top 3 topics in current view" />
+                      <PanelBody className="space-y-3">
+                        {strongestTopics.length ? (
+                          strongestTopics.map((topic) => (
+                            <div
+                              key={topic.code}
+                              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"
+                            >
+                              <div className="text-sm font-bold text-slate-900">
+                                {topic.code} {topic.label}
+                              </div>
+                              <div className="mt-1 text-xs text-emerald-700">{topic.pct}% average</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-slate-500">No data</div>
+                        )}
+                      </PanelBody>
+                    </Panel>
+
+                    <Panel>
+                      <PanelHeader title="Coaching Focus" subtitle="Top 3 weakest topics in current view" />
+                      <PanelBody className="space-y-3">
+                        {weakestTopics.length ? (
+                          weakestTopics.map((topic) => (
+                            <div
+                              key={topic.code}
+                              className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3"
+                            >
+                              <div className="text-sm font-bold text-slate-900">
+                                {topic.code} {topic.label}
+                              </div>
+                              <div className="mt-1 text-xs text-rose-700">{topic.pct}% average</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-slate-500">No data</div>
+                        )}
+                      </PanelBody>
+                    </Panel>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Panel>
+                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
+                    <PanelBody>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                            Viewing Agent
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-slate-900">
+                            {effectiveSelectedAgent || "All Agents"}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                            Viewing Month
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-slate-900">
+                            {currentViewingMonthLabel}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">
+                            Viewing Week
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-slate-900">
+                            {selectedWeek === "all" ? "All Weeks" : selectedWeek}
+                          </div>
+                        </div>
+                      </div>
+                    </PanelBody>
+                  </Panel>
+
+                  <Panel>
+                    <PanelHeader
+                      title="Case Navigator"
+                      subtitle="Select a case to open detailed topic scoring"
+                    />
+                    <PanelBody>
+                      {!dashboardCases.length ? (
+                        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
+                          {effectiveSelectedAgent === "Anucha Makundin"
+                            ? "เดือนนี้ไม่มีเคสประเมินของ Anucha • Score = 0.00 • Grade = F"
+                            : "ไม่พบข้อมูลในช่วงที่เลือก"}
+                        </div>
+                      ) : (
+                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                          {dashboardCases.map((item) => (
+                            <CaseNavigatorCard
+                              key={item.key}
+                              item={item}
+                              isSelected={activeSelectedCase?.key === item.key}
+                              onSelect={() => {
+                                setSelectedCaseKey(item.key);
+                                setSlideOverOpen(true);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </PanelBody>
+                  </Panel>
+
+                  <SlideOverCaseDetail
+                    open={slideOverOpen}
+                    caseItem={activeSelectedCase}
+                    onClose={() => setSlideOverOpen(false)}
+                  />
+                </>
+              )
+            ) : (
+              <Panel>
+                <PanelHeader title="Dashboard" />
+                <PanelBody>
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
+                    กรุณาเลือก Agent หรือค้นหา Case ID
+                  </div>
+                </PanelBody>
+              </Panel>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
