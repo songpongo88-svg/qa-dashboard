@@ -1288,6 +1288,11 @@ function isGoogleDriveAssetUrl(url: string) {
   );
 }
 
+function isPdfAssetUrl(url: string) {
+  const value = String(url || "").toLowerCase().split("#")[0].split("?")[0];
+  return value.endsWith('.pdf') || String(url || "").toLowerCase().includes('application/pdf');
+}
+
 function getCasePdfActionLabel(url: string, caseId: string) {
   const lower = String(url || '').toLowerCase();
   if (lower.includes('-revised.pdf')) return `${caseId} Revised PDF`;
@@ -1704,12 +1709,19 @@ function SlideOverCaseDetail({
 
   const rawImageUrls = splitAssetUrls(caseItem.caseImageUrl || "");
   const normalizedImageUrls = rawImageUrls.map((url) => normalizeAssetUrl(url)).filter(Boolean);
-  const imagePreviewCandidates = normalizedImageUrls.map((url, index) => {
+  const imageAssetCandidates = normalizedImageUrls.map((url, index) => {
     const rawUrl = rawImageUrls[index] || url;
-    return getGoogleDriveImagePreviewUrl(rawUrl) || url;
+    const isPdf = isPdfAssetUrl(rawUrl) || isPdfAssetUrl(url);
+    return {
+      rawUrl,
+      url,
+      isPdf,
+      previewUrl: isPdf ? url : (getGoogleDriveImagePreviewUrl(rawUrl) || url),
+    };
   });
   const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
   const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
+  const [verifiedImagePdfUrls, setVerifiedImagePdfUrls] = useState<{ rawUrl: string; url: string; label: string }[]>([]);
   const [previewAsset, setPreviewAsset] = useState<{
     type: "image" | "pdf";
     url: string;
@@ -1736,13 +1748,32 @@ function SlideOverCaseDetail({
       );
 
       const checkedImages = await Promise.all(
-        imagePreviewCandidates.map(async (item) => {
-          const imageOk = item
-            ? isGoogleDriveAssetUrl(item)
-              ? true
-              : await urlExists(item)
-            : false;
-          return imageOk ? item : null;
+        imageAssetCandidates.map(async (item, index) => {
+          if (!item?.previewUrl) return null;
+
+          if (item.isPdf) {
+            const pdfOk = isGoogleDriveAssetUrl(item.url) ? true : await urlExists(item.url);
+            return pdfOk
+              ? {
+                  kind: "pdf" as const,
+                  rawUrl: item.rawUrl,
+                  url: item.url,
+                  label:
+                    imageAssetCandidates.length > 1
+                      ? `${caseItem.caseId} Image Attachment PDF ${index + 1}`
+                      : `${caseItem.caseId} Image Attachment PDF`,
+                }
+              : null;
+          }
+
+          const imageOk = isGoogleDriveAssetUrl(item.previewUrl) ? true : await urlExists(item.previewUrl);
+          return imageOk
+            ? {
+                kind: "image" as const,
+                rawUrl: item.rawUrl,
+                url: item.previewUrl,
+              }
+            : null;
         })
       );
 
@@ -1756,7 +1787,15 @@ function SlideOverCaseDetail({
         }[];
         setAvailablePdfUrls(uniquePdfs);
         setVerifiedImageUrls(
-          checkedImages.filter(Boolean).filter((item, index, arr) => arr.indexOf(item) === index) as string[]
+          checkedImages
+            .filter((item): item is { kind: "image"; rawUrl: string; url: string } => !!item && item.kind === "image")
+            .map((item) => item.url)
+            .filter((item, index, arr) => arr.indexOf(item) === index)
+        );
+        setVerifiedImagePdfUrls(
+          checkedImages
+            .filter((item): item is { kind: "pdf"; rawUrl: string; url: string; label: string } => !!item && item.kind === "pdf")
+            .filter((item, index, arr) => arr.findIndex((entry) => entry.url === item.url) === index)
         );
       }
     };
@@ -2055,6 +2094,50 @@ function SlideOverCaseDetail({
                             ))}
                             <div className="text-[11px] font-medium text-sky-700">
                               {caseItem.caseId} Image Attachment{verifiedImageUrls.length > 1 ? ` · ${verifiedImageUrls.length} files` : ""}
+                            </div>
+                          </div>
+                        </div>
+                      ) : verifiedImagePdfUrls.length ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-2xl border border-sky-100 bg-white/95 p-4 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-xl">📄</div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900">Attachment is a PDF file</div>
+                                <div className="mt-1 text-xs leading-5 text-slate-500">
+                                  ช่อง Case Image ของเคสนี้เป็นลิงก์ PDF ไม่ใช่ไฟล์รูปโดยตรง ดังนั้นใน Preview จะเปิดเป็น PDF viewer แทน และสามารถเลื่อนดูหลายหน้าในไฟล์ได้
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewAsset({
+                                  type: "pdf",
+                                  url: verifiedImagePdfUrls[0].url,
+                                  title: verifiedImagePdfUrls[0].label,
+                                })
+                              }
+                              className="inline-flex rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+                            >
+                              Open Image Attachment PDF
+                            </button>
+                            {verifiedImagePdfUrls.map((item, index) => (
+                              <a
+                                key={`${item.url}-open-${index}`}
+                                href={item.rawUrl || item.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-xl border border-sky-200 bg-sky-100 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-200"
+                              >
+                                {verifiedImagePdfUrls.length > 1 ? `Open PDF ${index + 1}` : "Open in New Tab"}
+                              </a>
+                            ))}
+                            <div className="text-[11px] font-medium text-sky-700">
+                              {caseItem.caseId} Image Attachment PDF{verifiedImagePdfUrls.length > 1 ? ` · ${verifiedImagePdfUrls.length} files` : ""}
                             </div>
                           </div>
                         </div>
