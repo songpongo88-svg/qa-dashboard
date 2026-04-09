@@ -277,6 +277,19 @@ function gradeTone(grade: Grade) {
   }
 }
 
+function scoreBadgeTone(score: number) {
+  if (score >= 90) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (score >= 85) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  if (score >= 80) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  return "border-rose-200 bg-rose-50 text-rose-700";
+}
+
 function currentGradeTone(value: string) {
   switch (value) {
     case "A":
@@ -861,8 +874,14 @@ function CaseNavigatorCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
-          <div className="mt-1 text-[11px] font-semibold text-slate-700">
-            Score {item.finalScore.toFixed(2)}
+          <div className="mt-2">
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
+                item.finalScore
+              )}`}
+            >
+              Score {item.finalScore.toFixed(2)}
+            </span>
           </div>
         </div>
 
