@@ -806,17 +806,33 @@ export default function SummaryMockup({
   }, []);
 
   const availableAgents = useMemo(() => {
-    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]);
-    if (selectedMonth === "all") return names;
-    return names.filter((name) => !shouldHideAgentByMonth(name, selectedMonth));
-  }, [allCases, selectedMonth]);
+    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter(
+      (name) => (selectedMonth === "all" ? true : !shouldHideAgentByMonth(name, selectedMonth))
+    );
+
+    if (currentUser?.role === "Agent" && currentUser?.agentName) {
+      return names.filter((name) => isSameAgent(name, currentUser.agentName));
+    }
+
+    return names;
+  }, [allCases, selectedMonth, currentUser]);
 
   useEffect(() => {
-    if (currentUser?.role === "Agent") {
-      const agentName = toTitleCaseName(String(currentUser?.name || "").trim());
-      if (agentName) setSelectedAgent(agentName);
+    if (currentUser?.role === "Agent" && currentUser?.agentName) {
+      const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
+      if (!isSameAgent(selectedAgent || "", lockedAgent)) {
+        setSelectedAgent(lockedAgent);
+      }
+      onSelectedAgentChange?.(lockedAgent);
+      return;
     }
-  }, [currentUser]);
+  }, [currentUser, selectedAgent, onSelectedAgentChange]);
+
+  useEffect(() => {
+    if (currentUser?.role === "Agent" && viewMode === "weekly-qa-by-agent") {
+      setViewMode("weekly-dashboard");
+    }
+  }, [currentUser, viewMode]);
 
   const monthOptions = useMemo(() => {
     const keys = [...new Set(allCases.map((item) => item.monthKey).filter(Boolean))].sort();
@@ -834,7 +850,10 @@ export default function SummaryMockup({
     return [{ value: "all", label: "All Years" }].concat(keys.map((key) => ({ value: key, label: key })));
   }, [allCases]);
 
-  const effectiveSelectedAgent = currentUser?.role === "Agent" ? toTitleCaseName(String(currentUser?.name || "").trim()) : selectedAgent;
+  const effectiveSelectedAgent =
+    currentUser?.role === "Agent" && currentUser?.agentName
+      ? toTitleCaseName(String(currentUser.agentName).trim())
+      : selectedAgent;
 
   const filteredCases = useMemo(() => {
     return allCases.filter((item) => {
@@ -930,7 +949,9 @@ export default function SummaryMockup({
               <PanelBody className="space-y-5">
                 <div className="space-y-2">
                   <ViewButton active={viewMode === "weekly-dashboard"} label="Weekly Dashboard" onClick={() => setViewMode("weekly-dashboard")} />
-                  <ViewButton active={viewMode === "weekly-qa-by-agent"} label="Weekly QA by Agent" onClick={() => setViewMode("weekly-qa-by-agent")} />
+                  {currentUser?.role !== "Agent" ? (
+                    <ViewButton active={viewMode === "weekly-qa-by-agent"} label="Weekly QA by Agent" onClick={() => setViewMode("weekly-qa-by-agent")} />
+                  ) : null}
                   <ViewButton active={viewMode === "monthly-dashboard"} label="Monthly Dashboard" onClick={() => setViewMode("monthly-dashboard")} />
                   <ViewButton active={viewMode === "monthly-team-summary"} label="Monthly Team Summary" onClick={() => setViewMode("monthly-team-summary")} />
                   <ViewButton active={viewMode === "yearly-team-summary"} label="Yearly Team Summary" onClick={() => setViewMode("yearly-team-summary")} />
