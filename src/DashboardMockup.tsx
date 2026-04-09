@@ -810,6 +810,9 @@ function CaseNavigatorCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
+          <div className="mt-1 text-[11px] font-semibold text-slate-700">
+            Score {item.finalScore.toFixed(2)}
+          </div>
         </div>
 
         <div className="flex flex-col items-end gap-1">
@@ -1970,7 +1973,10 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "URL") ??
               "";
 
-            const auditRaw = rawHelper.getValue(row, "Audit Date");
+            const auditRaw =
+              rawHelper.getValue(row, "Audit Date") ?? rawHelper.getValue(row, "Timestamp");
+            const timestampRaw =
+              rawHelper.getValue(row, "Timestamp") ?? rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(auditRaw);
             const monthKey = getMonthKey(auditDateObj);
 
@@ -1982,7 +1988,7 @@ export default function DashboardMockup({
               agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: formatAuditDate(auditRaw),
               auditDateObj,
-              auditTimestamp: formatAuditTimestamp(auditRaw),
+              auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
               monthLabel: getMonthLabel(auditDateObj),
               weekLabel: String(weekLabel || "-").trim(),
