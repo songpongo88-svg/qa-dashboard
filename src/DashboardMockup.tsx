@@ -1262,6 +1262,12 @@ function getGoogleDriveImagePreviewUrl(raw: unknown) {
   return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
 }
 
+function getGoogleDrivePdfViewerUrl(raw: unknown) {
+  const driveId = extractGoogleDriveId(raw);
+  if (!driveId) return "";
+  return `https://drive.google.com/file/d/${driveId}/preview`;
+}
+
 function splitAssetUrls(raw: unknown) {
   const value = String(raw ?? "").trim();
   if (!value) return [];
@@ -1743,6 +1749,7 @@ function SlideOverCaseDetail({
     type: "image" | "pdf";
     url: string;
     title: string;
+    downloadUrl?: string;
     items?: string[];
     index?: number;
   } | null>(null);
@@ -1777,7 +1784,8 @@ function SlideOverCaseDetail({
               ? {
                   kind: "pdf" as const,
                   rawUrl: item.rawUrl,
-                  url: pdfTargetUrl,
+                  url: getGoogleDrivePdfViewerUrl(pdfTargetUrl) || pdfTargetUrl,
+                  downloadUrl: normalizeAssetUrl(pdfTargetUrl) || pdfTargetUrl,
                   label:
                     imageAssetCandidates.length > 1
                       ? `${caseItem.caseId} Image Attachment PDF ${index + 1}`
@@ -1814,8 +1822,8 @@ function SlideOverCaseDetail({
         );
         setVerifiedImagePdfUrls(
           checkedImages
-            .filter((item): item is { kind: "pdf"; rawUrl: string; url: string; label: string } => !!item && item.kind === "pdf")
-            .filter((item, index, arr) => arr.findIndex((entry) => entry.url === item.url) === index)
+            .filter((item): item is { kind: "pdf"; rawUrl: string; url: string; downloadUrl: string; label: string } => !!item && item.kind === "pdf")
+            .filter((item, index, arr) => arr.findIndex((entry) => entry.downloadUrl === item.downloadUrl) === index)
         );
       }
     };
@@ -1843,7 +1851,7 @@ function SlideOverCaseDetail({
               </div>
               <div className="flex items-center gap-2">
                 <a
-                  href={previewAsset.url}
+                  href={previewAsset.downloadUrl || previewAsset.url}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
@@ -1863,9 +1871,11 @@ function SlideOverCaseDetail({
             <div className="min-h-0 flex-1 bg-slate-100">
               {previewAsset.type === "pdf" ? (
                 <iframe
+                  key={previewAsset.url}
                   src={previewAsset.url}
                   title={previewAsset.title}
                   className="h-full w-full bg-white"
+                  allow="autoplay"
                 />
               ) : (
                 <div className="relative flex h-full items-center justify-center overflow-hidden bg-slate-100 p-4">
@@ -2189,7 +2199,8 @@ function SlideOverCaseDetail({
                                     onClick={() =>
                                       setPreviewAsset({
                                         type: "pdf",
-                                        url: item.url,
+                                        url: getGoogleDrivePdfViewerUrl(item.url) || item.url,
+                                        downloadUrl: item.url,
                                         title: item.label,
                                       })
                                     }
