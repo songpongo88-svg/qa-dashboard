@@ -1335,12 +1335,6 @@ function getCaseImageOpenUrl(url?: string) {
   return `https://drive.google.com/file/d/${driveFileId}/view`;
 }
 
-function getCasePdfUrl(caseId?: string) {
-  const value = String(caseId || "").trim();
-  if (!value) return "";
-  return `/case-pdfs/${encodeURIComponent(value)}.pdf`;
-}
-
 function PremiumBarChart({
   title,
   subtitle,
@@ -1681,7 +1675,6 @@ function SlideOverCaseDetail({
 
   const activeImagePreviewUrl = imagePreviewCandidates[imagePreviewIndex] || "";
   const canShowImagePreview = Boolean(activeImagePreviewUrl) && imagePreviewIndex < imagePreviewCandidates.length;
-  const casePdfUrl = caseItem.casePdfUrl || getCasePdfUrl(caseItem.caseId);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/45 p-4">
@@ -1784,7 +1777,7 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="grid gap-3 xl:grid-cols-2">
+                  <div className="grid gap-3 xl:grid-cols-3">
                     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         รายละเอียดเคส / Case Description
@@ -1831,53 +1824,53 @@ function SlideOverCaseDetail({
                         <div className="mt-2 text-sm leading-6 text-slate-800">-</div>
                       )}
                     </div>
-                  </div>
-                </div>
 
-                <div className="flex flex-wrap gap-3">
-                  {caseItem.caseUrl ? (
-                    <a
-                      href={caseItem.caseUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-                    >
-                      Open Case URL
-                    </a>
-                  ) : null}
-
-                  {casePdfUrl ? (
-                    <>
-                      <a
-                        href={casePdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
-                      >
-                        Open PDF
-                      </a>
-                      <a
-                        href={casePdfUrl}
-                        download
-                        className="inline-flex rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-50"
-                      >
-                        Download PDF
-                      </a>
-                    </>
-                  ) : null}
-                </div>
-
-                {casePdfUrl ? (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                    <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      ไฟล์ PDF เคส / Case PDF
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        ไฟล์ PDF เคส / Case PDF
+                      </div>
+                      {caseItem.casePdfUrl ? (
+                        <div className="mt-3 space-y-4">
+                          <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
+                            <div className="flex flex-col items-center gap-2 text-slate-600">
+                              <div className="text-5xl leading-none">📄</div>
+                              <div className="text-xs font-semibold text-slate-500">{caseItem.caseId}.pdf</div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <a
+                              href={caseItem.casePdfUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                            >
+                              Open PDF
+                            </a>
+                            <a
+                              href={caseItem.casePdfUrl}
+                              download
+                              className="inline-flex rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              Download PDF
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-sm leading-6 text-slate-800">-</div>
+                      )}
                     </div>
-                    <iframe
-                      src={casePdfUrl}
-                      title={`Case PDF ${caseItem.caseId}`}
-                      className="h-[520px] w-full rounded-2xl border border-slate-200 bg-slate-50"
-                    />
                   </div>
+                </div>
+
+                {caseItem.caseUrl ? (
+                  <a
+                    href={caseItem.caseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 hover:bg-violet-100"
+                  >
+                    Open Case URL
+                  </a>
                 ) : null}
               </div>
             </PanelBody>
@@ -2210,6 +2203,8 @@ export default function DashboardMockup({
               rawHelper.getValue(row, "ภาพประกอบเคส") ??
               "";
 
+            const casePdfUrl = caseId ? `/case-pdfs/${caseId}.pdf` : "";
+
             return {
               key: `row-${index + 1}-${caseId}`,
               agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
@@ -2225,7 +2220,7 @@ export default function DashboardMockup({
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               caseDescription: caseDescription ? String(caseDescription).trim() : "",
               caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
-              casePdfUrl: getCasePdfUrl(caseId),
+              casePdfUrl,
               finalScore: finalScoreVal,
               previousScore: previousScoreVal,
               grade: scoreToGrade(finalScoreVal, monthKey),
