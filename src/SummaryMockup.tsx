@@ -382,6 +382,39 @@ function groupCases(cases: CaseItem[], groupBy: "week" | "month" | "year" | "age
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+function buildAgentRowsWithMaster(
+  agentNames: string[],
+  cases: CaseItem[],
+  fallbackMonthKey: string
+): PeriodRow[] {
+  return agentNames
+    .map((agentName) => {
+      const grouped = cases.filter((item) => isSameAgent(item.agent, agentName));
+
+      if (!grouped.length) {
+        return {
+          label: agentName,
+          caseCount: 0,
+          avgScore: 0,
+          revisedCount: 0,
+          grade: scoreToGrade(0, fallbackMonthKey),
+          incentive: 0,
+        };
+      }
+
+      const summary = summarizeCases(grouped);
+      return {
+        label: agentName,
+        caseCount: summary.caseCount,
+        avgScore: summary.avgScore,
+        revisedCount: summary.revisedCount,
+        grade: summary.grade,
+        incentive: summary.incentive,
+      };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function SongkranBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -823,7 +856,13 @@ export default function SummaryMockup({
         return groupCases(filteredCases, "week");
       case "monthly-dashboard":
         return groupCases(filteredCases, "month");
-      case "monthly-team-summary":
+      case "monthly-team-summary": {
+        const fallbackMonthKey =
+          selectedMonth !== "all"
+            ? selectedMonth
+            : getPolicyMonthKeyForCases(filteredCases);
+        return buildAgentRowsWithMaster(availableAgents, filteredCases, fallbackMonthKey);
+      }
       case "yearly-by-agent":
         return groupCases(filteredCases, "agent");
       case "yearly-team-summary":
@@ -831,7 +870,7 @@ export default function SummaryMockup({
       default:
         return [];
     }
-  }, [filteredCases, viewMode]);
+  }, [filteredCases, viewMode, availableAgents, selectedMonth]);
 
   const caseListForView = useMemo(() => [...filteredCases].sort((a, b) => (a.auditDateObj?.getTime() || 0) - (b.auditDateObj?.getTime() || 0)), [filteredCases]);
 
