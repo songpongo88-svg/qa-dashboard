@@ -1440,6 +1440,56 @@ export default function AppealMockup({
     <div className="relative space-y-6">
       {songkranTheme ? <SongkranBackdrop /> : null}
 
+      <div className="relative overflow-hidden rounded-[34px] border border-white/15 bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-700 px-6 py-7 text-white shadow-[0_24px_60px_rgba(59,130,246,0.18)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.18),transparent_28%)]" />
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/80">
+              QA APPEAL
+            </div>
+            <div className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Appeal Result Workspace
+            </div>
+            <div className="mt-3 max-w-2xl text-sm leading-7 text-white/90 sm:text-[15px]">
+              รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                {currentMonthDisplayLabel}
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+                {filteredCases.length} case(s)
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-[320px] max-w-[430px] rounded-[28px] border border-white/15 bg-white/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-md">
+            <div className="flex items-center gap-4">
+              <div className="flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img
+                  src="/robinhood-logo.png"
+                  alt="Robinhood QA Logo"
+                  className="h-16 w-16 rounded-[18px] object-contain bg-white/90 p-2 shadow-sm"
+                />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/70">
+                  Robinhood QA
+                </div>
+                <div className="mt-1 text-2xl font-extrabold tracking-tight text-white">
+                  Appeal Performance Center
+                </div>
+                <div className="mt-2 text-sm leading-6 text-white/80">
+                  Monthly / All Months appeal result and case review workspace
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <AppealClosedBanner />
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[26px] border border-violet-200/80 bg-white/90 px-5 py-4 shadow-[0_10px_24px_rgba(76,29,149,0.06)] backdrop-blur-sm">
