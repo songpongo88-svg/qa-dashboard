@@ -538,18 +538,8 @@ function ScoreCard({
 }
 
 function AppealClosedBanner() {
-  const songkranTheme = isSongkranThemeActive();
-
   return (
-    <div
-      className={`relative overflow-hidden rounded-[30px] border px-6 py-6 text-white shadow-[0_18px_40px_rgba(190,24,93,0.18)] ${
-        songkranTheme
-          ? "border-cyan-200 bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-600"
-          : "border-rose-300 bg-gradient-to-r from-rose-700 via-rose-700 to-red-600"
-      }`}
-    >
-      {songkranTheme ? <SongkranBackdrop /> : null}
-
+    <div className="relative overflow-hidden rounded-[30px] border border-rose-300 bg-gradient-to-r from-rose-700 via-rose-700 to-red-600 px-6 py-6 text-white shadow-[0_18px_40px_rgba(190,24,93,0.18)]">
       <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="text-xs font-bold uppercase tracking-[0.26em] text-rose-100">
