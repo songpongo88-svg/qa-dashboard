@@ -311,6 +311,18 @@ function getMonthKey(date: Date | null) {
   return `${year}-${month}`;
 }
 
+function formatMonthKeyLabel(monthKey: string) {
+  if (!monthKey || monthKey === "all") return "All Months";
+  if (monthKey === "unknown") return "Unknown Month";
+
+  const match = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return monthKey;
+
+  const [, year, month] = match;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString("en-US", { month: "long", year: "numeric" });
+}
+
 function formatDateOnly(value: any): string {
   const dt = parseExcelDate(value);
   if (!dt) return String(value ?? "").trim();
@@ -738,6 +750,7 @@ export default function AppealMockup({
   const [loadError, setLoadError] = useState("");
   const [selectedCaseKey, setSelectedCaseKey] = useState("");
   const [searchCaseId, setSearchCaseId] = useState("");
+  const [selectedMonthKey, setSelectedMonthKey] = useState("all");
   const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
@@ -1067,9 +1080,30 @@ export default function AppealMockup({
     );
   }, [allCases]);
 
+  const monthOptions = useMemo(() => {
+    return [...new Set(allCases.map((item) => item.monthKey).filter((item) => item !== "unknown"))]
+      .sort((a, b) => b.localeCompare(a));
+  }, [allCases]);
+
+  useEffect(() => {
+    if (!monthOptions.length) {
+      if (selectedMonthKey !== "all") setSelectedMonthKey("all");
+      return;
+    }
+
+    if (selectedMonthKey === "all") {
+      setSelectedMonthKey(latestMonthKey);
+      return;
+    }
+
+    if (selectedMonthKey !== "all" && !monthOptions.includes(selectedMonthKey)) {
+      setSelectedMonthKey(latestMonthKey);
+    }
+  }, [monthOptions, latestMonthKey, selectedMonthKey]);
+
   const visibleAgentList = useMemo(() => {
     const effectiveMonthForVisibility =
-      currentUser?.role === "Agent" ? "all" : latestMonthKey;
+      currentUser?.role === "Agent" ? "all" : selectedMonthKey === "all" ? latestMonthKey : selectedMonthKey;
 
     const mergedAgents = getUniqueNormalizedAgents([
       ...AGENT_MASTER,
@@ -1081,7 +1115,7 @@ export default function AppealMockup({
     }
 
     return mergedAgents;
-  }, [allCases, currentUser, latestMonthKey]);
+  }, [allCases, currentUser, latestMonthKey, selectedMonthKey]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
@@ -1105,12 +1139,19 @@ export default function AppealMockup({
       : toTitleCaseName(String(selectedAgent || "").trim());
 
   const baseVisibleCases = useMemo(() => {
-    if (currentUser?.role === "Agent" && currentUser?.agentName) {
-      return allCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+    let cases = allCases;
+
+    if (selectedMonthKey && selectedMonthKey !== "all") {
+      cases = cases.filter((item) => item.monthKey === selectedMonthKey);
     }
-    if (!effectiveSelectedAgent) return allCases;
-    return allCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
-  }, [allCases, currentUser, effectiveSelectedAgent]);
+
+    if (currentUser?.role === "Agent" && currentUser?.agentName) {
+      return cases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+    }
+
+    if (!effectiveSelectedAgent) return cases;
+    return cases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
+  }, [allCases, currentUser, effectiveSelectedAgent, selectedMonthKey]);
 
   const filteredCases = useMemo(() => {
     const keyword = searchCaseId.trim().toLowerCase();
@@ -1437,6 +1478,23 @@ export default function AppealMockup({
 
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Month
+              </label>
+              <select
+                value={selectedMonthKey}
+                onChange={(e) => setSelectedMonthKey(e.target.value)}
+                className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
+              >
+                {monthOptions.map((monthKey) => (
+                  <option key={monthKey} value={monthKey}>
+                    {formatMonthKeyLabel(monthKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Search Case ID
               </label>
               <input
@@ -1445,6 +1503,11 @@ export default function AppealMockup({
                 placeholder="เช่น AA206880"
                 className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
               />
+            </div>
+
+            <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3 text-sm text-violet-900">
+              <span className="font-semibold">{formatMonthKeyLabel(selectedMonthKey)}</span>
+              <span className="text-slate-500"> · {filteredCases.length} case(s)</span>
             </div>
 
             <div className="space-y-3">
