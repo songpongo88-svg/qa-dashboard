@@ -1159,12 +1159,10 @@ export default function AppealMockup({
     const usingThaiFont = setPdfFont(doc, "normal");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const left = 14;
-    const right = pageWidth - 14;
+    const left = 16;
+    const right = pageWidth - 16;
     const contentWidth = right - left;
-    const gap = 4;
-    const cardRadius = 3;
-    let y = 14;
+    let y = 16;
 
     const selectedCaseOriginalGradeForPdf = scoreToGrade(
       selectedCase.previousScore,
@@ -1174,464 +1172,206 @@ export default function AppealMockup({
     const scoreDeltaText = `${scoreDelta > 0 ? "+" : ""}${scoreDelta.toFixed(2)}`;
 
     const PDF_COLORS = {
-      titleFill: [76, 29, 149] as [number, number, number],
-      titleAccent: [168, 85, 247] as [number, number, number],
-      section: [76, 29, 149] as [number, number, number],
-      label: [91, 33, 182] as [number, number, number],
-      body: [31, 41, 55] as [number, number, number],
-      bodyStrong: [15, 23, 42] as [number, number, number],
-      muted: [100, 116, 139] as [number, number, number],
-      divider: [221, 214, 254] as [number, number, number],
-      cardFill: [248, 250, 252] as [number, number, number],
-      cardBorder: [226, 232, 240] as [number, number, number],
-      violetSoft: [245, 243, 255] as [number, number, number],
-      violetBorder: [196, 181, 253] as [number, number, number],
-      roseSoft: [255, 241, 242] as [number, number, number],
-      roseBorder: [254, 205, 211] as [number, number, number],
-      amberSoft: [255, 251, 235] as [number, number, number],
-      amberBorder: [253, 230, 138] as [number, number, number],
-      skySoft: [240, 249, 255] as [number, number, number],
-      skyBorder: [186, 230, 253] as [number, number, number],
-      appealReason: [146, 64, 14] as [number, number, number],
-      originalComment: [12, 74, 110] as [number, number, number],
-      revisedComment: [88, 28, 135] as [number, number, number],
+      black: [0, 0, 0] as [number, number, number],
+      body: [20, 20, 20] as [number, number, number],
+      muted: [90, 90, 90] as [number, number, number],
+      divider: [170, 170, 170] as [number, number, number],
       success: [22, 163, 74] as [number, number, number],
-      danger: [225, 29, 72] as [number, number, number],
-      neutral: [71, 85, 105] as [number, number, number],
-      white: [255, 255, 255] as [number, number, number],
-    };
-
-    const ensureSpace = (needed = 12) => {
-      if (y + needed > pageHeight - 14) {
-        doc.addPage();
-        y = 14;
-      }
+      danger: [220, 38, 38] as [number, number, number],
+      neutral: [55, 65, 81] as [number, number, number],
+      appealReason: [120, 53, 15] as [number, number, number],
+      originalComment: [17, 24, 39] as [number, number, number],
+      revisedComment: [17, 24, 39] as [number, number, number],
     };
 
     const setColor = (color: [number, number, number]) => {
       doc.setTextColor(color[0], color[1], color[2]);
     };
 
-    const drawRoundedBox = (
-      x: number,
-      top: number,
-      width: number,
-      height: number,
-      fill: [number, number, number],
-      border: [number, number, number],
-      style: "FD" | "F" = "FD"
-    ) => {
-      doc.setFillColor(fill[0], fill[1], fill[2]);
-      doc.setDrawColor(border[0], border[1], border[2]);
-      doc.setLineWidth(0.35);
-      doc.roundedRect(x, top, width, height, cardRadius, cardRadius, style);
+    const ensureSpace = (needed = 10) => {
+      if (y + needed > pageHeight - 16) {
+        doc.addPage();
+        y = 16;
+      }
     };
 
-    const drawHeader = () => {
-      drawRoundedBox(left, y, contentWidth, 24, PDF_COLORS.titleFill, PDF_COLORS.titleFill, "F");
-      doc.setFillColor(PDF_COLORS.titleAccent[0], PDF_COLORS.titleAccent[1], PDF_COLORS.titleAccent[2]);
-      doc.circle(right - 10, y + 7, 3, "F");
-      doc.circle(right - 19, y + 15, 2.3, "F");
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(20);
-      setColor(PDF_COLORS.white);
-      doc.text("Robinhood QA Appeal Result", left + 6, y + 9);
-
-      setPdfFont(doc, "normal");
-      doc.setFontSize(10.5);
-      doc.text(`Case ID: ${selectedCase.caseId}`, left + 6, y + 16);
-      doc.text(`Agent: ${selectedCase.agent || "-"}`, left + 6, y + 21);
-
-      y += 30;
-    };
-
-    const addSectionTitle = (text: string, subtitle?: string) => {
-      ensureSpace(subtitle ? 16 : 12);
-      setPdfFont(doc, "bold");
-      doc.setFontSize(13);
-      setColor(PDF_COLORS.section);
-      doc.text(text, left, y);
+    const drawDivider = (spaceBefore = 1.5, spaceAfter = 4) => {
+      ensureSpace(spaceBefore + spaceAfter + 2);
+      y += spaceBefore;
       doc.setDrawColor(PDF_COLORS.divider[0], PDF_COLORS.divider[1], PDF_COLORS.divider[2]);
-      doc.setLineWidth(0.5);
-      doc.line(left, y + 1.6, right, y + 1.6);
-      y += 6;
-      if (subtitle) {
-        setPdfFont(doc, "normal");
-        doc.setFontSize(9.5);
-        setColor(PDF_COLORS.muted);
-        const lines = doc.splitTextToSize(subtitle, contentWidth);
-        doc.text(lines, left, y + 1.5);
-        y += lines.length * 4 + 2;
-      }
-      y += 2;
+      doc.setLineWidth(0.3);
+      doc.line(left, y, right, y);
+      y += spaceAfter;
     };
 
-    const addParagraphInBox = (
-      title: string,
-      value: string,
-      fill: [number, number, number],
-      border: [number, number, number],
-      textColor: [number, number, number] = PDF_COLORS.body
-    ) => {
-      const titleLines = doc.splitTextToSize(title, contentWidth - 10);
-      const valueLines = doc.splitTextToSize(value || "-", contentWidth - 10);
-      const height = 8 + titleLines.length * 4 + valueLines.length * 5 + 4;
-      ensureSpace(height + 2);
-      drawRoundedBox(left, y, contentWidth, height, fill, border);
+    const addMainTitle = () => {
       setPdfFont(doc, "bold");
-      doc.setFontSize(10);
-      setColor(PDF_COLORS.label);
-      doc.text(titleLines, left + 5, y + 6);
+      doc.setFontSize(18);
+      setColor(PDF_COLORS.black);
+      doc.text("QA Appeal Result Report", left, y);
+
+      y += 7;
       setPdfFont(doc, "normal");
-      doc.setFontSize(10.5);
-      setColor(textColor);
-      doc.text(valueLines, left + 5, y + 11 + titleLines.length * 4);
-      y += height + 4;
-    };
-
-    const addInfoGrid = (items: Array<{ label: string; value: string }>) => {
-      const colGap = 4;
-      const colWidth = (contentWidth - colGap) / 2;
-      for (let i = 0; i < items.length; i += 2) {
-        const rowItems = items.slice(i, i + 2);
-        const heights = rowItems.map((item) => {
-          const labelLines = doc.splitTextToSize(item.label, colWidth - 10);
-          const valueLines = doc.splitTextToSize(item.value || "-", colWidth - 10);
-          return 8 + labelLines.length * 4 + valueLines.length * 5 + 4;
-        });
-        const rowHeight = Math.max(...heights, 18);
-        ensureSpace(rowHeight + 2);
-
-        rowItems.forEach((item, colIndex) => {
-          const x = left + colIndex * (colWidth + colGap);
-          const labelLines = doc.splitTextToSize(item.label, colWidth - 10);
-          const valueLines = doc.splitTextToSize(item.value || "-", colWidth - 10);
-
-          drawRoundedBox(x, y, colWidth, rowHeight, PDF_COLORS.cardFill, PDF_COLORS.cardBorder);
-          setPdfFont(doc, "bold");
-          doc.setFontSize(9.5);
-          setColor(PDF_COLORS.label);
-          doc.text(labelLines, x + 5, y + 6);
-
-          setPdfFont(doc, "normal");
-          doc.setFontSize(10.5);
-          setColor(PDF_COLORS.bodyStrong);
-          doc.text(valueLines, x + 5, y + 11 + labelLines.length * 4);
-        });
-
-        y += rowHeight + 4;
-      }
-    };
-
-    const drawMetricCard = (
-      x: number,
-      top: number,
-      width: number,
-      title: string,
-      value: string,
-      sub: string,
-      fill: [number, number, number],
-      border: [number, number, number],
-      accent: [number, number, number]
-    ) => {
-      drawRoundedBox(x, top, width, 23, fill, border);
-      setPdfFont(doc, "bold");
-      doc.setFontSize(8.5);
-      setColor(PDF_COLORS.muted);
-      doc.text(title.toUpperCase(), x + 4, top + 6);
-      setPdfFont(doc, "bold");
-      doc.setFontSize(16);
-      setColor(accent);
-      doc.text(value, x + 4, top + 14);
-      setPdfFont(doc, "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(11);
       setColor(PDF_COLORS.body);
-      doc.text(doc.splitTextToSize(sub, width - 8), x + 4, top + 19);
+      doc.text(`Case ID: ${selectedCase.caseId || "-"}`, left, y);
+
+      y += 5;
+      doc.text(`Agent: ${selectedCase.agent || "-"}`, left, y);
+
+      y += 3;
+      drawDivider(2, 5);
     };
 
-    const addMetricsRow = () => {
-      const cardWidth = (contentWidth - gap * 3) / 4;
-      ensureSpace(27);
-      drawMetricCard(
-        left,
-        y,
-        cardWidth,
-        "Original Score",
-        selectedCase.previousScore.toFixed(2),
-        "ก่อนอุทธรณ์",
-        PDF_COLORS.cardFill,
-        PDF_COLORS.cardBorder,
-        PDF_COLORS.bodyStrong
-      );
-      drawMetricCard(
-        left + cardWidth + gap,
-        y,
-        cardWidth,
-        "Final Score",
-        selectedCase.finalScore.toFixed(2),
-        `ผลต่าง ${scoreDeltaText}`,
-        PDF_COLORS.violetSoft,
-        PDF_COLORS.violetBorder,
-        PDF_COLORS.section
-      );
-      drawMetricCard(
-        left + (cardWidth + gap) * 2,
-        y,
-        cardWidth,
-        "Original Grade",
-        selectedCaseOriginalGradeForPdf,
-        "เกรดเดิม",
-        PDF_COLORS.cardFill,
-        PDF_COLORS.cardBorder,
-        PDF_COLORS.bodyStrong
-      );
-      drawMetricCard(
-        left + (cardWidth + gap) * 3,
-        y,
-        cardWidth,
-        "Final Grade",
-        selectedCase.grade,
-        "เกรดหลังพิจารณา",
-        PDF_COLORS.roseSoft,
-        PDF_COLORS.roseBorder,
-        PDF_COLORS.danger
-      );
-      y += 27;
+    const addSectionTitle = (text: string) => {
+      ensureSpace(10);
+      setPdfFont(doc, "bold");
+      doc.setFontSize(14);
+      setColor(PDF_COLORS.black);
+      doc.text(text, left, y);
+      y += 2.5;
+      drawDivider(1, 4);
     };
 
-    const addTimelineCards = () => {
-      const cardWidth = (contentWidth - gap * 2) / 3;
-      const cardHeight = 22;
-      ensureSpace(cardHeight + 2);
-
-      const cards = [
-        {
-          title: "Appeal Submit Date & Time",
-          value: selectedCase.appealSubmitDateTime || "-",
-          fill: PDF_COLORS.violetSoft,
-          border: PDF_COLORS.violetBorder,
-          accent: PDF_COLORS.section,
-        },
-        {
-          title: "Appeal Result Date & Time",
-          value: selectedCase.appealResultDateTime || "-",
-          fill: PDF_COLORS.roseSoft,
-          border: PDF_COLORS.roseBorder,
-          accent: PDF_COLORS.danger,
-        },
-        {
-          title: "Appeal Channel",
-          value: selectedCase.appealChannel || "-",
-          fill: PDF_COLORS.cardFill,
-          border: PDF_COLORS.cardBorder,
-          accent: PDF_COLORS.bodyStrong,
-        },
-      ];
-
-      cards.forEach((card, index) => {
-        const x = left + index * (cardWidth + gap);
-        drawRoundedBox(x, y, cardWidth, cardHeight, card.fill, card.border);
-        setPdfFont(doc, "bold");
-        doc.setFontSize(8.5);
-        setColor(card.accent);
-        doc.text(doc.splitTextToSize(card.title, cardWidth - 8), x + 4, y + 6);
-        setPdfFont(doc, "bold");
-        doc.setFontSize(11);
-        setColor(PDF_COLORS.bodyStrong);
-        doc.text(doc.splitTextToSize(card.value, cardWidth - 8), x + 4, y + 14);
-      });
-
-      y += cardHeight + 4;
+    const addParagraph = (
+      text: string,
+      size = 11,
+      color: [number, number, number] = PDF_COLORS.body,
+      gapAfter = 5
+    ) => {
+      const lines = doc.splitTextToSize(text || "-", contentWidth);
+      ensureSpace(lines.length * (size * 0.45) + gapAfter + 2);
+      setPdfFont(doc, "normal");
+      doc.setFontSize(size);
+      setColor(color);
+      doc.text(lines, left, y);
+      y += lines.length * (size * 0.45) + gapAfter;
     };
 
-    const addDecisionBox = () => {
-      const policyText = selectedCaseUsesNewPolicy
-        ? "Use score criteria from April 2026 onward"
-        : "Use previous score criteria";
-      addParagraphInBox(
-        "Final Decision",
-        `Finalized and closed
-${policyText}
-This case has completed the appeal review process and cannot be appealed again.`,
-        PDF_COLORS.roseSoft,
-        PDF_COLORS.roseBorder,
-        PDF_COLORS.bodyStrong
-      );
+    const addKeyValue = (label: string, value: string, labelWidth = 40) => {
+      const safeValue = value || "-";
+      const valueLines = doc.splitTextToSize(safeValue, contentWidth - labelWidth);
+      ensureSpace(Math.max(6, valueLines.length * 4.8) + 1);
+
+      setPdfFont(doc, "bold");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.black);
+      doc.text(label, left, y);
+
+      setPdfFont(doc, "normal");
+      setColor(PDF_COLORS.body);
+      doc.text(valueLines, left + labelWidth, y);
+      y += Math.max(6, valueLines.length * 4.8);
     };
 
-    const addAppealedTopicCard = (topic: Topic, index: number) => {
+    const addTopicBlock = (topic: Topic) => {
       const originalScore = Number(topic.originalScore ?? 0);
       const revisedScore = Number(topic.score ?? 0);
       const diff = revisedScore - originalScore;
       const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
-      const statusColor =
+      const scoreColor =
         diff > 0 ? PDF_COLORS.success : diff < 0 ? PDF_COLORS.danger : PDF_COLORS.neutral;
 
-      const topicTitleLines = doc.splitTextToSize(
-        `${index + 1}. ${topic.code} ${topic.label}`,
-        contentWidth - 14
-      );
+      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, contentWidth);
       const scoreLines = doc.splitTextToSize(
-        `Original Score: ${originalScore}   →   Final Score: ${revisedScore}   (${statusLabel} ${diff > 0 ? "+" : ""}${diff})`,
-        contentWidth - 14
+        `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${diff > 0 ? "+" : ""}${diff} (${statusLabel})`,
+        contentWidth
       );
-      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", contentWidth - 18);
-      const originalCommentLines = doc.splitTextToSize(topic.originalComment || "-", contentWidth - 18);
-      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", contentWidth - 18);
 
-      const commentBlockHeight = (titleLines: string[], valueLines: string[]) =>
-        7 + titleLines.length * 3.8 + valueLines.length * 4.5 + 4;
+      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", contentWidth - 42);
+      const originalCommentLines = doc.splitTextToSize(topic.originalComment || "-", contentWidth - 42);
+      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", contentWidth - 42);
 
-      const reasonTitle = doc.splitTextToSize("Appeal Reason", contentWidth - 18);
-      const originalTitle = doc.splitTextToSize("Original Comment", contentWidth - 18);
-      const revisedTitle = doc.splitTextToSize("Revised Comment", contentWidth - 18);
+      const estimatedHeight =
+        titleLines.length * 5 +
+        scoreLines.length * 4.8 +
+        appealReasonLines.length * 4.8 +
+        originalCommentLines.length * 4.8 +
+        revisedCommentLines.length * 4.8 +
+        28;
 
-      const reasonHeight = commentBlockHeight(reasonTitle, appealReasonLines);
-      const originalHeight = commentBlockHeight(originalTitle, originalCommentLines);
-      const revisedHeight = commentBlockHeight(revisedTitle, revisedCommentLines);
-
-      const cardHeight =
-        10 +
-        topicTitleLines.length * 4.3 +
-        scoreLines.length * 4.5 +
-        reasonHeight +
-        originalHeight +
-        revisedHeight +
-        8;
-
-      ensureSpace(cardHeight + 3);
-      drawRoundedBox(left, y, contentWidth, cardHeight, PDF_COLORS.white, PDF_COLORS.violetBorder);
-
-      let innerY = y + 7;
-      setPdfFont(doc, "bold");
-      doc.setFontSize(11.5);
-      setColor(PDF_COLORS.bodyStrong);
-      doc.text(topicTitleLines, left + 5, innerY);
-      innerY += topicTitleLines.length * 4.3 + 2;
+      ensureSpace(estimatedHeight);
 
       setPdfFont(doc, "bold");
-      doc.setFontSize(9.5);
-      setColor(statusColor);
-      doc.text(scoreLines, left + 5, innerY);
-      innerY += scoreLines.length * 4.5 + 3;
+      doc.setFontSize(12);
+      setColor(PDF_COLORS.black);
+      doc.text(titleLines, left, y);
+      y += titleLines.length * 5;
 
-      const drawCommentBlock = (
-        title: string,
-        lines: string[],
-        fill: [number, number, number],
-        border: [number, number, number],
-        titleColor: [number, number, number]
-      ) => {
-        const titleLines = doc.splitTextToSize(title, contentWidth - 18);
-        const boxHeight = commentBlockHeight(titleLines, lines);
-        drawRoundedBox(left + 4, innerY, contentWidth - 8, boxHeight, fill, border);
-        setPdfFont(doc, "bold");
-        doc.setFontSize(9.5);
-        setColor(titleColor);
-        doc.text(titleLines, left + 8, innerY + 5.5);
-        setPdfFont(doc, "normal");
-        doc.setFontSize(10);
-        setColor(PDF_COLORS.body);
-        doc.text(lines, left + 8, innerY + 10 + titleLines.length * 3.8);
-        innerY += boxHeight + 3;
-      };
+      setPdfFont(doc, "bold");
+      doc.setFontSize(10.5);
+      setColor(scoreColor);
+      doc.text(scoreLines, left, y);
+      y += scoreLines.length * 4.8 + 2;
 
-      drawCommentBlock(
-        "Appeal Reason",
-        appealReasonLines,
-        PDF_COLORS.amberSoft,
-        PDF_COLORS.amberBorder,
-        PDF_COLORS.appealReason
-      );
-      drawCommentBlock(
-        "Original Comment",
-        originalCommentLines,
-        PDF_COLORS.skySoft,
-        PDF_COLORS.skyBorder,
-        PDF_COLORS.originalComment
-      );
-      drawCommentBlock(
-        "Revised Comment",
-        revisedCommentLines,
-        PDF_COLORS.violetSoft,
-        PDF_COLORS.violetBorder,
-        PDF_COLORS.revisedComment
-      );
+      addKeyValue("Appeal Reason", topic.appealReason || "-", 42);
 
-      y += cardHeight + 4;
+      setPdfFont(doc, "bold");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.black);
+      doc.text("Original Comment", left, y);
+      y += 5;
+      addParagraph(topic.originalComment || "-", 11, PDF_COLORS.originalComment, 4);
+
+      setPdfFont(doc, "bold");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.black);
+      doc.text("Revised Comment", left, y);
+      y += 5;
+      addParagraph(topic.comment || "-", 11, PDF_COLORS.revisedComment, 4);
+
+      drawDivider(1, 5);
     };
 
-    drawHeader();
+    addMainTitle();
 
     if (!usingThaiFont) {
-      addParagraphInBox(
-        "Font Notice",
-        "TH Sarabun font is not embedded yet. PDF is using fallback font.",
-        PDF_COLORS.amberSoft,
-        PDF_COLORS.amberBorder,
-        PDF_COLORS.appealReason
+      addParagraph(
+        "Font Notice: TH Sarabun font is not embedded yet. PDF is using fallback font.",
+        10,
+        PDF_COLORS.danger,
+        6
       );
     }
 
-    addMetricsRow();
-
-    addSectionTitle("Case Overview", "สรุปข้อมูลหลักให้ออกมาใกล้เคียงกับมุมมองบนหน้าเว็บ");
-    addInfoGrid([
-      { label: "Case ID", value: selectedCase.caseId || "-" },
-      { label: "Agent", value: selectedCase.agent || "-" },
-      { label: "Audit Date", value: selectedCase.auditDate || "-" },
-      { label: "Week Label", value: selectedCase.weekLabel || "-" },
-      { label: "Month Key", value: selectedCase.monthKey || "-" },
-      {
-        label: "Score Flow",
-        value: `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`,
-      },
-      {
-        label: "Grade Flow",
-        value: `${selectedCaseOriginalGradeForPdf} → ${selectedCase.grade}`,
-      },
-      {
-        label: "Appealed Topics",
-        value: `${selectedCase.appealedTopics.length} topic(s)`,
-      },
-    ]);
+    addSectionTitle("Case Overview");
+    addKeyValue("Case ID", selectedCase.caseId || "-");
+    addKeyValue("Agent", selectedCase.agent || "-");
+    addKeyValue("Audit Date", selectedCase.auditDate || "-");
+    addKeyValue("Week Label", selectedCase.weekLabel || "-");
+    addKeyValue("Month", selectedCase.monthKey || "-");
+    addKeyValue("Original Score", selectedCase.previousScore.toFixed(2));
+    addKeyValue("Final Score", selectedCase.finalScore.toFixed(2));
+    addKeyValue("Score Change", scoreDeltaText);
+    addKeyValue("Original Grade", selectedCaseOriginalGradeForPdf);
+    addKeyValue("Final Grade", selectedCase.grade);
+    addKeyValue("Appealed Topics", `${selectedCase.appealedTopics.length} topic(s)`);
 
     addSectionTitle("Customer Inquiry");
-    addParagraphInBox(
-      "Customer Inquiry",
-      selectedCase.inquiry || "-",
-      PDF_COLORS.cardFill,
-      PDF_COLORS.cardBorder
-    );
+    addParagraph(selectedCase.inquiry || "-");
 
     addSectionTitle("Appeal Review Summary");
-    addParagraphInBox(
-      "Appeal Review Summary",
-      selectedCase.appealReviewSummary || "-",
-      PDF_COLORS.violetSoft,
-      PDF_COLORS.violetBorder,
-      PDF_COLORS.bodyStrong
-    );
+    addParagraph(selectedCase.appealReviewSummary || "-");
 
     addSectionTitle("Appeal Timeline");
-    addTimelineCards();
-    addDecisionBox();
-
-    addSectionTitle(
-      "Appealed Topics",
-      "แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมแยก Appeal Reason, Original Comment และ Revised Comment แบบใกล้เคียงหน้าเว็บ"
+    addKeyValue("Appeal Submit Date & Time", selectedCase.appealSubmitDateTime || "-", 58);
+    addKeyValue("Appeal Result Date & Time", selectedCase.appealResultDateTime || "-", 58);
+    addKeyValue("Appeal Channel", selectedCase.appealChannel || "-", 58);
+    addKeyValue(
+      "Grade Rule",
+      selectedCaseUsesNewPolicy
+        ? "Use score criteria from April 2026 onward"
+        : "Use previous score criteria",
+      58
     );
+    addKeyValue("Final Decision", "Finalized and closed", 58);
+
+    addSectionTitle("Appealed Topics");
     if (!selectedCase.appealedTopics.length) {
-      addParagraphInBox(
-        "Appealed Topics",
-        "ไม่พบหัวข้อที่มีการยื่นอุทธรณ์",
-        PDF_COLORS.cardFill,
-        PDF_COLORS.cardBorder
-      );
+      addParagraph("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
     } else {
-      selectedCase.appealedTopics.forEach((topic, index) => {
-        addAppealedTopicCard(topic, index);
+      selectedCase.appealedTopics.forEach((topic) => {
+        addTopicBlock(topic);
       });
     }
 
