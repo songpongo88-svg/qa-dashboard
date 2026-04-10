@@ -1171,23 +1171,40 @@ export default function AppealMockup({
       }
     };
 
+    const PDF_COLORS = {
+      titleFill: [76, 29, 149] as [number, number, number],
+      section: [76, 29, 149] as [number, number, number],
+      label: [91, 33, 182] as [number, number, number],
+      body: [31, 41, 55] as [number, number, number],
+      bodyStrong: [15, 23, 42] as [number, number, number],
+      muted: [71, 85, 105] as [number, number, number],
+      divider: [196, 181, 253] as [number, number, number],
+      appealReason: [146, 64, 14] as [number, number, number],
+      originalComment: [12, 74, 110] as [number, number, number],
+      revisedComment: [88, 28, 135] as [number, number, number],
+    };
+
     const addSectionTitle = (text: string) => {
-      ensureSpace(12);
+      ensureSpace(14);
       setPdfFont(doc, "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(88, 28, 135);
+      doc.setFontSize(13);
+      doc.setTextColor(PDF_COLORS.section[0], PDF_COLORS.section[1], PDF_COLORS.section[2]);
       doc.text(text, left, y);
-      y += 8;
+      doc.setDrawColor(PDF_COLORS.divider[0], PDF_COLORS.divider[1], PDF_COLORS.divider[2]);
+      doc.setLineWidth(0.5);
+      doc.line(left, y + 1.5, right, y + 1.5);
+      y += 9;
     };
 
     const addLine = (
       text: string,
-      size = 10,
-      color: [number, number, number] = [51, 65, 85],
-      gap = 6
+      size = 10.5,
+      color: [number, number, number] = PDF_COLORS.body,
+      gap = 6,
+      style: "normal" | "bold" = "normal"
     ) => {
       ensureSpace(10);
-      setPdfFont(doc, "normal");
+      setPdfFont(doc, style);
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
       const lines = doc.splitTextToSize(text || "-", contentWidth);
@@ -1198,22 +1215,23 @@ export default function AppealMockup({
     const addLabelValue = (label: string, value: string) => {
       ensureSpace(8);
       setPdfFont(doc, "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(88, 28, 135);
+      doc.setFontSize(10.5);
+      doc.setTextColor(PDF_COLORS.label[0], PDF_COLORS.label[1], PDF_COLORS.label[2]);
       doc.text(label, left, y);
 
       setPdfFont(doc, "normal");
-      doc.setTextColor(51, 65, 85);
+      doc.setFontSize(10.5);
+      doc.setTextColor(PDF_COLORS.body[0], PDF_COLORS.body[1], PDF_COLORS.body[2]);
       const lines = doc.splitTextToSize(value || "-", contentWidth - 42);
       doc.text(lines, left + 42, y);
       y += Math.max(6, lines.length * 5);
     };
 
-    doc.setFillColor(91, 33, 182);
+    doc.setFillColor(PDF_COLORS.titleFill[0], PDF_COLORS.titleFill[1], PDF_COLORS.titleFill[2]);
     doc.roundedRect(left, y, contentWidth, 18, 3, 3, "F");
     doc.setTextColor(255, 255, 255);
     setPdfFont(doc, "bold");
-    doc.setFontSize(18);
+    doc.setFontSize(19);
     doc.text("Robinhood QA Appeal Result", left + 6, y + 11);
     y += 26;
 
@@ -1249,20 +1267,21 @@ export default function AppealMockup({
     } else {
       selectedCase.appealedTopics.forEach((topic, index) => {
         ensureSpace(28);
-        addLine(`${index + 1}. ${topic.code} ${topic.label}`, 10, [15, 23, 42], 4);
+        addLine(`${index + 1}. ${topic.code} ${topic.label}`, 11, PDF_COLORS.bodyStrong, 4, "bold");
         addLine(
           `Original Score: ${Number(topic.originalScore ?? 0)} | Revised Score: ${Number(
             topic.score
           )}`,
-          9,
-          [71, 85, 105],
-          4
+          9.5,
+          PDF_COLORS.muted,
+          4,
+          "bold"
         );
         if (topic.appealReason) {
-          addLine(`Appeal Reason: ${topic.appealReason}`, 9, [71, 85, 105], 4);
+          addLine(`Appeal Reason: ${topic.appealReason}`, 9.5, PDF_COLORS.appealReason, 4, "bold");
         }
-        addLine(`Original Comment: ${topic.originalComment || "-"}`, 9, [71, 85, 105], 4);
-        addLine(`Revised Comment: ${topic.comment || "-"}`, 9, [71, 85, 105], 6);
+        addLine(`Original Comment: ${topic.originalComment || "-"}`, 9.5, PDF_COLORS.originalComment, 4, "bold");
+        addLine(`Revised Comment: ${topic.comment || "-"}`, 9.5, PDF_COLORS.revisedComment, 6, "bold");
       });
     }
 
