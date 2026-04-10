@@ -625,162 +625,93 @@ function QuickCaseCard({
   );
 }
 
-function TopicAppealCard({
-  topic,
-  originalGrade,
-  revisedGrade,
+function AppealedTopicsTable({
+  topics,
 }: {
-  topic: Topic;
-  originalGrade: Grade;
-  revisedGrade: Grade;
+  topics: Topic[];
 }) {
-  const originalScore = Number(topic.originalScore ?? topic.score);
-  const revisedScore = Number(topic.score);
-  const diff = revisedScore - originalScore;
-  const commentChanged = hasMeaningfulTextChange(topic.originalComment, topic.comment);
-  const statusTone = topicScoreStatusTone(originalScore, revisedScore);
-  const gradeToneBadge = gradeShiftTone(originalGrade, revisedGrade);
-  const diffPrefix = diff > 0 ? "+" : "";
-
   return (
-    <div className="group relative overflow-hidden rounded-[28px] border border-violet-200/90 bg-white shadow-[0_14px_34px_rgba(76,29,149,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(76,29,149,0.12)]">
-      {isSongkranThemeActive() ? (
-        <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
-      ) : null}
+    <div className="overflow-hidden rounded-[28px] border border-violet-200/90 bg-white shadow-[0_14px_34px_rgba(76,29,149,0.08)]">
+      <div className="h-1 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-cyan-400" />
+      <div className="overflow-x-auto">
+        <table className="min-w-[1240px] w-full text-sm">
+          <thead>
+            <tr className="bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 text-[11px] uppercase tracking-[0.16em] text-white">
+              <th className="px-4 py-4 text-left">Topic</th>
+              <th className="px-4 py-4 text-left">Description</th>
+              <th className="px-4 py-4 text-center">Original</th>
+              <th className="px-4 py-4 text-center">Final</th>
+              <th className="px-4 py-4 text-center">Change</th>
+              <th className="px-4 py-4 text-center">Status</th>
+              <th className="px-4 py-4 text-left">Appeal Reason</th>
+              <th className="px-4 py-4 text-left">Original Comment</th>
+              <th className="px-4 py-4 text-left">Revised Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topics.map((topic) => {
+              const originalScore = Number(topic.originalScore ?? topic.score);
+              const revisedScore = Number(topic.score);
+              const diff = revisedScore - originalScore;
+              const diffPrefix = diff > 0 ? "+" : "";
+              const statusTone = topicScoreStatusTone(originalScore, revisedScore);
+              const commentChanged = hasMeaningfulTextChange(topic.originalComment, topic.comment);
 
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-cyan-400" />
-
-      <div
-        className={`border-b px-5 py-4 ${
-          isSongkranThemeActive()
-            ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50"
-            : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
-        }`}
-      >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">
-              Topic {topic.code}
-            </div>
-            <div className="mt-1 text-lg font-extrabold tracking-tight text-slate-900">
-              {topic.label}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${statusTone.className}`}
-            >
-              {statusTone.label}
-            </span>
-            <span
-              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${gradeToneBadge.className}`}
-            >
-              {gradeToneBadge.label}
-            </span>
-            <span
-              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
-                commentChanged
-                  ? "border-violet-200 bg-violet-50 text-violet-700"
-                  : "border-slate-200 bg-slate-50 text-slate-600"
-              }`}
-            >
-              {commentChanged ? "Comment Updated" : "Comment Maintained"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-5 lg:p-6">
-        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.9fr_0.9fr]">
-          <div className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-gradient-to-br from-white via-violet-50/70 to-fuchsia-50/80 p-5 shadow-[0_10px_24px_rgba(109,40,217,0.08)]">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-              Score Flow
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="min-w-[74px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                  Original
-                </div>
-                <div className="mt-1 text-3xl font-extrabold text-slate-900">{originalScore}</div>
-              </div>
-
-              <div className="flex items-center justify-center text-xl font-black text-violet-400">→</div>
-
-              <div className="min-w-[74px] rounded-2xl border border-violet-300 bg-violet-600 px-4 py-3 text-center shadow-[0_10px_24px_rgba(109,40,217,0.20)]">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-100">
-                  Revised
-                </div>
-                <div className="mt-1 text-3xl font-extrabold text-white">{revisedScore}</div>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-              <span className="font-semibold text-slate-500">Change</span>
-              <span
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusTone.className}`}
-              >
-                {diff === 0 ? "0 point" : `${diffPrefix}${diff} point${Math.abs(diff) > 1 ? "s" : ""}`}
-              </span>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Case Grade Impact
-            </div>
-            <div className="mt-4 flex items-center gap-3">
-              <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${gradeTone(originalGrade)}`}>
-                {originalGrade}
-              </span>
-              <span className="text-slate-300">→</span>
-              <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${gradeTone(revisedGrade)}`}>
-                {revisedGrade}
-              </span>
-            </div>
-            <div className="mt-4 text-xs leading-5 text-slate-500">
-              Shows overall case grade before and after the appeal result.
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50 p-5 shadow-[0_10px_24px_rgba(245,158,11,0.08)]">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
-              Appeal Reason
-            </div>
-            <div className="mt-3 line-clamp-6 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-              {topic.appealReason || "No appeal reason"}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-4 xl:grid-cols-2">
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50/90 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Original Comment
-              </div>
-              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-                Before Appeal
-              </span>
-            </div>
-            <div className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-700">
-              {topic.originalComment || "No original comment"}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50/90 via-white to-fuchsia-50/90 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                Revised Comment
-              </div>
-              <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-violet-700">
-                Final Decision
-              </span>
-            </div>
-            <div className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-              {topic.comment || "No revised comment"}
-            </div>
-          </div>
-        </div>
+              return (
+                <tr key={topic.code} className="align-top bg-white">
+                  <td className="border-t border-violet-100 px-4 py-4">
+                    <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                      {topic.code}
+                    </span>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 font-semibold text-slate-900">
+                    {topic.label}
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-center">
+                    <div className="inline-flex min-w-[72px] justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 font-extrabold text-slate-900">
+                      {originalScore}
+                    </div>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-center">
+                    <div className="inline-flex min-w-[72px] justify-center rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 font-extrabold text-violet-700">
+                      {revisedScore}
+                    </div>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-center">
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusTone.className}`}>
+                      {diff === 0 ? "0" : `${diffPrefix}${diff}`}
+                    </span>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusTone.className}`}>
+                        {statusTone.label}
+                      </span>
+                      <span
+                        className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                          commentChanged
+                            ? "border-violet-200 bg-violet-50 text-violet-700"
+                            : "border-slate-200 bg-slate-50 text-slate-600"
+                        }`}
+                      >
+                        {commentChanged ? "Comment Updated" : "Comment Maintained"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-700">
+                    <div className="max-w-[300px] whitespace-pre-line">{topic.appealReason || "-"}</div>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-700">
+                    <div className="max-w-[360px] whitespace-pre-line">{topic.originalComment || "-"}</div>
+                  </td>
+                  <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-800">
+                    <div className="max-w-[360px] whitespace-pre-line">{topic.comment || "-"}</div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -1195,6 +1126,13 @@ export default function AppealMockup({
     filteredCases.find((item) => item.key === selectedCaseKey) || filteredCases[0] || null;
 
   const selectedCaseUsesNewPolicy = selectedCase ? isNewPolicyMonth(selectedCase.monthKey) : false;
+  const selectedCaseOriginalGrade = selectedCase
+    ? scoreToGrade(selectedCase.previousScore, selectedCase.monthKey)
+    : null;
+  const selectedCaseGradeShift =
+    selectedCase && selectedCaseOriginalGrade
+      ? gradeShiftTone(selectedCaseOriginalGrade, selectedCase.grade)
+      : null;
 
   const handleGeneratePdf = () => {
     if (!selectedCase) return;
@@ -1266,13 +1204,15 @@ export default function AppealMockup({
     addLabelValue("Appeal Submit", selectedCase.appealSubmitDateTime || "-");
     addLabelValue("Appeal Result", selectedCase.appealResultDateTime || "-");
     addLabelValue("Appeal Channel", selectedCase.appealChannel || "-");
-    addLabelValue("Appeal Version", selectedCase.appealVersion || "-");
     addLabelValue("Month Key", selectedCase.monthKey || "-");
     addLabelValue(
       "Score",
       `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`
     );
-    addLabelValue("Grade", selectedCase.grade);
+    addLabelValue(
+      "Grade",
+      `${scoreToGrade(selectedCase.previousScore, selectedCase.monthKey)} → ${selectedCase.grade}`
+    );
 
     addSectionTitle("Customer Inquiry");
     addLine(selectedCase.inquiry || "-");
@@ -1422,9 +1362,13 @@ export default function AppealMockup({
                   value={selectedCase.grade}
                   tone={gradeTone(selectedCase.grade)}
                   sub={
-                    selectedCaseUsesNewPolicy
-                      ? `${selectedCase.reviewStatus} • New Criteria`
-                      : `${selectedCase.reviewStatus} • Previous Criteria`
+                    selectedCaseGradeShift
+                      ? `${selectedCaseGradeShift.label} • ${
+                          selectedCaseUsesNewPolicy ? "New Criteria" : "Previous Criteria"
+                        }`
+                      : selectedCaseUsesNewPolicy
+                        ? `${selectedCase.reviewStatus} • New Criteria`
+                        : `${selectedCase.reviewStatus} • Previous Criteria`
                   }
                 />
               </div>
@@ -1470,15 +1414,6 @@ export default function AppealMockup({
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
                           {selectedCase.weekLabel || "-"}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Appeal Version
-                        </div>
-                        <div className="mt-2 text-sm font-bold text-slate-900">
-                          {selectedCase.appealVersion || "-"}
                         </div>
                       </div>
 
@@ -1619,12 +1554,50 @@ export default function AppealMockup({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {selectedCase.appealedTopics.map((topic) => (
-                        <TopicAppealCard
-                          key={`${selectedCase.caseId}-${topic.code}`}
-                          topic={topic}
-                        />
-                      ))}
+                      <div className="grid gap-4 lg:grid-cols-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Appealed Topics
+                          </div>
+                          <div className="mt-2 text-2xl font-extrabold text-slate-900">
+                            {selectedCase.appealedTopics.length}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Score Flow
+                          </div>
+                          <div className="mt-2 text-lg font-extrabold text-slate-900">
+                            {selectedCase.previousScore.toFixed(2)}
+                            <span className="mx-2 text-slate-300">→</span>
+                            <span className="text-violet-700">{selectedCase.finalScore.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Grade Flow
+                          </div>
+                          <div className="mt-2 flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                            <span className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedCaseOriginalGrade || selectedCase.grade)}`}>
+                              {selectedCaseOriginalGrade || selectedCase.grade}
+                            </span>
+                            <span className="text-slate-300">→</span>
+                            <span className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedCase.grade)}`}>
+                              {selectedCase.grade}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                            Grade Result
+                          </div>
+                          <div className="mt-2 text-sm font-bold text-violet-700">
+                            {selectedCaseGradeShift ? selectedCaseGradeShift.label : `${selectedCase.grade}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <AppealedTopicsTable topics={selectedCase.appealedTopics} />
                     </div>
                   )}
                 </PanelBody>
