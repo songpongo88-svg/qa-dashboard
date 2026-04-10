@@ -1962,75 +1962,148 @@ function SlideOverCaseDetail({
       const usingThaiFont = setPdfFont("normal");
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 12;
+      const margin = 14;
       const contentWidth = pageWidth - margin * 2;
       let y = 14;
 
       const ensureSpace = (needed = 16) => {
-        if (y + needed > pageHeight - 12) {
+        if (y + needed > pageHeight - 14) {
           doc.addPage();
           setPdfFont("normal");
           y = 14;
         }
       };
 
+      const drawDivider = () => {
+        doc.setDrawColor(210, 214, 220);
+        doc.setLineWidth(0.35);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 5;
+      };
+
       const drawSectionTitle = (title: string) => {
         ensureSpace(12);
         setPdfFont("bold");
-        doc.setFontSize(18);
-        doc.setTextColor(20, 20, 20);
+        doc.setFontSize(17);
+        doc.setTextColor(15, 23, 42);
         doc.text(title, margin, y);
+        y += 4;
+        drawDivider();
+      };
+
+      const drawField = (label: string, value: string) => {
+        ensureSpace(12);
+        setPdfFont("bold");
+        doc.setFontSize(14);
+        doc.setTextColor(75, 85, 99);
+        doc.text(label, margin, y);
         y += 5;
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.4);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 6;
+
+        const safe = (value || "-").toString();
+        const lines = doc.splitTextToSize(safe, contentWidth);
+        setPdfFont("normal");
+        doc.setFontSize(15);
+        doc.setTextColor(17, 24, 39);
+        doc.text(lines, margin, y);
+        y += lines.length * 5 + 3;
       };
 
-      const drawLabelValue = (label: string, value: string, x: number, width: number) => {
-        const safeValue = (value || "-").toString();
+      const drawTwoColRow = (
+        leftLabel: string,
+        leftValue: string,
+        rightLabel: string,
+        rightValue: string
+      ) => {
+        ensureSpace(16);
+        const colGap = 8;
+        const colWidth = (contentWidth - colGap) / 2;
+        const leftX = margin;
+        const rightX = margin + colWidth + colGap;
+        const rowTop = y;
+
         setPdfFont("bold");
-        doc.setFontSize(14);
-        doc.setTextColor(71, 85, 105);
-        doc.text(label, x, y);
-        const lines = doc.splitTextToSize(safeValue, width);
+        doc.setFontSize(13);
+        doc.setTextColor(100, 116, 139);
+        doc.text(leftLabel, leftX, rowTop);
+        doc.text(rightLabel, rightX, rowTop);
+
+        const leftLines = doc.splitTextToSize((leftValue || "-").toString(), colWidth);
+        const rightLines = doc.splitTextToSize((rightValue || "-").toString(), colWidth);
+
         setPdfFont("normal");
         doc.setFontSize(15);
         doc.setTextColor(15, 23, 42);
-        doc.text(lines, x, y + 5);
-        return Math.max(12, 5 + lines.length * 5);
+        doc.text(leftLines, leftX, rowTop + 5);
+        doc.text(rightLines, rightX, rowTop + 5);
+
+        y = rowTop + 5 + Math.max(leftLines.length, rightLines.length) * 5 + 3;
       };
 
-      const drawParagraphBlock = (title: string, value: string) => {
-        ensureSpace(18);
-        const textLines = doc.splitTextToSize((value || "-").toString(), contentWidth - 8);
-        const boxH = Math.max(16, 10 + textLines.length * 5);
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin, y, contentWidth, boxH, 3, 3, "FD");
+      const drawGradeScoreLine = () => {
+        ensureSpace(12);
+        const scoreColor = pdfScoreStyle(caseItem.finalScore);
+        const gradeColor = pdfGradeStyle(caseItem.grade);
+
         setPdfFont("bold");
         doc.setFontSize(14);
-        doc.setTextColor(71, 85, 105);
-        doc.text(title, margin + 4, y + 6);
-        setPdfFont("normal");
-        doc.setFontSize(15);
-        doc.setTextColor(15, 23, 42);
-        doc.text(textLines, margin + 4, y + 12);
-        y += boxH + 6;
-      };
+        doc.setTextColor(75, 85, 99);
+        doc.text("Grade", margin, y);
+        doc.text("Final Score", margin + 50, y);
 
-      const drawScoreBadge = (x: number, topY: number, title: string, value: string, fill: [number, number, number], textColor: [number, number, number], border: [number, number, number]) => {
-        doc.setFillColor(fill[0], fill[1], fill[2]);
-        doc.setDrawColor(border[0], border[1], border[2]);
-        doc.roundedRect(x, topY, 42, 18, 3, 3, "FD");
-        setPdfFont("bold");
-        doc.setFontSize(11);
-        doc.setTextColor(71, 85, 105);
-        doc.text(title, x + 3, topY + 5);
+        if (typeof caseItem.previousScore === "number") {
+          doc.text("Original Score", margin + 105, y);
+        }
+
+        y += 5;
+
         setPdfFont("bold");
         doc.setFontSize(18);
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.text(value, x + 3, topY + 13);
+        doc.setTextColor(gradeColor.text[0], gradeColor.text[1], gradeColor.text[2]);
+        doc.text(caseItem.grade || "-", margin, y);
+
+        doc.setTextColor(scoreColor.text[0], scoreColor.text[1], scoreColor.text[2]);
+        doc.text(Number(caseItem.finalScore || 0).toFixed(2), margin + 50, y);
+
+        if (typeof caseItem.previousScore === "number") {
+          const prevColor = pdfScoreStyle(caseItem.previousScore);
+          doc.setTextColor(prevColor.text[0], prevColor.text[1], prevColor.text[2]);
+          doc.text(Number(caseItem.previousScore || 0).toFixed(2), margin + 105, y);
+        }
+
+        y += 5;
+        drawDivider();
+      };
+
+      const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null) => {
+        ensureSpace(24);
+
+        setPdfFont("bold");
+        doc.setFontSize(15);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${topic.code} ${topic.label}`, margin, y);
+        y += 5;
+
+        if (revisedTopic && caseItem.reviewStatus === "Revised") {
+          drawTwoColRow(
+            "Original Score",
+            Number(topic.score || 0).toFixed(2),
+            "Revised Score",
+            Number(revisedTopic.score || 0).toFixed(2)
+          );
+
+          drawField("Original Comment", topic.comment || "-");
+          drawField("Revised Comment", revisedTopic.comment || "-");
+        } else {
+          drawTwoColRow(
+            "Score",
+            Number(topic.score || 0).toFixed(2),
+            "Max Score",
+            Number(topic.max || 0).toFixed(2)
+          );
+          drawField("Comment", topic.comment || "-");
+        }
+
+        drawDivider();
       };
 
       if (!usingThaiFont) {
@@ -2044,121 +2117,41 @@ function SlideOverCaseDetail({
       const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
       if (logoDataUrl) {
         try {
-          doc.addImage(logoDataUrl, "PNG", margin, y, 14, 14);
+          doc.addImage(logoDataUrl, "PNG", margin, y, 12, 12);
         } catch {}
       }
 
       setPdfFont("bold");
       doc.setFontSize(18);
-      doc.setTextColor(20, 20, 20);
-      doc.text("Robinhood QA", margin + 18, y + 5);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Robinhood QA", margin + 16, y + 4);
+
       setPdfFont("normal");
       doc.setFontSize(11);
-      doc.setTextColor(90, 90, 90);
-      doc.text("Case Detail Report", margin + 18, y + 11);
-      y += 20;
+      doc.setTextColor(100, 116, 139);
+      doc.text("Case Detail Report", margin + 16, y + 10);
+
+      y += 18;
+      drawDivider();
 
       drawSectionTitle("Case Overview");
-
-      const startY = y;
-      const leftColX = margin;
-      const rightColX = margin + contentWidth / 2 + 4;
-      const colWidth = contentWidth / 2 - 4;
-
-      const h1 = drawLabelValue("Case ID", caseItem.caseId || "-", leftColX, colWidth);
-      const h2 = drawLabelValue("Agent", caseItem.agent || "-", rightColX, colWidth);
-      y = startY + Math.max(h1, h2);
-
-      const row2 = y;
-      const h3 = drawLabelValue("Audit Date", caseItem.auditDate || "-", leftColX, colWidth);
-      const h4 = drawLabelValue("Audit Timestamp", caseItem.auditTimestamp || "-", rightColX, colWidth);
-      y = row2 + Math.max(h3, h4);
-
-      const row3 = y;
-      const h5 = drawLabelValue("Month", caseItem.monthLabel || caseItem.monthKey || "-", leftColX, colWidth);
-      const h6 = drawLabelValue("Week", caseItem.weekLabel || "-", rightColX, colWidth);
-      y = row3 + Math.max(h5, h6);
-
-      const row4 = y;
-      const h7 = drawLabelValue("Review Status", caseItem.reviewStatus || "-", leftColX, colWidth);
-      const h8 = drawLabelValue("Case URL", caseItem.caseUrl || "-", rightColX, colWidth);
-      y = row4 + Math.max(h7, h8) + 2;
-
-      ensureSpace(24);
-      const gradeStyle = pdfGradeStyle(caseItem.grade);
-      const scoreStyle = pdfScoreStyle(caseItem.finalScore);
-      drawScoreBadge(margin, y, "Grade", caseItem.grade || "-", gradeStyle.fill as [number, number, number], gradeStyle.text as [number, number, number], gradeStyle.border as [number, number, number]);
-      drawScoreBadge(margin + 46, y, "Final Score", Number(caseItem.finalScore || 0).toFixed(2), scoreStyle.fill as [number, number, number], scoreStyle.text as [number, number, number], scoreStyle.border as [number, number, number]);
-      if (typeof caseItem.previousScore === "number") {
-        const prevStyle = pdfScoreStyle(caseItem.previousScore);
-        drawScoreBadge(margin + 92, y, "Original Score", Number(caseItem.previousScore || 0).toFixed(2), prevStyle.fill as [number, number, number], prevStyle.text as [number, number, number], prevStyle.border as [number, number, number]);
-      }
-      y += 24;
+      drawTwoColRow("Case ID", caseItem.caseId || "-", "Agent", caseItem.agent || "-");
+      drawTwoColRow("Audit Date", caseItem.auditDate || "-", "Audit Timestamp", caseItem.auditTimestamp || "-");
+      drawTwoColRow("Month", caseItem.monthLabel || caseItem.monthKey || "-", "Week", caseItem.weekLabel || "-");
+      drawTwoColRow("Review Status", caseItem.reviewStatus || "-", "Case URL", caseItem.caseUrl || "-");
+      drawGradeScoreLine();
 
       drawSectionTitle("Customer Inquiry");
-      drawParagraphBlock("Inquiry", caseItem.inquiryTh || caseItem.inquiryEn || "-");
+      drawField("Inquiry", caseItem.inquiryTh || caseItem.inquiryEn || "-");
 
       drawSectionTitle("Case Description");
-      drawParagraphBlock("Description", caseItem.caseDescription || "-");
+      drawField("Description", caseItem.caseDescription || "-");
 
       drawSectionTitle("Topic Detail");
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
-
       (caseItem.topics || []).forEach((topic) => {
         const revisedTopic = revisedMap.get(topic.code);
-        ensureSpace(28);
-        setPdfFont("bold");
-        doc.setFontSize(16);
-        doc.setTextColor(20, 20, 20);
-        doc.text(`${topic.code} ${topic.label}`, margin, y);
-        y += 6;
-
-        if (revisedTopic && caseItem.reviewStatus === "Revised") {
-          setPdfFont("bold");
-          doc.setFontSize(13);
-          doc.setTextColor(71, 85, 105);
-          doc.text(`Original Score: ${Number(topic.score || 0).toFixed(2)}   Revised Score: ${Number(revisedTopic.score || 0).toFixed(2)}`, margin, y);
-          y += 6;
-
-          const originalLines = doc.splitTextToSize(`Original Comment: ${topic.comment || "-"}`, contentWidth - 8);
-          const originalH = Math.max(16, 10 + originalLines.length * 5);
-          doc.setDrawColor(226, 232, 240);
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(margin, y, contentWidth, originalH, 3, 3, "FD");
-          setPdfFont("normal");
-          doc.setFontSize(14);
-          doc.setTextColor(15, 23, 42);
-          doc.text(originalLines, margin + 4, y + 7);
-          y += originalH + 4;
-
-          const revisedLines = doc.splitTextToSize(`Revised Comment: ${revisedTopic.comment || "-"}`, contentWidth - 8);
-          const revisedH = Math.max(16, 10 + revisedLines.length * 5);
-          doc.setDrawColor(226, 232, 240);
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(margin, y, contentWidth, revisedH, 3, 3, "FD");
-          setPdfFont("normal");
-          doc.setFontSize(14);
-          doc.setTextColor(15, 23, 42);
-          doc.text(revisedLines, margin + 4, y + 7);
-          y += revisedH + 6;
-        } else {
-          setPdfFont("bold");
-          doc.setFontSize(13);
-          doc.setTextColor(71, 85, 105);
-          doc.text(`Score: ${Number(topic.score || 0).toFixed(2)}`, margin, y);
-          y += 6;
-
-          const commentLines = doc.splitTextToSize(`Comment: ${topic.comment || "-"}`, contentWidth - 8);
-          const boxH = Math.max(16, 10 + commentLines.length * 5);
-          doc.setDrawColor(226, 232, 240);
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(margin, y, contentWidth, boxH, 3, 3, "FD");
-          setPdfFont("normal");
-          doc.setFontSize(14);
-          doc.setTextColor(15, 23, 42);
-          doc.text(commentLines, margin + 4, y + 7);
-          y += boxH + 6;
-        }
+        drawTopicBlock(topic, revisedTopic);
       });
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
