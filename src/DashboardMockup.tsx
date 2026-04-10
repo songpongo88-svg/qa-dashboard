@@ -1940,6 +1940,8 @@ function SlideOverCaseDetail({
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 14;
       const contentWidth = pageWidth - margin * 2;
+      const lineHeight = 5;
+      const labelGap = 5;
       let y = 14;
 
       const ensureSpace = (needed = 16) => {
@@ -1950,11 +1952,12 @@ function SlideOverCaseDetail({
         }
       };
 
-      const drawDivider = () => {
+      const drawDivider = (gapBefore = 0, gapAfter = 5) => {
+        if (gapBefore > 0) y += gapBefore;
         doc.setDrawColor(210, 214, 220);
         doc.setLineWidth(0.35);
         doc.line(margin, y, pageWidth - margin, y);
-        y += 5;
+        y += gapAfter;
       };
 
       const drawSectionTitle = (title: string) => {
@@ -2073,7 +2076,7 @@ function SlideOverCaseDetail({
       ) => {
         const safe = (value || "-").toString();
         const lines = doc.splitTextToSize(safe, contentWidth);
-        const needed = labelGap + Math.max(lineHeight, lines.length * lineHeight) + 3;
+        const needed = labelGap + Math.max(lineHeight, lines.length * lineHeight) + 4;
         ensureSpace(needed);
 
         setPdfFont("bold");
