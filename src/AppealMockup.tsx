@@ -699,13 +699,28 @@ function AppealedTopicsTable({
                     </div>
                   </td>
                   <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-700">
-                    <div className="max-w-[300px] whitespace-pre-line">{topic.appealReason || "-"}</div>
+                    <div className="max-w-[320px] rounded-[20px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50 px-4 py-3 shadow-[0_8px_20px_rgba(245,158,11,0.08)]">
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">
+                        Appeal Reason
+                      </div>
+                      <div className="whitespace-pre-line text-[13px] leading-6 text-slate-700">{topic.appealReason || "-"}</div>
+                    </div>
                   </td>
                   <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-700">
-                    <div className="max-w-[360px] whitespace-pre-line">{topic.originalComment || "-"}</div>
+                    <div className="max-w-[380px] rounded-[20px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50 px-4 py-3 shadow-[0_8px_20px_rgba(71,85,105,0.06)]">
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                        Original Comment
+                      </div>
+                      <div className="whitespace-pre-line text-[13px] leading-6 text-slate-700">{topic.originalComment || "-"}</div>
+                    </div>
                   </td>
                   <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-800">
-                    <div className="max-w-[360px] whitespace-pre-line">{topic.comment || "-"}</div>
+                    <div className="max-w-[380px] rounded-[20px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-3 shadow-[0_10px_22px_rgba(109,40,217,0.08)]">
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
+                        Revised Comment
+                      </div>
+                      <div className="whitespace-pre-line text-[13px] leading-6 text-slate-800">{topic.comment || "-"}</div>
+                    </div>
                   </td>
                 </tr>
               );
@@ -1134,10 +1149,21 @@ export default function AppealMockup({
       ? gradeShiftTone(selectedCaseOriginalGrade, selectedCase.grade)
       : null;
 
+  const setPdfFont = (doc: jsPDF, style: "normal" | "bold" = "normal") => {
+    try {
+      doc.setFont("THSarabunNew", style);
+      return true;
+    } catch {
+      doc.setFont("helvetica", style);
+      return false;
+    }
+  };
+
   const handleGeneratePdf = () => {
     if (!selectedCase) return;
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const usingThaiFont = setPdfFont(doc, "normal");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const left = 16;
@@ -1154,7 +1180,7 @@ export default function AppealMockup({
 
     const addSectionTitle = (text: string) => {
       ensureSpace(12);
-      doc.setFont("helvetica", "bold");
+      setPdfFont(doc, "bold");
       doc.setFontSize(12);
       doc.setTextColor(88, 28, 135);
       doc.text(text, left, y);
@@ -1168,7 +1194,7 @@ export default function AppealMockup({
       gap = 6
     ) => {
       ensureSpace(10);
-      doc.setFont("helvetica", "normal");
+      setPdfFont(doc, "normal");
       doc.setFontSize(size);
       doc.setTextColor(color[0], color[1], color[2]);
       const lines = doc.splitTextToSize(text || "-", contentWidth);
@@ -1178,12 +1204,12 @@ export default function AppealMockup({
 
     const addLabelValue = (label: string, value: string) => {
       ensureSpace(8);
-      doc.setFont("helvetica", "bold");
+      setPdfFont(doc, "bold");
       doc.setFontSize(10);
       doc.setTextColor(88, 28, 135);
       doc.text(label, left, y);
 
-      doc.setFont("helvetica", "normal");
+      setPdfFont(doc, "normal");
       doc.setTextColor(51, 65, 85);
       const lines = doc.splitTextToSize(value || "-", contentWidth - 42);
       doc.text(lines, left + 42, y);
@@ -1193,10 +1219,14 @@ export default function AppealMockup({
     doc.setFillColor(91, 33, 182);
     doc.roundedRect(left, y, contentWidth, 18, 3, 3, "F");
     doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
+    setPdfFont(doc, "bold");
     doc.setFontSize(18);
     doc.text("Robinhood QA Appeal Result", left + 6, y + 11);
     y += 26;
+
+    if (!usingThaiFont) {
+      addLine("Note: TH Sarabun font is not embedded yet. PDF is using fallback font.", 9, [180, 83, 9], 4);
+    }
 
     addLabelValue("Case ID", selectedCase.caseId);
     addLabelValue("Agent", selectedCase.agent);
