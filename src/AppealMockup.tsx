@@ -698,28 +698,19 @@ function AppealedTopicsTable({
                       </span>
                     </div>
                   </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-700">
-                    <div className="max-w-[320px] rounded-[20px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50 px-4 py-3 shadow-[0_8px_20px_rgba(245,158,11,0.08)]">
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">
-                        Appeal Reason
-                      </div>
-                      <div className="whitespace-pre-line text-[13px] leading-6 font-medium text-amber-950">{topic.appealReason || "-"}</div>
+                  <td className="border-t border-violet-100 px-4 py-4 align-top">
+                    <div className="max-w-[320px] whitespace-pre-line text-[13px] font-semibold leading-6 text-amber-900">
+                      {topic.appealReason || "-"}
                     </div>
                   </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-700">
-                    <div className="max-w-[380px] rounded-[20px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50 px-4 py-3 shadow-[0_8px_20px_rgba(71,85,105,0.06)]">
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                        Original Comment
-                      </div>
-                      <div className="whitespace-pre-line text-[13px] leading-6 text-sky-950">{topic.originalComment || "-"}</div>
+                  <td className="border-t border-violet-100 px-4 py-4 align-top">
+                    <div className="max-w-[380px] whitespace-pre-line text-[13px] font-medium leading-6 text-sky-950">
+                      {topic.originalComment || "-"}
                     </div>
                   </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-[13px] leading-6 text-slate-800">
-                    <div className="max-w-[380px] rounded-[20px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-3 shadow-[0_10px_22px_rgba(109,40,217,0.08)]">
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
-                        Revised Comment
-                      </div>
-                      <div className="whitespace-pre-line text-[13px] leading-6 font-medium text-violet-950">{topic.comment || "-"}</div>
+                  <td className="border-t border-violet-100 px-4 py-4 align-top">
+                    <div className="max-w-[380px] whitespace-pre-line text-[13px] font-semibold leading-6 text-violet-900">
+                      {topic.comment || "-"}
                     </div>
                   </td>
                 </tr>
