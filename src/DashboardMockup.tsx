@@ -1967,21 +1967,24 @@ function SlideOverCaseDetail({
         drawDivider();
       };
 
-      const drawField = (label: string, value: string) => {
-        ensureSpace(12);
-        setPdfFont("bold");
-        doc.setFontSize(14);
-        doc.setTextColor(75, 85, 99);
-        doc.text(label, margin, y);
-        y += 5;
-
+      const drawField = (label: string, value: string, labelColor?: [number, number, number]) => {
         const safe = (value || "-").toString();
         const lines = doc.splitTextToSize(safe, contentWidth);
+        const blockHeight = 5 + 2 + Math.max(lines.length, 1) * 5 + 4;
+        ensureSpace(blockHeight);
+
+        setPdfFont("bold");
+        doc.setFontSize(14);
+        const activeLabelColor = labelColor || [75, 85, 99];
+        doc.setTextColor(activeLabelColor[0], activeLabelColor[1], activeLabelColor[2]);
+        doc.text(label, margin, y);
+        y += 7;
+
         setPdfFont("normal");
         doc.setFontSize(15);
         doc.setTextColor(17, 24, 39);
         doc.text(lines, margin, y);
-        y += lines.length * 5 + 3;
+        y += Math.max(lines.length, 1) * 5 + 4;
       };
 
       const drawTwoColRow = (
@@ -1990,11 +1993,15 @@ function SlideOverCaseDetail({
         rightLabel: string,
         rightValue: string
       ) => {
-        ensureSpace(16);
         const colGap = 8;
         const colWidth = (contentWidth - colGap) / 2;
         const leftX = margin;
         const rightX = margin + colWidth + colGap;
+        const leftLines = doc.splitTextToSize((leftValue || "-").toString(), colWidth);
+        const rightLines = doc.splitTextToSize((rightValue || "-").toString(), colWidth);
+        const blockHeight = 5 + Math.max(leftLines.length, rightLines.length, 1) * 5 + 5;
+
+        ensureSpace(blockHeight);
         const rowTop = y;
 
         setPdfFont("bold");
@@ -2003,16 +2010,13 @@ function SlideOverCaseDetail({
         doc.text(leftLabel, leftX, rowTop);
         doc.text(rightLabel, rightX, rowTop);
 
-        const leftLines = doc.splitTextToSize((leftValue || "-").toString(), colWidth);
-        const rightLines = doc.splitTextToSize((rightValue || "-").toString(), colWidth);
-
         setPdfFont("normal");
         doc.setFontSize(15);
         doc.setTextColor(15, 23, 42);
-        doc.text(leftLines, leftX, rowTop + 5);
-        doc.text(rightLines, rightX, rowTop + 5);
+        doc.text(leftLines, leftX, rowTop + 6);
+        doc.text(rightLines, rightX, rowTop + 6);
 
-        y = rowTop + 5 + Math.max(leftLines.length, rightLines.length) * 5 + 3;
+        y = rowTop + 6 + Math.max(leftLines.length, rightLines.length, 1) * 5 + 4;
       };
 
       const drawGradeScoreLine = () => {
@@ -2051,32 +2055,37 @@ function SlideOverCaseDetail({
       };
 
       const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null) => {
-        ensureSpace(24);
+        const titleText = `${topic.code} ${topic.label}`;
+        const titleLines = doc.splitTextToSize(titleText, contentWidth);
+        const estimatedHeight =
+          titleLines.length * 5 +
+          (revisedTopic && caseItem.reviewStatus === "Revised" ? 34 : 22);
+        ensureSpace(estimatedHeight);
 
         setPdfFont("bold");
         doc.setFontSize(15);
         doc.setTextColor(15, 23, 42);
-        doc.text(`${topic.code} ${topic.label}`, margin, y);
-        y += 5;
+        doc.text(titleLines, margin, y);
+        y += Math.max(titleLines.length, 1) * 5 + 3;
 
         if (revisedTopic && caseItem.reviewStatus === "Revised") {
           drawTwoColRow(
             "Original Score",
-            Number(topic.score || 0).toFixed(2),
+            `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`,
             "Revised Score",
-            Number(revisedTopic.score || 0).toFixed(2)
+            `${Number(revisedTopic.score || 0).toFixed(2)} / ${Number(revisedTopic.max || 0).toFixed(2)} (${Number(revisedTopic.pct || 0).toFixed(1)}%)`
           );
 
-          drawField("Original Comment", topic.comment || "-");
-          drawField("Revised Comment", revisedTopic.comment || "-");
+          drawField("Original Comment", topic.comment || "-", [75, 85, 99]);
+          drawField("Revised Comment", revisedTopic.comment || "-", [109, 40, 217]);
         } else {
           drawTwoColRow(
             "Score",
-            Number(topic.score || 0).toFixed(2),
+            `${Number(topic.score || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`,
             "Max Score",
             Number(topic.max || 0).toFixed(2)
           );
-          drawField("Comment", topic.comment || "-");
+          drawField("Comment", topic.comment || "-", [75, 85, 99]);
         }
 
         drawDivider();
