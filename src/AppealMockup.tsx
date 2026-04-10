@@ -63,7 +63,7 @@ const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
   "Arisa Aiemrit": "2026-04",
 };
 
-const TOPIC_MASTER = [
+const LEGACY_TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
   { code: "1.3", label: "PDPA & Policy", max: 5 },
@@ -82,6 +82,30 @@ const TOPIC_MASTER = [
   { code: "5.2", label: "SLA Compliance", max: 5 },
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
+
+const APRIL_2026_TOPIC_MASTER = [
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+] as const;
+
+type TopicMasterItem = {
+  code: string;
+  label: string;
+  max: number;
+};
+
+function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
+  return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
+}
 
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -931,7 +955,9 @@ export default function AppealMockup({
               "Summary",
             ]);
 
-            const topics: Topic[] = TOPIC_MASTER.map((master) => {
+            const topicMaster = getTopicMasterByMonth(monthKey);
+
+            const topics: Topic[] = topicMaster.map((master) => {
               const originalScore =
                 Number(rawHelper.getValue(rawRow || [], `${master.code} Score`) ?? 0) || 0;
 
