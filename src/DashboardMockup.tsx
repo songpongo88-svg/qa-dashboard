@@ -622,6 +622,15 @@ function getPolicyMonthKeyForCases(cases: CaseItem[]) {
   return validMonthKeys.length ? validMonthKeys[validMonthKeys.length - 1] : "unknown";
 }
 
+function roundTo(value: number, decimals = 2) {
+  const factor = 10 ** decimals;
+  return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
+}
+
+function formatFixed(value: number, decimals = 2) {
+  return roundTo(value, decimals).toFixed(decimals);
+}
+
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
   if (!revisedTopics?.length) return topics;
   const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
@@ -658,14 +667,14 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
     return {
       code: master.code,
       label: master.label,
-      avgScore: avg.toFixed(2),
+      avgScore: formatFixed(avg, 2),
       max: master.max,
-      pct: ((avg / master.max) * 100).toFixed(2),
+      pct: formatFixed((avg / master.max) * 100, 2),
     };
   });
 
   return {
-    averageDisplay: average.toFixed(2),
+    averageDisplay: formatFixed(average, 2),
     gradeCounts,
     topicPerformance,
   };
@@ -1424,7 +1433,7 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
     const active = revisedMap.get(base.code) || base;
     return sum + active.score;
   }, 0);
-  return Number(total.toFixed(2));
+  return roundTo(total, 2);
 }
 
 function LogoHeaderBox() {
