@@ -1091,15 +1091,10 @@ export default function AppealMockup({
       return;
     }
 
-    if (selectedMonthKey === "all") {
-      setSelectedMonthKey(latestMonthKey);
-      return;
-    }
-
     if (selectedMonthKey !== "all" && !monthOptions.includes(selectedMonthKey)) {
-      setSelectedMonthKey(latestMonthKey);
+      setSelectedMonthKey("all");
     }
-  }, [monthOptions, latestMonthKey, selectedMonthKey]);
+  }, [monthOptions, selectedMonthKey]);
 
   const visibleAgentList = useMemo(() => {
     const effectiveMonthForVisibility =
@@ -1181,6 +1176,8 @@ export default function AppealMockup({
     selectedCase && selectedCaseOriginalGrade
       ? gradeShiftTone(selectedCaseOriginalGrade, selectedCase.grade)
       : null;
+
+  const currentMonthDisplayLabel = formatMonthKeyLabel(selectedMonthKey);
 
   const setPdfFont = (doc: jsPDF, style: "normal" | "bold" = "normal") => {
     try {
@@ -1445,6 +1442,22 @@ export default function AppealMockup({
 
       <AppealClosedBanner />
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[26px] border border-violet-200/80 bg-white/90 px-5 py-4 shadow-[0_10px_24px_rgba(76,29,149,0.06)] backdrop-blur-sm">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-500">
+            Current View
+          </div>
+          <div className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">
+            {currentMonthDisplayLabel}
+          </div>
+        </div>
+
+        <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-800">
+          <span className="h-2.5 w-2.5 rounded-full bg-violet-500" />
+          {filteredCases.length} case(s)
+        </div>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <Panel className="h-fit">
           <PanelHeader
@@ -1485,6 +1498,7 @@ export default function AppealMockup({
                 onChange={(e) => setSelectedMonthKey(e.target.value)}
                 className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
               >
+                <option value="all">All Months</option>
                 {monthOptions.map((monthKey) => (
                   <option key={monthKey} value={monthKey}>
                     {formatMonthKeyLabel(monthKey)}
