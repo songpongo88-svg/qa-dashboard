@@ -2139,14 +2139,8 @@ function SlideOverCaseDetail({
         drawWrappedLabelValue(hasRevised ? "Original Comment" : "Comment", originalComment);
 
         if (hasRevised) {
-          drawWrappedLabelValue("Revised Score", revisedScoreText, {
-            labelColor: [109, 40, 217],
-            textColor: [55, 48, 163],
-          });
-          drawWrappedLabelValue("Revised Comment", revisedComment, {
-            labelColor: [109, 40, 217],
-            textColor: [55, 48, 163],
-          });
+          drawWrappedLabelValue("Revised Score", revisedScoreText);
+          drawWrappedLabelValue("Revised Comment", revisedComment);
         }
 
         drawDivider(1.5, 6);
@@ -2193,11 +2187,12 @@ function SlideOverCaseDetail({
       drawSectionTitle("Case Description");
       drawField("Description", caseItem.caseDescription || "-");
 
+      drawSectionTitle("Topic Detail");
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
-      validTopics.forEach((topic, index) => {
+      validTopics.forEach((topic) => {
         const revisedTopic = revisedMap.get(topic.code);
-        drawTopicBlock(topic, revisedTopic, true);
+        drawTopicBlock(topic, revisedTopic, false);
       });
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
