@@ -1942,49 +1942,62 @@ function SlideOverCaseDetail({
       const contentWidth = pageWidth - margin * 2;
       let y = 14;
 
+      const lineHeight = 5.4;
+      const labelGap = 4.8;
+      const sectionGap = 7;
+
       const ensureSpace = (needed = 16) => {
         if (y + needed > pageHeight - 14) {
           doc.addPage();
+          registerTHSarabunNew(doc as any);
           setPdfFont("normal");
           y = 14;
         }
       };
 
-      const drawDivider = () => {
+      const drawDivider = (gapBefore = 2, gapAfter = 5) => {
+        y += gapBefore;
+        ensureSpace(4);
         doc.setDrawColor(210, 214, 220);
         doc.setLineWidth(0.35);
         doc.line(margin, y, pageWidth - margin, y);
-        y += 5;
+        y += gapAfter;
       };
 
       const drawSectionTitle = (title: string) => {
-        ensureSpace(12);
+        ensureSpace(18);
         setPdfFont("bold");
         doc.setFontSize(17);
         doc.setTextColor(15, 23, 42);
-        doc.text(title, margin, y);
-        y += 4;
-        drawDivider();
+        const titleLines = doc.splitTextToSize(title, contentWidth);
+        doc.text(titleLines, margin, y);
+        y += titleLines.length * 6;
+        drawDivider(1.5, 5.5);
       };
 
-      const drawField = (label: string, value: string, labelColor?: [number, number, number]) => {
+      const drawParagraphBlock = (
+        label: string,
+        value: string,
+        options?: { labelColor?: [number, number, number]; textColor?: [number, number, number] }
+      ) => {
         const safe = (value || "-").toString();
         const lines = doc.splitTextToSize(safe, contentWidth);
-        const blockHeight = 5 + 2 + Math.max(lines.length, 1) * 5 + 4;
-        ensureSpace(blockHeight);
+        const needed = labelGap + Math.max(lineHeight, lines.length * lineHeight) + 3;
+        ensureSpace(needed);
 
         setPdfFont("bold");
         doc.setFontSize(14);
-        const activeLabelColor = labelColor || [75, 85, 99];
-        doc.setTextColor(activeLabelColor[0], activeLabelColor[1], activeLabelColor[2]);
+        const labelColor = options?.labelColor || [75, 85, 99];
+        doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
         doc.text(label, margin, y);
-        y += 7;
+        y += labelGap;
 
         setPdfFont("normal");
         doc.setFontSize(15);
-        doc.setTextColor(17, 24, 39);
+        const textColor = options?.textColor || [17, 24, 39];
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
         doc.text(lines, margin, y);
-        y += Math.max(lines.length, 1) * 5 + 4;
+        y += Math.max(lineHeight, lines.length * lineHeight) + 3;
       };
 
       const drawTwoColRow = (
@@ -1997,13 +2010,13 @@ function SlideOverCaseDetail({
         const colWidth = (contentWidth - colGap) / 2;
         const leftX = margin;
         const rightX = margin + colWidth + colGap;
+
         const leftLines = doc.splitTextToSize((leftValue || "-").toString(), colWidth);
         const rightLines = doc.splitTextToSize((rightValue || "-").toString(), colWidth);
-        const blockHeight = 5 + Math.max(leftLines.length, rightLines.length, 1) * 5 + 5;
+        const needed = 5 + Math.max(leftLines.length, rightLines.length) * lineHeight + 5;
+        ensureSpace(needed);
 
-        ensureSpace(blockHeight);
         const rowTop = y;
-
         setPdfFont("bold");
         doc.setFontSize(13);
         doc.setTextColor(100, 116, 139);
@@ -2013,14 +2026,14 @@ function SlideOverCaseDetail({
         setPdfFont("normal");
         doc.setFontSize(15);
         doc.setTextColor(15, 23, 42);
-        doc.text(leftLines, leftX, rowTop + 6);
-        doc.text(rightLines, rightX, rowTop + 6);
+        doc.text(leftLines, leftX, rowTop + 5);
+        doc.text(rightLines, rightX, rowTop + 5);
 
-        y = rowTop + 6 + Math.max(leftLines.length, rightLines.length, 1) * 5 + 4;
+        y = rowTop + 5 + Math.max(leftLines.length, rightLines.length) * lineHeight + 4;
       };
 
       const drawGradeScoreLine = () => {
-        ensureSpace(12);
+        ensureSpace(14);
         const scoreColor = pdfScoreStyle(caseItem.finalScore);
         const gradeColor = pdfGradeStyle(caseItem.grade);
 
@@ -2034,7 +2047,7 @@ function SlideOverCaseDetail({
           doc.text("Original Score", margin + 105, y);
         }
 
-        y += 5;
+        y += 6;
 
         setPdfFont("bold");
         doc.setFontSize(18);
@@ -2050,45 +2063,60 @@ function SlideOverCaseDetail({
           doc.text(Number(caseItem.previousScore || 0).toFixed(2), margin + 105, y);
         }
 
-        y += 5;
-        drawDivider();
+        y += 3;
+        drawDivider(1.5, 5);
       };
 
       const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null) => {
-        const titleText = `${topic.code} ${topic.label}`;
-        const titleLines = doc.splitTextToSize(titleText, contentWidth);
-        const estimatedHeight =
-          titleLines.length * 5 +
-          (revisedTopic && caseItem.reviewStatus === "Revised" ? 34 : 22);
-        ensureSpace(estimatedHeight);
+        const title = `${topic.code} ${topic.label}`;
+        const titleLines = doc.splitTextToSize(title, contentWidth);
+
+        const originalScoreText = revisedTopic && caseItem.reviewStatus === "Revised"
+          ? `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`
+          : `${Number(topic.score || 0).toFixed(2)}`;
+
+        const revisedScoreText = revisedTopic && caseItem.reviewStatus === "Revised"
+          ? `${Number(revisedTopic.score || 0).toFixed(2)} / ${Number(revisedTopic.max || 0).toFixed(2)} (${Number(revisedTopic.pct || 0).toFixed(1)}%)`
+          : "";
+
+        const originalCommentLines = doc.splitTextToSize((topic.comment || "-").toString(), contentWidth);
+        const revisedCommentLines = revisedTopic && caseItem.reviewStatus === "Revised"
+          ? doc.splitTextToSize((revisedTopic.comment || "-").toString(), contentWidth)
+          : [];
+        const blockNeeded =
+          titleLines.length * 6 +
+          3 +
+          5 + 5 +
+          4 +
+          labelGap + Math.max(lineHeight, originalCommentLines.length * lineHeight) + 3 +
+          (
+            revisedTopic && caseItem.reviewStatus === "Revised"
+              ? 5 + 5 + 4 + labelGap + Math.max(lineHeight, revisedCommentLines.length * lineHeight) + 3
+              : 0
+          ) +
+          7;
+
+        ensureSpace(blockNeeded);
 
         setPdfFont("bold");
         doc.setFontSize(15);
         doc.setTextColor(15, 23, 42);
         doc.text(titleLines, margin, y);
-        y += Math.max(titleLines.length, 1) * 5 + 3;
+        y += titleLines.length * 6 + 1;
 
         if (revisedTopic && caseItem.reviewStatus === "Revised") {
-          drawTwoColRow(
-            "Original Score",
-            `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`,
-            "Revised Score",
-            `${Number(revisedTopic.score || 0).toFixed(2)} / ${Number(revisedTopic.max || 0).toFixed(2)} (${Number(revisedTopic.pct || 0).toFixed(1)}%)`
-          );
-
-          drawField("Original Comment", topic.comment || "-", [75, 85, 99]);
-          drawField("Revised Comment", revisedTopic.comment || "-", [109, 40, 217]);
+          drawTwoColRow("Original Score", originalScoreText, "Revised Score", revisedScoreText);
+          drawParagraphBlock("Original Comment", topic.comment || "-");
+          drawParagraphBlock("Revised Comment", revisedTopic.comment || "-", {
+            labelColor: [109, 40, 217],
+            textColor: [55, 48, 163],
+          });
         } else {
-          drawTwoColRow(
-            "Score",
-            `${Number(topic.score || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`,
-            "Max Score",
-            Number(topic.max || 0).toFixed(2)
-          );
-          drawField("Comment", topic.comment || "-", [75, 85, 99]);
+          drawTwoColRow("Score", Number(topic.score || 0).toFixed(2), "Max Score", Number(topic.max || 0).toFixed(2));
+          drawParagraphBlock("Comment", topic.comment || "-");
         }
 
-        drawDivider();
+        drawDivider(1.5, 6);
       };
 
       if (!usingThaiFont) {
@@ -2117,7 +2145,7 @@ function SlideOverCaseDetail({
       doc.text("Case Detail Report", margin + 16, y + 10);
 
       y += 18;
-      drawDivider();
+      drawDivider(0.5, 5.5);
 
       drawSectionTitle("Case Overview");
       drawTwoColRow("Case ID", caseItem.caseId || "-", "Agent", caseItem.agent || "-");
@@ -2127,10 +2155,10 @@ function SlideOverCaseDetail({
       drawGradeScoreLine();
 
       drawSectionTitle("Customer Inquiry");
-      drawField("Inquiry", caseItem.inquiryTh || caseItem.inquiryEn || "-");
+      drawParagraphBlock("Inquiry", caseItem.inquiryTh || caseItem.inquiryEn || "-");
 
       drawSectionTitle("Case Description");
-      drawField("Description", caseItem.caseDescription || "-");
+      drawParagraphBlock("Description", caseItem.caseDescription || "-");
 
       drawSectionTitle("Topic Detail");
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
