@@ -312,13 +312,17 @@ function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
   return topics.map((topic) => revisedMap.get(topic.code) || topic);
 }
 
+function roundToTwo(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
   const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
   const total = baseTopics.reduce((sum, base) => {
     const active = revisedMap.get(base.code) || base;
     return sum + active.score;
   }, 0);
-  return Number(total.toFixed(2));
+  return roundToTwo(total);
 }
 
 function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
@@ -333,16 +337,16 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
     return {
       code: master.code,
       label: master.label,
-      avgScore: Number(avg.toFixed(2)),
+      avgScore: roundToTwo(avg),
       max: master.max,
-      pct: Number(((avg / master.max) * 100).toFixed(2)),
+      pct: roundToTwo((avg / master.max) * 100),
     };
   });
 }
 
 function summarizeCases(cases: CaseItem[]): SummaryCards {
   const caseCount = cases.length;
-  const avgScore = caseCount ? Number((cases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount).toFixed(2)) : 0;
+  const avgScore = caseCount ? roundToTwo(cases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount) : 0;
   const revisedCount = cases.filter((item) => item.reviewStatus === "Revised").length;
   const policyMonthKey = getPolicyMonthKeyForCases(cases);
   return {
