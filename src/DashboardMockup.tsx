@@ -1216,21 +1216,28 @@ function CaseDetailTopicTable({
               </td>
               <td className="border-t border-violet-100 px-5 py-6 align-middle">
                 {row.changed && row.revisedTopic ? (
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-slate-50 to-violet-50/40 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Original Comment</div>
-                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
+                  <div className="grid gap-3 xl:grid-cols-2">
+                    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Original Score {row.originalTopic.score}/{row.originalTopic.max} ({Number(row.originalTopic.pct || 0).toFixed(1)}%)
+                        </div>
+                      </div>
+                      <div className="mt-3 whitespace-pre-line break-words text-[13px] leading-6 text-slate-700">
                         {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-violet-300 bg-gradient-to-br from-violet-50 to-fuchsia-50 px-4 py-3 shadow-sm shadow-violet-100/80">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Revised Comment</div>
-                        <span className="rounded-full border border-violet-300 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+
+                    <div className="flex h-full flex-col rounded-2xl border border-violet-300 bg-violet-50 px-4 py-3 shadow-sm shadow-violet-100/80">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                          Revised Score {row.revisedTopic.score}/{row.revisedTopic.max} ({Number(row.revisedTopic.pct || 0).toFixed(1)}%)
+                        </div>
+                        <span className="shrink-0 rounded-full border border-violet-300 bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
                           {row.originalTopic.score} → {row.revisedTopic.score}
                         </span>
                       </div>
-                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                      <div className="mt-3 whitespace-pre-line break-words text-[13px] leading-6 text-slate-800">
                         {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
                       </div>
                     </div>
