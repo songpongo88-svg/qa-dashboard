@@ -1938,261 +1938,351 @@ function SlideOverCaseDetail({
       const usingThaiFont = setPdfFont("normal");
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 14;
+      const margin = 12;
       const contentWidth = pageWidth - margin * 2;
-      const lineHeight = 5;
-      const labelGap = 5;
-      let y = 14;
+      const pageBottom = pageHeight - 12;
+      const lineHeight = 4.7;
+      const topicGap = 4.5;
+      let y = 12;
+      let pageNumber = 1;
 
-      const ensureSpace = (needed = 16) => {
-        if (y + needed > pageHeight - 14) {
-          doc.addPage();
-          setPdfFont("normal");
-          y = 14;
+      const color = {
+        text: [15, 23, 42] as [number, number, number],
+        subtext: [71, 85, 105] as [number, number, number],
+        line: [226, 232, 240] as [number, number, number],
+        soft: [248, 250, 252] as [number, number, number],
+        softViolet: [245, 243, 255] as [number, number, number],
+        violet: [109, 40, 217] as [number, number, number],
+        scoreBg: [241, 245, 249] as [number, number, number],
+      };
+
+      const safeText = (value: unknown) => String(value ?? "-").trim() || "-";
+      const split = (value: unknown, width: number) => doc.splitTextToSize(safeText(value), width);
+
+      const drawPageFrame = () => {
+        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(margin, 8, contentWidth, pageHeight - 16, 4, 4);
+      };
+
+      const drawPageHeader = (continued = false) => {
+        drawPageFrame();
+
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(margin + 2, 10, contentWidth - 4, 19, 3, 3, "F");
+
+        const logoDataUrl = (drawPageHeader as any)._logoDataUrl as string | null;
+        if (logoDataUrl) {
+          try {
+            doc.addImage(logoDataUrl, "PNG", margin + 5, 13, 10, 10);
+          } catch {}
         }
-      };
-
-      const drawDivider = (gapBefore = 0, gapAfter = 5) => {
-        if (gapBefore > 0) y += gapBefore;
-        doc.setDrawColor(210, 214, 220);
-        doc.setLineWidth(0.35);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += gapAfter;
-      };
-
-      const drawSectionTitle = (title: string) => {
-        ensureSpace(12);
-        setPdfFont("bold");
-        doc.setFontSize(17);
-        doc.setTextColor(15, 23, 42);
-        doc.text(title, margin, y);
-        y += 4;
-        drawDivider();
-      };
-
-      const drawField = (label: string, value: string) => {
-        ensureSpace(12);
-        setPdfFont("bold");
-        doc.setFontSize(14);
-        doc.setTextColor(75, 85, 99);
-        doc.text(label, margin, y);
-        y += 5;
-
-        const safe = (value || "-").toString();
-        const lines = doc.splitTextToSize(safe, contentWidth);
-        setPdfFont("normal");
-        doc.setFontSize(15);
-        doc.setTextColor(17, 24, 39);
-        doc.text(lines, margin, y);
-        y += lines.length * 5 + 3;
-      };
-
-      const drawTwoColRow = (
-        leftLabel: string,
-        leftValue: string,
-        rightLabel: string,
-        rightValue: string
-      ) => {
-        ensureSpace(16);
-        const colGap = 8;
-        const colWidth = (contentWidth - colGap) / 2;
-        const leftX = margin;
-        const rightX = margin + colWidth + colGap;
-        const rowTop = y;
-
-        setPdfFont("bold");
-        doc.setFontSize(13);
-        doc.setTextColor(100, 116, 139);
-        doc.text(leftLabel, leftX, rowTop);
-        doc.text(rightLabel, rightX, rowTop);
-
-        const leftLines = doc.splitTextToSize((leftValue || "-").toString(), colWidth);
-        const rightLines = doc.splitTextToSize((rightValue || "-").toString(), colWidth);
-
-        setPdfFont("normal");
-        doc.setFontSize(15);
-        doc.setTextColor(15, 23, 42);
-        doc.text(leftLines, leftX, rowTop + 5);
-        doc.text(rightLines, rightX, rowTop + 5);
-
-        y = rowTop + 5 + Math.max(leftLines.length, rightLines.length) * 5 + 3;
-      };
-
-      const drawGradeScoreLine = () => {
-        ensureSpace(12);
-        const scoreColor = pdfScoreStyle(caseItem.finalScore);
-        const gradeColor = pdfGradeStyle(caseItem.grade);
-
-        setPdfFont("bold");
-        doc.setFontSize(14);
-        doc.setTextColor(75, 85, 99);
-        doc.text("Grade", margin, y);
-        doc.text("Final Score", margin + 50, y);
-
-        if (typeof caseItem.previousScore === "number") {
-          doc.text("Original Score", margin + 105, y);
-        }
-
-        y += 5;
 
         setPdfFont("bold");
         doc.setFontSize(18);
-        doc.setTextColor(gradeColor.text[0], gradeColor.text[1], gradeColor.text[2]);
-        doc.text(caseItem.grade || "-", margin, y);
+        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+        doc.text("Robinhood QA", margin + 18, 17);
 
-        doc.setTextColor(scoreColor.text[0], scoreColor.text[1], scoreColor.text[2]);
-        doc.text(Number(caseItem.finalScore || 0).toFixed(2), margin + 50, y);
-
-        if (typeof caseItem.previousScore === "number") {
-          const prevColor = pdfScoreStyle(caseItem.previousScore);
-          doc.setTextColor(prevColor.text[0], prevColor.text[1], prevColor.text[2]);
-          doc.text(Number(caseItem.previousScore || 0).toFixed(2), margin + 105, y);
-        }
-
-        y += 5;
-        drawDivider();
-      };
-
-      const startTopicPage = (withTitle = false) => {
-        doc.addPage();
-        registerTHSarabunNew(doc as any);
         setPdfFont("normal");
-        y = 16;
+        doc.setFontSize(11.5);
+        doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+        doc.text(continued ? "Case Detail Report · Continued" : "Case Detail Report", margin + 18, 22.5);
 
-        if (withTitle) {
-          setPdfFont("bold");
-          doc.setFontSize(17);
-          doc.setTextColor(15, 23, 42);
-          doc.text("Topic Detail", margin, y);
-          y += 6;
-          drawDivider(1.5, 6);
-        }
+        setPdfFont("normal");
+        doc.setFontSize(10.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Page ${pageNumber}`, pageWidth - margin - 8, 17, { align: "right" });
+
+        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+        doc.line(margin + 4, 31, pageWidth - margin - 4, 31);
+        y = 36;
       };
 
-      const drawWrappedLabelValue = (
-        label: string,
-        value: string,
-        options?: { labelColor?: [number, number, number]; textColor?: [number, number, number] }
-      ) => {
-        const safe = (value || "-").toString();
-        const lines = doc.splitTextToSize(safe, contentWidth);
-        const needed = labelGap + Math.max(lineHeight, lines.length * lineHeight) + 4;
-        ensureSpace(needed);
+      const ensureSpace = (needed = 16, continued = true) => {
+        if (y + needed <= pageBottom) return;
+        doc.addPage();
+        pageNumber += 1;
+        setPdfFont("normal");
+        drawPageHeader(continued);
+      };
+
+      const drawSectionHeader = (title: string, subtitle?: string) => {
+        const blockHeight = subtitle ? 12 : 9;
+        ensureSpace(blockHeight + 3);
+
+        doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
+        doc.roundedRect(margin + 2, y, contentWidth - 4, blockHeight, 2.5, 2.5, "F");
 
         setPdfFont("bold");
-        doc.setFontSize(14);
-        const labelColor = options?.labelColor || [75, 85, 99];
-        doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
-        doc.text(label, margin, y);
-        y += labelGap;
+        doc.setFontSize(15.5);
+        doc.setTextColor(color.violet[0], color.violet[1], color.violet[2]);
+        doc.text(title, margin + 6, y + 5.7);
 
-        setPdfFont("normal");
-        doc.setFontSize(15);
-        const textColor = options?.textColor || [17, 24, 39];
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        doc.text(lines, margin, y);
-        y += Math.max(lineHeight, lines.length * lineHeight) + 3;
-      };
-
-      const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null, forceNewPage = false) => {
-        if (forceNewPage) {
-          startTopicPage(true);
+        if (subtitle) {
+          setPdfFont("normal");
+          doc.setFontSize(10.5);
+          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+          doc.text(subtitle, margin + 6, y + 10);
         }
 
+        y += blockHeight + 4;
+      };
+
+      const drawKeyValueCard = (items: Array<{ label: string; value: string }>, columns = 2) => {
+        const colGap = 6;
+        const innerPadX = 4;
+        const innerPadY = 4;
+        const boxWidth = contentWidth - 4;
+        const colWidth = (boxWidth - innerPadX * 2 - colGap * (columns - 1)) / columns;
+
+        const rowHeights: number[] = [];
+        for (let i = 0; i < items.length; i += columns) {
+          const rowItems = items.slice(i, i + columns);
+          const height = Math.max(
+            ...rowItems.map((item) => {
+              const valueLines = split(item.value, colWidth);
+              return 5 + 4 + valueLines.length * lineHeight + 2;
+            })
+          );
+          rowHeights.push(height);
+        }
+
+        const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0) + innerPadY * 2 + Math.max(0, rowHeights.length - 1) * 2;
+        ensureSpace(totalHeight + 2);
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+        doc.roundedRect(margin + 2, y, contentWidth - 4, totalHeight, 3, 3, "FD");
+
+        let cursorY = y + innerPadY;
+        let rowIndex = 0;
+        for (let i = 0; i < items.length; i += columns) {
+          const rowItems = items.slice(i, i + columns);
+          const rowHeight = rowHeights[rowIndex];
+
+          rowItems.forEach((item, colIndex) => {
+            const x = margin + 2 + innerPadX + colIndex * (colWidth + colGap);
+            const valueLines = split(item.value, colWidth);
+
+            setPdfFont("bold");
+            doc.setFontSize(11);
+            doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+            doc.text(item.label, x, cursorY + 4);
+
+            setPdfFont("normal");
+            doc.setFontSize(13.5);
+            doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+            doc.text(valueLines, x, cursorY + 8.5);
+          });
+
+          cursorY += rowHeight + 2;
+          rowIndex += 1;
+        }
+
+        y += totalHeight + 4;
+      };
+
+      const drawParagraphCard = (label: string, value: string) => {
+        const lines = split(value, contentWidth - 12);
+        const cardHeight = 8 + 4 + lines.length * lineHeight + 5;
+        ensureSpace(cardHeight + 2);
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+        doc.roundedRect(margin + 2, y, contentWidth - 4, cardHeight, 3, 3, "FD");
+
+        setPdfFont("bold");
+        doc.setFontSize(11);
+        doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+        doc.text(label, margin + 8, y + 5.5);
+
+        setPdfFont("normal");
+        doc.setFontSize(13.5);
+        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+        doc.text(lines, margin + 8, y + 10.5);
+
+        y += cardHeight + 4;
+      };
+
+      const drawScoreBand = () => {
+        const hasPrevious = typeof caseItem.previousScore === "number";
+        const cells = hasPrevious ? 3 : 2;
+        const gap = 5;
+        const cellWidth = (contentWidth - 4 - gap * (cells - 1)) / cells;
+        const boxHeight = 19;
+        ensureSpace(boxHeight + 3);
+
+        const gradeStyle = pdfGradeStyle(caseItem.grade);
+        const scoreStyle = pdfScoreStyle(caseItem.finalScore);
+        const previousStyle = hasPrevious ? pdfScoreStyle(Number(caseItem.previousScore || 0)) : null;
+
+        const drawCell = (
+          x: number,
+          label: string,
+          value: string,
+          style: { fill: number[]; text: number[]; border: number[] }
+        ) => {
+          doc.setFillColor(style.fill[0], style.fill[1], style.fill[2]);
+          doc.setDrawColor(style.border[0], style.border[1], style.border[2]);
+          doc.roundedRect(x, y, cellWidth, boxHeight, 3, 3, "FD");
+
+          setPdfFont("bold");
+          doc.setFontSize(10.5);
+          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+          doc.text(label, x + 4, y + 5.2);
+
+          setPdfFont("bold");
+          doc.setFontSize(17);
+          doc.setTextColor(style.text[0], style.text[1], style.text[2]);
+          doc.text(value, x + 4, y + 12.8);
+        };
+
+        drawCell(margin + 2, "Grade", caseItem.grade || "-", gradeStyle);
+        drawCell(margin + 2 + cellWidth + gap, "Final Score", Number(caseItem.finalScore || 0).toFixed(2), scoreStyle);
+        if (hasPrevious && previousStyle) {
+          drawCell(
+            margin + 2 + (cellWidth + gap) * 2,
+            "Original Score",
+            Number(caseItem.previousScore || 0).toFixed(2),
+            previousStyle
+          );
+        }
+
+        y += boxHeight + 4;
+      };
+
+      const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null) => {
         const hasRevised = !!(revisedTopic && caseItem.reviewStatus === "Revised");
-        const title = `${topic.code} ${topic.label}`;
-        const titleLines = doc.splitTextToSize(title, contentWidth);
-
-        const originalScoreText = hasRevised
-          ? `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`
-          : `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`;
-
+        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 18);
+        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`;
+        const scoreLines = split(scoreText, contentWidth - 26);
+        const commentLines = split(topic.comment || "-", contentWidth - 16);
         const revisedScoreText = hasRevised
           ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} (${Number(revisedTopic!.pct || 0).toFixed(1)}%)`
           : "";
+        const revisedScoreLines = hasRevised ? split(revisedScoreText, contentWidth - 26) : [];
+        const revisedCommentLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 16) : [];
 
-        const originalComment = (topic.comment || "-").toString();
-        const revisedComment = hasRevised ? (revisedTopic!.comment || "-").toString() : "";
-
-        const blockEstimate =
-          titleLines.length * 6 +
+        const estimatedHeight =
           10 +
-          doc.splitTextToSize(originalScoreText, contentWidth).length * lineHeight +
-          labelGap + doc.splitTextToSize(originalComment, contentWidth).length * lineHeight +
+          titleLines.length * 5 +
+          8 +
+          scoreLines.length * lineHeight +
+          6 +
+          commentLines.length * lineHeight +
           (hasRevised
-            ? 6 +
-              doc.splitTextToSize(revisedScoreText, contentWidth).length * lineHeight +
-              labelGap +
-              doc.splitTextToSize(revisedComment, contentWidth).length * lineHeight
+            ? 8 + revisedScoreLines.length * lineHeight + 6 + revisedCommentLines.length * lineHeight
             : 0) +
-          10;
+          7;
 
-        ensureSpace(blockEstimate);
+        ensureSpace(estimatedHeight + 2);
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+        doc.roundedRect(margin + 2, y, contentWidth - 4, estimatedHeight, 3, 3, "FD");
+
+        doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
+        doc.roundedRect(margin + 2.6, y + 0.6, contentWidth - 5.2, 8.6, 2.2, 2.2, "F");
 
         setPdfFont("bold");
-        doc.setFontSize(15);
-        doc.setTextColor(15, 23, 42);
-        doc.text(titleLines, margin, y);
-        y += titleLines.length * 6 + 3;
+        doc.setFontSize(14);
+        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+        doc.text(titleLines, margin + 8, y + 5.7);
 
-        drawWrappedLabelValue(hasRevised ? "Original Score" : "Score", originalScoreText);
-        drawWrappedLabelValue(hasRevised ? "Original Comment" : "Comment", originalComment);
+        let innerY = y + 12 + Math.max(0, (titleLines.length - 1) * 4.6);
+
+        const drawMiniLabel = (label: string, x: number, yy: number) => {
+          setPdfFont("bold");
+          doc.setFontSize(10.5);
+          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+          doc.text(label, x, yy);
+        };
+
+        const drawMiniValue = (lines: string | string[], x: number, yy: number, colorText = color.text) => {
+          setPdfFont("normal");
+          doc.setFontSize(12.5);
+          doc.setTextColor(colorText[0], colorText[1], colorText[2]);
+          doc.text(lines, x, yy);
+        };
+
+        drawMiniLabel(hasRevised ? "Original Score" : "Score", margin + 8, innerY);
+        doc.setFillColor(color.scoreBg[0], color.scoreBg[1], color.scoreBg[2]);
+        doc.roundedRect(margin + 33, innerY - 4.5, contentWidth - 43, 7.5, 2, 2, "F");
+        drawMiniValue(scoreLines, margin + 36, innerY);
+        innerY += 7 + Math.max(0, (scoreLines.length - 1) * lineHeight);
+
+        drawMiniLabel(hasRevised ? "Original Comment" : "Comment", margin + 8, innerY);
+        innerY += 4.8;
+        drawMiniValue(commentLines, margin + 8, innerY);
+        innerY += commentLines.length * lineHeight + 2.5;
 
         if (hasRevised) {
-          drawWrappedLabelValue("Revised Score", revisedScoreText);
-          drawWrappedLabelValue("Revised Comment", revisedComment);
+          drawMiniLabel("Revised Score", margin + 8, innerY);
+          doc.setFillColor(245, 243, 255);
+          doc.roundedRect(margin + 33, innerY - 4.5, contentWidth - 43, 7.5, 2, 2, "F");
+          drawMiniValue(revisedScoreLines, margin + 36, innerY, [109, 40, 217]);
+          innerY += 7 + Math.max(0, (revisedScoreLines.length - 1) * lineHeight);
+
+          drawMiniLabel("Revised Comment", margin + 8, innerY);
+          innerY += 4.8;
+          drawMiniValue(revisedCommentLines, margin + 8, innerY, [67, 56, 202]);
+          innerY += revisedCommentLines.length * lineHeight + 1.5;
         }
 
-        drawDivider(1.5, 6);
+        y += estimatedHeight + topicGap;
       };
 
+      const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
+      (drawPageHeader as any)._logoDataUrl = logoDataUrl;
+
+      drawPageHeader(false);
+
       if (!usingThaiFont) {
+        doc.setFillColor(254, 242, 242);
+        doc.setDrawColor(252, 165, 165);
+        doc.roundedRect(margin + 2, y, contentWidth - 4, 8, 2.5, 2.5, "FD");
         setPdfFont("normal");
         doc.setFontSize(10);
-        doc.setTextColor(220, 38, 38);
-        doc.text("TH Sarabun font fallback is active.", margin, y);
-        y += 7;
+        doc.setTextColor(185, 28, 28);
+        doc.text("TH Sarabun font fallback is active.", margin + 6, y + 5.2);
+        y += 12;
       }
 
-      const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
-      if (logoDataUrl) {
-        try {
-          doc.addImage(logoDataUrl, "PNG", margin, y, 12, 12);
-        } catch {}
-      }
+      drawSectionHeader("Case Overview", "Structured summary for audit review");
+      drawKeyValueCard(
+        [
+          { label: "Case ID", value: caseItem.caseId || "-" },
+          { label: "Agent", value: caseItem.agent || "-" },
+          { label: "Audit Date", value: caseItem.auditDate || "-" },
+          { label: "Audit Timestamp", value: caseItem.auditTimestamp || "-" },
+          { label: "Month", value: caseItem.monthLabel || caseItem.monthKey || "-" },
+          { label: "Week", value: caseItem.weekLabel || "-" },
+          { label: "Review Status", value: caseItem.reviewStatus || "-" },
+          { label: "Case URL", value: caseItem.caseUrl || "-" },
+        ],
+        2
+      );
+      drawScoreBand();
 
-      setPdfFont("bold");
-      doc.setFontSize(18);
-      doc.setTextColor(15, 23, 42);
-      doc.text("Robinhood QA", margin + 16, y + 4);
+      drawSectionHeader("Customer Inquiry");
+      drawParagraphCard("Inquiry", caseItem.inquiryTh || caseItem.inquiryEn || "-");
 
-      setPdfFont("normal");
-      doc.setFontSize(11);
-      doc.setTextColor(100, 116, 139);
-      doc.text("Case Detail Report", margin + 16, y + 10);
+      drawSectionHeader("Case Description");
+      drawParagraphCard("Description", caseItem.caseDescription || "-");
 
-      y += 18;
-      drawDivider();
-
-      drawSectionTitle("Case Overview");
-      drawTwoColRow("Case ID", caseItem.caseId || "-", "Agent", caseItem.agent || "-");
-      drawTwoColRow("Audit Date", caseItem.auditDate || "-", "Audit Timestamp", caseItem.auditTimestamp || "-");
-      drawTwoColRow("Month", caseItem.monthLabel || caseItem.monthKey || "-", "Week", caseItem.weekLabel || "-");
-      drawTwoColRow("Review Status", caseItem.reviewStatus || "-", "Case URL", caseItem.caseUrl || "-");
-      drawGradeScoreLine();
-
-      drawSectionTitle("Customer Inquiry");
-      drawField("Inquiry", caseItem.inquiryTh || caseItem.inquiryEn || "-");
-
-      drawSectionTitle("Case Description");
-      drawField("Description", caseItem.caseDescription || "-");
-
-      drawSectionTitle("Topic Detail");
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
+
+      drawSectionHeader(
+        "Topic Detail",
+        caseItem.reviewStatus === "Revised"
+          ? "Original and revised observations displayed in report format"
+          : "Topic-by-topic evaluation in report format"
+      );
+
       validTopics.forEach((topic) => {
         const revisedTopic = revisedMap.get(topic.code);
-        drawTopicBlock(topic, revisedTopic, false);
+        drawTopicBlock(topic, revisedTopic);
       });
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
