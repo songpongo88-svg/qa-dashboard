@@ -394,6 +394,28 @@ function topicScoreStatusTone(originalScore: number, revisedScore: number) {
   };
 }
 
+function gradeShiftTone(originalGrade: Grade, revisedGrade: Grade) {
+  if (originalGrade === revisedGrade) {
+    return {
+      label: `Grade Maintained · ${revisedGrade}`,
+      className: "border-slate-200 bg-slate-50 text-slate-700",
+    };
+  }
+
+  const rank: Record<Grade, number> = { A: 5, B: 4, C: 3, D: 2, F: 1 };
+  const improved = rank[revisedGrade] > rank[originalGrade];
+
+  return improved
+    ? {
+        label: `Grade Up · ${originalGrade} → ${revisedGrade}`,
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      }
+    : {
+        label: `Grade Down · ${originalGrade} → ${revisedGrade}`,
+        className: "border-rose-200 bg-rose-50 text-rose-700",
+      };
+}
+
 function SongkranBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -603,18 +625,30 @@ function QuickCaseCard({
   );
 }
 
-function TopicAppealCard({ topic }: { topic: Topic }) {
+function TopicAppealCard({
+  topic,
+  originalGrade,
+  revisedGrade,
+}: {
+  topic: Topic;
+  originalGrade: Grade;
+  revisedGrade: Grade;
+}) {
   const originalScore = Number(topic.originalScore ?? topic.score);
   const revisedScore = Number(topic.score);
   const diff = revisedScore - originalScore;
   const commentChanged = hasMeaningfulTextChange(topic.originalComment, topic.comment);
   const statusTone = topicScoreStatusTone(originalScore, revisedScore);
+  const gradeToneBadge = gradeShiftTone(originalGrade, revisedGrade);
+  const diffPrefix = diff > 0 ? "+" : "";
 
   return (
-    <div className="relative overflow-hidden rounded-[26px] border border-violet-200 bg-white shadow-[0_10px_28px_rgba(76,29,149,0.08)]">
+    <div className="group relative overflow-hidden rounded-[28px] border border-violet-200/90 bg-white shadow-[0_14px_34px_rgba(76,29,149,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(76,29,149,0.12)]">
       {isSongkranThemeActive() ? (
         <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
       ) : null}
+
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-cyan-400" />
 
       <div
         className={`border-b px-5 py-4 ${
@@ -623,100 +657,126 @@ function TopicAppealCard({ topic }: { topic: Topic }) {
             : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
         }`}
       >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">
-              {topic.code}
+              Topic {topic.code}
             </div>
-            <div className="mt-1 text-base font-bold text-slate-900">{topic.label}</div>
+            <div className="mt-1 text-lg font-extrabold tracking-tight text-slate-900">
+              {topic.label}
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${statusTone.className}`}
             >
               {statusTone.label}
             </span>
-
-            {commentChanged ? (
-              <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700">
-                Comment Updated
-              </span>
-            ) : (
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
-                Comment Maintained
-              </span>
-            )}
+            <span
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${gradeToneBadge.className}`}
+            >
+              {gradeToneBadge.label}
+            </span>
+            <span
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                commentChanged
+                  ? "border-violet-200 bg-violet-50 text-violet-700"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+              }`}
+            >
+              {commentChanged ? "Comment Updated" : "Comment Maintained"}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="p-5">
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-300 bg-slate-100 px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Original Score
+      <div className="p-5 lg:p-6">
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.9fr_0.9fr]">
+          <div className="relative overflow-hidden rounded-[24px] border border-violet-200 bg-gradient-to-br from-white via-violet-50/70 to-fuchsia-50/80 p-5 shadow-[0_10px_24px_rgba(109,40,217,0.08)]">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+              Score Flow
             </div>
-            <div className="mt-2 text-2xl font-extrabold text-slate-900">{originalScore}</div>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="min-w-[74px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Original
+                </div>
+                <div className="mt-1 text-3xl font-extrabold text-slate-900">{originalScore}</div>
+              </div>
+
+              <div className="flex items-center justify-center text-xl font-black text-violet-400">→</div>
+
+              <div className="min-w-[74px] rounded-2xl border border-violet-300 bg-violet-600 px-4 py-3 text-center shadow-[0_10px_24px_rgba(109,40,217,0.20)]">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-100">
+                  Revised
+                </div>
+                <div className="mt-1 text-3xl font-extrabold text-white">{revisedScore}</div>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-semibold text-slate-500">Change</span>
+              <span
+                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusTone.className}`}
+              >
+                {diff === 0 ? "0 point" : `${diffPrefix}${diff} point${Math.abs(diff) > 1 ? "s" : ""}`}
+              </span>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-violet-300 bg-violet-100 px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
-              Revised Score
+          <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Case Grade Impact
             </div>
-            <div className="mt-2 text-2xl font-extrabold text-slate-900">{revisedScore}</div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Score Comparison
+            <div className="mt-4 flex items-center gap-3">
+              <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${gradeTone(originalGrade)}`}>
+                {originalGrade}
+              </span>
+              <span className="text-slate-300">→</span>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-bold ${gradeTone(revisedGrade)}`}>
+                {revisedGrade}
+              </span>
             </div>
-            <div className="mt-2 text-lg font-extrabold text-slate-900">
-              <span className="text-slate-700">{originalScore}</span>
-              <span className="mx-2 text-slate-400">→</span>
-              <span className="text-violet-700">{revisedScore}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-semibold text-slate-800">Score Comparison</div>
-            <div className="text-sm font-bold">
-              <span className="text-slate-700">{originalScore}</span>
-              <span className="mx-2 text-slate-400">→</span>
-              <span className="text-violet-700">{revisedScore}</span>
-              {diff === 0 ? <span className="ml-1 text-slate-500">(No Change)</span> : null}
+            <div className="mt-4 text-xs leading-5 text-slate-500">
+              Shows overall case grade before and after the appeal result.
             </div>
           </div>
-        </div>
 
-        {topic.appealReason ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700">
+          <div className="rounded-[24px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50 p-5 shadow-[0_10px_24px_rgba(245,158,11,0.08)]">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
               Appeal Reason
             </div>
-            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-              {topic.appealReason}
+            <div className="mt-3 line-clamp-6 whitespace-pre-line text-[13px] leading-6 text-slate-700">
+              {topic.appealReason || "No appeal reason"}
             </div>
           </div>
-        ) : null}
+        </div>
 
-        <div className="mt-4 space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Original Comment
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <div className="rounded-[24px] border border-slate-200 bg-slate-50/90 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Original Comment
+              </div>
+              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-500">
+                Before Appeal
+              </span>
             </div>
-            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">
+            <div className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-700">
               {topic.originalComment || "No original comment"}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
-              Revised Comment
+          <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50/90 via-white to-fuchsia-50/90 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                Revised Comment
+              </div>
+              <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-violet-700">
+                Final Decision
+              </span>
             </div>
-            <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+            <div className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-800">
               {topic.comment || "No revised comment"}
             </div>
           </div>
