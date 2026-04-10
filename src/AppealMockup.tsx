@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
+import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 
 type ReviewStatus = "Original" | "Revised";
 type Grade = "A" | "B" | "C" | "D" | "F";
@@ -1154,6 +1155,7 @@ export default function AppealMockup({
     if (!selectedCase) return;
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    registerTHSarabunNew(doc);
     const usingThaiFont = setPdfFont(doc, "normal");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
