@@ -1173,13 +1173,22 @@ function CaseDetailTopicTable({
                 ) : null}
               </div>
 
-              <div className="shrink-0 text-left lg:min-w-[240px] lg:text-right">
+              <div className="shrink-0 text-left lg:min-w-[280px] lg:text-right">
                 <div className={`text-sm font-bold ${row.statusClass}`}>{row.statusLabel}</div>
-                <div className="mt-1 text-sm text-slate-600">
-                  {row.changed && row.revisedTopic
-                    ? `Original ${row.originalTopic.score}/${row.originalTopic.max} (${Number(row.originalTopic.pct || 0).toFixed(1)}%) → Revised ${row.revisedTopic.score}/${row.revisedTopic.max} (${Number(row.revisedTopic.pct || 0).toFixed(1)}%)`
-                    : `${row.shownTopic.score}/${row.shownTopic.max} (${row.pct.toFixed(1)}%)`}
-                </div>
+                {row.changed && row.revisedTopic ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 lg:justify-end">
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                      Original {row.originalTopic.score}/{row.originalTopic.max} · {Number(row.originalTopic.pct || 0).toFixed(1)}%
+                    </span>
+                    <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-semibold text-violet-700">
+                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} · {Number(row.revisedTopic.pct || 0).toFixed(1)}%
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-sm text-slate-600">
+                    {row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1187,11 +1196,14 @@ function CaseDetailTopicTable({
               <div className="font-semibold text-slate-500">Score</div>
               <div className="text-slate-900">
                 {row.changed && row.revisedTopic ? (
-                  <span>
-                    Original {row.originalTopic.score}/{row.originalTopic.max} ({Number(row.originalTopic.pct || 0).toFixed(1)}%)
-                    <span className="mx-2 text-slate-400">→</span>
-                    Revised {row.revisedTopic.score}/{row.revisedTopic.max} ({Number(row.revisedTopic.pct || 0).toFixed(1)}%)
-                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700">
+                      Original {row.originalTopic.score}/{row.originalTopic.max} ({Number(row.originalTopic.pct || 0).toFixed(1)}%)
+                    </span>
+                    <span className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-semibold text-violet-700">
+                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} ({Number(row.revisedTopic.pct || 0).toFixed(1)}%)
+                    </span>
+                  </div>
                 ) : (
                   <span>{row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)</span>
                 )}
@@ -1941,8 +1953,8 @@ function SlideOverCaseDetail({
       const margin = 12;
       const contentWidth = pageWidth - margin * 2;
       const pageBottom = pageHeight - 12;
-      const lineHeight = 4.7;
-      const topicGap = 4.5;
+      const lineHeight = 4.25;
+      const topicGap = 3.2;
       let y = 12;
       let pageNumber = 1;
 
@@ -1957,7 +1969,10 @@ function SlideOverCaseDetail({
       };
 
       const safeText = (value: unknown) => String(value ?? "-").trim() || "-";
-      const split = (value: unknown, width: number) => doc.splitTextToSize(safeText(value), width);
+      const makeWrapFriendlyText = (value: unknown) =>
+        safeText(value).replace(/https?:\/\/\S+/g, (url) => url.replace(/([/?=&_.-])/g, "$1 "));
+      const split = (value: unknown, width: number) =>
+        doc.splitTextToSize(makeWrapFriendlyText(value), width);
 
       const drawPageFrame = () => {
         doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
@@ -2029,9 +2044,12 @@ function SlideOverCaseDetail({
       };
 
       const drawKeyValueCard = (items: Array<{ label: string; value: string }>, columns = 2) => {
-        const colGap = 6;
+        const colGap = 5;
         const innerPadX = 4;
-        const innerPadY = 4;
+        const innerPadY = 3.5;
+        const labelHeight = 3.8;
+        const valueOffset = 7.3;
+        const valueFontSize = 12.2;
         const boxWidth = contentWidth - 4;
         const colWidth = (boxWidth - innerPadX * 2 - colGap * (columns - 1)) / columns;
 
@@ -2040,14 +2058,17 @@ function SlideOverCaseDetail({
           const rowItems = items.slice(i, i + columns);
           const height = Math.max(
             ...rowItems.map((item) => {
-              const valueLines = split(item.value, colWidth);
-              return 5 + 4 + valueLines.length * lineHeight + 2;
+              const valueLines = split(item.value, colWidth - 1);
+              return labelHeight + 3.2 + valueLines.length * lineHeight + 1.8;
             })
           );
           rowHeights.push(height);
         }
 
-        const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0) + innerPadY * 2 + Math.max(0, rowHeights.length - 1) * 2;
+        const totalHeight =
+          rowHeights.reduce((sum, h) => sum + h, 0) +
+          innerPadY * 2 +
+          Math.max(0, rowHeights.length - 1) * 1.4;
         ensureSpace(totalHeight + 2);
 
         doc.setFillColor(255, 255, 255);
@@ -2062,29 +2083,29 @@ function SlideOverCaseDetail({
 
           rowItems.forEach((item, colIndex) => {
             const x = margin + 2 + innerPadX + colIndex * (colWidth + colGap);
-            const valueLines = split(item.value, colWidth);
+            const valueLines = split(item.value, colWidth - 1);
 
             setPdfFont("bold");
-            doc.setFontSize(11);
+            doc.setFontSize(10.2);
             doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-            doc.text(item.label, x, cursorY + 4);
+            doc.text(item.label, x, cursorY + labelHeight);
 
             setPdfFont("normal");
-            doc.setFontSize(13.5);
+            doc.setFontSize(valueFontSize);
             doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-            doc.text(valueLines, x, cursorY + 8.5);
+            doc.text(valueLines, x, cursorY + valueOffset);
           });
 
-          cursorY += rowHeight + 2;
+          cursorY += rowHeight + 1.4;
           rowIndex += 1;
         }
 
-        y += totalHeight + 4;
+        y += totalHeight + 3.2;
       };
 
       const drawParagraphCard = (label: string, value: string) => {
-        const lines = split(value, contentWidth - 12);
-        const cardHeight = 8 + 4 + lines.length * lineHeight + 5;
+        const lines = split(value, contentWidth - 16);
+        const cardHeight = 7 + 3.2 + lines.length * lineHeight + 4;
         ensureSpace(cardHeight + 2);
 
         doc.setFillColor(255, 255, 255);
@@ -2092,16 +2113,16 @@ function SlideOverCaseDetail({
         doc.roundedRect(margin + 2, y, contentWidth - 4, cardHeight, 3, 3, "FD");
 
         setPdfFont("bold");
-        doc.setFontSize(11);
+        doc.setFontSize(10.3);
         doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-        doc.text(label, margin + 8, y + 5.5);
+        doc.text(label, margin + 8, y + 5);
 
         setPdfFont("normal");
-        doc.setFontSize(13.5);
+        doc.setFontSize(12.2);
         doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-        doc.text(lines, margin + 8, y + 10.5);
+        doc.text(lines, margin + 8, y + 9.2);
 
-        y += cardHeight + 4;
+        y += cardHeight + 3.2;
       };
 
       const drawScoreBand = () => {
@@ -2153,27 +2174,29 @@ function SlideOverCaseDetail({
 
       const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null) => {
         const hasRevised = !!(revisedTopic && caseItem.reviewStatus === "Revised");
-        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 18);
-        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} (${Number(topic.pct || 0).toFixed(1)}%)`;
-        const scoreLines = split(scoreText, contentWidth - 26);
-        const commentLines = split(topic.comment || "-", contentWidth - 16);
+        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 20);
+        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} · ${Number(topic.pct || 0).toFixed(1)}%`;
         const revisedScoreText = hasRevised
-          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} (${Number(revisedTopic!.pct || 0).toFixed(1)}%)`
+          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
-        const revisedScoreLines = hasRevised ? split(revisedScoreText, contentWidth - 26) : [];
-        const revisedCommentLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 16) : [];
+        const commentLines = split(topic.comment || "-", contentWidth - 18);
+        const revisedCommentLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 18) : [];
+
+        const headerHeight = Math.max(9, 5 + Math.max(0, titleLines.length - 1) * 4.1);
+        const scoreRowHeight = hasRevised ? 12 : 10.5;
+        const originalCommentHeight = 4 + commentLines.length * lineHeight;
+        const revisedCommentHeight = hasRevised ? 4 + revisedCommentLines.length * lineHeight : 0;
 
         const estimatedHeight =
-          10 +
-          titleLines.length * 5 +
-          8 +
-          scoreLines.length * lineHeight +
-          6 +
-          commentLines.length * lineHeight +
-          (hasRevised
-            ? 8 + revisedScoreLines.length * lineHeight + 6 + revisedCommentLines.length * lineHeight
-            : 0) +
-          7;
+          4 +
+          headerHeight +
+          4 +
+          scoreRowHeight +
+          4 +
+          3.5 +
+          originalCommentHeight +
+          (hasRevised ? 4 + scoreRowHeight + 4 + 3.5 + revisedCommentHeight : 0) +
+          4;
 
         ensureSpace(estimatedHeight + 2);
 
@@ -2182,51 +2205,80 @@ function SlideOverCaseDetail({
         doc.roundedRect(margin + 2, y, contentWidth - 4, estimatedHeight, 3, 3, "FD");
 
         doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
-        doc.roundedRect(margin + 2.6, y + 0.6, contentWidth - 5.2, 8.6, 2.2, 2.2, "F");
+        doc.roundedRect(margin + 2.6, y + 0.6, contentWidth - 5.2, headerHeight, 2.2, 2.2, "F");
 
         setPdfFont("bold");
-        doc.setFontSize(14);
+        doc.setFontSize(13);
         doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-        doc.text(titleLines, margin + 8, y + 5.7);
+        doc.text(titleLines, margin + 8, y + 5.3);
 
-        let innerY = y + 12 + Math.max(0, (titleLines.length - 1) * 4.6);
+        let innerY = y + headerHeight + 6;
 
-        const drawMiniLabel = (label: string, x: number, yy: number) => {
+        const drawScoreChip = (
+          x: number,
+          width: number,
+          label: string,
+          value: string,
+          fill: [number, number, number],
+          border: [number, number, number],
+          textColor: [number, number, number]
+        ) => {
+          doc.setFillColor(fill[0], fill[1], fill[2]);
+          doc.setDrawColor(border[0], border[1], border[2]);
+          doc.roundedRect(x, innerY, width, scoreRowHeight, 2.2, 2.2, "FD");
+
           setPdfFont("bold");
-          doc.setFontSize(10.5);
+          doc.setFontSize(9.6);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(label, x, yy);
+          doc.text(label, x + 3, innerY + 3.8);
+
+          setPdfFont("bold");
+          doc.setFontSize(11.3);
+          doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+          doc.text(split(value, width - 6), x + 3, innerY + 8.1);
         };
-
-        const drawMiniValue = (lines: string | string[], x: number, yy: number, colorText = color.text) => {
-          setPdfFont("normal");
-          doc.setFontSize(12.5);
-          doc.setTextColor(colorText[0], colorText[1], colorText[2]);
-          doc.text(lines, x, yy);
-        };
-
-        drawMiniLabel(hasRevised ? "Original Score" : "Score", margin + 8, innerY);
-        doc.setFillColor(color.scoreBg[0], color.scoreBg[1], color.scoreBg[2]);
-        doc.roundedRect(margin + 33, innerY - 4.5, contentWidth - 43, 7.5, 2, 2, "F");
-        drawMiniValue(scoreLines, margin + 36, innerY);
-        innerY += 7 + Math.max(0, (scoreLines.length - 1) * lineHeight);
-
-        drawMiniLabel(hasRevised ? "Original Comment" : "Comment", margin + 8, innerY);
-        innerY += 4.8;
-        drawMiniValue(commentLines, margin + 8, innerY);
-        innerY += commentLines.length * lineHeight + 2.5;
 
         if (hasRevised) {
-          drawMiniLabel("Revised Score", margin + 8, innerY);
-          doc.setFillColor(245, 243, 255);
-          doc.roundedRect(margin + 33, innerY - 4.5, contentWidth - 43, 7.5, 2, 2, "F");
-          drawMiniValue(revisedScoreLines, margin + 36, innerY, [109, 40, 217]);
-          innerY += 7 + Math.max(0, (revisedScoreLines.length - 1) * lineHeight);
+          const chipGap = 3.5;
+          const chipWidth = (contentWidth - 14 - chipGap) / 2;
+          drawScoreChip(margin + 8, chipWidth, "Original", scoreText, [248, 250, 252], [226, 232, 240], [51, 65, 85]);
+          drawScoreChip(margin + 8 + chipWidth + chipGap, chipWidth, "Revised", revisedScoreText, [245, 243, 255], [196, 181, 253], [109, 40, 217]);
+        } else {
+          drawScoreChip(margin + 8, contentWidth - 16, "Score", scoreText, [248, 250, 252], [226, 232, 240], [51, 65, 85]);
+        }
 
-          drawMiniLabel("Revised Comment", margin + 8, innerY);
-          innerY += 4.8;
-          drawMiniValue(revisedCommentLines, margin + 8, innerY, [67, 56, 202]);
-          innerY += revisedCommentLines.length * lineHeight + 1.5;
+        innerY += scoreRowHeight + 5;
+
+        const drawCommentSection = (
+          label: string,
+          lines: string[],
+          tone: "default" | "revised" = "default"
+        ) => {
+          setPdfFont("bold");
+          doc.setFontSize(10.1);
+          doc.setTextColor(
+            tone === "revised" ? 109 : color.subtext[0],
+            tone === "revised" ? 40 : color.subtext[1],
+            tone === "revised" ? 217 : color.subtext[2]
+          );
+          doc.text(label, margin + 8, innerY);
+          innerY += 3.8;
+
+          setPdfFont("normal");
+          doc.setFontSize(11.6);
+          doc.setTextColor(
+            tone === "revised" ? 67 : color.text[0],
+            tone === "revised" ? 56 : color.text[1],
+            tone === "revised" ? 202 : color.text[2]
+          );
+          doc.text(lines, margin + 8, innerY);
+          innerY += lines.length * lineHeight + 2.4;
+        };
+
+        drawCommentSection(hasRevised ? "Original Comment" : "Comment", commentLines, "default");
+
+        if (hasRevised) {
+          drawCommentSection("Revised Comment", revisedCommentLines, "revised");
         }
 
         y += estimatedHeight + topicGap;
