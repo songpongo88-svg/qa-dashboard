@@ -1214,26 +1214,32 @@ function CaseDetailTopicTable({
 
               <div className="font-semibold text-slate-500">Status</div>
               <div className={`font-semibold ${row.statusClass}`}>{row.statusLabel}</div>
+            </div>
 
+            <div className="mt-6 space-y-4">
               {row.changed && row.revisedTopic ? (
                 <>
-                  <div className="font-semibold text-slate-500">Original Comment</div>
-                  <div className="whitespace-pre-line leading-7 text-slate-800">
-                    {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
+                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
+                    <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
+                      {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
+                    </div>
                   </div>
 
-                  <div className="font-semibold text-violet-700">Revised Comment</div>
-                  <div className="whitespace-pre-line leading-7 text-slate-900">
-                    {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
+                  <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
+                    <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
+                    <div className="mt-4 whitespace-pre-line leading-7 text-violet-700">
+                      {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
+                    </div>
                   </div>
                 </>
               ) : (
-                <>
-                  <div className="font-semibold text-slate-500">Comment</div>
-                  <div className="whitespace-pre-line leading-7 text-slate-800">
+                <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
+                  <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
                     {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -1953,7 +1959,7 @@ function SlideOverCaseDetail({
       const margin = 12;
       const contentWidth = pageWidth - margin * 2;
       const pageBottom = pageHeight - 12;
-      const lineHeight = 4.8;
+      const lineHeight = 4.9;
       const topicGap = 6.2;
       let y = 12;
       let pageNumber = 1;
@@ -2190,15 +2196,16 @@ function SlideOverCaseDetail({
         const revisedScoreText = hasRevised
           ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
-        const commentLines = split(topic.comment || "-", contentWidth - 22);
+        const commentLines = split(topic.comment || "-", contentWidth - 24);
         const revisedCommentLines = hasRevised
-          ? split(revisedTopic!.comment || "-", contentWidth - 22)
+          ? split(revisedTopic!.comment || "-", contentWidth - 24)
           : [];
 
         const headerHeight = Math.max(9, 5 + Math.max(0, titleLines.length - 1) * 4.1);
         const scoreRowHeight = hasRevised ? 12.8 : 11;
-        const originalCommentHeight = 6 + commentLines.length * lineHeight;
-        const revisedCommentHeight = hasRevised ? 6 + revisedCommentLines.length * lineHeight : 0;
+
+        const originalCommentBoxHeight = 12 + commentLines.length * lineHeight + 6;
+        const revisedCommentBoxHeight = hasRevised ? 12 + revisedCommentLines.length * lineHeight + 6 : 0;
 
         const estimatedHeight =
           6 +
@@ -2206,9 +2213,8 @@ function SlideOverCaseDetail({
           6 +
           scoreRowHeight +
           6 +
-          4.5 +
-          originalCommentHeight +
-          (hasRevised ? 6 + scoreRowHeight + 6 + 4.5 + revisedCommentHeight : 0) +
+          originalCommentBoxHeight +
+          (hasRevised ? 6 + revisedCommentBoxHeight : 0) +
           10;
 
         ensureSpace(estimatedHeight + 3);
@@ -2294,39 +2300,45 @@ function SlideOverCaseDetail({
 
         innerY += usedScoreHeight + 6;
 
-        const drawCommentSection = (
+        const drawCommentBox = (
           label: string,
           lines: string[],
           tone: "default" | "revised" = "default"
         ) => {
+          const fill = tone === "revised" ? [245, 243, 255] : [248, 250, 252];
+          const border = tone === "revised" ? [196, 181, 253] : [226, 232, 240];
+          const labelColor = tone === "revised"
+            ? [109, 40, 217]
+            : [color.subtext[0], color.subtext[1], color.subtext[2]];
+          const bodyColor = tone === "revised"
+            ? [67, 56, 202]
+            : [color.text[0], color.text[1], color.text[2]];
+          const boxHeight = 12 + lines.length * lineHeight + 6;
+
+          doc.setFillColor(fill[0], fill[1], fill[2]);
+          doc.setDrawColor(border[0], border[1], border[2]);
+          doc.roundedRect(margin + 8, innerY, contentWidth - 16, boxHeight, 2.8, 2.8, "FD");
+
           setPdfFont("bold");
-          doc.setFontSize(10.1);
-          doc.setTextColor(
-            tone === "revised" ? 109 : color.subtext[0],
-            tone === "revised" ? 40 : color.subtext[1],
-            tone === "revised" ? 217 : color.subtext[2]
-          );
-          doc.text(label, margin + 8, innerY);
-          innerY += 4.8;
+          doc.setFontSize(10.4);
+          doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+          doc.text(label, margin + 12, innerY + 5);
 
           setPdfFont("normal");
           doc.setFontSize(11.0);
-          doc.setTextColor(
-            tone === "revised" ? 67 : color.text[0],
-            tone === "revised" ? 56 : color.text[1],
-            tone === "revised" ? 202 : color.text[2]
-          );
-          doc.text(lines, margin + 8, innerY);
-          innerY += lines.length * lineHeight + 3;
+          doc.setTextColor(bodyColor[0], bodyColor[1], bodyColor[2]);
+          doc.text(lines, margin + 12, innerY + 11.5);
+
+          innerY += boxHeight + 6;
         };
 
-        drawCommentSection(hasRevised ? "Original Comment" : "Comment", commentLines, "default");
+        drawCommentBox(hasRevised ? "Original Comment" : "Original Comment", commentLines, "default");
 
         if (hasRevised) {
-          drawCommentSection("Revised Comment", revisedCommentLines, "revised");
+          drawCommentBox("Revised Comment", revisedCommentLines, "revised");
         }
 
-        y += Math.max(estimatedHeight, innerY - y + 4) + topicGap;
+        y += Math.max(estimatedHeight, innerY - y + 2) + topicGap;
       };
 
       const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
