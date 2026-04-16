@@ -23,6 +23,16 @@ type CurrentUser = {
   agentName: string;
 };
 
+type BuildMeta = {
+  version: string;
+  updatedAt: string;
+  label: string;
+  author: string;
+  buildNumber: number;
+  changes: string[];
+  changedFiles: string[];
+};
+
 const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Anucha",
@@ -140,11 +150,14 @@ const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
-const APP_META = {
+const DEFAULT_BUILD_META: BuildMeta = {
   version: "v1.0.0",
-  updatedAt: "16/04/2026",
+  updatedAt: "16/04/2026 00:00",
   label: "Tracked Release",
   author: "by Songpon Phothong",
+  buildNumber: 1,
+  changes: ["Initial tracked release"],
+  changedFiles: [],
 };
 
 function isSongkranThemeActive() {
@@ -656,9 +669,11 @@ function LoginFeatureCard({
 }
 
 function VersionPill({
+  meta,
   light = false,
   className = "",
 }: {
+  meta: BuildMeta;
   light?: boolean;
   className?: string;
 }) {
@@ -670,11 +685,114 @@ function VersionPill({
           : "border-slate-200 bg-slate-50 text-slate-600"
       } ${className}`}
     >
-      <span>Version {APP_META.version}</span>
+      <span>{meta.label}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
-      <span>Updated {APP_META.updatedAt}</span>
+      <span>Version {meta.version}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
-      <span>{APP_META.author}</span>
+      <span>Build {meta.buildNumber}</span>
+      <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
+      <span>Updated {meta.updatedAt}</span>
+      <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
+      <span>{meta.author}</span>
+    </div>
+  );
+}
+
+function ReleaseNotesButton({
+  onClick,
+}: {
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center rounded-full border border-violet-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
+    >
+      Release Notes
+    </button>
+  );
+}
+
+function ReleaseNotesModal({
+  open,
+  onClose,
+  meta,
+}: {
+  open: boolean;
+  onClose: () => void;
+  meta: BuildMeta;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
+              Release Notes
+            </div>
+            <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+              {meta.label}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">
+              {meta.version} • Build {meta.buildNumber} • Updated {meta.updatedAt}
+            </div>
+            <div className="mt-1 text-sm text-slate-500">{meta.author}</div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div>
+            <div className="text-sm font-bold text-slate-900">Updated Features / Changes</div>
+            <div className="mt-3 space-y-2">
+              {meta.changes.length ? (
+                meta.changes.map((item, index) => (
+                  <div
+                    key={`${item}-${index}`}
+                    className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-slate-800"
+                  >
+                    {item}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  No release notes found for this build.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm font-bold text-slate-900">Changed Files</div>
+            <div className="mt-3 space-y-2">
+              {meta.changedFiles.length ? (
+                meta.changedFiles.map((item, index) => (
+                  <div
+                    key={`${item}-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                  >
+                    {item}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  No changed file list found for this build.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -696,6 +814,8 @@ export default function App() {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
+  const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
+  const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "appeal" | "summary" | "coaching" | "rubric" | "evaluation-studio"
@@ -715,6 +835,33 @@ export default function App() {
   }, [currentUser]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch(`/build-meta.json?ts=${Date.now()}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("build-meta not found");
+        return response.json();
+      })
+      .then((data) => {
+        if (!isMounted) return;
+        setBuildMeta({
+          ...DEFAULT_BUILD_META,
+          ...data,
+          changes: Array.isArray(data?.changes) ? data.changes : DEFAULT_BUILD_META.changes,
+          changedFiles: Array.isArray(data?.changedFiles) ? data.changedFiles : DEFAULT_BUILD_META.changedFiles,
+        });
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setBuildMeta(DEFAULT_BUILD_META);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -1108,8 +1255,9 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="mt-5 flex justify-center lg:justify-start">
-                  <VersionPill />
+                <div className="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
+                  <VersionPill meta={buildMeta} />
+                  <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
                 </div>
 
                 <div className="mt-4 text-center text-xs leading-5 text-slate-400 lg:text-left">
@@ -1129,6 +1277,12 @@ export default function App() {
         open={showSessionWarning}
         onStayLoggedIn={handleStayLoggedIn}
         onLogoutNow={handleLogout}
+      />
+
+      <ReleaseNotesModal
+        open={showReleaseNotesModal}
+        onClose={() => setShowReleaseNotesModal(false)}
+        meta={buildMeta}
       />
 
       <ChangePasswordModal
@@ -1311,8 +1465,9 @@ export default function App() {
                     Log Out
                   </button>
 
-                  <div className="ml-auto">
-                    <VersionPill />
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
+                    <VersionPill meta={buildMeta} />
                   </div>
                 </div>
               </div>
