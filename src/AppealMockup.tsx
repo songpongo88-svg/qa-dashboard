@@ -274,9 +274,25 @@ function gradeTone(grade: Grade) {
   }
 }
 
+function roundExcelLikeMinute(date: Date) {
+  const rounded = new Date(date.getTime());
+  const seconds = rounded.getSeconds();
+  const milliseconds = rounded.getMilliseconds();
+
+  if (seconds >= 30 || milliseconds >= 500) {
+    rounded.setMinutes(rounded.getMinutes() + 1);
+  }
+
+  rounded.setSeconds(0, 0);
+  return rounded;
+}
+
 function parseExcelDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return roundExcelLikeMinute(value);
+  }
 
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
@@ -284,7 +300,7 @@ function parseExcelDate(value: any): Date | null {
     const hh = parsed.H || 0;
     const mm = parsed.M || 0;
     const ss = parsed.S || 0;
-    return new Date(parsed.y, parsed.m - 1, parsed.d, hh, mm, ss);
+    return roundExcelLikeMinute(new Date(parsed.y, parsed.m - 1, parsed.d, hh, mm, ss));
   }
 
   const text = String(value).trim();
