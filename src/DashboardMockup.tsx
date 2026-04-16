@@ -2021,6 +2021,13 @@ function SlideOverCaseDetail({
         drawPageHeader(continued);
       };
 
+      const startNewPage = (continued = true) => {
+        doc.addPage();
+        pageNumber += 1;
+        setPdfFont("normal");
+        drawPageHeader(continued);
+      };
+
       const drawSectionHeader = (title: string, subtitle?: string) => {
         const blockHeight = subtitle ? 12 : 9;
         ensureSpace(blockHeight + 3);
@@ -2325,6 +2332,7 @@ function SlideOverCaseDetail({
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
 
+      startNewPage(true);
       drawSectionHeader(
         "Topic Detail",
         caseItem.reviewStatus === "Revised"
