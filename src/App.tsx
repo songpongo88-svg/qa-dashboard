@@ -4,7 +4,6 @@ import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
-import EvaluationStudioPage from "./pages/EvaluationStudioPage";
 
 type UserRole = "Agent" | "Supervisor";
 
@@ -561,7 +560,7 @@ export default function App() {
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "coaching" | "rubric" | "evaluation-studio"
+    "dashboard" | "appeal" | "summary" | "coaching" | "rubric"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
 
@@ -980,7 +979,6 @@ export default function App() {
                   <span className="ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">Review</span>
                   <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
                   <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
-                  <NavButton active={activeTab === "evaluation-studio"} label="Evaluation Studio" onClick={() => setActiveTab("evaluation-studio")} songkranTheme={songkranTheme} />
                 </div>
 
                 <div className={`relative flex flex-wrap items-center gap-3 rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"}`}>
@@ -1047,8 +1045,6 @@ export default function App() {
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
-        ) : activeTab === "evaluation-studio" ? (
-          <EvaluationStudioPage />
         ) : (
           <QARubricMockup />
         )}
