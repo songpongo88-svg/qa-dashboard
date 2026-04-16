@@ -116,9 +116,13 @@ function isSongkranThemeActive() {
   return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
 }
 
+function stripInvisibleChars(value: unknown) {
+  return String(value ?? "").replace(/[​-‏‪-‮⁠﻿]/g, "");
+}
+
 function normalizeText(value: unknown) {
-  return String(value ?? "")
-    .replace(/\u00A0/g, " ")
+  return stripInvisibleChars(value)
+    .replace(/ /g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -345,8 +349,14 @@ function formatDateTime(value: any): string {
 
 function formatDateTimeOrRaw(value: any): string {
   if (value === null || value === undefined || value === "") return "-";
-  const formatted = formatDateTime(value);
-  return formatted && formatted.trim() !== "" ? formatted : String(value).trim() || "-";
+  const formatted = stripInvisibleChars(formatDateTime(value));
+  const raw = stripInvisibleChars(String(value ?? "")).trim();
+  return formatted && formatted.trim() !== "" ? formatted : raw || "-";
+}
+
+function sanitizeDisplayText(value: unknown, fallback = "-") {
+  const cleaned = stripInvisibleChars(String(value ?? "")).trim();
+  return cleaned || fallback;
 }
 
 function normalizeComment(value?: string) {
@@ -628,99 +638,102 @@ function QuickCaseCard({
   );
 }
 
-function AppealedTopicsTable({
+function AppealedTopicsCaseDetailTable({
   topics,
 }: {
   topics: Topic[];
 }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-violet-200/90 bg-white shadow-[0_14px_34px_rgba(76,29,149,0.08)]">
-      <div className="h-1 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-cyan-400" />
-      <div className="overflow-x-auto">
-        <table className="min-w-[1240px] w-full text-sm">
-          <thead>
-            <tr className="bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 text-[11px] uppercase tracking-[0.16em] text-white">
-              <th className="px-4 py-4 text-left">Topic</th>
-              <th className="px-4 py-4 text-left">Description</th>
-              <th className="px-4 py-4 text-center">Original</th>
-              <th className="px-4 py-4 text-center">Final</th>
-              <th className="px-4 py-4 text-center">Change</th>
-              <th className="px-4 py-4 text-center">Status</th>
-              <th className="px-4 py-4 text-left">Appeal Reason</th>
-              <th className="px-4 py-4 text-left">Original Comment</th>
-              <th className="px-4 py-4 text-left">Revised Comment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topics.map((topic) => {
-              const originalScore = Number(topic.originalScore ?? topic.score);
-              const revisedScore = Number(topic.score);
-              const diff = revisedScore - originalScore;
-              const diffPrefix = diff > 0 ? "+" : "";
-              const statusTone = topicScoreStatusTone(originalScore, revisedScore);
-              const commentChanged = hasMeaningfulTextChange(topic.originalComment, topic.comment);
+    <div className="rounded-[28px] border border-violet-200/80 bg-white px-6 py-6 shadow-[0_18px_48px_rgba(109,40,217,0.08)]">
+      <div className="space-y-8">
+        {topics.length ? topics.map((topic, index) => {
+          const originalScore = Number(topic.originalScore ?? topic.score);
+          const revisedScore = Number(topic.score);
+          const diff = revisedScore - originalScore;
+          const statusTone = topicScoreStatusTone(originalScore, revisedScore);
+          const pct = topic.max > 0 ? (revisedScore / topic.max) * 100 : 0;
 
-              return (
-                <tr key={topic.code} className="align-top bg-white">
-                  <td className="border-t border-violet-100 px-4 py-4">
-                    <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
-                      {topic.code}
+          let performanceLabel = "Need Improvement";
+          let performanceClass = "text-rose-700";
+          if (pct >= 90) {
+            performanceLabel = "Excellent";
+            performanceClass = "text-emerald-700";
+          } else if (pct >= 80) {
+            performanceLabel = "Good";
+            performanceClass = "text-sky-700";
+          } else if (pct >= 60) {
+            performanceLabel = "Fair";
+            performanceClass = "text-amber-700";
+          }
+
+          return (
+            <div
+              key={`${topic.code}-${index}`}
+              className="border-b border-violet-100 pb-8 last:border-b-0 last:pb-0"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[20px] font-bold tracking-tight text-slate-900">
+                    {topic.code} {topic.label}
+                  </div>
+                  <div className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-violet-700">
+                    Appeal topic review
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-left lg:min-w-[260px] lg:text-right">
+                  <div className={`text-sm font-bold ${performanceClass}`}>{performanceLabel}</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {originalScore}/{topic.max} ({((originalScore / Math.max(topic.max, 1)) * 100).toFixed(1)}%)
+                    <span className="mx-2 text-slate-400">→</span>
+                    {revisedScore}/{topic.max} ({pct.toFixed(1)}%)
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-x-8 gap-y-3 text-sm lg:grid-cols-[190px_minmax(0,1fr)]">
+                <div className="font-semibold text-slate-500">Score</div>
+                <div className="text-slate-900">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">
+                      Original {originalScore}/{topic.max}
                     </span>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 font-semibold text-slate-900">
-                    {topic.label}
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-center">
-                    <div className="inline-flex min-w-[72px] justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 font-extrabold text-slate-900">
-                      {originalScore}
-                    </div>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-center">
-                    <div className="inline-flex min-w-[72px] justify-center rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 font-extrabold text-violet-700">
-                      {revisedScore}
-                    </div>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-center">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusTone.className}`}>
-                      {diff === 0 ? "0" : `${diffPrefix}${diff}`}
+                    <span className="text-slate-400">→</span>
+                    <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
+                      Revised {revisedScore}/{topic.max}
                     </span>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusTone.className}`}>
-                        {statusTone.label}
-                      </span>
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold ${
-                          commentChanged
-                            ? "border-violet-200 bg-violet-50 text-violet-700"
-                            : "border-slate-200 bg-slate-50 text-slate-600"
-                        }`}
-                      >
-                        {commentChanged ? "Comment Updated" : "Comment Maintained"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 align-top">
-                    <div className="max-w-[320px] whitespace-pre-line text-[13px] font-semibold leading-6 text-amber-900">
-                      {topic.appealReason || "-"}
-                    </div>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 align-top">
-                    <div className="max-w-[380px] whitespace-pre-line text-[13px] font-medium leading-6 text-sky-950">
-                      {topic.originalComment || "-"}
-                    </div>
-                  </td>
-                  <td className="border-t border-violet-100 px-4 py-4 align-top">
-                    <div className="max-w-[380px] whitespace-pre-line text-[13px] font-semibold leading-6 text-violet-900">
-                      {topic.comment || "-"}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusTone.className}`}>
+                      {diff === 0 ? "No score change" : `${diff > 0 ? "+" : ""}${diff} · ${statusTone.label}`}
+                    </span>
+                  </span>
+                </div>
+
+                <div className="font-semibold text-slate-500">Max Score</div>
+                <div className="text-slate-900">{topic.max}</div>
+
+                <div className="font-semibold text-slate-500">Status</div>
+                <div className={`font-semibold ${performanceClass}`}>{performanceLabel}</div>
+
+                <div className="font-semibold text-amber-700">Appeal Reason</div>
+                <div className="whitespace-pre-line leading-7 text-amber-950">
+                  {sanitizeDisplayText(topic.appealReason, "-")}
+                </div>
+
+                <div className="font-semibold text-slate-500">Original Comment</div>
+                <div className="whitespace-pre-line leading-7 text-slate-800">
+                  {sanitizeDisplayText(topic.originalComment, "ยังไม่มี Evaluation Comment")}
+                </div>
+
+                <div className="font-semibold text-violet-700">Revised Comment</div>
+                <div className="whitespace-pre-line leading-7 text-slate-900">
+                  {sanitizeDisplayText(topic.comment, "ยังไม่มี Revised Comment")}
+                </div>
+              </div>
+            </div>
+          );
+        }) : (
+          <div className="py-10 text-center text-sm text-slate-500">ไม่พบหัวข้อที่มีการยื่นอุทธรณ์</div>
+        )}
       </div>
     </div>
   );
@@ -1041,8 +1054,8 @@ export default function AppealMockup({
               appealVersion: String(appealVersionRaw ?? "-").trim() || "-",
               appealSubmitDateTime: formatDateTimeOrRaw(appealSubmitRaw),
               appealResultDateTime: formatDateTimeOrRaw(appealResultRaw),
-              appealChannel: String(appealChannelRaw ?? "-").trim() || "-",
-              appealReviewSummary: String(appealReviewSummaryRaw ?? "").trim() || "-",
+              appealChannel: sanitizeDisplayText(appealChannelRaw, "-"),
+              appealReviewSummary: sanitizeDisplayText(appealReviewSummaryRaw, "-"),
               caseUrl,
               appealedTopics,
               changedTopics,
@@ -1267,7 +1280,7 @@ export default function AppealMockup({
       color: [number, number, number] = PDF_COLORS.body,
       gapAfter = 5
     ) => {
-      const lines = doc.splitTextToSize(text || "-", contentWidth);
+      const lines = doc.splitTextToSize(sanitizeDisplayText(text, "-"), contentWidth);
       ensureSpace(lines.length * (size * 0.45) + gapAfter + 2);
       setPdfFont(doc, "normal");
       doc.setFontSize(size);
@@ -1277,7 +1290,7 @@ export default function AppealMockup({
     };
 
     const addKeyValue = (label: string, value: string, labelWidth = 40) => {
-      const safeValue = value || "-";
+      const safeValue = sanitizeDisplayText(value, "-");
       const valueLines = doc.splitTextToSize(safeValue, contentWidth - labelWidth);
       ensureSpace(Math.max(6, valueLines.length * 4.8) + 1);
 
@@ -1699,7 +1712,7 @@ export default function AppealMockup({
                         Customer Inquiry
                       </div>
                       <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                        {selectedCase.inquiry || "-"}
+                        {sanitizeDisplayText(selectedCase.inquiry)}
                       </div>
                     </div>
 
@@ -1708,7 +1721,7 @@ export default function AppealMockup({
                         Appeal Review Summary
                       </div>
                       <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                        {selectedCase.appealReviewSummary || "-"}
+                        {sanitizeDisplayText(selectedCase.appealReviewSummary)}
                       </div>
                     </div>
 
@@ -1743,7 +1756,7 @@ export default function AppealMockup({
                         Appeal Submit Date & Time
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
-                        {selectedCase.appealSubmitDateTime || "-"}
+                        {sanitizeDisplayText(selectedCase.appealSubmitDateTime)}
                       </div>
                     </div>
 
@@ -1752,7 +1765,7 @@ export default function AppealMockup({
                         Appeal Result Date & Time
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
-                        {selectedCase.appealResultDateTime || "-"}
+                        {sanitizeDisplayText(selectedCase.appealResultDateTime)}
                       </div>
                     </div>
 
@@ -1761,7 +1774,7 @@ export default function AppealMockup({
                         Appeal Channel
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
-                        {selectedCase.appealChannel || "-"}
+                        {sanitizeDisplayText(selectedCase.appealChannel)}
                       </div>
                     </div>
 
@@ -1846,7 +1859,7 @@ export default function AppealMockup({
                         </div>
                       </div>
 
-                      <AppealedTopicsTable topics={selectedCase.appealedTopics} />
+                      <AppealedTopicsCaseDetailTable topics={selectedCase.appealedTopics} />
                     </div>
                   )}
                 </PanelBody>
