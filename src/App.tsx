@@ -144,6 +144,7 @@ const APP_META = {
   version: "v1.0.0",
   updatedAt: "16/04/2026",
   label: "Tracked Release",
+  author: "by Songpon Phothong",
 };
 
 function isSongkranThemeActive() {
@@ -672,6 +673,8 @@ function VersionPill({
       <span>Version {APP_META.version}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
       <span>Updated {APP_META.updatedAt}</span>
+      <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
+      <span>{APP_META.author}</span>
     </div>
   );
 }
