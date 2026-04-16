@@ -1,1 +1,14 @@
-
+{
+  "appName": "qa-dashboard",
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "releaseLabel": "v1.0.0 build 1",
+  "updatedAt": "16/04/2026 16:00:00",
+  "timezone": "Asia/Bangkok",
+  "author": "Songpon Phothong",
+  "commitHash": "",
+  "commitMessage": "",
+  "changedFiles": [],
+  "releaseNotesTitle": "Latest Updates",
+  "releaseNotes": []
+}
