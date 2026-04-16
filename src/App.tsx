@@ -26,6 +26,7 @@ type CurrentUser = {
 type BuildMeta = {
   appName?: string;
   version: string;
+  displayVersion?: string;
   updatedAt: string;
   releaseLabel: string;
   author: string;
