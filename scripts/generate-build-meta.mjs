@@ -45,7 +45,6 @@ function formatBangkokDateTime(date = new Date()) {
 
   const parts = formatter.formatToParts(date);
   const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-
   return `${map.day}/${map.month}/${map.year} ${map.hour}:${map.minute}:${map.second}`;
 }
 
@@ -102,7 +101,7 @@ function getBuildNumber(previousMeta) {
 
 function main() {
   const previousMeta = safeReadJson(buildMetaPath, {});
-  const version = getPackageVersion();
+  const baseVersion = getPackageVersion();
   const fullCommitHash = getCommitHash();
   const shortCommitHash = getShortCommitHash(fullCommitHash);
   const commitMessage = getCommitMessage();
@@ -110,13 +109,13 @@ function main() {
   const buildNumber = getBuildNumber(previousMeta);
   const updatedAt = formatBangkokDateTime(new Date());
 
-  const releaseLabel = shortCommitHash
-    ? `v${version} · ${shortCommitHash}`
-    : `v${version} build ${buildNumber}`;
+  const displayVersion = `${baseVersion}.${buildNumber}`;
+  const releaseLabel = `v${displayVersion}`;
 
   const nextMeta = {
     appName: "qa-dashboard",
-    version,
+    version: baseVersion,
+    displayVersion,
     buildNumber,
     releaseLabel,
     updatedAt,
