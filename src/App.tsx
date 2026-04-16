@@ -69,8 +69,9 @@ const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 const DEFAULT_BUILD_META: BuildMeta = {
   appName: "qa-dashboard",
   version: "1.0.0",
+  displayVersion: "1.0.0.1",
   updatedAt: "16/04/2026 00:00:00",
-  releaseLabel: "v1.0.0 build 1",
+  releaseLabel: "v1.0.0.1",
   author: "Songpon Phothong",
   buildNumber: 1,
   releaseNotesTitle: "Latest Updates",
@@ -415,32 +416,22 @@ function MetaChip({ children }: { children: React.ReactNode }) {
 
 function VersionPill({
   meta,
-  light = false,
   className = "",
 }: {
   meta: BuildMeta;
-  light?: boolean;
   className?: string;
 }) {
-  const shell = light
-    ? "border-white/20 bg-white/10 text-white/90"
-    : "border-violet-200/70 bg-white text-slate-700";
-
-  const sub = light ? "text-white/70" : "text-slate-500";
   const shortHash = meta.commitHash ? meta.commitHash.slice(0, 7) : "";
+  const shownVersion = meta.displayVersion || meta.version;
 
   return (
-    <div className={`inline-flex flex-col gap-2 rounded-[20px] border px-3 py-2 shadow-sm backdrop-blur-sm ${shell} ${className}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <MetaChip>v{meta.version}</MetaChip>
-        <MetaChip>Build {meta.buildNumber}</MetaChip>
-        <MetaChip>{meta.releaseLabel}</MetaChip>
-        {shortHash ? <MetaChip>{shortHash}</MetaChip> : null}
+    <div className={`inline-flex flex-col gap-1.5 rounded-[18px] border border-violet-200/70 bg-white px-3.5 py-2.5 text-slate-700 shadow-sm ${className}`}>
+      <div className="text-sm font-bold text-slate-900">
+        Version {shownVersion}
       </div>
-      <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] ${sub}`}>
-        <span>Updated {meta.updatedAt}</span>
-        <span>•</span>
-        <span>by {meta.author}</span>
+      <div className="text-[11px] text-slate-500">
+        {meta.updatedAt}
+        {shortHash ? ` · ${shortHash}` : ""}
       </div>
     </div>
   );
@@ -469,8 +460,6 @@ function ReleaseNotesModal({
 }) {
   if (!open) return null;
 
-  const shortHash = meta.commitHash ? meta.commitHash.slice(0, 7) : "";
-
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-3xl rounded-[30px] bg-white p-6 shadow-2xl">
@@ -480,18 +469,14 @@ function ReleaseNotesModal({
               {meta.releaseNotesTitle || "Release Notes"}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-2xl font-bold tracking-tight text-slate-900">v{meta.version}</span>
-              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Build {meta.buildNumber}</span>
-              {shortHash ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  {shortHash}
-                </span>
-              ) : null}
+              <span className="text-2xl font-bold tracking-tight text-slate-900">
+                v{meta.displayVersion || meta.version}
+              </span>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <MetaChip>{meta.releaseLabel}</MetaChip>
               <MetaChip>Updated {meta.updatedAt}</MetaChip>
               <MetaChip>by {meta.author}</MetaChip>
+              {meta.commitHash ? <MetaChip>{meta.commitHash.slice(0, 7)}</MetaChip> : null}
             </div>
             {meta.commitMessage ? (
               <div className="mt-3 max-w-2xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -607,6 +592,7 @@ export default function App() {
         setBuildMeta({
           appName: String(data?.appName ?? DEFAULT_BUILD_META.appName),
           version: String(data?.version ?? DEFAULT_BUILD_META.version),
+          displayVersion: String(data?.displayVersion ?? DEFAULT_BUILD_META.displayVersion),
           updatedAt: String(data?.updatedAt ?? DEFAULT_BUILD_META.updatedAt),
           releaseLabel: String(data?.releaseLabel ?? DEFAULT_BUILD_META.releaseLabel),
           author: String(data?.author ?? DEFAULT_BUILD_META.author),
