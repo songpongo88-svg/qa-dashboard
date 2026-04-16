@@ -1,1 +1,8 @@
-
+{
+  "title": "Latest Updates",
+  "items": [
+    "Added automatic build version tracking",
+    "Added updated date and build number display",
+    "Added author label by Songpon Phothong"
+  ]
+}
