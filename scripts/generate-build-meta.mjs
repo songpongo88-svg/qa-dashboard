@@ -6,126 +6,134 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
-const publicDir = path.join(rootDir, "public");
+
 const packageJsonPath = path.join(rootDir, "package.json");
-const buildMetaPath = path.join(publicDir, "build-meta.json");
-const releaseNotesPath = path.join(publicDir, "release-notes.json");
+const buildMetaPath = path.join(rootDir, "public", "build-meta.json");
 
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
-function readJson(filePath, fallback = null) {
+function safeReadJson(filePath, fallback = {}) {
   try {
     if (!fs.existsSync(filePath)) return fallback;
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw);
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
     return fallback;
   }
 }
 
-function writeJson(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+function safeExec(command, fallback = "") {
+  try {
+    return execSync(command, {
+      cwd: rootDir,
+      stdio: ["ignore", "pipe", "ignore"],
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    return fallback;
+  }
 }
 
-function getThailandTimestamp() {
-  const now = new Date();
-
-  const datePart = new Intl.DateTimeFormat("en-GB", {
+function formatBangkokDateTime(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Bangkok",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(now);
-
-  const timePart = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Bangkok",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  }).format(now);
+  });
 
-  return `${datePart} ${timePart}`;
+  const parts = formatter.formatToParts(date);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+
+  return `${map.day}/${map.month}/${map.year} ${map.hour}:${map.minute}:${map.second}`;
 }
 
-function getGitCommitHash() {
-  try {
-    return execSync("git rev-parse --short HEAD", {
-      cwd: rootDir,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .toString()
-      .trim();
-  } catch {
-    return "";
+function getPackageVersion() {
+  const pkg = safeReadJson(packageJsonPath, {});
+  return pkg.version || "1.0.0";
+}
+
+function getCommitHash() {
+  return (
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.GITHUB_SHA ||
+    safeExec("git rev-parse HEAD", "")
+  );
+}
+
+function getShortCommitHash(fullHash) {
+  return fullHash ? fullHash.slice(0, 7) : "";
+}
+
+function getCommitMessage() {
+  return (
+    process.env.VERCEL_GIT_COMMIT_MESSAGE ||
+    safeExec("git log -1 --pretty=%B", "")
+  );
+}
+
+function getChangedFiles() {
+  const previousSha = process.env.VERCEL_GIT_PREVIOUS_SHA || "";
+  const currentSha = process.env.VERCEL_GIT_COMMIT_SHA || "";
+
+  if (previousSha && currentSha && previousSha !== currentSha) {
+    const diff = safeExec(`git diff --name-only ${previousSha} ${currentSha}`, "");
+    return diff.split("\n").map((x) => x.trim()).filter(Boolean);
   }
+
+  const headFiles = safeExec("git diff-tree --no-commit-id --name-only -r HEAD", "");
+  return headFiles.split("\n").map((x) => x.trim()).filter(Boolean);
 }
 
-function getGitChangedFiles() {
-  try {
-    const output = execSync("git diff-tree --no-commit-id --name-only -r HEAD", {
-      cwd: rootDir,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .toString()
-      .trim();
+function getBuildNumber(previousMeta) {
+  const commitCount = safeExec("git rev-list --count HEAD", "");
 
-    if (!output) return [];
-    return output.split("\n").map((item) => item.trim()).filter(Boolean);
-  } catch {
-    return [];
+  if (commitCount && !Number.isNaN(Number(commitCount))) {
+    return Number(commitCount);
   }
-}
 
-function getGitCommitMessage() {
-  try {
-    return execSync("git log -1 --pretty=%B", {
-      cwd: rootDir,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .toString()
-      .trim();
-  } catch {
-    return "";
+  if (typeof previousMeta?.buildNumber === "number") {
+    return previousMeta.buildNumber + 1;
   }
+
+  return 1;
 }
 
-ensureDir(publicDir);
+function main() {
+  const previousMeta = safeReadJson(buildMetaPath, {});
+  const version = getPackageVersion();
+  const fullCommitHash = getCommitHash();
+  const shortCommitHash = getShortCommitHash(fullCommitHash);
+  const commitMessage = getCommitMessage();
+  const changedFiles = getChangedFiles();
+  const buildNumber = getBuildNumber(previousMeta);
+  const updatedAt = formatBangkokDateTime(new Date());
 
-const packageJson = readJson(packageJsonPath, {});
-const previousBuildMeta = readJson(buildMetaPath, {});
-const releaseNotes = readJson(releaseNotesPath, {
-  title: "Latest Updates",
-  items: [],
-});
+  const releaseLabel = shortCommitHash
+    ? `v${version} · ${shortCommitHash}`
+    : `v${version} build ${buildNumber}`;
 
-const nextBuildNumber = Number(previousBuildMeta.buildNumber || 0) + 1;
-const version = packageJson.version || "1.0.0";
-const updatedAt = getThailandTimestamp();
-const commitHash = getGitCommitHash();
-const commitMessage = getGitCommitMessage();
-const changedFiles = getGitChangedFiles();
+  const nextMeta = {
+    appName: "qa-dashboard",
+    version,
+    buildNumber,
+    releaseLabel,
+    updatedAt,
+    timezone: "Asia/Bangkok",
+    author: "Songpon Phothong",
+    commitHash: fullCommitHash,
+    commitMessage,
+    changedFiles,
+    releaseNotesTitle: "Latest Updates",
+    releaseNotes: [],
+  };
 
-const buildMeta = {
-  appName: packageJson.name || "qa-dashboard",
-  version,
-  buildNumber: nextBuildNumber,
-  releaseLabel: `v${version} build ${nextBuildNumber}`,
-  updatedAt,
-  timezone: "Asia/Bangkok",
-  author: "Songpon Phothong",
-  commitHash,
-  commitMessage,
-  changedFiles,
-  releaseNotesTitle: releaseNotes.title || "Latest Updates",
-  releaseNotes: Array.isArray(releaseNotes.items) ? releaseNotes.items : [],
-};
+  fs.mkdirSync(path.dirname(buildMetaPath), { recursive: true });
+  fs.writeFileSync(buildMetaPath, JSON.stringify(nextMeta, null, 2), "utf8");
 
-writeJson(buildMetaPath, buildMeta);
+  console.log("build-meta.json generated successfully");
+  console.log(JSON.stringify(nextMeta, null, 2));
+}
 
-console.log("Generated build-meta.json successfully");
-console.log(buildMeta);
+main();
