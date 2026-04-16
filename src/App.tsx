@@ -26,10 +26,10 @@ type CurrentUser = {
 type BuildMeta = {
   version: string;
   updatedAt: string;
-  label: string;
+  releaseLabel: string;
   author: string;
   buildNumber: number;
-  changes: string[];
+  releaseNotes: string[];
   changedFiles: string[];
 };
 
@@ -151,12 +151,12 @@ const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 const DEFAULT_BUILD_META: BuildMeta = {
-  version: "v1.0.0",
+  version: "1.0.0",
   updatedAt: "16/04/2026 00:00",
-  label: "Tracked Release",
-  author: "by Songpon Phothong",
+  releaseLabel: "Tracked Release",
+  author: "Songpon Phothong",
   buildNumber: 1,
-  changes: ["Initial tracked release"],
+  releaseNotes: ["Initial tracked release"],
   changedFiles: [],
 };
 
@@ -685,15 +685,15 @@ function VersionPill({
           : "border-slate-200 bg-slate-50 text-slate-600"
       } ${className}`}
     >
-      <span>{meta.label}</span>
+      <span>{meta.releaseLabel}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
-      <span>Version {meta.version}</span>
+      <span>Version v{meta.version}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
       <span>Build {meta.buildNumber}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
       <span>Updated {meta.updatedAt}</span>
       <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
-      <span>{meta.author}</span>
+      <span>by {meta.author}</span>
     </div>
   );
 }
@@ -734,12 +734,12 @@ function ReleaseNotesModal({
               Release Notes
             </div>
             <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-              {meta.label}
+              {meta.releaseLabel}
             </div>
             <div className="mt-2 text-sm text-slate-500">
-              {meta.version} • Build {meta.buildNumber} • Updated {meta.updatedAt}
+              v{meta.version} • Build {meta.buildNumber} • Updated {meta.updatedAt}
             </div>
-            <div className="mt-1 text-sm text-slate-500">{meta.author}</div>
+            <div className="mt-1 text-sm text-slate-500">by {meta.author}</div>
           </div>
 
           <button
@@ -755,8 +755,8 @@ function ReleaseNotesModal({
           <div>
             <div className="text-sm font-bold text-slate-900">Updated Features / Changes</div>
             <div className="mt-3 space-y-2">
-              {meta.changes.length ? (
-                meta.changes.map((item, index) => (
+              {meta.releaseNotes.length ? (
+                meta.releaseNotes.map((item, index) => (
                   <div
                     key={`${item}-${index}`}
                     className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-slate-800"
@@ -847,10 +847,17 @@ export default function App() {
       .then((data) => {
         if (!isMounted) return;
         setBuildMeta({
-          ...DEFAULT_BUILD_META,
-          ...data,
-          changes: Array.isArray(data?.changes) ? data.changes : DEFAULT_BUILD_META.changes,
-          changedFiles: Array.isArray(data?.changedFiles) ? data.changedFiles : DEFAULT_BUILD_META.changedFiles,
+          version: String(data?.version ?? DEFAULT_BUILD_META.version),
+          updatedAt: String(data?.updatedAt ?? DEFAULT_BUILD_META.updatedAt),
+          releaseLabel: String(data?.releaseLabel ?? DEFAULT_BUILD_META.releaseLabel),
+          author: String(data?.author ?? DEFAULT_BUILD_META.author),
+          buildNumber: Number(data?.buildNumber ?? DEFAULT_BUILD_META.buildNumber),
+          releaseNotes: Array.isArray(data?.releaseNotes)
+            ? data.releaseNotes
+            : DEFAULT_BUILD_META.releaseNotes,
+          changedFiles: Array.isArray(data?.changedFiles)
+            ? data.changedFiles
+            : DEFAULT_BUILD_META.changedFiles,
         });
       })
       .catch(() => {
