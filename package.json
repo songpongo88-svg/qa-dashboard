@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "generate:meta": "node ./scripts/generate-build-meta.mjs",
+    "predev": "npm run generate:meta",
     "dev": "vite",
+    "prebuild": "npm run generate:meta",
     "build": "vite build",
     "preview": "vite preview"
   },
