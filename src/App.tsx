@@ -140,6 +140,12 @@ const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
+const APP_META = {
+  version: "v1.0.0",
+  updatedAt: "16/04/2026",
+  label: "Tracked Release",
+};
+
 function isSongkranThemeActive() {
   const now = new Date();
   return now >= SONGKRAN_THEME_START && now <= SONGKRAN_THEME_END;
@@ -648,6 +654,28 @@ function LoginFeatureCard({
   );
 }
 
+function VersionPill({
+  light = false,
+  className = "",
+}: {
+  light?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-sm ${
+        light
+          ? "border-white/20 bg-white/10 text-white/90 backdrop-blur-sm"
+          : "border-slate-200 bg-slate-50 text-slate-600"
+      } ${className}`}
+    >
+      <span>Version {APP_META.version}</span>
+      <span className={light ? "text-white/50" : "text-slate-300"}>•</span>
+      <span>Updated {APP_META.updatedAt}</span>
+    </div>
+  );
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
   const [username, setUsername] = useState("");
@@ -1077,7 +1105,11 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="mt-5 text-center text-xs leading-5 text-slate-400 lg:text-left">
+                <div className="mt-5 flex justify-center lg:justify-start">
+                  <VersionPill />
+                </div>
+
+                <div className="mt-4 text-center text-xs leading-5 text-slate-400 lg:text-left">
                   This login layout is responsive and sized for standard laptop browser view.
                 </div>
               </div>
@@ -1275,6 +1307,10 @@ export default function App() {
                   >
                     Log Out
                   </button>
+
+                  <div className="ml-auto">
+                    <VersionPill />
+                  </div>
                 </div>
               </div>
             </div>
