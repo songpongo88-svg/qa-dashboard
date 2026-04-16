@@ -24,13 +24,18 @@ type CurrentUser = {
 };
 
 type BuildMeta = {
+  appName?: string;
   version: string;
   updatedAt: string;
   releaseLabel: string;
   author: string;
   buildNumber: number;
+  releaseNotesTitle?: string;
   releaseNotes: string[];
   changedFiles: string[];
+  commitHash?: string;
+  commitMessage?: string;
+  timezone?: string;
 };
 
 const USER_ACCOUNTS: UserAccount[] = [
@@ -61,13 +66,18 @@ const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 const DEFAULT_BUILD_META: BuildMeta = {
+  appName: "qa-dashboard",
   version: "1.0.0",
-  updatedAt: "16/04/2026 00:00",
-  releaseLabel: "Tracked Release",
+  updatedAt: "16/04/2026 00:00:00",
+  releaseLabel: "v1.0.0 build 1",
   author: "Songpon Phothong",
   buildNumber: 1,
+  releaseNotesTitle: "Latest Updates",
   releaseNotes: ["Initial tracked release"],
   changedFiles: [],
+  commitHash: "",
+  commitMessage: "",
+  timezone: "Asia/Bangkok",
 };
 
 function isSongkranThemeActive() {
@@ -259,7 +269,15 @@ function DashboardSubButton({
   );
 }
 
-function SessionWarningModal({ open, onStayLoggedIn, onLogoutNow }: { open: boolean; onStayLoggedIn: () => void; onLogoutNow: () => void; }) {
+function SessionWarningModal({
+  open,
+  onStayLoggedIn,
+  onLogoutNow,
+}: {
+  open: boolean;
+  onStayLoggedIn: () => void;
+  onLogoutNow: () => void;
+}) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 px-4">
@@ -278,12 +296,29 @@ function SessionWarningModal({ open, onStayLoggedIn, onLogoutNow }: { open: bool
 }
 
 function ChangePasswordModal({
-  open, onClose, currentPasswordInput, setCurrentPasswordInput, newPasswordInput, setNewPasswordInput,
-  confirmNewPasswordInput, setConfirmNewPasswordInput, error, success, onSubmit,
+  open,
+  onClose,
+  currentPasswordInput,
+  setCurrentPasswordInput,
+  newPasswordInput,
+  setNewPasswordInput,
+  confirmNewPasswordInput,
+  setConfirmNewPasswordInput,
+  error,
+  success,
+  onSubmit,
 }: {
-  open: boolean; onClose: () => void; currentPasswordInput: string; setCurrentPasswordInput: (value: string) => void;
-  newPasswordInput: string; setNewPasswordInput: (value: string) => void; confirmNewPasswordInput: string;
-  setConfirmNewPasswordInput: (value: string) => void; error: string; success: string; onSubmit: () => void;
+  open: boolean;
+  onClose: () => void;
+  currentPasswordInput: string;
+  setCurrentPasswordInput: (value: string) => void;
+  newPasswordInput: string;
+  setNewPasswordInput: (value: string) => void;
+  confirmNewPasswordInput: string;
+  setConfirmNewPasswordInput: (value: string) => void;
+  error: string;
+  success: string;
+  onSubmit: () => void;
 }) {
   if (!open) return null;
   return (
@@ -317,9 +352,19 @@ function ChangePasswordModal({
 }
 
 function ResetPasswordModal({
-  open, onClose, selectedUsername, setSelectedUsername, onReset, resultMessage,
+  open,
+  onClose,
+  selectedUsername,
+  setSelectedUsername,
+  onReset,
+  resultMessage,
 }: {
-  open: boolean; onClose: () => void; selectedUsername: string; setSelectedUsername: (value: string) => void; onReset: () => void; resultMessage: string;
+  open: boolean;
+  onClose: () => void;
+  selectedUsername: string;
+  setSelectedUsername: (value: string) => void;
+  onReset: () => void;
+  resultMessage: string;
 }) {
   if (!open) return null;
   const resettableUsers = USER_ACCOUNTS.filter((item) => item.role === "Agent");
@@ -381,6 +426,7 @@ function VersionPill({
     : "border-violet-200/70 bg-white text-slate-700";
 
   const sub = light ? "text-white/70" : "text-slate-500";
+  const shortHash = meta.commitHash ? meta.commitHash.slice(0, 7) : "";
 
   return (
     <div className={`inline-flex flex-col gap-2 rounded-[20px] border px-3 py-2 shadow-sm backdrop-blur-sm ${shell} ${className}`}>
@@ -388,6 +434,7 @@ function VersionPill({
         <MetaChip>v{meta.version}</MetaChip>
         <MetaChip>Build {meta.buildNumber}</MetaChip>
         <MetaChip>{meta.releaseLabel}</MetaChip>
+        {shortHash ? <MetaChip>{shortHash}</MetaChip> : null}
       </div>
       <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] ${sub}`}>
         <span>Updated {meta.updatedAt}</span>
@@ -421,21 +468,35 @@ function ReleaseNotesModal({
 }) {
   if (!open) return null;
 
+  const shortHash = meta.commitHash ? meta.commitHash.slice(0, 7) : "";
+
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-3xl rounded-[30px] bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">Release Notes</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
+              {meta.releaseNotesTitle || "Release Notes"}
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="text-2xl font-bold tracking-tight text-slate-900">v{meta.version}</span>
               <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Build {meta.buildNumber}</span>
+              {shortHash ? (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {shortHash}
+                </span>
+              ) : null}
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <MetaChip>{meta.releaseLabel}</MetaChip>
               <MetaChip>Updated {meta.updatedAt}</MetaChip>
               <MetaChip>by {meta.author}</MetaChip>
             </div>
+            {meta.commitMessage ? (
+              <div className="mt-3 max-w-2xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                {meta.commitMessage}
+              </div>
+            ) : null}
           </div>
 
           <button
@@ -449,7 +510,7 @@ function ReleaseNotesModal({
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div>
-            <div className="text-sm font-bold text-slate-900">Updated Features / Changes</div>
+            <div className="text-sm font-bold text-slate-900">{meta.releaseNotesTitle || "Latest Updates"}</div>
             <div className="mt-3 space-y-3">
               {meta.releaseNotes.length ? (
                 meta.releaseNotes.map((item, index) => (
@@ -475,7 +536,7 @@ function ReleaseNotesModal({
                 meta.changedFiles.map((item, index) => (
                   <div
                     key={`${item}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 break-all"
                   >
                     {item}
                   </div>
@@ -543,17 +604,22 @@ export default function App() {
       .then((data) => {
         if (!isMounted) return;
         setBuildMeta({
+          appName: String(data?.appName ?? DEFAULT_BUILD_META.appName),
           version: String(data?.version ?? DEFAULT_BUILD_META.version),
           updatedAt: String(data?.updatedAt ?? DEFAULT_BUILD_META.updatedAt),
           releaseLabel: String(data?.releaseLabel ?? DEFAULT_BUILD_META.releaseLabel),
           author: String(data?.author ?? DEFAULT_BUILD_META.author),
           buildNumber: Number(data?.buildNumber ?? DEFAULT_BUILD_META.buildNumber),
+          releaseNotesTitle: String(data?.releaseNotesTitle ?? DEFAULT_BUILD_META.releaseNotesTitle),
           releaseNotes: Array.isArray(data?.releaseNotes)
-            ? data.releaseNotes
+            ? data.releaseNotes.map((item: unknown) => String(item))
             : DEFAULT_BUILD_META.releaseNotes,
           changedFiles: Array.isArray(data?.changedFiles)
-            ? data.changedFiles
+            ? data.changedFiles.map((item: unknown) => String(item))
             : DEFAULT_BUILD_META.changedFiles,
+          commitHash: String(data?.commitHash ?? DEFAULT_BUILD_META.commitHash),
+          commitMessage: String(data?.commitMessage ?? DEFAULT_BUILD_META.commitMessage),
+          timezone: String(data?.timezone ?? DEFAULT_BUILD_META.timezone),
         });
       })
       .catch(() => {
