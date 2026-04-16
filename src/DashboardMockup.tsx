@@ -1092,7 +1092,6 @@ function isTopicChanged(originalTopic: Topic | undefined, revisedTopic: Topic) {
   return scoreChanged || commentChanged;
 }
 
-
 function CaseDetailTopicTable({
   topics,
   revisedTopics,
@@ -1112,16 +1111,14 @@ function CaseDetailTopicTable({
         reviewStatus === "Revised" && revisedTopics?.length
           ? revisedTopics.find((item) => item.code === originalTopic.code)
           : undefined;
-
-      const shouldShowRevised =
+      const allowedToShowRevised = displayCodeSet.has(originalTopic.code);
+      const changed =
         reviewStatus === "Revised" &&
+        allowedToShowRevised &&
         !!revisedTopic &&
-        displayCodeSet.has(originalTopic.code) &&
         isTopicChanged(originalTopic, revisedTopic);
-
-      const shownTopic = shouldShowRevised && revisedTopic ? revisedTopic : originalTopic;
+      const shownTopic = changed && revisedTopic ? revisedTopic : originalTopic;
       if (!shownTopic || shownTopic.max <= 0) return null;
-
       const pct = Number(shownTopic.pct || 0);
       let statusLabel = "Need Improvement";
       let statusClass = "text-rose-700";
@@ -1140,7 +1137,7 @@ function CaseDetailTopicTable({
         originalTopic,
         revisedTopic,
         shownTopic,
-        shouldShowRevised,
+        changed,
         pct,
         statusLabel,
         statusClass,
@@ -1150,7 +1147,7 @@ function CaseDetailTopicTable({
       originalTopic: Topic;
       revisedTopic?: Topic;
       shownTopic: Topic;
-      shouldShowRevised: boolean;
+      changed: boolean;
       pct: number;
       statusLabel: string;
       statusClass: string;
@@ -1159,94 +1156,94 @@ function CaseDetailTopicTable({
   return (
     <div className="rounded-[28px] border border-violet-200/80 bg-white px-6 py-6 shadow-[0_18px_48px_rgba(109,40,217,0.08)]">
       <div className="space-y-8">
-        {rows.length ? (
-          rows.map((row, index) => (
-            <div
-              key={`${row.shownTopic.code}-${index}`}
-              className="border-b border-violet-100 pb-8 last:border-b-0 last:pb-0"
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[20px] font-bold tracking-tight text-slate-900">
-                    {row.shownTopic.code} {row.shownTopic.label}
-                  </div>
-                  {row.shouldShowRevised && row.revisedTopic ? (
-                    <div className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-violet-700">
-                      Revised topic review
-                    </div>
-                  ) : null}
+        {rows.length ? rows.map((row, index) => (
+          <div
+            key={`${row.shownTopic.code}-${index}`}
+            className="border-b border-violet-100 pb-8 last:border-b-0 last:pb-0"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="text-[20px] font-bold tracking-tight text-slate-900">
+                  {row.shownTopic.code} {row.shownTopic.label}
                 </div>
-
-                <div className="shrink-0 text-left lg:min-w-[280px] lg:text-right">
-                  <div className={`text-sm font-bold ${row.statusClass}`}>{row.statusLabel}</div>
-                  {row.shouldShowRevised && row.revisedTopic ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 lg:justify-end">
-                      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                        Original {row.originalTopic.score}/{row.originalTopic.max} · {Number(row.originalTopic.pct || 0).toFixed(1)}%
-                      </span>
-                      <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-semibold text-violet-700">
-                        Revised {row.revisedTopic.score}/{row.revisedTopic.max} · {Number(row.revisedTopic.pct || 0).toFixed(1)}%
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-slate-600">
-                      {row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-x-8 gap-y-3 text-sm lg:grid-cols-[170px_minmax(0,1fr)]">
-                <div className="font-semibold text-slate-500">Score</div>
-                <div className="text-slate-900">
-                  {row.shouldShowRevised && row.revisedTopic ? (
-                    <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700">
-                        Original {row.originalTopic.score}/{row.originalTopic.max} ({Number(row.originalTopic.pct || 0).toFixed(1)}%)
-                      </span>
-                      <span className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-semibold text-violet-700">
-                        Revised {row.revisedTopic.score}/{row.revisedTopic.max} ({Number(row.revisedTopic.pct || 0).toFixed(1)}%)
-                      </span>
-                    </div>
-                  ) : (
-                    <span>{row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)</span>
-                  )}
-                </div>
-
-                <div className="font-semibold text-slate-500">Max Score</div>
-                <div className="text-slate-900">{row.shownTopic.max}</div>
-
-                <div className="font-semibold text-slate-500">Status</div>
-                <div className={`font-semibold ${row.statusClass}`}>{row.statusLabel}</div>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
-                  <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
-                    {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
-                  </div>
-                </div>
-
-                {row.shouldShowRevised && row.revisedTopic ? (
-                  <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
-                    <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
-                    <div className="mt-3 whitespace-pre-line leading-7 text-violet-700">
-                      {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
-                    </div>
+                {row.changed && row.revisedTopic ? (
+                  <div className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-violet-700">
+                    Revised topic review
                   </div>
                 ) : null}
               </div>
+
+              <div className="shrink-0 text-left lg:min-w-[280px] lg:text-right">
+                <div className={`text-sm font-bold ${row.statusClass}`}>{row.statusLabel}</div>
+                {row.changed && row.revisedTopic ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 lg:justify-end">
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
+                      Original {row.originalTopic.score}/{row.originalTopic.max} · {Number(row.originalTopic.pct || 0).toFixed(1)}%
+                    </span>
+                    <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-semibold text-violet-700">
+                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} · {Number(row.revisedTopic.pct || 0).toFixed(1)}%
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-sm text-slate-600">
+                    {row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)
+                  </div>
+                )}
+              </div>
             </div>
-          ))
-        ) : (
+
+            <div className="mt-5 grid gap-x-8 gap-y-3 text-sm lg:grid-cols-[170px_minmax(0,1fr)]">
+              <div className="font-semibold text-slate-500">Score</div>
+              <div className="text-slate-900">
+                {row.changed && row.revisedTopic ? (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700">
+                      Original {row.originalTopic.score}/{row.originalTopic.max} ({Number(row.originalTopic.pct || 0).toFixed(1)}%)
+                    </span>
+                    <span className="inline-flex rounded-2xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-semibold text-violet-700">
+                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} ({Number(row.revisedTopic.pct || 0).toFixed(1)}%)
+                    </span>
+                  </div>
+                ) : (
+                  <span>{row.shownTopic.score}/{row.shownTopic.max} ({row.pct.toFixed(1)}%)</span>
+                )}
+              </div>
+
+              <div className="font-semibold text-slate-500">Max Score</div>
+              <div className="text-slate-900">{row.shownTopic.max}</div>
+
+              <div className="font-semibold text-slate-500">Status</div>
+              <div className={`font-semibold ${row.statusClass}`}>{row.statusLabel}</div>
+
+              {row.changed && row.revisedTopic ? (
+                <>
+                  <div className="font-semibold text-slate-500">Original Comment</div>
+                  <div className="whitespace-pre-line leading-7 text-slate-800">
+                    {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
+                  </div>
+
+                  <div className="font-semibold text-violet-700">Revised Comment</div>
+                  <div className="whitespace-pre-line leading-7 text-slate-900">
+                    {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold text-slate-500">Comment</div>
+                  <div className="whitespace-pre-line leading-7 text-slate-800">
+                    {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )) : (
           <div className="py-10 text-center text-sm text-slate-500">No topic detail available</div>
         )}
       </div>
     </div>
   );
 }
-
 
 function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
   return (
@@ -1956,8 +1953,8 @@ function SlideOverCaseDetail({
       const margin = 12;
       const contentWidth = pageWidth - margin * 2;
       const pageBottom = pageHeight - 12;
-      const lineHeight = 4.25;
-      const topicGap = 3.2;
+      const lineHeight = 4.8;
+      const topicGap = 6.2;
       let y = 12;
       let pageNumber = 1;
 
@@ -2182,59 +2179,51 @@ function SlideOverCaseDetail({
         y += boxHeight + 4;
       };
 
-      
       const drawTopicBlock = (
         topic: Topic,
         revisedTopic?: Topic | null,
-        shouldShowRevised = false
+        showRevised = false
       ) => {
-        const hasRevised = shouldShowRevised && !!revisedTopic && caseItem.reviewStatus === "Revised";
-        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 22);
+        const hasRevised = !!(showRevised && revisedTopic && caseItem.reviewStatus === "Revised");
+        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 20);
         const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} · ${Number(topic.pct || 0).toFixed(1)}%`;
-        const revisedScoreText = hasRevised && revisedTopic
-          ? `${Number(revisedTopic.score || 0).toFixed(2)} / ${Number(revisedTopic.max || 0).toFixed(2)} · ${Number(revisedTopic.pct || 0).toFixed(1)}%`
+        const revisedScoreText = hasRevised
+          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
+        const commentLines = split(topic.comment || "-", contentWidth - 22);
+        const revisedCommentLines = hasRevised
+          ? split(revisedTopic!.comment || "-", contentWidth - 22)
+          : [];
 
-        const originalLabelLines = split("Original Comment", contentWidth - 18);
-        const revisedLabelLines = hasRevised ? split("Revised Comment", contentWidth - 18) : [];
-        const commentLines = split(topic.comment || "-", contentWidth - 18);
-        const revisedCommentLines = hasRevised && revisedTopic ? split(revisedTopic.comment || "-", contentWidth - 18) : [];
-
-        const headerHeight = 9 + titleLines.length * 4.8;
-        const chipHeight = 11;
-        const scoreAreaHeight = hasRevised ? chipHeight : chipHeight;
-
-        const originalCommentBoxHeight =
-          8 + originalLabelLines.length * 4.2 + 3 + commentLines.length * lineHeight + 4;
-
-        const revisedCommentBoxHeight =
-          hasRevised
-            ? 8 + revisedLabelLines.length * 4.2 + 3 + revisedCommentLines.length * lineHeight + 4
-            : 0;
+        const headerHeight = Math.max(9, 5 + Math.max(0, titleLines.length - 1) * 4.1);
+        const scoreRowHeight = hasRevised ? 12.8 : 11;
+        const originalCommentHeight = 6 + commentLines.length * lineHeight;
+        const revisedCommentHeight = hasRevised ? 6 + revisedCommentLines.length * lineHeight : 0;
 
         const estimatedHeight =
-          5 +
+          6 +
           headerHeight +
-          5 +
-          scoreAreaHeight +
-          5 +
-          originalCommentBoxHeight +
-          (hasRevised ? 5 + revisedCommentBoxHeight : 0) +
-          6;
+          6 +
+          scoreRowHeight +
+          6 +
+          4.5 +
+          originalCommentHeight +
+          (hasRevised ? 6 + scoreRowHeight + 6 + 4.5 + revisedCommentHeight : 0) +
+          10;
 
-        ensureSpace(estimatedHeight + 4);
+        ensureSpace(estimatedHeight + 3);
 
         doc.setFillColor(255, 255, 255);
         doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
         doc.roundedRect(margin + 2, y, contentWidth - 4, estimatedHeight, 3, 3, "FD");
 
         doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
-        doc.roundedRect(margin + 2.6, y + 0.8, contentWidth - 5.2, headerHeight, 2.2, 2.2, "F");
+        doc.roundedRect(margin + 2.6, y + 0.6, contentWidth - 5.2, headerHeight, 2.2, 2.2, "F");
 
         setPdfFont("bold");
-        doc.setFontSize(13.8);
+        doc.setFontSize(13);
         doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-        doc.text(titleLines, margin + 8, y + 6.2);
+        doc.text(titleLines, margin + 8, y + 5.3);
 
         let innerY = y + headerHeight + 6;
 
@@ -2248,37 +2237,41 @@ function SlideOverCaseDetail({
           textColor: [number, number, number]
         ) => {
           const valueLines = split(value, width - 8);
+          const localHeight = Math.max(scoreRowHeight, 7.4 + valueLines.length * 3.9);
 
           doc.setFillColor(fill[0], fill[1], fill[2]);
           doc.setDrawColor(border[0], border[1], border[2]);
-          doc.roundedRect(x, innerY, width, chipHeight, 2.2, 2.2, "FD");
+          doc.roundedRect(x, innerY, width, localHeight, 2.2, 2.2, "FD");
 
           setPdfFont("bold");
-          doc.setFontSize(9.8);
+          doc.setFontSize(9.6);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(label, x + 3, innerY + 4.1);
+          doc.text(label, x + 3, innerY + 3.8);
 
           setPdfFont("bold");
-          doc.setFontSize(10.8);
+          doc.setFontSize(11.1);
           doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-          doc.text(valueLines[0] || value, x + 24, innerY + 4.1);
+          doc.text(valueLines, x + 3, innerY + 8.1);
+
+          return localHeight;
         };
 
-        if (hasRevised && revisedTopic) {
-          const gap = 4;
-          const chipWidth = (contentWidth - 14 - gap) / 2;
+        let usedScoreHeight = scoreRowHeight;
 
-          drawScoreChip(
-            margin + 6,
+        if (hasRevised) {
+          const chipGap = 3.5;
+          const chipWidth = (contentWidth - 14 - chipGap) / 2;
+          const originalHeight = drawScoreChip(
+            margin + 8,
             chipWidth,
             "Original",
             scoreText,
             [248, 250, 252],
-            [203, 213, 225],
+            [226, 232, 240],
             [51, 65, 85]
           );
-          drawScoreChip(
-            margin + 6 + chipWidth + gap,
+          const revisedHeight = drawScoreChip(
+            margin + 8 + chipWidth + chipGap,
             chipWidth,
             "Revised",
             revisedScoreText,
@@ -2286,55 +2279,55 @@ function SlideOverCaseDetail({
             [196, 181, 253],
             [109, 40, 217]
           );
+          usedScoreHeight = Math.max(originalHeight, revisedHeight);
         } else {
-          drawScoreChip(
-            margin + 6,
-            contentWidth - 12,
+          usedScoreHeight = drawScoreChip(
+            margin + 8,
+            contentWidth - 16,
             "Score",
             scoreText,
             [248, 250, 252],
-            [203, 213, 225],
+            [226, 232, 240],
             [51, 65, 85]
           );
         }
 
-        innerY += chipHeight + 5;
+        innerY += usedScoreHeight + 6;
 
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin + 6, innerY, contentWidth - 12, originalCommentBoxHeight, 2.8, 2.8, "FD");
-
-        setPdfFont("bold");
-        doc.setFontSize(11.6);
-        doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-        doc.text(originalLabelLines, margin + 9, innerY + 5.2);
-
-        setPdfFont("normal");
-        doc.setFontSize(11.4);
-        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-        doc.text(commentLines, margin + 9, innerY + 5.2 + originalLabelLines.length * 4.2 + 3);
-
-        innerY += originalCommentBoxHeight + (hasRevised ? 5 : 0);
-
-        if (hasRevised && revisedTopic) {
-          doc.setFillColor(245, 243, 255);
-          doc.setDrawColor(196, 181, 253);
-          doc.roundedRect(margin + 6, innerY, contentWidth - 12, revisedCommentBoxHeight, 2.8, 2.8, "FD");
-
+        const drawCommentSection = (
+          label: string,
+          lines: string[],
+          tone: "default" | "revised" = "default"
+        ) => {
           setPdfFont("bold");
-          doc.setFontSize(11.6);
-          doc.setTextColor(109, 40, 217);
-          doc.text(revisedLabelLines, margin + 9, innerY + 5.2);
+          doc.setFontSize(10.1);
+          doc.setTextColor(
+            tone === "revised" ? 109 : color.subtext[0],
+            tone === "revised" ? 40 : color.subtext[1],
+            tone === "revised" ? 217 : color.subtext[2]
+          );
+          doc.text(label, margin + 8, innerY);
+          innerY += 4.8;
 
           setPdfFont("normal");
-          doc.setFontSize(11.4);
-          doc.setTextColor(109, 40, 217);
-          doc.text(revisedCommentLines, margin + 9, innerY + 5.2 + revisedLabelLines.length * 4.2 + 3);
+          doc.setFontSize(11.0);
+          doc.setTextColor(
+            tone === "revised" ? 67 : color.text[0],
+            tone === "revised" ? 56 : color.text[1],
+            tone === "revised" ? 202 : color.text[2]
+          );
+          doc.text(lines, margin + 8, innerY);
+          innerY += lines.length * lineHeight + 3;
+        };
+
+        drawCommentSection(hasRevised ? "Original Comment" : "Comment", commentLines, "default");
+
+        if (hasRevised) {
+          drawCommentSection("Revised Comment", revisedCommentLines, "revised");
         }
 
-        y += estimatedHeight + 4.8;
+        y += Math.max(estimatedHeight, innerY - y + 4) + topicGap;
       };
-
 
       const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
       (drawPageHeader as any)._logoDataUrl = logoDataUrl;
@@ -2375,7 +2368,6 @@ function SlideOverCaseDetail({
       drawParagraphCard("Description", caseItem.caseDescription || "-");
 
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
-      const displayCodeSet = new Set(caseItem.displayRevisedTopicCodes || []);
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
 
       startNewPage(true);
@@ -2386,15 +2378,17 @@ function SlideOverCaseDetail({
           : "Topic-by-topic evaluation in report format"
       );
 
+      const displayCodeSet = new Set(caseItem.displayRevisedTopicCodes || []);
+
       validTopics.forEach((topic) => {
         const revisedTopic = revisedMap.get(topic.code);
-        const shouldShowRevised =
+        const showRevised =
           caseItem.reviewStatus === "Revised" &&
           !!revisedTopic &&
           displayCodeSet.has(topic.code) &&
           isTopicChanged(topic, revisedTopic);
 
-        drawTopicBlock(topic, revisedTopic, shouldShowRevised);
+        drawTopicBlock(topic, revisedTopic, showRevised);
       });
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
