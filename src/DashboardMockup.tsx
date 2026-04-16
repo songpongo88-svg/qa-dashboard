@@ -1953,8 +1953,8 @@ function SlideOverCaseDetail({
       const margin = 12;
       const contentWidth = pageWidth - margin * 2;
       const pageBottom = pageHeight - 12;
-      const lineHeight = 4.7;
-      const topicGap = 5.2;
+      const lineHeight = 4.25;
+      const topicGap = 3.2;
       let y = 12;
       let pageNumber = 1;
 
@@ -2179,58 +2179,53 @@ function SlideOverCaseDetail({
         y += boxHeight + 4;
       };
 
-      const drawTopicBlock = (topic: Topic, revisedTopic?: Topic | null) => {
-        const hasRevised = !!(revisedTopic && caseItem.reviewStatus === "Revised");
+      const drawTopicBlock = (
+        topic: Topic,
+        revisedTopic?: Topic | null,
+        showRevised = false
+      ) => {
+        const hasRevised = !!(
+          revisedTopic &&
+          caseItem.reviewStatus === "Revised" &&
+          showRevised
+        );
         const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 20);
         const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} · ${Number(topic.pct || 0).toFixed(1)}%`;
         const revisedScoreText = hasRevised
           ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
+        const commentLines = split(topic.comment || "-", contentWidth - 18);
+        const revisedCommentLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 18) : [];
 
-        const scoreWidthSingle = contentWidth - 22;
-        const scoreChipGap = 3.5;
-        const scoreWidthDual = (contentWidth - 14 - scoreChipGap) / 2;
-
-        const scoreLines = split(scoreText, hasRevised ? scoreWidthDual - 8 : scoreWidthSingle - 8);
-        const revisedScoreLines = hasRevised
-          ? split(revisedScoreText, scoreWidthDual - 8)
-          : [];
-
-        const commentLines = split(topic.comment || "-", contentWidth - 22);
-        const revisedCommentLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 22) : [];
-
-        const headerHeight = Math.max(10, 7 + titleLines.length * 4.8);
-        const scoreRowHeight = Math.max(
-          hasRevised ? 13.5 : 12,
-          7.2 + Math.max(scoreLines.length, hasRevised ? revisedScoreLines.length : 1) * lineHeight
-        );
-
-        const originalCommentHeight = 5 + 4.5 + commentLines.length * lineHeight + 3;
-        const revisedCommentHeight = hasRevised ? 5 + 4.5 + revisedCommentLines.length * lineHeight + 3 : 0;
+        const headerHeight = Math.max(9, 5 + Math.max(0, titleLines.length - 1) * 4.1);
+        const scoreRowHeight = hasRevised ? 12 : 10.5;
+        const originalCommentHeight = 4 + commentLines.length * lineHeight;
+        const revisedCommentHeight = hasRevised ? 4 + revisedCommentLines.length * lineHeight : 0;
 
         const estimatedHeight =
-          5 +
+          4 +
           headerHeight +
-          5 +
+          4 +
           scoreRowHeight +
-          5 +
+          4 +
+          3.5 +
           originalCommentHeight +
-          (hasRevised ? 5 + scoreRowHeight + 5 + revisedCommentHeight : 0) +
-          5;
+          (hasRevised ? 4 + scoreRowHeight + 4 + 3.5 + revisedCommentHeight : 0) +
+          4;
 
-        ensureSpace(estimatedHeight + 3);
+        ensureSpace(estimatedHeight + 2);
 
         doc.setFillColor(255, 255, 255);
         doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
         doc.roundedRect(margin + 2, y, contentWidth - 4, estimatedHeight, 3, 3, "FD");
 
         doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
-        doc.roundedRect(margin + 2.6, y + 0.8, contentWidth - 5.2, headerHeight, 2.2, 2.2, "F");
+        doc.roundedRect(margin + 2.6, y + 0.6, contentWidth - 5.2, headerHeight, 2.2, 2.2, "F");
 
         setPdfFont("bold");
-        doc.setFontSize(13.6);
+        doc.setFontSize(13);
         doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-        doc.text(titleLines, margin + 8, y + 6);
+        doc.text(titleLines, margin + 8, y + 5.3);
 
         let innerY = y + headerHeight + 6;
 
@@ -2238,7 +2233,7 @@ function SlideOverCaseDetail({
           x: number,
           width: number,
           label: string,
-          lines: string[],
+          value: string,
           fill: [number, number, number],
           border: [number, number, number],
           textColor: [number, number, number]
@@ -2250,43 +2245,21 @@ function SlideOverCaseDetail({
           setPdfFont("bold");
           doc.setFontSize(9.6);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(label, x + 3, innerY + 4.2);
+          doc.text(label, x + 3, innerY + 3.8);
 
           setPdfFont("bold");
-          doc.setFontSize(10.8);
+          doc.setFontSize(11.3);
           doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-          doc.text(lines, x + 3, innerY + 8.6);
+          doc.text(split(value, width - 6), x + 3, innerY + 8.1);
         };
 
         if (hasRevised) {
-          drawScoreChip(
-            margin + 8,
-            scoreWidthDual,
-            "Original",
-            scoreLines,
-            [248, 250, 252],
-            [226, 232, 240],
-            [51, 65, 85]
-          );
-          drawScoreChip(
-            margin + 8 + scoreWidthDual + scoreChipGap,
-            scoreWidthDual,
-            "Revised",
-            revisedScoreLines,
-            [245, 243, 255],
-            [196, 181, 253],
-            [109, 40, 217]
-          );
+          const chipGap = 3.5;
+          const chipWidth = (contentWidth - 14 - chipGap) / 2;
+          drawScoreChip(margin + 8, chipWidth, "Original", scoreText, [248, 250, 252], [226, 232, 240], [51, 65, 85]);
+          drawScoreChip(margin + 8 + chipWidth + chipGap, chipWidth, "Revised", revisedScoreText, [245, 243, 255], [196, 181, 253], [109, 40, 217]);
         } else {
-          drawScoreChip(
-            margin + 8,
-            contentWidth - 16,
-            "Score",
-            scoreLines,
-            [248, 250, 252],
-            [226, 232, 240],
-            [51, 65, 85]
-          );
+          drawScoreChip(margin + 8, contentWidth - 16, "Score", scoreText, [248, 250, 252], [226, 232, 240], [51, 65, 85]);
         }
 
         innerY += scoreRowHeight + 5;
@@ -2296,37 +2269,25 @@ function SlideOverCaseDetail({
           lines: string[],
           tone: "default" | "revised" = "default"
         ) => {
-          const labelColor =
-            tone === "revised"
-              ? ([109, 40, 217] as [number, number, number])
-              : color.subtext;
-
-          const bodyColor =
-            tone === "revised"
-              ? ([67, 56, 202] as [number, number, number])
-              : color.text;
-
-          const boxFill =
-            tone === "revised"
-              ? ([250, 245, 255] as [number, number, number])
-              : ([248, 250, 252] as [number, number, number]);
-
-          const boxHeight = 5 + 4.5 + lines.length * lineHeight + 3;
-
-          doc.setFillColor(boxFill[0], boxFill[1], boxFill[2]);
-          doc.roundedRect(margin + 6, innerY - 1.5, contentWidth - 12, boxHeight, 2.2, 2.2, "F");
-
           setPdfFont("bold");
-          doc.setFontSize(10.5);
-          doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
-          doc.text(label, margin + 9, innerY + 2.5);
+          doc.setFontSize(10.1);
+          doc.setTextColor(
+            tone === "revised" ? 109 : color.subtext[0],
+            tone === "revised" ? 40 : color.subtext[1],
+            tone === "revised" ? 217 : color.subtext[2]
+          );
+          doc.text(label, margin + 8, innerY);
+          innerY += 3.8;
 
           setPdfFont("normal");
-          doc.setFontSize(11.2);
-          doc.setTextColor(bodyColor[0], bodyColor[1], bodyColor[2]);
-          doc.text(lines, margin + 9, innerY + 7.2);
-
-          innerY += boxHeight + 3.5;
+          doc.setFontSize(11.6);
+          doc.setTextColor(
+            tone === "revised" ? 67 : color.text[0],
+            tone === "revised" ? 56 : color.text[1],
+            tone === "revised" ? 202 : color.text[2]
+          );
+          doc.text(lines, margin + 8, innerY);
+          innerY += lines.length * lineHeight + 2.4;
         };
 
         drawCommentSection(hasRevised ? "Original Comment" : "Comment", commentLines, "default");
@@ -2335,7 +2296,7 @@ function SlideOverCaseDetail({
           drawCommentSection("Revised Comment", revisedCommentLines, "revised");
         }
 
-        y += Math.max(estimatedHeight, innerY - y + 1.5) + topicGap;
+        y += estimatedHeight + topicGap;
       };
 
       const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
@@ -2377,6 +2338,7 @@ function SlideOverCaseDetail({
       drawParagraphCard("Description", caseItem.caseDescription || "-");
 
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
+      const displayCodeSet = new Set(caseItem.displayRevisedTopicCodes || []);
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
 
       startNewPage(true);
@@ -2389,7 +2351,8 @@ function SlideOverCaseDetail({
 
       validTopics.forEach((topic) => {
         const revisedTopic = revisedMap.get(topic.code);
-        drawTopicBlock(topic, revisedTopic);
+        const showRevised = displayCodeSet.has(topic.code);
+        drawTopicBlock(topic, revisedTopic, showRevised);
       });
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
