@@ -1283,6 +1283,7 @@ export default function AppealMockup({
     );
     const scoreDelta = selectedCase.finalScore - selectedCase.previousScore;
     const scoreDeltaText = `${scoreDelta > 0 ? "+" : ""}${scoreDelta.toFixed(2)}`;
+    const generatedAtDisplay = formatDateTime(new Date());
 
     const PDF_COLORS = {
       black: [0, 0, 0] as [number, number, number],
@@ -1325,13 +1326,14 @@ export default function AppealMockup({
     };
 
     const addMainTitle = () => {
-      ensureSpace(24);
+      ensureSpace(30);
       let textLeft = left;
+      const logoSize = 16;
 
       if (logoDataUrl) {
         try {
-          doc.addImage(logoDataUrl, "PNG", left, y - 1.5, 13, 13);
-          textLeft = left + 17;
+          doc.addImage(logoDataUrl, "PNG", left, y - 1, logoSize, logoSize);
+          textLeft = left + logoSize + 5;
         } catch {
           textLeft = left;
         }
@@ -1347,14 +1349,17 @@ export default function AppealMockup({
       setColor(PDF_COLORS.muted);
       doc.text("Robinhood QA Appeal Review Report", textLeft, y + 6);
 
-      y += 13;
+      y += 14;
       setPdfFont(doc, "normal");
       doc.setFontSize(11);
       setColor(PDF_COLORS.body);
-      doc.text(`Case ID: ${selectedCase.caseId || "-"}`, left, y);
+      doc.text(`Case ID: ${selectedCase.caseId || "-"}`, textLeft, y);
 
       y += 5;
-      doc.text(`Agent: ${selectedCase.agent || "-"}`, left, y);
+      doc.text(`Agent: ${selectedCase.agent || "-"}`, textLeft, y);
+
+      y += 5;
+      doc.text(`Generated At: ${generatedAtDisplay || "-"}`, textLeft, y);
 
       y += 3;
       drawDivider(1.5, 5, PDF_COLORS.sectionLine, 0.45);
@@ -1560,12 +1565,6 @@ export default function AppealMockup({
     addKeyValue("Final Grade", selectedCase.grade);
     addKeyValue("Appealed Topics", `${selectedCase.appealedTopics.length} topic(s)`);
 
-    addSectionTitle("Customer Inquiry");
-    addParagraph(selectedCase.inquiry || "-");
-
-    addSectionTitle("Appeal Review Summary");
-    addParagraph(selectedCase.appealReviewSummary || "-");
-
     addSectionTitle("Appeal Timeline");
     addKeyValue("Appeal Submit Date & Time", selectedCase.appealSubmitDateTime || "-", 58);
     addKeyValue("Appeal Result Date & Time", selectedCase.appealResultDateTime || "-", 58);
@@ -1578,6 +1577,12 @@ export default function AppealMockup({
       58
     );
     addKeyValue("Final Decision", "Finalized and closed", 58);
+
+    addSectionTitle("Customer Inquiry");
+    addParagraph(selectedCase.inquiry || "-");
+
+    addSectionTitle("Appeal Review Summary");
+    addParagraph(selectedCase.appealReviewSummary || "-");
 
     const firstAppealedTopic = selectedCase.appealedTopics[0];
     const appealedTopicsHeaderHeight = 11;
