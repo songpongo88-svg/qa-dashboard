@@ -2637,35 +2637,54 @@ function SlideOverCaseDetail({
               title="Case Information"
               subtitle="Selected case overview and review status"
             />
-            <PanelBody className="space-y-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100"
-                    >
-                      {caseItem.caseId}
-                    </button>
-                    <button
-                      type="button"
-                      className={`inline-flex items-center rounded-full border px-4 py-1.5 text-[12px] font-semibold shadow-sm transition ${gradeTone(
-                        caseItem.grade
-                      )}`}
-                    >
-                      Grade {caseItem.grade}
-                    </button>
-                    <button
-                      type="button"
-                      className={`inline-flex items-center rounded-full border px-4 py-1.5 text-[12px] font-semibold shadow-sm transition ${reviewTone(
-                        caseItem.reviewStatus
-                      )}`}
-                    >
-                      {caseItem.reviewStatus}
-                    </button>
-                    {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
-                      <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-sky-200 bg-sky-50/90 px-2 py-1 shadow-sm">
-                        <span className="text-[11px] font-semibold text-sky-700">Case Image</span>
+            <PanelBody className="space-y-6">
+              <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-5 p-5 lg:p-6">
+                  <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0 space-y-3">
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Case Reference
+                        </div>
+                        <div className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
+                          {caseItem.caseId}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] font-semibold shadow-sm ${gradeTone(caseItem.grade)}`}>
+                          Grade {caseItem.grade}
+                        </span>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] font-semibold shadow-sm ${reviewTone(caseItem.reviewStatus)}`}>
+                          {caseItem.reviewStatus}
+                        </span>
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-700 shadow-sm">
+                          {caseItem.monthLabel || caseItem.monthKey || "-"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[420px] xl:max-w-[520px]">
+                      {caseItem.caseUrl ? (
+                        <a
+                          href={caseItem.caseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Open Case URL
+                        </a>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={handleGenerateCaseDetailPdf}
+                        className="inline-flex items-center justify-center rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+                      >
+                        Generate Case Detail PDF
+                      </button>
+
+                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -2689,155 +2708,90 @@ function SlideOverCaseDetail({
                               });
                             }
                           }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-white text-[13px] text-sky-700 transition hover:bg-sky-100"
-                          title="Open case image"
+                          className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
                         >
-                          👁
+                          Preview Case Image
                         </button>
-                        <a
-                          href={verifiedImagePdfUrls.length ? verifiedImagePdfUrls[0].url : verifiedImageUrls[0]}
-                          download
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-white text-[13px] text-sky-700 transition hover:bg-sky-100"
-                          title="Download case image"
-                        >
-                          ⬇
-                        </a>
-                      </div>
-                    ) : null}
-                    {availablePdfUrls.length ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {availablePdfUrls.map((item) => {
-                          const toneClass =
-                            item.tone === "violet"
-                              ? "border-violet-200 bg-violet-50 text-violet-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700";
-                          const iconClass =
-                            item.tone === "violet"
-                              ? "border-violet-200 text-violet-700 hover:bg-violet-100"
-                              : "border-amber-200 text-amber-700 hover:bg-amber-100";
+                      ) : null}
 
-                          return (
-                            <div
+                      {availablePdfUrls.length ? (
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                          {availablePdfUrls.map((item) => (
+                            <button
                               key={item.label}
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 shadow-sm ${toneClass}`}
+                              type="button"
+                              onClick={() =>
+                                setPreviewAsset({
+                                  type: "pdf",
+                                  url: item.url,
+                                  title: item.label,
+                                  downloadUrl: item.url,
+                                })
+                              }
+                              className="inline-flex items-center rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                              title={`Open ${item.label}`}
                             >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPreviewAsset({
-                                    type: "pdf",
-                                    url: item.url,
-                                    title: item.label,
-                                    downloadUrl: item.url,
-                                  })
-                                }
-                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white text-[13px] transition ${iconClass}`}
-                                title={`Open ${item.label}`}
-                              >
-                                👁
-                              </button>
-                              <a
-                                href={item.url}
-                                download
-                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white text-[13px] transition ${iconClass}`}
-                                title={`Download ${item.label}`}
-                              >
-                                ⬇
-                              </a>
-                              <span className="pr-2 text-[11px] font-semibold">{item.label}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">👤</span>
-                        <span>Agent</span>
-                      </div>
-                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent}</div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm xl:col-span-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Agent</div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent || "-"}</div>
                     </div>
 
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">📅</span>
-                        <span>Audit Date</span>
-                      </div>
-                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate}</div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm xl:col-span-2">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Audit Date</div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate || "-"}</div>
                     </div>
 
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
-                        <span>Timestamp</span>
-                      </div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm xl:col-span-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Timestamp</div>
                       <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
                     </div>
 
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-4">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
-                        <span>Waiting Time / Service Time</span>
-                      </div>
-                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">
-                        {formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}
-                      </div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm xl:col-span-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Waiting Time / Service Time</div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}</div>
                     </div>
 
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">🗓️</span>
-                        <span>Week</span>
-                      </div>
-                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel}</div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm xl:col-span-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Week</div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel || "-"}</div>
                     </div>
 
-                    <div className="rounded-[24px] border border-violet-300 bg-gradient-to-br from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-4 text-white shadow-[0_12px_30px_rgba(124,58,237,0.22)] xl:col-span-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-100">
-                            Final Score
-                          </div>
-                          <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">
-                            {caseItem.finalScore.toFixed(2)}
-                          </div>
-                          {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
-                            <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/95 backdrop-blur-sm">
-                              <span className="text-white/75">Original</span>
-                              <span>{caseItem.previousScore.toFixed(2)}</span>
-                              <span className="text-white/60">→</span>
-                              <span className="text-white">Revised</span>
-                              <span>{caseItem.finalScore.toFixed(2)}</span>
-                            </div>
-                          ) : null}
+                    <div className="rounded-[24px] border border-slate-900 bg-slate-900 px-5 py-4 text-white shadow-[0_12px_30px_rgba(15,23,42,0.20)] xl:col-span-8">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">Final Score</div>
+                          <div className="mt-3 text-4xl font-extrabold tracking-tight text-white">{caseItem.finalScore.toFixed(2)}</div>
                         </div>
-                        <span className="inline-flex rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/95">
-                          Grade {caseItem.grade}
-                        </span>
+
+                        <div className="flex flex-col items-start gap-2 lg:items-end">
+                          <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/95">
+                            Grade {caseItem.grade}
+                          </span>
+                          <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/90">
+                            {caseItem.reviewStatus}
+                          </span>
+                        </div>
                       </div>
 
-                      {caseItem.caseUrl ? (
-                        <a
-                          href={caseItem.caseUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-white/25 bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-                        >
-                          Open Case URL
-                        </a>
+                      {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
+                        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90">
+                          <span className="font-semibold text-slate-300">Score Change:</span>{" "}
+                          Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
+                        </div>
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={handleGenerateCaseDetailPdf}
-                        className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-white/25 bg-white/15 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-                      >
-                        Generate Case Detail PDF
-                      </button>
                     </div>
                   </div>
+                </div>
+              </div>
 
                   <div className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
                     <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-sky-400" />
