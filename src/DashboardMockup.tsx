@@ -2194,42 +2194,58 @@ function SlideOverCaseDetail({
       };
 
       const drawParagraphCard = (label: string, value: string) => {
-        const lines = split(value, contentWidth - 18);
-        const labelBlockHeight = 8.5;
-        const topPad = 3.5;
-        const bottomPad = 4.5;
-        const afterGap = 4.2;
-        const minLinesPerChunk = 2;
-        const safeLines = lines.length ? lines : ["-"];
-        let remainingLines = [...safeLines];
+        const lines = split(value, contentWidth - 16);
+        const topPad = 7;
+        const labelGap = 3.2;
+        const bottomPad = 4;
+        const afterGap = 3.2;
+        const headerHeight = topPad + labelGap + lineHeight;
+        if (!lines.length) {
+          ensureSpace(headerHeight + bottomPad + 2);
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+          doc.roundedRect(margin + 2, y, contentWidth - 4, headerHeight + bottomPad, 3, 3, "FD");
+
+          setPdfFont("bold");
+          doc.setFontSize(10.3);
+          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+          doc.text(label, margin + 8, y + 5);
+
+          setPdfFont("normal");
+          doc.setFontSize(12.2);
+          doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+          doc.text("-", margin + 8, y + 9.2);
+
+          y += headerHeight + bottomPad + afterGap;
+          return;
+        }
+
+        let remainingLines = [...lines];
         let firstChunk = true;
 
         while (remainingLines.length) {
-          ensureSpace(labelBlockHeight + topPad + lineHeight * minLinesPerChunk + bottomPad + 2, !firstChunk);
+          ensureSpace(headerHeight + lineHeight + bottomPad + 2, !firstChunk);
 
-          const availableBodyHeight = pageBottom - y - labelBlockHeight - topPad - bottomPad;
-          const linesPerPage = Math.max(minLinesPerChunk, Math.floor(availableBodyHeight / lineHeight));
+          const availableBodyHeight = pageBottom - y - headerHeight - bottomPad;
+          const linesPerPage = Math.max(1, Math.floor(availableBodyHeight / lineHeight));
           const chunk = remainingLines.slice(0, linesPerPage);
           remainingLines = remainingLines.slice(linesPerPage);
-          const cardHeight = labelBlockHeight + topPad + chunk.length * lineHeight + bottomPad;
-          const labelText = `${label}${firstChunk ? "" : " (continued)"}`;
+
+          const cardHeight = headerHeight + chunk.length * lineHeight + bottomPad;
 
           doc.setFillColor(255, 255, 255);
           doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
           doc.roundedRect(margin + 2, y, contentWidth - 4, cardHeight, 3, 3, "FD");
 
-          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-          doc.line(margin + 7, y + labelBlockHeight, pageWidth - margin - 7, y + labelBlockHeight);
-
           setPdfFont("bold");
-          doc.setFontSize(10.1);
+          doc.setFontSize(10.3);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(labelText, margin + 8, y + 5.4);
+          doc.text(`${label}${firstChunk ? "" : " (continued)"}`, margin + 8, y + 5);
 
           setPdfFont("normal");
-          doc.setFontSize(11.8);
+          doc.setFontSize(12.2);
           doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text(chunk, margin + 8, y + labelBlockHeight + topPad + 1.6);
+          doc.text(chunk, margin + 8, y + 9.2);
 
           y += cardHeight + afterGap;
 
@@ -2294,137 +2310,154 @@ function SlideOverCaseDetail({
         showRevised = false
       ) => {
         const hasRevised = !!(showRevised && revisedTopic && caseItem.reviewStatus === "Revised");
-        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 24);
+        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 20);
         const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} · ${Number(topic.pct || 0).toFixed(1)}%`;
         const revisedScoreText = hasRevised
           ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
-        const originalLines = split(topic.comment || "-", contentWidth - 18);
-        const revisedLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 18) : [];
-        const headerBlockHeight = Math.max(16, 8 + Math.max(0, titleLines.length - 1) * 4.2);
+        const commentLines = split(topic.comment || "-", contentWidth - 24);
+        const revisedCommentLines = hasRevised
+          ? split(revisedTopic!.comment || "-", contentWidth - 24)
+          : [];
 
-        const drawTopicHeader = (continued = false) => {
-          ensureSpace(headerBlockHeight + (hasRevised ? 18 : 11) + 8, continued);
+        const headerHeight = Math.max(9, 5 + Math.max(0, titleLines.length - 1) * 4.1);
+        const scoreRowHeight = hasRevised ? 12.8 : 11;
 
-          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-          doc.setLineWidth(0.3);
-          doc.line(margin + 2, y, pageWidth - margin - 2, y);
-          y += 3.5;
+        const originalCommentBoxHeight = 12 + commentLines.length * lineHeight + 6;
+        const revisedCommentBoxHeight = hasRevised ? 12 + revisedCommentLines.length * lineHeight + 6 : 0;
 
-          doc.setFillColor(255, 255, 255);
-          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-          doc.roundedRect(margin + 2, y, contentWidth - 4, headerBlockHeight, 2.6, 2.6, "FD");
+        const estimatedHeight =
+          6 +
+          headerHeight +
+          6 +
+          scoreRowHeight +
+          6 +
+          originalCommentBoxHeight +
+          (hasRevised ? 6 + revisedCommentBoxHeight : 0) +
+          10;
 
-          doc.setFillColor(color.violet[0], color.violet[1], color.violet[2]);
-          doc.roundedRect(margin + 5, y + 3.5, 1.7, headerBlockHeight - 7, 0.8, 0.8, "F");
+        ensureSpace(estimatedHeight + 3);
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+        doc.roundedRect(margin + 2, y, contentWidth - 4, estimatedHeight, 3, 3, "FD");
+
+        doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
+        doc.roundedRect(margin + 2.6, y + 0.6, contentWidth - 5.2, headerHeight, 2.2, 2.2, "F");
+
+        setPdfFont("bold");
+        doc.setFontSize(13);
+        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+        doc.text(titleLines, margin + 8, y + 5.3);
+
+        let innerY = y + headerHeight + 6;
+
+        const drawScoreChip = (
+          x: number,
+          width: number,
+          label: string,
+          value: string,
+          fill: [number, number, number],
+          border: [number, number, number],
+          textColor: [number, number, number]
+        ) => {
+          const valueLines = split(value, width - 8);
+          const localHeight = Math.max(scoreRowHeight, 7.4 + valueLines.length * 3.9);
+
+          doc.setFillColor(fill[0], fill[1], fill[2]);
+          doc.setDrawColor(border[0], border[1], border[2]);
+          doc.roundedRect(x, innerY, width, localHeight, 2.2, 2.2, "FD");
 
           setPdfFont("bold");
-          doc.setFontSize(13.3);
-          doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text(titleLines, margin + 9.5, y + 6.4);
-
-          if (continued) {
-            setPdfFont("normal");
-            doc.setFontSize(9.2);
-            doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-            doc.text("continued", pageWidth - margin - 6, y + 6.2, { align: "right" });
-          }
-
-          const scoreStartY = y + headerBlockHeight + 4.8;
-
-          setPdfFont("bold");
-          doc.setFontSize(10.2);
+          doc.setFontSize(9.6);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(hasRevised ? "Original Score" : "Score", margin + 6, scoreStartY);
+          doc.text(label, x + 3, innerY + 3.8);
 
-          setPdfFont("normal");
-          doc.setFontSize(11.3);
-          doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text(scoreText, margin + 34, scoreStartY);
+          setPdfFont("bold");
+          doc.setFontSize(11.1);
+          doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+          doc.text(valueLines, x + 3, innerY + 8.1);
 
-          y = scoreStartY + 6.2;
-
-          if (hasRevised) {
-            setPdfFont("bold");
-            doc.setFontSize(10.2);
-            doc.setTextColor(color.violet[0], color.violet[1], color.violet[2]);
-            doc.text("Revised Score", margin + 6, y);
-
-            setPdfFont("normal");
-            doc.setFontSize(11.3);
-            doc.setTextColor(67, 56, 202);
-            doc.text(revisedScoreText, margin + 34, y);
-            y += 6.2;
-          }
-
-          y += 1.6;
+          return localHeight;
         };
 
-        const drawCommentFlow = (
+        let usedScoreHeight = scoreRowHeight;
+
+        if (hasRevised) {
+          const chipGap = 3.5;
+          const chipWidth = (contentWidth - 14 - chipGap) / 2;
+          const originalHeight = drawScoreChip(
+            margin + 8,
+            chipWidth,
+            "Original",
+            scoreText,
+            [248, 250, 252],
+            [226, 232, 240],
+            [51, 65, 85]
+          );
+          const revisedHeight = drawScoreChip(
+            margin + 8 + chipWidth + chipGap,
+            chipWidth,
+            "Revised",
+            revisedScoreText,
+            [245, 243, 255],
+            [196, 181, 253],
+            [109, 40, 217]
+          );
+          usedScoreHeight = Math.max(originalHeight, revisedHeight);
+        } else {
+          usedScoreHeight = drawScoreChip(
+            margin + 8,
+            contentWidth - 16,
+            "Score",
+            scoreText,
+            [248, 250, 252],
+            [226, 232, 240],
+            [51, 65, 85]
+          );
+        }
+
+        innerY += usedScoreHeight + 6;
+
+        const drawCommentBox = (
           label: string,
           lines: string[],
           tone: "default" | "revised" = "default"
         ) => {
-          let remaining = lines.length ? [...lines] : ["-"];
-          let firstChunk = true;
+          const fill = tone === "revised" ? [245, 243, 255] : [248, 250, 252];
+          const border = tone === "revised" ? [196, 181, 253] : [226, 232, 240];
           const labelColor = tone === "revised"
             ? [109, 40, 217]
             : [color.subtext[0], color.subtext[1], color.subtext[2]];
           const bodyColor = tone === "revised"
             ? [67, 56, 202]
             : [color.text[0], color.text[1], color.text[2]];
+          const boxHeight = 12 + lines.length * lineHeight + 6;
 
-          while (remaining.length) {
-            if (y + 14 + lineHeight * 2 > pageBottom) {
-              startNewPage(true);
-              drawTopicHeader(true);
-            }
+          doc.setFillColor(fill[0], fill[1], fill[2]);
+          doc.setDrawColor(border[0], border[1], border[2]);
+          doc.roundedRect(margin + 8, innerY, contentWidth - 16, boxHeight, 2.8, 2.8, "FD");
 
-            const labelText = `${label}${firstChunk ? "" : " (continued)"}`;
+          setPdfFont("bold");
+          doc.setFontSize(10.4);
+          doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+          doc.text(label, margin + 12, innerY + 5);
 
-            setPdfFont("bold");
-            doc.setFontSize(10.2);
-            doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
-            doc.text(labelText, margin + 6, y + 4.6);
+          setPdfFont("normal");
+          doc.setFontSize(11.0);
+          doc.setTextColor(bodyColor[0], bodyColor[1], bodyColor[2]);
+          doc.text(lines, margin + 12, innerY + 11.5);
 
-            doc.setDrawColor(labelColor[0], labelColor[1], labelColor[2]);
-            doc.setLineWidth(0.22);
-            doc.line(margin + 6, y + 6.4, pageWidth - margin - 6, y + 6.4);
-            y += 11.2;
-
-            const linesPerChunk = Math.max(2, Math.floor((pageBottom - y - 3) / lineHeight));
-            const chunk = remaining.slice(0, linesPerChunk);
-            remaining = remaining.slice(linesPerChunk);
-
-            setPdfFont("normal");
-            doc.setFontSize(11.4);
-            doc.setTextColor(bodyColor[0], bodyColor[1], bodyColor[2]);
-            doc.text(chunk, margin + 8, y);
-
-            y += chunk.length * lineHeight + 5.2;
-
-            if (!remaining.length) {
-              y += 1.4;
-              break;
-            }
-
-            startNewPage(true);
-            drawTopicHeader(true);
-            firstChunk = false;
-          }
+          innerY += boxHeight + 6;
         };
 
-        drawTopicHeader(false);
-        drawCommentFlow("Original Comment", originalLines, "default");
+        drawCommentBox(hasRevised ? "Original Comment" : "Original Comment", commentLines, "default");
 
         if (hasRevised) {
-          drawCommentFlow("Revised Comment", revisedLines, "revised");
+          drawCommentBox("Revised Comment", revisedCommentLines, "revised");
         }
 
-        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-        doc.setLineWidth(0.25);
-        doc.line(margin + 2, y, pageWidth - margin - 2, y);
-        y += topicGap + 1.2;
+        y += Math.max(estimatedHeight, innerY - y + 2) + topicGap;
       };
 
       const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
@@ -2472,14 +2505,12 @@ function SlideOverCaseDetail({
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
 
-      if (y + 38 > pageBottom) {
-        startNewPage(true);
-      }
+      ensureSpace(28, true);
       drawSectionHeader(
         "Topic Detail",
         caseItem.reviewStatus === "Revised"
-          ? "Continuous report layout with original and revised observations"
-          : "Continuous report layout for topic-by-topic evaluation"
+          ? "Original and revised observations displayed in report format"
+          : "Topic-by-topic evaluation in report format"
       );
 
       const displayCodeSet = new Set(caseItem.displayRevisedTopicCodes || []);
@@ -2638,142 +2669,301 @@ function SlideOverCaseDetail({
               subtitle="Selected case overview and review status"
             />
             <PanelBody className="space-y-5">
-              <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] lg:p-5">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_300px] xl:items-start">
-                  <div className="rounded-[22px] border border-slate-200 bg-white/95 p-3 shadow-sm lg:p-4">
-                    <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-slate-50">
-                      {[
-                        { label: "Agent", value: caseItem.agent || "-" },
-                        { label: "Audit Date", value: caseItem.auditDate || "-" },
-                        { label: "Timestamp", value: caseItem.auditTimestamp || "-" },
-                        {
-                          label: "Waiting Time / Service Time",
-                          value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
-                        },
-                        { label: "Week", value: caseItem.weekLabel || "-" },
-                      ].map((entry, index, arr) => (
-                        <div
-                          key={entry.label}
-                          className={`px-4 py-3 ${index !== arr.length - 1 ? "border-b border-slate-200" : ""}`}
-                        >
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            {entry.label}
-                          </div>
-                          <div className="mt-1.5 text-[15px] font-bold tracking-tight text-slate-900 lg:text-[16px]">
-                            {entry.value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={`rounded-[22px] border px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.08)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Final Score</div>
-                        <div className={`mt-2 text-[42px] font-extrabold leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
-                          {caseItem.finalScore.toFixed(2)}
-                        </div>
-                        <div className={`mt-2 text-[13px] font-semibold ${currentGradeTone(caseItem.grade).levelText}`}>
-                          {currentGradeTone(caseItem.grade).level}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(caseItem.grade).badge}`}>
-                          Grade {caseItem.grade}
-                        </span>
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${reviewTone(caseItem.reviewStatus)}`}>
-                          {caseItem.reviewStatus}
-                        </span>
-                      </div>
-                    </div>
-
-                    {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
-                      <div className="mt-3 rounded-[16px] border border-white/70 bg-white/80 px-3 py-2.5 text-[12px] text-slate-700 shadow-sm">
-                        <span className="font-semibold text-slate-900">Score Change:</span>{" "}
-                        Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-4 grid gap-2.5">
-                      {caseItem.caseUrl ? (
-                        <a
-                          href={caseItem.caseUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                        >
-                          Open Case URL
-                        </a>
-                      ) : null}
-
-                      <button
-                        type="button"
-                        onClick={handleGenerateCaseDetailPdf}
-                        className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Generate Case Detail PDF
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        if (verifiedImagePdfUrls.length) {
-                          setPreviewAsset({
-                            type: "pdf",
-                            url: verifiedImagePdfUrls[0].url,
-                            title: verifiedImagePdfUrls[0].label,
-                            downloadUrl: verifiedImagePdfUrls[0].url,
-                          });
-                          return;
-                        }
-                        if (verifiedImageUrls.length) {
-                          setPreviewAsset({
-                            type: "image",
-                            url: verifiedImageUrls[0],
-                            title: `${caseItem.caseId} Case Image`,
-                            items: verifiedImageUrls,
-                            index: 0,
-                            downloadUrl: verifiedImageUrls[0],
-                          });
-                        }
-                      }}
-                      className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
+                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100"
                     >
-                      Preview Case Image
+                      {caseItem.caseId}
                     </button>
-                  ) : null}
-
-                  {availablePdfUrls.length ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                      {availablePdfUrls.map((item) => (
+                    <button
+                      type="button"
+                      className={`inline-flex items-center rounded-full border px-4 py-1.5 text-[12px] font-semibold shadow-sm transition ${gradeTone(
+                        caseItem.grade
+                      )}`}
+                    >
+                      Grade {caseItem.grade}
+                    </button>
+                    <button
+                      type="button"
+                      className={`inline-flex items-center rounded-full border px-4 py-1.5 text-[12px] font-semibold shadow-sm transition ${reviewTone(
+                        caseItem.reviewStatus
+                      )}`}
+                    >
+                      {caseItem.reviewStatus}
+                    </button>
+                    {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+                      <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-sky-200 bg-sky-50/90 px-2 py-1 shadow-sm">
+                        <span className="text-[11px] font-semibold text-sky-700">Case Image</span>
                         <button
-                          key={item.label}
                           type="button"
-                          onClick={() =>
-                            setPreviewAsset({
-                              type: "pdf",
-                              url: item.url,
-                              title: item.label,
-                              downloadUrl: item.url,
-                            })
-                          }
-                          className="inline-flex items-center rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
-                          title={`Open ${item.label}`}
+                          onClick={() => {
+                            if (verifiedImagePdfUrls.length) {
+                              setPreviewAsset({
+                                type: "pdf",
+                                url: verifiedImagePdfUrls[0].url,
+                                title: verifiedImagePdfUrls[0].label,
+                                downloadUrl: verifiedImagePdfUrls[0].url,
+                              });
+                              return;
+                            }
+                            if (verifiedImageUrls.length) {
+                              setPreviewAsset({
+                                type: "image",
+                                url: verifiedImageUrls[0],
+                                title: `${caseItem.caseId} Case Image`,
+                                items: verifiedImageUrls,
+                                index: 0,
+                                downloadUrl: verifiedImageUrls[0],
+                              });
+                            }
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-white text-[13px] text-sky-700 transition hover:bg-sky-100"
+                          title="Open case image"
                         >
-                          {item.label}
+                          👁
                         </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                        <a
+                          href={verifiedImagePdfUrls.length ? verifiedImagePdfUrls[0].url : verifiedImageUrls[0]}
+                          download
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-200 bg-white text-[13px] text-sky-700 transition hover:bg-sky-100"
+                          title="Download case image"
+                        >
+                          ⬇
+                        </a>
+                      </div>
+                    ) : null}
+                    {availablePdfUrls.length ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {availablePdfUrls.map((item) => {
+                          const toneClass =
+                            item.tone === "violet"
+                              ? "border-violet-200 bg-violet-50 text-violet-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700";
+                          const iconClass =
+                            item.tone === "violet"
+                              ? "border-violet-200 text-violet-700 hover:bg-violet-100"
+                              : "border-amber-200 text-amber-700 hover:bg-amber-100";
 
+                          return (
+                            <div
+                              key={item.label}
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 shadow-sm ${toneClass}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewAsset({
+                                    type: "pdf",
+                                    url: item.url,
+                                    title: item.label,
+                                    downloadUrl: item.url,
+                                  })
+                                }
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white text-[13px] transition ${iconClass}`}
+                                title={`Open ${item.label}`}
+                              >
+                                👁
+                              </button>
+                              <a
+                                href={item.url}
+                                download
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white text-[13px] transition ${iconClass}`}
+                                title={`Download ${item.label}`}
+                              >
+                                ⬇
+                              </a>
+                              <span className="pr-2 text-[11px] font-semibold">{item.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">👤</span>
+                        <span>Agent</span>
+                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">📅</span>
+                        <span>Audit Date</span>
+                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
+                        <span>Timestamp</span>
+                      </div>
+                      <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-4">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
+                        <span>Waiting Time / Service Time</span>
+                      </div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">
+                        {formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">🗓️</span>
+                        <span>Week</span>
+                      </div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-300 bg-gradient-to-br from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-4 text-white shadow-[0_12px_30px_rgba(124,58,237,0.22)] xl:col-span-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-100">
+                            Final Score
+                          </div>
+                          <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">
+                            {caseItem.finalScore.toFixed(2)}
+                          </div>
+                          {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
+                            <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/95 backdrop-blur-sm">
+                              <span className="text-white/75">Original</span>
+                              <span>{caseItem.previousScore.toFixed(2)}</span>
+                              <span className="text-white/60">→</span>
+                              <span className="text-white">Revised</span>
+                              <span>{caseItem.finalScore.toFixed(2)}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <span className="inline-flex rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/95">
+                          Grade {caseItem.grade}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {caseItem.caseUrl ? (
+                          <a
+                            href={caseItem.caseUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/15 px-3.5 py-2 text-[12px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+                          >
+                            <span aria-hidden="true">🔗</span>
+                            <span>Open Case URL</span>
+                          </a>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={handleGenerateCaseDetailPdf}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/15 px-3.5 py-2 text-[12px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+                        >
+                          <span aria-hidden="true">🧾</span>
+                          <span>Generate Case Detail PDF</span>
+                        </button>
+
+                        {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (verifiedImagePdfUrls.length) {
+                                setPreviewAsset({
+                                  type: "pdf",
+                                  url: verifiedImagePdfUrls[0].url,
+                                  title: verifiedImagePdfUrls[0].label,
+                                  downloadUrl: verifiedImagePdfUrls[0].url,
+                                });
+                                return;
+                              }
+                              if (verifiedImageUrls.length) {
+                                setPreviewAsset({
+                                  type: "image",
+                                  url: verifiedImageUrls[0],
+                                  title: `${caseItem.caseId} Case Image`,
+                                  items: verifiedImageUrls,
+                                  index: 0,
+                                  downloadUrl: verifiedImageUrls[0],
+                                });
+                              }
+                            }}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-200/70 bg-sky-400/15 px-3.5 py-2 text-[12px] font-semibold text-sky-50 backdrop-blur-sm transition hover:bg-sky-400/25"
+                          >
+                            <span aria-hidden="true">🖼️</span>
+                            <span>Preview Case Image</span>
+                          </button>
+                        ) : null}
+
+                        {availablePdfUrls.length ? (
+                          <>
+                            {availablePdfUrls.map((item) => (
+                              <button
+                                key={item.label}
+                                type="button"
+                                onClick={() =>
+                                  setPreviewAsset({
+                                    type: "pdf",
+                                    url: item.url,
+                                    title: item.label,
+                                    downloadUrl: item.url,
+                                  })
+                                }
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200/80 bg-amber-400/15 px-3.5 py-2 text-[12px] font-semibold text-amber-50 backdrop-blur-sm transition hover:bg-amber-400/25"
+                                title={`Open ${item.label}`}
+                              >
+                                <span aria-hidden="true">📄</span>
+                                <span>{item.label}</span>
+                              </button>
+                            ))}
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
+                    <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-sky-400" />
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">
+                        💬
+                      </span>
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                          Customer Inquiry
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-[22px] border border-violet-100 bg-white/95 px-4 py-4 shadow-sm">
+                      <div className="whitespace-pre-line text-[15px] leading-7 text-slate-800">
+                        {caseItem.inquiryTh || "-"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
+                      <span>Case Description</span>
+                    </div>
+                    <div className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-800">
+                      {caseItem.caseDescription || "-"}
+                    </div>
+                  </div>
+
+
+                </div>
               </div>
             </PanelBody>
           </Panel>
@@ -2781,33 +2971,6 @@ function SlideOverCaseDetail({
           <Panel>
             <PanelHeader title="Topic Detail" subtitle="Premium topic review with highlighted revised score changes" />
             <PanelBody>
-              <div className="mb-5 space-y-4">
-                <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
-                      <div className="mt-1 text-xs text-slate-500">ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
-                    <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.inquiryTh || "-"}</div>
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
-                      <div className="mt-1 text-xs text-slate-500">รายละเอียดและบริบทเพิ่มเติมของเคสนี้</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 rounded-[16px] border border-fuchsia-100 bg-white/95 px-4 py-3 shadow-sm">
-                    <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.caseDescription || "-"}</div>
-                  </div>
-                </div>
-              </div>
               <CaseDetailTopicTable
                 topics={caseItem.topics}
                 revisedTopics={caseItem.revisedTopics}
