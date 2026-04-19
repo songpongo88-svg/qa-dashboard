@@ -1247,12 +1247,29 @@ export default function AppealMockup({
     }
   };
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
     if (!selectedCase) return;
+
+    const loadLogoDataUrl = async () => {
+      try {
+        const response = await fetch("/robinhood-logo.png");
+        if (!response.ok) return "";
+        const blob = await response.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        return "";
+      }
+    };
 
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     registerTHSarabunNew(doc);
     const usingThaiFont = setPdfFont(doc, "normal");
+    const logoDataUrl = await loadLogoDataUrl();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const left = 16;
@@ -1273,9 +1290,6 @@ export default function AppealMockup({
       muted: [90, 90, 90] as [number, number, number],
       divider: [170, 170, 170] as [number, number, number],
       sectionLine: [148, 163, 184] as [number, number, number],
-      sectionFill: [245, 247, 250] as [number, number, number],
-      topicFill: [250, 251, 255] as [number, number, number],
-      topicBorder: [203, 213, 225] as [number, number, number],
       accent: [79, 70, 229] as [number, number, number],
       success: [22, 163, 74] as [number, number, number],
       danger: [220, 38, 38] as [number, number, number],
@@ -1311,19 +1325,29 @@ export default function AppealMockup({
     };
 
     const addMainTitle = () => {
-      const headerTop = y;
+      ensureSpace(24);
+      let textLeft = left;
+
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, "PNG", left, y - 1.5, 13, 13);
+          textLeft = left + 17;
+        } catch {
+          textLeft = left;
+        }
+      }
+
       setPdfFont(doc, "bold");
-      doc.setFontSize(19);
-      setColor(PDF_COLORS.accent);
-      doc.text("QA Appeal Result Report", left, y);
+      doc.setFontSize(18);
+      setColor(PDF_COLORS.black);
+      doc.text("QA Appeal Result Report", textLeft, y + 1);
 
-      y += 5.5;
       setPdfFont(doc, "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(10.5);
       setColor(PDF_COLORS.muted);
-      doc.text("Appeal review summary and topic-by-topic comparison", left, y);
+      doc.text("Robinhood QA Appeal Review Report", textLeft, y + 6);
 
-      y += 7;
+      y += 13;
       setPdfFont(doc, "normal");
       doc.setFontSize(11);
       setColor(PDF_COLORS.body);
@@ -1333,73 +1357,17 @@ export default function AppealMockup({
       doc.text(`Agent: ${selectedCase.agent || "-"}`, left, y);
 
       y += 3;
-      drawDivider(1.5, 4, PDF_COLORS.sectionLine, 0.45);
-
-      const summaryTop = y;
-      const boxHeight = 16;
-      const gap = 4;
-      const boxWidth = (contentWidth - gap * 2) / 3;
-      const metricBoxes = [
-        {
-          label: "Score Flow",
-          value: `${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`,
-        },
-        {
-          label: "Grade Flow",
-          value: `${selectedCaseOriginalGradeForPdf} → ${selectedCase.grade}`,
-        },
-        {
-          label: "Review Status",
-          value: selectedCase.reviewStatus,
-        },
-      ];
-
-      metricBoxes.forEach((item, index) => {
-        const boxX = left + (boxWidth + gap) * index;
-        doc.setFillColor(
-          PDF_COLORS.sectionFill[0],
-          PDF_COLORS.sectionFill[1],
-          PDF_COLORS.sectionFill[2]
-        );
-        doc.setDrawColor(
-          PDF_COLORS.topicBorder[0],
-          PDF_COLORS.topicBorder[1],
-          PDF_COLORS.topicBorder[2]
-        );
-        doc.roundedRect(boxX, summaryTop, boxWidth, boxHeight, 2.2, 2.2, "FD");
-
-        setPdfFont(doc, "bold");
-        doc.setFontSize(9.5);
-        setColor(PDF_COLORS.muted);
-        doc.text(item.label, boxX + 3, summaryTop + 5);
-
-        setPdfFont(doc, "bold");
-        doc.setFontSize(11);
-        setColor(PDF_COLORS.black);
-        doc.text(doc.splitTextToSize(item.value, boxWidth - 6), boxX + 3, summaryTop + 10);
-      });
-
-      y = summaryTop + boxHeight + 5;
+      drawDivider(1.5, 5, PDF_COLORS.sectionLine, 0.45);
     };
 
     const addSectionTitle = (text: string) => {
-      ensureSpace(12);
-      doc.setFillColor(
-        PDF_COLORS.sectionFill[0],
-        PDF_COLORS.sectionFill[1],
-        PDF_COLORS.sectionFill[2]
-      );
-      doc.setDrawColor(
-        PDF_COLORS.topicBorder[0],
-        PDF_COLORS.topicBorder[1],
-        PDF_COLORS.topicBorder[2]
-      );
-      doc.roundedRect(left, y, contentWidth, 9, 1.8, 1.8, "FD");
+      ensureSpace(10);
       setPdfFont(doc, "bold");
       doc.setFontSize(14);
       setColor(PDF_COLORS.accent);
-      doc.text(text, left + 3, y + 5.8);
-      y += 10.5;
+      doc.text(text, left, y);
+      y += 2.5;
+      drawDivider(1, 4, PDF_COLORS.sectionLine, 0.35);
     };
 
     const addParagraph = (
@@ -1420,19 +1388,17 @@ export default function AppealMockup({
     const addKeyValue = (label: string, value: string, labelWidth = 40) => {
       const safeValue = sanitizeDisplayText(value, "-");
       const valueLines = doc.splitTextToSize(safeValue, contentWidth - labelWidth);
-      const rowHeight = Math.max(7, valueLines.length * 4.8) + 2;
-      ensureSpace(rowHeight + 1);
+      ensureSpace(Math.max(6, valueLines.length * 4.8) + 1);
 
       setPdfFont(doc, "bold");
-      doc.setFontSize(10.5);
-      setColor(PDF_COLORS.muted);
-      doc.text(label, left, y + 1);
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.black);
+      doc.text(label, left, y);
 
       setPdfFont(doc, "normal");
       setColor(PDF_COLORS.body);
-      doc.text(valueLines, left + labelWidth, y + 1);
-      y += rowHeight;
-      drawDivider(0.2, 1.8, PDF_COLORS.sectionLine, 0.2);
+      doc.text(valueLines, left + labelWidth, y);
+      y += Math.max(6, valueLines.length * 4.8);
     };
 
     const addTopicBlock = (topic: Topic) => {
@@ -1443,21 +1409,19 @@ export default function AppealMockup({
       const scoreColor =
         diff > 0 ? PDF_COLORS.success : diff < 0 ? PDF_COLORS.danger : PDF_COLORS.neutral;
 
-      const innerX = left + 4;
-      const innerWidth = contentWidth - 8;
-      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, innerWidth);
+      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, contentWidth);
       const scoreLines = doc.splitTextToSize(
         `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
           diff > 0 ? "+" : ""
         }${diff} (${statusLabel})`,
-        innerWidth
+        contentWidth
       );
-      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", innerWidth);
+      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", contentWidth - 42);
       const originalCommentLines = doc.splitTextToSize(
         topic.originalComment || "-",
-        innerWidth
+        contentWidth - 42
       );
-      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", innerWidth);
+      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", contentWidth - 42);
 
       const estimatedHeight =
         titleLines.length * 5 +
@@ -1465,84 +1429,41 @@ export default function AppealMockup({
         appealReasonLines.length * 4.8 +
         originalCommentLines.length * 4.8 +
         revisedCommentLines.length * 4.8 +
-        44;
+        28;
 
-      ensureSpace(estimatedHeight + 4);
-
-      const blockTop = y;
-      doc.setFillColor(
-        PDF_COLORS.topicFill[0],
-        PDF_COLORS.topicFill[1],
-        PDF_COLORS.topicFill[2]
-      );
-      doc.setDrawColor(
-        PDF_COLORS.topicBorder[0],
-        PDF_COLORS.topicBorder[1],
-        PDF_COLORS.topicBorder[2]
-      );
-      doc.roundedRect(left, blockTop, contentWidth, estimatedHeight, 2.5, 2.5, "FD");
-      y += 5;
+      ensureSpace(estimatedHeight);
 
       setPdfFont(doc, "bold");
       doc.setFontSize(12);
-      setColor(PDF_COLORS.accent);
-      doc.text(titleLines, innerX, y);
+      setColor(PDF_COLORS.black);
+      doc.text(titleLines, left, y);
       y += titleLines.length * 5;
 
       setPdfFont(doc, "bold");
       doc.setFontSize(10.5);
       setColor(scoreColor);
-      doc.text(scoreLines, innerX, y);
+      doc.text(scoreLines, left, y);
       y += scoreLines.length * 4.8 + 2;
 
-      doc.setDrawColor(
-        PDF_COLORS.sectionLine[0],
-        PDF_COLORS.sectionLine[1],
-        PDF_COLORS.sectionLine[2]
-      );
-      doc.setLineWidth(0.25);
-      doc.line(innerX, y, right - 4, y);
-      y += 4;
+      addKeyValue("Appeal Reason", topic.appealReason || "-", 42);
+      drawDivider(0.4, 3, PDF_COLORS.sectionLine, 0.25);
 
       setPdfFont(doc, "bold");
-      doc.setFontSize(10.5);
-      setColor(PDF_COLORS.appealReason);
-      doc.text("Appeal Reason", innerX, y);
-      y += 4.8;
-      setPdfFont(doc, "normal");
       doc.setFontSize(11);
-      setColor(PDF_COLORS.body);
-      doc.text(appealReasonLines, innerX, y);
-      y += appealReasonLines.length * 4.8 + 2;
-
-      doc.line(innerX, y, right - 4, y);
-      y += 4;
+      setColor(PDF_COLORS.black);
+      doc.text("Original Comment", left, y);
+      y += 5;
+      addParagraph(topic.originalComment || "-", 11, PDF_COLORS.originalComment, 3);
+      drawDivider(0.4, 3, PDF_COLORS.sectionLine, 0.25);
 
       setPdfFont(doc, "bold");
-      doc.setFontSize(10.5);
-      setColor(PDF_COLORS.originalComment);
-      doc.text("Original Comment", innerX, y);
-      y += 4.8;
-      setPdfFont(doc, "normal");
       doc.setFontSize(11);
-      setColor(PDF_COLORS.body);
-      doc.text(originalCommentLines, innerX, y);
-      y += originalCommentLines.length * 4.8 + 2;
+      setColor(PDF_COLORS.black);
+      doc.text("Revised Comment", left, y);
+      y += 5;
+      addParagraph(topic.comment || "-", 11, PDF_COLORS.revisedComment, 4);
 
-      doc.line(innerX, y, right - 4, y);
-      y += 4;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(10.5);
-      setColor(PDF_COLORS.accent);
-      doc.text("Revised Comment", innerX, y);
-      y += 4.8;
-      setPdfFont(doc, "normal");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.body);
-      doc.text(revisedCommentLines, innerX, y);
-
-      y = blockTop + estimatedHeight + 4;
+      drawDivider(1, 5);
     };
 
     addMainTitle();
