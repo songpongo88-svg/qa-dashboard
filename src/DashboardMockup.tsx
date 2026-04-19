@@ -26,6 +26,8 @@ type CaseItem = {
   weekLabel: string;
   caseId: string;
   caseUrl?: string;
+  waitingTime?: string;
+  serviceTime?: string;
   inquiryTh: string;
   inquiryEn: string;
   caseDescription?: string;
@@ -407,6 +409,41 @@ function formatAuditTimestamp(value: any): string {
   const min = `${dt.getMinutes()}`.padStart(2, "0");
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
+
+function formatTimeOnly(value: any): string {
+  if (value === null || value === undefined || value === "") return "-";
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const hh = `${value.getHours()}`.padStart(2, "0");
+    const min = `${value.getMinutes()}`.padStart(2, "0");
+    return `${hh}:${min}`;
+  }
+
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) {
+      const hh = `${parsed.H || 0}`.padStart(2, "0");
+      const min = `${parsed.M || 0}`.padStart(2, "0");
+      return `${hh}:${min}`;
+    }
+  }
+
+  const text = String(value).trim();
+  if (!text) return "-";
+
+  const timeMatch = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (timeMatch) {
+    const [, hh, min] = timeMatch;
+    return `${hh.padStart(2, "0")}:${min}`;
+  }
+
+  const dt = excelDateToJSDate(value);
+  if (!dt) return text;
+  const hh = `${dt.getHours()}`.padStart(2, "0");
+  const min = `${dt.getMinutes()}`.padStart(2, "0");
+  return `${hh}:${min}`;
+}
+
 
 
 async function loadImageAsDataUrl(url: string) {
@@ -2118,24 +2155,66 @@ function SlideOverCaseDetail({
 
       const drawParagraphCard = (label: string, value: string) => {
         const lines = split(value, contentWidth - 16);
-        const cardHeight = 7 + 3.2 + lines.length * lineHeight + 4;
-        ensureSpace(cardHeight + 2);
+        const topPad = 7;
+        const labelGap = 3.2;
+        const bottomPad = 4;
+        const afterGap = 3.2;
+        const headerHeight = topPad + labelGap + lineHeight;
+        if (!lines.length) {
+          ensureSpace(headerHeight + bottomPad + 2);
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+          doc.roundedRect(margin + 2, y, contentWidth - 4, headerHeight + bottomPad, 3, 3, "FD");
 
-        doc.setFillColor(255, 255, 255);
-        doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-        doc.roundedRect(margin + 2, y, contentWidth - 4, cardHeight, 3, 3, "FD");
+          setPdfFont("bold");
+          doc.setFontSize(10.3);
+          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+          doc.text(label, margin + 8, y + 5);
 
-        setPdfFont("bold");
-        doc.setFontSize(10.3);
-        doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-        doc.text(label, margin + 8, y + 5);
+          setPdfFont("normal");
+          doc.setFontSize(12.2);
+          doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+          doc.text("-", margin + 8, y + 9.2);
 
-        setPdfFont("normal");
-        doc.setFontSize(12.2);
-        doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-        doc.text(lines, margin + 8, y + 9.2);
+          y += headerHeight + bottomPad + afterGap;
+          return;
+        }
 
-        y += cardHeight + 3.2;
+        let remainingLines = [...lines];
+        let firstChunk = true;
+
+        while (remainingLines.length) {
+          ensureSpace(headerHeight + lineHeight + bottomPad + 2, !firstChunk);
+
+          const availableBodyHeight = pageBottom - y - headerHeight - bottomPad;
+          const linesPerPage = Math.max(1, Math.floor(availableBodyHeight / lineHeight));
+          const chunk = remainingLines.slice(0, linesPerPage);
+          remainingLines = remainingLines.slice(linesPerPage);
+
+          const cardHeight = headerHeight + chunk.length * lineHeight + bottomPad;
+
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+          doc.roundedRect(margin + 2, y, contentWidth - 4, cardHeight, 3, 3, "FD");
+
+          setPdfFont("bold");
+          doc.setFontSize(10.3);
+          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
+          doc.text(`${label}${firstChunk ? "" : " (continued)"}`, margin + 8, y + 5);
+
+          setPdfFont("normal");
+          doc.setFontSize(12.2);
+          doc.setTextColor(color.text[0], color.text[1], color.text[2]);
+          doc.text(chunk, margin + 8, y + 9.2);
+
+          y += cardHeight + afterGap;
+
+          if (remainingLines.length) {
+            startNewPage(true);
+          }
+
+          firstChunk = false;
+        }
       };
 
       const drawScoreBand = () => {
@@ -2366,6 +2445,8 @@ function SlideOverCaseDetail({
           { label: "Audit Timestamp", value: caseItem.auditTimestamp || "-" },
           { label: "Month", value: caseItem.monthLabel || caseItem.monthKey || "-" },
           { label: "Week", value: caseItem.weekLabel || "-" },
+          { label: "Waiting Time", value: caseItem.waitingTime || "-" },
+          { label: "Service Time", value: caseItem.serviceTime || "-" },
           { label: "Review Status", value: caseItem.reviewStatus || "-" },
           { label: "Case URL", value: caseItem.caseUrl || "-" },
         ],
@@ -2382,7 +2463,7 @@ function SlideOverCaseDetail({
       const revisedMap = new Map((caseItem.revisedTopics || []).map((topic) => [topic.code, topic]));
       const validTopics = (caseItem.topics || []).filter((topic) => topic && Number(topic.max || 0) > 0);
 
-      startNewPage(true);
+      ensureSpace(28, true);
       drawSectionHeader(
         "Topic Detail",
         caseItem.reviewStatus === "Revised"
@@ -2683,6 +2764,22 @@ function SlideOverCaseDetail({
                         <span>Timestamp</span>
                       </div>
                       <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏳</span>
+                        <span>Waiting Time</span>
+                      </div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.waitingTime || "-"}</div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">🛎️</span>
+                        <span>Service Time</span>
+                      </div>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.serviceTime || "-"}</div>
                     </div>
 
                     <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
@@ -3113,6 +3210,14 @@ export default function DashboardMockup({
               "URL",
             ], "");
 
+            const waitingTime = formatTimeOnly(
+              getFirstAvailableHeaderValue(rawHelper, row, ["Waiting Time", "WaitingTime"], "")
+            );
+
+            const serviceTime = formatTimeOnly(
+              getFirstAvailableHeaderValue(rawHelper, row, ["Service Time", "ServiceTime"], "")
+            );
+
             const rawCaseDescription = getFirstAvailableHeaderValue(rawHelper, row, [
               "Case Description / รายละเอียดเคส คำอธิบายเคส",
               "รายละเอียดเคส คำอธิบายเคส",
@@ -3186,6 +3291,8 @@ export default function DashboardMockup({
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
+              waitingTime,
+              serviceTime,
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               caseDescription: String(caseDescription || "").trim(),
