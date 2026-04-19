@@ -229,7 +229,7 @@ function NavButton({
     <button
       type="button"
       onClick={onClick}
-      className={`relative inline-flex min-w-[118px] items-center justify-center overflow-hidden rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+      className={`relative inline-flex min-w-[104px] items-center justify-center overflow-hidden rounded-[18px] border px-4 py-2.5 text-sm font-semibold transition ${
         active
           ? songkranTheme
             ? "border-cyan-200 bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-400 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]"
@@ -257,7 +257,7 @@ function NavSectionLabel({
         : "border-violet-200 bg-violet-50 text-violet-700";
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${toneClass}`}>
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${toneClass}`}>
       {label}
     </span>
   );
@@ -283,7 +283,7 @@ function AccountActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-[48px] items-center justify-center rounded-2xl border px-4 py-3 text-sm font-semibold shadow-sm transition ${toneClass}`}
+      className={`inline-flex min-h-[42px] items-center justify-center rounded-[18px] border px-4 py-2.5 text-sm font-semibold shadow-sm transition ${toneClass}`}
     >
       {label}
     </button>
@@ -472,11 +472,11 @@ function VersionPill({
   const shownVersion = meta.displayVersion || meta.version;
 
   return (
-    <div className={`inline-flex flex-col gap-1.5 rounded-[20px] border border-violet-200/70 bg-white px-4 py-3 text-slate-700 shadow-sm ${className}`}>
+    <div className={`inline-flex flex-col gap-1 rounded-[18px] border border-violet-200/70 bg-white px-4 py-2.5 text-slate-700 shadow-sm ${className}`}>
       <div className="text-sm font-bold text-slate-900">
         Version {shownVersion}
       </div>
-      <div className="text-[11px] leading-5 text-slate-500">
+      <div className="text-[11px] leading-4 text-slate-500">
         {meta.updatedAt}
         {shortHash ? ` · ${shortHash}` : ""}
       </div>
@@ -489,7 +489,7 @@ function ReleaseNotesButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
+      className="inline-flex min-h-[40px] items-center justify-center rounded-[18px] border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
     >
       Release Notes
     </button>
@@ -1004,28 +1004,28 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-5 lg:px-6 2xl:px-8">
-            <div className="grid gap-4 xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] xl:items-start">
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-5 lg:px-6 2xl:px-8">
+            <div className="grid gap-3 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] xl:items-start">
               <div className={`relative min-w-0 rounded-[24px] border bg-white/90 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"}`}>
                 {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 opacity-80" /> : null}
                 <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">Robinhood QA</div>
-                <div className="mt-1 break-words text-xl font-extrabold leading-tight tracking-tight text-slate-800 sm:text-2xl">Welcome, {welcomeName}</div>
-                {songkranTheme ? <div className="mt-3"><SongkranBadge /></div> : null}
-                <div className="mt-2 space-y-1 text-sm text-slate-500">
-                  <div>Role: <span className="font-semibold text-slate-700">{currentUser.role}</span></div>
-                  <div>Agent Name: <span className="font-semibold text-slate-700">{currentUser.agentName}</span></div>
+                <div className="mt-1 break-words text-[17px] font-extrabold leading-tight tracking-tight text-slate-800 sm:text-[18px]">Welcome, {welcomeName}</div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {songkranTheme ? <SongkranBadge /> : null}
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Role: <span className="ml-1 text-slate-800">{currentUser.role}</span></span>
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Agent: <span className="ml-1 text-slate-800">{currentUser.agentName}</span></span>
                 </div>
               </div>
 
               <div className="grid gap-3">
-                <div className={`relative overflow-hidden rounded-[24px] border bg-white/90 px-4 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"}`}>
-                  <div className="grid gap-4 lg:grid-cols-[150px_minmax(0,1fr)] lg:items-start">
+                <div className={`relative overflow-hidden rounded-[24px] border bg-white/90 px-4 py-3.5 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"}`}>
+                  <div className="grid gap-3 lg:grid-cols-[126px_minmax(0,1fr)] lg:items-start">
                     <div className="px-1">
                       <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600">Workspace</div>
-                      <div className="mt-1 text-xs leading-5 text-slate-500">Choose the area you want to work in.</div>
+                      <div className="mt-1 text-xs leading-5 text-slate-500">Choose an area.</div>
                     </div>
 
-                    <div className="grid gap-3">
+                    <div className="grid gap-2.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <NavSectionLabel label="Performance" tone="violet" />
                         <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
@@ -1042,15 +1042,15 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-4 shadow-sm ${songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"}`}>
-                    <div className="grid gap-4 lg:grid-cols-[150px_minmax(0,1fr)] lg:items-start">
+                <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-3.5 shadow-sm ${songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"}`}>
+                    <div className="grid gap-3 lg:grid-cols-[126px_minmax(0,1fr)] lg:items-center">
                       <div className="px-1">
                         <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">Account</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-500">Manage access and quick actions.</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">Quick actions.</div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="flex flex-wrap gap-2.5">
                         <AccountActionButton
                           label="Change Password"
                           onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
@@ -1069,16 +1069,16 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"}`}>
+                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-3.5 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600">System</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-500">Current release and update details.</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">Release and version details.</div>
                       </div>
                       <NavSectionLabel label="Info" tone="slate" />
                     </div>
 
-                    <div className="mt-4 flex flex-col gap-3">
+                    <div className="mt-3 flex flex-col gap-2.5">
                       <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
                       <VersionPill meta={buildMeta} className="w-full" />
                     </div>
