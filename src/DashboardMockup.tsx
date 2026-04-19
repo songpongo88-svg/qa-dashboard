@@ -2774,33 +2774,6 @@ function SlideOverCaseDetail({
                   ) : null}
                 </div>
 
-                <div className="mt-5 space-y-4">
-                  <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
-                      <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
-                        <div className="mt-1 text-xs text-slate-500">ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 rounded-[18px] border border-violet-100 bg-white/95 px-4 py-3.5 shadow-sm">
-                      <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.inquiryTh || "-"}</div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[24px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
-                      <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
-                        <div className="mt-1 text-xs text-slate-500">รายละเอียดและบริบทเพิ่มเติมของเคสนี้</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 rounded-[18px] border border-fuchsia-100 bg-white/95 px-4 py-3.5 shadow-sm">
-                      <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.caseDescription || "-"}</div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </PanelBody>
           </Panel>
@@ -2808,6 +2781,33 @@ function SlideOverCaseDetail({
           <Panel>
             <PanelHeader title="Topic Detail" subtitle="Premium topic review with highlighted revised score changes" />
             <PanelBody>
+              <div className="mb-5 space-y-4">
+                <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
+                      <div className="mt-1 text-xs text-slate-500">ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+                    <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.inquiryTh || "-"}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
+                      <div className="mt-1 text-xs text-slate-500">รายละเอียดและบริบทเพิ่มเติมของเคสนี้</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-[16px] border border-fuchsia-100 bg-white/95 px-4 py-3 shadow-sm">
+                    <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.caseDescription || "-"}</div>
+                  </div>
+                </div>
+              </div>
               <CaseDetailTopicTable
                 topics={caseItem.topics}
                 revisedTopics={caseItem.revisedTopics}
