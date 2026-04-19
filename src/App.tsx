@@ -20,6 +20,7 @@ type CurrentUser = {
   displayName: string;
   role: UserRole;
   agentName: string;
+  loginAt: string;
 };
 
 type BuildMeta = {
@@ -86,11 +87,63 @@ function isSongkranThemeActive() {
   return now >= SONGKRAN_THEME_START && now <= SONGKRAN_THEME_END;
 }
 
+function formatThaiDayDate(input: string | Date) {
+  return new Intl.DateTimeFormat("th-TH", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Bangkok",
+  }).format(new Date(input));
+}
+
+function formatThaiTime(input: string | Date) {
+  return new Intl.DateTimeFormat("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Bangkok",
+  }).format(new Date(input));
+}
+
+function formatSessionDurationClock(startedAt: string, now: Date) {
+  const start = new Date(startedAt).getTime();
+  const current = now.getTime();
+
+  if (Number.isNaN(start) || current <= start) {
+    return "00:00:00";
+  }
+
+  const totalSeconds = Math.floor((current - start) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatSessionDuration(startedAt: string, now: Date) {
+  const start = new Date(startedAt).getTime();
+  const current = now.getTime();
+
+  if (Number.isNaN(start) || current <= start) {
+    return "00 ชม. 00 นาที 00 วินาที";
+  }
+
+  const totalSeconds = Math.floor((current - start) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(hours).padStart(2, "0")} ชม. ${String(minutes).padStart(2, "0")} นาที ${String(seconds).padStart(2, "0")} วินาที`;
+}
+
 function readStoredUser(): CurrentUser | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as CurrentUser;
+    const parsed = JSON.parse(raw) as Partial<CurrentUser>;
     if (
       !parsed ||
       typeof parsed.username !== "string" ||
@@ -100,7 +153,13 @@ function readStoredUser(): CurrentUser | null {
     ) {
       return null;
     }
-    return parsed;
+    return {
+      username: parsed.username,
+      displayName: parsed.displayName,
+      role: parsed.role,
+      agentName: parsed.agentName,
+      loginAt: typeof parsed.loginAt === "string" ? parsed.loginAt : new Date().toISOString(),
+    };
   } catch {
     return null;
   }
@@ -589,6 +648,7 @@ function ReleaseNotesModal({
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -625,6 +685,29 @@ export default function App() {
   }, [currentUser]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const loginDayLabel = useMemo(() => {
+    if (!currentUser) return "";
+    return formatThaiDayDate(currentUser.loginAt);
+  }, [currentUser]);
+  const loginTimeLabel = useMemo(() => {
+    if (!currentUser) return "";
+    return formatThaiTime(currentUser.loginAt);
+  }, [currentUser]);
+  const currentTimeLabel = useMemo(() => formatThaiTime(currentTime), [currentTime]);
+  const sessionDurationLabel = useMemo(() => {
+    if (!currentUser) return "";
+    return formatSessionDurationClock(currentUser.loginAt, currentTime);
+  }, [currentUser, currentTime]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -798,6 +881,7 @@ export default function App() {
       displayName: matchedUser.displayName,
       role: matchedUser.role,
       agentName: matchedUser.agentName,
+      loginAt: new Date().toISOString(),
     };
 
     setCurrentUser(nextUser);
@@ -1009,18 +1093,48 @@ export default function App() {
               {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-90 opacity-70" /> : null}
 
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex min-w-0 items-center gap-3 xl:w-[250px] xl:shrink-0">
-                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    <img src="/robinhood-logo.png" alt="Robinhood" className="h-7 w-7 object-contain" />
+                <div className="min-w-0 xl:w-[380px] xl:shrink-0">
+                  <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
                   </div>
 
                   <div className="min-w-0">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Robinhood QA</div>
-                    <div className="truncate text-[17px] font-extrabold tracking-tight text-slate-900">Welcome, {welcomeName}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                    <div className="mt-1 break-words text-[18px] font-extrabold leading-tight tracking-tight text-slate-900">Welcome, {welcomeName}</div>
+                    <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
                       <span className="text-slate-300">•</span>
                       <span className="truncate">{currentUser.agentName}</span>
+                    </div>
+                    <div className="hidden mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                      <span>{currentUser.role}</span>
+                      <span className="text-slate-300">•</span>
+                      <span>{currentUser.agentName}</span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                      <span>{currentUser.role}</span>
+                      <span className="text-slate-300">/</span>
+                      <span>{currentUser.agentName}</span>
+                    </div>
+                  </div>
+                  </div>
+                  <div className="mt-3 rounded-[18px] border border-slate-200 bg-slate-50/85 px-3.5 py-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Login Information</div>
+                    <div className="mt-2 text-xs font-medium text-slate-600">{loginDayLabel}</div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Login Time</span>
+                        <span className="text-sm font-bold text-slate-800">{loginTimeLabel}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Current Time</span>
+                        <span className="text-sm font-bold text-slate-800">{currentTimeLabel}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 sm:col-span-2 xl:col-span-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Usage Time</span>
+                        <span className="text-sm font-bold text-slate-800">{sessionDurationLabel}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
