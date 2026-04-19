@@ -2194,58 +2194,42 @@ function SlideOverCaseDetail({
       };
 
       const drawParagraphCard = (label: string, value: string) => {
-        const lines = split(value, contentWidth - 16);
-        const topPad = 7;
-        const labelGap = 3.2;
-        const bottomPad = 4;
-        const afterGap = 3.2;
-        const headerHeight = topPad + labelGap + lineHeight;
-        if (!lines.length) {
-          ensureSpace(headerHeight + bottomPad + 2);
-          doc.setFillColor(255, 255, 255);
-          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-          doc.roundedRect(margin + 2, y, contentWidth - 4, headerHeight + bottomPad, 3, 3, "FD");
-
-          setPdfFont("bold");
-          doc.setFontSize(10.3);
-          doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(label, margin + 8, y + 5);
-
-          setPdfFont("normal");
-          doc.setFontSize(12.2);
-          doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text("-", margin + 8, y + 9.2);
-
-          y += headerHeight + bottomPad + afterGap;
-          return;
-        }
-
-        let remainingLines = [...lines];
+        const lines = split(value, contentWidth - 18);
+        const labelBlockHeight = 8.5;
+        const topPad = 3.5;
+        const bottomPad = 4.5;
+        const afterGap = 4.2;
+        const minLinesPerChunk = 2;
+        const safeLines = lines.length ? lines : ["-"];
+        let remainingLines = [...safeLines];
         let firstChunk = true;
 
         while (remainingLines.length) {
-          ensureSpace(headerHeight + lineHeight + bottomPad + 2, !firstChunk);
+          ensureSpace(labelBlockHeight + topPad + lineHeight * minLinesPerChunk + bottomPad + 2, !firstChunk);
 
-          const availableBodyHeight = pageBottom - y - headerHeight - bottomPad;
-          const linesPerPage = Math.max(1, Math.floor(availableBodyHeight / lineHeight));
+          const availableBodyHeight = pageBottom - y - labelBlockHeight - topPad - bottomPad;
+          const linesPerPage = Math.max(minLinesPerChunk, Math.floor(availableBodyHeight / lineHeight));
           const chunk = remainingLines.slice(0, linesPerPage);
           remainingLines = remainingLines.slice(linesPerPage);
-
-          const cardHeight = headerHeight + chunk.length * lineHeight + bottomPad;
+          const cardHeight = labelBlockHeight + topPad + chunk.length * lineHeight + bottomPad;
+          const labelText = `${label}${firstChunk ? "" : " (continued)"}`;
 
           doc.setFillColor(255, 255, 255);
           doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
           doc.roundedRect(margin + 2, y, contentWidth - 4, cardHeight, 3, 3, "FD");
 
+          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+          doc.line(margin + 7, y + labelBlockHeight, pageWidth - margin - 7, y + labelBlockHeight);
+
           setPdfFont("bold");
-          doc.setFontSize(10.3);
+          doc.setFontSize(10.1);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(`${label}${firstChunk ? "" : " (continued)"}`, margin + 8, y + 5);
+          doc.text(labelText, margin + 8, y + 5.4);
 
           setPdfFont("normal");
-          doc.setFontSize(12.2);
+          doc.setFontSize(11.8);
           doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text(chunk, margin + 8, y + 9.2);
+          doc.text(chunk, margin + 8, y + labelBlockHeight + topPad + 1.6);
 
           y += cardHeight + afterGap;
 
@@ -2310,50 +2294,55 @@ function SlideOverCaseDetail({
         showRevised = false
       ) => {
         const hasRevised = !!(showRevised && revisedTopic && caseItem.reviewStatus === "Revised");
-        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 20);
+        const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 24);
         const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} · ${Number(topic.pct || 0).toFixed(1)}%`;
         const revisedScoreText = hasRevised
           ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
-        const originalLines = split(topic.comment || "-", contentWidth - 22);
-        const revisedLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 22) : [];
-        const headerBandHeight = Math.max(8.5, 4.8 + Math.max(0, titleLines.length - 1) * 4.0);
+        const originalLines = split(topic.comment || "-", contentWidth - 18);
+        const revisedLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 18) : [];
+        const headerBlockHeight = Math.max(16, 8 + Math.max(0, titleLines.length - 1) * 4.2);
 
         const drawTopicHeader = (continued = false) => {
-          ensureSpace(headerBandHeight + (hasRevised ? 14 : 9) + 6, continued);
+          ensureSpace(headerBlockHeight + (hasRevised ? 18 : 11) + 8, continued);
 
           doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
-          doc.setLineWidth(0.25);
+          doc.setLineWidth(0.3);
           doc.line(margin + 2, y, pageWidth - margin - 2, y);
-          y += 2.6;
+          y += 3.5;
 
-          doc.setFillColor(color.softViolet[0], color.softViolet[1], color.softViolet[2]);
-          doc.roundedRect(margin + 2, y, contentWidth - 4, headerBandHeight, 2.2, 2.2, "F");
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
+          doc.roundedRect(margin + 2, y, contentWidth - 4, headerBlockHeight, 2.6, 2.6, "FD");
+
+          doc.setFillColor(color.violet[0], color.violet[1], color.violet[2]);
+          doc.roundedRect(margin + 5, y + 3.5, 1.7, headerBlockHeight - 7, 0.8, 0.8, "F");
 
           setPdfFont("bold");
-          doc.setFontSize(12.8);
+          doc.setFontSize(13.3);
           doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text(titleLines, margin + 6, y + 5.1);
+          doc.text(titleLines, margin + 9.5, y + 6.4);
 
           if (continued) {
             setPdfFont("normal");
-            doc.setFontSize(9.5);
+            doc.setFontSize(9.2);
             doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-            doc.text("continued", pageWidth - margin - 6, y + 5.1, { align: "right" });
+            doc.text("continued", pageWidth - margin - 6, y + 6.2, { align: "right" });
           }
 
-          y += headerBandHeight + 3.4;
+          const scoreStartY = y + headerBlockHeight + 4.8;
 
           setPdfFont("bold");
           doc.setFontSize(10.2);
           doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-          doc.text(hasRevised ? "Original Score" : "Score", margin + 6, y);
+          doc.text(hasRevised ? "Original Score" : "Score", margin + 6, scoreStartY);
 
           setPdfFont("normal");
-          doc.setFontSize(11.2);
+          doc.setFontSize(11.3);
           doc.setTextColor(color.text[0], color.text[1], color.text[2]);
-          doc.text(scoreText, margin + 32, y);
-          y += 5.2;
+          doc.text(scoreText, margin + 34, scoreStartY);
+
+          y = scoreStartY + 6.2;
 
           if (hasRevised) {
             setPdfFont("bold");
@@ -2362,13 +2351,13 @@ function SlideOverCaseDetail({
             doc.text("Revised Score", margin + 6, y);
 
             setPdfFont("normal");
-            doc.setFontSize(11.2);
+            doc.setFontSize(11.3);
             doc.setTextColor(67, 56, 202);
-            doc.text(revisedScoreText, margin + 32, y);
-            y += 5.2;
+            doc.text(revisedScoreText, margin + 34, y);
+            y += 6.2;
           }
 
-          y += 1.2;
+          y += 1.6;
         };
 
         const drawCommentFlow = (
@@ -2378,40 +2367,44 @@ function SlideOverCaseDetail({
         ) => {
           let remaining = lines.length ? [...lines] : ["-"];
           let firstChunk = true;
+          const labelColor = tone === "revised"
+            ? [109, 40, 217]
+            : [color.subtext[0], color.subtext[1], color.subtext[2]];
+          const bodyColor = tone === "revised"
+            ? [67, 56, 202]
+            : [color.text[0], color.text[1], color.text[2]];
 
           while (remaining.length) {
-            if (y + 8 + lineHeight > pageBottom) {
+            if (y + 14 + lineHeight * 2 > pageBottom) {
               startNewPage(true);
               drawTopicHeader(true);
             }
 
             const labelText = `${label}${firstChunk ? "" : " (continued)"}`;
-            const labelColor = tone === "revised"
-              ? [109, 40, 217]
-              : [color.subtext[0], color.subtext[1], color.subtext[2]];
-            const bodyColor = tone === "revised"
-              ? [67, 56, 202]
-              : [color.text[0], color.text[1], color.text[2]];
 
             setPdfFont("bold");
-            doc.setFontSize(10.4);
+            doc.setFontSize(10.2);
             doc.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
-            doc.text(labelText, margin + 6, y + 3.8);
-            y += 6.2;
+            doc.text(labelText, margin + 6, y + 4.6);
 
-            const linesPerChunk = Math.max(1, Math.floor((pageBottom - y - 2) / lineHeight));
+            doc.setDrawColor(labelColor[0], labelColor[1], labelColor[2]);
+            doc.setLineWidth(0.22);
+            doc.line(margin + 6, y + 6.4, pageWidth - margin - 6, y + 6.4);
+            y += 11.2;
+
+            const linesPerChunk = Math.max(2, Math.floor((pageBottom - y - 3) / lineHeight));
             const chunk = remaining.slice(0, linesPerChunk);
             remaining = remaining.slice(linesPerChunk);
 
             setPdfFont("normal");
-            doc.setFontSize(11.1);
+            doc.setFontSize(11.4);
             doc.setTextColor(bodyColor[0], bodyColor[1], bodyColor[2]);
-            doc.text(chunk, margin + 10, y);
+            doc.text(chunk, margin + 8, y);
 
-            y += chunk.length * lineHeight + 3;
+            y += chunk.length * lineHeight + 5.2;
 
             if (!remaining.length) {
-              y += 1.5;
+              y += 1.4;
               break;
             }
 
@@ -2431,7 +2424,7 @@ function SlideOverCaseDetail({
         doc.setDrawColor(color.line[0], color.line[1], color.line[2]);
         doc.setLineWidth(0.25);
         doc.line(margin + 2, y, pageWidth - margin - 2, y);
-        y += topicGap;
+        y += topicGap + 1.2;
       };
 
       const logoDataUrl = await loadImageAsDataUrl("/robinhood-logo.png");
