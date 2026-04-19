@@ -2637,11 +2637,11 @@ function SlideOverCaseDetail({
               title="Case Information"
               subtitle="Selected case overview and review status"
             />
-            <PanelBody className="space-y-6">
-              <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)] lg:p-6">
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_360px]">
-                  <div className="rounded-[26px] border border-slate-200 bg-white/95 px-5 py-5 shadow-sm">
-                    <div className="space-y-0 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50">
+            <PanelBody className="space-y-5">
+              <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] lg:p-5">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_300px] xl:items-start">
+                  <div className="rounded-[22px] border border-slate-200 bg-white/95 p-3 shadow-sm lg:p-4">
+                    <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-slate-50">
                       {[
                         { label: "Agent", value: caseItem.agent || "-" },
                         { label: "Audit Date", value: caseItem.auditDate || "-" },
@@ -2654,12 +2654,12 @@ function SlideOverCaseDetail({
                       ].map((entry, index, arr) => (
                         <div
                           key={entry.label}
-                          className={`px-5 py-4 ${index !== arr.length - 1 ? "border-b border-slate-200" : ""}`}
+                          className={`px-4 py-3 ${index !== arr.length - 1 ? "border-b border-slate-200" : ""}`}
                         >
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                             {entry.label}
                           </div>
-                          <div className="mt-2 text-[17px] font-bold tracking-tight text-slate-900">
+                          <div className="mt-1.5 text-[15px] font-bold tracking-tight text-slate-900 lg:text-[16px]">
                             {entry.value}
                           </div>
                         </div>
@@ -2667,42 +2667,42 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className={`rounded-[26px] border px-5 py-5 shadow-[0_20px_42px_rgba(15,23,42,0.10)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
+                  <div className={`rounded-[22px] border px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.08)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.20em] text-slate-500">Final Score</div>
-                        <div className={`mt-3 text-5xl font-extrabold tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Final Score</div>
+                        <div className={`mt-2 text-[42px] font-extrabold leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
                           {caseItem.finalScore.toFixed(2)}
                         </div>
-                        <div className={`mt-2 text-sm font-semibold ${currentGradeTone(caseItem.grade).levelText}`}>
+                        <div className={`mt-2 text-[13px] font-semibold ${currentGradeTone(caseItem.grade).levelText}`}>
                           {currentGradeTone(caseItem.grade).level}
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-2">
-                        <span className={`inline-flex rounded-full border px-3 py-1.5 text-[12px] font-semibold ${currentGradeTone(caseItem.grade).badge}`}>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(caseItem.grade).badge}`}>
                           Grade {caseItem.grade}
                         </span>
-                        <span className={`inline-flex rounded-full border px-3 py-1.5 text-[12px] font-semibold ${reviewTone(caseItem.reviewStatus)}`}>
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${reviewTone(caseItem.reviewStatus)}`}>
                           {caseItem.reviewStatus}
                         </span>
                       </div>
                     </div>
 
                     {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
-                      <div className="mt-4 rounded-[18px] border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm">
+                      <div className="mt-3 rounded-[16px] border border-white/70 bg-white/80 px-3 py-2.5 text-[12px] text-slate-700 shadow-sm">
                         <span className="font-semibold text-slate-900">Score Change:</span>{" "}
                         Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
                       </div>
                     ) : null}
 
-                    <div className="mt-5 grid gap-3">
+                    <div className="mt-4 grid gap-2.5">
                       {caseItem.caseUrl ? (
                         <a
                           href={caseItem.caseUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                           Open Case URL
                         </a>
@@ -2711,7 +2711,7 @@ function SlideOverCaseDetail({
                       <button
                         type="button"
                         onClick={handleGenerateCaseDetailPdf}
-                        className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
                       >
                         Generate Case Detail PDF
                       </button>
@@ -2775,29 +2775,29 @@ function SlideOverCaseDetail({
                 </div>
 
                 <div className="mt-5 space-y-4">
-                  <div className="rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
+                  <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
                     <div className="flex items-center gap-3">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
                       <div>
                         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
                         <div className="mt-1 text-xs text-slate-500">ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้</div>
                       </div>
                     </div>
-                    <div className="mt-4 rounded-[22px] border border-violet-100 bg-white/95 px-4 py-4 shadow-sm">
-                      <div className="whitespace-pre-line text-[15px] leading-7 text-slate-800">{caseItem.inquiryTh || "-"}</div>
+                    <div className="mt-3 rounded-[18px] border border-violet-100 bg-white/95 px-4 py-3.5 shadow-sm">
+                      <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.inquiryTh || "-"}</div>
                     </div>
                   </div>
 
-                  <div className="rounded-[28px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-[0_12px_28px_rgba(168,85,247,0.08)]">
+                  <div className="rounded-[24px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
                     <div className="flex items-center gap-3">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
                       <div>
                         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
                         <div className="mt-1 text-xs text-slate-500">รายละเอียดและบริบทเพิ่มเติมของเคสนี้</div>
                       </div>
                     </div>
-                    <div className="mt-4 rounded-[22px] border border-fuchsia-100 bg-white/95 px-4 py-4 shadow-sm">
-                      <div className="whitespace-pre-line text-[15px] leading-7 text-slate-800">{caseItem.caseDescription || "-"}</div>
+                    <div className="mt-3 rounded-[18px] border border-fuchsia-100 bg-white/95 px-4 py-3.5 shadow-sm">
+                      <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.caseDescription || "-"}</div>
                     </div>
                   </div>
                 </div>
