@@ -444,6 +444,46 @@ function formatTimeOnly(value: any): string {
   return `${hh}:${min}`;
 }
 
+function parseClockMinutes(value?: string) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "-") return null;
+
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+  return hours * 60 + minutes;
+}
+
+function formatWaitingServiceRange(waitingTime?: string, serviceTime?: string) {
+  const start = String(waitingTime ?? "").trim();
+  const end = String(serviceTime ?? "").trim();
+
+  const safeStart = start && start !== "-" ? start : "";
+  const safeEnd = end && end !== "-" ? end : "";
+
+  if (!safeStart && !safeEnd) return "-";
+  if (safeStart && !safeEnd) return safeStart;
+  if (!safeStart && safeEnd) return safeEnd;
+
+  const startMinutes = parseClockMinutes(safeStart);
+  const endMinutes = parseClockMinutes(safeEnd);
+
+  if (startMinutes === null || endMinutes === null) {
+    return `${safeStart} - ${safeEnd}`;
+  }
+
+  let diff = endMinutes - startMinutes;
+  if (diff < 0) diff += 24 * 60;
+
+  return `${safeStart} - ${safeEnd} (${diff} นาที)`;
+}
+
 
 
 async function loadImageAsDataUrl(url: string) {
@@ -2445,8 +2485,10 @@ function SlideOverCaseDetail({
           { label: "Audit Timestamp", value: caseItem.auditTimestamp || "-" },
           { label: "Month", value: caseItem.monthLabel || caseItem.monthKey || "-" },
           { label: "Week", value: caseItem.weekLabel || "-" },
-          { label: "Waiting Time", value: caseItem.waitingTime || "-" },
-          { label: "Service Time", value: caseItem.serviceTime || "-" },
+          {
+            label: "Waiting Time / Service Time",
+            value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
+          },
           { label: "Review Status", value: caseItem.reviewStatus || "-" },
           { label: "Case URL", value: caseItem.caseUrl || "-" },
         ],
@@ -2766,20 +2808,14 @@ function SlideOverCaseDetail({
                       <div className="mt-3 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
                     </div>
 
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
+                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-4">
                       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏳</span>
-                        <span>Waiting Time</span>
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">⏱️</span>
+                        <span>Waiting Time / Service Time</span>
                       </div>
-                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.waitingTime || "-"}</div>
-                    </div>
-
-                    <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
-                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-sm">🛎️</span>
-                        <span>Service Time</span>
+                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">
+                        {formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}
                       </div>
-                      <div className="mt-3 text-base font-bold tracking-tight text-slate-900">{caseItem.serviceTime || "-"}</div>
                     </div>
 
                     <div className="rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 shadow-sm xl:col-span-2">
