@@ -68,11 +68,11 @@ const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 const DEFAULT_BUILD_META: BuildMeta = {
   appName: "qa-dashboard",
   version: "1.0.0",
-  displayVersion: "1.0.0.10",
+  displayVersion: "1.0.0.12",
   updatedAt: "16/04/2026 00:00:00",
-  releaseLabel: "v1.0.0.10",
+  releaseLabel: "v1.0.0.12",
   author: "Songpon Phothong",
-  buildNumber: 10,
+  buildNumber: 12,
   releaseNotesTitle: "Latest Updates",
   releaseNotes: ["Initial tracked release"],
   changedFiles: [],
@@ -229,12 +229,12 @@ function NavButton({
     <button
       type="button"
       onClick={onClick}
-      className={`relative inline-flex min-w-[104px] items-center justify-center overflow-hidden rounded-[18px] border px-4 py-2.5 text-sm font-semibold transition ${
+      className={`relative inline-flex min-w-[92px] items-center justify-center overflow-hidden rounded-[14px] border px-3.5 py-2 text-sm font-semibold transition ${
         active
           ? songkranTheme
-            ? "border-cyan-200 bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-400 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]"
-            : "border-transparent bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
-          : "border-slate-200/90 bg-white text-slate-600 shadow-sm hover:border-violet-200 hover:text-violet-700"
+            ? "border-sky-500 bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)]"
+            : "border-slate-900 bg-slate-900 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
       }`}
     >
       <span className="relative z-10">{label}</span>
@@ -251,13 +251,13 @@ function NavSectionLabel({
 }) {
   const toneClass =
     tone === "fuchsia"
-      ? "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700"
+      ? "border-slate-200 bg-slate-50 text-slate-500"
       : tone === "slate"
         ? "border-slate-200 bg-slate-50 text-slate-600"
-        : "border-violet-200 bg-violet-50 text-violet-700";
+        : "border-slate-200 bg-slate-50 text-slate-600";
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${toneClass}`}>
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${toneClass}`}>
       {label}
     </span>
   );
@@ -274,16 +274,16 @@ function AccountActionButton({
 }) {
   const toneClass =
     tone === "amber"
-      ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+      ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
       : tone === "rose"
         ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-        : "border-slate-200 bg-white text-slate-700 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700";
+        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-[42px] items-center justify-center rounded-[18px] border px-4 py-2.5 text-sm font-semibold shadow-sm transition ${toneClass}`}
+      className={`inline-flex min-h-[38px] items-center justify-center rounded-[14px] border px-3.5 py-2 text-sm font-semibold transition ${toneClass}`}
     >
       {label}
     </button>
@@ -472,7 +472,7 @@ function VersionPill({
   const shownVersion = meta.displayVersion || meta.version;
 
   return (
-    <div className={`inline-flex flex-col gap-1 rounded-[18px] border border-violet-200/70 bg-white px-4 py-2.5 text-slate-700 shadow-sm ${className}`}>
+    <div className={`inline-flex flex-col gap-0.5 rounded-[16px] border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-slate-700 ${className}`}>
       <div className="text-sm font-bold text-slate-900">
         Version {shownVersion}
       </div>
@@ -489,7 +489,7 @@ function ReleaseNotesButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-[40px] items-center justify-center rounded-[18px] border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
+      className="inline-flex min-h-[38px] items-center justify-center rounded-[14px] border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
     >
       Release Notes
     </button>
@@ -1005,85 +1005,68 @@ export default function App() {
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
           <div className="mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-5 lg:px-6 2xl:px-8">
-            <div className="grid gap-3 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] xl:items-start">
-              <div className={`relative min-w-0 rounded-[24px] border bg-white/90 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"}`}>
-                {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 opacity-80" /> : null}
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-700">Robinhood QA</div>
-                <div className="mt-1 break-words text-[17px] font-extrabold leading-tight tracking-tight text-slate-800 sm:text-[18px]">Welcome, {welcomeName}</div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {songkranTheme ? <SongkranBadge /> : null}
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Role: <span className="ml-1 text-slate-800">{currentUser.role}</span></span>
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Agent: <span className="ml-1 text-slate-800">{currentUser.agentName}</span></span>
+            <div className={`relative overflow-hidden rounded-[24px] border bg-white/94 px-4 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
+              {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-90 opacity-70" /> : null}
+
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="flex min-w-0 items-center gap-3 xl:w-[250px] xl:shrink-0">
+                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <img src="/robinhood-logo.png" alt="Robinhood" className="h-7 w-7 object-contain" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Robinhood QA</div>
+                    <div className="truncate text-[17px] font-extrabold tracking-tight text-slate-900">Welcome, {welcomeName}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                      <span>{currentUser.role}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="truncate">{currentUser.agentName}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1 xl:px-2">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <NavSectionLabel label="Performance" tone="slate" />
+                      <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
+                      <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} songkranTheme={songkranTheme} />
+                      <NavButton active={activeTab === "coaching"} label="Coaching" onClick={() => setActiveTab("coaching")} songkranTheme={songkranTheme} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <NavSectionLabel label="Review" tone="slate" />
+                      <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
+                      <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row xl:w-[250px] xl:flex-col xl:items-stretch xl:justify-start">
+                  <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
+                  <VersionPill meta={buildMeta} className="w-full" />
                 </div>
               </div>
 
-              <div className="grid gap-3">
-                <div className={`relative overflow-hidden rounded-[24px] border bg-white/90 px-4 py-3.5 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"}`}>
-                  <div className="grid gap-3 lg:grid-cols-[126px_minmax(0,1fr)] lg:items-start">
-                    <div className="px-1">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600">Workspace</div>
-                      <div className="mt-1 text-xs leading-5 text-slate-500">Choose an area.</div>
-                    </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Account</span>
 
-                    <div className="grid gap-2.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <NavSectionLabel label="Performance" tone="violet" />
-                        <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
-                        <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} songkranTheme={songkranTheme} />
-                        <NavButton active={activeTab === "coaching"} label="Coaching" onClick={() => setActiveTab("coaching")} songkranTheme={songkranTheme} />
-                      </div>
+                <AccountActionButton
+                  label="Change Password"
+                  onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
+                />
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <NavSectionLabel label="Review" tone="fuchsia" />
-                        <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
-                        <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {currentUser.role === "Supervisor" ? (
+                  <AccountActionButton
+                    label="Reset Password"
+                    onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }}
+                    tone="amber"
+                  />
+                ) : null}
 
-                <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-3.5 shadow-sm ${songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"}`}>
-                    <div className="grid gap-3 lg:grid-cols-[126px_minmax(0,1fr)] lg:items-center">
-                      <div className="px-1">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">Account</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-500">Quick actions.</div>
-                      </div>
+                <AccountActionButton label="Log Out" onClick={handleLogout} tone="rose" />
 
-                      <div className="flex flex-wrap gap-2.5">
-                        <AccountActionButton
-                          label="Change Password"
-                          onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
-                        />
-
-                        {currentUser.role === "Supervisor" ? (
-                          <AccountActionButton
-                            label="Reset Password"
-                            onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }}
-                            tone="amber"
-                          />
-                        ) : null}
-
-                        <AccountActionButton label="Log Out" onClick={handleLogout} tone="rose" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-3.5 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600">System</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-500">Release and version details.</div>
-                      </div>
-                      <NavSectionLabel label="Info" tone="slate" />
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-2.5">
-                      <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
-                      <VersionPill meta={buildMeta} className="w-full" />
-                    </div>
-                  </div>
-                </div>
+                {songkranTheme ? <div className="ml-auto hidden xl:block"><SongkranBadge /></div> : null}
               </div>
             </div>
           </div>

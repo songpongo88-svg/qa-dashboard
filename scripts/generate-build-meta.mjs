@@ -9,7 +9,6 @@ const rootDir = path.resolve(__dirname, "..");
 
 const packageJsonPath = path.join(rootDir, "package.json");
 const buildMetaPath = path.join(rootDir, "public", "build-meta.json");
-const LOCKED_DISPLAY_VERSION = "1.0.0.10";
 
 function safeReadJson(filePath, fallback = {}) {
   try {
@@ -87,14 +86,14 @@ function getChangedFiles() {
 }
 
 function getBuildNumber(previousMeta) {
+  if (typeof previousMeta?.buildNumber === "number") {
+    return previousMeta.buildNumber + 1;
+  }
+
   const commitCount = safeExec("git rev-list --count HEAD", "");
 
   if (commitCount && !Number.isNaN(Number(commitCount))) {
     return Number(commitCount);
-  }
-
-  if (typeof previousMeta?.buildNumber === "number") {
-    return previousMeta.buildNumber + 1;
   }
 
   return 1;
@@ -110,8 +109,7 @@ function main() {
   const buildNumber = getBuildNumber(previousMeta);
   const updatedAt = formatBangkokDateTime(new Date());
 
-  // Keep the user-facing version fixed until we intentionally change it.
-  const displayVersion = LOCKED_DISPLAY_VERSION;
+  const displayVersion = `${baseVersion}.${buildNumber}`;
   const releaseLabel = `v${displayVersion}`;
 
   const nextMeta = {
