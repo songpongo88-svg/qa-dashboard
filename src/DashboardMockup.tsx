@@ -2639,33 +2639,31 @@ function SlideOverCaseDetail({
             />
             <PanelBody className="space-y-6">
               <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)] lg:p-6">
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_340px]">
-                  <div className="rounded-[26px] border border-slate-200 bg-white/95 p-5 shadow-sm">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2 xl:col-span-1">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Agent</div>
-                        <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent || "-"}</div>
-                      </div>
-
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Audit Date</div>
-                        <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate || "-"}</div>
-                      </div>
-
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Timestamp</div>
-                        <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
-                      </div>
-
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2 xl:col-span-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Waiting Time / Service Time</div>
-                        <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}</div>
-                      </div>
-
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2 xl:col-span-1">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Week</div>
-                        <div className="mt-2 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel || "-"}</div>
-                      </div>
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_360px]">
+                  <div className="rounded-[26px] border border-slate-200 bg-white/95 px-5 py-5 shadow-sm">
+                    <div className="space-y-0 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50">
+                      {[
+                        { label: "Agent", value: caseItem.agent || "-" },
+                        { label: "Audit Date", value: caseItem.auditDate || "-" },
+                        { label: "Timestamp", value: caseItem.auditTimestamp || "-" },
+                        {
+                          label: "Waiting Time / Service Time",
+                          value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
+                        },
+                        { label: "Week", value: caseItem.weekLabel || "-" },
+                      ].map((entry, index, arr) => (
+                        <div
+                          key={entry.label}
+                          className={`px-5 py-4 ${index !== arr.length - 1 ? "border-b border-slate-200" : ""}`}
+                        >
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            {entry.label}
+                          </div>
+                          <div className="mt-2 text-[17px] font-bold tracking-tight text-slate-900">
+                            {entry.value}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2776,7 +2774,7 @@ function SlideOverCaseDetail({
                   ) : null}
                 </div>
 
-                <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+                <div className="mt-5 space-y-4">
                   <div className="rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
                     <div className="flex items-center gap-3">
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
@@ -2790,12 +2788,17 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
-                      <span>Case Description</span>
+                  <div className="rounded-[28px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-[0_12px_28px_rgba(168,85,247,0.08)]">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
+                        <div className="mt-1 text-xs text-slate-500">รายละเอียดและบริบทเพิ่มเติมของเคสนี้</div>
+                      </div>
                     </div>
-                    <div className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-800">{caseItem.caseDescription || "-"}</div>
+                    <div className="mt-4 rounded-[22px] border border-fuchsia-100 bg-white/95 px-4 py-4 shadow-sm">
+                      <div className="whitespace-pre-line text-[15px] leading-7 text-slate-800">{caseItem.caseDescription || "-"}</div>
+                    </div>
                   </div>
                 </div>
               </div>
