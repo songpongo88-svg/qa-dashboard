@@ -229,15 +229,63 @@ function NavButton({
     <button
       type="button"
       onClick={onClick}
-      className={`relative overflow-hidden rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+      className={`relative inline-flex min-w-[118px] items-center justify-center overflow-hidden rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
         active
           ? songkranTheme
-            ? "border border-cyan-200 bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-400 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]"
-            : "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
-          : "border border-transparent bg-transparent text-slate-600 hover:bg-white hover:text-violet-700"
+            ? "border-cyan-200 bg-gradient-to-r from-cyan-400 via-sky-400 to-fuchsia-400 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]"
+            : "border-transparent bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-[0_8px_20px_rgba(124,58,237,0.22)]"
+          : "border-slate-200/90 bg-white text-slate-600 shadow-sm hover:border-violet-200 hover:text-violet-700"
       }`}
     >
       <span className="relative z-10">{label}</span>
+    </button>
+  );
+}
+
+function NavSectionLabel({
+  label,
+  tone = "violet",
+}: {
+  label: string;
+  tone?: "violet" | "fuchsia" | "slate";
+}) {
+  const toneClass =
+    tone === "fuchsia"
+      ? "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700"
+      : tone === "slate"
+        ? "border-slate-200 bg-slate-50 text-slate-600"
+        : "border-violet-200 bg-violet-50 text-violet-700";
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${toneClass}`}>
+      {label}
+    </span>
+  );
+}
+
+function AccountActionButton({
+  label,
+  onClick,
+  tone = "neutral",
+}: {
+  label: string;
+  onClick: () => void;
+  tone?: "neutral" | "amber" | "rose";
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+      : tone === "rose"
+        ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+        : "border-slate-200 bg-white text-slate-700 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex min-h-[48px] items-center justify-center rounded-2xl border px-4 py-3 text-sm font-semibold shadow-sm transition ${toneClass}`}
+    >
+      {label}
     </button>
   );
 }
@@ -424,11 +472,11 @@ function VersionPill({
   const shownVersion = meta.displayVersion || meta.version;
 
   return (
-    <div className={`inline-flex flex-col gap-1.5 rounded-[18px] border border-violet-200/70 bg-white px-3.5 py-2.5 text-slate-700 shadow-sm ${className}`}>
+    <div className={`inline-flex flex-col gap-1.5 rounded-[20px] border border-violet-200/70 bg-white px-4 py-3 text-slate-700 shadow-sm ${className}`}>
       <div className="text-sm font-bold text-slate-900">
         Version {shownVersion}
       </div>
-      <div className="text-[11px] text-slate-500">
+      <div className="text-[11px] leading-5 text-slate-500">
         {meta.updatedAt}
         {shortHash ? ` · ${shortHash}` : ""}
       </div>
@@ -441,7 +489,7 @@ function ReleaseNotesButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center rounded-full border border-violet-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
+      className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
     >
       Release Notes
     </button>
@@ -970,31 +1018,70 @@ export default function App() {
               </div>
 
               <div className="grid gap-3">
-                <div className={`relative flex flex-wrap items-center gap-3 overflow-hidden rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"}`}>
-                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-500">Performance</span>
-                  <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
-                  <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} songkranTheme={songkranTheme} />
-                  <NavButton active={activeTab === "coaching"} label="Coaching" onClick={() => setActiveTab("coaching")} songkranTheme={songkranTheme} />
+                <div className={`relative overflow-hidden rounded-[24px] border bg-white/90 px-4 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/80"}`}>
+                  <div className="grid gap-4 lg:grid-cols-[150px_minmax(0,1fr)] lg:items-start">
+                    <div className="px-1">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600">Workspace</div>
+                      <div className="mt-1 text-xs leading-5 text-slate-500">Choose the area you want to work in.</div>
+                    </div>
 
-                  <span className="ml-1 px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-500">Review</span>
-                  <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
-                  <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
+                    <div className="grid gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <NavSectionLabel label="Performance" tone="violet" />
+                        <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
+                        <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} songkranTheme={songkranTheme} />
+                        <NavButton active={activeTab === "coaching"} label="Coaching" onClick={() => setActiveTab("coaching")} songkranTheme={songkranTheme} />
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <NavSectionLabel label="Review" tone="fuchsia" />
+                        <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
+                        <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className={`relative flex flex-wrap items-center gap-3 rounded-[24px] border bg-white/90 px-3 py-3 shadow-sm ${songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"}`}>
-                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Account</span>
+                <div className="grid gap-3 2xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-4 shadow-sm ${songkranTheme ? "border-fuchsia-200/70" : "border-slate-200"}`}>
+                    <div className="grid gap-4 lg:grid-cols-[150px_minmax(0,1fr)] lg:items-start">
+                      <div className="px-1">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">Account</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">Manage access and quick actions.</div>
+                      </div>
 
-                  <button type="button" onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }} className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-violet-700">Change Password</button>
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <AccountActionButton
+                          label="Change Password"
+                          onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
+                        />
 
-                  {currentUser.role === "Supervisor" ? (
-                    <button type="button" onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }} className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-amber-700">Reset Password</button>
-                  ) : null}
+                        {currentUser.role === "Supervisor" ? (
+                          <AccountActionButton
+                            label="Reset Password"
+                            onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }}
+                            tone="amber"
+                          />
+                        ) : null}
 
-                  <button type="button" onClick={handleLogout} className="rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-rose-700">Log Out</button>
+                        <AccountActionButton label="Log Out" onClick={handleLogout} tone="rose" />
+                      </div>
+                    </div>
+                  </div>
 
-                  <div className="ml-auto flex flex-wrap items-center gap-2">
-                    <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
-                    <VersionPill meta={buildMeta} />
+                  <div className={`relative rounded-[24px] border bg-white/90 px-4 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-violet-200/70"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600">System</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-500">Current release and update details.</div>
+                      </div>
+                      <NavSectionLabel label="Info" tone="slate" />
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-3">
+                      <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
+                      <VersionPill meta={buildMeta} className="w-full" />
+                    </div>
                   </div>
                 </div>
               </div>
