@@ -2793,6 +2793,8 @@ function SlideOverCaseDetail({
                 </div>
               </div>
 
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+                <div>
                   <div className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
                     <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-sky-400" />
                     <div className="flex items-center gap-3">
@@ -2815,7 +2817,9 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
+                  </div>
+
+                <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
                       <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
                       <span>Case Description</span>
@@ -2827,7 +2831,6 @@ function SlideOverCaseDetail({
 
 
                 </div>
-              </div>
             </PanelBody>
           </Panel>
 
