@@ -1490,12 +1490,6 @@ export default function AppealMockup({
     addKeyValue("Final Grade", selectedCase.grade);
     addKeyValue("Appealed Topics", `${selectedCase.appealedTopics.length} topic(s)`);
 
-    addSectionTitle("Customer Inquiry");
-    addParagraph(selectedCase.inquiry || "-");
-
-    addSectionTitle("Appeal Review Summary");
-    addParagraph(selectedCase.appealReviewSummary || "-");
-
     addSectionTitle("Appeal Timeline");
     addKeyValue("Appeal Submit Date & Time", selectedCase.appealSubmitDateTime || "-", 58);
     addKeyValue("Appeal Result Date & Time", selectedCase.appealResultDateTime || "-", 58);
@@ -1508,6 +1502,12 @@ export default function AppealMockup({
       58
     );
     addKeyValue("Final Decision", "Finalized and closed", 58);
+
+    addSectionTitle("Customer Inquiry");
+    addParagraph(selectedCase.inquiry || "-");
+
+    addSectionTitle("Appeal Review Summary");
+    addParagraph(selectedCase.appealReviewSummary || "-");
 
     addSectionTitle("Appealed Topics");
     if (!selectedCase.appealedTopics.length) {
@@ -1809,24 +1809,6 @@ export default function AppealMockup({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-4">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
-                        Customer Inquiry
-                      </div>
-                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                        {sanitizeDisplayText(selectedCase.inquiry)}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
-                        Appeal Review Summary
-                      </div>
-                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                        {sanitizeDisplayText(selectedCase.appealReviewSummary)}
-                      </div>
-                    </div>
-
                     <div className="flex flex-wrap gap-3">
                       {selectedCase.caseUrl ? (
                         <a
@@ -1904,6 +1886,24 @@ export default function AppealMockup({
                       <div className="mt-2 text-[12px] leading-6 text-slate-700">
                         This case has completed the appeal review process and cannot be appealed
                         again.
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                        Customer Inquiry
+                      </div>
+                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                        {sanitizeDisplayText(selectedCase.inquiry)}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
+                        Appeal Review Summary
+                      </div>
+                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                        {sanitizeDisplayText(selectedCase.appealReviewSummary)}
                       </div>
                     </div>
                   </PanelBody>
