@@ -1405,6 +1405,7 @@ export default function AppealMockup({
       const originalScore = Number(topic.originalScore ?? 0);
       const revisedScore = Number(topic.score ?? 0);
       const diff = revisedScore - originalScore;
+      const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
       const topicLeft = left + 4;
       const topicRight = right - 4;
       const topicWidth = topicRight - topicLeft;
@@ -1424,14 +1425,15 @@ export default function AppealMockup({
       );
       const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", topicWidth);
 
-      const estimatedHeight =
+      return (
         topicMetaLines.length * 4 +
         titleLines.length * 5 +
         scoreLines.length * 4.8 +
         appealReasonLines.length * 4.8 +
         originalCommentLines.length * 4.8 +
         revisedCommentLines.length * 4.8 +
-        34;
+        34
+      );
     };
 
     const addTopicBlock = (topic: Topic) => {
