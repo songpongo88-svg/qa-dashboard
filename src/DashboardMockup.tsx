@@ -2702,7 +2702,7 @@ function SlideOverCaseDetail({
                           href={caseItem.caseUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                           Open Case URL
                         </a>
@@ -2711,47 +2711,40 @@ function SlideOverCaseDetail({
                       <button
                         type="button"
                         onClick={handleGenerateCaseDetailPdf}
-                        className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                        className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
                       >
                         Generate Case Detail PDF
                       </button>
-                    </div>
-                  </div>
-                </div>
+                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (verifiedImagePdfUrls.length) {
+                              setPreviewAsset({
+                                type: "pdf",
+                                url: verifiedImagePdfUrls[0].url,
+                                title: verifiedImagePdfUrls[0].label,
+                                downloadUrl: verifiedImagePdfUrls[0].url,
+                              });
+                              return;
+                            }
+                            if (verifiedImageUrls.length) {
+                              setPreviewAsset({
+                                type: "image",
+                                url: verifiedImageUrls[0],
+                                title: `${caseItem.caseId} Case Image`,
+                                items: verifiedImageUrls,
+                                index: 0,
+                                downloadUrl: verifiedImageUrls[0],
+                              });
+                            }
+                          }}
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-[13px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                        >
+                          Preview Case Image
+                        </button>
+                      ) : null}
 
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (verifiedImagePdfUrls.length) {
-                          setPreviewAsset({
-                            type: "pdf",
-                            url: verifiedImagePdfUrls[0].url,
-                            title: verifiedImagePdfUrls[0].label,
-                            downloadUrl: verifiedImagePdfUrls[0].url,
-                          });
-                          return;
-                        }
-                        if (verifiedImageUrls.length) {
-                          setPreviewAsset({
-                            type: "image",
-                            url: verifiedImageUrls[0],
-                            title: `${caseItem.caseId} Case Image`,
-                            items: verifiedImageUrls,
-                            index: 0,
-                            downloadUrl: verifiedImageUrls[0],
-                          });
-                        }
-                      }}
-                      className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
-                    >
-                      Preview Case Image
-                    </button>
-                  ) : null}
-
-                  {availablePdfUrls.length ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                       {availablePdfUrls.map((item) => (
                         <button
                           key={item.label}
@@ -2764,14 +2757,14 @@ function SlideOverCaseDetail({
                               downloadUrl: item.url,
                             })
                           }
-                          className="inline-flex items-center rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
                           title={`Open ${item.label}`}
                         >
                           {item.label}
                         </button>
                       ))}
                     </div>
-                  ) : null}
+                  </div>
                 </div>
 
               </div>
