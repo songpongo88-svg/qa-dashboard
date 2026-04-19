@@ -97,26 +97,6 @@ function formatThaiDayDate(input: string | Date) {
   }).format(new Date(input));
 }
 
-function formatThaiCompactDayDate(input: string | Date) {
-  return new Intl.DateTimeFormat("th-TH", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Bangkok",
-  }).format(new Date(input));
-}
-
-function formatThaiTime(input: string | Date) {
-  return new Intl.DateTimeFormat("th-TH", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Bangkok",
-  }).format(new Date(input));
-}
-
 function formatSessionDurationClock(startedAt: string, now: Date) {
   const start = new Date(startedAt).getTime();
   const current = now.getTime();
@@ -356,6 +336,36 @@ function AccountActionButton({
     >
       {label}
     </button>
+  );
+}
+
+function HeaderSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className="flex min-w-[170px] flex-col gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 rounded-[14px] border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-800 outline-none transition hover:border-slate-300 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+      >
+        <option value="">{label}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -679,7 +689,6 @@ function ReleaseNotesModal({
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
-  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -702,6 +711,7 @@ export default function App() {
     "dashboard" | "appeal" | "summary" | "coaching" | "rubric"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
+  const [accountMenuValue, setAccountMenuValue] = useState("");
 
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
   const [selectedMonthGlobal, setSelectedMonthGlobal] = useState("all");
@@ -716,29 +726,49 @@ export default function App() {
   }, [currentUser]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
-  const loginDayLabel = useMemo(() => {
-    if (!currentUser) return "";
-    return formatThaiCompactDayDate(currentUser.loginAt);
-  }, [currentUser]);
-  const loginTimeLabel = useMemo(() => {
-    if (!currentUser) return "";
-    return formatThaiTime(currentUser.loginAt);
-  }, [currentUser]);
-  const currentTimeLabel = useMemo(() => formatThaiTime(currentTime), [currentTime]);
-  const sessionDurationLabel = useMemo(() => {
-    if (!currentUser) return "";
-    return formatSessionDurationClock(currentUser.loginAt, currentTime);
-  }, [currentUser, currentTime]);
+  const performanceMenuValue =
+    activeTab === "dashboard" || activeTab === "summary" || activeTab === "coaching" ? activeTab : "";
+  const reviewMenuValue = activeTab === "appeal" || activeTab === "rubric" ? activeTab : "";
+  const accountOptions = currentUser?.role === "Supervisor"
+    ? [
+        { value: "change-password", label: "Change Password" },
+        { value: "reset-password", label: "Reset Password" },
+        { value: "logout", label: "Log Out" },
+      ]
+    : [
+        { value: "change-password", label: "Change Password" },
+        { value: "logout", label: "Log Out" },
+      ];
 
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+  const handlePerformanceMenuChange = (value: string) => {
+    if (value === "dashboard" || value === "summary" || value === "coaching") {
+      setActiveTab(value);
+    }
+  };
 
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, []);
+  const handleReviewMenuChange = (value: string) => {
+    if (value === "appeal" || value === "rubric") {
+      setActiveTab(value);
+    }
+  };
+
+  const handleAccountMenuChange = (value: string) => {
+    setAccountMenuValue(value);
+
+    if (value === "change-password") {
+      resetChangePasswordState();
+      setShowChangePasswordModal(true);
+    } else if (value === "reset-password" && currentUser?.role === "Supervisor") {
+      resetPasswordModalState();
+      setShowResetPasswordModal(true);
+    } else if (value === "logout") {
+      handleLogout();
+    }
+
+    window.setTimeout(() => {
+      setAccountMenuValue("");
+    }, 0);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -1119,20 +1149,19 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto w-full max-w-[1480px] px-4 py-3 sm:px-5 lg:px-6">
-            <div className={`relative overflow-hidden rounded-[22px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
+          <div className="mx-auto w-full max-w-[1320px] px-4 py-3 sm:px-5 lg:px-6">
+            <div className={`relative overflow-hidden rounded-[20px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-3 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)_minmax(220px,280px)] xl:items-start">
-                <div className="min-w-0">
-                  <div className="flex items-start gap-3">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="flex min-w-0 flex-1 items-center gap-3 xl:max-w-[360px]">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
                   </div>
 
                   <div className="min-w-0">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Robinhood QA</div>
-                    <div className="mt-1 break-words text-[16px] font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[18px]">Welcome, {welcomeName}</div>
+                    <div className="mt-1 text-[16px] font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[18px]">Welcome, {welcomeName}</div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
                       <span className="text-slate-300">•</span>
@@ -1143,61 +1172,45 @@ export default function App() {
                       <span className="text-slate-300">•</span>
                       <span>{currentUser.agentName}</span>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                    <div className="mt-1 text-sm text-slate-500">
                       <span>{currentUser.role}</span>
-                      <span className="text-slate-300">/</span>
+                      <span className="mx-2 text-slate-300">/</span>
                       <span>{currentUser.agentName}</span>
                     </div>
                   </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[16px] border border-slate-200 bg-slate-50/90 px-3 py-2.5">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Login Information</span>
-                    <HeaderInfoChip label="Date" value={loginDayLabel} wide />
-                    <HeaderInfoChip label="Login" value={loginTimeLabel} />
-                    <HeaderInfoChip label="Now" value={currentTimeLabel} />
-                    <HeaderInfoChip label="Usage" value={sessionDurationLabel} />
-                  </div>
                 </div>
 
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 xl:justify-start">
-                      <NavSectionLabel label="Performance" tone="slate" />
-                      <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
-                      <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} songkranTheme={songkranTheme} />
-                      <NavButton active={activeTab === "coaching"} label="Coaching" onClick={() => setActiveTab("coaching")} songkranTheme={songkranTheme} />
-                      <NavSectionLabel label="Review" tone="slate" />
-                      <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
-                      <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                  <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
-                  <VersionPill meta={buildMeta} className="min-w-[220px]" />
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-                <div />
-
-                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                  <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Account</span>
-
-                  <AccountActionButton
-                    label="Change Password"
-                    onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
+                <div className="grid flex-1 gap-3 md:grid-cols-3 xl:max-w-[620px]">
+                  <HeaderSelect
+                    label="Performance"
+                    value={performanceMenuValue}
+                    onChange={handlePerformanceMenuChange}
+                    options={[
+                      { value: "dashboard", label: "Dashboard" },
+                      { value: "summary", label: "Summary" },
+                      { value: "coaching", label: "Coaching" },
+                    ]}
                   />
+                  <HeaderSelect
+                    label="Review"
+                    value={reviewMenuValue}
+                    onChange={handleReviewMenuChange}
+                    options={[
+                      { value: "appeal", label: "Appeal" },
+                      { value: "rubric", label: "QA Rubric" },
+                    ]}
+                  />
+                  <HeaderSelect
+                    label="Account"
+                    value={accountMenuValue}
+                    onChange={handleAccountMenuChange}
+                    options={accountOptions}
+                  />
+                </div>
 
-                  {currentUser.role === "Supervisor" ? (
-                    <AccountActionButton
-                      label="Reset Password"
-                      onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }}
-                      tone="amber"
-                    />
-                  ) : null}
-
-                  <AccountActionButton label="Log Out" onClick={handleLogout} tone="rose" />
-                  {songkranTheme ? <SongkranBadge /> : null}
+                <div className="flex flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
+                  <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
+                  <VersionPill meta={buildMeta} />
                 </div>
               </div>
             </div>
