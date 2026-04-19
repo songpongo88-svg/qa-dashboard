@@ -81,7 +81,7 @@ const CASE_TARGET = 10;
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
-const TOPIC_MASTER = [
+const LEGACY_TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
   { code: "1.3", label: "PDPA & Policy", max: 5 },
@@ -100,6 +100,32 @@ const TOPIC_MASTER = [
   { code: "5.2", label: "SLA Compliance", max: 5 },
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
+
+const APRIL_2026_TOPIC_MASTER = [
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+] as const;
+
+type TopicMasterItem = { code: string; label: string; max: number };
+
+function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
+  return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
+}
+
+const ALL_TOPIC_MASTER = Array.from(
+  new Map(
+    [...LEGACY_TOPIC_MASTER, ...APRIL_2026_TOPIC_MASTER].map((item) => [item.code, item])
+  ).values()
+);
 
 const AGENT_MASTER = [
   "Anucha Makundin",
@@ -326,12 +352,20 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
 }
 
 function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
-  return TOPIC_MASTER.map((master) => {
+  const topicMaster = getTopicMasterByMonth(getPolicyMonthKeyForCases(cases));
+
+  return topicMaster.map((master) => {
     const topics = cases
-      .flatMap((item) => (item.reviewStatus === "Revised" && item.revisedTopics?.length ? mergeTopicSet(item.topics, item.revisedTopics) : item.topics))
+      .flatMap((item) =>
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? mergeTopicSet(item.topics, item.revisedTopics)
+          : item.topics
+      )
       .filter((topic) => topic.code === master.code);
 
-    if (!topics.length) return { code: master.code, label: master.label, avgScore: 0, max: master.max, pct: 0 };
+    if (!topics.length) {
+      return { code: master.code, label: master.label, avgScore: 0, max: master.max, pct: 0 };
+    }
 
     const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
     return {
@@ -734,7 +768,7 @@ export default function SummaryMockup({
             if (!caseId) return;
 
             const revisedTopics: Topic[] = [];
-            TOPIC_MASTER.forEach((master) => {
+            ALL_TOPIC_MASTER.forEach((master) => {
               const scoreRaw = appealHelper.getValue(row, `${master.code} Revised Score`) ?? appealHelper.getValue(row, `${master.code} score`) ?? appealHelper.getValue(row, master.code);
               if (scoreRaw === null || scoreRaw === "" || Number.isNaN(Number(scoreRaw))) return;
               const score = Number(scoreRaw);
@@ -768,18 +802,51 @@ export default function SummaryMockup({
           const inquiry = String(rawHelper.getValue(row, "Inquiry") || rawHelper.getValue(row, "Customer Inquiry") || "-").trim();
           const agent = toTitleCaseName(String(rawHelper.getValue(row, "Agent Name") || "").trim());
           const mergedAppeal = appealMap.get(caseId);
+          const topicMaster = getTopicMasterByMonth(monthKey);
 
-          const topics: Topic[] = TOPIC_MASTER.map((master) => {
-            const scoreRaw = rawHelper.getValue(row, `${master.code} Score`) ?? rawHelper.getValue(row, master.code) ?? 0;
-            const score = scoreRaw !== null && scoreRaw !== "" && !Number.isNaN(Number(scoreRaw)) ? Number(scoreRaw) : 0;
-            return { code: master.code, label: master.label, score, max: master.max, pct: Number(((score / master.max) * 100).toFixed(2)) };
+          const topics: Topic[] = topicMaster.map((master) => {
+            const scoreRaw =
+              rawHelper.getValue(row, `${master.code} Score`) ?? rawHelper.getValue(row, master.code) ?? 0;
+            const score =
+              scoreRaw !== null && scoreRaw !== "" && !Number.isNaN(Number(scoreRaw))
+                ? Number(scoreRaw)
+                : 0;
+            return {
+              code: master.code,
+              label: master.label,
+              score,
+              max: master.max,
+              pct: Number(((score / master.max) * 100).toFixed(2)),
+            };
           });
 
+          const normalizedRevisedTopics =
+            mergedAppeal?.revisedTopics?.length
+              ? topicMaster
+                  .map((master) => {
+                    const matchedTopic = mergedAppeal.revisedTopics.find((topic) => topic.code === master.code);
+                    if (!matchedTopic) return null;
+                    return {
+                      code: master.code,
+                      label: master.label,
+                      score: matchedTopic.score,
+                      max: master.max,
+                      pct: Number(((matchedTopic.score / master.max) * 100).toFixed(2)),
+                    } as Topic;
+                  })
+                  .filter(Boolean) as Topic[]
+              : null;
+
           const finalScoreRaw = rawHelper.getValue(row, "Final Score");
-          const baseFinalScore = finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw)) ? Number(finalScoreRaw) : Number(topics.reduce((sum, topic) => sum + topic.score, 0).toFixed(2));
-          const finalScoreVal = mergedAppeal?.finalScore ?? (mergedAppeal?.revisedTopics?.length ? calcMergedFinalScore(topics, mergedAppeal.revisedTopics) : baseFinalScore);
+          const baseFinalScore =
+            finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
+              ? Number(finalScoreRaw)
+              : Number(topics.reduce((sum, topic) => sum + topic.score, 0).toFixed(2));
+          const finalScoreVal =
+            mergedAppeal?.finalScore ??
+            (normalizedRevisedTopics?.length ? calcMergedFinalScore(topics, normalizedRevisedTopics) : baseFinalScore);
           const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
-          const reviewStatus: ReviewStatus = mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
+          const reviewStatus: ReviewStatus = normalizedRevisedTopics?.length ? "Revised" : "Original";
 
           return {
             key: `row-${index + 1}-${caseId}`,
@@ -798,8 +865,8 @@ export default function SummaryMockup({
             grade: scoreToGrade(finalScoreVal, monthKey),
             reviewStatus,
             topics,
-            revisedTopics: mergedAppeal?.revisedTopics?.length ? mergedAppeal.revisedTopics : null,
-            displayRevisedTopicCodes: mergedAppeal?.displayRevisedTopicCodes || [],
+            revisedTopics: normalizedRevisedTopics?.length ? normalizedRevisedTopics : null,
+            displayRevisedTopicCodes: normalizedRevisedTopics?.map((topic) => topic.code) || [],
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
