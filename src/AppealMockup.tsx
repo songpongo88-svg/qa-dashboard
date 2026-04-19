@@ -1408,60 +1408,102 @@ export default function AppealMockup({
       const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
       const scoreColor =
         diff > 0 ? PDF_COLORS.success : diff < 0 ? PDF_COLORS.danger : PDF_COLORS.neutral;
+      const topicLeft = left + 4;
+      const topicRight = right - 4;
+      const topicWidth = topicRight - topicLeft;
 
-      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, contentWidth);
+      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, topicWidth);
+      const topicMetaLines = doc.splitTextToSize("Appealed Topic Detail", topicWidth);
       const scoreLines = doc.splitTextToSize(
         `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
           diff > 0 ? "+" : ""
         }${diff} (${statusLabel})`,
-        contentWidth
+        topicWidth
       );
-      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", contentWidth - 42);
+      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", topicWidth);
       const originalCommentLines = doc.splitTextToSize(
         topic.originalComment || "-",
-        contentWidth - 42
+        topicWidth
       );
-      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", contentWidth - 42);
+      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", topicWidth);
 
       const estimatedHeight =
+        topicMetaLines.length * 4 +
         titleLines.length * 5 +
         scoreLines.length * 4.8 +
         appealReasonLines.length * 4.8 +
         originalCommentLines.length * 4.8 +
         revisedCommentLines.length * 4.8 +
-        28;
+        34;
 
       ensureSpace(estimatedHeight);
+
+      doc.setDrawColor(PDF_COLORS.sectionLine[0], PDF_COLORS.sectionLine[1], PDF_COLORS.sectionLine[2]);
+      doc.setLineWidth(0.3);
+      doc.line(topicLeft, y, topicRight, y);
+      y += 4;
+
+      setPdfFont(doc, "bold");
+      doc.setFontSize(9.5);
+      setColor(PDF_COLORS.muted);
+      doc.text(topicMetaLines, topicLeft, y);
+      y += topicMetaLines.length * 4;
 
       setPdfFont(doc, "bold");
       doc.setFontSize(12);
       setColor(PDF_COLORS.black);
-      doc.text(titleLines, left, y);
+      doc.text(titleLines, topicLeft, y);
       y += titleLines.length * 5;
 
       setPdfFont(doc, "bold");
       doc.setFontSize(10.5);
       setColor(scoreColor);
-      doc.text(scoreLines, left, y);
+      doc.text(scoreLines, topicLeft, y);
       y += scoreLines.length * 4.8 + 2;
 
-      addKeyValue("Appeal Reason", topic.appealReason || "-", 42);
-      drawDivider(0.4, 3, PDF_COLORS.sectionLine, 0.25);
+      doc.setDrawColor(PDF_COLORS.sectionLine[0], PDF_COLORS.sectionLine[1], PDF_COLORS.sectionLine[2]);
+      doc.setLineWidth(0.25);
+      doc.line(topicLeft, y, topicRight, y);
+      y += 4;
 
       setPdfFont(doc, "bold");
       doc.setFontSize(11);
       setColor(PDF_COLORS.black);
-      doc.text("Original Comment", left, y);
+      doc.text("Appeal Reason", topicLeft, y);
       y += 5;
-      addParagraph(topic.originalComment || "-", 11, PDF_COLORS.originalComment, 3);
-      drawDivider(0.4, 3, PDF_COLORS.sectionLine, 0.25);
+      setPdfFont(doc, "normal");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.appealReason);
+      doc.text(appealReasonLines, topicLeft, y);
+      y += appealReasonLines.length * 4.8 + 2;
+
+      doc.line(topicLeft, y, topicRight, y);
+      y += 4;
 
       setPdfFont(doc, "bold");
       doc.setFontSize(11);
       setColor(PDF_COLORS.black);
-      doc.text("Revised Comment", left, y);
+      doc.text("Original Comment", topicLeft, y);
       y += 5;
-      addParagraph(topic.comment || "-", 11, PDF_COLORS.revisedComment, 4);
+      setPdfFont(doc, "normal");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.originalComment);
+      doc.text(originalCommentLines, topicLeft, y);
+      y += originalCommentLines.length * 4.8 + 2;
+
+      doc.line(topicLeft, y, topicRight, y);
+      y += 4;
+
+      setPdfFont(doc, "bold");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.black);
+      doc.text("Revised Comment", topicLeft, y);
+      y += 5;
+      setPdfFont(doc, "normal");
+      doc.setFontSize(11);
+      setColor(PDF_COLORS.revisedComment);
+      doc.text(revisedCommentLines, topicLeft, y);
+      y += revisedCommentLines.length * 4.8 + 1.5;
 
       drawDivider(1, 5);
     };
@@ -1490,6 +1532,12 @@ export default function AppealMockup({
     addKeyValue("Final Grade", selectedCase.grade);
     addKeyValue("Appealed Topics", `${selectedCase.appealedTopics.length} topic(s)`);
 
+    addSectionTitle("Customer Inquiry");
+    addParagraph(selectedCase.inquiry || "-");
+
+    addSectionTitle("Appeal Review Summary");
+    addParagraph(selectedCase.appealReviewSummary || "-");
+
     addSectionTitle("Appeal Timeline");
     addKeyValue("Appeal Submit Date & Time", selectedCase.appealSubmitDateTime || "-", 58);
     addKeyValue("Appeal Result Date & Time", selectedCase.appealResultDateTime || "-", 58);
@@ -1502,12 +1550,6 @@ export default function AppealMockup({
       58
     );
     addKeyValue("Final Decision", "Finalized and closed", 58);
-
-    addSectionTitle("Customer Inquiry");
-    addParagraph(selectedCase.inquiry || "-");
-
-    addSectionTitle("Appeal Review Summary");
-    addParagraph(selectedCase.appealReviewSummary || "-");
 
     addSectionTitle("Appealed Topics");
     if (!selectedCase.appealedTopics.length) {
@@ -1889,23 +1931,6 @@ export default function AppealMockup({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-4">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
-                        Customer Inquiry
-                      </div>
-                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                        {sanitizeDisplayText(selectedCase.inquiry)}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
-                        Appeal Review Summary
-                      </div>
-                      <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                        {sanitizeDisplayText(selectedCase.appealReviewSummary)}
-                      </div>
-                    </div>
                   </PanelBody>
                 </Panel>
               </div>
@@ -1969,6 +1994,26 @@ export default function AppealMockup({
                             {selectedCaseGradeShift
                               ? selectedCaseGradeShift.label
                               : `${selectedCase.grade}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 xl:grid-cols-2">
+                        <div className="rounded-2xl border border-violet-100 bg-white px-4 py-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                            Customer Inquiry
+                          </div>
+                          <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                            {sanitizeDisplayText(selectedCase.inquiry)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
+                            Appeal Review Summary
+                          </div>
+                          <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
+                            {sanitizeDisplayText(selectedCase.appealReviewSummary)}
                           </div>
                         </div>
                       </div>
