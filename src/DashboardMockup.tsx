@@ -2739,65 +2739,41 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_340px]">
-                      <div className="rounded-[26px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+                  <div className="rounded-[32px] border border-slate-200/90 bg-gradient-to-br from-white via-slate-50 to-slate-100 px-5 py-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_320px]">
+                      <div className="rounded-[28px] border border-slate-200/90 bg-white/95 p-5 shadow-sm">
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                           <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              Agent
-                            </div>
-                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">
-                              {caseItem.agent || "-"}
-                            </div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Agent</div>
+                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{caseItem.agent || "-"}</div>
                           </div>
 
                           <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              Audit Date
-                            </div>
-                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">
-                              {caseItem.auditDate || "-"}
-                            </div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Audit Date</div>
+                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditDate || "-"}</div>
                           </div>
 
                           <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              Timestamp
-                            </div>
-                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">
-                              {caseItem.auditTimestamp || "-"}
-                            </div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Timestamp</div>
+                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{caseItem.auditTimestamp || "-"}</div>
                           </div>
 
-                          <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2 xl:col-span-2">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              Waiting Time / Service Time
-                            </div>
-                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">
-                              {formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}
-                            </div>
+                          <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Waiting Time / Service Time</div>
+                            <div className="mt-2 text-lg font-bold tracking-tight text-slate-900">{formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime)}</div>
                           </div>
 
                           <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              Week
-                            </div>
-                            <div className="mt-2 text-base font-bold tracking-tight text-slate-900">
-                              {caseItem.weekLabel || "-"}
-                            </div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Week</div>
+                            <div className="mt-2 text-base font-bold tracking-tight text-slate-900">{caseItem.weekLabel || "-"}</div>
                           </div>
                         </div>
                       </div>
 
-                      <div
-                        className={`rounded-[26px] border px-5 py-5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}
-                      >
+                      <div className={`rounded-[28px] border px-5 py-5 shadow-[0_20px_42px_rgba(15,23,42,0.10)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.20em] text-slate-500">
-                              Final Score
-                            </div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.20em] text-slate-500">Final Score</div>
                             <div className={`mt-3 text-5xl font-extrabold tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
                               {caseItem.finalScore.toFixed(2)}
                             </div>
@@ -2817,7 +2793,7 @@ function SlideOverCaseDetail({
                         </div>
 
                         {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
-                          <div className="mt-4 rounded-[20px] border border-white/60 bg-white/70 px-4 py-3 text-sm text-slate-700 shadow-sm">
+                          <div className="mt-4 rounded-[20px] border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm">
                             <span className="font-semibold text-slate-900">Score Change:</span>{" "}
                             Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
                           </div>
@@ -2845,100 +2821,84 @@ function SlideOverCaseDetail({
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (verifiedImagePdfUrls.length) {
-                            setPreviewAsset({
-                              type: "pdf",
-                              url: verifiedImagePdfUrls[0].url,
-                              title: verifiedImagePdfUrls[0].label,
-                              downloadUrl: verifiedImagePdfUrls[0].url,
-                            });
-                            return;
-                          }
-                          if (verifiedImageUrls.length) {
-                            setPreviewAsset({
-                              type: "image",
-                              url: verifiedImageUrls[0],
-                              title: `${caseItem.caseId} Case Image`,
-                              items: verifiedImageUrls,
-                              index: 0,
-                              downloadUrl: verifiedImageUrls[0],
-                            });
-                          }
-                        }}
-                        className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
-                      >
-                        Preview Case Image
-                      </button>
-                    ) : null}
-
-                    {availablePdfUrls.length ? (
-                      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                        {availablePdfUrls.map((item) => (
-                          <button
-                            key={item.label}
-                            type="button"
-                            onClick={() =>
+                    <div className="mt-5 flex flex-wrap items-center gap-3">
+                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (verifiedImagePdfUrls.length) {
                               setPreviewAsset({
                                 type: "pdf",
-                                url: item.url,
-                                title: item.label,
-                                downloadUrl: item.url,
-                              })
+                                url: verifiedImagePdfUrls[0].url,
+                                title: verifiedImagePdfUrls[0].label,
+                                downloadUrl: verifiedImagePdfUrls[0].url,
+                              });
+                              return;
                             }
-                            className="inline-flex items-center rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
-                            title={`Open ${item.label}`}
-                          >
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
+                            if (verifiedImageUrls.length) {
+                              setPreviewAsset({
+                                type: "image",
+                                url: verifiedImageUrls[0],
+                                title: `${caseItem.caseId} Case Image`,
+                                items: verifiedImageUrls,
+                                index: 0,
+                                downloadUrl: verifiedImageUrls[0],
+                              });
+                            }
+                          }}
+                          className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
+                        >
+                          Preview Case Image
+                        </button>
+                      ) : null}
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-                <div>
-                  <div className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
-                    <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-700 via-fuchsia-500 to-sky-400" />
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">
-                        💬
-                      </span>
-                      <div>
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                          Customer Inquiry
+                      {availablePdfUrls.length ? (
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                          {availablePdfUrls.map((item) => (
+                            <button
+                              key={item.label}
+                              type="button"
+                              onClick={() =>
+                                setPreviewAsset({
+                                  type: "pdf",
+                                  url: item.url,
+                                  title: item.label,
+                                  downloadUrl: item.url,
+                                })
+                              }
+                              className="inline-flex items-center rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                              title={`Open ${item.label}`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
                         </div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้
+                      ) : null}
+                    </div>
+
+                    <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+                      <div className="rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-5 py-5 shadow-[0_12px_28px_rgba(109,40,217,0.08)]">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
+                            <div className="mt-1 text-xs text-slate-500">ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้</div>
+                          </div>
+                        </div>
+                        <div className="mt-4 rounded-[22px] border border-violet-100 bg-white/95 px-4 py-4 shadow-sm">
+                          <div className="whitespace-pre-line text-[15px] leading-7 text-slate-800">{caseItem.inquiryTh || "-"}</div>
                         </div>
                       </div>
-                    </div>
-                    <div className="mt-4 rounded-[22px] border border-violet-100 bg-white/95 px-4 py-4 shadow-sm">
-                      <div className="whitespace-pre-line text-[15px] leading-7 text-slate-800">
-                        {caseItem.inquiryTh || "-"}
+
+                      <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
+                        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
+                          <span>Case Description</span>
+                        </div>
+                        <div className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-800">{caseItem.caseDescription || "-"}</div>
                       </div>
                     </div>
-                  </div>
-
-                  </div>
-
-                <div className="rounded-[26px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-5 py-5 shadow-sm">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-fuchsia-700">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-700">📝</span>
-                      <span>Case Description</span>
-                    </div>
-                    <div className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-800">
-                      {caseItem.caseDescription || "-"}
-                    </div>
-                  </div>
-
-
                 </div>
             </PanelBody>
           </Panel>
