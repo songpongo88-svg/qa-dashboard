@@ -97,6 +97,16 @@ function formatThaiDayDate(input: string | Date) {
   }).format(new Date(input));
 }
 
+function formatThaiCompactDayDate(input: string | Date) {
+  return new Intl.DateTimeFormat("th-TH", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Bangkok",
+  }).format(new Date(input));
+}
+
 function formatThaiTime(input: string | Date) {
   return new Intl.DateTimeFormat("th-TH", {
     hour: "2-digit",
@@ -520,6 +530,27 @@ function MetaChip({ children }: { children: React.ReactNode }) {
   );
 }
 
+function HeaderInfoChip({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className={`inline-flex min-h-[38px] items-center gap-2 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2 ${
+        wide ? "min-w-[260px] justify-between" : "justify-between"
+      }`}
+    >
+      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{label}</span>
+      <span className={`font-semibold text-slate-800 ${wide ? "text-xs" : "text-sm"}`}>{value}</span>
+    </div>
+  );
+}
+
 function VersionPill({
   meta,
   className = "",
@@ -687,7 +718,7 @@ export default function App() {
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const loginDayLabel = useMemo(() => {
     if (!currentUser) return "";
-    return formatThaiDayDate(currentUser.loginAt);
+    return formatThaiCompactDayDate(currentUser.loginAt);
   }, [currentUser]);
   const loginTimeLabel = useMemo(() => {
     if (!currentUser) return "";
@@ -1088,12 +1119,12 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-3 sm:px-5 lg:px-6 2xl:px-8">
-            <div className={`relative overflow-hidden rounded-[24px] border bg-white/94 px-4 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
-              {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-90 opacity-70" /> : null}
+          <div className="mx-auto w-full max-w-[1480px] px-4 py-3 sm:px-5 lg:px-6">
+            <div className={`relative overflow-hidden rounded-[22px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
+              {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0 xl:w-[380px] xl:shrink-0">
+              <div className="grid gap-3 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)_minmax(220px,280px)] xl:items-start">
+                <div className="min-w-0">
                   <div className="flex items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
@@ -1101,7 +1132,7 @@ export default function App() {
 
                   <div className="min-w-0">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Robinhood QA</div>
-                    <div className="mt-1 break-words text-[18px] font-extrabold leading-tight tracking-tight text-slate-900">Welcome, {welcomeName}</div>
+                    <div className="mt-1 break-words text-[16px] font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[18px]">Welcome, {welcomeName}</div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
                       <span className="text-slate-300">•</span>
@@ -1119,68 +1150,55 @@ export default function App() {
                     </div>
                   </div>
                   </div>
-                  <div className="mt-3 rounded-[18px] border border-slate-200 bg-slate-50/85 px-3.5 py-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Login Information</div>
-                    <div className="mt-2 text-xs font-medium text-slate-600">{loginDayLabel}</div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Login Time</span>
-                        <span className="text-sm font-bold text-slate-800">{loginTimeLabel}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Current Time</span>
-                        <span className="text-sm font-bold text-slate-800">{currentTimeLabel}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 sm:col-span-2 xl:col-span-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Usage Time</span>
-                        <span className="text-sm font-bold text-slate-800">{sessionDurationLabel}</span>
-                      </div>
-                    </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[16px] border border-slate-200 bg-slate-50/90 px-3 py-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Login Information</span>
+                    <HeaderInfoChip label="Date" value={loginDayLabel} wide />
+                    <HeaderInfoChip label="Login" value={loginTimeLabel} />
+                    <HeaderInfoChip label="Now" value={currentTimeLabel} />
+                    <HeaderInfoChip label="Usage" value={sessionDurationLabel} />
                   </div>
                 </div>
 
-                <div className="min-w-0 flex-1 xl:px-2">
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 xl:justify-start">
                       <NavSectionLabel label="Performance" tone="slate" />
                       <NavButton active={activeTab === "dashboard"} label="Dashboard" onClick={() => setActiveTab("dashboard")} songkranTheme={songkranTheme} />
                       <NavButton active={activeTab === "summary"} label="Summary" onClick={() => setActiveTab("summary")} songkranTheme={songkranTheme} />
                       <NavButton active={activeTab === "coaching"} label="Coaching" onClick={() => setActiveTab("coaching")} songkranTheme={songkranTheme} />
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
                       <NavSectionLabel label="Review" tone="slate" />
                       <NavButton active={activeTab === "appeal"} label="Appeal" onClick={() => setActiveTab("appeal")} songkranTheme={songkranTheme} />
                       <NavButton active={activeTab === "rubric"} label="QA Rubric" onClick={() => setActiveTab("rubric")} songkranTheme={songkranTheme} />
-                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row xl:w-[250px] xl:flex-col xl:items-stretch xl:justify-start">
+                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
                   <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
-                  <VersionPill meta={buildMeta} className="w-full" />
+                  <VersionPill meta={buildMeta} className="min-w-[220px]" />
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Account</span>
+              <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                <div />
 
-                <AccountActionButton
-                  label="Change Password"
-                  onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
-                />
+                <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                  <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Account</span>
 
-                {currentUser.role === "Supervisor" ? (
                   <AccountActionButton
-                    label="Reset Password"
-                    onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }}
-                    tone="amber"
+                    label="Change Password"
+                    onClick={() => { resetChangePasswordState(); setShowChangePasswordModal(true); }}
                   />
-                ) : null}
 
-                <AccountActionButton label="Log Out" onClick={handleLogout} tone="rose" />
+                  {currentUser.role === "Supervisor" ? (
+                    <AccountActionButton
+                      label="Reset Password"
+                      onClick={() => { resetPasswordModalState(); setShowResetPasswordModal(true); }}
+                      tone="amber"
+                    />
+                  ) : null}
 
-                {songkranTheme ? <div className="ml-auto hidden xl:block"><SongkranBadge /></div> : null}
+                  <AccountActionButton label="Log Out" onClick={handleLogout} tone="rose" />
+                  {songkranTheme ? <SongkranBadge /> : null}
+                </div>
               </div>
             </div>
           </div>

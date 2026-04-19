@@ -9,6 +9,8 @@ const rootDir = path.resolve(__dirname, "..");
 
 const packageJsonPath = path.join(rootDir, "package.json");
 const buildMetaPath = path.join(rootDir, "public", "build-meta.json");
+const BASE_BUILD_NUMBER = 12;
+const BASE_COMMIT_COUNT = 702;
 
 function safeReadJson(filePath, fallback = {}) {
   try {
@@ -86,17 +88,23 @@ function getChangedFiles() {
 }
 
 function getBuildNumber(previousMeta) {
+  const commitCount = safeExec("git rev-list --count HEAD", "");
+
+  if (commitCount && !Number.isNaN(Number(commitCount))) {
+    const derivedBuildNumber = BASE_BUILD_NUMBER + Math.max(0, Number(commitCount) - BASE_COMMIT_COUNT);
+
+    if (typeof previousMeta?.buildNumber === "number") {
+      return Math.max(previousMeta.buildNumber + 1, derivedBuildNumber);
+    }
+
+    return derivedBuildNumber;
+  }
+
   if (typeof previousMeta?.buildNumber === "number") {
     return previousMeta.buildNumber + 1;
   }
 
-  const commitCount = safeExec("git rev-list --count HEAD", "");
-
-  if (commitCount && !Number.isNaN(Number(commitCount))) {
-    return Number(commitCount);
-  }
-
-  return 1;
+  return BASE_BUILD_NUMBER + 1;
 }
 
 function main() {
