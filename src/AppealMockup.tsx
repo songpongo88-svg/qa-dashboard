@@ -1401,13 +1401,10 @@ export default function AppealMockup({
       y += Math.max(6, valueLines.length * 4.8);
     };
 
-    const addTopicBlock = (topic: Topic) => {
+    const estimateTopicBlockHeight = (topic: Topic) => {
       const originalScore = Number(topic.originalScore ?? 0);
       const revisedScore = Number(topic.score ?? 0);
       const diff = revisedScore - originalScore;
-      const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
-      const scoreColor =
-        diff > 0 ? PDF_COLORS.success : diff < 0 ? PDF_COLORS.danger : PDF_COLORS.neutral;
       const topicLeft = left + 4;
       const topicRight = right - 4;
       const topicWidth = topicRight - topicLeft;
@@ -1435,6 +1432,35 @@ export default function AppealMockup({
         originalCommentLines.length * 4.8 +
         revisedCommentLines.length * 4.8 +
         34;
+    };
+
+    const addTopicBlock = (topic: Topic) => {
+      const originalScore = Number(topic.originalScore ?? 0);
+      const revisedScore = Number(topic.score ?? 0);
+      const diff = revisedScore - originalScore;
+      const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
+      const scoreColor =
+        diff > 0 ? PDF_COLORS.success : diff < 0 ? PDF_COLORS.danger : PDF_COLORS.neutral;
+      const topicLeft = left + 4;
+      const topicRight = right - 4;
+      const topicWidth = topicRight - topicLeft;
+
+      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, topicWidth);
+      const topicMetaLines = doc.splitTextToSize("Appealed Topic Detail", topicWidth);
+      const scoreLines = doc.splitTextToSize(
+        `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
+          diff > 0 ? "+" : ""
+        }${diff} (${statusLabel})`,
+        topicWidth
+      );
+      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", topicWidth);
+      const originalCommentLines = doc.splitTextToSize(
+        topic.originalComment || "-",
+        topicWidth
+      );
+      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", topicWidth);
+
+      const estimatedHeight = estimateTopicBlockHeight(topic);
 
       ensureSpace(estimatedHeight);
 
@@ -1550,6 +1576,16 @@ export default function AppealMockup({
       58
     );
     addKeyValue("Final Decision", "Finalized and closed", 58);
+
+    const firstAppealedTopic = selectedCase.appealedTopics[0];
+    const appealedTopicsHeaderHeight = 11;
+    if (
+      firstAppealedTopic &&
+      y + appealedTopicsHeaderHeight + estimateTopicBlockHeight(firstAppealedTopic) > pageHeight - 16
+    ) {
+      doc.addPage();
+      y = 16;
+    }
 
     addSectionTitle("Appealed Topics");
     if (!selectedCase.appealedTopics.length) {
