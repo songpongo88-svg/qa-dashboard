@@ -1889,10 +1889,12 @@ function QuickCaseSearchCard({
 function SlideOverCaseDetail({
   open,
   caseItem,
+  currentUser,
   onClose,
 }: {
   open: boolean;
   caseItem: CaseItem | null;
+  currentUser: any;
   onClose: () => void;
 }) {
   if (!open || !caseItem) return null;
@@ -4456,6 +4458,7 @@ export default function DashboardMockup({
                   <SlideOverCaseDetail
                     open={slideOverOpen}
                     caseItem={activeSelectedCase}
+                    currentUser={currentUser}
                     onClose={() => setSlideOverOpen(false)}
                   />
                 </>
