@@ -9,8 +9,6 @@ const rootDir = path.resolve(__dirname, "..");
 
 const packageJsonPath = path.join(rootDir, "package.json");
 const buildMetaPath = path.join(rootDir, "public", "build-meta.json");
-const BASE_BUILD_NUMBER = 12;
-const BASE_COMMIT_COUNT = 702;
 
 function safeReadJson(filePath, fallback = {}) {
   try {
@@ -50,6 +48,22 @@ function formatBangkokDateTime(date = new Date()) {
   return `${map.day}/${map.month}/${map.year} ${map.hour}:${map.minute}:${map.second}`;
 }
 
+function formatBangkokBuildStamp(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${map.year}${map.month}${map.day}${map.hour}${map.minute}`;
+}
+
 function getPackageVersion() {
   const pkg = safeReadJson(packageJsonPath, {});
   return pkg.version || "1.0.0";
@@ -87,37 +101,18 @@ function getChangedFiles() {
   return headFiles.split("\n").map((x) => x.trim()).filter(Boolean);
 }
 
-function getBuildNumber(previousMeta) {
-  const commitCount = safeExec("git rev-list --count HEAD", "");
-
-  if (commitCount && !Number.isNaN(Number(commitCount))) {
-    const derivedBuildNumber = BASE_BUILD_NUMBER + Math.max(0, Number(commitCount) - BASE_COMMIT_COUNT);
-
-    if (typeof previousMeta?.buildNumber === "number") {
-      return Math.max(previousMeta.buildNumber + 1, derivedBuildNumber);
-    }
-
-    return derivedBuildNumber;
-  }
-
-  if (typeof previousMeta?.buildNumber === "number") {
-    return previousMeta.buildNumber + 1;
-  }
-
-  return BASE_BUILD_NUMBER + 1;
-}
-
 function main() {
-  const previousMeta = safeReadJson(buildMetaPath, {});
   const baseVersion = getPackageVersion();
   const fullCommitHash = getCommitHash();
   const shortCommitHash = getShortCommitHash(fullCommitHash);
   const commitMessage = getCommitMessage();
   const changedFiles = getChangedFiles();
-  const buildNumber = getBuildNumber(previousMeta);
-  const updatedAt = formatBangkokDateTime(new Date());
+  const now = new Date();
+  const buildStamp = formatBangkokBuildStamp(now);
+  const buildNumber = Number(buildStamp);
+  const updatedAt = formatBangkokDateTime(now);
 
-  const displayVersion = `${baseVersion}.${buildNumber}`;
+  const displayVersion = `${baseVersion}.${buildStamp}`;
   const releaseLabel = `v${displayVersion}`;
 
   const nextMeta = {
