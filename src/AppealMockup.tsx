@@ -792,10 +792,12 @@ function AppealedTopicsCaseDetailTable({
 export default function AppealMockup({
   currentUser,
   externalSelectedAgent,
+  externalSelectedCaseId,
   onSelectedAgentChange,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
+  externalSelectedCaseId?: string;
   onSelectedAgentChange?: (agentName: string) => void;
 }) {
   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
@@ -817,6 +819,12 @@ export default function AppealMockup({
       setSelectedAgent(externalSelectedAgent);
     }
   }, [externalSelectedAgent, currentUser, selectedAgent]);
+
+  useEffect(() => {
+    if (!externalSelectedCaseId) return;
+    setSelectedMonthKey("all");
+    setSearchCaseId(externalSelectedCaseId);
+  }, [externalSelectedCaseId]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -1223,6 +1231,15 @@ export default function AppealMockup({
       setSelectedCaseKey("");
     }
   }, [filteredCases, selectedCaseKey]);
+
+  useEffect(() => {
+    if (!externalSelectedCaseId || !filteredCases.length) return;
+    const targetCaseId = externalSelectedCaseId.trim().toLowerCase();
+    const matchedCase = filteredCases.find((item) => item.caseId.trim().toLowerCase() === targetCaseId);
+    if (matchedCase && matchedCase.key !== selectedCaseKey) {
+      setSelectedCaseKey(matchedCase.key);
+    }
+  }, [externalSelectedCaseId, filteredCases, selectedCaseKey]);
 
   const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || null;
 

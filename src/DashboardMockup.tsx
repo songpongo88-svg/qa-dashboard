@@ -1891,13 +1891,20 @@ function SlideOverCaseDetail({
   caseItem,
   currentUser,
   onClose,
+  onOpenAppealCase,
 }: {
   open: boolean;
   caseItem: CaseItem | null;
   currentUser: any;
   onClose: () => void;
+  onOpenAppealCase?: (caseId: string, agentName?: string) => void;
 }) {
   if (!open || !caseItem) return null;
+
+  const hasAppealCase =
+    caseItem.reviewStatus === "Revised" ||
+    !!caseItem.revisedTopics?.length ||
+    !!caseItem.displayRevisedTopicCodes?.length;
 
   const resolvedPdfLinks = {
     original: normalizeAssetUrl(
@@ -2713,6 +2720,19 @@ function SlideOverCaseDetail({
                     ) : null}
 
                     <div className="mt-4 grid gap-2.5">
+                      {hasAppealCase ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onOpenAppealCase?.(caseItem.caseId, caseItem.agent);
+                            onClose();
+                          }}
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-semibold text-violet-700 transition hover:bg-violet-100"
+                        >
+                          Open Appeal Case
+                        </button>
+                      ) : null}
+
                       {caseItem.caseUrl ? (
                         <a
                           href={caseItem.caseUrl}
@@ -2841,6 +2861,7 @@ export default function DashboardMockup({
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
   onOpenCaseDetail,
+  onOpenAppealCase,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
@@ -2851,6 +2872,7 @@ export default function DashboardMockup({
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
   onOpenCaseDetail?: () => void;
+  onOpenAppealCase?: (caseId: string, agentName?: string) => void;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
@@ -4460,6 +4482,7 @@ export default function DashboardMockup({
                     caseItem={activeSelectedCase}
                     currentUser={currentUser}
                     onClose={() => setSlideOverOpen(false)}
+                    onOpenAppealCase={onOpenAppealCase}
                   />
                 </>
               )

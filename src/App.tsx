@@ -716,6 +716,7 @@ export default function App() {
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
   const [selectedMonthGlobal, setSelectedMonthGlobal] = useState("all");
   const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
+  const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1236,10 +1237,21 @@ export default function App() {
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}
               onOpenCaseDetail={() => { setActiveTab("dashboard"); setDashboardSubTab("case-detail"); }}
+              onOpenAppealCase={(caseId, agentName) => {
+                setSelectedAppealCaseId(caseId);
+                setSelectedAgentGlobal(agentName || "");
+                setSelectedMonthGlobal("all");
+                setActiveTab("appeal");
+              }}
             />
           </div>
         ) : activeTab === "appeal" ? (
-          <AppealMockup currentUser={currentUser} externalSelectedAgent={selectedAgentGlobal} onSelectedAgentChange={setSelectedAgentGlobal} />
+          <AppealMockup
+            currentUser={currentUser}
+            externalSelectedAgent={selectedAgentGlobal}
+            externalSelectedCaseId={selectedAppealCaseId}
+            onSelectedAgentChange={setSelectedAgentGlobal}
+          />
         ) : activeTab === "summary" ? (
           <SummaryMockup
             currentUser={currentUser}
