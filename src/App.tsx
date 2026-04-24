@@ -772,6 +772,22 @@ export default function App() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get("tab");
+    const requestedCaseId = params.get("caseId")?.trim() || "";
+    const requestedAgent = params.get("agent")?.trim() || "";
+
+    if (requestedTab === "appeal") {
+      setActiveTab("appeal");
+      setSelectedMonthGlobal("all");
+      setSelectedAppealCaseId(requestedCaseId);
+      if (requestedAgent) {
+        setSelectedAgentGlobal(requestedAgent);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     fetch(`/build-meta.json?ts=${Date.now()}`)
@@ -1238,10 +1254,15 @@ export default function App() {
               onSelectedWeekChange={setSelectedWeekGlobal}
               onOpenCaseDetail={() => { setActiveTab("dashboard"); setDashboardSubTab("case-detail"); }}
               onOpenAppealCase={(caseId, agentName) => {
-                setSelectedAppealCaseId(caseId);
-                setSelectedAgentGlobal(agentName || "");
-                setSelectedMonthGlobal("all");
-                setActiveTab("appeal");
+                const params = new URLSearchParams();
+                params.set("tab", "appeal");
+                params.set("caseId", caseId);
+                if (agentName) {
+                  params.set("agent", agentName);
+                }
+
+                const appealUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+                window.open(appealUrl, "_blank", "noopener,noreferrer");
               }}
             />
           </div>
