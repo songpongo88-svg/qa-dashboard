@@ -64,7 +64,7 @@ const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 
 const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
-const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 
 const DEFAULT_BUILD_META: BuildMeta = {
   appName: "qa-dashboard",

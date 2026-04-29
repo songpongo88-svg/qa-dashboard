@@ -78,7 +78,7 @@ type PeriodRow = {
 };
 
 const CASE_TARGET = 10;
-const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
+const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
 const LEGACY_TOPIC_MASTER = [
@@ -149,7 +149,7 @@ const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
 
 function isSongkranThemeActive() {
   const now = new Date();
-  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
+  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && (now.getMonth() === 3 || now.getMonth() === 4);
 }
 
 function normalizeText(value: unknown) {
