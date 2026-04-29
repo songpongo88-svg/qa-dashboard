@@ -148,8 +148,7 @@ const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
 };
 
 function isSongkranThemeActive() {
-  const now = new Date();
-  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && (now.getMonth() === 3 || now.getMonth() === 4);
+  return false;
 }
 
 function normalizeText(value: unknown) {

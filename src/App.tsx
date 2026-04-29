@@ -83,8 +83,7 @@ const DEFAULT_BUILD_META: BuildMeta = {
 };
 
 function isSongkranThemeActive() {
-  const now = new Date();
-  return now >= SONGKRAN_THEME_START && now <= SONGKRAN_THEME_END;
+  return false;
 }
 
 function formatThaiDayDate(input: string | Date) {

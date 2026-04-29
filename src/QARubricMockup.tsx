@@ -530,8 +530,7 @@ const RUBRICS: RubricVersion[] = [MARCH_2026_RUBRIC, APR_2026_RUBRIC];
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 function isSongkranThemeActive() {
-  const now = new Date();
-  return now <= SONGKRAN_THEME_END && now.getFullYear() === 2026 && now.getMonth() === 3;
+  return false;
 }
 
 function SongkranBackdrop() {
