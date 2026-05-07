@@ -781,12 +781,13 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
     }
 
     const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
+    const avgRounded = Number(formatFixed(avg, 2));
     return {
       code: master.code,
       label: master.label,
-      avgScore: formatFixed(avg, 2),
+      avgScore: formatFixed(avgRounded, 2),
       max: master.max,
-      pct: formatFixed((avg / master.max) * 100, 2),
+      pct: formatFixed((avgRounded / master.max) * 100, 2),
     };
   });
 

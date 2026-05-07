@@ -367,12 +367,13 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
     }
 
     const avg = topics.reduce((sum, topic) => sum + topic.score, 0) / topics.length;
+    const avgRounded = roundToTwo(avg);
     return {
       code: master.code,
       label: master.label,
-      avgScore: roundToTwo(avg),
+      avgScore: avgRounded,
       max: master.max,
-      pct: roundToTwo((avg / master.max) * 100),
+      pct: roundToTwo((avgRounded / master.max) * 100),
     };
   });
 }
