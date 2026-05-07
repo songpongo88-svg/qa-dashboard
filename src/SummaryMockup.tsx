@@ -617,41 +617,6 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
-function CaseListTable({ cases }: { cases: CaseItem[] }) {
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[1040px] w-full text-sm">
-        <thead>
-          <tr className="bg-violet-950 text-[11px] text-white">
-            <th className="px-4 py-3 text-center">Seq</th>
-            <th className="px-4 py-3 text-center">Audit Date</th>
-            <th className="px-4 py-3 text-left">Case ID</th>
-            <th className="px-4 py-3 text-left">Inquiry</th>
-            <th className="px-4 py-3 text-center">Final Score</th>
-            <th className="px-4 py-3 text-center">Grade</th>
-            <th className="px-4 py-3 text-center">Review</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cases.length ? cases.map((item, idx) => (
-            <tr key={item.key} className="bg-white">
-              <td className="border-t border-slate-200 px-4 py-3 text-center">{idx + 1}</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-center">{item.auditDate}</td>
-              <td className="border-t border-slate-200 px-4 py-3 font-semibold text-slate-900">{item.caseId}</td>
-              <td className="border-t border-slate-200 px-4 py-3">{item.inquiryTh || "-"}</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-center">{item.finalScore.toFixed(2)}</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(item.grade)}`}>{item.grade}</span></td>
-              <td className="border-t border-slate-200 px-4 py-3 text-center">{item.reviewStatus}</td>
-            </tr>
-          )) : (
-            <tr><td colSpan={7} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No case list for current selection</td></tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function getViewLabel(viewMode: SummaryView) {
   switch (viewMode) {
     case "weekly-dashboard":
@@ -968,8 +933,6 @@ export default function SummaryMockup({
     }
   }, [filteredCases, viewMode, availableAgents, selectedMonth]);
 
-  const caseListForView = useMemo(() => [...filteredCases].sort((a, b) => (a.auditDateObj?.getTime() || 0) - (b.auditDateObj?.getTime() || 0)), [filteredCases]);
-
   const firstColLabel = useMemo(() => {
     switch (viewMode) {
       case "weekly-dashboard":
@@ -1080,11 +1043,6 @@ export default function SummaryMockup({
             <Panel>
               <PanelHeader title="Summary Table" subtitle="Summary result based on current tab and filters" />
               <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} /></PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Case List" subtitle="Example case list for current tab and selected filters" />
-              <PanelBody><CaseListTable cases={caseListForView} /></PanelBody>
             </Panel>
 
             <Panel>
