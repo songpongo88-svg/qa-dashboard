@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2604241727",
-  "buildNumber": 2604241727,
-  "releaseLabel": "v1.0.0.2604241727",
-  "updatedAt": "24/04/2026 17:27:59",
+  "displayVersion": "1.0.0.2605071755",
+  "buildNumber": 2605071755,
+  "releaseLabel": "v1.0.0.2605071755",
+  "updatedAt": "07/05/2026 17:55:44",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8714eb176a5392777d6477bd5fd1466638a9f40f",
-  "commitMessage": "Link case detail to matching appeal case",
+  "commitHash": "18df6c661f11831b03eefce0e84a660752d45e09",
+  "commitMessage": "Align topic percentage with displayed rounded average",
   "changedFiles": [
-    "src/App.tsx",
-    "src/AppealMockup.tsx",
-    "src/DashboardMockup.tsx"
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -741,7 +741,7 @@ function getPolicyMonthKeyForCases(cases: CaseItem[]) {
 
 function roundTo(value: number, decimals = 2) {
   const factor = 10 ** decimals;
-  return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
+  return Math.round(Number(value) * factor + 1e-7) / factor;
 }
 
 function formatFixed(value: number, decimals = 2) {

@@ -338,7 +338,7 @@ function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
 }
 
 function roundToTwo(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  return Math.round(value * 100 + 1e-7) / 100;
 }
 
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
