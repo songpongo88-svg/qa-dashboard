@@ -330,6 +330,25 @@ function getMonthKey(date: Date | null) {
   return `${year}-${month}`;
 }
 
+function parseMonthLabelDate(value: any): Date | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const parsedDate = parseExcelDate(value);
+  if (parsedDate) return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
+
+  const match = text.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return null;
+
+  const monthIndex = new Date(`${match[1]} 1, ${match[2]}`).getMonth();
+  if (Number.isNaN(monthIndex)) return null;
+  return new Date(Number(match[2]), monthIndex, 1);
+}
+
+function getReportingMonthDate(monthStartRaw: any, monthLabelRaw: any, fallbackDate: Date | null) {
+  return parseMonthLabelDate(monthLabelRaw) || parseExcelDate(monthStartRaw) || fallbackDate;
+}
+
 function formatMonthKeyLabel(monthKey: string) {
   if (!monthKey || monthKey === "all") return "All Months";
   if (monthKey === "unknown") return "Unknown Month";
@@ -928,7 +947,14 @@ export default function AppealMockup({
               : appealHelper.getValue(row, "Audit Date");
 
             const auditDateObj = parseExcelDate(auditRaw);
-            const monthKey = getMonthKey(auditDateObj);
+            const monthStartRaw = rawRow
+              ? rawHelper.getValue(rawRow, "Month Start")
+              : appealHelper.getValue(row, "Month Start");
+            const monthLabelRaw = rawRow
+              ? rawHelper.getValue(rawRow, "Month Label")
+              : appealHelper.getValue(row, "Month Label");
+            const monthDate = getReportingMonthDate(monthStartRaw, monthLabelRaw, auditDateObj);
+            const monthKey = getMonthKey(monthDate);
             const auditDate = formatDateOnly(auditRaw);
 
             const weekLabel = rawRow

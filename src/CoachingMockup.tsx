@@ -177,13 +177,26 @@ function scoreToGrade(score: number, monthKey: string): Grade {
   return "F";
 }
 
+function roundExcelLikeMinute(date: Date) {
+  const rounded = new Date(date.getTime());
+  const seconds = rounded.getSeconds();
+  const milliseconds = rounded.getMilliseconds();
+
+  if (seconds >= 30 || milliseconds >= 500) {
+    rounded.setMinutes(rounded.getMinutes() + 1);
+  }
+
+  rounded.setSeconds(0, 0);
+  return rounded;
+}
+
 function excelDateToJSDate(value: any): Date | null {
   if (!value && value !== 0) return null;
-  if (value instanceof Date) return value;
+  if (value instanceof Date) return roundExcelLikeMinute(value);
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-    return new Date(parsed.y, parsed.m - 1, parsed.d);
+    return roundExcelLikeMinute(new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
   }
 
   const text = String(value ?? "").trim();
@@ -194,11 +207,11 @@ function excelDateToJSDate(value: any): Date | null {
   );
   if (ddmmyyyyMatch) {
     const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
-    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+    return roundExcelLikeMinute(new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)));
   }
 
   const asDate = new Date(value);
-  if (!Number.isNaN(asDate.getTime())) return asDate;
+  if (!Number.isNaN(asDate.getTime())) return roundExcelLikeMinute(asDate);
   return null;
 }
 
@@ -224,6 +237,30 @@ function getMonthLabel(date: Date | null) {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+function parseMonthLabelDate(value: any): Date | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const parsedDate = excelDateToJSDate(value);
+  if (parsedDate) return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
+
+  const match = text.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return null;
+
+  const monthIndex = new Date(`${match[1]} 1, ${match[2]}`).getMonth();
+  if (Number.isNaN(monthIndex)) return null;
+  return new Date(Number(match[2]), monthIndex, 1);
+}
+
+function getReportingMonthDate(monthStartRaw: any, monthLabelRaw: any, fallbackDate: Date | null) {
+  return parseMonthLabelDate(monthLabelRaw) || excelDateToJSDate(monthStartRaw) || fallbackDate;
+}
+
+function getReportingMonthLabel(monthLabelRaw: any, monthDate: Date | null) {
+  const label = String(monthLabelRaw ?? "").trim();
+  return label || getMonthLabel(monthDate);
 }
 
 function buildHeaderHelpers(headerRow: any[]) {
@@ -1033,7 +1070,12 @@ export default function CoachingMockup({
 
             const auditDateRaw = rawHelper.getValue(row, "Audit Date");
             const auditDateObj = excelDateToJSDate(auditDateRaw);
-            const monthKey = getMonthKey(auditDateObj);
+            const monthDate = getReportingMonthDate(
+              rawHelper.getValue(row, "Month Start"),
+              rawHelper.getValue(row, "Month Label"),
+              auditDateObj
+            );
+            const monthKey = getMonthKey(monthDate);
 
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
@@ -1044,7 +1086,7 @@ export default function CoachingMockup({
               auditDate: formatAuditDate(auditDateRaw),
               auditDateObj,
               monthKey,
-              monthLabel: getMonthLabel(auditDateObj),
+              monthLabel: getReportingMonthLabel(rawHelper.getValue(row, "Month Label"), monthDate),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               inquiryTh: inquiry ? String(inquiry).trim() : "-",

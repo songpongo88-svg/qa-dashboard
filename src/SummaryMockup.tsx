@@ -212,13 +212,30 @@ function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
   return selectedMonthKey >= hideFromMonth;
 }
 
+function roundExcelLikeMinute(date: Date) {
+  const rounded = new Date(date.getTime());
+  const seconds = rounded.getSeconds();
+  const milliseconds = rounded.getMilliseconds();
+
+  if (seconds >= 30 || milliseconds >= 500) {
+    rounded.setMinutes(rounded.getMinutes() + 1);
+  }
+
+  rounded.setSeconds(0, 0);
+  return rounded;
+}
+
 function excelDateToJSDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return roundExcelLikeMinute(value);
+  }
 
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-    return new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
+    return roundExcelLikeMinute(new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0));
   }
 
   const text = String(value).trim();
@@ -227,12 +244,12 @@ function excelDateToJSDate(value: any): Date | null {
   const ddmmyyyyMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (ddmmyyyyMatch) {
     const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
-    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+    return roundExcelLikeMinute(new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)));
   }
 
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
-    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), parsed.getHours(), parsed.getMinutes(), parsed.getSeconds());
+    return roundExcelLikeMinute(new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), parsed.getHours(), parsed.getMinutes(), parsed.getSeconds()));
   }
   return null;
 }
@@ -254,6 +271,30 @@ function getMonthKey(date: Date | null) {
 function getMonthLabel(date: Date | null) {
   if (!date) return "Unknown";
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+}
+
+function parseMonthLabelDate(value: any): Date | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const parsedDate = excelDateToJSDate(value);
+  if (parsedDate) return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
+
+  const match = text.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return null;
+
+  const monthIndex = new Date(`${match[1]} 1, ${match[2]}`).getMonth();
+  if (Number.isNaN(monthIndex)) return null;
+  return new Date(Number(match[2]), monthIndex, 1);
+}
+
+function getReportingMonthDate(monthStartRaw: any, monthLabelRaw: any, fallbackDate: Date | null) {
+  return parseMonthLabelDate(monthLabelRaw) || excelDateToJSDate(monthStartRaw) || fallbackDate;
+}
+
+function getReportingMonthLabel(monthLabelRaw: any, monthDate: Date | null) {
+  const label = String(monthLabelRaw ?? "").trim();
+  return label || getMonthLabel(monthDate);
 }
 
 function getYearKey(date: Date | null) {
@@ -760,8 +801,13 @@ export default function SummaryMockup({
 
           const auditRaw = rawHelper.getValue(row, "Audit Date");
           const auditDateObj = excelDateToJSDate(auditRaw);
-          const monthKey = getMonthKey(auditDateObj);
-          const monthLabel = getMonthLabel(auditDateObj);
+          const monthDate = getReportingMonthDate(
+            rawHelper.getValue(row, "Month Start"),
+            rawHelper.getValue(row, "Month Label"),
+            auditDateObj
+          );
+          const monthKey = getMonthKey(monthDate);
+          const monthLabel = getReportingMonthLabel(rawHelper.getValue(row, "Month Label"), monthDate);
           const yearKey = getYearKey(auditDateObj);
           const weekLabel = String(rawHelper.getValue(row, "Week") || rawHelper.getValue(row, "Week Label") || "-").trim();
           const inquiry = String(rawHelper.getValue(row, "Inquiry") || rawHelper.getValue(row, "Customer Inquiry") || "-").trim();

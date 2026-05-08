@@ -336,31 +336,44 @@ function reviewTone(reviewStatus: ReviewStatus) {
     : "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function roundExcelLikeMinute(date: Date) {
+  const rounded = new Date(date.getTime());
+  const seconds = rounded.getSeconds();
+  const milliseconds = rounded.getMilliseconds();
+
+  if (seconds >= 30 || milliseconds >= 500) {
+    rounded.setMinutes(rounded.getMinutes() + 1);
+  }
+
+  rounded.setSeconds(0, 0);
+  return rounded;
+}
+
 function excelDateToJSDate(value: any): Date | null {
   if (value === null || value === undefined || value === "") return null;
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return new Date(
+    return roundExcelLikeMinute(new Date(
       value.getFullYear(),
       value.getMonth(),
       value.getDate(),
       value.getHours(),
       value.getMinutes(),
       value.getSeconds()
-    );
+    ));
   }
 
   if (typeof value === "number") {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return null;
-    return new Date(
+    return roundExcelLikeMinute(new Date(
       parsed.y,
       parsed.m - 1,
       parsed.d,
       parsed.H || 0,
       parsed.M || 0,
       parsed.S || 0
-    );
+    ));
   }
 
   const text = String(value).trim();
@@ -371,19 +384,19 @@ function excelDateToJSDate(value: any): Date | null {
   );
   if (ddmmyyyyMatch) {
     const [, d, m, y, hh = "0", mm = "0", ss = "0"] = ddmmyyyyMatch;
-    return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+    return roundExcelLikeMinute(new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)));
   }
 
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
-    return new Date(
+    return roundExcelLikeMinute(new Date(
       parsed.getFullYear(),
       parsed.getMonth(),
       parsed.getDate(),
       parsed.getHours(),
       parsed.getMinutes(),
       parsed.getSeconds()
-    );
+    ));
   }
 
   return null;
@@ -543,6 +556,30 @@ function getMonthLabel(date: Date | null) {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+function parseMonthLabelDate(value: any): Date | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const parsedDate = excelDateToJSDate(value);
+  if (parsedDate) return new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1);
+
+  const match = text.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (!match) return null;
+
+  const monthIndex = new Date(`${match[1]} 1, ${match[2]}`).getMonth();
+  if (Number.isNaN(monthIndex)) return null;
+  return new Date(Number(match[2]), monthIndex, 1);
+}
+
+function getReportingMonthDate(monthStartRaw: any, monthLabelRaw: any, fallbackDate: Date | null) {
+  return parseMonthLabelDate(monthLabelRaw) || excelDateToJSDate(monthStartRaw) || fallbackDate;
+}
+
+function getReportingMonthLabel(monthLabelRaw: any, monthDate: Date | null) {
+  const label = String(monthLabelRaw ?? "").trim();
+  return label || getMonthLabel(monthDate);
 }
 
 function formatAuditDateExact(value: any): string {
@@ -2991,7 +3028,12 @@ export default function DashboardMockup({
           const rawCaseId = String(rawHelper.getValue(row, "Case ID") ?? "").trim();
           if (!rawCaseId) return;
           const auditRaw = rawHelper.getValue(row, "Audit Date");
-          const monthKey = getMonthKey(excelDateToJSDate(auditRaw));
+          const monthDate = getReportingMonthDate(
+            rawHelper.getValue(row, "Month Start"),
+            rawHelper.getValue(row, "Month Label"),
+            excelDateToJSDate(auditRaw)
+          );
+          const monthKey = getMonthKey(monthDate);
           rawCaseMonthKeyMap.set(rawCaseId, monthKey);
         });
 
@@ -3123,7 +3165,12 @@ export default function DashboardMockup({
             const timestampRaw =
               getFirstAvailableHeaderValue(rawHelper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
             const auditDateObj = excelDateToJSDate(auditRaw);
-            const monthKey = getMonthKey(auditDateObj);
+            const monthDate = getReportingMonthDate(
+              rawHelper.getValue(row, "Month Start"),
+              rawHelper.getValue(row, "Month Label"),
+              auditDateObj
+            );
+            const monthKey = getMonthKey(monthDate);
             const topicMaster = getTopicMasterByMonth(monthKey);
 
             const topics: Topic[] = topicMaster.map((topic) => {
@@ -3251,7 +3298,7 @@ export default function DashboardMockup({
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(timestampRaw),
               monthKey,
-              monthLabel: getMonthLabel(auditDateObj),
+              monthLabel: getReportingMonthLabel(rawHelper.getValue(row, "Month Label"), monthDate),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
