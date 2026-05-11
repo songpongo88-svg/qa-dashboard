@@ -1107,6 +1107,24 @@ function AppealRevisionHistory({
 }
 
 function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
+  const topicRows = [
+    {
+      label: "Appeal Reason",
+      tone: "text-amber-700",
+      getValue: (topic: Topic) => sanitizeDisplayText(topic.appealReason, "-"),
+    },
+    {
+      label: "Original Comment",
+      tone: "text-slate-600",
+      getValue: (topic: Topic) => sanitizeDisplayText(topic.originalComment, "No evaluation comment"),
+    },
+    {
+      label: "Revised Comment",
+      tone: "text-violet-700",
+      getValue: (topic: Topic) => sanitizeDisplayText(topic.comment, "No revised comment"),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       {topics.length ? (
@@ -1116,90 +1134,51 @@ function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
           const diff = revisedScore - originalScore;
           const statusTone = topicScoreStatusTone(originalScore, revisedScore);
           const pct = topic.max > 0 ? (revisedScore / topic.max) * 100 : 0;
-          const performance =
-            pct >= 90 ? "Excellent" : pct >= 80 ? "Good" : pct >= 60 ? "Fair" : "Need Improvement";
-          const performanceClass =
-            pct >= 90
-              ? "text-emerald-700"
-              : pct >= 80
-                ? "text-sky-700"
-                : pct >= 60
-                  ? "text-amber-700"
-                  : "text-rose-700";
 
           return (
             <article
               key={`${topic.code}-${index}`}
-              className="grid gap-4 rounded-[26px] border border-slate-200 bg-white px-5 py-5 shadow-[0_14px_32px_rgba(15,23,42,0.05)] lg:grid-cols-[44px_minmax(0,1fr)_220px]"
+              className="rounded-[22px] border border-slate-200 bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-extrabold text-white">
-                {index + 1}
-              </div>
-
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-extrabold text-slate-700">
-                    {topic.code}
-                  </span>
-                  <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">
-                    1. Appeal Reason
+              <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-extrabold text-white">
+                    {index + 1}
                   </div>
-                  <div className="mt-2 whitespace-pre-line text-sm leading-6 text-amber-950">
-                    {sanitizeDisplayText(topic.appealReason, "-")}
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-3 xl:grid-cols-2">
-                  <div className="min-h-[150px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                      2. Original Comment
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-extrabold text-slate-700">
+                        {topic.code}
+                      </span>
+                      <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
                     </div>
-                    <div className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-800">
-                      {sanitizeDisplayText(topic.originalComment, "No evaluation comment")}
-                    </div>
-                  </div>
-
-                  <div className="min-h-[150px] rounded-2xl border border-violet-200 bg-violet-50/80 px-4 py-3">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">
-                      3. Revised Comment
-                    </div>
-                    <div className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-900">
-                      {sanitizeDisplayText(topic.comment, "No revised comment")}
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      Original {originalScore}/{topic.max} to Revised {revisedScore}/{topic.max}
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <aside className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 lg:self-start">
-                <div className={`text-sm font-extrabold ${performanceClass}`}>{performance}</div>
-                <div className="mt-4 space-y-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">Original</span>
-                    <span className="font-extrabold text-slate-950">
-                      {originalScore}/{topic.max}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">Revised</span>
-                    <span className="font-extrabold text-violet-700">
-                      {revisedScore}/{topic.max}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">Avg %</span>
-                    <span className="font-extrabold text-slate-950">{pct.toFixed(1)}%</span>
-                  </div>
-                </div>
-                <div className="mt-5">
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  <span className="text-sm font-extrabold text-slate-950">{pct.toFixed(1)}%</span>
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusTone.className}`}>
                     {diff === 0 ? "No score change" : `${diff > 0 ? "+" : ""}${diff} ${statusTone.label}`}
                   </span>
                 </div>
-              </aside>
+              </div>
+
+              <div className="divide-y divide-slate-200">
+                {topicRows.map((row, rowIndex) => (
+                  <div
+                    key={row.label}
+                    className="grid gap-2 py-4 text-sm lg:grid-cols-[190px_minmax(0,1fr)]"
+                  >
+                    <div className={`font-extrabold uppercase tracking-[0.12em] ${row.tone}`}>
+                      {rowIndex + 1}. {row.label}
+                    </div>
+                    <div className="whitespace-pre-line leading-7 text-slate-800">{row.getValue(topic)}</div>
+                  </div>
+                ))}
+              </div>
             </article>
           );
         })
