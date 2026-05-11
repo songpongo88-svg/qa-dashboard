@@ -941,7 +941,15 @@ function AppealedTopicsCaseDetailTable({
   );
 }
 
-function AppealRevisionHistory({ revisions }: { revisions: AppealRevisionItem[] }) {
+function AppealRevisionHistory({
+  revisions,
+  activeRound,
+  onSelectRound,
+}: {
+  revisions: AppealRevisionItem[];
+  activeRound: number;
+  onSelectRound: (round: number) => void;
+}) {
   if (revisions.length <= 1) return null;
 
   return (
@@ -957,10 +965,16 @@ function AppealRevisionHistory({ revisions }: { revisions: AppealRevisionItem[] 
             const changedCodes = revision.changedTopics.map((topic) => topic.code).join(", ");
 
             return (
-              <div
+              <button
+                type="button"
                 key={`${revision.appealRound}-${revision.finalScore}-${index}`}
-                className={`rounded-[24px] border px-5 py-4 ${
-                  isLatest ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"
+                onClick={() => onSelectRound(revision.appealRound)}
+                className={`w-full rounded-[24px] border px-5 py-4 text-left transition ${
+                  revision.appealRound === activeRound
+                    ? "border-violet-500 bg-violet-100 shadow-[0_10px_24px_rgba(109,40,217,0.10)]"
+                    : isLatest
+                      ? "border-violet-300 bg-violet-50 hover:border-violet-400"
+                      : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/60"
                 }`}
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1016,7 +1030,7 @@ function AppealRevisionHistory({ revisions }: { revisions: AppealRevisionItem[] 
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -1040,6 +1054,7 @@ export default function AppealMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedCaseKey, setSelectedCaseKey] = useState("");
+  const [selectedAppealRound, setSelectedAppealRound] = useState<number | null>(null);
   const [searchCaseId, setSearchCaseId] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState("all");
   const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
@@ -1493,14 +1508,23 @@ export default function AppealMockup({
   }, [externalSelectedCaseId, filteredCases, selectedCaseKey]);
 
   const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || null;
+  const selectedRevision = selectedCase
+    ? selectedCase.rewriteHistory.find((item) => item.appealRound === selectedAppealRound) ||
+      selectedCase.rewriteHistory[selectedCase.rewriteHistory.length - 1] ||
+      toAppealRevision(selectedCase, selectedCase.appealRound || 1)
+    : null;
+
+  useEffect(() => {
+    setSelectedAppealRound(null);
+  }, [selectedCase?.key]);
 
   const selectedCaseUsesNewPolicy = selectedCase ? isNewPolicyMonth(selectedCase.monthKey) : false;
   const selectedCaseOriginalGrade = selectedCase
-    ? scoreToGrade(selectedCase.previousScore, selectedCase.monthKey)
+    ? scoreToGrade(selectedRevision?.previousScore ?? selectedCase.previousScore, selectedCase.monthKey)
     : null;
   const selectedCaseGradeShift =
-    selectedCase && selectedCaseOriginalGrade
-      ? gradeShiftTone(selectedCaseOriginalGrade, selectedCase.grade)
+    selectedCase && selectedRevision && selectedCaseOriginalGrade
+      ? gradeShiftTone(selectedCaseOriginalGrade, selectedRevision.grade)
       : null;
 
   const currentMonthDisplayLabel = formatMonthKeyLabel(selectedMonthKey);
@@ -1516,7 +1540,7 @@ export default function AppealMockup({
   };
 
   const handleGeneratePdf = async () => {
-    if (!selectedCase) return;
+    if (!selectedCase || !selectedRevision) return;
 
     const loadLogoDataUrl = async () => {
       try {
@@ -1546,10 +1570,10 @@ export default function AppealMockup({
     let y = 16;
 
     const selectedCaseOriginalGradeForPdf = scoreToGrade(
-      selectedCase.previousScore,
+      selectedRevision.previousScore,
       selectedCase.monthKey
     );
-    const scoreDelta = selectedCase.finalScore - selectedCase.previousScore;
+    const scoreDelta = selectedRevision.finalScore - selectedRevision.previousScore;
     const scoreDeltaText = `${scoreDelta > 0 ? "+" : ""}${scoreDelta.toFixed(2)}`;
     const generatedAtDisplay = formatDateTime(new Date());
     const generatedByDisplay = currentUser?.displayName || currentUser?.username || "-";
@@ -1831,17 +1855,18 @@ export default function AppealMockup({
     addKeyValue("Audit Date", selectedCase.auditDate || "-");
     addKeyValue("Week Label", selectedCase.weekLabel || "-");
     addKeyValue("Month", selectedCase.monthKey || "-");
-    addKeyValue("Original Score", selectedCase.previousScore.toFixed(2));
-    addKeyValue("Final Score", selectedCase.finalScore.toFixed(2));
+    addKeyValue("Rewrite Round", `ครั้งที่ ${selectedRevision.appealRound}`);
+    addKeyValue("Original Score", selectedRevision.previousScore.toFixed(2));
+    addKeyValue("Final Score", selectedRevision.finalScore.toFixed(2));
     addKeyValue("Score Change", scoreDeltaText);
     addKeyValue("Original Grade", selectedCaseOriginalGradeForPdf);
-    addKeyValue("Final Grade", selectedCase.grade);
-    addKeyValue("Appealed Topics", `${selectedCase.appealedTopics.length} topic(s)`);
+    addKeyValue("Final Grade", selectedRevision.grade);
+    addKeyValue("Appealed Topics", `${selectedRevision.appealedTopics.length} topic(s)`);
 
     addSectionTitle("Appeal Timeline");
-    addKeyValue("Appeal Submit Date & Time", selectedCase.appealSubmitDateTime || "-", 58);
-    addKeyValue("Appeal Result Date & Time", selectedCase.appealResultDateTime || "-", 58);
-    addKeyValue("Appeal Channel", selectedCase.appealChannel || "-", 58);
+    addKeyValue("Appeal Submit Date & Time", selectedRevision.appealSubmitDateTime || "-", 58);
+    addKeyValue("Appeal Result Date & Time", selectedRevision.appealResultDateTime || "-", 58);
+    addKeyValue("Appeal Channel", selectedRevision.appealChannel || "-", 58);
     addKeyValue(
       "Grade Rule",
       selectedCaseUsesNewPolicy
@@ -1855,9 +1880,9 @@ export default function AppealMockup({
     addParagraph(selectedCase.inquiry || "-");
 
     addSectionTitle("Appeal Review Summary");
-    addParagraph(selectedCase.appealReviewSummary || "-");
+    addParagraph(selectedRevision.appealReviewSummary || "-");
 
-    const firstAppealedTopic = selectedCase.appealedTopics[0];
+    const firstAppealedTopic = selectedRevision.appealedTopics[0];
     const appealedTopicsHeaderHeight = 11;
     if (
       firstAppealedTopic &&
@@ -1868,10 +1893,10 @@ export default function AppealMockup({
     }
 
     addSectionTitle("Appealed Topics");
-    if (!selectedCase.appealedTopics.length) {
+    if (!selectedRevision.appealedTopics.length) {
       addParagraph("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
     } else {
-      selectedCase.appealedTopics.forEach((topic) => {
+      selectedRevision.appealedTopics.forEach((topic) => {
         addTopicBlock(topic);
       });
     }
@@ -2070,27 +2095,27 @@ export default function AppealMockup({
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <ScoreCard
                   title="Original Score"
-                  value={selectedCase.previousScore.toFixed(2)}
+                  value={(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)}
                   tone="border-slate-300 bg-slate-100 text-slate-900"
                 />
                 <ScoreCard
                   title="Final Score"
-                  value={selectedCase.finalScore.toFixed(2)}
+                  value={(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}
                   tone="border-violet-300 bg-violet-100 text-violet-900"
-                  sub={`${selectedCase.previousScore.toFixed(2)} → ${selectedCase.finalScore.toFixed(2)}`}
+                  sub={`${(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)} → ${(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}`}
                 />
                 <ScoreCard
                   title="Grade"
-                  value={selectedCase.grade}
-                  tone={gradeTone(selectedCase.grade)}
+                  value={selectedRevision?.grade ?? selectedCase.grade}
+                  tone={gradeTone(selectedRevision?.grade ?? selectedCase.grade)}
                   sub={
                     selectedCaseGradeShift
                       ? `${selectedCaseGradeShift.label} • ${
                           selectedCaseUsesNewPolicy ? "New Criteria" : "Previous Criteria"
                         }`
                       : selectedCaseUsesNewPolicy
-                        ? `${selectedCase.reviewStatus} • New Criteria`
-                        : `${selectedCase.reviewStatus} • Previous Criteria`
+                        ? `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • New Criteria`
+                        : `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • Previous Criteria`
                   }
                 />
               </div>
@@ -2144,7 +2169,7 @@ export default function AppealMockup({
                           Review Status
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
-                          {selectedCase.reviewStatus}
+                          {selectedRevision?.reviewStatus ?? selectedCase.reviewStatus}
                         </div>
                       </div>
 
@@ -2201,7 +2226,7 @@ export default function AppealMockup({
                         Appeal Submit Date & Time
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
-                        {sanitizeDisplayText(selectedCase.appealSubmitDateTime)}
+                        {sanitizeDisplayText(selectedRevision?.appealSubmitDateTime)}
                       </div>
                     </div>
 
@@ -2210,7 +2235,7 @@ export default function AppealMockup({
                         Appeal Result Date & Time
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
-                        {sanitizeDisplayText(selectedCase.appealResultDateTime)}
+                        {sanitizeDisplayText(selectedRevision?.appealResultDateTime)}
                       </div>
                     </div>
 
@@ -2219,7 +2244,7 @@ export default function AppealMockup({
                         Appeal Channel
                       </div>
                       <div className="mt-2 text-sm font-bold text-slate-900">
-                        {sanitizeDisplayText(selectedCase.appealChannel)}
+                        {sanitizeDisplayText(selectedRevision?.appealChannel)}
                       </div>
                     </div>
 
@@ -2251,7 +2276,11 @@ export default function AppealMockup({
                 </Panel>
               </div>
 
-              <AppealRevisionHistory revisions={selectedCase.rewriteHistory} />
+              <AppealRevisionHistory
+                revisions={selectedCase.rewriteHistory}
+                activeRound={selectedRevision?.appealRound ?? selectedCase.appealRound}
+                onSelectRound={setSelectedAppealRound}
+              />
 
               <Panel>
                 <PanelHeader
@@ -2259,7 +2288,7 @@ export default function AppealMockup({
                   subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
                 />
                 <PanelBody>
-                  {!selectedCase.appealedTopics.length ? (
+                  {!(selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length) ? (
                     <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                       ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
                     </div>
@@ -2271,7 +2300,7 @@ export default function AppealMockup({
                             Appealed Topics
                           </div>
                           <div className="mt-2 text-2xl font-extrabold text-slate-900">
-                            {selectedCase.appealedTopics.length}
+                            {selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length}
                           </div>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
@@ -2279,10 +2308,10 @@ export default function AppealMockup({
                             Score Flow
                           </div>
                           <div className="mt-2 text-lg font-extrabold text-slate-900">
-                            {selectedCase.previousScore.toFixed(2)}
+                            {(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)}
                             <span className="mx-2 text-slate-300">→</span>
                             <span className="text-violet-700">
-                              {selectedCase.finalScore.toFixed(2)}
+                              {(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}
                             </span>
                           </div>
                         </div>
@@ -2292,15 +2321,15 @@ export default function AppealMockup({
                           </div>
                           <div className="mt-2 flex items-center gap-2 text-sm font-extrabold text-slate-900">
                             <span
-                              className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedCaseOriginalGrade || selectedCase.grade)}`}
+                              className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedCaseOriginalGrade || selectedRevision?.grade || selectedCase.grade)}`}
                             >
-                              {selectedCaseOriginalGrade || selectedCase.grade}
+                              {selectedCaseOriginalGrade || selectedRevision?.grade || selectedCase.grade}
                             </span>
                             <span className="text-slate-300">→</span>
                             <span
-                              className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedCase.grade)}`}
+                              className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedRevision?.grade ?? selectedCase.grade)}`}
                             >
-                              {selectedCase.grade}
+                              {selectedRevision?.grade ?? selectedCase.grade}
                             </span>
                           </div>
                         </div>
@@ -2311,7 +2340,7 @@ export default function AppealMockup({
                           <div className="mt-2 text-sm font-bold text-violet-700">
                             {selectedCaseGradeShift
                               ? selectedCaseGradeShift.label
-                              : `${selectedCase.grade}`}
+                              : `${selectedRevision?.grade ?? selectedCase.grade}`}
                           </div>
                         </div>
                       </div>
@@ -2331,12 +2360,12 @@ export default function AppealMockup({
                             Appeal Review Summary
                           </div>
                           <div className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-800">
-                            {sanitizeDisplayText(selectedCase.appealReviewSummary)}
+                            {sanitizeDisplayText(selectedRevision?.appealReviewSummary)}
                           </div>
                         </div>
                       </div>
 
-                      <AppealedTopicsCaseDetailTable topics={selectedCase.appealedTopics} />
+                      <AppealedTopicsCaseDetailTable topics={selectedRevision?.appealedTopics ?? selectedCase.appealedTopics} />
                     </div>
                   )}
                 </PanelBody>
