@@ -1,20 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605111139",
-  "buildNumber": 2605111139,
-  "releaseLabel": "v1.0.0.2605111139",
-  "updatedAt": "11/05/2026 11:39:34",
+  "displayVersion": "1.0.0.2605111146",
+  "buildNumber": 2605111146,
+  "releaseLabel": "v1.0.0.2605111146",
+  "updatedAt": "11/05/2026 11:46:18",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f9446eeeb691e8395d539f59a081c5df941819b0",
-  "commitMessage": "Track appeal rewrite history",
+  "commitHash": "5edd4300df0c62bb5641c2828e228eadb34b0bc0",
+  "commitMessage": "Enable selectable appeal rewrite rounds",
   "changedFiles": [
     "public/build-meta.json",
-    "src/AppealMockup.tsx",
-    "src/CoachingMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx"
+    "src/AppealMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

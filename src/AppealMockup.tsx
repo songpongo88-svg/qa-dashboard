@@ -962,72 +962,119 @@ function AppealRevisionHistory({
         <div className="space-y-4">
           {revisions.map((revision, index) => {
             const isLatest = index === revisions.length - 1;
-            const changedCodes = revision.changedTopics.map((topic) => topic.code).join(", ");
+            const changedTopics = revision.changedTopics.length
+              ? revision.changedTopics
+              : revision.appealedTopics;
+            const scoreDelta = revision.finalScore - revision.previousScore;
+            const isActive = revision.appealRound === activeRound;
 
             return (
               <button
                 type="button"
                 key={`${revision.appealRound}-${revision.finalScore}-${index}`}
                 onClick={() => onSelectRound(revision.appealRound)}
-                className={`w-full rounded-[24px] border px-5 py-4 text-left transition ${
-                  revision.appealRound === activeRound
-                    ? "border-violet-500 bg-violet-100 shadow-[0_10px_24px_rgba(109,40,217,0.10)]"
+                className={`group relative w-full overflow-hidden rounded-[28px] border px-5 py-5 text-left transition ${
+                  isActive
+                    ? "border-violet-500 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 shadow-[0_18px_44px_rgba(109,40,217,0.16)]"
                     : isLatest
-                      ? "border-violet-300 bg-violet-50 hover:border-violet-400"
-                      : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/60"
+                      ? "border-violet-200 bg-white hover:border-violet-400 hover:bg-violet-50/70"
+                      : "border-slate-200 bg-white hover:border-violet-300 hover:bg-slate-50"
                 }`}
               >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-extrabold text-slate-900">
-                        ครั้งที่ {revision.appealRound}
+                <div
+                  className={`absolute inset-y-0 left-0 w-1.5 ${
+                    isActive ? "bg-violet-600" : isLatest ? "bg-fuchsia-400" : "bg-slate-200"
+                  }`}
+                />
+
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-extrabold ${
+                          isActive
+                            ? "bg-violet-700 text-white"
+                            : "bg-slate-100 text-slate-700 group-hover:bg-violet-100 group-hover:text-violet-700"
+                        }`}
+                      >
+                        {revision.appealRound}
                       </span>
+                      <div>
+                        <div className="text-sm font-extrabold text-slate-950">
+                          Rewrite ครั้งที่ {revision.appealRound}
+                        </div>
+                        <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {sanitizeDisplayText(revision.appealVersion, "No Version")}
+                        </div>
+                      </div>
                       {isLatest ? (
-                        <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-bold text-violet-700">
+                        <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700">
                           Latest
                         </span>
                       ) : null}
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                        {sanitizeDisplayText(revision.appealVersion, "-")}
-                      </span>
                     </div>
-                    <div className="mt-2 text-xs leading-5 text-slate-500">
-                      Submit: {sanitizeDisplayText(revision.appealSubmitDateTime)} | Result:{" "}
-                      {sanitizeDisplayText(revision.appealResultDateTime)}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {changedTopics.length ? (
+                        changedTopics.map((topic) => (
+                          <span
+                            key={`${revision.appealRound}-${topic.code}`}
+                            className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700"
+                          >
+                            {topic.code}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                          No topic changes
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
-                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700">
-                      {revision.previousScore.toFixed(2)}
-                    </span>
-                    <span className="text-slate-400">→</span>
-                    <span className="rounded-full border border-violet-200 bg-white px-3 py-1 text-violet-700">
-                      {revision.finalScore.toFixed(2)}
-                    </span>
-                    <span className={`rounded-full border px-3 py-1 ${gradeTone(revision.grade)}`}>
-                      {revision.grade}
-                    </span>
+                  <div className="grid shrink-0 gap-2 text-sm sm:grid-cols-3 lg:min-w-[360px]">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Score
+                      </div>
+                      <div className="mt-1 whitespace-nowrap font-extrabold text-slate-900">
+                        {revision.previousScore.toFixed(2)}
+                        <span className="mx-1.5 text-slate-300">→</span>
+                        <span className="text-violet-700">{revision.finalScore.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Change
+                      </div>
+                      <div className={`mt-1 font-extrabold ${scoreDelta >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                        {scoreDelta > 0 ? "+" : ""}
+                        {scoreDelta.toFixed(2)}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Grade
+                      </div>
+                      <div className="mt-1">
+                        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-extrabold ${gradeTone(revision.grade)}`}>
+                          {revision.grade}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      Changed Topics
-                    </div>
-                    <div className="mt-1 font-semibold text-slate-900">
-                      {changedCodes || "No score change"}
-                    </div>
+                <div className="mt-4 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2">
+                    <span className="font-bold text-slate-600">Submit:</span>{" "}
+                    {sanitizeDisplayText(revision.appealSubmitDateTime)}
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      Summary
-                    </div>
-                    <div className="mt-1 line-clamp-2 text-slate-800">
-                      {sanitizeDisplayText(revision.appealReviewSummary, "-")}
-                    </div>
+                  <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2">
+                    <span className="font-bold text-slate-600">Result:</span>{" "}
+                    {sanitizeDisplayText(revision.appealResultDateTime)}
                   </div>
                 </div>
               </button>
