@@ -20,6 +20,21 @@ type Topic = {
   changed?: boolean;
 };
 
+type AppealRevisionItem = {
+  appealRound: number;
+  appealVersion: string;
+  appealSubmitDateTime: string;
+  appealResultDateTime: string;
+  appealChannel: string;
+  appealReviewSummary: string;
+  previousScore: number;
+  finalScore: number;
+  grade: Grade;
+  reviewStatus: ReviewStatus;
+  appealedTopics: Topic[];
+  changedTopics: Topic[];
+};
+
 type AppealCaseItem = {
   key: string;
   caseId: string;
@@ -39,6 +54,11 @@ type AppealCaseItem = {
   appealChannel: string;
   appealReviewSummary: string;
   caseUrl?: string;
+  appealRound: number;
+  rewriteHistory: AppealRevisionItem[];
+  appealSourceIndex: number;
+  appealVersionRank: number;
+  appealTimestampRank: number;
   appealedTopics: Topic[];
   changedTopics: Topic[];
   allTopics: Topic[];
@@ -227,6 +247,113 @@ function buildHeaderHelpers(headerRow: any[]) {
   };
 
   return { getValue, getLastValue };
+}
+
+function getAppealVersionRank(value: any) {
+  const matches = String(value ?? "").match(/\d+/g);
+  return matches?.length ? Number(matches[matches.length - 1]) : -1;
+}
+
+function getAppealTimestampRank(helper: ReturnType<typeof buildHeaderHelpers>, row: any[]) {
+  const raw =
+    getFirstNonEmptyValue(helper, row, [
+      "Appeal Result Date & Time",
+      "Appeal Result Date",
+      "Timestamp",
+      "Created Date & Time",
+      "Created Date",
+    ]) ?? null;
+  return parseExcelDate(raw)?.getTime() ?? -1;
+}
+
+function getLatestAppealRows(appealDataRows: any[][], helper: ReturnType<typeof buildHeaderHelpers>) {
+  const latest = new Map<
+    string,
+    { row: any[]; index: number; versionRank: number; timestampRank: number }
+  >();
+
+  appealDataRows.forEach((row, index) => {
+    const caseId = String(helper.getValue(row, "Case ID") ?? "").trim();
+    if (!caseId) return;
+
+    const candidate = {
+      row,
+      index,
+      versionRank: Math.max(
+        getAppealVersionRank(helper.getValue(row, "Appeal Version")),
+        getAppealVersionRank(helper.getValue(row, "Version"))
+      ),
+      timestampRank: getAppealTimestampRank(helper, row),
+    };
+
+    const current = latest.get(caseId);
+    if (
+      !current ||
+      candidate.versionRank > current.versionRank ||
+      (candidate.versionRank === current.versionRank &&
+        candidate.timestampRank > current.timestampRank) ||
+      (candidate.versionRank === current.versionRank &&
+        candidate.timestampRank === current.timestampRank &&
+        candidate.index > current.index)
+    ) {
+      latest.set(caseId, candidate);
+    }
+  });
+
+  return [...latest.values()].sort((a, b) => a.index - b.index).map((item) => item.row);
+}
+
+function compareAppealCaseVersion(a: AppealCaseItem, b: AppealCaseItem) {
+  if (a.appealVersionRank !== b.appealVersionRank) {
+    return a.appealVersionRank - b.appealVersionRank;
+  }
+
+  if (a.appealTimestampRank !== b.appealTimestampRank) {
+    return a.appealTimestampRank - b.appealTimestampRank;
+  }
+
+  return a.appealSourceIndex - b.appealSourceIndex;
+}
+
+function toAppealRevision(item: AppealCaseItem, appealRound: number): AppealRevisionItem {
+  return {
+    appealRound,
+    appealVersion: item.appealVersion,
+    appealSubmitDateTime: item.appealSubmitDateTime,
+    appealResultDateTime: item.appealResultDateTime,
+    appealChannel: item.appealChannel,
+    appealReviewSummary: item.appealReviewSummary,
+    previousScore: item.previousScore,
+    finalScore: item.finalScore,
+    grade: item.grade,
+    reviewStatus: item.reviewStatus,
+    appealedTopics: item.appealedTopics,
+    changedTopics: item.changedTopics,
+  };
+}
+
+function collapseAppealRowsToLatest(mapped: AppealCaseItem[]) {
+  const grouped = new Map<string, AppealCaseItem[]>();
+
+  mapped.forEach((item) => {
+    const key = normalizeCaseId(item.caseId);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(item);
+  });
+
+  return [...grouped.values()]
+    .map((items) => {
+      const ordered = [...items].sort(compareAppealCaseVersion);
+      const rewriteHistory = ordered.map((item, index) => toAppealRevision(item, index + 1));
+      const latest = ordered[ordered.length - 1];
+
+      return {
+        ...latest,
+        appealRound: rewriteHistory.length,
+        rewriteHistory,
+      };
+    })
+    .sort((a, b) => a.appealSourceIndex - b.appealSourceIndex);
 }
 
 function getFirstNonEmptyValue(
@@ -647,13 +774,20 @@ function QuickCaseCard({
           </div>
         </div>
 
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
-            item.grade
-          )}`}
-        >
-          {item.grade}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+              item.grade
+            )}`}
+          >
+            {item.grade}
+          </span>
+          {item.rewriteHistory.length > 1 ? (
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+              {item.rewriteHistory.length} rewrites
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-3 line-clamp-2 text-[12px] leading-5 text-slate-700">
@@ -804,6 +938,90 @@ function AppealedTopicsCaseDetailTable({
         )}
       </div>
     </div>
+  );
+}
+
+function AppealRevisionHistory({ revisions }: { revisions: AppealRevisionItem[] }) {
+  if (revisions.length <= 1) return null;
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Rewrite History"
+        subtitle="ทุกครั้งที่มีการ rewrite ของเคสนี้ โดยคะแนนหลักด้านบนใช้ครั้งล่าสุด"
+      />
+      <PanelBody>
+        <div className="space-y-4">
+          {revisions.map((revision, index) => {
+            const isLatest = index === revisions.length - 1;
+            const changedCodes = revision.changedTopics.map((topic) => topic.code).join(", ");
+
+            return (
+              <div
+                key={`${revision.appealRound}-${revision.finalScore}-${index}`}
+                className={`rounded-[24px] border px-5 py-4 ${
+                  isLatest ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"
+                }`}
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-extrabold text-slate-900">
+                        ครั้งที่ {revision.appealRound}
+                      </span>
+                      {isLatest ? (
+                        <span className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-bold text-violet-700">
+                          Latest
+                        </span>
+                      ) : null}
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                        {sanitizeDisplayText(revision.appealVersion, "-")}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-xs leading-5 text-slate-500">
+                      Submit: {sanitizeDisplayText(revision.appealSubmitDateTime)} | Result:{" "}
+                      {sanitizeDisplayText(revision.appealResultDateTime)}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700">
+                      {revision.previousScore.toFixed(2)}
+                    </span>
+                    <span className="text-slate-400">→</span>
+                    <span className="rounded-full border border-violet-200 bg-white px-3 py-1 text-violet-700">
+                      {revision.finalScore.toFixed(2)}
+                    </span>
+                    <span className={`rounded-full border px-3 py-1 ${gradeTone(revision.grade)}`}>
+                      {revision.grade}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      Changed Topics
+                    </div>
+                    <div className="mt-1 font-semibold text-slate-900">
+                      {changedCodes || "No score change"}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      Summary
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-slate-800">
+                      {sanitizeDisplayText(revision.appealReviewSummary, "-")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -1142,6 +1360,14 @@ export default function AppealMockup({
               appealChannel: sanitizeDisplayText(appealChannelRaw, "-"),
               appealReviewSummary: sanitizeDisplayText(appealReviewSummaryRaw, "-"),
               caseUrl,
+              appealRound: 1,
+              rewriteHistory: [],
+              appealSourceIndex: index,
+              appealVersionRank: Math.max(
+                getAppealVersionRank(appealHelper.getValue(row, "Appeal Version")),
+                getAppealVersionRank(appealHelper.getValue(row, "Version"))
+              ),
+              appealTimestampRank: getAppealTimestampRank(appealHelper, row),
               appealedTopics,
               changedTopics,
               allTopics: topics,
@@ -1149,7 +1375,7 @@ export default function AppealMockup({
           })
           .filter(Boolean) as AppealCaseItem[];
 
-        setAllCases(mapped);
+        setAllCases(collapseAppealRowsToLatest(mapped));
       } catch (error: any) {
         console.error(error);
         setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
@@ -2024,6 +2250,8 @@ export default function AppealMockup({
                   </PanelBody>
                 </Panel>
               </div>
+
+              <AppealRevisionHistory revisions={selectedCase.rewriteHistory} />
 
               <Panel>
                 <PanelHeader

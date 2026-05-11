@@ -372,6 +372,58 @@ function buildHeaderHelpers(headerRow: any[]) {
   return { getValue };
 }
 
+function getAppealVersionRank(value: any) {
+  const matches = String(value ?? "").match(/\d+/g);
+  return matches?.length ? Number(matches[matches.length - 1]) : -1;
+}
+
+function getAppealTimestampRank(helper: ReturnType<typeof buildHeaderHelpers>, row: any[]) {
+  const raw =
+    helper.getValue(row, "Appeal Result Date & Time") ??
+    helper.getValue(row, "Appeal Result Date") ??
+    helper.getValue(row, "Timestamp") ??
+    helper.getValue(row, "Created Date & Time") ??
+    helper.getValue(row, "Created Date");
+  return excelDateToJSDate(raw)?.getTime() ?? -1;
+}
+
+function getLatestAppealRows(appealDataRows: any[][], helper: ReturnType<typeof buildHeaderHelpers>) {
+  const latest = new Map<
+    string,
+    { row: any[]; index: number; versionRank: number; timestampRank: number }
+  >();
+
+  appealDataRows.forEach((row, index) => {
+    const caseId = String(helper.getValue(row, "Case ID") ?? "").trim();
+    if (!caseId) return;
+
+    const candidate = {
+      row,
+      index,
+      versionRank: Math.max(
+        getAppealVersionRank(helper.getValue(row, "Appeal Version")),
+        getAppealVersionRank(helper.getValue(row, "Version"))
+      ),
+      timestampRank: getAppealTimestampRank(helper, row),
+    };
+
+    const current = latest.get(caseId);
+    if (
+      !current ||
+      candidate.versionRank > current.versionRank ||
+      (candidate.versionRank === current.versionRank &&
+        candidate.timestampRank > current.timestampRank) ||
+      (candidate.versionRank === current.versionRank &&
+        candidate.timestampRank === current.timestampRank &&
+        candidate.index > current.index)
+    ) {
+      latest.set(caseId, candidate);
+    }
+  });
+
+  return [...latest.values()].sort((a, b) => a.index - b.index).map((item) => item.row);
+}
+
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
   if (!revisedTopics?.length) return topics;
   const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
@@ -769,7 +821,7 @@ export default function SummaryMockup({
           const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
           const appealHelper = buildHeaderHelpers(appealHeaderRow);
 
-          appealDataRows.forEach((row: any[]) => {
+          getLatestAppealRows(appealDataRows, appealHelper).forEach((row: any[]) => {
             const caseId = String(appealHelper.getValue(row, "Case ID") || "").trim();
             if (!caseId) return;
 
