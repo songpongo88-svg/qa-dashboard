@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605111308",
-  "buildNumber": 2605111308,
-  "releaseLabel": "v1.0.0.2605111308",
-  "updatedAt": "11/05/2026 13:08:50",
+  "displayVersion": "1.0.0.2605111318",
+  "buildNumber": 2605111318,
+  "releaseLabel": "v1.0.0.2605111318",
+  "updatedAt": "11/05/2026 13:18:23",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "df1bfab89039875e0a447e97cdbd316ea289b3b5",
-  "commitMessage": "Simplify appealed topics detail layout",
+  "commitHash": "bc1258b484852049faf86bdf52b05b2bf7ffbac7",
+  "commitMessage": "Polish appealed topics score presentation",
   "changedFiles": [
     "public/build-meta.json",
     "src/AppealMockup.tsx"

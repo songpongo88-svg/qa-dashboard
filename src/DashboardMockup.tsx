@@ -1589,6 +1589,8 @@ function isPdfAssetUrl(url: string) {
 
 function getCasePdfActionLabel(url: string, caseId: string) {
   const lower = String(url || '').toLowerCase();
+  const revisedRoundMatch = lower.match(/-revised[_-](\d+)\.pdf(?:$|[?#])/);
+  if (revisedRoundMatch) return `${caseId} Revised PDF ${revisedRoundMatch[1]}`;
   if (lower.includes('-revised.pdf')) return `${caseId} Revised PDF`;
   if (lower.includes('-original.pdf')) return `${caseId} Original PDF`;
   if (lower.endsWith('.pdf')) return `${caseId} PDF`;
@@ -2009,6 +2011,9 @@ function SlideOverCaseDetail({
         (caseItem.caseId ? `/case-pdfs/${caseItem.caseId}-revised.pdf` : "")
     ),
   };
+  const revisedPdfRoundLinks = caseItem.caseId
+    ? [2, 3, 4, 5].map((round) => normalizeAssetUrl(`/case-pdfs/${caseItem.caseId}-revised_${round}.pdf`))
+    : [];
 
   const rawImageUrls = splitAssetUrls(caseItem.caseImageUrl || "");
   const normalizedImageUrls = rawImageUrls.map((url) => normalizeAssetUrl(url)).filter(Boolean);
@@ -2045,6 +2050,9 @@ function SlideOverCaseDetail({
         resolvedPdfLinks.revised
           ? { label: getCasePdfActionLabel(resolvedPdfLinks.revised, caseItem.caseId), url: resolvedPdfLinks.revised, tone: "violet" }
           : null,
+        ...revisedPdfRoundLinks.map((url) =>
+          url ? { label: getCasePdfActionLabel(url, caseItem.caseId), url, tone: "violet" } : null
+        ),
       ].filter(Boolean) as { label: string; url: string; tone: string }[];
 
       const checked = await Promise.all(
