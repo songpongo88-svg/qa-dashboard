@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605111146",
-  "buildNumber": 2605111146,
-  "releaseLabel": "v1.0.0.2605111146",
-  "updatedAt": "11/05/2026 11:46:18",
+  "displayVersion": "1.0.0.2605111156",
+  "buildNumber": 2605111156,
+  "releaseLabel": "v1.0.0.2605111156",
+  "updatedAt": "11/05/2026 11:56:01",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "5edd4300df0c62bb5641c2828e228eadb34b0bc0",
-  "commitMessage": "Enable selectable appeal rewrite rounds",
+  "commitHash": "abe8ccd8ed11d38a6fb28fa7e346fc8b8a911889",
+  "commitMessage": "Polish appeal rewrite history cards",
   "changedFiles": [
     "public/build-meta.json",
     "src/AppealMockup.tsx"
