@@ -1134,13 +1134,14 @@ function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
           const diff = revisedScore - originalScore;
           const statusTone = topicScoreStatusTone(originalScore, revisedScore);
           const pct = topic.max > 0 ? (revisedScore / topic.max) * 100 : 0;
+          const originalPct = topic.max > 0 ? (originalScore / topic.max) * 100 : 0;
 
           return (
             <article
               key={`${topic.code}-${index}`}
-              className="rounded-[22px] border border-slate-200 bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
+              className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
             >
-              <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-extrabold text-white">
                     {index + 1}
@@ -1152,21 +1153,28 @@ function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
                       </span>
                       <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
                     </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">
-                      Original {originalScore}/{topic.max} to Revised {revisedScore}/{topic.max}
-                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span className="text-sm font-extrabold text-slate-950">{pct.toFixed(1)}%</span>
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm lg:justify-end">
+                  <span className="font-bold text-slate-500">Score</span>
+                  <span className="font-extrabold text-slate-900">
+                    {originalScore}/{topic.max}
+                  </span>
+                  <span className="text-slate-300">to</span>
+                  <span className="font-extrabold text-violet-700">
+                    {revisedScore}/{topic.max}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600">
+                    {originalPct.toFixed(0)}% to {pct.toFixed(0)}%
+                  </span>
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusTone.className}`}>
                     {diff === 0 ? "No score change" : `${diff > 0 ? "+" : ""}${diff} ${statusTone.label}`}
                   </span>
                 </div>
               </div>
 
-              <div className="divide-y divide-slate-200">
+              <div className="divide-y divide-slate-200 px-5">
                 {topicRows.map((row, rowIndex) => (
                   <div
                     key={row.label}
@@ -2446,16 +2454,16 @@ export default function AppealMockup({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="grid gap-4 lg:grid-cols-4">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                      <div className="grid gap-3 rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.04)] lg:grid-cols-[0.8fr_1fr_1fr_1.1fr]">
+                        <div className="rounded-2xl bg-slate-50 px-4 py-4">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                             Appealed Topics
                           </div>
-                          <div className="mt-2 text-2xl font-extrabold text-slate-900">
+                          <div className="mt-2 text-3xl font-extrabold text-slate-950">
                             {selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length}
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="rounded-2xl bg-slate-50 px-4 py-4">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                             Score Flow
                           </div>
@@ -2467,7 +2475,7 @@ export default function AppealMockup({
                             </span>
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="rounded-2xl bg-slate-50 px-4 py-4">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                             Grade Flow
                           </div>
@@ -2485,11 +2493,11 @@ export default function AppealMockup({
                             </span>
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                        <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white px-4 py-4">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
                             Grade Result
                           </div>
-                          <div className="mt-2 text-sm font-bold text-violet-700">
+                          <div className="mt-2 text-sm font-extrabold text-violet-700">
                             {selectedCaseGradeShift
                               ? selectedCaseGradeShift.label
                               : `${selectedRevision?.grade ?? selectedCase.grade}`}
@@ -2498,7 +2506,7 @@ export default function AppealMockup({
                       </div>
 
                       <div className="grid gap-4 xl:grid-cols-2">
-                        <div className="rounded-2xl border border-violet-100 bg-white px-4 py-4">
+                        <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.035)]">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
                             Customer Inquiry
                           </div>
@@ -2507,7 +2515,7 @@ export default function AppealMockup({
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
+                        <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 to-white px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-700">
                             Appeal Review Summary
                           </div>
