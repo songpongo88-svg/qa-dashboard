@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605111752",
-  "buildNumber": 2605111752,
-  "releaseLabel": "v1.0.0.2605111752",
-  "updatedAt": "11/05/2026 17:52:40",
+  "displayVersion": "1.0.0.2605111753",
+  "buildNumber": 2605111753,
+  "releaseLabel": "v1.0.0.2605111753",
+  "updatedAt": "11/05/2026 17:53:45",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2130ea136ba60a7c7cd9f95ef774101f98bc0b30",
-  "commitMessage": "Add second revised PDF support",
+  "commitHash": "08a569068c1dfba93a23944f1aa2b6be7450eb8b",
+  "commitMessage": "Append new QA raw data cases",
   "changedFiles": [
-    "public/build-meta.json",
-    "public/case-pdfs/AA218621-revised_2.pdf",
-    "src/DashboardMockup.tsx"
+    "public/QA_RawData1.xlsx",
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
