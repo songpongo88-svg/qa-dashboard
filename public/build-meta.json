@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605111318",
-  "buildNumber": 2605111318,
-  "releaseLabel": "v1.0.0.2605111318",
-  "updatedAt": "11/05/2026 13:18:23",
+  "displayVersion": "1.0.0.2605111752",
+  "buildNumber": 2605111752,
+  "releaseLabel": "v1.0.0.2605111752",
+  "updatedAt": "11/05/2026 17:52:40",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "bc1258b484852049faf86bdf52b05b2bf7ffbac7",
-  "commitMessage": "Polish appealed topics score presentation",
+  "commitHash": "2130ea136ba60a7c7cd9f95ef774101f98bc0b30",
+  "commitMessage": "Add second revised PDF support",
   "changedFiles": [
     "public/build-meta.json",
-    "src/AppealMockup.tsx"
+    "public/case-pdfs/AA218621-revised_2.pdf",
+    "src/DashboardMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
