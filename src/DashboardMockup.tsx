@@ -25,6 +25,7 @@ type CaseItem = {
   monthLabel: string;
   weekLabel: string;
   caseId: string;
+  rawDataSourceName?: string;
   caseUrl?: string;
   waitingTime?: string;
   serviceTime?: string;
@@ -76,6 +77,7 @@ type IncentiveResult = {
 };
 
 const CASE_TARGET = 10;
+const RAW_DATA_FILE_NAME = "QA_RawData1.xlsx";
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -1038,6 +1040,9 @@ function CaseNavigatorCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
+          <div className="mt-1 truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500">
+            RawData: {item.rawDataSourceName || RAW_DATA_FILE_NAME}
+          </div>
           <div className="mt-2">
             <span
               className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
@@ -2572,6 +2577,7 @@ function SlideOverCaseDetail({
           { label: "Generated At", value: generatedAtDisplay },
           { label: "Audit Date", value: caseItem.auditDate || "-" },
           { label: "Audit Timestamp", value: caseItem.auditTimestamp || "-" },
+          { label: "RawData File", value: caseItem.rawDataSourceName || RAW_DATA_FILE_NAME },
           { label: "Month", value: caseItem.monthLabel || caseItem.monthKey || "-" },
           { label: "Week", value: caseItem.weekLabel || "-" },
           {
@@ -2768,6 +2774,7 @@ function SlideOverCaseDetail({
                         { label: "Agent", value: caseItem.agent || "-" },
                         { label: "Audit Date", value: caseItem.auditDate || "-" },
                         { label: "Timestamp", value: caseItem.auditTimestamp || "-" },
+                        { label: "RawData File", value: caseItem.rawDataSourceName || RAW_DATA_FILE_NAME },
                         {
                           label: "Waiting Time / Service Time",
                           value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
@@ -3027,7 +3034,7 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const rawResponse = await fetch("/QA_RawData1.xlsx");
+        const rawResponse = await fetch(`/${RAW_DATA_FILE_NAME}`);
         const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
           "/Appleal ROWDATA.xlsx",
           "/Appeal ROWDATA.xlsx",
@@ -3035,7 +3042,7 @@ export default function DashboardMockup({
         ]);
 
         if (!rawResponse.ok) {
-          throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+          throw new Error(`ไม่พบไฟล์ ${RAW_DATA_FILE_NAME} ในโฟลเดอร์ public`);
         }
 
         const rawBuffer = await rawResponse.arrayBuffer();
@@ -3059,7 +3066,7 @@ export default function DashboardMockup({
         })();
 
         if (rawHeaderIndex === -1) {
-          throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
+          throw new Error(`ไม่พบแถว Header ในไฟล์ ${RAW_DATA_FILE_NAME}`);
         }
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
@@ -3283,6 +3290,18 @@ export default function DashboardMockup({
               "URL",
             ], "");
 
+            const rawDataSourceName = String(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "RawData File",
+                "Raw Data File",
+                "RawData Source",
+                "Raw Data Source",
+                "Source File",
+                "Source Filename",
+                "File Name",
+              ], RAW_DATA_FILE_NAME)
+            ).trim() || RAW_DATA_FILE_NAME;
+
             const waitingTime = formatTimeOnly(
               getFirstAvailableHeaderValue(rawHelper, row, ["Waiting Time", "WaitingTime"], "")
             );
@@ -3363,6 +3382,7 @@ export default function DashboardMockup({
               monthLabel: getReportingMonthLabel(rawHelper.getValue(row, "Month Label"), monthDate),
               weekLabel: String(weekLabel || "-").trim(),
               caseId,
+              rawDataSourceName,
               caseUrl: caseUrl ? String(caseUrl).trim() : "",
               waitingTime,
               serviceTime,
