@@ -158,6 +158,33 @@ function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
   return selectedMonthKey >= hideFromMonth;
 }
 
+function summarizeCaseInquiry(value: string) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "ไม่พบรายละเอียดคำถามของลูกค้า";
+  return text.length > 150 ? `${text.slice(0, 150)}...` : text;
+}
+
+function buildTopicEvidenceNote(topic: Topic) {
+  const guide = getCoachingGuide(topic.code);
+  const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${topic.max}`;
+  const comment = String(topic.comment || "").replace(/\s+/g, " ").trim();
+  const shortComment = comment
+    ? comment.length > 180
+      ? `${comment.slice(0, 180)}...`
+      : comment
+    : "";
+
+  return {
+    code: topic.code,
+    label: topic.label,
+    scoreText,
+    pct: Number(topic.pct || 0),
+    issueLine: shortComment || guide.issue,
+    improveLine: guide.guidance[0] || guide.target,
+    talkTrack: guide.example,
+  };
+}
+
 function isNewPolicyMonth(monthKey: string) {
   return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
 }
@@ -1571,16 +1598,16 @@ export default function CoachingMockup({
             ? mergeTopicSet(item.topics, item.revisedTopics)
             : item.topics;
 
-        const issues = mergedTopics
+        const evidenceTopics = mergedTopics
           .filter((topic) => focusCodes.has(topic.code) && topic.pct < 80)
-          .map((topic) => `${topic.code} ${topic.label}`);
+          .map(buildTopicEvidenceNote);
 
         return {
           ...item,
-          issues,
+          evidenceTopics,
         };
       })
-      .filter((item) => item.issues.length > 0)
+      .filter((item) => item.evidenceTopics.length > 0)
       .sort((a, b) => a.finalScore - b.finalScore);
   }, [agentCases, focusTopics]);
 
@@ -2124,63 +2151,97 @@ export default function CoachingMockup({
 
             <Panel>
               <PanelHeader
-                title="เคสตัวอย่างที่ควรหยิบมาคุย"
-                subtitle="เคสจริงที่มีหัวข้อคะแนนต่ำ ใช้เป็นหลักฐานตอน coaching"
+                title="ตัวอย่างเคสที่ควรหยิบมาคุย"
+                subtitle="สรุปให้เห็นภาพว่าเคสพูดเรื่องอะไร พลาดตรงไหน และควรปรับอย่างไร"
               />
-              <PanelBody className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="min-w-[1100px] w-full text-sm">
-                    <thead>
-                      <tr className="bg-violet-950 text-[11px] text-white">
-                        <th className="px-4 py-3 text-left">วันที่ Audit</th>
-                        <th className="px-4 py-3 text-left">Case ID</th>
-                        <th className="px-4 py-3 text-left">สิ่งที่ลูกค้าถาม</th>
-                        <th className="px-4 py-3 text-center">คะแนน</th>
-                        <th className="px-4 py-3 text-center">Grade</th>
-                        <th className="px-4 py-3 text-left">หัวข้อที่ควรคุย</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {caseEvidenceRows.length ? (
-                        caseEvidenceRows.map((item) => (
-                          <tr key={item.key} className="bg-white">
-                            <td className="border-t border-slate-200 px-4 py-3">{item.auditDate}</td>
-                            <td className="border-t border-slate-200 px-4 py-3 font-semibold text-violet-700">
+              <PanelBody className="space-y-4">
+                {caseEvidenceRows.length ? (
+                  caseEvidenceRows.slice(0, 8).map((item) => (
+                    <div
+                      key={item.key}
+                      className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-sm"
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
                               {item.caseId}
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                              {item.inquiryTh}
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-center">
-                              {item.finalScore.toFixed(2)}
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-center">
-                              <span
-                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(
-                                  item.grade
-                                )}`}
-                              >
-                                {item.grade}
-                              </span>
-                            </td>
-                            <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                              {item.issues.join(", ")}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={6}
-                            className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
+                            </span>
+                            <span className="text-xs font-semibold text-slate-500">
+                              Audit {item.auditDate}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-sm leading-6 text-slate-700">
+                            <span className="font-bold text-slate-900">เคสนี้พูดเรื่อง:</span>{" "}
+                            {summarizeCaseInquiry(item.inquiryTh || item.inquiryEn)}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">
+                            Score {item.finalScore.toFixed(2)}
+                          </span>
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${getGradeTone(
+                              item.grade
+                            )}`}
                           >
-                            ยังไม่พบเคสตัวอย่างสำหรับหัวข้อนี้
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                            Grade {item.grade}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {item.evidenceTopics.slice(0, 3).map((topic) => (
+                          <div
+                            key={`${item.key}-${topic.code}`}
+                            className="rounded-2xl border border-rose-100 bg-rose-50/60 px-4 py-4"
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="text-sm font-extrabold text-slate-950">
+                                {topic.code} {topic.label}
+                              </div>
+                              <span className="w-fit rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-bold text-rose-700">
+                                {topic.scoreText} ({topic.pct.toFixed(0)}%)
+                              </span>
+                            </div>
+
+                            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+                              <div className="rounded-xl bg-white px-3 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
+                                  จุดที่ควรคุย
+                                </div>
+                                <div className="mt-1 text-sm leading-6 text-slate-700">
+                                  {topic.issueLine}
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-white px-3 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wide text-violet-700">
+                                  ควรปรับแบบไหน
+                                </div>
+                                <div className="mt-1 text-sm leading-6 text-slate-700">
+                                  {topic.improveLine}
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-white px-3 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                                  วิธีพูดกับ Agent
+                                </div>
+                                <div className="mt-1 text-sm leading-6 text-slate-700">
+                                  {topic.talkTrack}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-500">
+                    ยังไม่พบเคสตัวอย่างสำหรับหัวข้อนี้
+                  </div>
+                )}
               </PanelBody>
             </Panel>
 

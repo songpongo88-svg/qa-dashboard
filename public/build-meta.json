@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121142",
-  "buildNumber": 2605121142,
-  "releaseLabel": "v1.0.0.2605121142",
-  "updatedAt": "12/05/2026 11:42:36",
+  "displayVersion": "1.0.0.2605121148",
+  "buildNumber": 2605121148,
+  "releaseLabel": "v1.0.0.2605121148",
+  "updatedAt": "12/05/2026 11:48:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "df042d7a02c9d67ebc00206f13c4b914f4b38d28",
-  "commitMessage": "Append new appeal raw data",
+  "commitHash": "4cb177efda3f3135d1a042960b171975e7db5a33",
+  "commitMessage": "Simplify coaching language",
   "changedFiles": [
-    "public/Appleal ROWDATA.xlsx",
-    "public/build-meta.json"
+    "public/build-meta.json",
+    "src/CoachingMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
