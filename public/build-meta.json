@@ -1,16 +1,15 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605111753",
-  "buildNumber": 2605111753,
-  "releaseLabel": "v1.0.0.2605111753",
-  "updatedAt": "11/05/2026 17:53:45",
+  "displayVersion": "1.0.0.2605121026",
+  "buildNumber": 2605121026,
+  "releaseLabel": "v1.0.0.2605121026",
+  "updatedAt": "12/05/2026 10:26:20",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "08a569068c1dfba93a23944f1aa2b6be7450eb8b",
-  "commitMessage": "Append new QA raw data cases",
+  "commitHash": "66929d6fdfe75138e2d83fc47271090d9b74155b",
+  "commitMessage": "Refresh build metadata",
   "changedFiles": [
-    "public/QA_RawData1.xlsx",
     "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
