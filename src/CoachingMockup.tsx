@@ -73,6 +73,30 @@ const TOPIC_MASTER = [
   { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
 ] as const;
 
+const TOPIC_THAI_LABELS: Record<string, string> = {
+  "1.1": "การทักทายและปิดบทสนทนา",
+  "1.2": "ความถูกต้องของข้อมูล",
+  "1.3": "การรักษาข้อมูลส่วนบุคคลและนโยบาย",
+  "2.1": "ความตรงประเด็นของคำตอบ",
+  "2.2": "การตอบให้ครบทุกประเด็น",
+  "2.3": "การให้ขั้นตอนที่ทำตามได้จริง",
+  "2.4": "การอ้างอิงข้อมูลจากแหล่งทางการ",
+  "3.1": "การวิเคราะห์สาเหตุและแนวทางแก้ไข",
+  "3.2": "การรับผิดชอบและดูแลเคสต่อเนื่อง",
+  "3.3": "การบอกขั้นตอนถัดไปให้ชัดเจน",
+  "4.1": "การเรียงลำดับข้อความ",
+  "4.2": "ภาษาชัดเจน เข้าใจง่าย",
+  "4.3": "น้ำเสียงและความเข้าใจลูกค้า",
+  "4.4": "การปรับคำตอบให้เข้ากับบริบท",
+  "5.1": "การทำตามขั้นตอนงาน",
+  "5.2": "การตอบกลับตามเวลา",
+  "5.3": "การบันทึกเคสและสถานะให้ถูกต้อง",
+};
+
+function getTopicDisplayLabel(topic: Pick<Topic, "code" | "label"> | Pick<CoachingTopicSummary, "code" | "label">) {
+  return TOPIC_THAI_LABELS[topic.code] || topic.label;
+}
+
 const AGENT_MASTER = [
   "Anucha Makundin",
   "Arisa Aiemrit",
@@ -176,12 +200,26 @@ function buildTopicEvidenceNote(topic: Topic) {
 
   return {
     code: topic.code,
-    label: topic.label,
+    label: getTopicDisplayLabel(topic),
     scoreText,
     pct: Number(topic.pct || 0),
     issueLine: shortComment || guide.issue,
     improveLine: guide.guidance[0] || guide.target,
     talkTrack: guide.example,
+  };
+}
+
+function buildTopicPraiseNote(topic: Topic) {
+  const label = getTopicDisplayLabel(topic);
+  const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${topic.max}`;
+  return {
+    code: topic.code,
+    label,
+    scoreText,
+    pct: Number(topic.pct || 0),
+    praiseLine: `เคสนี้ทำได้ดีในเรื่อง${label} คะแนนอยู่ในระดับดีมาก`,
+    keepLine: "ควรชื่นชมวิธีตอบแบบนี้ และย้ำให้รักษามาตรฐานเดียวกันในเคสถัดไป",
+    talkTrack: `ชม Agent ว่าเคสนี้ทำได้ดีตรง${label} แล้วให้ใช้เป็นตัวอย่างเวลาตอบเคสลักษณะใกล้เคียงกัน`,
   };
 }
 
@@ -1060,7 +1098,7 @@ function MetricCard({
   value,
   sub,
   accent = "from-white via-violet-50/40 to-fuchsia-50/60 border-violet-200/70",
-  valueClassName = "text-slate-900",
+  valueClassName = "text-4xl text-slate-900 lg:text-[42px]",
 }: {
   title: string;
   value: string;
@@ -1086,7 +1124,7 @@ function MetricCard({
       ) : null}
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 min-w-0 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
+        <div className={`mt-3 min-w-0 break-words font-extrabold tracking-tight ${valueClassName}`}>
           {value}
         </div>
         <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
@@ -1130,7 +1168,7 @@ function buildCoachingSummary(cases: CaseItem[]): CoachingTopicSummary[] {
     if (!valid.length) {
       return {
         code: master.code,
-        label: master.label,
+        label: getTopicDisplayLabel(master),
         avgScore: 0,
         pct: 0,
         max: master.max,
@@ -1152,7 +1190,7 @@ function buildCoachingSummary(cases: CaseItem[]): CoachingTopicSummary[] {
 
     return {
       code: master.code,
-      label: master.label,
+      label: getTopicDisplayLabel(master),
       avgScore: Number(avg.toFixed(2)),
       pct: Number(pct.toFixed(2)),
       max: master.max,
@@ -1319,7 +1357,7 @@ export default function CoachingMockup({
 
             revisedTopics.push({
               code: topic.code,
-              label: topic.label,
+              label: getTopicDisplayLabel(topic),
               score,
               max: topic.max,
               pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
@@ -1375,7 +1413,7 @@ export default function CoachingMockup({
 
               return {
                 code: topic.code,
-                label: topic.label,
+                label: getTopicDisplayLabel(topic),
                 score,
                 max: topic.max,
                 pct: topic.max > 0 ? Math.round((score / topic.max) * 100) : 0,
@@ -1632,6 +1670,34 @@ export default function CoachingMockup({
       .filter((item) => item.evidenceTopics.length > 0)
       .sort((a, b) => a.finalScore - b.finalScore);
   }, [agentCases, focusTopics]);
+
+  const praiseCaseRows = useMemo(() => {
+    const strongestCodes = new Set(
+      [strongestTopic?.code, ...focusTopics.filter((topic) => topic.pct >= 90).map((topic) => topic.code)].filter(
+        Boolean
+      ) as string[]
+    );
+
+    return agentCases
+      .map((item) => {
+        const mergedTopics =
+          item.reviewStatus === "Revised" && item.revisedTopics?.length
+            ? mergeTopicSet(item.topics, item.revisedTopics)
+            : item.topics;
+
+        const praiseTopics = mergedTopics
+          .filter((topic) => topic.pct >= 90 && (strongestCodes.size === 0 || strongestCodes.has(topic.code)))
+          .map(buildTopicPraiseNote);
+
+        return {
+          ...item,
+          praiseTopics,
+        };
+      })
+      .filter((item) => item.praiseTopics.length > 0)
+      .sort((a, b) => b.finalScore - a.finalScore)
+      .slice(0, 4);
+  }, [agentCases, focusTopics, strongestTopic]);
 
   const currentMonthLabel =
     selectedMonth === "all"
@@ -2177,12 +2243,90 @@ export default function CoachingMockup({
                 subtitle="สรุปให้เห็นภาพว่าเคสพูดเรื่องอะไร พลาดตรงไหน และควรปรับอย่างไร"
               />
               <PanelBody className="space-y-4">
+                {praiseCaseRows.length ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-1 border-b border-emerald-100 pb-3">
+                      <div className="text-sm font-extrabold text-emerald-800">เคสที่ทำได้ดี ควรชื่นชม</div>
+                      <div className="text-xs leading-5 text-slate-500">
+                        ใช้เป็นตัวอย่างให้ Agent เห็นว่าส่วนไหนควรรักษามาตรฐานไว้
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                      {praiseCaseRows.map((item) => (
+                        <div
+                          key={`praise-${item.key}`}
+                          className="rounded-[22px] border border-emerald-200 bg-emerald-50/60 px-4 py-4"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold text-emerald-700">
+                                  {item.caseId}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-500">
+                                  วันที่ตรวจ {item.auditDate}
+                                </span>
+                              </div>
+                              <div className="mt-2 text-sm leading-6 text-slate-700">
+                                <span className="font-bold text-slate-900">เคสนี้พูดเรื่อง:</span>{" "}
+                                {summarizeCaseInquiry(item.inquiryTh || item.inquiryEn)}
+                              </div>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold text-emerald-700">
+                                คะแนน {item.finalScore.toFixed(2)}
+                              </span>
+                              <span
+                                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${getGradeTone(
+                                  item.grade
+                                )}`}
+                              >
+                                เกรด {item.grade}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 space-y-2">
+                            {item.praiseTopics.slice(0, 2).map((topic) => (
+                              <div key={`praise-${item.key}-${topic.code}`} className="rounded-2xl bg-white px-4 py-3">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="text-sm font-extrabold text-slate-950">
+                                    {topic.code} {topic.label}
+                                  </div>
+                                  <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                                    {topic.scoreText} ({topic.pct.toFixed(0)}%)
+                                  </span>
+                                </div>
+                                <div className="mt-2 grid gap-2 text-sm leading-6 text-slate-700 lg:grid-cols-3">
+                                  <div>{topic.praiseLine}</div>
+                                  <div>{topic.keepLine}</div>
+                                  <div>{topic.talkTrack}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {caseEvidenceRows.length ? (
-                  caseEvidenceRows.slice(0, 8).map((item) => (
-                    <div
-                      key={item.key}
-                      className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-sm"
-                    >
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-1 border-b border-rose-100 pb-3">
+                      <div className="text-sm font-extrabold text-rose-800">เคสที่ต้องปรับปรุง</div>
+                      <div className="text-xs leading-5 text-slate-500">
+                        ใช้คุยให้เห็นชัดว่าเคสพูดเรื่องอะไร พลาดตรงไหน และควรปรับคำตอบอย่างไร
+                      </div>
+                    </div>
+
+                    {caseEvidenceRows.slice(0, 8).map((item) => (
+                      <div
+                        key={item.key}
+                        className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-sm"
+                      >
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -2190,7 +2334,7 @@ export default function CoachingMockup({
                               {item.caseId}
                             </span>
                             <span className="text-xs font-semibold text-slate-500">
-                              Audit {item.auditDate}
+                              วันที่ตรวจ {item.auditDate}
                             </span>
                           </div>
                           <div className="mt-2 text-sm leading-6 text-slate-700">
@@ -2201,14 +2345,14 @@ export default function CoachingMockup({
 
                         <div className="flex items-center gap-2">
                           <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">
-                            Score {item.finalScore.toFixed(2)}
+                            คะแนน {item.finalScore.toFixed(2)}
                           </span>
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${getGradeTone(
                               item.grade
                             )}`}
                           >
-                            Grade {item.grade}
+                            เกรด {item.grade}
                           </span>
                         </div>
                       </div>
@@ -2258,7 +2402,8 @@ export default function CoachingMockup({
                         ))}
                       </div>
                     </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-8 text-center text-sm text-slate-500">
                     ยังไม่พบเคสตัวอย่างสำหรับหัวข้อนี้

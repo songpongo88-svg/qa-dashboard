@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121156",
-  "buildNumber": 2605121156,
-  "releaseLabel": "v1.0.0.2605121156",
-  "updatedAt": "12/05/2026 11:56:29",
+  "displayVersion": "1.0.0.2605121205",
+  "buildNumber": 2605121205,
+  "releaseLabel": "v1.0.0.2605121205",
+  "updatedAt": "12/05/2026 12:05:08",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "68e9e0fa7e5ca621ccd2faa6a69119b4da95ca5a",
-  "commitMessage": "Add case examples to coaching guidance",
+  "commitHash": "8fcac8c495b77dc284fd526ef70759d644844be3",
+  "commitMessage": "Polish coaching Thai labels",
   "changedFiles": [
     "public/build-meta.json",
     "src/CoachingMockup.tsx"
