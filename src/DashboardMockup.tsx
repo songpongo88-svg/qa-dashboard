@@ -78,6 +78,7 @@ type IncentiveResult = {
 
 const CASE_TARGET = 10;
 const RAW_DATA_FILE_NAME = "QA_RawData1.xlsx";
+const RAW_DATA_FILE_NAMES = [RAW_DATA_FILE_NAME, "QA_RawData11052026.xlsx"];
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -597,6 +598,15 @@ function formatAuditDateExact(value: any): string {
   }
 
   return formatAuditDate(value);
+}
+
+function formatAuditDateForDisplay(value: any): string {
+  const date = excelDateToJSDate(value);
+  if (!date) return formatAuditDateExact(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear());
+  return `${day}/${month}/${year}`;
 }
 
 function isWithinDateRange(dateObj: Date | null, from?: string, to?: string) {
@@ -3034,66 +3044,74 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const rawResponse = await fetch(`/${RAW_DATA_FILE_NAME}`);
+        const rawResponses = await Promise.all(
+          RAW_DATA_FILE_NAMES.map(async (fileName) => ({
+            fileName,
+            response: await fetch(`/${fileName}`, { cache: "no-store" }),
+          }))
+        );
         const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([
           "/Appleal ROWDATA.xlsx",
           "/Appeal ROWDATA.xlsx",
           "/Appeal_ROWDATA.xlsx",
         ]);
 
-        if (!rawResponse.ok) {
-          throw new Error(`ไม่พบไฟล์ ${RAW_DATA_FILE_NAME} ในโฟลเดอร์ public`);
+        const availableRawResponses = rawResponses.filter((item) => item.response.ok);
+        if (!availableRawResponses.length) {
+          throw new Error(`ไม่พบไฟล์ RawData ในโฟลเดอร์ public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
         }
 
-        const rawBuffer = await rawResponse.arrayBuffer();
-        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
-        const rawSheet =
-          rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+        const rawSources = await Promise.all(
+          availableRawResponses.map(async ({ fileName, response }) => {
+            const rawBuffer = await response.arrayBuffer();
+            const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
+            const rawSheet =
+              rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
 
-        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
-          header: 1,
-          defval: null,
-          raw: true,
-        });
+            const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, {
+              header: 1,
+              defval: null,
+              raw: true,
+            });
 
-        const rawHeaderIndex = (() => {
-          for (let i = 0; i < rawRows.length; i++) {
-            const row = (rawRows[i] || []) as any[];
-            const normalized = row.map((v) => normalizeText(v));
-            if (normalized.includes("agent name") && normalized.includes("case id")) return i;
-          }
-          return -1;
-        })();
+            const rawHeaderIndex = (() => {
+              for (let i = 0; i < rawRows.length; i++) {
+                const row = (rawRows[i] || []) as any[];
+                const normalized = row.map((v) => normalizeText(v));
+                if (normalized.includes("agent name") && normalized.includes("case id")) return i;
+              }
+              return -1;
+            })();
 
-        if (rawHeaderIndex === -1) {
-          throw new Error(`ไม่พบแถว Header ในไฟล์ ${RAW_DATA_FILE_NAME}`);
-        }
+            if (rawHeaderIndex === -1) {
+              throw new Error(`ไม่พบแถว Header ในไฟล์ ${fileName}`);
+            }
 
-        const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
-        const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
-        const rawHelper = buildHeaderHelpers(rawHeaderRow);
+            const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
+            const rawHelper = buildHeaderHelpers(rawHeaderRow);
+            const auditDateColumnIndex = rawHeaderRow.findIndex(
+              (header) => normalizeText(header) === "audit date"
+            );
 
-        const auditDateColumnIndex = rawHeaderRow.findIndex(
-          (header) => normalizeText(header) === "audit date"
+            return {
+              fileName,
+              rawRows,
+              rawHeaderIndex,
+              rawHeaderRow,
+              rawDataRows: rawRows.slice(rawHeaderIndex + 1),
+              rawHelper,
+              auditDateColumnIndex,
+            };
+          })
         );
 
-        function getRawSheetFormattedDisplay(rowOffset: number, columnIndex: number) {
-          if (columnIndex < 0) return "";
-          const cellAddress = XLSX.utils.encode_cell({
-            r: rawHeaderIndex + 1 + rowOffset,
-            c: columnIndex,
-          });
-          const cell = rawSheet[cellAddress];
-          if (!cell) return "";
-          try {
-            return String(XLSX.utils.format_cell(cell) || "").trim();
-          } catch {
-            return String((cell as any).w || (cell as any).v || "").trim();
-          }
-        }
+        const rawDataEntries = rawSources.flatMap((source) =>
+          source.rawDataRows.map((row, rowOffset) => ({ row, rowOffset, source }))
+        );
 
         const rawCaseMonthKeyMap = new Map<string, string>();
-        rawDataRows.forEach((row) => {
+        rawDataEntries.forEach(({ row, source }) => {
+          const rawHelper = source.rawHelper;
           const rawCaseId = String(rawHelper.getValue(row, "Case ID") ?? "").trim();
           if (!rawCaseId) return;
           const auditRaw = rawHelper.getValue(row, "Audit Date");
@@ -3222,11 +3240,13 @@ export default function DashboardMockup({
 
         setAppealMergeCount(appealMap.size);
 
-        const mapped: CaseItem[] = rawDataRows
+        const mapped: CaseItem[] = rawDataEntries
           .filter(
-            (row) => row && rawHelper.getValue(row, "Agent Name") && rawHelper.getValue(row, "Case ID")
+            ({ row, source }) =>
+              row && source.rawHelper.getValue(row, "Agent Name") && source.rawHelper.getValue(row, "Case ID")
           )
-          .map((row, index) => {
+          .map(({ row, rowOffset, source }, index) => {
+            const rawHelper = source.rawHelper;
             const caseId = String(rawHelper.getValue(row, "Case ID")).trim();
             const mergedAppeal = appealMap.get(caseId);
 
@@ -3299,8 +3319,8 @@ export default function DashboardMockup({
                 "Source File",
                 "Source Filename",
                 "File Name",
-              ], RAW_DATA_FILE_NAME)
-            ).trim() || RAW_DATA_FILE_NAME;
+              ], source.fileName)
+            ).trim() || source.fileName;
 
             const waitingTime = formatTimeOnly(
               getFirstAvailableHeaderValue(rawHelper, row, ["Waiting Time", "WaitingTime"], "")
@@ -3369,11 +3389,10 @@ export default function DashboardMockup({
             const reviewStatus: ReviewStatus =
               mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
 
-            const auditDateDisplay =
-              getRawSheetFormattedDisplay(index, auditDateColumnIndex) || formatAuditDateExact(auditRaw);
+            const auditDateDisplay = formatAuditDateForDisplay(auditRaw);
 
             return {
-              key: `row-${index + 1}-${caseId}`,
+              key: `${source.fileName}-row-${rowOffset + 1}-${caseId}`,
               agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
               auditDate: auditDateDisplay,
               auditDateObj,
@@ -3403,8 +3422,14 @@ export default function DashboardMockup({
             };
           });
 
-        const cleaned = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
-        setAllCases(cleaned);
+        const latestByCaseId = new Map<string, CaseItem>();
+        mapped
+          .filter((item) => item.agent && item.caseId && item.auditDateObj)
+          .forEach((item) => {
+            latestByCaseId.set(item.caseId, item);
+          });
+
+        setAllCases([...latestByCaseId.values()]);
       } catch (error: any) {
         console.error("Load Error:", error);
         setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
