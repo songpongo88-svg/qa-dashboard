@@ -82,6 +82,13 @@ const DEFAULT_BUILD_META: BuildMeta = {
   timezone: "Asia/Bangkok",
 };
 
+function canAccessCoaching(user: CurrentUser | null) {
+  if (!user) return false;
+  const displayName = String(user.displayName || "").trim().toLowerCase();
+  const username = String(user.username || "").trim().toLowerCase();
+  return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
+}
+
 function isSongkranThemeActive() {
   return false;
 }
@@ -726,8 +733,11 @@ export default function App() {
   }, [currentUser]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const coachingAllowed = canAccessCoaching(currentUser);
   const performanceMenuValue =
-    activeTab === "dashboard" || activeTab === "summary" || activeTab === "coaching" ? activeTab : "";
+    activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
+      ? activeTab
+      : "";
   const reviewMenuValue = activeTab === "appeal" || activeTab === "rubric" ? activeTab : "";
   const accountOptions = currentUser?.role === "Supervisor"
     ? [
@@ -741,6 +751,7 @@ export default function App() {
       ];
 
   const handlePerformanceMenuChange = (value: string) => {
+    if (value === "coaching" && !coachingAllowed) return;
     if (value === "dashboard" || value === "summary" || value === "coaching") {
       setActiveTab(value);
     }
@@ -785,6 +796,12 @@ export default function App() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "coaching" && !coachingAllowed) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, coachingAllowed]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1204,7 +1221,7 @@ export default function App() {
                     options={[
                       { value: "dashboard", label: "Dashboard" },
                       { value: "summary", label: "Summary" },
-                      { value: "coaching", label: "Coaching" },
+                      ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
                     ]}
                   />
                   <HeaderSelect
@@ -1282,7 +1299,7 @@ export default function App() {
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
-        ) : activeTab === "coaching" ? (
+        ) : activeTab === "coaching" && coachingAllowed ? (
           <CoachingMockup
             currentUser={currentUser}
             externalSelectedAgent={selectedAgentGlobal}

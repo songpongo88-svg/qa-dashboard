@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121208",
-  "buildNumber": 2605121208,
-  "releaseLabel": "v1.0.0.2605121208",
-  "updatedAt": "12/05/2026 12:08:06",
+  "displayVersion": "1.0.0.2605121317",
+  "buildNumber": 2605121317,
+  "releaseLabel": "v1.0.0.2605121317",
+  "updatedAt": "12/05/2026 13:17:31",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d6a38c40beb592c3f391ceafd0395c50cc803e6b",
-  "commitMessage": "Improve coaching case messaging",
+  "commitHash": "97ceda03ac6ecc9be47f033ffb86b97488d05d46",
+  "commitMessage": "Match coaching examples to appeal layout",
   "changedFiles": [
     "public/build-meta.json",
     "src/CoachingMockup.tsx"
