@@ -1,16 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121433",
-  "buildNumber": 2605121433,
-  "releaseLabel": "v1.0.0.2605121433",
-  "updatedAt": "12/05/2026 14:33:13",
+  "displayVersion": "1.0.0.2605121806",
+  "buildNumber": 2605121806,
+  "releaseLabel": "v1.0.0.2605121806",
+  "updatedAt": "12/05/2026 18:06:15",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "9ea72714c0c96aef89e47a7c09504bf60a8f8578",
+  "commitHash": "f12fd0917578abbc49dc3588772a84fe95b28b7f",
   "commitMessage": "Add files via upload",
   "changedFiles": [
-    "public/QA_RawData11052026.xlsx"
+    "public/QA_RawData12052026.xlsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
