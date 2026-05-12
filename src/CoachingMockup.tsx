@@ -399,6 +399,29 @@ function getPriorityTone(priority: "High" | "Medium" | "Low") {
   }
 }
 
+function dedupeAgentNames(names: string[]) {
+  const agentMap = new Map<string, string>();
+  names.forEach((name) => {
+    const displayName = toTitleCaseName(name);
+    const key = compactText(displayName);
+    if (!displayName || agentMap.has(key)) return;
+    agentMap.set(key, displayName);
+  });
+  return [...agentMap.values()].sort((a, b) => a.localeCompare(b));
+}
+
+function topicAdviceLabel(topic: CoachingTopicSummary) {
+  if (topic.pct < 70 || topic.failCount >= 3) return "ควรปรับปรุง";
+  if (topic.pct < 85 || topic.failCount >= 2) return "ควรพัฒนาเพิ่ม";
+  return "ทำได้ดี ควรรักษาไว้";
+}
+
+function topicAdviceTone(topic: CoachingTopicSummary) {
+  if (topic.pct < 70 || topic.failCount >= 3) return "border-rose-200 bg-rose-50 text-rose-700";
+  if (topic.pct < 85 || topic.failCount >= 2) return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
 function getGradeTone(grade: Grade) {
   switch (grade) {
     case "A":
@@ -857,7 +880,7 @@ function buildOneOnOneSummary(args: {
   const focus3 = focusTopics[2];
 
   const scopeText =
-    weekLabel === "All Weeks"
+    weekLabel === "ทุกสัปดาห์"
       ? `${monthLabel}`
       : `${monthLabel} / ${weekLabel}`;
 
@@ -1063,7 +1086,7 @@ function MetricCard({
       ) : null}
       <div className="p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
+        <div className={`mt-3 min-w-0 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
           {value}
         </div>
         <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
@@ -1442,8 +1465,7 @@ export default function CoachingMockup({
     const effectiveMonthForVisibility =
       selectedMonth !== "all" ? selectedMonth : latestMonthKey;
 
-    const mergedAgents = [...new Set([...AGENT_MASTER, ...agentsFromCases])]
-      .map((name) => toTitleCaseName(name))
+    const mergedAgents = dedupeAgentNames([...AGENT_MASTER, ...agentsFromCases])
       .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility))
       .sort((a, b) => a.localeCompare(b));
 
@@ -1613,10 +1635,10 @@ export default function CoachingMockup({
 
   const currentMonthLabel =
     selectedMonth === "all"
-      ? "All Months"
+      ? "ทุกเดือน"
       : monthOptions.find((item) => item.value === selectedMonth)?.label || selectedMonth;
 
-  const currentWeekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
+  const currentWeekLabel = selectedWeek === "all" ? "ทุกสัปดาห์" : selectedWeek;
   const currentScopeLabel = `${currentMonthLabel} • ${currentWeekLabel}`;
 
   const oneOnOneSummary = useMemo(() => {
@@ -1687,13 +1709,13 @@ export default function CoachingMockup({
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
-                QA Coaching
+                QA COACHING
               </div>
               <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
-                Agent Coaching Workspace
+                พื้นที่สรุป Coaching ราย Agent
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                สรุปหัวข้อที่ต้องพัฒนา แนวทางการปรับปรุง และ case evidence รายบุคคลเพื่อใช้ในการ coaching
+                สรุปจากคะแนนและเคสจริง ว่าแต่ละคนควรได้รับคำชมเรื่องไหน และควรปรับปรุงส่วนไหนให้ชัดเจน
               </div>
               {songkranTheme ? (
                 <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
@@ -1709,10 +1731,10 @@ export default function CoachingMockup({
                   Robinhood QA
                 </div>
                 <div className="mt-1 text-lg font-semibold text-white">
-                  Coaching & Development Plan
+                  แผนคุยและติดตามผล
                 </div>
                 <div className="mt-1 text-sm text-violet-100/90">
-                  Focus area / case evidence / action plan
+                  จุดดี / จุดที่ควรปรับ / เคสตัวอย่าง
                 </div>
               </div>
             </div>
@@ -1725,16 +1747,16 @@ export default function CoachingMockup({
           <div className="space-y-6">
             <Panel className="sticky top-4">
               <PanelHeader
-                title="Coaching Controls"
-                subtitle="Select agent, month, and week for coaching summary"
+                title="ตัวกรอง Coaching"
+                subtitle="เลือก Agent เดือน และสัปดาห์ที่ต้องการดู"
               />
               <PanelBody className="space-y-5">
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Agent
+                    รายชื่อ Agent
                   </div>
                   {currentUser?.role === "Agent" ? (
-                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                    <div className="break-words rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-800">
                       {effectiveAgent || "-"}
                     </div>
                   ) : (
@@ -1762,7 +1784,7 @@ export default function CoachingMockup({
 
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Month
+                    เดือน
                   </div>
                   <select
                     value={selectedMonth}
@@ -1775,7 +1797,7 @@ export default function CoachingMockup({
                     }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
-                    <option value="all">All Months</option>
+                    <option value="all">ทุกเดือน</option>
                     {monthOptions.map((item) => (
                       <option key={item.value} value={item.value}>
                         {item.label}
@@ -1786,7 +1808,7 @@ export default function CoachingMockup({
 
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Week
+                    สัปดาห์
                   </div>
                   <select
                     value={selectedWeek}
@@ -1797,7 +1819,7 @@ export default function CoachingMockup({
                     }}
                     className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                   >
-                    <option value="all">All Weeks</option>
+                    <option value="all">ทุกสัปดาห์</option>
                     {weekOptions.map((week) => (
                       <option key={week} value={week}>
                         {week}
@@ -1818,11 +1840,11 @@ export default function CoachingMockup({
                       songkranTheme ? "text-cyan-700" : "text-violet-700"
                     }`}
                   >
-                    Current Scope
+                    ขอบเขตข้อมูลที่กำลังดู
                   </div>
                   <div className="mt-2 text-sm font-semibold text-slate-800">{currentScopeLabel}</div>
                   <div className="mt-2 text-sm leading-6 text-slate-700">
-                    ใช้สำหรับสรุปหัวข้อที่ควรพัฒนา พร้อมแนวทาง coaching ที่นำไปใช้ต่อกับน้องแต่ละคนได้ทันที
+                    ใช้สำหรับดูภาพรวม จุดที่ควรชม จุดที่ควรปรับ และเคสตัวอย่างที่นำไปคุยต่อได้ทันที
                   </div>
                 </div>
               </PanelBody>
@@ -1832,15 +1854,15 @@ export default function CoachingMockup({
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
               <MetricCard
-                title="Selected Agent"
+                title="Agent ที่เลือก"
                 value={effectiveAgent || "-"}
-                sub="Current coaching target"
+                sub="คนที่กำลังดูข้อมูล"
                 accent={
                   songkranTheme
                     ? "from-white via-cyan-50/50 to-fuchsia-50/60 border-cyan-200/80"
                     : "from-white via-violet-50/50 to-fuchsia-50/60 border-violet-200/80"
                 }
-                valueClassName={`${songkranTheme ? "text-cyan-700" : "text-violet-900"} text-[22px] lg:text-[24px]`}
+                valueClassName={`${songkranTheme ? "text-cyan-700" : "text-violet-900"} break-words text-[16px] leading-6 lg:text-[18px]`}
               />
               <MetricCard
                 title="จำนวนเคสที่ใช้ดู"
@@ -1875,9 +1897,9 @@ export default function CoachingMockup({
                 valueClassName="text-rose-700"
               />
               <MetricCard
-                title="Policy Month"
+                title="เดือนของเกณฑ์"
                 value={currentPolicyMonthKey === "unknown" ? "-" : currentPolicyMonthKey}
-                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "New Criteria" : "Previous Criteria"}
+                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "ใช้เกณฑ์ใหม่" : "ใช้เกณฑ์เดิม"}
                 accent="from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
                 valueClassName="text-emerald-700"
               />
@@ -1949,16 +1971,16 @@ export default function CoachingMockup({
             </Panel>
 
             <div className="grid gap-6 xl:grid-cols-2">
-              <Panel>
-                <PanelHeader
-                  title="ภาพรวม Coaching"
-                  subtitle="ดูเร็วว่าควรชมเรื่องไหน และควรปรับเรื่องไหน"
-                />
-                <PanelBody className="space-y-4">
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      จุดแข็ง
-                    </div>
+            <Panel>
+              <PanelHeader
+                title="ภาพรวม Coaching"
+                subtitle="ดูเร็วว่าส่วนไหนควรชื่นชม และส่วนไหนควรปรับปรุง"
+              />
+              <PanelBody className="space-y-4">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                    ส่วนที่ทำได้ดี ควรชื่นชม
+                  </div>
                     <div className="mt-2 text-sm font-semibold text-slate-900">
                       {strongestTopic ? `${strongestTopic.code} ${strongestTopic.label}` : "-"}
                     </div>
@@ -1967,9 +1989,9 @@ export default function CoachingMockup({
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
-                    <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                      จุดที่ควรปรับ
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                  <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                    ส่วนที่ควรปรับปรุง
                     </div>
                     <div className="mt-2 text-sm font-semibold text-slate-900">
                       {weakestTopic ? `${weakestTopic.code} ${weakestTopic.label}` : "-"}
@@ -1981,15 +2003,15 @@ export default function CoachingMockup({
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      ประเด็นที่ควรหยิบไปคุย
+                      สรุปคำแนะนำ
                     </div>
                     <div className="mt-2 text-sm leading-7 text-slate-700">
                       {effectiveAgent
-                        ? `${effectiveAgent} ควรเริ่มคุยเรื่อง ${weakestTopic?.code || "-"} ${
-                            weakestTopic?.label || ""
-                          } ก่อน เพราะเป็นหัวข้อที่คะแนนยังต่ำที่สุด จากนั้นค่อยทบทวน ${
-                            focusTopics[1]?.code || "-"
-                          } ${focusTopics[1]?.label || ""} โดยใช้เคสจริงเป็นตัวอย่างให้น้องเห็นว่าคำตอบควรครบ ชัด และตรงประเด็นขึ้นอย่างไร`
+                        ? `ควรเริ่มจากชื่นชมส่วนที่ทำได้ดีคือ ${strongestTopic?.code || "-"} ${
+                            strongestTopic?.label || ""
+                          } เพื่อให้น้องรู้ว่าควรรักษามาตรฐานตรงไหนไว้ จากนั้นค่อยคุยเรื่องที่ควรปรับปรุงคือ ${
+                            weakestTopic?.code || "-"
+                          } ${weakestTopic?.label || ""} โดยใช้เคสจริงเป็นตัวอย่างให้เห็นว่าคำตอบเดิมขาดอะไร และครั้งถัดไปควรตอบให้ครบ ชัด หรือตรงประเด็นขึ้นอย่างไร`
                         : "-"}
                     </div>
                   </div>
@@ -1997,9 +2019,9 @@ export default function CoachingMockup({
               </Panel>
 
               <Panel>
-                <PanelHeader
-                  title="หัวข้อที่ควรคุยก่อน"
-                  subtitle="เรียงจากหัวข้อที่กระทบคะแนนมากที่สุด"
+              <PanelHeader
+                title="หัวข้อสรุปจากคะแนน"
+                subtitle="บอกให้ชัดว่าส่วนไหนควรปรับปรุง และส่วนไหนทำได้ดี"
                 />
                 <PanelBody className="space-y-3">
                   {focusTopics.length ? (
@@ -2021,11 +2043,11 @@ export default function CoachingMockup({
                             </div>
                           </div>
                           <span
-                            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityTone(
-                              topic.priority
+                            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${topicAdviceTone(
+                              topic
                             )}`}
                           >
-                            {topic.priority === "High" ? "เร่งคุย" : topic.priority === "Medium" ? "ควรติดตาม" : "เฝ้าดู"}
+                            {topicAdviceLabel(topic)}
                           </span>
                         </div>
 
@@ -2044,7 +2066,7 @@ export default function CoachingMockup({
             <Panel>
               <PanelHeader
                 title="รายละเอียดที่ใช้คุย"
-                subtitle="แปลงคะแนนแต่ละหัวข้อเป็นภาษาที่นำไปสื่อสารกับ Agent ได้"
+                subtitle="แปลงคะแนนแต่ละหัวข้อเป็นภาษาง่าย ๆ สำหรับสื่อสารกับ Agent"
               />
               <PanelBody className="space-y-5">
                 {focusTopics.length ? (
@@ -2076,11 +2098,11 @@ export default function CoachingMockup({
 
                           <div className="flex flex-wrap items-center gap-2">
                             <span
-                              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityTone(
-                                topic.priority
+                              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${topicAdviceTone(
+                                topic
                               )}`}
                             >
-                              {topic.priority === "High" ? "เร่งคุย" : topic.priority === "Medium" ? "ควรติดตาม" : "เฝ้าดู"}
+                              {topicAdviceLabel(topic)}
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
                               กระทบ {topic.failCount} เคส
@@ -2209,7 +2231,7 @@ export default function CoachingMockup({
                             <div className="mt-3 grid gap-3 lg:grid-cols-3">
                               <div className="rounded-xl bg-white px-3 py-3">
                                 <div className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
-                                  จุดที่ควรคุย
+                                  เรื่องที่พบในเคส
                                 </div>
                                 <div className="mt-1 text-sm leading-6 text-slate-700">
                                   {topic.issueLine}
@@ -2217,7 +2239,7 @@ export default function CoachingMockup({
                               </div>
                               <div className="rounded-xl bg-white px-3 py-3">
                                 <div className="text-[11px] font-bold uppercase tracking-wide text-violet-700">
-                                  ควรปรับแบบไหน
+                                  ควรปรับปรุงแบบไหน
                                 </div>
                                 <div className="mt-1 text-sm leading-6 text-slate-700">
                                   {topic.improveLine}
@@ -2248,7 +2270,7 @@ export default function CoachingMockup({
             <Panel>
               <PanelHeader
                 title="แผนติดตามหลังคุย"
-                subtitle="สรุปว่าหลังคุยแล้วควรให้ Agent ฝึกเรื่องอะไร"
+                subtitle="สรุปว่าหลังคุยแล้วควรให้ Agent ฝึกหรือรักษามาตรฐานเรื่องอะไร"
               />
               <PanelBody className="p-0">
                 <div className="overflow-x-auto">

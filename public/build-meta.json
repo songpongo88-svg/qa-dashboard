@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121148",
-  "buildNumber": 2605121148,
-  "releaseLabel": "v1.0.0.2605121148",
-  "updatedAt": "12/05/2026 11:48:56",
+  "displayVersion": "1.0.0.2605121156",
+  "buildNumber": 2605121156,
+  "releaseLabel": "v1.0.0.2605121156",
+  "updatedAt": "12/05/2026 11:56:29",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "4cb177efda3f3135d1a042960b171975e7db5a33",
-  "commitMessage": "Simplify coaching language",
+  "commitHash": "68e9e0fa7e5ca621ccd2faa6a69119b4da95ca5a",
+  "commitMessage": "Add case examples to coaching guidance",
   "changedFiles": [
     "public/build-meta.json",
     "src/CoachingMockup.tsx"
