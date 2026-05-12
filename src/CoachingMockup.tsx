@@ -2252,14 +2252,18 @@ export default function CoachingMockup({
                       </div>
                     </div>
 
-                    <div className="grid gap-3 xl:grid-cols-2">
-                      {praiseCaseRows.map((item) => (
-                        <div
+                    <div className="space-y-4">
+                      {praiseCaseRows.map((item, caseIndex) => (
+                        <article
                           key={`praise-${item.key}`}
-                          className="rounded-[22px] border border-emerald-200 bg-emerald-50/60 px-4 py-4"
+                          className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
                         >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
+                          <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-extrabold text-white">
+                                {caseIndex + 1}
+                              </div>
+                              <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold text-emerald-700">
                                   {item.caseId}
@@ -2272,10 +2276,12 @@ export default function CoachingMockup({
                                 <span className="font-bold text-slate-900">เคสนี้พูดเรื่อง:</span>{" "}
                                 {summarizeCaseInquiry(item.inquiryTh || item.inquiryEn)}
                               </div>
+                              </div>
                             </div>
 
-                            <div className="flex shrink-0 items-center gap-2">
-                              <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-bold text-emerald-700">
+                            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm lg:justify-end">
+                              <span className="font-bold text-slate-500">คะแนน</span>
+                              <span className="font-extrabold text-emerald-700">
                                 คะแนน {item.finalScore.toFixed(2)}
                               </span>
                               <span
@@ -2288,26 +2294,40 @@ export default function CoachingMockup({
                             </div>
                           </div>
 
-                          <div className="mt-3 space-y-2">
-                            {item.praiseTopics.slice(0, 2).map((topic) => (
-                              <div key={`praise-${item.key}-${topic.code}`} className="rounded-2xl bg-white px-4 py-3">
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                  <div className="text-sm font-extrabold text-slate-950">
-                                    {topic.code} {topic.label}
+                          <div className="divide-y divide-slate-200 px-5">
+                            {item.praiseTopics.slice(0, 2).map((topic, topicIndex) => (
+                              <div key={`praise-${item.key}-${topic.code}`} className="py-4">
+                                <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-extrabold text-slate-700">
+                                      {topic.code}
+                                    </span>
+                                    <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
                                   </div>
                                   <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                                     {topic.scoreText} ({topic.pct.toFixed(0)}%)
                                   </span>
                                 </div>
-                                <div className="mt-2 grid gap-2 text-sm leading-6 text-slate-700 lg:grid-cols-3">
-                                  <div>{topic.praiseLine}</div>
-                                  <div>{topic.keepLine}</div>
-                                  <div>{topic.talkTrack}</div>
-                                </div>
+
+                                {[
+                                  ["เรื่องที่ทำได้ดี", topic.praiseLine, "text-emerald-700"],
+                                  ["ควรรักษาไว้", topic.keepLine, "text-slate-600"],
+                                  ["วิธีพูดกับ Agent", topic.talkTrack, "text-violet-700"],
+                                ].map(([label, value, tone], rowIndex) => (
+                                  <div
+                                    key={`${topicIndex}-${label}`}
+                                    className="grid gap-2 py-3 text-sm lg:grid-cols-[190px_minmax(0,1fr)]"
+                                  >
+                                    <div className={`font-extrabold uppercase tracking-[0.12em] ${tone}`}>
+                                      {rowIndex + 1}. {label}
+                                    </div>
+                                    <div className="leading-7 text-slate-800">{value}</div>
+                                  </div>
+                                ))}
                               </div>
                             ))}
                           </div>
-                        </div>
+                        </article>
                       ))}
                     </div>
                   </div>
@@ -2322,13 +2342,17 @@ export default function CoachingMockup({
                       </div>
                     </div>
 
-                    {caseEvidenceRows.slice(0, 8).map((item) => (
-                      <div
+                    {caseEvidenceRows.slice(0, 8).map((item, caseIndex) => (
+                      <article
                         key={item.key}
-                        className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 shadow-sm"
+                        className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
                       >
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
+                      <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-extrabold text-white">
+                            {caseIndex + 1}
+                          </div>
+                          <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
                               {item.caseId}
@@ -2341,10 +2365,12 @@ export default function CoachingMockup({
                             <span className="font-bold text-slate-900">เคสนี้พูดเรื่อง:</span>{" "}
                             {summarizeCaseInquiry(item.inquiryTh || item.inquiryEn)}
                           </div>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm lg:justify-end">
+                          <span className="font-bold text-slate-500">คะแนน</span>
+                          <span className="font-extrabold text-slate-900">
                             คะแนน {item.finalScore.toFixed(2)}
                           </span>
                           <span
@@ -2357,51 +2383,40 @@ export default function CoachingMockup({
                         </div>
                       </div>
 
-                      <div className="mt-4 space-y-3">
-                        {item.evidenceTopics.slice(0, 3).map((topic) => (
-                          <div
-                            key={`${item.key}-${topic.code}`}
-                            className="rounded-2xl border border-rose-100 bg-rose-50/60 px-4 py-4"
-                          >
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="text-sm font-extrabold text-slate-950">
-                                {topic.code} {topic.label}
+                      <div className="divide-y divide-slate-200 px-5">
+                        {item.evidenceTopics.slice(0, 3).map((topic, topicIndex) => (
+                          <div key={`${item.key}-${topic.code}`} className="py-4">
+                            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-extrabold text-slate-700">
+                                  {topic.code}
+                                </span>
+                                <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
                               </div>
                               <span className="w-fit rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-bold text-rose-700">
                                 {topic.scoreText} ({topic.pct.toFixed(0)}%)
                               </span>
                             </div>
 
-                            <div className="mt-3 grid gap-3 lg:grid-cols-3">
-                              <div className="rounded-xl bg-white px-3 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
-                                  เรื่องที่พบในเคส
+                            {[
+                              ["เรื่องที่พบในเคส", topic.issueLine, "text-rose-700"],
+                              ["ควรปรับปรุงแบบไหน", topic.improveLine, "text-slate-600"],
+                              ["วิธีพูดกับ Agent", topic.talkTrack, "text-violet-700"],
+                            ].map(([label, value, tone], rowIndex) => (
+                              <div
+                                key={`${topicIndex}-${label}`}
+                                className="grid gap-2 py-3 text-sm lg:grid-cols-[190px_minmax(0,1fr)]"
+                              >
+                                <div className={`font-extrabold uppercase tracking-[0.12em] ${tone}`}>
+                                  {rowIndex + 1}. {label}
                                 </div>
-                                <div className="mt-1 text-sm leading-6 text-slate-700">
-                                  {topic.issueLine}
-                                </div>
+                                <div className="leading-7 text-slate-800">{value}</div>
                               </div>
-                              <div className="rounded-xl bg-white px-3 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-wide text-violet-700">
-                                  ควรปรับปรุงแบบไหน
-                                </div>
-                                <div className="mt-1 text-sm leading-6 text-slate-700">
-                                  {topic.improveLine}
-                                </div>
-                              </div>
-                              <div className="rounded-xl bg-white px-3 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                                  วิธีพูดกับ Agent
-                                </div>
-                                <div className="mt-1 text-sm leading-6 text-slate-700">
-                                  {topic.talkTrack}
-                                </div>
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </article>
                     ))}
                   </div>
                 ) : (
