@@ -387,7 +387,208 @@ function getGradeTone(grade: Grade) {
   }
 }
 
+const SIMPLE_COACHING_GUIDES: Record<
+  string,
+  {
+    issue: string;
+    guidance: string[];
+    example: string;
+    target: string;
+  }
+> = {
+  "1.1": {
+    issue: "บางเคสยังเปิดหรือปิดบทสนทนาไม่ครบตามมาตรฐาน ทำให้ลูกค้ารู้สึกว่าการดูแลยังไม่จบสมบูรณ์",
+    guidance: [
+      "เริ่มด้วยคำทักทายและชื่อแอดมินให้ชัดเจน",
+      "ก่อนปิดเคส ให้ถามหรือเปิดโอกาสว่าลูกค้ายังต้องการให้ช่วยเรื่องอื่นไหม",
+      "ปิดท้ายด้วยข้อความสุภาพและเป็นมาตรฐานเดียวกันทุกเคส",
+    ],
+    example:
+      "เคสนี้อยากให้ระวังช่วงปิดบทสนทนาเพิ่มนิดหนึ่งนะ ก่อนจบเคสให้เช็กกับลูกค้าอีกครั้งว่า ยังมีเรื่องไหนให้ช่วยเพิ่มเติมไหม แล้วค่อยปิดด้วยข้อความขอบคุณ จะทำให้เคสดูครบและสุภาพมากขึ้น",
+    target: "ให้ทุกเคสมีคำทักทายและคำปิดที่ครบ อ่านแล้วรู้ว่าลูกค้าได้รับการดูแลจนจบ",
+  },
+  "1.2": {
+    issue: "ข้อมูลที่ตอบยังมีโอกาสคลาดเคลื่อน หรือยังไม่ได้ยืนยันจากข้อมูลจริงก่อนตอบ",
+    guidance: [
+      "เช็กข้อมูลจากระบบหรือแหล่งอ้างอิงก่อนตอบทุกครั้ง",
+      "ถ้ายังไม่มั่นใจ ให้บอกลูกค้าว่าขอตรวจสอบเพิ่มเติมก่อน",
+      "เลี่ยงการตอบแบบคาดเดา โดยเฉพาะเรื่องสถานะ เงิน ออเดอร์ หรือเงื่อนไขบริการ",
+    ],
+    example:
+      "เคสนี้จุดสำคัญคืออย่ารีบสรุปก่อนตรวจสอบนะ ถ้ายังไม่เห็นข้อมูลชัด ให้ตอบลูกค้าว่าแอดมินขอตรวจสอบรายละเอียดก่อน เพื่อให้ข้อมูลถูกต้องที่สุด วิธีนี้จะลดความเสี่ยงเรื่องตอบผิดได้",
+    target: "ให้ข้อมูลถูกต้องและตรวจสอบได้ก่อนส่งคำตอบให้ลูกค้า",
+  },
+  "1.3": {
+    issue: "ยังต้องระวังเรื่องการยืนยันตัวตนและการเปิดเผยข้อมูลส่วนบุคคลให้มากขึ้น",
+    guidance: [
+      "เคสที่เกี่ยวกับข้อมูลส่วนตัว ต้องขอยืนยันตัวตนก่อนให้รายละเอียด",
+      "ตอบเฉพาะข้อมูลที่ลูกค้ามีสิทธิ์รับทราบ",
+      "ไม่เปิดเผยข้อมูลของบุคคลอื่นหรือข้อมูลภายในที่ไม่จำเป็น",
+    ],
+    example:
+      "เวลาเจอเคสที่มีข้อมูลส่วนตัว ให้หยุดเช็กก่อนว่าเรายืนยันตัวตนครบหรือยัง ถ้ายังไม่ครบ ให้ขอข้อมูลยืนยันก่อน แล้วค่อยตอบเฉพาะส่วนที่จำเป็น",
+    target: "ให้ทุกเคสที่เกี่ยวกับข้อมูลส่วนตัวปลอดภัยตาม PDPA และนโยบายบริษัท",
+  },
+  "2.1": {
+    issue: "คำตอบยังไม่ตรงกับปัญหาจริงของเคส หรือยังไม่ได้เชื่อมกับข้อมูลในแชทให้ชัด",
+    guidance: [
+      "อ่านคำถามและบริบทของลูกค้าให้ครบก่อนตอบ",
+      "สรุปก่อนว่าลูกค้าต้องการให้ช่วยเรื่องอะไร",
+      "ตอบให้ตรงกับข้อมูลของเคสนั้น ไม่ใช้คำตอบทั่วไปเกินไป",
+    ],
+    example:
+      "เคสนี้อยากให้เริ่มจากจับประเด็นลูกค้าก่อนว่าเขาติดปัญหาอะไรจริง ๆ แล้วค่อยตอบตามข้อมูลในเคส ไม่ควรตอบเป็นขั้นตอนทั่วไปทันที เพราะอาจไม่ตรงกับปัญหาที่ลูกค้าเจอ",
+    target: "ให้คำตอบตรงประเด็นและสอดคล้องกับบริบทของเคสจริง",
+  },
+  "2.2": {
+    issue: "คำตอบยังไม่ครบทุกประเด็น ทำให้ลูกค้าอาจต้องถามซ้ำหรือยังไม่รู้ว่าต้องทำอะไรต่อ",
+    guidance: [
+      "แยกประเด็นที่ลูกค้าถามออกมาเป็นข้อ ๆ",
+      "ตอบให้ครบทุกคำถาม ไม่ตอบเฉพาะประเด็นแรก",
+      "ปิดท้ายด้วยสรุปสั้น ๆ ว่าลูกค้าต้องทำอะไรต่อ",
+    ],
+    example:
+      "เคสนี้ลูกค้าถามมากกว่าหนึ่งเรื่อง แนะนำให้น้องแยกตอบเป็นข้อ 1, 2, 3 จะช่วยให้ลูกค้าเข้าใจง่าย และลดโอกาสที่ลูกค้าต้องถามซ้ำ",
+    target: "ให้คำตอบครบทุกประเด็นที่ลูกค้าถามในครั้งเดียว",
+  },
+  "2.3": {
+    issue: "คำแนะนำยังไม่ชัดพอว่าลูกค้าหรือ Agent ต้องทำอะไรต่อเป็นลำดับ",
+    guidance: [
+      "เขียนคำแนะนำเป็นขั้นตอนสั้น ๆ",
+      "ระบุให้ชัดว่าใครต้องทำอะไร",
+      "บอกผลลัพธ์ที่ลูกค้าควรรอหรือคาดหวังหลังทำตามขั้นตอน",
+    ],
+    example:
+      "เวลาจะให้ลูกค้าทำตามขั้นตอน ลองเรียงเป็น 1, 2, 3 และใช้คำสั้น ๆ จะช่วยให้ลูกค้าทำตามได้ง่ายกว่าเขียนเป็นย่อหน้ายาว",
+    target: "ให้ลูกค้าหรือ Agent อ่านแล้วทำตามได้ทันที",
+  },
+  "2.4": {
+    issue: "ยังต้องทำให้แหล่งข้อมูลที่ใช้อ้างอิงชัดขึ้น เพื่อให้คำตอบน่าเชื่อถือ",
+    guidance: [
+      "ใช้ข้อมูลจากระบบหรือ KB ล่าสุดก่อนตอบ",
+      "ถ้าข้อมูลมีเงื่อนไข ให้บอกเงื่อนไขนั้นให้ครบ",
+      "เลี่ยงการตอบจากความจำถ้าเป็นเรื่องที่เปลี่ยนแปลงได้",
+    ],
+    example:
+      "เคสนี้ให้คุยกับน้องว่า ถ้าเป็นข้อมูลที่มีเงื่อนไขหรือเปลี่ยนได้ ต้องเช็กจากแหล่งทางการก่อน แล้วค่อยตอบลูกค้า จะช่วยให้คำตอบแม่นและมั่นใจขึ้น",
+    target: "ให้ทุกคำตอบอ้างอิงจากข้อมูลที่ถูกต้องและเป็นปัจจุบัน",
+  },
+  "3.1": {
+    issue: "ยังวิเคราะห์สาเหตุของปัญหาไม่ลึกพอ ทำให้แนวทางแก้ไม่ตรงจุด",
+    guidance: [
+      "แยกอาการของปัญหาออกจากสาเหตุจริง",
+      "ดูข้อมูลในเคสก่อนสรุปว่าเกิดจากอะไร",
+      "ให้แนวทางแก้ที่สัมพันธ์กับสาเหตุ ไม่ใช่ตอบแบบกว้าง ๆ",
+    ],
+    example:
+      "เคสนี้อยากให้ชวนน้องดูว่า ปัญหาที่ลูกค้าเล่าคืออาการ แต่เราต้องหาให้เจอว่าสาเหตุคืออะไร แล้วค่อยเลือกคำตอบหรือวิธีแก้ให้ตรงจุด",
+    target: "ให้คำตอบแก้ปัญหาได้ตรงสาเหตุ ไม่ใช่แค่ตอบตามอาการ",
+  },
+  "3.2": {
+    issue: "การดูแลเคสยังไม่ต่อเนื่องพอ หรือยังไม่ได้แสดงความรับผิดชอบต่อเคสให้ชัด",
+    guidance: [
+      "บอกลูกค้าว่าแอดมินจะดำเนินการอะไรให้ต่อ",
+      "ถ้าต้องส่งต่อหรือรอตรวจสอบ ให้แจ้งเหตุผลและสิ่งที่จะเกิดขึ้น",
+      "อย่าปล่อยให้ลูกค้าไม่รู้ว่าเคสไปถึงขั้นตอนไหนแล้ว",
+    ],
+    example:
+      "เวลาต้องรอตรวจสอบหรือส่งต่อ ให้บอกลูกค้าให้ชัดว่าแอดมินรับเรื่องไว้แล้ว กำลังดำเนินการอะไร และลูกค้าควรรอผลแบบไหน จะช่วยให้ลูกค้ารู้สึกว่าเคสยังถูกดูแลอยู่",
+    target: "ให้ลูกค้าเห็นว่า Agent รับผิดชอบเคสตั้งแต่ต้นจนจบ",
+  },
+  "3.3": {
+    issue: "ยังบอกขั้นตอนถัดไปไม่ชัด ทำให้ลูกค้าไม่รู้ว่าต้องรอ ต้องทำ หรือจะได้รับผลเมื่อไร",
+    guidance: [
+      "บอกขั้นตอนถัดไปให้ชัดก่อนจบคำตอบ",
+      "ถ้ามีระยะเวลารอ ให้แจ้งช่วงเวลาที่เหมาะสม",
+      "ถ้าลูกค้าต้องเตรียมข้อมูลเพิ่ม ให้ระบุรายการให้ครบ",
+    ],
+    example:
+      "ก่อนจบเคส ให้เพิ่มประโยคสั้น ๆ ว่า ต่อจากนี้ลูกค้าต้องทำอะไร หรือแอดมินจะดำเนินการอะไรต่อ ลูกค้าจะได้ไม่ค้างและไม่ต้องถามซ้ำ",
+    target: "ให้ลูกค้ารู้ขั้นตอนถัดไปชัดเจนทุกครั้ง",
+  },
+  "4.1": {
+    issue: "ข้อความยังเรียงลำดับไม่ชัด ทำให้อ่านแล้วจับประเด็นยาก",
+    guidance: [
+      "เริ่มจากสรุปปัญหาของลูกค้า",
+      "ตามด้วยคำตอบหรือผลตรวจสอบ",
+      "ปิดด้วยขั้นตอนถัดไปหรือสิ่งที่ลูกค้าต้องทำ",
+    ],
+    example:
+      "ลองให้น้องจัดคำตอบเป็นสามช่วง: รับทราบปัญหา, แจ้งผลหรือคำตอบ, บอกทางต่อ โครงสร้างนี้จะช่วยให้ข้อความอ่านง่ายขึ้นมาก",
+    target: "ให้ข้อความอ่านง่าย เป็นลำดับ และไม่ทำให้ลูกค้าสับสน",
+  },
+  "4.2": {
+    issue: "ภาษายังยาวหรือไม่กระชับพอ อาจทำให้ลูกค้าเข้าใจยาก",
+    guidance: [
+      "ใช้ประโยคสั้นและตรงความหมาย",
+      "เลี่ยงคำซ้ำหรือคำที่ทำให้กำกวม",
+      "อ่านทวนก่อนส่งว่าลูกค้าเข้าใจได้ในครั้งเดียวหรือไม่",
+    ],
+    example:
+      "จุดนี้ให้คุยกับน้องเรื่องการทำประโยคให้สั้นลง ถ้าประโยคยาวเกินไป ลูกค้าอาจจับใจความยาก ลองแบ่งเป็นสองประโยคหรือแยกเป็นข้อ",
+    target: "ให้ภาษาชัด กระชับ และเข้าใจง่าย",
+  },
+  "4.3": {
+    issue: "น้ำเสียงยังสามารถทำให้นุ่มและเห็นใจลูกค้ามากขึ้นได้",
+    guidance: [
+      "เริ่มด้วยการรับทราบหรือเข้าใจความกังวลของลูกค้า",
+      "ใช้คำสุภาพและลดคำที่ฟังแข็ง",
+      "ถ้าเป็นปัญหาที่ลูกค้าเดือดร้อน ให้เพิ่มประโยคแสดงความเข้าใจ",
+    ],
+    example:
+      "เคสที่ลูกค้ากังวลหรือไม่พอใจ ให้เริ่มด้วยประโยคที่แสดงว่าเราเข้าใจเขาก่อน แล้วค่อยอธิบายวิธีดำเนินการ จะทำให้บทสนทนานุ่มขึ้น",
+    target: "ให้ลูกค้ารู้สึกว่าได้รับการรับฟังและดูแลอย่างสุภาพ",
+  },
+  "4.4": {
+    issue: "รูปแบบคำตอบยังไม่เข้ากับสถานการณ์ของเคสมากพอ",
+    guidance: [
+      "ดูว่าลูกค้าเป็น Rider, Merchant หรือ Customer แล้วปรับคำให้เหมาะ",
+      "ปรับระดับรายละเอียดตามความซับซ้อนของปัญหา",
+      "ถ้าเคสเร่งด่วนหรือมีผลกระทบสูง ให้ตอบให้ชัดและตรงกว่าเคสทั่วไป",
+    ],
+    example:
+      "อยากให้น้องดูบริบทก่อนตอบว่าเคสนี้เป็นใคร เจอปัญหาแบบไหน แล้วปรับคำตอบให้เหมาะกับสถานการณ์ ไม่ใช้คำตอบเดียวกันทุกเคส",
+    target: "ให้คำตอบเหมาะกับบริบทและประเภทลูกค้าในแต่ละเคส",
+  },
+  "5.1": {
+    issue: "ขั้นตอนการทำงานยังอาจข้ามบางจุด เช่น ตรวจสอบไม่ครบ หรือยังไม่ดำเนินการตาม flow ให้ชัด",
+    guidance: [
+      "เช็ก flow งานก่อนตอบหรือปิดเคส",
+      "ถ้าต้องตรวจสอบหลายจุด ให้ทำตามลำดับและบันทึกให้ครบ",
+      "ก่อนปิดเคส ให้ทวนว่า action สำคัญทำครบแล้วหรือยัง",
+    ],
+    example:
+      "เคสนี้ควรคุยเรื่องการตาม flow ให้ครบก่อนปิดเคส เช่น ตรวจสอบข้อมูล, แจ้งผล, บันทึก action และปิดสถานะให้ถูกต้อง เพื่อให้เคสไม่ตกหล่น",
+    target: "ให้การทำงานครบขั้นตอนและตรวจสอบย้อนหลังได้",
+  },
+  "5.2": {
+    issue: "ยังมีโอกาสตอบช้าหรือปล่อยช่วงรอโดยไม่มีการอัปเดตลูกค้า",
+    guidance: [
+      "รับเรื่องและตอบกลับให้อยู่ใน SLA",
+      "ถ้าต้องใช้เวลาตรวจสอบ ให้แจ้งลูกค้าก่อน",
+      "ระหว่างรอ อย่าปล่อยให้บทสนทนาเงียบเกินไป",
+    ],
+    example:
+      "ถ้าต้องใช้เวลาตรวจสอบ ให้ให้น้องส่งข้อความอัปเดตสั้น ๆ ก่อน เช่น แอดมินกำลังตรวจสอบให้นะคะ ขอเวลาเล็กน้อย วิธีนี้ช่วยลดความรู้สึกรอของลูกค้าได้",
+    target: "ให้ลูกค้าได้รับการตอบกลับและอัปเดตภายในเวลาที่เหมาะสม",
+  },
+  "5.3": {
+    issue: "การบันทึกเคสหรือสถานะยังไม่ครบ ทำให้ติดตามย้อนหลังได้ยาก",
+    guidance: [
+      "บันทึกผลการตรวจสอบและ action ที่ทำให้ครบ",
+      "เลือก tag, status หรือ remark ให้ตรงกับเคส",
+      "ก่อนปิดเคสให้ตรวจว่าข้อมูลหลังบ้านถูกต้องแล้ว",
+    ],
+    example:
+      "เคสนี้ให้เน้นเรื่องการบันทึกหลังบ้าน ถ้า action ทำแล้วแต่ไม่ได้ note หรือ status ไม่ตรง เวลาเช็กย้อนหลังจะยาก ควรทวนทุกครั้งก่อนปิดเคส",
+    target: "ให้ข้อมูลหลังบ้านครบ ถูกต้อง และติดตามย้อนหลังได้ง่าย",
+  },
+};
+
 function getCoachingGuide(topicCode: string) {
+  const simpleGuide = SIMPLE_COACHING_GUIDES[topicCode];
+  if (simpleGuide) return simpleGuide;
+
   const map: Record<
     string,
     {
@@ -633,6 +834,43 @@ function buildOneOnOneSummary(args: {
       ? `${monthLabel}`
       : `${monthLabel} / ${weekLabel}`;
 
+  const focusList = [focus1, focus2, focus3]
+    .filter(Boolean)
+    .map((topic) => `${topic!.code} ${topic!.label}`)
+    .join(", ");
+
+  if (caseCount === 0) {
+    return {
+      overallComment: `ช่วง ${scopeText} ยังไม่พบเคสของ ${agentName} จึงยังสรุปประเด็นสำหรับคุย coaching ไม่ได้`,
+      strengthComment: "ยังไม่มีข้อมูลเพียงพอสำหรับสรุปจุดแข็ง",
+      improvementComment: "ยังไม่มีข้อมูลเพียงพอสำหรับสรุปจุดที่ควรปรับ",
+      coachingDirection: "เมื่อมีเคสใหม่เข้ามา ควรเริ่มจากดูคะแนนรายหัวข้อและเลือกเคสตัวอย่างที่เห็นพฤติกรรมชัดที่สุดมาคุย",
+      nextStep: "รอข้อมูลเคสประเมินรอบถัดไป แล้วค่อยสรุปหัวข้อ coaching อีกครั้ง",
+    };
+  }
+
+  return {
+    overallComment: `${agentName} มีเคสในช่วง ${scopeText} ทั้งหมด ${caseCount} เคส คะแนนเฉลี่ย ${averageScore.toFixed(
+      2
+    )} อยู่ระดับ ${grade} ภาพรวมให้เริ่มคุยจากหัวข้อที่คะแนนต่ำก่อน แล้วใช้เคสจริงประกอบเพื่อให้น้องเห็นว่าควรปรับตรงไหน`,
+    strengthComment: strongestTopic
+      ? `จุดที่ทำได้ดีคือ ${strongestTopic.code} ${strongestTopic.label} เฉลี่ย ${strongestTopic.pct.toFixed(
+          2
+        )}% ควรชมและย้ำให้น้องรักษามาตรฐานนี้ไว้ในทุกเคส`
+      : "ยังไม่พบจุดแข็งที่สรุปได้ชัดจากข้อมูลชุดนี้",
+    improvementComment: weakestTopic
+      ? `จุดที่ควรคุยก่อนคือ ${weakestTopic.code} ${weakestTopic.label} เฉลี่ย ${weakestTopic.pct.toFixed(
+          2
+        )}% แนะนำให้หยิบเคสที่เสียคะแนนในหัวข้อนี้มาดูร่วมกัน แล้วชี้ให้เห็นว่าคำตอบเดิมยังขาดอะไร`
+      : "ยังไม่พบหัวข้อที่ต้องเร่งปรับเป็นพิเศษจากข้อมูลชุดนี้",
+    coachingDirection: focusList
+      ? `แนวทางคุยกับ Agent รอบนี้ ให้โฟกัส ${focusList} โดยเริ่มจากอ่านเคสจริง สรุปจุดที่ทำได้ดี แล้วค่อยคุยจุดที่ต้องปรับเป็นข้อ ๆ เพื่อให้น้องนำไปใช้กับเคสถัดไปได้ทันที`
+      : "แนวทางคุยกับ Agent รอบนี้ ให้ใช้เคสจริงเป็นตัวอย่าง และสรุปพฤติกรรมที่ควรรักษากับสิ่งที่ต้องปรับให้ชัดเจน",
+    nextStep: focus1
+      ? `เป้าหมายรอบถัดไปคือให้ ${focus1.code} ${focus1.label} ดีขึ้น โดยติดตามจากเคสใหม่และดูว่าคำตอบชัดขึ้น ครบขึ้น หรือทำตามขั้นตอนได้ดีขึ้นหรือไม่`
+      : "เป้าหมายรอบถัดไปคือรักษาคุณภาพการตอบให้สม่ำเสมอ และติดตามผลจากเคสใหม่",
+  };
+
   const overallComment =
     caseCount === 0
       ? `ในช่วง ${scopeText} ยังไม่พบเคสประเมินของ ${agentName} จึงยังไม่สามารถสรุปแนวทาง coaching ได้`
@@ -654,13 +892,13 @@ function buildOneOnOneSummary(args: {
         )}% ซึ่งสะท้อนว่ายังมีโอกาสพัฒนาในหัวข้อนี้อย่างชัดเจน โดยควรโฟกัสที่การตอบให้ครบถ้วน ชัดเจน และสอดคล้องกับบริบทเคสมากขึ้น`
       : `ยังไม่สามารถระบุหัวข้อที่ควรพัฒนาได้จากข้อมูลปัจจุบัน`;
 
-  const focusList = [focus1, focus2, focus3]
+  const legacyFocusList = [focus1, focus2, focus3]
     .filter(Boolean)
     .map((topic) => `${topic!.code} ${topic!.label}`)
     .join(" / ");
 
-  const coachingDirection = focusList
-    ? `สำหรับการ coaching รอบนี้ แนะนำให้เน้นติดตามหัวข้อ ${focusList} โดยใช้การ review จากเคสจริงร่วมกับการอธิบาย expected behavior ที่ควรเกิดขึ้นในแต่ละหัวข้อ เพื่อให้น้องสามารถเชื่อมโยงจากข้อผิดพลาดเดิมไปสู่แนวทางการตอบที่ถูกต้องได้ชัดเจนขึ้น`
+  const coachingDirection = legacyFocusList
+    ? `สำหรับการ coaching รอบนี้ แนะนำให้เน้นติดตามหัวข้อ ${legacyFocusList} โดยใช้การ review จากเคสจริงร่วมกับการอธิบาย expected behavior ที่ควรเกิดขึ้นในแต่ละหัวข้อ เพื่อให้น้องสามารถเชื่อมโยงจากข้อผิดพลาดเดิมไปสู่แนวทางการตอบที่ถูกต้องได้ชัดเจนขึ้น`
     : `สำหรับการ coaching รอบนี้ ควรใช้เคสจริงประกอบการทบทวนเพื่อหาแนวทางพัฒนาที่เหมาะสม`;
 
   const nextStep = focus1
@@ -1578,16 +1816,16 @@ export default function CoachingMockup({
                 valueClassName={`${songkranTheme ? "text-cyan-700" : "text-violet-900"} text-[22px] lg:text-[24px]`}
               />
               <MetricCard
-                title="Reviewed Cases"
+                title="จำนวนเคสที่ใช้ดู"
                 value={String(agentCases.length)}
                 sub={currentScopeLabel}
                 accent="from-sky-50 via-white to-sky-100/70 border-sky-200"
                 valueClassName="text-sky-700"
               />
               <MetricCard
-                title="Average Score"
+                title="คะแนนเฉลี่ย"
                 value={currentAverage.toFixed(2)}
-                sub="Average quality score"
+                sub="คะแนนคุณภาพเฉลี่ย"
                 accent={
                   songkranTheme
                     ? "from-white via-cyan-50/50 to-fuchsia-50/60 border-cyan-200/80"
@@ -1596,16 +1834,16 @@ export default function CoachingMockup({
                 valueClassName={songkranTheme ? "text-cyan-700" : "text-violet-900"}
               />
               <MetricCard
-                title="Current Grade"
+                title="เกรดปัจจุบัน"
                 value={scoreToGrade(currentAverage, currentPolicyMonthKey)}
-                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "New Criteria" : "Previous Criteria"}
+                sub={isNewPolicyMonth(currentPolicyMonthKey) ? "เกณฑ์ใหม่" : "เกณฑ์เดิม"}
                 accent="from-white via-amber-50/50 to-amber-100/70 border-amber-200"
                 valueClassName="text-amber-700"
               />
               <MetricCard
-                title="Main Focus"
+                title="หัวข้อที่ควรคุย"
                 value={weakestTopic?.code || "-"}
-                sub={weakestTopic?.label || "No focus topic"}
+                sub={weakestTopic?.label || "ยังไม่มีหัวข้อที่ต้องคุย"}
                 accent="from-rose-50 via-white to-rose-100/70 border-rose-200"
                 valueClassName="text-rose-700"
               />
@@ -1620,8 +1858,8 @@ export default function CoachingMockup({
 
             <Panel>
               <PanelHeader
-                title="One-on-One Coaching Summary"
-                subtitle="Auto-generated summary for coaching discussion"
+                title="สรุปสำหรับคุยกับ Agent"
+                subtitle="สรุปจากคะแนนและเคสจริง เพื่อใช้คุยแบบเข้าใจง่าย"
               />
               <PanelBody className="space-y-4">
                 <div
@@ -1636,7 +1874,7 @@ export default function CoachingMockup({
                       songkranTheme ? "text-cyan-700" : "text-violet-700"
                     }`}
                   >
-                    Overall Summary
+                    ภาพรวม
                   </div>
                   <div className="mt-2 text-sm leading-7 text-slate-700">
                     {oneOnOneSummary.overallComment}
@@ -1646,7 +1884,7 @@ export default function CoachingMockup({
                 <div className="grid gap-4 xl:grid-cols-2">
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      Strength to Maintain
+                      จุดที่ควรรักษาไว้
                     </div>
                     <div className="mt-2 text-sm leading-7 text-slate-700">
                       {oneOnOneSummary.strengthComment}
@@ -1655,7 +1893,7 @@ export default function CoachingMockup({
 
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                      Main Improvement Area
+                      จุดที่ควรคุยก่อน
                     </div>
                     <div className="mt-2 text-sm leading-7 text-slate-700">
                       {oneOnOneSummary.improvementComment}
@@ -1665,7 +1903,7 @@ export default function CoachingMockup({
 
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
                   <div className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                    Coaching Direction
+                    แนวทางคุยกับ Agent
                   </div>
                   <div className="mt-2 text-sm leading-7 text-slate-700">
                     {oneOnOneSummary.coachingDirection}
@@ -1674,7 +1912,7 @@ export default function CoachingMockup({
 
                 <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
                   <div className="text-xs font-bold uppercase tracking-wide text-sky-700">
-                    Next Coaching Target
+                    เป้าหมายรอบถัดไป
                   </div>
                   <div className="mt-2 text-sm leading-7 text-slate-700">
                     {oneOnOneSummary.nextStep}
@@ -1686,45 +1924,45 @@ export default function CoachingMockup({
             <div className="grid gap-6 xl:grid-cols-2">
               <Panel>
                 <PanelHeader
-                  title="Coaching Snapshot"
-                  subtitle="Overall view of strengths and development areas"
+                  title="ภาพรวม Coaching"
+                  subtitle="ดูเร็วว่าควรชมเรื่องไหน และควรปรับเรื่องไหน"
                 />
                 <PanelBody className="space-y-4">
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      Strength
+                      จุดแข็ง
                     </div>
                     <div className="mt-2 text-sm font-semibold text-slate-900">
                       {strongestTopic ? `${strongestTopic.code} ${strongestTopic.label}` : "-"}
                     </div>
                     <div className="mt-1 text-xs text-emerald-700">
-                      Average {strongestTopic ? strongestTopic.pct.toFixed(2) : "0.00"}%
+                      เฉลี่ย {strongestTopic ? strongestTopic.pct.toFixed(2) : "0.00"}%
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                      Main Improvement Area
+                      จุดที่ควรปรับ
                     </div>
                     <div className="mt-2 text-sm font-semibold text-slate-900">
                       {weakestTopic ? `${weakestTopic.code} ${weakestTopic.label}` : "-"}
                     </div>
                     <div className="mt-1 text-xs text-rose-700">
-                      Average {weakestTopic ? weakestTopic.pct.toFixed(2) : "0.00"}%
+                      เฉลี่ย {weakestTopic ? weakestTopic.pct.toFixed(2) : "0.00"}%
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      QA Coaching Summary
+                      ประเด็นที่ควรหยิบไปคุย
                     </div>
                     <div className="mt-2 text-sm leading-7 text-slate-700">
                       {effectiveAgent
-                        ? `${effectiveAgent} ควรเน้นพัฒนาเรื่อง ${weakestTopic?.code || "-"} ${
+                        ? `${effectiveAgent} ควรเริ่มคุยเรื่อง ${weakestTopic?.code || "-"} ${
                             weakestTopic?.label || ""
-                          } เป็นลำดับแรก โดยควบคู่กับการทบทวน ${
+                          } ก่อน เพราะเป็นหัวข้อที่คะแนนยังต่ำที่สุด จากนั้นค่อยทบทวน ${
                             focusTopics[1]?.code || "-"
-                          } ${focusTopics[1]?.label || ""} เพื่อยกระดับคุณภาพคำตอบให้ครบถ้วน ชัดเจน และสอดคล้องกับมาตรฐาน QA มากขึ้น`
+                          } ${focusTopics[1]?.label || ""} โดยใช้เคสจริงเป็นตัวอย่างให้น้องเห็นว่าคำตอบควรครบ ชัด และตรงประเด็นขึ้นอย่างไร`
                         : "-"}
                     </div>
                   </div>
@@ -1733,8 +1971,8 @@ export default function CoachingMockup({
 
               <Panel>
                 <PanelHeader
-                  title="Top Priority Topics"
-                  subtitle="Topics that should be coached first"
+                  title="หัวข้อที่ควรคุยก่อน"
+                  subtitle="เรียงจากหัวข้อที่กระทบคะแนนมากที่สุด"
                 />
                 <PanelBody className="space-y-3">
                   {focusTopics.length ? (
@@ -1752,7 +1990,7 @@ export default function CoachingMockup({
                               {topic.code} {topic.label}
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
-                              Avg {topic.avgScore.toFixed(2)} / {topic.max} ({topic.pct.toFixed(2)}%)
+                              เฉลี่ย {topic.avgScore.toFixed(2)} / {topic.max} ({topic.pct.toFixed(2)}%)
                             </div>
                           </div>
                           <span
@@ -1760,17 +1998,17 @@ export default function CoachingMockup({
                               topic.priority
                             )}`}
                           >
-                            {topic.priority}
+                            {topic.priority === "High" ? "เร่งคุย" : topic.priority === "Medium" ? "ควรติดตาม" : "เฝ้าดู"}
                           </span>
                         </div>
 
                         <div className="mt-3 text-xs text-slate-600">
-                          พบใน {topic.failCount} case(s) ที่ยังต้องพัฒนา
+                          พบใน {topic.failCount} เคสที่ยังควรหยิบมาคุย
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="text-sm text-slate-500">No coaching data</div>
+                    <div className="text-sm text-slate-500">ยังไม่มีข้อมูลสำหรับ coaching</div>
                   )}
                 </PanelBody>
               </Panel>
@@ -1778,8 +2016,8 @@ export default function CoachingMockup({
 
             <Panel>
               <PanelHeader
-                title="Coaching Focus Area"
-                subtitle="Detailed coaching analysis by topic"
+                title="รายละเอียดที่ใช้คุย"
+                subtitle="แปลงคะแนนแต่ละหัวข้อเป็นภาษาที่นำไปสื่อสารกับ Agent ได้"
               />
               <PanelBody className="space-y-5">
                 {focusTopics.length ? (
@@ -1805,7 +2043,7 @@ export default function CoachingMockup({
                               {topic.code} {topic.label}
                             </div>
                             <div className="mt-1 text-sm text-slate-500">
-                              Avg {topic.avgScore.toFixed(2)} / {topic.max} · {topic.pct.toFixed(2)}%
+                              เฉลี่ย {topic.avgScore.toFixed(2)} / {topic.max} · {topic.pct.toFixed(2)}%
                             </div>
                           </div>
 
@@ -1815,10 +2053,10 @@ export default function CoachingMockup({
                                 topic.priority
                               )}`}
                             >
-                              {topic.priority} Priority
+                              {topic.priority === "High" ? "เร่งคุย" : topic.priority === "Medium" ? "ควรติดตาม" : "เฝ้าดู"}
                             </span>
                             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                              {topic.failCount} impacted case(s)
+                              กระทบ {topic.failCount} เคส
                             </span>
                           </div>
                         </div>
@@ -1826,14 +2064,14 @@ export default function CoachingMockup({
                         <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
                           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
                             <div className="text-xs font-bold uppercase tracking-wide text-rose-700">
-                              Issue Found
+                              ปัญหาที่พบจากคะแนน
                             </div>
                             <div className="mt-2 text-sm leading-7 text-slate-700">{guide.issue}</div>
                           </div>
 
                           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
                             <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                              Target Improvement
+                              เป้าหมายที่อยากให้ปรับ
                             </div>
                             <div className="mt-2 text-sm leading-7 text-slate-700">{guide.target}</div>
                           </div>
@@ -1852,7 +2090,7 @@ export default function CoachingMockup({
                                 songkranTheme ? "text-cyan-700" : "text-violet-700"
                               }`}
                             >
-                              Recommended Guidance
+                              วิธีคุย / วิธีแนะนำ
                             </div>
                             <div className="mt-3 space-y-2">
                               {guide.guidance.map((item, index) => (
@@ -1868,7 +2106,7 @@ export default function CoachingMockup({
 
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                             <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                              Example Coaching Message
+                              ตัวอย่างประโยคที่ใช้พูด
                             </div>
                             <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700">
                               {guide.example}
@@ -1879,27 +2117,27 @@ export default function CoachingMockup({
                     );
                   })
                 ) : (
-                  <div className="text-sm text-slate-500">No coaching focus area</div>
+                  <div className="text-sm text-slate-500">ยังไม่มีหัวข้อที่ต้องคุยเพิ่มเติม</div>
                 )}
               </PanelBody>
             </Panel>
 
             <Panel>
               <PanelHeader
-                title="Case-based Coaching Evidence"
-                subtitle="Cases that support the coaching recommendation"
+                title="เคสตัวอย่างที่ควรหยิบมาคุย"
+                subtitle="เคสจริงที่มีหัวข้อคะแนนต่ำ ใช้เป็นหลักฐานตอน coaching"
               />
               <PanelBody className="p-0">
                 <div className="overflow-x-auto">
                   <table className="min-w-[1100px] w-full text-sm">
                     <thead>
                       <tr className="bg-violet-950 text-[11px] text-white">
-                        <th className="px-4 py-3 text-left">Audit Date</th>
+                        <th className="px-4 py-3 text-left">วันที่ Audit</th>
                         <th className="px-4 py-3 text-left">Case ID</th>
-                        <th className="px-4 py-3 text-left">Inquiry</th>
-                        <th className="px-4 py-3 text-center">Final Score</th>
+                        <th className="px-4 py-3 text-left">สิ่งที่ลูกค้าถาม</th>
+                        <th className="px-4 py-3 text-center">คะแนน</th>
                         <th className="px-4 py-3 text-center">Grade</th>
-                        <th className="px-4 py-3 text-left">Topic Evidence</th>
+                        <th className="px-4 py-3 text-left">หัวข้อที่ควรคุย</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1936,7 +2174,7 @@ export default function CoachingMockup({
                             colSpan={6}
                             className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
                           >
-                            No case evidence found
+                            ยังไม่พบเคสตัวอย่างสำหรับหัวข้อนี้
                           </td>
                         </tr>
                       )}
@@ -1948,20 +2186,20 @@ export default function CoachingMockup({
 
             <Panel>
               <PanelHeader
-                title="Coaching Action Plan"
-                subtitle="Suggested development plan for the selected agent"
+                title="แผนติดตามหลังคุย"
+                subtitle="สรุปว่าหลังคุยแล้วควรให้ Agent ฝึกเรื่องอะไร"
               />
               <PanelBody className="p-0">
                 <div className="overflow-x-auto">
                   <table className="min-w-[1100px] w-full text-sm">
                     <thead>
                       <tr className="bg-violet-950 text-[11px] text-white">
-                        <th className="px-4 py-3 text-left">Topic</th>
-                        <th className="px-4 py-3 text-left">Expected Behavior</th>
-                        <th className="px-4 py-3 text-left">Practice Method</th>
-                        <th className="px-4 py-3 text-left">Owner</th>
-                        <th className="px-4 py-3 text-left">Suggested Target</th>
-                        <th className="px-4 py-3 text-left">Status</th>
+                        <th className="px-4 py-3 text-left">หัวข้อ</th>
+                        <th className="px-4 py-3 text-left">สิ่งที่อยากให้ทำได้</th>
+                        <th className="px-4 py-3 text-left">วิธีฝึก</th>
+                        <th className="px-4 py-3 text-left">ผู้ติดตาม</th>
+                        <th className="px-4 py-3 text-left">เป้าหมาย</th>
+                        <th className="px-4 py-3 text-left">สถานะ</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1978,17 +2216,17 @@ export default function CoachingMockup({
                                 {guide.target}
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                Review sample cases / practice reply structure / QA feedback follow-up
+                                ดูเคสตัวอย่างร่วมกัน / ฝึกเรียงคำตอบใหม่ / ติดตามผลจากเคสถัดไป
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
                                 QA / Supervisor / Agent
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
-                                Within next coaching cycle
+                                ภายในรอบ coaching ถัดไป
                               </td>
                               <td className="border-t border-slate-200 px-4 py-3 text-slate-700">
                                 <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                  In Progress
+                                  กำลังติดตาม
                                 </span>
                               </td>
                             </tr>
@@ -2000,7 +2238,7 @@ export default function CoachingMockup({
                             colSpan={6}
                             className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500"
                           >
-                            No action plan available
+                            ยังไม่มีแผนติดตาม
                           </td>
                         </tr>
                       )}

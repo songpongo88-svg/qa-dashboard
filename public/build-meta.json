@@ -1,15 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121026",
-  "buildNumber": 2605121026,
-  "releaseLabel": "v1.0.0.2605121026",
-  "updatedAt": "12/05/2026 10:26:20",
+  "displayVersion": "1.0.0.2605121142",
+  "buildNumber": 2605121142,
+  "releaseLabel": "v1.0.0.2605121142",
+  "updatedAt": "12/05/2026 11:42:36",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "66929d6fdfe75138e2d83fc47271090d9b74155b",
-  "commitMessage": "Refresh build metadata",
+  "commitHash": "df042d7a02c9d67ebc00206f13c4b914f4b38d28",
+  "commitMessage": "Append new appeal raw data",
   "changedFiles": [
+    "public/Appleal ROWDATA.xlsx",
     "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
