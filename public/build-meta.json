@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605121317",
-  "buildNumber": 2605121317,
-  "releaseLabel": "v1.0.0.2605121317",
-  "updatedAt": "12/05/2026 13:17:31",
+  "displayVersion": "1.0.0.2605121342",
+  "buildNumber": 2605121342,
+  "releaseLabel": "v1.0.0.2605121342",
+  "updatedAt": "12/05/2026 13:42:55",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "97ceda03ac6ecc9be47f033ffb86b97488d05d46",
-  "commitMessage": "Match coaching examples to appeal layout",
+  "commitHash": "49b5cb60d67cb01a4197a081ed21b7012e43b7c7",
+  "commitMessage": "Restrict coaching access to Songpon",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CoachingMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
