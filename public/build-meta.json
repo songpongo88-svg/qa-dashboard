@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131544",
-  "buildNumber": 2605131544,
-  "releaseLabel": "v1.0.0.2605131544",
-  "updatedAt": "13/05/2026 15:44:27",
+  "displayVersion": "1.0.0.2605131710",
+  "buildNumber": 2605131710,
+  "releaseLabel": "v1.0.0.2605131710",
+  "updatedAt": "13/05/2026 17:10:35",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "4561e13168e3c26a7e16929175cc49cd686f68b1",
-  "commitMessage": "Suspend departed user account",
+  "commitHash": "ccd3339bc9a677171a1700e7c89afc2176338320",
+  "commitMessage": "Add supervisor password reset requests",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"

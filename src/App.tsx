@@ -112,6 +112,21 @@ function canAccessUsageLog(user: CurrentUser | null) {
   return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
 }
 
+function canAccessPasswordResetAdmin(user: CurrentUser | null) {
+  if (!user) return false;
+  const displayName = String(user.displayName || "").trim().toLowerCase();
+  const username = String(user.username || "").trim().toLowerCase();
+  return (
+    user.role === "Supervisor" &&
+    (
+      displayName === "songpon phothong" ||
+      username === "songpon" ||
+      displayName === "phrommarin thaithorn" ||
+      username === "phrommarin"
+    )
+  );
+}
+
 function isSongkranThemeActive() {
   return false;
 }
@@ -644,6 +659,7 @@ function ResetPasswordModal({
   onReset,
   resultMessage,
   resetRequests,
+  currentUsername,
   onRefreshRequests,
   onApproveRequest,
   onRejectRequest,
@@ -655,12 +671,14 @@ function ResetPasswordModal({
   onReset: () => void;
   resultMessage: string;
   resetRequests: PasswordResetRequest[];
+  currentUsername: string;
   onRefreshRequests: () => void;
   onApproveRequest: (request: PasswordResetRequest) => void;
   onRejectRequest: (request: PasswordResetRequest) => void;
 }) {
   if (!open) return null;
-  const resettableUsers = USER_ACCOUNTS.filter((item) => item.role === "Agent");
+  const normalizedCurrentUsername = currentUsername.trim().toLowerCase();
+  const resettableUsers = USER_ACCOUNTS.filter((item) => item.username.trim().toLowerCase() !== normalizedCurrentUsername);
   const pendingRequests = resetRequests.filter((item) => item.status === "Pending");
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
@@ -688,7 +706,14 @@ function ResetPasswordModal({
                         <div className="mt-1 text-xs text-slate-400">Requested: {request.requestedAt ? new Date(request.requestedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => onApproveRequest(request)} className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Approve</button>
+                        <button
+                          type="button"
+                          onClick={() => onApproveRequest(request)}
+                          disabled={request.username.trim().toLowerCase() === normalizedCurrentUsername}
+                          className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          Approve
+                        </button>
                         <button type="button" onClick={() => onRejectRequest(request)} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">Reject</button>
                       </div>
                     </div>
@@ -934,7 +959,7 @@ export default function App() {
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const coachingAllowed = canAccessCoaching(currentUser);
   const usageLogAllowed = canAccessUsageLog(currentUser);
-  const passwordResetAdminAllowed = usageLogAllowed;
+  const passwordResetAdminAllowed = canAccessPasswordResetAdmin(currentUser);
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
@@ -1378,6 +1403,10 @@ export default function App() {
 
   const handleResetPasswordToDefaultAsync = async () => {
     if (!resetTargetUsername) return;
+    if (currentUser && resetTargetUsername.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) {
+      setResetResultMessage("You cannot reset your own password. Please ask another reset admin.");
+      return;
+    }
     removePasswordOverride(resetTargetUsername);
     const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
@@ -1404,6 +1433,10 @@ export default function App() {
 
   const handleApproveResetRequest = async (request: PasswordResetRequest) => {
     if (!currentUser) return;
+    if (request.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) {
+      setResetResultMessage("You cannot approve your own password reset request.");
+      return;
+    }
     const tempPassword = generateTemporaryPassword();
     await logUsageEvent(currentUser, "password_reset_approved", {
       tab: "account",
@@ -1579,6 +1612,7 @@ export default function App() {
         onReset={handleResetPasswordToDefault}
         resultMessage={resetResultMessage}
         resetRequests={passwordResetRequests}
+        currentUsername={currentUser.username}
         onRefreshRequests={loadPasswordResetRequests}
         onApproveRequest={(request) => {
           void handleApproveResetRequest(request);
