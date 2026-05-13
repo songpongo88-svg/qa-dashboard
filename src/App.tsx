@@ -8,6 +8,7 @@ import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import PageHero from "./PageHero";
+import TeamChatMockup, { ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
 type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
@@ -150,6 +151,7 @@ type InboxTaskItem = {
 
 const INBOX_READ_KEY = "qa_inbox_read_tasks";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
+const ONLINE_USER_WINDOW_MS = 90 * 1000;
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 
@@ -556,6 +558,43 @@ function buildResetRequests(logs: UsageLogEvent[]) {
         tempPassword: typeof decision?.details?.password === "string" ? decision.details.password : "",
       };
     });
+}
+
+function buildChatMessages(logs: UsageLogEvent[]) {
+  return logs
+    .filter((item) => item.event_type === "chat_message" && typeof item.details?.message === "string")
+    .map((item): ChatMessage => ({
+      id: item.id || `${item.username}-${item.created_at}`,
+      createdAt: item.created_at || new Date().toISOString(),
+      username: item.username || "",
+      displayName: item.display_name || item.username || "",
+      role: item.role || "",
+      message: String(item.details?.message || ""),
+    }))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
+function buildOnlineUsers(logs: UsageLogEvent[]) {
+  const now = Date.now();
+  const users = new Map<string, OnlineUser>();
+
+  logs.forEach((item) => {
+    if (item.event_type !== "user_presence" || !item.username || !item.created_at) return;
+    const createdAt = new Date(item.created_at).getTime();
+    if (Number.isNaN(createdAt) || now - createdAt > ONLINE_USER_WINDOW_MS) return;
+    const normalizedUsername = item.username.trim().toLowerCase();
+    if (!normalizedUsername || users.has(normalizedUsername)) return;
+
+    users.set(normalizedUsername, {
+      username: item.username,
+      displayName: item.display_name || item.username,
+      role: item.role || "",
+      agentName: item.agent_name || "",
+      lastSeenAt: item.created_at,
+    });
+  });
+
+  return Array.from(users.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 function getResetRequestDecisionStatus(logs: UsageLogEvent[], requestId: string): PasswordResetRequest["status"] {
@@ -1307,13 +1346,15 @@ export default function App() {
   const [resetResultMessage, setResetResultMessage] = useState("");
   const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
   const [inboxTasks, setInboxTasks] = useState<InboxTaskItem[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "appeal-requests" | "task-inbox" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
+    "dashboard" | "appeal" | "appeal-requests" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -1498,6 +1539,41 @@ export default function App() {
     }
   };
 
+  const loadChatData = async () => {
+    if (!currentUser) {
+      setChatMessages([]);
+      setOnlineUsers([]);
+      return;
+    }
+
+    try {
+      const logs = await fetchUsageLogs(1000);
+      setChatMessages(buildChatMessages(logs));
+      setOnlineUsers(buildOnlineUsers(logs));
+    } catch {
+      setChatMessages([]);
+      setOnlineUsers([]);
+    }
+  };
+
+  const sendPresence = async () => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "user_presence", {
+      tab: activeTab,
+      details: { activeTab },
+    });
+  };
+
+  const sendChatMessage = async (message: string) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "chat_message", {
+      tab: "team-chat",
+      details: { message },
+    });
+    await sendPresence();
+    await loadChatData();
+  };
+
   const loadRoleOverrides = async () => {
     try {
       const logs = await fetchUsageLogs(5000);
@@ -1599,6 +1675,29 @@ export default function App() {
 
     return () => window.clearInterval(timer);
   }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setChatMessages([]);
+      setOnlineUsers([]);
+      return;
+    }
+
+    void sendPresence();
+    void loadChatData();
+
+    const presenceTimer = window.setInterval(() => {
+      void sendPresence();
+    }, 30000);
+    const chatTimer = window.setInterval(() => {
+      void loadChatData();
+    }, 5000);
+
+    return () => {
+      window.clearInterval(presenceTimer);
+      window.clearInterval(chatTimer);
+    };
+  }, [currentUser, activeTab]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1734,6 +1833,8 @@ export default function App() {
     setSelectedAgentGlobal("");
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
+    setChatMessages([]);
+    setOnlineUsers([]);
     setShowChangePasswordModal(false);
     setShowResetPasswordModal(false);
     resetChangePasswordState();
@@ -2368,6 +2469,28 @@ export default function App() {
                       {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread task(s)` : "No unread task"}
                     </div>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("team-chat");
+                      void sendPresence();
+                      void loadChatData();
+                    }}
+                    className="group relative overflow-hidden rounded-2xl border border-sky-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-sky-300 hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Team Chat</div>
+                        <div className="mt-1 text-sm font-extrabold">Online Chat</div>
+                      </div>
+                      <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
+                        {onlineUsers.length}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      {onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                    </div>
+                  </button>
                   <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
                   <VersionPill meta={buildMeta} />
                 </div>
@@ -2450,6 +2573,17 @@ export default function App() {
           <TaskInboxMockup
             tasks={inboxTasks}
             onOpenTask={handleOpenInboxTask}
+          />
+        ) : activeTab === "team-chat" ? (
+          <TeamChatMockup
+            currentUser={currentUser}
+            messages={chatMessages}
+            onlineUsers={onlineUsers}
+            onSendMessage={sendChatMessage}
+            onRefresh={() => {
+              void sendPresence();
+              void loadChatData();
+            }}
           />
         ) : activeTab === "summary" ? (
           <SummaryMockup

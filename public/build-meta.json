@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605140012",
-  "buildNumber": 2605140012,
-  "releaseLabel": "v1.0.0.2605140012",
-  "updatedAt": "14/05/2026 00:12:43",
+  "displayVersion": "1.0.0.2605140034",
+  "buildNumber": 2605140034,
+  "releaseLabel": "v1.0.0.2605140034",
+  "updatedAt": "14/05/2026 00:34:59",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "efbe911e1a0b58ed8f7987bd5428c4e20719e9b2",
-  "commitMessage": "Fix task inbox blank page",
+  "commitHash": "529163ccb0e1aa7e02ca57bc7c417deaa9a5edd4",
+  "commitMessage": "Make task inbox central unread mailbox",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
