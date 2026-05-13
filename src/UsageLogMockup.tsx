@@ -18,13 +18,52 @@ function formatLogDate(value?: string) {
 
 function eventLabel(type: string) {
   const map: Record<string, string> = {
-    login: "Login",
-    logout: "Logout",
-    tab_view: "Open Tab",
-    case_detail_open: "Open Case",
-    appeal_case_open: "Open Appeal",
+    login: "เข้าสู่ระบบ",
+    logout: "ออกจากระบบ",
+    tab_view: "เปิดหน้า",
+    case_detail_open: "เปิดเคส",
+    appeal_case_open: "เปิดเคส Appeal",
   };
   return map[type] || type || "-";
+}
+
+function tabLabel(tab?: string) {
+  const map: Record<string, string> = {
+    dashboard: "Dashboard",
+    summary: "Summary",
+    coaching: "Coaching",
+    appeal: "Appeal",
+    "usage-log": "Usage Log",
+  };
+  return tab ? map[tab] || tab : "-";
+}
+
+function subTabLabel(value?: unknown) {
+  const map: Record<string, string> = {
+    overview: "ภาพรวม",
+    "case-detail": "รายละเอียดเคส",
+  };
+  return typeof value === "string" ? map[value] || value : "";
+}
+
+function detailsLabel(item: UsageLogEvent) {
+  if (item.event_type === "login") return "ผู้ใช้เข้าสู่ระบบ";
+  if (item.event_type === "logout") return "ผู้ใช้ออกจากระบบ";
+  if (item.event_type === "case_detail_open") {
+    return item.case_id ? `เปิดดูรายละเอียดเคส ${item.case_id}` : "เปิดดูรายละเอียดเคส";
+  }
+  if (item.event_type === "appeal_case_open") {
+    return item.case_id ? `เปิดดูเคส Appeal ${item.case_id}` : "เปิดดูเคส Appeal";
+  }
+  if (item.event_type === "tab_view") {
+    const subTab = subTabLabel(item.details?.dashboardSubTab);
+    const tabText = tabLabel(item.tab);
+    return subTab ? `เปิดหน้า ${tabText} - ${subTab}` : `เปิดหน้า ${tabText}`;
+  }
+
+  const entries = Object.entries(item.details || {}).filter(([, value]) => value !== "" && value != null);
+  if (!entries.length) return "-";
+  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(", ");
 }
 
 function eventTone(type: string) {
@@ -140,13 +179,13 @@ export default function UsageLogMockup() {
               <table className="min-w-[1180px] w-full text-sm">
                 <thead>
                   <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.12em] text-white">
-                    <th className="px-4 py-3 text-left">Time</th>
-                    <th className="px-4 py-3 text-left">User</th>
+                    <th className="px-4 py-3 text-left">เวลา</th>
+                    <th className="px-4 py-3 text-left">ผู้ใช้งาน</th>
                     <th className="px-4 py-3 text-left">Role</th>
-                    <th className="px-4 py-3 text-left">Event</th>
-                    <th className="px-4 py-3 text-left">Tab</th>
+                    <th className="px-4 py-3 text-left">กิจกรรม</th>
+                    <th className="px-4 py-3 text-left">หน้า</th>
                     <th className="px-4 py-3 text-left">Case ID</th>
-                    <th className="px-4 py-3 text-left">Details</th>
+                    <th className="px-4 py-3 text-left">รายละเอียด</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,10 +203,10 @@ export default function UsageLogMockup() {
                             {eventLabel(item.event_type)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{item.tab || "-"}</td>
+                        <td className="px-4 py-3 text-slate-700">{tabLabel(item.tab)}</td>
                         <td className="px-4 py-3 font-semibold text-slate-900">{item.case_id || "-"}</td>
-                        <td className="max-w-[360px] px-4 py-3 text-xs leading-5 text-slate-500">
-                          {item.details ? JSON.stringify(item.details) : "-"}
+                        <td className="max-w-[420px] px-4 py-3 text-sm leading-6 text-slate-700">
+                          {detailsLabel(item)}
                         </td>
                       </tr>
                     ))
