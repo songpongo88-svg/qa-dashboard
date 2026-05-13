@@ -136,6 +136,15 @@ type PasswordRecord = {
   eventType: string;
 };
 
+type InboxTaskItem = {
+  id: string;
+  type: "appeal";
+  title: string;
+  description: string;
+  badge: string;
+  count: number;
+};
+
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 
 function isUserRole(value: unknown): value is UserRole {
@@ -1156,6 +1165,76 @@ function ReleaseNotesModal({
   );
 }
 
+function TaskInboxMockup({
+  tasks,
+  onOpenAppealRequests,
+}: {
+  tasks: InboxTaskItem[];
+  onOpenAppealRequests: () => void;
+}) {
+  const totalTasks = tasks.reduce((sum, item) => sum + item.count, 0);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#f3e8ff] px-5 py-6 lg:px-8">
+      <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
+        <PageHero
+          eyebrow="Task Inbox"
+          title="Central Task Center"
+          subtitle="All pending QA tasks and operational alerts are collected here before opening the related workflow."
+          workspaceTitle="Action Queue"
+          workspaceSubtitle="One inbox for appeals, approvals, and future QA tasks"
+        />
+
+        <div className="grid gap-4 border-b border-violet-100 bg-violet-50/60 px-5 py-5 md:grid-cols-3">
+          <div className="rounded-3xl border border-violet-100 bg-white p-5">
+            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Total Pending Tasks</div>
+            <div className="mt-3 text-4xl font-black text-slate-950">{totalTasks}</div>
+          </div>
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 md:col-span-2">
+            <div className="text-sm font-black text-slate-950">Inbox Logic</div>
+            <div className="mt-2 text-sm leading-6 text-slate-600">
+              This page is designed as the central entry point for task notifications. Each task card opens the related detail page.
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-5 lg:grid-cols-2">
+          {tasks.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={task.type === "appeal" ? onOpenAppealRequests : undefined}
+              className="group rounded-[28px] border border-violet-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_18px_40px_rgba(88,28,135,0.12)]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-violet-700">
+                    {task.badge}
+                  </div>
+                  <div className="mt-3 text-xl font-black text-slate-950">{task.title}</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-600">{task.description}</div>
+                </div>
+                <span className="inline-flex min-w-12 items-center justify-center rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-3 py-2 text-lg font-black text-white">
+                  {task.count}
+                </span>
+              </div>
+              <div className="mt-4 text-sm font-black text-violet-700 transition group-hover:translate-x-1">
+                Open task details
+              </div>
+            </button>
+          ))}
+
+          {!tasks.length ? (
+            <div className="rounded-[28px] border border-dashed border-violet-200 bg-violet-50/60 p-8 text-center text-sm font-semibold text-slate-500 lg:col-span-2">
+              No task types are available for your role.
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
   const [username, setUsername] = useState("");
@@ -1181,14 +1260,14 @@ export default function App() {
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
   const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
-  const [appealTaskCount, setAppealTaskCount] = useState(0);
+  const [inboxTasks, setInboxTasks] = useState<InboxTaskItem[]>([]);
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "appeal-requests" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
+    "dashboard" | "appeal" | "appeal-requests" | "task-inbox" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -1223,6 +1302,8 @@ export default function App() {
       : "";
   const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
+  const totalInboxTaskCount = inboxTasks.reduce((sum, item) => sum + item.count, 0);
+  const primaryInboxTask = inboxTasks.find((item) => item.count > 0) || inboxTasks[0];
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -1273,17 +1354,28 @@ export default function App() {
     }, 0);
   };
 
-  const loadAppealTaskCount = async () => {
+  const loadInboxTasks = async () => {
     if (!appealRequestsAllowed) {
-      setAppealTaskCount(0);
+      setInboxTasks([]);
       return;
     }
     try {
       const logs = await fetchUsageLogs(5000);
       const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
-      setAppealTaskCount(pendingCount);
+      setInboxTasks([
+        {
+          id: "appeal-requests",
+          type: "appeal",
+          title: "Appeal Requests",
+          description: pendingCount
+            ? "Appeal request(s) are waiting for Quality Assurance review."
+            : "No pending appeal review task at the moment.",
+          badge: "Appeal Review",
+          count: pendingCount,
+        },
+      ]);
     } catch {
-      setAppealTaskCount(0);
+      setInboxTasks([]);
     }
   };
 
@@ -1349,7 +1441,7 @@ export default function App() {
     if (activeTab === "usage-log" && !usageLogAllowed) {
       setActiveTab("dashboard");
     }
-    if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
+    if ((activeTab === "appeal-requests" || activeTab === "task-inbox") && !appealRequestsAllowed) {
       setActiveTab("dashboard");
     }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
@@ -1377,13 +1469,13 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser || !appealRequestsAllowed) {
-      setAppealTaskCount(0);
+      setInboxTasks([]);
       return;
     }
 
-    void loadAppealTaskCount();
+    void loadInboxTasks();
     const timer = window.setInterval(() => {
-      void loadAppealTaskCount();
+      void loadInboxTasks();
     }, 60000);
 
     return () => window.clearInterval(timer);
@@ -2108,22 +2200,22 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        setActiveTab("appeal-requests");
-                        void loadAppealTaskCount();
+                        setActiveTab("task-inbox");
+                        void loadInboxTasks();
                       }}
                       className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
-                          <div className="mt-1 text-sm font-extrabold">Appeal Requests</div>
+                          <div className="mt-1 text-sm font-extrabold">{primaryInboxTask?.title || "All Tasks"}</div>
                         </div>
                         <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
-                          {appealTaskCount}
+                          {totalInboxTaskCount}
                         </span>
                       </div>
                       <div className="mt-1 text-xs font-semibold text-violet-100">
-                        {appealTaskCount ? "Pending case(s) waiting for review" : "No pending appeal task"}
+                        {totalInboxTaskCount ? `${totalInboxTaskCount} pending task(s) waiting for action` : "No pending task"}
                       </div>
                     </button>
                   ) : null}
@@ -2204,7 +2296,15 @@ export default function App() {
             }}
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
-          <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadAppealTaskCount} />
+          <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
+        ) : activeTab === "task-inbox" && appealRequestsAllowed ? (
+          <TaskInboxMockup
+            tasks={inboxTasks}
+            onOpenAppealRequests={() => {
+              setActiveTab("appeal-requests");
+              void loadInboxTasks();
+            }}
+          />
         ) : activeTab === "summary" ? (
           <SummaryMockup
             currentUser={currentUser}

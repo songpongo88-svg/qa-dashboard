@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605132338",
-  "buildNumber": 2605132338,
-  "releaseLabel": "v1.0.0.2605132338",
-  "updatedAt": "13/05/2026 23:38:58",
+  "displayVersion": "1.0.0.2605132355",
+  "buildNumber": 2605132355,
+  "releaseLabel": "v1.0.0.2605132355",
+  "updatedAt": "13/05/2026 23:55:51",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "99a662dc59da1c38c4c2f8899cac256ebcdd77ec",
-  "commitMessage": "Split suspended users in directory",
+  "commitHash": "7a525852c915784fa5fa78abdf56a2583851b3de",
+  "commitMessage": "Add password expiry prompts",
   "changedFiles": [
     "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
