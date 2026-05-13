@@ -1,24 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605132218",
-  "buildNumber": 2605132218,
-  "releaseLabel": "v1.0.0.2605132218",
-  "updatedAt": "13/05/2026 22:18:52",
+  "displayVersion": "1.0.0.2605132238",
+  "buildNumber": 2605132238,
+  "releaseLabel": "v1.0.0.2605132238",
+  "updatedAt": "13/05/2026 22:38:10",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2bde120ceb1ca06b51c6bcbd69f7ffd45cbda5c9",
-  "commitMessage": "Standardize page hero across tabs",
+  "commitHash": "0a780359280a0313ae363cf066f81603730f39cb",
+  "commitMessage": "Add user role management tab",
   "changedFiles": [
     "public/build-meta.json",
-    "src/AppealMockup.tsx",
-    "src/AppealRequestsMockup.tsx",
-    "src/CoachingMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/PageHero.tsx",
-    "src/QARubricMockup.tsx",
-    "src/SummaryMockup.tsx",
-    "src/UsageLogMockup.tsx"
+    "src/App.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

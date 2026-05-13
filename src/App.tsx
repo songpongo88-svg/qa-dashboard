@@ -9,7 +9,7 @@ import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
-type UserRole = "Agent" | "Supervisor" | "Quality Assurance";
+type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
 
 type UserAccount = {
   username: string;
@@ -116,7 +116,7 @@ type PasswordResetRequest = {
   tempPassword?: string;
 };
 
-const ROLE_OPTIONS: UserRole[] = ["Agent", "Supervisor", "Quality Assurance"];
+const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 
 function isUserRole(value: unknown): value is UserRole {
   return ROLE_OPTIONS.includes(value as UserRole);

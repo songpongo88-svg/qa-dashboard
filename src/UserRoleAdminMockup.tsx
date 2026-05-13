@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { logUsageEvent } from "./usageLog";
 
-type UserRole = "Agent" | "Supervisor" | "Quality Assurance";
+type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
 
 type UserAccount = {
   username: string;
@@ -32,7 +32,7 @@ type UserRoleAdminMockupProps = {
   onRolesChanged: () => void | Promise<void>;
 };
 
-const ROLE_OPTIONS: UserRole[] = ["Agent", "Supervisor", "Quality Assurance"];
+const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 
 function roleBadgeClass(role: UserRole) {
   if (role === "Quality Assurance") {
@@ -40,6 +40,9 @@ function roleBadgeClass(role: UserRole) {
   }
   if (role === "Supervisor") {
     return "border-sky-200 bg-sky-50 text-sky-700";
+  }
+  if (role === "Senior") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
@@ -65,6 +68,7 @@ export default function UserRoleAdminMockup({
 }: UserRoleAdminMockupProps) {
   const [savingUsername, setSavingUsername] = useState("");
   const [message, setMessage] = useState("");
+  const [draftRoles, setDraftRoles] = useState<Record<string, UserRole>>({});
 
   const rows = useMemo(() => {
     return accounts
@@ -83,10 +87,28 @@ export default function UserRoleAdminMockup({
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
+  const seniorUsers = rows.filter((row) => row.effectiveRole === "Senior").length;
   const supervisorUsers = rows.filter((row) => row.effectiveRole === "Supervisor").length;
   const qaUsers = rows.filter((row) => row.effectiveRole === "Quality Assurance").length;
 
-  const handleRoleChange = async (account: UserAccount, nextRole: UserRole) => {
+  useEffect(() => {
+    setDraftRoles((currentDrafts) => {
+      const nextDrafts: Record<string, UserRole> = {};
+      rows.forEach((row) => {
+        nextDrafts[row.normalizedUsername] = currentDrafts[row.normalizedUsername] || row.effectiveRole;
+      });
+      return nextDrafts;
+    });
+  }, [rows]);
+
+  const handleDraftRoleChange = (username: string, nextRole: UserRole) => {
+    setDraftRoles((currentDrafts) => ({
+      ...currentDrafts,
+      [username.trim().toLowerCase()]: nextRole,
+    }));
+  };
+
+  const handleSaveRole = async (account: UserAccount, nextRole: UserRole) => {
     const normalizedUsername = account.username.trim().toLowerCase();
     const previousRole = roleOverrides[normalizedUsername] || account.role;
     if (previousRole === nextRole) return;
@@ -114,8 +136,12 @@ export default function UserRoleAdminMockup({
     });
 
     await onRolesChanged();
+    setDraftRoles((currentDrafts) => ({
+      ...currentDrafts,
+      [normalizedUsername]: nextRole,
+    }));
     setSavingUsername("");
-    setMessage(`${account.displayName} role updated: ${previousRole} -> ${nextRole}`);
+    setMessage(`${account.displayName} role saved: ${previousRole} -> ${nextRole}`);
   };
 
   const handleExportPdf = () => {
@@ -171,7 +197,7 @@ export default function UserRoleAdminMockup({
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <div className="rounded-[22px] border border-violet-100 bg-white p-5 shadow-sm">
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">Total Users</div>
             <div className="mt-3 text-3xl font-black text-slate-950">{totalUsers}</div>
@@ -179,6 +205,10 @@ export default function UserRoleAdminMockup({
           <div className="rounded-[22px] border border-emerald-100 bg-white p-5 shadow-sm">
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-600">Active</div>
             <div className="mt-3 text-3xl font-black text-slate-950">{activeUsers}</div>
+          </div>
+          <div className="rounded-[22px] border border-sky-100 bg-white p-5 shadow-sm">
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-600">Senior</div>
+            <div className="mt-3 text-3xl font-black text-slate-950">{seniorUsers}</div>
           </div>
           <div className="rounded-[22px] border border-sky-100 bg-white p-5 shadow-sm">
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-600">Supervisors</div>
@@ -195,7 +225,7 @@ export default function UserRoleAdminMockup({
             <div>
               <div className="text-lg font-black text-slate-950">Role Directory</div>
               <div className="mt-1 text-sm text-slate-500">
-                Songpon is fixed as Quality Assurance so the admin tab remains accessible.
+                Choose a new CRM-style role, then click Save Role to update that user.
               </div>
               {message ? <div className="mt-2 text-sm font-semibold text-violet-700">{message}</div> : null}
             </div>
@@ -216,12 +246,15 @@ export default function UserRoleAdminMockup({
                   <th className="px-5 py-4 font-bold">Email</th>
                   <th className="px-5 py-4 font-bold">Current Role</th>
                   <th className="px-5 py-4 font-bold">Edit Role</th>
+                  <th className="px-5 py-4 font-bold">Action</th>
                   <th className="px-5 py-4 font-bold">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => {
                   const isSongpon = row.normalizedUsername === "songpon";
+                  const draftRole = draftRoles[row.normalizedUsername] || row.effectiveRole;
+                  const hasRoleChange = draftRole !== row.effectiveRole;
                   return (
                     <tr key={row.username} className="border-b border-slate-100 last:border-b-0">
                       <td className="px-5 py-4">
@@ -236,9 +269,9 @@ export default function UserRoleAdminMockup({
                       </td>
                       <td className="px-5 py-4">
                         <select
-                          value={row.effectiveRole}
+                          value={draftRole}
                           disabled={savingUsername === row.username || isSongpon}
-                          onChange={(event) => handleRoleChange(row, event.target.value as UserRole)}
+                          onChange={(event) => handleDraftRoleChange(row.username, event.target.value as UserRole)}
                           className="min-w-[190px] rounded-2xl border border-violet-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                         >
                           {ROLE_OPTIONS.map((role) => (
@@ -247,6 +280,16 @@ export default function UserRoleAdminMockup({
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          disabled={!hasRoleChange || savingUsername === row.username || isSongpon}
+                          onClick={() => handleSaveRole(row, draftRole)}
+                          className="rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                        >
+                          {savingUsername === row.username ? "Saving..." : "Save Role"}
+                        </button>
                       </td>
                       <td className="px-5 py-4">
                         <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${row.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
