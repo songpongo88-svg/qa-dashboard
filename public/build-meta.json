@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131445",
-  "buildNumber": 2605131445,
-  "releaseLabel": "v1.0.0.2605131445",
-  "updatedAt": "13/05/2026 14:45:53",
+  "displayVersion": "1.0.0.2605131450",
+  "buildNumber": 2605131450,
+  "releaseLabel": "v1.0.0.2605131450",
+  "updatedAt": "13/05/2026 14:50:27",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6829368e68ac07401b241fee790e11b8a9319ead",
-  "commitMessage": "Add usage log date filtering and export",
+  "commitHash": "caab766684b885216b098ab798438e6fbf024cf6",
+  "commitMessage": "Add email-based forgot password reset",
   "changedFiles": [
     "public/build-meta.json",
-    "src/UsageLogMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
