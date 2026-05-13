@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
+import AppealRequestsMockup from "./AppealRequestsMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
@@ -133,6 +134,13 @@ function canAccessPasswordResetAdmin(user: CurrentUser | null) {
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
   return user.role === "Supervisor" && (PASSWORD_RESET_ADMIN_USERNAMES.has(username) || PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(displayName));
+}
+
+function canAccessAppealRequests(user: CurrentUser | null) {
+  if (!user) return false;
+  const displayName = String(user.displayName || "").trim().toLowerCase();
+  const username = String(user.username || "").trim().toLowerCase();
+  return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
 }
 
 function isSongkranThemeActive() {
@@ -967,7 +975,7 @@ export default function App() {
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "coaching" | "rubric" | "usage-log"
+    "dashboard" | "appeal" | "appeal-requests" | "summary" | "coaching" | "rubric" | "usage-log"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -988,12 +996,13 @@ export default function App() {
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const coachingAllowed = canAccessCoaching(currentUser);
   const usageLogAllowed = canAccessUsageLog(currentUser);
+  const appealRequestsAllowed = canAccessAppealRequests(currentUser);
   const passwordResetAdminAllowed = canAccessPasswordResetAdmin(currentUser);
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
       : "";
-  const reviewMenuValue = activeTab === "appeal" || activeTab === "rubric" ? activeTab : "";
+  const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
   const accountOptions = currentUser?.role === "Supervisor"
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -1014,7 +1023,8 @@ export default function App() {
   };
 
   const handleReviewMenuChange = (value: string) => {
-    if (value === "appeal" || value === "rubric") {
+    if (value === "appeal-requests" && !appealRequestsAllowed) return;
+    if (value === "appeal" || value === "appeal-requests" || value === "rubric") {
       setActiveTab(value);
     }
   };
@@ -1063,7 +1073,10 @@ export default function App() {
     if (activeTab === "usage-log" && !usageLogAllowed) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, coachingAllowed, usageLogAllowed]);
+    if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -1721,6 +1734,7 @@ export default function App() {
                     onChange={handleReviewMenuChange}
                     options={[
                       { value: "appeal", label: "Appeal" },
+                      ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
                       { value: "rubric", label: "QA Rubric" },
                     ]}
                   />
@@ -1809,6 +1823,8 @@ export default function App() {
               });
             }}
           />
+        ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
+          <AppealRequestsMockup currentUser={currentUser} />
         ) : activeTab === "summary" ? (
           <SummaryMockup
             currentUser={currentUser}

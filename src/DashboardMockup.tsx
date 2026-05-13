@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { fetchUsageLogs, logUsageEvent } from "./usageLog";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -43,6 +44,15 @@ type CaseItem = {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   displayRevisedTopicCodes?: string[];
+};
+
+type AppealDraftTopic = {
+  code: string;
+  label: string;
+  score: number;
+  max: number;
+  comment?: string;
+  appealReason: string;
 };
 
 type TopicSummary = {
@@ -563,6 +573,32 @@ function getMonthLabel(date: Date | null) {
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     year: "numeric",
+  }).format(date);
+}
+
+function getAppealDeadline(auditDate: Date | null) {
+  if (!auditDate) return null;
+  return new Date(auditDate.getFullYear(), auditDate.getMonth() + 1, 10, 23, 59, 59, 999);
+}
+
+function isAppealWindowOpen(auditDate: Date | null, now = TODAY) {
+  const deadline = getAppealDeadline(auditDate);
+  return !!deadline && now.getTime() <= deadline.getTime();
+}
+
+function formatBangkokDateTime(value: Date | string | null) {
+  if (!value) return "-";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
   }).format(date);
 }
 
@@ -2052,6 +2088,11 @@ function SlideOverCaseDetail({
   const [availablePdfUrls, setAvailablePdfUrls] = useState<{ label: string; url: string; tone: string }[]>([]);
   const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
   const [verifiedImagePdfUrls, setVerifiedImagePdfUrls] = useState<{ rawUrl: string; url: string; label: string }[]>([]);
+  const [appealRequestExists, setAppealRequestExists] = useState(false);
+  const [appealSubmitOpen, setAppealSubmitOpen] = useState(false);
+  const [appealDraftTopics, setAppealDraftTopics] = useState<AppealDraftTopic[]>([]);
+  const [appealSubmitMessage, setAppealSubmitMessage] = useState("");
+  const [appealSubmitBusy, setAppealSubmitBusy] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<{
     type: "image" | "pdf";
     url: string;
@@ -2060,6 +2101,102 @@ function SlideOverCaseDetail({
     items?: string[];
     index?: number;
   } | null>(null);
+
+  const appealDeadline = getAppealDeadline(caseItem.auditDateObj);
+  const canSubmitAppeal = isAppealWindowOpen(caseItem.auditDateObj) && !appealRequestExists;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAppealRequest = async () => {
+      try {
+        const logs = await fetchUsageLogs(3000);
+        if (cancelled) return;
+        setAppealRequestExists(
+          logs.some(
+            (item) =>
+              (item.event_type === "appeal_request_submitted" || item.event_type === "appeal_request_reviewed") &&
+              String(item.case_id || item.details?.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
+          )
+        );
+      } catch {
+        if (!cancelled) setAppealRequestExists(false);
+      }
+    };
+
+    setAppealSubmitOpen(false);
+    setAppealDraftTopics([]);
+    setAppealSubmitMessage("");
+    void checkAppealRequest();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseItem.caseId]);
+
+  const openAppealSubmitForm = () => {
+    setAppealDraftTopics(
+      caseItem.topics.map((topic) => ({
+        code: topic.code,
+        label: topic.label,
+        score: topic.score,
+        max: topic.max,
+        comment: topic.comment,
+        appealReason: "",
+      }))
+    );
+    setAppealSubmitMessage("");
+    setAppealSubmitOpen(true);
+  };
+
+  const submitAppealRequest = async () => {
+    if (!currentUser || appealSubmitBusy) return;
+    if (!canSubmitAppeal) {
+      setAppealSubmitMessage("This case is not available for appeal submission.");
+      return;
+    }
+
+    const selectedTopics = appealDraftTopics.filter((topic) => topic.appealReason.trim());
+    if (!selectedTopics.length) {
+      setAppealSubmitMessage("Please enter an appeal reason for at least one topic.");
+      return;
+    }
+
+    setAppealSubmitBusy(true);
+    try {
+      await logUsageEvent(currentUser, "appeal_request_submitted", {
+        tab: "dashboard",
+        case_id: caseItem.caseId,
+        target_agent: caseItem.agent,
+        details: {
+          requestId: `appeal-${caseItem.caseId}-${Date.now()}`,
+          caseId: caseItem.caseId,
+          agent: caseItem.agent,
+          auditDate: caseItem.auditDate,
+          auditTimestamp: caseItem.auditTimestamp,
+          monthKey: caseItem.monthKey,
+          monthLabel: caseItem.monthLabel,
+          weekLabel: caseItem.weekLabel,
+          rawDataSourceName: caseItem.rawDataSourceName || RAW_DATA_FILE_NAME,
+          finalScore: caseItem.finalScore,
+          grade: caseItem.grade,
+          inquiry: caseItem.inquiryTh || caseItem.inquiryEn || "",
+          caseDescription: caseItem.caseDescription || "",
+          caseUrl: caseItem.caseUrl || "",
+          submittedBy: currentUser.displayName || currentUser.username || "",
+          submittedByUsername: currentUser.username || "",
+          submittedAt: new Date().toISOString(),
+          deadlineAt: appealDeadline?.toISOString() || "",
+          topics: selectedTopics,
+        },
+      });
+      setAppealRequestExists(true);
+      setAppealSubmitOpen(false);
+      setAppealSubmitMessage("Appeal request submitted to Songpon for review.");
+    } finally {
+      setAppealSubmitBusy(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -2757,6 +2894,84 @@ function SlideOverCaseDetail({
         </div>
       ) : null}
 
+      {appealSubmitOpen ? (
+        <div className="absolute inset-0 z-[130] flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">Submit Appeal</div>
+              <div className="mt-1 text-xl font-extrabold text-slate-950">{caseItem.caseId}</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Send selected topics to Songpon for review. Dashboard score will not change until Appeal ROWDATA is updated.
+              </div>
+              <div className="mt-2 text-xs font-semibold text-slate-500">
+                Deadline: {formatBangkokDateTime(appealDeadline)}
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <div className="space-y-3">
+                {appealDraftTopics.map((topic, index) => (
+                  <div key={topic.code} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="text-sm font-bold text-slate-950">
+                          {topic.code} {topic.label}
+                        </div>
+                        <div className="mt-1 text-xs font-semibold text-slate-500">
+                          Original score: {topic.score}/{topic.max}
+                        </div>
+                      </div>
+                      <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                        Topic {index + 1}
+                      </div>
+                    </div>
+                    <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
+                      {topic.comment || "-"}
+                    </div>
+                    <textarea
+                      value={topic.appealReason}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setAppealDraftTopics((current) =>
+                          current.map((item) => (item.code === topic.code ? { ...item, appealReason: nextValue } : item))
+                        );
+                      }}
+                      className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                      placeholder="Enter appeal reason for this topic only if you want to appeal it."
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 bg-white px-5 py-4">
+              {appealSubmitMessage ? (
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                  {appealSubmitMessage}
+                </div>
+              ) : null}
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAppealSubmitOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAppealRequest}
+                  disabled={appealSubmitBusy}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {appealSubmitBusy ? "Submitting..." : "Submit to Songpon"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff] shadow-2xl">
         <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
@@ -2866,6 +3081,22 @@ function SlideOverCaseDetail({
                         >
                           Open Case URL
                         </a>
+                      ) : null}
+
+                      {canSubmitAppeal ? (
+                        <button
+                          type="button"
+                          onClick={openAppealSubmitForm}
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                          Submit Appeal
+                        </button>
+                      ) : null}
+
+                      {appealRequestExists ? (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[12px] font-semibold text-slate-600">
+                          Appeal request already submitted for this case.
+                        </div>
                       ) : null}
 
                       <button
