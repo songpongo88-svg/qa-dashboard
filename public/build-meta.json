@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605132311",
-  "buildNumber": 2605132311,
-  "releaseLabel": "v1.0.0.2605132311",
-  "updatedAt": "13/05/2026 23:11:53",
+  "displayVersion": "1.0.0.2605132321",
+  "buildNumber": 2605132321,
+  "releaseLabel": "v1.0.0.2605132321",
+  "updatedAt": "13/05/2026 23:21:12",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "eebf8720c2ab19a71ce5c5ba8f111e573f9b12af",
-  "commitMessage": "Paginate usage logs by selected date",
+  "commitHash": "95885907862ec620bf0397c039ad6a86b3564c54",
+  "commitMessage": "Improve header navigation selected states",
   "changedFiles": [
     "public/build-meta.json",
-    "src/UsageLogMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

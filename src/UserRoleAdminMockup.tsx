@@ -27,6 +27,8 @@ type EditableUser = {
   suspendReason: string;
 };
 
+type DirectoryTab = "active" | "suspended";
+
 type CurrentUser = {
   username: string;
   displayName: string;
@@ -92,6 +94,7 @@ export default function UserRoleAdminMockup({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [draftUsers, setDraftUsers] = useState<EditableUser[]>([]);
+  const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
 
   const rows = useMemo(() => {
     return accounts
@@ -114,9 +117,14 @@ export default function UserRoleAdminMockup({
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
+  const suspendedUsers = rows.filter((row) => row.status === "Suspended").length;
   const seniorUsers = rows.filter((row) => row.effectiveRole === "Senior").length;
   const supervisorUsers = rows.filter((row) => row.effectiveRole === "Supervisor").length;
   const qaUsers = rows.filter((row) => row.effectiveRole === "Quality Assurance").length;
+  const visibleRows = rows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
+  const visibleDraftUsers = draftUsers
+    .map((user, index) => ({ user, index }))
+    .filter(({ user }) => directoryTab === "active" ? user.status === "Active" : user.status === "Suspended");
 
   const updateDraftUser = (index: number, key: keyof EditableUser, value: string) => {
     setDraftUsers((currentDrafts) =>
@@ -220,7 +228,7 @@ export default function UserRoleAdminMockup({
 
     doc.setFont("THSarabunNew", "normal");
     let y = startY + 10;
-    rows.forEach((row) => {
+    visibleRows.forEach((row) => {
       if (y > 280) {
         doc.addPage();
         y = 18;
@@ -250,9 +258,10 @@ export default function UserRoleAdminMockup({
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-6">
           <MetricCard label="Total Users" value={totalUsers} tone="text-violet-600" />
           <MetricCard label="Active" value={activeUsers} tone="text-emerald-600" />
+          <MetricCard label="Suspended" value={suspendedUsers} tone="text-rose-600" />
           <MetricCard label="Senior" value={seniorUsers} tone="text-amber-600" />
           <MetricCard label="Supervisors" value={supervisorUsers} tone="text-sky-600" />
           <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
@@ -309,14 +318,30 @@ export default function UserRoleAdminMockup({
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-3 border-b border-violet-100 bg-white px-5 py-4">
+            <DirectoryTabButton
+              active={directoryTab === "active"}
+              label="Active Users"
+              count={activeUsers}
+              onClick={() => setDirectoryTab("active")}
+            />
+            <DirectoryTabButton
+              active={directoryTab === "suspended"}
+              label="Suspended Users"
+              count={suspendedUsers}
+              onClick={() => setDirectoryTab("suspended")}
+              tone="rose"
+            />
+          </div>
+
           {isEditing ? (
             <EditableDirectoryTable
-              users={draftUsers}
+              users={visibleDraftUsers}
               saving={saving}
               onChange={updateDraftUser}
             />
           ) : (
-            <ReadOnlyDirectoryTable rows={rows} />
+            <ReadOnlyDirectoryTable rows={visibleRows} />
           )}
         </div>
       </div>
@@ -330,6 +355,38 @@ function MetricCard({ label, value, tone }: { label: string; value: number; tone
       <div className={`text-[11px] font-bold uppercase tracking-[0.22em] ${tone}`}>{label}</div>
       <div className="mt-3 text-3xl font-black text-slate-950">{value}</div>
     </div>
+  );
+}
+
+function DirectoryTabButton({
+  active,
+  label,
+  count,
+  onClick,
+  tone = "violet",
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
+  tone?: "violet" | "rose";
+}) {
+  const activeClass =
+    tone === "rose"
+      ? "border-rose-200 bg-rose-50 text-rose-700 shadow-sm"
+      : "border-violet-200 bg-violet-50 text-violet-700 shadow-sm";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-3 rounded-2xl border px-5 py-3 text-sm font-black transition ${
+        active ? activeClass : "border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:text-violet-700"
+      }`}
+    >
+      <span>{label}</span>
+      <span className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-900">{count}</span>
+    </button>
   );
 }
 
@@ -379,7 +436,7 @@ function EditableDirectoryTable({
   saving,
   onChange,
 }: {
-  users: EditableUser[];
+  users: Array<{ user: EditableUser; index: number }>;
   saving: boolean;
   onChange: (index: number, key: keyof EditableUser, value: string) => void;
 }) {
@@ -398,7 +455,7 @@ function EditableDirectoryTable({
           </tr>
         </thead>
         <tbody>
-          {users.map((user, index) => {
+          {users.map(({ user, index }) => {
             const isSongpon = normalizeUsername(user.username) === "songpon";
             return (
               <tr key={`${user.username || "new"}-${index}`} className="border-b border-slate-100 last:border-b-0">
