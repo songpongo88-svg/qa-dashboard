@@ -69,6 +69,22 @@ const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
 
+const PASSWORD_RESET_ADMIN_USERNAMES = new Set([
+  "anucha",
+  "krivut",
+  "phrommarin",
+  "songpon",
+  "suphitcha",
+]);
+
+const PASSWORD_RESET_ADMIN_DISPLAY_NAMES = new Set([
+  "anucha makundin",
+  "krivut vongkampan",
+  "phrommarin thaithorn",
+  "songpon phothong",
+  "suphitcha keawliam",
+]);
+
 const SONGKRAN_THEME_START = new Date(2026, 3, 1, 0, 0, 0);
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 
@@ -116,15 +132,7 @@ function canAccessPasswordResetAdmin(user: CurrentUser | null) {
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
-  return (
-    user.role === "Supervisor" &&
-    (
-      displayName === "songpon phothong" ||
-      username === "songpon" ||
-      displayName === "phrommarin thaithorn" ||
-      username === "phrommarin"
-    )
-  );
+  return user.role === "Supervisor" && (PASSWORD_RESET_ADMIN_USERNAMES.has(username) || PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(displayName));
 }
 
 function isSongkranThemeActive() {
@@ -307,6 +315,17 @@ function buildResetRequests(logs: UsageLogEvent[]) {
         tempPassword: typeof decision?.details?.password === "string" ? decision.details.password : "",
       };
     });
+}
+
+function getResetRequestDecisionStatus(logs: UsageLogEvent[], requestId: string): PasswordResetRequest["status"] {
+  const decision = logs.find((item) => {
+    if (item.event_type !== "password_reset_approved" && item.event_type !== "password_reset_rejected") return false;
+    return getResetRequestId(item) === requestId;
+  });
+
+  if (decision?.event_type === "password_reset_approved") return "Approved";
+  if (decision?.event_type === "password_reset_rejected") return "Rejected";
+  return "Pending";
 }
 
 function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
@@ -706,6 +725,9 @@ function ResetPasswordModal({
                         <div className="mt-1 text-xs text-slate-400">Requested: {request.requestedAt ? new Date(request.requestedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {request.username.trim().toLowerCase() === normalizedCurrentUsername ? (
+                          <div className="w-full text-xs font-semibold text-amber-600 lg:text-right">Another reset admin must review your own request.</div>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => onApproveRequest(request)}
@@ -714,7 +736,14 @@ function ResetPasswordModal({
                         >
                           Approve
                         </button>
-                        <button type="button" onClick={() => onRejectRequest(request)} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">Reject</button>
+                        <button
+                          type="button"
+                          onClick={() => onRejectRequest(request)}
+                          disabled={request.username.trim().toLowerCase() === normalizedCurrentUsername}
+                          className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          Reject
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1437,6 +1466,13 @@ export default function App() {
       setResetResultMessage("You cannot approve your own password reset request.");
       return;
     }
+    const latestLogs = await fetchUsageLogs(2000);
+    const latestStatus = getResetRequestDecisionStatus(latestLogs, request.requestId);
+    if (latestStatus !== "Pending") {
+      setPasswordResetRequests(buildResetRequests(latestLogs));
+      setResetResultMessage(`This request is already ${latestStatus.toLowerCase()} by another reset admin.`);
+      return;
+    }
     const tempPassword = generateTemporaryPassword();
     await logUsageEvent(currentUser, "password_reset_approved", {
       tab: "account",
@@ -1454,6 +1490,17 @@ export default function App() {
 
   const handleRejectResetRequest = async (request: PasswordResetRequest) => {
     if (!currentUser) return;
+    if (request.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) {
+      setResetResultMessage("You cannot reject your own password reset request. Please ask another reset admin.");
+      return;
+    }
+    const latestLogs = await fetchUsageLogs(2000);
+    const latestStatus = getResetRequestDecisionStatus(latestLogs, request.requestId);
+    if (latestStatus !== "Pending") {
+      setPasswordResetRequests(buildResetRequests(latestLogs));
+      setResetResultMessage(`This request is already ${latestStatus.toLowerCase()} by another reset admin.`);
+      return;
+    }
     await logUsageEvent(currentUser, "password_reset_rejected", {
       tab: "account",
       target_agent: request.username,

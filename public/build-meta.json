@@ -1,17 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131712",
-  "buildNumber": 2605131712,
-  "releaseLabel": "v1.0.0.2605131712",
-  "updatedAt": "13/05/2026 17:12:46",
+  "displayVersion": "1.0.0.2605131724",
+  "buildNumber": 2605131724,
+  "releaseLabel": "v1.0.0.2605131724",
+  "updatedAt": "13/05/2026 17:24:08",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "84a27d866ea0c4d46de7f5313fc7c76766a3430a",
-  "commitMessage": "Add backup password reset admin",
+  "commitHash": "a11e72d7e008dcde3473eed6c958b4a385b33793",
+  "commitMessage": "Refresh build metadata",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/App.tsx"
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
