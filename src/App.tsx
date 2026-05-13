@@ -7,6 +7,7 @@ import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
+import PageHero from "./PageHero";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
 type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
