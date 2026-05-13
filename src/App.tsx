@@ -80,6 +80,8 @@ const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
+const TEMP_PASSWORD_VALID_DAYS = 15;
+const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
 const PASSWORD_RESET_ADMIN_USERNAMES = new Set([
   "anucha",
@@ -124,6 +126,14 @@ type PasswordResetRequest = {
   requestedAt: string;
   status: "Pending" | "Approved" | "Rejected";
   tempPassword?: string;
+};
+
+type PasswordRecord = {
+  password: string;
+  kind: "temporary" | "permanent" | "legacy";
+  issuedAt: string;
+  expiresAt: string;
+  eventType: string;
 };
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
@@ -299,6 +309,52 @@ function getResetRequestUsername(log: UsageLogEvent) {
   return String(log.target_agent || log.username || log.details?.username || "").trim();
 }
 
+function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(value: Date, months: number) {
+  const next = new Date(value);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function isPastDate(value?: string) {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() < Date.now();
+}
+
+function getPasswordRecordFromEvent(item: UsageLogEvent): PasswordRecord | null {
+  const password = item.details?.password;
+  if (typeof password !== "string" || !password) return null;
+
+  const rawKind = item.details?.passwordKind;
+  const kind: PasswordRecord["kind"] =
+    rawKind === "temporary" || item.event_type === "password_reset_approved"
+      ? "temporary"
+      : rawKind === "permanent" || item.event_type === "password_changed"
+        ? "permanent"
+        : "legacy";
+  const rawIssuedAt = String(item.details?.issuedAt || item.details?.changedAt || item.created_at || new Date().toISOString());
+  const issuedDate = new Date(rawIssuedAt);
+  const issuedAt = Number.isNaN(issuedDate.getTime()) ? new Date().toISOString() : issuedDate.toISOString();
+  const fallbackExpiry =
+    kind === "temporary"
+      ? addDays(new Date(issuedAt), TEMP_PASSWORD_VALID_DAYS).toISOString()
+      : addMonths(new Date(issuedAt), PERMANENT_PASSWORD_VALID_MONTHS).toISOString();
+
+  return {
+    password,
+    kind,
+    issuedAt,
+    expiresAt: String(item.details?.expiresAt || fallbackExpiry),
+    eventType: item.event_type,
+  };
+}
+
 function getRoleUpdateUsername(log: UsageLogEvent) {
   return String(log.target_agent || log.details?.username || "").trim();
 }
@@ -407,6 +463,11 @@ async function getCentralEffectiveUserAccounts() {
 }
 
 async function getCentralPasswordOverride(username: string) {
+  const record = await getCentralPasswordRecord(username);
+  return record?.password || "";
+}
+
+async function getCentralPasswordRecord(username: string): Promise<PasswordRecord | null> {
   try {
     const normalized = username.trim().toLowerCase();
     const logs = await fetchUsageLogs(2000);
@@ -419,9 +480,9 @@ async function getCentralPasswordOverride(username: string) {
       );
     });
 
-    return typeof passwordEvent?.details?.password === "string" ? passwordEvent.details.password : "";
+    return passwordEvent ? getPasswordRecordFromEvent(passwordEvent) : null;
   } catch {
-    return "";
+    return null;
   }
 }
 
@@ -720,6 +781,7 @@ function ChangePasswordModal({
   setNewPasswordInput,
   confirmNewPasswordInput,
   setConfirmNewPasswordInput,
+  promptReason,
   error,
   success,
   onSubmit,
@@ -732,6 +794,7 @@ function ChangePasswordModal({
   setNewPasswordInput: (value: string) => void;
   confirmNewPasswordInput: string;
   setConfirmNewPasswordInput: (value: string) => void;
+  promptReason?: string;
   error: string;
   success: string;
   onSubmit: () => void;
@@ -740,8 +803,13 @@ function ChangePasswordModal({
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
-        <div className="text-xl font-bold text-slate-900">Change Password</div>
-        <div className="mt-2 text-sm text-slate-500">Update your password for this browser.</div>
+        <div className="text-xl font-bold text-slate-900">Create New Password</div>
+        <div className="mt-2 text-sm text-slate-500">
+          {promptReason || "Update your password for this browser."}
+        </div>
+        <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-xs font-semibold leading-5 text-violet-800">
+          Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
+        </div>
         <div className="mt-6 space-y-4">
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-800">Current Password</label>
@@ -1101,6 +1169,7 @@ export default function App() {
   const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState("");
   const [changePasswordError, setChangePasswordError] = useState("");
   const [changePasswordSuccess, setChangePasswordSuccess] = useState("");
+  const [changePasswordPromptReason, setChangePasswordPromptReason] = useState("");
 
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotUsernameInput, setForgotUsernameInput] = useState("");
@@ -1397,6 +1466,7 @@ export default function App() {
     setConfirmNewPasswordInput("");
     setChangePasswordError("");
     setChangePasswordSuccess("");
+    setChangePasswordPromptReason("");
   };
 
   const resetForgotPasswordState = () => {
@@ -1500,15 +1570,24 @@ export default function App() {
       return;
     }
 
-    const centralPassword = matchedAccount ? await getCentralPasswordOverride(matchedAccount.username) : "";
-    const effectivePassword = centralPassword || (matchedAccount ? getEffectivePassword(matchedAccount) : "");
+    const centralPasswordRecord = matchedAccount ? await getCentralPasswordRecord(matchedAccount.username) : null;
+    const effectivePassword = centralPasswordRecord?.password || (matchedAccount ? getEffectivePassword(matchedAccount) : "");
     const matchedUser =
       matchedAccount && effectivePassword === normalizedPassword
         ? matchedAccount
         : null;
 
     if (!matchedUser) {
+      if (centralPasswordRecord?.kind === "temporary" && isPastDate(centralPasswordRecord.expiresAt)) {
+        setLoginError("Temporary password has expired. Please use Forgot Password to request a new temporary password.");
+        return;
+      }
       setLoginError("Invalid username or password");
+      return;
+    }
+
+    if (centralPasswordRecord?.kind === "temporary" && isPastDate(centralPasswordRecord.expiresAt)) {
+      setLoginError("Temporary password has expired. Please use Forgot Password to request a new temporary password.");
       return;
     }
 
@@ -1537,6 +1616,23 @@ export default function App() {
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
     void loadRoleOverrides();
+
+    if (centralPasswordRecord?.kind === "temporary") {
+      resetChangePasswordState();
+      setCurrentPasswordInput(normalizedPassword);
+      setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password. Temporary passwords are valid for 15 days.");
+      setShowChangePasswordModal(true);
+    } else if (!centralPasswordRecord) {
+      resetChangePasswordState();
+      setCurrentPasswordInput(normalizedPassword);
+      setChangePasswordPromptReason("For security, please create a new password to start the 6-month password cycle.");
+      setShowChangePasswordModal(true);
+    } else if (centralPasswordRecord.kind === "permanent" && isPastDate(centralPasswordRecord.expiresAt)) {
+      resetChangePasswordState();
+      setCurrentPasswordInput(normalizedPassword);
+      setChangePasswordPromptReason("Your password has expired after 6 months. Please create a new password.");
+      setShowChangePasswordModal(true);
+    }
   };
 
   const handleForgotPasswordReset = () => {
@@ -1632,8 +1728,8 @@ export default function App() {
       return;
     }
 
-    const centralPassword = await getCentralPasswordOverride(account.username);
-    const effectivePassword = centralPassword || getEffectivePassword(account);
+    const centralPasswordRecord = await getCentralPasswordRecord(account.username);
+    const effectivePassword = centralPasswordRecord?.password || getEffectivePassword(account);
 
     if (currentPasswordInput !== effectivePassword) {
       setChangePasswordError("Current password is incorrect");
@@ -1660,11 +1756,20 @@ export default function App() {
       return;
     }
 
+    const changedAt = new Date();
+    const expiresAt = addMonths(changedAt, PERMANENT_PASSWORD_VALID_MONTHS);
+
     savePasswordOverride(currentUser.username, newPasswordInput);
     await logUsageEvent(currentUser, "password_changed", {
       tab: "account",
       target_agent: currentUser.username,
-      details: { password: newPasswordInput },
+      details: {
+        password: newPasswordInput,
+        passwordKind: "permanent",
+        changedAt: changedAt.toISOString(),
+        issuedAt: changedAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+      },
     });
 
     setChangePasswordError("");
@@ -1693,12 +1798,17 @@ export default function App() {
     const targetAccount = effectiveUserAccounts.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
     if (currentUser && targetAccount) {
+      const issuedAt = new Date();
+      const expiresAt = addDays(issuedAt, TEMP_PASSWORD_VALID_DAYS);
       await logUsageEvent(currentUser, "password_reset_approved", {
         tab: "account",
         target_agent: targetAccount.username,
         details: {
           requestId: `manual-default-${targetAccount.username.toLowerCase()}-${Date.now()}`,
           password: targetAccount.password,
+          passwordKind: "temporary",
+          issuedAt: issuedAt.toISOString(),
+          expiresAt: expiresAt.toISOString(),
           email: targetAccount.email || "",
           displayName: targetAccount.displayName,
           resetMode: "default",
@@ -1727,12 +1837,17 @@ export default function App() {
       return;
     }
     const tempPassword = generateTemporaryPassword();
+    const issuedAt = new Date();
+    const expiresAt = addDays(issuedAt, TEMP_PASSWORD_VALID_DAYS);
     await logUsageEvent(currentUser, "password_reset_approved", {
       tab: "account",
       target_agent: request.username,
       details: {
         requestId: request.requestId,
         password: tempPassword,
+        passwordKind: "temporary",
+        issuedAt: issuedAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
         email: request.email,
         displayName: request.displayName,
       },
@@ -1899,6 +2014,7 @@ export default function App() {
         setNewPasswordInput={setNewPasswordInput}
         confirmNewPasswordInput={confirmNewPasswordInput}
         setConfirmNewPasswordInput={setConfirmNewPasswordInput}
+        promptReason={changePasswordPromptReason}
         error={changePasswordError}
         success={changePasswordSuccess}
         onSubmit={handleChangePassword}

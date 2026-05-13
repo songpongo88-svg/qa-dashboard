@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605132321",
-  "buildNumber": 2605132321,
-  "releaseLabel": "v1.0.0.2605132321",
-  "updatedAt": "13/05/2026 23:21:12",
+  "displayVersion": "1.0.0.2605132338",
+  "buildNumber": 2605132338,
+  "releaseLabel": "v1.0.0.2605132338",
+  "updatedAt": "13/05/2026 23:38:58",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "95885907862ec620bf0397c039ad6a86b3564c54",
-  "commitMessage": "Improve header navigation selected states",
+  "commitHash": "99a662dc59da1c38c4c2f8899cac256ebcdd77ec",
+  "commitMessage": "Split suspended users in directory",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
