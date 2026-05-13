@@ -78,7 +78,12 @@ type IncentiveResult = {
 
 const CASE_TARGET = 10;
 const RAW_DATA_FILE_NAME = "QA_RawData1.xlsx";
-const RAW_DATA_FILE_NAMES = [RAW_DATA_FILE_NAME, "QA_RawData11052026.xlsx", "QA_RawData12052026.xlsx"];
+const RAW_DATA_FILE_NAMES = [
+  RAW_DATA_FILE_NAME,
+  "QA_RawData11052026.xlsx",
+  "QA_RawData12052026.xlsx",
+  "QA_RawData13052026.xlsx",
+];
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
