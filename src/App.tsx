@@ -1321,6 +1321,14 @@ export default function App() {
                 const appealUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
                 window.open(appealUrl, "_blank", "noopener,noreferrer");
               }}
+              onGeneratePdf={(caseId, agentName, pdfType) => {
+                logUsageEvent(currentUser, "pdf_generate", {
+                  tab: "dashboard",
+                  case_id: caseId,
+                  target_agent: agentName || "",
+                  details: { pdfType: pdfType || "case_detail" },
+                });
+              }}
             />
           </div>
         ) : activeTab === "appeal" ? (
@@ -1329,6 +1337,14 @@ export default function App() {
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedCaseId={selectedAppealCaseId}
             onSelectedAgentChange={setSelectedAgentGlobal}
+            onGeneratePdf={(caseId, agentName, pdfType) => {
+              logUsageEvent(currentUser, "pdf_generate", {
+                tab: "appeal",
+                case_id: caseId,
+                target_agent: agentName || "",
+                details: { pdfType: pdfType || "appeal" },
+              });
+            }}
           />
         ) : activeTab === "summary" ? (
           <SummaryMockup

@@ -1204,11 +1204,13 @@ export default function AppealMockup({
   externalSelectedAgent,
   externalSelectedCaseId,
   onSelectedAgentChange,
+  onGeneratePdf,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
   externalSelectedCaseId?: string;
   onSelectedAgentChange?: (agentName: string) => void;
+  onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
 }) {
   const [allCases, setAllCases] = useState<AppealCaseItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -2062,6 +2064,7 @@ export default function AppealMockup({
     }
 
     doc.save(`QA_Appeal_${selectedCase.caseId}.pdf`);
+    onGeneratePdf?.(selectedCase.caseId, selectedCase.agent, "appeal");
   };
 
   if (isLoading) {

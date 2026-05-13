@@ -23,6 +23,7 @@ function eventLabel(type: string) {
     tab_view: "เปิดหน้า",
     case_detail_open: "เปิดเคส",
     appeal_case_open: "เปิดเคส Appeal",
+    pdf_generate: "สร้าง PDF",
   };
   return map[type] || type || "-";
 }
@@ -49,6 +50,10 @@ function subTabLabel(value?: unknown) {
 function detailsLabel(item: UsageLogEvent) {
   if (item.event_type === "login") return "ผู้ใช้เข้าสู่ระบบ";
   if (item.event_type === "logout") return "ผู้ใช้ออกจากระบบ";
+  if (item.event_type === "pdf_generate") {
+    const pdfType = item.details?.pdfType === "appeal" ? "Appeal PDF" : "Case Detail PDF";
+    return item.case_id ? `สร้าง ${pdfType} ของเคส ${item.case_id}` : `สร้าง ${pdfType}`;
+  }
   if (item.event_type === "case_detail_open") {
     return item.case_id ? `เปิดดูรายละเอียดเคส ${item.case_id}` : "เปิดดูรายละเอียดเคส";
   }
@@ -69,6 +74,7 @@ function detailsLabel(item: UsageLogEvent) {
 function eventTone(type: string) {
   if (type === "login") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (type === "logout") return "border-slate-200 bg-slate-50 text-slate-700";
+  if (type === "pdf_generate") return "border-amber-200 bg-amber-50 text-amber-700";
   if (type.includes("case")) return "border-violet-200 bg-violet-50 text-violet-700";
   return "border-sky-200 bg-sky-50 text-sky-700";
 }

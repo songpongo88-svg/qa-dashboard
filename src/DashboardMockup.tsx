@@ -2005,12 +2005,14 @@ function SlideOverCaseDetail({
   currentUser,
   onClose,
   onOpenAppealCase,
+  onGeneratePdf,
 }: {
   open: boolean;
   caseItem: CaseItem | null;
   currentUser: any;
   onClose: () => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
+  onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
 }) {
   if (!open || !caseItem) return null;
 
@@ -2640,6 +2642,7 @@ function SlideOverCaseDetail({
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
       doc.save(`${safeCaseId}_case_detail_report.pdf`);
+      onGeneratePdf?.(caseItem.caseId, caseItem.agent, "case_detail");
     } catch (error) {
       console.error("Generate Case Detail PDF failed:", error);
       alert("Generate PDF ไม่สำเร็จ กรุณาเปิด Console เพื่อตรวจสอบ error");
@@ -2983,6 +2986,7 @@ export default function DashboardMockup({
   onSelectedWeekChange,
   onOpenCaseDetail,
   onOpenAppealCase,
+  onGeneratePdf,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
@@ -2994,6 +2998,7 @@ export default function DashboardMockup({
   onSelectedWeekChange?: (week: string) => void;
   onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
+  onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
@@ -4643,6 +4648,7 @@ export default function DashboardMockup({
                     currentUser={currentUser}
                     onClose={() => setSlideOverOpen(false)}
                     onOpenAppealCase={onOpenAppealCase}
+                    onGeneratePdf={onGeneratePdf}
                   />
                 </>
               )

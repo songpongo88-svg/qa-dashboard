@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131411",
-  "buildNumber": 2605131411,
-  "releaseLabel": "v1.0.0.2605131411",
-  "updatedAt": "13/05/2026 14:11:56",
+  "displayVersion": "1.0.0.2605131418",
+  "buildNumber": 2605131418,
+  "releaseLabel": "v1.0.0.2605131418",
+  "updatedAt": "13/05/2026 14:18:33",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "82d0ed584a845f8212cc4bc2d611ab2568a68433",
-  "commitMessage": "Ignore Vercel project metadata",
+  "commitHash": "25e69567b9dc39c8305b499ac3978467d7bc5a06",
+  "commitMessage": "Make usage log details readable",
   "changedFiles": [
-    ".gitignore"
+    "public/build-meta.json",
+    "src/UsageLogMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
