@@ -139,12 +139,17 @@ type PasswordRecord = {
 
 type InboxTaskItem = {
   id: string;
-  type: "appeal";
+  type: "appeal" | "password" | "evaluation";
   title: string;
   description: string;
   badge: string;
   count: number;
+  unread: boolean;
+  actionLabel: string;
 };
+
+const INBOX_READ_KEY = "qa_inbox_read_tasks";
+const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 
@@ -335,6 +340,32 @@ function isPastDate(value?: string) {
   if (!value) return false;
   const date = new Date(value);
   return !Number.isNaN(date.getTime()) && date.getTime() < Date.now();
+}
+
+function daysUntilDate(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.ceil((date.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
+function getInboxReadStorageKey(user: CurrentUser | null) {
+  const owner = user?.username?.trim().toLowerCase() || "guest";
+  return `${INBOX_READ_KEY}:${owner}`;
+}
+
+function readInboxReadIds(user: CurrentUser | null) {
+  try {
+    const raw = localStorage.getItem(getInboxReadStorageKey(user));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveInboxReadIds(user: CurrentUser | null, ids: string[]) {
+  localStorage.setItem(getInboxReadStorageKey(user), JSON.stringify(Array.from(new Set(ids))));
 }
 
 function getPasswordRecordFromEvent(item: UsageLogEvent): PasswordRecord | null {
@@ -1168,33 +1199,34 @@ function ReleaseNotesModal({
 
 function TaskInboxMockup({
   tasks,
-  onOpenAppealRequests,
+  onOpenTask,
 }: {
   tasks: InboxTaskItem[];
-  onOpenAppealRequests: () => void;
+  onOpenTask: (task: InboxTaskItem) => void;
 }) {
-  const totalTasks = tasks.reduce((sum, item) => sum + item.count, 0);
+  const unreadTasks = tasks.filter((item) => item.unread).length;
+  const totalActions = tasks.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#f3e8ff] px-5 py-6 lg:px-8">
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
           eyebrow="Task Inbox"
-          title="Central Task Center"
-          subtitle="All pending QA tasks and operational alerts are collected here before opening the related workflow."
-          workspaceTitle="Action Queue"
-          workspaceSubtitle="One inbox for appeals, approvals, and future QA tasks"
+          title="Inbox Center"
+          subtitle="Unread work items, QA updates, password alerts, and review requests are collected here like an internal mail inbox."
+          workspaceTitle="Work Mailbox"
+          workspaceSubtitle="Read a task to clear the badge, then open the related workflow"
         />
 
         <div className="grid gap-4 border-b border-violet-100 bg-violet-50/60 px-5 py-5 md:grid-cols-3">
           <div className="rounded-3xl border border-violet-100 bg-white p-5">
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Total Pending Tasks</div>
-            <div className="mt-3 text-4xl font-black text-slate-950">{totalTasks}</div>
+            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Unread Mail</div>
+            <div className="mt-3 text-4xl font-black text-slate-950">{unreadTasks}</div>
           </div>
           <div className="rounded-3xl border border-slate-100 bg-white p-5 md:col-span-2">
-            <div className="text-sm font-black text-slate-950">Inbox Logic</div>
+            <div className="text-sm font-black text-slate-950">Inbox Summary</div>
             <div className="mt-2 text-sm leading-6 text-slate-600">
-              This page is designed as the central entry point for task notifications. Each task card opens the related detail page.
+              You have {tasks.length} inbox item(s) and {totalActions} related action(s). Opening an unread item marks it as read and lowers the inbox badge.
             </div>
           </div>
         </div>
@@ -1204,15 +1236,28 @@ function TaskInboxMockup({
             <button
               key={task.id}
               type="button"
-              onClick={task.type === "appeal" ? onOpenAppealRequests : undefined}
-              className="group rounded-[28px] border border-violet-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_18px_40px_rgba(88,28,135,0.12)]"
+              onClick={() => onOpenTask(task)}
+              className={`group rounded-[28px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_18px_40px_rgba(88,28,135,0.12)] ${
+                task.unread ? "border-violet-200 bg-white" : "border-slate-200 bg-slate-50/70"
+              }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-violet-700">
-                    {task.badge}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-violet-700">
+                      {task.badge}
+                    </div>
+                    <div
+                      className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${
+                        task.unread ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-500"
+                      }`}
+                    >
+                      {task.unread ? "Unread" : "Read"}
+                    </div>
                   </div>
-                  <div className="mt-3 text-xl font-black text-slate-950">{task.title}</div>
+                  <div className={`mt-3 text-xl font-black ${task.unread ? "text-slate-950" : "text-slate-600"}`}>
+                    {task.title}
+                  </div>
                   <div className="mt-2 text-sm leading-6 text-slate-600">{task.description}</div>
                 </div>
                 <span className="inline-flex min-w-12 items-center justify-center rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-3 py-2 text-lg font-black text-white">
@@ -1220,14 +1265,14 @@ function TaskInboxMockup({
                 </span>
               </div>
               <div className="mt-4 text-sm font-black text-violet-700 transition group-hover:translate-x-1">
-                Open task details
+                {task.actionLabel}
               </div>
             </button>
           ))}
 
           {!tasks.length ? (
             <div className="rounded-[28px] border border-dashed border-violet-200 bg-violet-50/60 p-8 text-center text-sm font-semibold text-slate-500 lg:col-span-2">
-              No task types are available for your role.
+              Your inbox is clear. New QA results, password alerts, or review work will appear here.
             </div>
           ) : null}
         </div>
@@ -1303,8 +1348,7 @@ export default function App() {
       : "";
   const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
-  const totalInboxTaskCount = inboxTasks.reduce((sum, item) => sum + item.count, 0);
-  const primaryInboxTask = inboxTasks.find((item) => item.count > 0) || inboxTasks[0];
+  const unreadInboxTaskCount = inboxTasks.filter((item) => item.unread).length;
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -1356,25 +1400,99 @@ export default function App() {
   };
 
   const loadInboxTasks = async () => {
-    if (!appealRequestsAllowed) {
+    if (!currentUser) {
       setInboxTasks([]);
       return;
     }
+
     try {
-      const logs = await fetchUsageLogs(5000);
-      const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
-      setInboxTasks([
-        {
-          id: "appeal-requests",
-          type: "appeal",
-          title: "Appeal Requests",
-          description: pendingCount
-            ? "Appeal request(s) are waiting for Quality Assurance review."
-            : "No pending appeal review task at the moment.",
-          badge: "Appeal Review",
-          count: pendingCount,
-        },
+      const [logs, passwordRecord] = await Promise.all([
+        fetchUsageLogs(5000),
+        getCentralPasswordRecord(currentUser.username),
       ]);
+      const readIds = readInboxReadIds(currentUser);
+      const nextTasks: InboxTaskItem[] = [];
+
+      if (appealRequestsAllowed) {
+        const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
+        if (pendingCount > 0) {
+          const id = `appeal-review-${pendingCount}`;
+          nextTasks.push({
+            id,
+            type: "appeal",
+            title: "Appeal review waiting",
+            description: `${pendingCount} appeal request(s) are waiting for review and decision.`,
+            badge: "Review",
+            count: pendingCount,
+            unread: !readIds.includes(id),
+            actionLabel: "Open review inbox",
+          });
+        }
+      }
+
+      const passwordDaysLeft = daysUntilDate(passwordRecord?.expiresAt);
+      if (!passwordRecord) {
+        const id = `password-setup-${currentUser.username.toLowerCase()}`;
+        nextTasks.push({
+          id,
+          type: "password",
+          title: "Create your new password",
+          description: "Your current login still uses the default password cycle. Please create a new password to start the 6-month security period.",
+          badge: "Password",
+          count: 1,
+          unread: !readIds.includes(id),
+          actionLabel: "Create password",
+        });
+      } else if (passwordRecord.kind === "temporary") {
+        const id = `password-temporary-${currentUser.username.toLowerCase()}-${passwordRecord.expiresAt.slice(0, 10)}`;
+        nextTasks.push({
+          id,
+          type: "password",
+          title: "Temporary password active",
+          description:
+            passwordDaysLeft !== null
+              ? `Your temporary password expires in ${Math.max(passwordDaysLeft, 0)} day(s). Please create a permanent password.`
+              : "Your temporary password is active. Please create a permanent password.",
+          badge: "Password",
+          count: 1,
+          unread: !readIds.includes(id),
+          actionLabel: "Create password",
+        });
+      } else if (passwordRecord.kind === "permanent" && passwordDaysLeft !== null && passwordDaysLeft <= PASSWORD_EXPIRY_WARNING_DAYS) {
+        const id = `password-expiry-${currentUser.username.toLowerCase()}-${passwordRecord.expiresAt.slice(0, 10)}`;
+        nextTasks.push({
+          id,
+          type: "password",
+          title: passwordDaysLeft < 0 ? "Password expired" : "Password expiry reminder",
+          description:
+            passwordDaysLeft < 0
+              ? "Your password has passed the 6-month security period. Please create a new password."
+              : `Your password will expire in ${passwordDaysLeft} day(s). You can update it before it expires.`,
+          badge: "Password",
+          count: 1,
+          unread: !readIds.includes(id),
+          actionLabel: "Update password",
+        });
+      }
+
+      if (buildMeta.buildNumber > 0) {
+        const id = `evaluation-update-${currentUser.username.toLowerCase()}-${buildMeta.buildNumber}`;
+        nextTasks.push({
+          id,
+          type: "evaluation",
+          title: "QA evaluation update",
+          description:
+            currentUser.role === "Agent"
+              ? "New QA dashboard data has been published. Open your dashboard to review the latest evaluation result."
+              : "New QA dashboard data has been published. Open Dashboard to review the latest team results.",
+          badge: "QA Result",
+          count: 1,
+          unread: !readIds.includes(id),
+          actionLabel: "Open dashboard",
+        });
+      }
+
+      setInboxTasks(nextTasks);
     } catch {
       setInboxTasks([]);
     }
@@ -1442,7 +1560,7 @@ export default function App() {
     if (activeTab === "usage-log" && !usageLogAllowed) {
       setActiveTab("dashboard");
     }
-    if ((activeTab === "appeal-requests" || activeTab === "task-inbox") && !appealRequestsAllowed) {
+    if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
       setActiveTab("dashboard");
     }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
@@ -1469,7 +1587,7 @@ export default function App() {
   }, [activeTab, dashboardSubTab, currentUser]);
 
   useEffect(() => {
-    if (!currentUser || !appealRequestsAllowed) {
+    if (!currentUser) {
       setInboxTasks([]);
       return;
     }
@@ -1480,7 +1598,7 @@ export default function App() {
     }, 60000);
 
     return () => window.clearInterval(timer);
-  }, [currentUser, appealRequestsAllowed, activeTab]);
+  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1567,6 +1685,38 @@ export default function App() {
     setForgotEmailInput("");
     setForgotPasswordError("");
     setForgotPasswordSuccess("");
+  };
+
+  const markInboxTaskRead = (taskId: string) => {
+    const readIds = readInboxReadIds(currentUser);
+    saveInboxReadIds(currentUser, [...readIds, taskId]);
+    setInboxTasks((previousTasks) =>
+      previousTasks.map((task) => (task.id === taskId ? { ...task, unread: false } : task))
+    );
+  };
+
+  const handleOpenInboxTask = (task: InboxTaskItem) => {
+    markInboxTaskRead(task.id);
+
+    if (task.type === "appeal") {
+      if (appealRequestsAllowed) {
+        setActiveTab("appeal-requests");
+      }
+      return;
+    }
+
+    if (task.type === "password") {
+      resetChangePasswordState();
+      setChangePasswordPromptReason(task.description);
+      setShowChangePasswordModal(true);
+      return;
+    }
+
+    setActiveTab("dashboard");
+    setDashboardSubTab("overview");
+    if (currentUser?.role === "Agent") {
+      setSelectedAgentGlobal(currentUser.agentName);
+    }
   };
 
   const handleLogout = () => {
@@ -2197,29 +2347,27 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
-                  {appealRequestsAllowed ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab("task-inbox");
-                        void loadInboxTasks();
-                      }}
-                      className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
-                          <div className="mt-1 text-sm font-extrabold">{primaryInboxTask?.title || "All Tasks"}</div>
-                        </div>
-                        <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
-                          {totalInboxTaskCount}
-                        </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("task-inbox");
+                      void loadInboxTasks();
+                    }}
+                    className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
+                        <div className="mt-1 text-sm font-extrabold">Inbox</div>
                       </div>
-                      <div className="mt-1 text-xs font-semibold text-violet-100">
-                        {totalInboxTaskCount ? `${totalInboxTaskCount} pending task(s) waiting for action` : "No pending task"}
-                      </div>
-                    </button>
-                  ) : null}
+                      <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
+                        {unreadInboxTaskCount}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-violet-100">
+                      {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread task(s)` : "No unread task"}
+                    </div>
+                  </button>
                   <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
                   <VersionPill meta={buildMeta} />
                 </div>
@@ -2298,13 +2446,10 @@ export default function App() {
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
-        ) : activeTab === "task-inbox" && appealRequestsAllowed ? (
+        ) : activeTab === "task-inbox" ? (
           <TaskInboxMockup
             tasks={inboxTasks}
-            onOpenAppealRequests={() => {
-              setActiveTab("appeal-requests");
-              void loadInboxTasks();
-            }}
+            onOpenTask={handleOpenInboxTask}
           />
         ) : activeTab === "summary" ? (
           <SummaryMockup

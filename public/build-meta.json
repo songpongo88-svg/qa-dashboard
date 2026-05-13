@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605140000",
-  "buildNumber": 2605140000,
-  "releaseLabel": "v1.0.0.2605140000",
-  "updatedAt": "14/05/2026 00:00:19",
+  "displayVersion": "1.0.0.2605140012",
+  "buildNumber": 2605140012,
+  "releaseLabel": "v1.0.0.2605140012",
+  "updatedAt": "14/05/2026 00:12:43",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "84ed6c7f2891e050af092706fec277a920f3ae41",
-  "commitMessage": "Add central task inbox",
+  "commitHash": "efbe911e1a0b58ed8f7987bd5428c4e20719e9b2",
+  "commitMessage": "Fix task inbox blank page",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
