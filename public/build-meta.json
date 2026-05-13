@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605132304",
-  "buildNumber": 2605132304,
-  "releaseLabel": "v1.0.0.2605132304",
-  "updatedAt": "13/05/2026 23:04:02",
+  "displayVersion": "1.0.0.2605132311",
+  "buildNumber": 2605132311,
+  "releaseLabel": "v1.0.0.2605132311",
+  "updatedAt": "13/05/2026 23:11:53",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "343622ad8bfc8535c75669ba5d4fbd3eb8e41e56",
-  "commitMessage": "Convert user roles to editable directory",
+  "commitHash": "eebf8720c2ab19a71ce5c5ba8f111e573f9b12af",
+  "commitMessage": "Paginate usage logs by selected date",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/UsageLogMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

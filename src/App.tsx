@@ -630,21 +630,29 @@ function HeaderSelect({
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
 }) {
+  const selectedLabel = options.find((option) => option.value === value)?.label || label;
+
   return (
-    <label className="flex min-w-[170px] flex-col gap-1.5">
-      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 rounded-[14px] border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-800 outline-none transition hover:border-slate-300 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
-      >
-        <option value="">{label}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <label className="group flex min-w-[170px] flex-col gap-1.5">
+      <span className="pl-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 group-focus-within:text-violet-700">{label}</span>
+      <div className="relative">
+        <select
+          value={value}
+          aria-label={`${label}: ${selectedLabel}`}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-13 w-full appearance-none rounded-[18px] border border-violet-100 bg-white px-4 py-3 pr-11 text-[15px] font-black text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition hover:border-violet-200 hover:shadow-[0_14px_30px_rgba(88,28,135,0.08)] focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+        >
+          <option value="">{label}</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-violet-700">
+          ▾
+        </span>
+      </div>
     </label>
   );
 }
@@ -1145,6 +1153,7 @@ export default function App() {
       ? activeTab
       : "";
   const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
+  const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -1972,7 +1981,7 @@ export default function App() {
                   />
                   <HeaderSelect
                     label="Account"
-                    value={accountMenuValue}
+                    value={accountMenuDisplayValue}
                     onChange={handleAccountMenuChange}
                     options={accountOptions}
                   />
