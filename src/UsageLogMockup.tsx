@@ -16,6 +16,34 @@ function formatLogDate(value?: string) {
   }).format(date);
 }
 
+function formatInputDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getBangkokDateKey(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Bangkok",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  const day = parts.find((part) => part.type === "day")?.value || "";
+  return year && month && day ? `${year}-${month}-${day}` : "";
+}
+
+function csvCell(value: unknown) {
+  const text = String(value ?? "").replace(/\r?\n/g, " ");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 function eventLabel(type: string) {
   const map: Record<string, string> = {
     login: "เข้าสู่ระบบ",
@@ -85,12 +113,14 @@ export default function UsageLogMockup() {
   const [error, setError] = useState("");
   const [userFilter, setUserFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState(formatInputDate(new Date()));
+  const [dateTo, setDateTo] = useState(formatInputDate(new Date()));
 
   const loadLogs = async () => {
     try {
       setIsLoading(true);
       setError("");
-      setLogs(await fetchUsageLogs(500));
+      setLogs(await fetchUsageLogs(2000));
     } catch (err: any) {
       setError(err?.message || "โหลด Usage Log ไม่สำเร็จ");
     } finally {
@@ -114,8 +144,37 @@ export default function UsageLogMockup() {
     const userName = item.display_name || item.username || "-";
     const matchUser = userFilter === "all" || userName === userFilter;
     const matchEvent = eventFilter === "all" || item.event_type === eventFilter;
-    return matchUser && matchEvent;
+    const logDateKey = getBangkokDateKey(item.created_at);
+    const matchDateFrom = !dateFrom || (logDateKey && logDateKey >= dateFrom);
+    const matchDateTo = !dateTo || (logDateKey && logDateKey <= dateTo);
+    return matchUser && matchEvent && matchDateFrom && matchDateTo;
   });
+
+  const handleGenerateLog = () => {
+    const headers = ["Time", "User", "Agent", "Role", "Event", "Page", "Case ID", "Details"];
+    const rows = filteredLogs.map((item) => [
+      formatLogDate(item.created_at),
+      item.display_name || item.username || "-",
+      item.agent_name || "-",
+      item.role || "-",
+      eventLabel(item.event_type),
+      tabLabel(item.tab),
+      item.case_id || "-",
+      detailsLabel(item),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const fromLabel = dateFrom || "all";
+    const toLabel = dateTo || "all";
+    link.href = url;
+    link.download = `usage-log_${fromLabel}_to_${toLabel}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] px-5 py-6 lg:px-8">
@@ -131,7 +190,7 @@ export default function UsageLogMockup() {
             </div>
           </div>
 
-          <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_220px_220px_140px]">
+          <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_170px_170px_170px_170px_140px_170px]">
             <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Total Logs</div>
               <div className="mt-1 text-2xl font-extrabold text-slate-950">{filteredLogs.length}</div>
@@ -163,12 +222,41 @@ export default function UsageLogMockup() {
               ))}
             </select>
 
+            <label className="rounded-2xl border border-violet-200 bg-white px-4 py-2">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Date From</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                className="mt-1 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
+              />
+            </label>
+
+            <label className="rounded-2xl border border-violet-200 bg-white px-4 py-2">
+              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Date To</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                className="mt-1 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
+              />
+            </label>
+
             <button
               type="button"
               onClick={loadLogs}
               className="rounded-2xl bg-violet-700 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-800"
             >
               Refresh
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGenerateLog}
+              disabled={!filteredLogs.length}
+              className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Generate Log
             </button>
           </div>
 
@@ -185,13 +273,13 @@ export default function UsageLogMockup() {
               <table className="min-w-[1180px] w-full text-sm">
                 <thead>
                   <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.12em] text-white">
-                    <th className="px-4 py-3 text-left">เวลา</th>
-                    <th className="px-4 py-3 text-left">ผู้ใช้งาน</th>
+                    <th className="px-4 py-3 text-left">Time</th>
+                    <th className="px-4 py-3 text-left">User</th>
                     <th className="px-4 py-3 text-left">Role</th>
-                    <th className="px-4 py-3 text-left">กิจกรรม</th>
-                    <th className="px-4 py-3 text-left">หน้า</th>
+                    <th className="px-4 py-3 text-left">Activity</th>
+                    <th className="px-4 py-3 text-left">Page</th>
                     <th className="px-4 py-3 text-left">Case ID</th>
-                    <th className="px-4 py-3 text-left">รายละเอียด</th>
+                    <th className="px-4 py-3 text-left">Details</th>
                   </tr>
                 </thead>
                 <tbody>
