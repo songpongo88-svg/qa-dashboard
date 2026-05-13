@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import PageHero from "./PageHero";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -1762,13 +1763,13 @@ export default function CoachingMockup({
     >
       {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <div
-        className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
-          songkranTheme
-            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-700"
-            : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
-        }`}
-      >
+      <PageHero
+        eyebrow="QA Coaching"
+        title="Coaching Workspace"
+        subtitle="สรุปจากคะแนนและเคสจริงว่าแต่ละคนควรได้รับคำชมเรื่องไหน และควรปรับปรุงส่วนไหนให้ชัดเจน"
+      />
+      {false ? (
+      <div>
         {songkranTheme ? <SongkranBackdrop /> : null}
 
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
@@ -1807,6 +1808,7 @@ export default function CoachingMockup({
           </div>
         </div>
       </div>
+      ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import PageHero from "./PageHero";
 
 type Topic = {
   code: string;
@@ -625,30 +626,19 @@ export default function QARubricMockup({
     <div className="min-h-screen bg-slate-100 p-6">
       <div className="relative mx-auto max-w-7xl">
         {songkranTheme ? <SongkranBackdrop /> : null}
-        <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white shadow-xl">
-          {songkranTheme ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-80" /> : null}
-          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
-            Robinhood QA Rubric
-          </div>
+        <div className="mb-6 overflow-hidden rounded-3xl">
+          <PageHero
+            eyebrow="Robinhood QA Rubric"
+            title="QA Rubric"
+            subtitle={`Logged in as ${currentUser?.displayName || "-"} (${currentUser?.role || "-"})`}
+          />
+        </div>
 
-          <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">QA Rubric</h1>
-              <div className="mt-2 text-sm text-violet-100">
-                Logged in as {currentUser?.displayName || "-"} ({currentUser?.role || "-"})
-              </div>
-              <div className="mt-3 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-violet-50">
-                {isCurrentDefault ? "Auto-selected by effective date" : "Manual rubric selection"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <StatCard label="Version" value={activeRubric.label} />
-              <StatCard label="Sections" value={activeRubric.sections.length} />
-              <StatCard label="Topics" value={totalTopics} />
-              <StatCard label="Total Score" value={activeRubric.totalScore} />
-            </div>
-          </div>
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="Version" value={activeRubric.label} />
+          <StatCard label="Sections" value={activeRubric.sections.length} />
+          <StatCard label="Topics" value={totalTopics} />
+          <StatCard label="Total Score" value={activeRubric.totalScore} />
         </div>
 
         <div className="mb-6 rounded-3xl border border-violet-200 bg-white shadow-sm">

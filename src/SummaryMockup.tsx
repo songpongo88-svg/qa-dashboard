@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import PageHero from "./PageHero";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -1093,7 +1094,15 @@ export default function SummaryMockup({
   return (
     <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"}`}>
       {songkranTheme ? <SongkranBackdrop /> : null}
-      <div className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${songkranTheme ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-700" : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"}`}>
+      <PageHero
+        eyebrow="QA Summary"
+        title="Weekly / Monthly / Yearly Summary Workspace"
+        subtitle="รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว"
+        workspaceTitle="Quality Monitoring Workspace"
+        workspaceSubtitle="Corporate dashboard for audit tracking and case review"
+      />
+      {false ? (
+      <div>
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
@@ -1112,6 +1121,7 @@ export default function SummaryMockup({
           </div>
         </div>
       </div>
+      ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">

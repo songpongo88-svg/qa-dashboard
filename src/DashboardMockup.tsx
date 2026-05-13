@@ -4,6 +4,7 @@ import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogs, logUsageEvent } from "./usageLog";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import PageHero from "./PageHero";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -4050,13 +4051,13 @@ export default function DashboardMockup({
     >
       {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <div
-        className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] ${
-          songkranTheme
-            ? "bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-600"
-            : "bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700"
-        }`}
-      >
+      <PageHero
+        eyebrow="QA Dashboard"
+        title="Agent Performance Dashboard"
+        subtitle="Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 + Appeal ROWDATA"
+      />
+      {false ? (
+      <div>
         {songkranTheme ? <SongkranBackdrop /> : null}
 
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
@@ -4096,6 +4097,7 @@ export default function DashboardMockup({
           </div>
         </div>
       </div>
+      ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
         <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchUsageLogs, isUsageLogConfigured, UsageLogEvent } from "./usageLog";
+import PageHero from "./PageHero";
 
 function formatLogDate(value?: string) {
   if (!value) return "-";
@@ -180,15 +181,11 @@ export default function UsageLogMockup() {
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] px-5 py-6 lg:px-8">
       <div className="mx-auto max-w-[1600px] space-y-5">
         <div className="overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
-          <div className="bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 px-6 py-6 text-white">
-            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-violet-100">
-              Central Activity Tracking
-            </div>
-            <div className="mt-2 text-3xl font-extrabold tracking-tight">Usage Log</div>
-            <div className="mt-2 max-w-3xl text-sm leading-6 text-violet-100">
-              ดูประวัติการเข้าใช้งานของทุก user เช่น Login, เปิด Tab, เปิด Case Detail และเปิด Appeal Case
-            </div>
-          </div>
+          <PageHero
+            eyebrow="Central Activity Tracking"
+            title="Usage Log"
+            subtitle="ดูประวัติการเข้าใช้งานของทุก user เช่น Login, เปิด Tab, เปิด Case Detail และเปิด Appeal Case"
+          />
 
           <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_170px_170px_170px_170px_140px_170px]">
             <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3">

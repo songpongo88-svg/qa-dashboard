@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import PageHero from "./PageHero";
 
 type AppealTopic = {
   code: string;
@@ -270,11 +271,11 @@ export default function AppealRequestsMockup({
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
       <div className="rounded-[32px] border border-violet-100 bg-white shadow-[0_22px_60px_rgba(80,36,140,0.10)]">
-        <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-violet-100">Appeal Requests</div>
-          <div className="mt-2 text-2xl font-extrabold">Case Detail Appeal Review</div>
-          <div className="mt-1 text-sm text-violet-100">Review submitted cases, then export results for Appeal ROWDATA.</div>
-        </div>
+        <PageHero
+          eyebrow="Appeal Requests"
+          title="Case Detail Appeal Review"
+          subtitle="Review submitted cases, then export results for Appeal ROWDATA."
+        />
 
         <div className="grid gap-4 border-b border-violet-100 p-5 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

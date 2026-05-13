@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import PageHero from "./PageHero";
 
 type ReviewStatus = "Original" | "Revised";
 type Grade = "A" | "B" | "C" | "D" | "F";
@@ -2091,7 +2092,13 @@ export default function AppealMockup({
     <div className="relative space-y-6">
       {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <div className="relative overflow-hidden rounded-[34px] border border-white/15 bg-gradient-to-r from-sky-700 via-cyan-600 to-fuchsia-700 px-6 py-7 text-white shadow-[0_24px_60px_rgba(59,130,246,0.18)]">
+      <PageHero
+        eyebrow="QA Appeal"
+        title="Appeal Result Workspace"
+        subtitle="รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว"
+      />
+      {false ? (
+      <div>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.18),transparent_28%)]" />
         <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-3xl">
@@ -2140,6 +2147,7 @@ export default function AppealMockup({
           </div>
         </div>
       </div>
+      ) : null}
 
       <AppealClosedBanner />
 
