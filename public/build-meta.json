@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605140034",
-  "buildNumber": 2605140034,
-  "releaseLabel": "v1.0.0.2605140034",
-  "updatedAt": "14/05/2026 00:34:59",
+  "displayVersion": "1.0.0.2605140043",
+  "buildNumber": 2605140043,
+  "releaseLabel": "v1.0.0.2605140043",
+  "updatedAt": "14/05/2026 00:43:59",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "529163ccb0e1aa7e02ca57bc7c417deaa9a5edd4",
-  "commitMessage": "Make task inbox central unread mailbox",
+  "commitHash": "2b6c996e03539f6e5347721cc6d56f22e2981a2b",
+  "commitMessage": "Add online team chat",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/TeamChatMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

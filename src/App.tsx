@@ -8,7 +8,7 @@ import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import PageHero from "./PageHero";
-import TeamChatMockup, { ChatMessage, OnlineUser } from "./TeamChatMockup";
+import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
 type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
@@ -570,6 +570,13 @@ function buildChatMessages(logs: UsageLogEvent[]) {
       displayName: item.display_name || item.username || "",
       role: item.role || "",
       message: String(item.details?.message || ""),
+      room: item.details?.room === "private" ? "private" : "team",
+      toUsername: typeof item.details?.toUsername === "string" ? item.details.toUsername : "",
+      toDisplayName: typeof item.details?.toDisplayName === "string" ? item.details.toDisplayName : "",
+      attachment:
+        item.details?.attachment && typeof item.details.attachment === "object"
+          ? (item.details.attachment as ChatAttachment)
+          : undefined,
     }))
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
@@ -1564,11 +1571,18 @@ export default function App() {
     });
   };
 
-  const sendChatMessage = async (message: string) => {
+  const sendChatMessage = async (message: string, toUser?: OnlineUser, attachment?: ChatAttachment) => {
     if (!currentUser) return;
     await logUsageEvent(currentUser, "chat_message", {
       tab: "team-chat",
-      details: { message },
+      target_agent: toUser?.username || "",
+      details: {
+        message,
+        room: toUser ? "private" : "team",
+        toUsername: toUser?.username || "",
+        toDisplayName: toUser?.displayName || "",
+        attachment,
+      },
     });
     await sendPresence();
     await loadChatData();
