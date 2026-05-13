@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
-import AppealRequestsMockup from "./AppealRequestsMockup";
+import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
@@ -971,6 +971,7 @@ export default function App() {
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
   const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
+  const [appealTaskCount, setAppealTaskCount] = useState(0);
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
@@ -1050,6 +1051,20 @@ export default function App() {
     }, 0);
   };
 
+  const loadAppealTaskCount = async () => {
+    if (!appealRequestsAllowed) {
+      setAppealTaskCount(0);
+      return;
+    }
+    try {
+      const logs = await fetchUsageLogs(5000);
+      const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
+      setAppealTaskCount(pendingCount);
+    } catch {
+      setAppealTaskCount(0);
+    }
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
@@ -1085,6 +1100,20 @@ export default function App() {
       details: { dashboardSubTab },
     });
   }, [activeTab, dashboardSubTab, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser || !appealRequestsAllowed) {
+      setAppealTaskCount(0);
+      return;
+    }
+
+    void loadAppealTaskCount();
+    const timer = window.setInterval(() => {
+      void loadAppealTaskCount();
+    }, 60000);
+
+    return () => window.clearInterval(timer);
+  }, [currentUser, appealRequestsAllowed, activeTab]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1747,6 +1776,29 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
+                  {appealRequestsAllowed ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("appeal-requests");
+                        void loadAppealTaskCount();
+                      }}
+                      className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
+                          <div className="mt-1 text-sm font-extrabold">Appeal Requests</div>
+                        </div>
+                        <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
+                          {appealTaskCount}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-violet-100">
+                        {appealTaskCount ? "Pending case(s) waiting for review" : "No pending appeal task"}
+                      </div>
+                    </button>
+                  ) : null}
                   <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
                   <VersionPill meta={buildMeta} />
                 </div>
@@ -1824,7 +1876,7 @@ export default function App() {
             }}
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
-          <AppealRequestsMockup currentUser={currentUser} />
+          <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadAppealTaskCount} />
         ) : activeTab === "summary" ? (
           <SummaryMockup
             currentUser={currentUser}

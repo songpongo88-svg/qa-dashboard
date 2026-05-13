@@ -1,17 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131801",
-  "buildNumber": 2605131801,
-  "releaseLabel": "v1.0.0.2605131801",
-  "updatedAt": "13/05/2026 18:01:01",
+  "displayVersion": "1.0.0.2605132126",
+  "buildNumber": 2605132126,
+  "releaseLabel": "v1.0.0.2605132126",
+  "updatedAt": "13/05/2026 21:26:11",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8390834c6080e967755accb3db371d14d67c72e3",
-  "commitMessage": "Add case detail appeal requests",
+  "commitHash": "c83359956736faefca0f546250e414a531560778",
+  "commitMessage": "Refine appeal topic submission",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
     "src/AppealRequestsMockup.tsx",
     "src/DashboardMockup.tsx"
   ],

@@ -60,7 +60,7 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function buildAppealRequests(logs: UsageLogEvent[]) {
+export function buildAppealRequests(logs: UsageLogEvent[]) {
   const reviews = new Map<string, UsageLogEvent>();
   logs.forEach((log) => {
     if (log.event_type !== "appeal_request_reviewed") return;
@@ -163,7 +163,13 @@ function exportAppealRows(requests: AppealRequest[]) {
   XLSX.writeFile(workbook, `Appeal_ROWDATA_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-export default function AppealRequestsMockup({ currentUser }: { currentUser: any }) {
+export default function AppealRequestsMockup({
+  currentUser,
+  onTasksChanged,
+}: {
+  currentUser: any;
+  onTasksChanged?: () => void;
+}) {
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [draftTopics, setDraftTopics] = useState<AppealTopic[]>([]);
@@ -208,6 +214,7 @@ export default function AppealRequestsMockup({ currentUser }: { currentUser: any
       });
       setMessage(`Saved review for ${selectedRequest.caseId}. Dashboard score is not updated until Appeal ROWDATA is uploaded.`);
       await loadRequests();
+      onTasksChanged?.();
     } finally {
       setBusy(false);
     }
