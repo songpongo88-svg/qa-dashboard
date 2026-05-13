@@ -22,6 +22,16 @@ type UserAccount = {
   suspendReason?: string;
 };
 
+type UserProfileSnapshot = {
+  username: string;
+  displayName: string;
+  role: UserRole;
+  agentName: string;
+  email?: string;
+  status?: "Active" | "Suspended";
+  suspendReason?: string;
+};
+
 type CurrentUser = {
   username: string;
   displayName: string;
@@ -293,6 +303,10 @@ function getRoleUpdateUsername(log: UsageLogEvent) {
   return String(log.target_agent || log.details?.username || "").trim();
 }
 
+function getProfileUpdateUsername(log: UsageLogEvent) {
+  return String(log.target_agent || log.details?.username || "").trim();
+}
+
 function buildUserRoleOverrides(logs: UsageLogEvent[]) {
   const overrides: Record<string, UserRole> = {};
 
@@ -307,6 +321,67 @@ function buildUserRoleOverrides(logs: UsageLogEvent[]) {
   return overrides;
 }
 
+function buildUserProfileOverrides(logs: UsageLogEvent[]) {
+  const profiles: Record<string, UserProfileSnapshot> = {};
+
+  logs.forEach((item) => {
+    if (item.event_type !== "user_profile_saved") return;
+    const username = getProfileUpdateUsername(item);
+    const normalizedUsername = username.toLowerCase();
+    const role = item.details?.role;
+    if (!username || profiles[normalizedUsername] || !isUserRole(role)) return;
+
+    const status = item.details?.status === "Suspended" ? "Suspended" : "Active";
+    profiles[normalizedUsername] = {
+      username,
+      displayName: String(item.details?.displayName || username),
+      agentName: String(item.details?.agentName || item.details?.displayName || username),
+      email: String(item.details?.email || ""),
+      role,
+      status,
+      suspendReason: String(item.details?.suspendReason || ""),
+    };
+  });
+
+  return profiles;
+}
+
+function buildEffectiveUserAccounts(
+  baseAccounts: UserAccount[],
+  profileOverrides: Record<string, UserProfileSnapshot>,
+  roleOverrides: Record<string, UserRole>
+) {
+  const merged = new Map<string, UserAccount>();
+
+  baseAccounts.forEach((account) => {
+    const normalizedUsername = account.username.trim().toLowerCase();
+    const profile = profileOverrides[normalizedUsername];
+    merged.set(normalizedUsername, {
+      ...account,
+      ...profile,
+      username: profile?.username || account.username,
+      password: account.password,
+      role: profile?.role || roleOverrides[normalizedUsername] || account.role,
+    });
+  });
+
+  Object.entries(profileOverrides).forEach(([normalizedUsername, profile]) => {
+    if (merged.has(normalizedUsername)) return;
+    merged.set(normalizedUsername, {
+      username: profile.username,
+      password: "RBH1234",
+      displayName: profile.displayName,
+      role: profile.role,
+      agentName: profile.agentName,
+      email: profile.email,
+      status: profile.status,
+      suspendReason: profile.suspendReason,
+    });
+  });
+
+  return Array.from(merged.values());
+}
+
 async function getCentralUserRoleOverride(username: string) {
   try {
     const normalized = username.trim().toLowerCase();
@@ -315,6 +390,19 @@ async function getCentralUserRoleOverride(username: string) {
     return overrides[normalized] || "";
   } catch {
     return "";
+  }
+}
+
+async function getCentralEffectiveUserAccounts() {
+  try {
+    const logs = await fetchUsageLogs(5000);
+    return buildEffectiveUserAccounts(
+      USER_ACCOUNTS,
+      buildUserProfileOverrides(logs),
+      buildUserRoleOverrides(logs)
+    );
+  } catch {
+    return USER_ACCOUNTS;
   }
 }
 
@@ -730,6 +818,7 @@ function ResetPasswordModal({
   resultMessage,
   resetRequests,
   currentUsername,
+  accounts,
   onRefreshRequests,
   onApproveRequest,
   onRejectRequest,
@@ -742,13 +831,14 @@ function ResetPasswordModal({
   resultMessage: string;
   resetRequests: PasswordResetRequest[];
   currentUsername: string;
+  accounts: UserAccount[];
   onRefreshRequests: () => void;
   onApproveRequest: (request: PasswordResetRequest) => void;
   onRejectRequest: (request: PasswordResetRequest) => void;
 }) {
   if (!open) return null;
   const normalizedCurrentUsername = currentUsername.trim().toLowerCase();
-  const resettableUsers = USER_ACCOUNTS.filter((item) => item.username.trim().toLowerCase() !== normalizedCurrentUsername);
+  const resettableUsers = accounts.filter((item) => item.username.trim().toLowerCase() !== normalizedCurrentUsername);
   const pendingRequests = resetRequests.filter((item) => item.status === "Pending");
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
@@ -1016,6 +1106,7 @@ export default function App() {
   const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
   const [appealTaskCount, setAppealTaskCount] = useState(0);
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
+  const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
@@ -1039,6 +1130,10 @@ export default function App() {
   }, [currentUser]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const effectiveUserAccounts = useMemo(
+    () => buildEffectiveUserAccounts(USER_ACCOUNTS, profileOverrides, roleOverrides),
+    [profileOverrides, roleOverrides]
+  );
   const coachingAllowed = canAccessCoaching(currentUser);
   const usageLogAllowed = canAccessUsageLog(currentUser);
   const appealRequestsAllowed = canAccessAppealRequests(currentUser);
@@ -1118,18 +1213,38 @@ export default function App() {
     try {
       const logs = await fetchUsageLogs(5000);
       const nextOverrides = buildUserRoleOverrides(logs);
+      const nextProfiles = buildUserProfileOverrides(logs);
       setRoleOverrides(nextOverrides);
+      setProfileOverrides(nextProfiles);
 
       setCurrentUser((previousUser) => {
         if (!previousUser) return previousUser;
         const normalizedUsername = previousUser.username.trim().toLowerCase();
         const baseAccount = USER_ACCOUNTS.find((account) => account.username.trim().toLowerCase() === normalizedUsername);
-        const nextRole = nextOverrides[normalizedUsername] || baseAccount?.role;
-        if (!nextRole || nextRole === previousUser.role) return previousUser;
-        return { ...previousUser, role: nextRole };
+        const profile = nextProfiles[normalizedUsername];
+        const nextRole = profile?.role || nextOverrides[normalizedUsername] || baseAccount?.role;
+        const nextDisplayName = profile?.displayName || previousUser.displayName;
+        const nextAgentName = profile?.agentName || previousUser.agentName;
+        const nextEmail = profile?.email || previousUser.email;
+        if (
+          (!nextRole || nextRole === previousUser.role) &&
+          nextDisplayName === previousUser.displayName &&
+          nextAgentName === previousUser.agentName &&
+          nextEmail === previousUser.email
+        ) {
+          return previousUser;
+        }
+        return {
+          ...previousUser,
+          role: nextRole || previousUser.role,
+          displayName: nextDisplayName,
+          agentName: nextAgentName,
+          email: nextEmail,
+        };
       });
     } catch {
       setRoleOverrides({});
+      setProfileOverrides({});
     }
   };
 
@@ -1167,6 +1282,7 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) {
       setRoleOverrides({});
+      setProfileOverrides({});
       return;
     }
 
@@ -1363,8 +1479,9 @@ export default function App() {
   const handleLoginAsync = async () => {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedPassword = password.trim();
+    const centralUserAccounts = await getCentralEffectiveUserAccounts();
 
-    const matchedAccount = USER_ACCOUNTS.find(
+    const matchedAccount = centralUserAccounts.find(
       (item) => item.username.trim().toLowerCase() === normalizedUsername
     );
 
@@ -1420,7 +1537,8 @@ export default function App() {
   const handleForgotPasswordRequest = async () => {
     const normalizedUsername = forgotUsernameInput.trim().toLowerCase();
     const normalizedEmail = normalizeEmail(forgotEmailInput);
-    const account = USER_ACCOUNTS.find((item) => item.username.trim().toLowerCase() === normalizedUsername);
+    const centralUserAccounts = await getCentralEffectiveUserAccounts();
+    const account = centralUserAccounts.find((item) => item.username.trim().toLowerCase() === normalizedUsername);
 
     if (!account) {
       setForgotPasswordError("Username not found");
@@ -1495,7 +1613,7 @@ export default function App() {
   const handleChangePasswordAsync = async () => {
     if (!currentUser) return;
 
-    const account = USER_ACCOUNTS.find(
+    const account = effectiveUserAccounts.find(
       (item) => item.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase()
     );
 
@@ -1563,7 +1681,7 @@ export default function App() {
       return;
     }
     removePasswordOverride(resetTargetUsername);
-    const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
+    const targetAccount = effectiveUserAccounts.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
     if (currentUser && targetAccount) {
       await logUsageEvent(currentUser, "password_reset_approved", {
@@ -1786,6 +1904,7 @@ export default function App() {
         resultMessage={resetResultMessage}
         resetRequests={passwordResetRequests}
         currentUsername={currentUser.username}
+        accounts={effectiveUserAccounts}
         onRefreshRequests={loadPasswordResetRequests}
         onApproveRequest={(request) => {
           void handleApproveResetRequest(request);
@@ -1985,7 +2104,7 @@ export default function App() {
           <UsageLogMockup />
         ) : activeTab === "user-roles" && roleAdminAllowed ? (
           <UserRoleAdminMockup
-            accounts={USER_ACCOUNTS}
+            accounts={effectiveUserAccounts}
             currentUser={currentUser}
             roleOverrides={roleOverrides}
             onRolesChanged={loadRoleOverrides}

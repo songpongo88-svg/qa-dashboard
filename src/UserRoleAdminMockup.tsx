@@ -5,6 +5,7 @@ import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { logUsageEvent } from "./usageLog";
 
 type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
+type UserStatus = "Active" | "Suspended";
 
 type UserAccount = {
   username: string;
@@ -12,8 +13,18 @@ type UserAccount = {
   role: UserRole;
   agentName: string;
   email?: string;
-  status?: "Active" | "Suspended";
+  status?: UserStatus;
   suspendReason?: string;
+};
+
+type EditableUser = {
+  username: string;
+  displayName: string;
+  agentName: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  suspendReason: string;
 };
 
 type CurrentUser = {
@@ -33,18 +44,29 @@ type UserRoleAdminMockupProps = {
 };
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
+const STATUS_OPTIONS: UserStatus[] = ["Active", "Suspended"];
 
 function roleBadgeClass(role: UserRole) {
-  if (role === "Quality Assurance") {
-    return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700";
-  }
-  if (role === "Supervisor") {
-    return "border-sky-200 bg-sky-50 text-sky-700";
-  }
-  if (role === "Senior") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
+  if (role === "Quality Assurance") return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700";
+  if (role === "Supervisor") return "border-sky-200 bg-sky-50 text-sky-700";
+  if (role === "Senior") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
+function toEditableUser(account: UserAccount): EditableUser {
+  return {
+    username: account.username,
+    displayName: account.displayName,
+    agentName: account.agentName || account.displayName,
+    email: account.email || "",
+    role: account.role,
+    status: account.status || "Active",
+    suspendReason: account.suspendReason || "",
+  };
+}
+
+function normalizeUsername(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function formatDateTime(value = new Date().toISOString()) {
@@ -66,24 +88,29 @@ export default function UserRoleAdminMockup({
   roleOverrides,
   onRolesChanged,
 }: UserRoleAdminMockupProps) {
-  const [savingUsername, setSavingUsername] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [draftRoles, setDraftRoles] = useState<Record<string, UserRole>>({});
+  const [draftUsers, setDraftUsers] = useState<EditableUser[]>([]);
 
   const rows = useMemo(() => {
     return accounts
       .map((account) => {
-        const normalizedUsername = account.username.trim().toLowerCase();
-        const effectiveRole = roleOverrides[normalizedUsername] || account.role;
+        const normalizedUsername = normalizeUsername(account.username);
         return {
           ...account,
-          effectiveRole,
           normalizedUsername,
+          effectiveRole: roleOverrides[normalizedUsername] || account.role,
           status: account.status || "Active",
         };
       })
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [accounts, roleOverrides]);
+
+  useEffect(() => {
+    if (isEditing) return;
+    setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
+  }, [isEditing, rows]);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -91,57 +118,84 @@ export default function UserRoleAdminMockup({
   const supervisorUsers = rows.filter((row) => row.effectiveRole === "Supervisor").length;
   const qaUsers = rows.filter((row) => row.effectiveRole === "Quality Assurance").length;
 
-  useEffect(() => {
-    setDraftRoles((currentDrafts) => {
-      const nextDrafts: Record<string, UserRole> = {};
-      rows.forEach((row) => {
-        nextDrafts[row.normalizedUsername] = currentDrafts[row.normalizedUsername] || row.effectiveRole;
-      });
-      return nextDrafts;
-    });
-  }, [rows]);
-
-  const handleDraftRoleChange = (username: string, nextRole: UserRole) => {
-    setDraftRoles((currentDrafts) => ({
-      ...currentDrafts,
-      [username.trim().toLowerCase()]: nextRole,
-    }));
+  const updateDraftUser = (index: number, key: keyof EditableUser, value: string) => {
+    setDraftUsers((currentDrafts) =>
+      currentDrafts.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item
+      )
+    );
   };
 
-  const handleSaveRole = async (account: UserAccount, nextRole: UserRole) => {
-    const normalizedUsername = account.username.trim().toLowerCase();
-    const previousRole = roleOverrides[normalizedUsername] || account.role;
-    if (previousRole === nextRole) return;
+  const handleAddUser = () => {
+    setDraftUsers((currentDrafts) => [
+      {
+        username: "",
+        displayName: "",
+        agentName: "",
+        email: "",
+        role: "Agent",
+        status: "Active",
+        suspendReason: "",
+      },
+      ...currentDrafts,
+    ]);
+  };
 
-    if (normalizedUsername === "songpon" && nextRole !== "Quality Assurance") {
-      setMessage("Songpon is locked as Quality Assurance to keep role management access safe.");
+  const handleCancelEdit = () => {
+    setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
+    setIsEditing(false);
+    setMessage("");
+  };
+
+  const handleSaveDirectory = async () => {
+    const cleanedUsers = draftUsers.map((item) => ({
+      ...item,
+      username: item.username.trim(),
+      displayName: item.displayName.trim(),
+      agentName: item.agentName.trim() || item.displayName.trim(),
+      email: item.email.trim(),
+      suspendReason: item.suspendReason.trim(),
+    }));
+
+    const invalidUser = cleanedUsers.find((item) => !item.username || !item.displayName);
+    if (invalidUser) {
+      setMessage("Username and display name are required before saving.");
       return;
     }
 
-    setSavingUsername(account.username);
+    const duplicatedUsername = cleanedUsers.find((item, index) =>
+      cleanedUsers.findIndex((target) => normalizeUsername(target.username) === normalizeUsername(item.username)) !== index
+    );
+    if (duplicatedUsername) {
+      setMessage(`Duplicate username found: ${duplicatedUsername.username}`);
+      return;
+    }
+
+    const songpon = cleanedUsers.find((item) => normalizeUsername(item.username) === "songpon");
+    if (!songpon || songpon.role !== "Quality Assurance" || songpon.status !== "Active") {
+      setMessage("Songpon must remain Active with Quality Assurance role to keep admin access safe.");
+      return;
+    }
+
+    setSaving(true);
     setMessage("");
 
-    await logUsageEvent(currentUser, "user_role_updated", {
-      tab: "user-roles",
-      target_agent: account.username,
-      details: {
-        username: account.username,
-        displayName: account.displayName,
-        email: account.email || "",
-        previousRole,
-        newRole: nextRole,
-        updatedBy: currentUser?.displayName || currentUser?.username || "",
-        updatedAt: new Date().toISOString(),
-      },
-    });
+    for (const user of cleanedUsers) {
+      await logUsageEvent(currentUser, "user_profile_saved", {
+        tab: "user-roles",
+        target_agent: user.username,
+        details: {
+          ...user,
+          updatedBy: currentUser?.displayName || currentUser?.username || "",
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    }
 
     await onRolesChanged();
-    setDraftRoles((currentDrafts) => ({
-      ...currentDrafts,
-      [normalizedUsername]: nextRole,
-    }));
-    setSavingUsername("");
-    setMessage(`${account.displayName} role saved: ${previousRole} -> ${nextRole}`);
+    setSaving(false);
+    setIsEditing(false);
+    setMessage(`Saved ${cleanedUsers.length} user profile(s).`);
   };
 
   const handleExportPdf = () => {
@@ -149,7 +203,7 @@ export default function UserRoleAdminMockup({
     registerTHSarabunNew(doc);
     doc.setFont("THSarabunNew", "bold");
     doc.setFontSize(20);
-    doc.text("QA Dashboard - User Role Management", 14, 18);
+    doc.text("QA Dashboard - User Directory", 14, 18);
 
     doc.setFont("THSarabunNew", "normal");
     doc.setFontSize(12);
@@ -157,7 +211,6 @@ export default function UserRoleAdminMockup({
     doc.text(`Generated at: ${formatDateTime()}`, 14, 34);
 
     doc.setFont("THSarabunNew", "bold");
-    doc.setFontSize(11);
     const startY = 46;
     doc.text("User", 14, startY);
     doc.text("Email", 62, startY);
@@ -181,130 +234,242 @@ export default function UserRoleAdminMockup({
 
     logUsageEvent(currentUser, "pdf_generate", {
       tab: "user-roles",
-      details: { pdfType: "user_role_management" },
+      details: { pdfType: "user_directory" },
     });
-    doc.save(`QA_User_Roles_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`QA_User_Directory_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   return (
     <div className="min-h-screen bg-[#fbf8ff] text-slate-950">
       <PageHero
-        eyebrow="Admin Control"
-        title="User Role Management"
-        subtitle="Manage system access roles for QA Dashboard users and export the current role list for audit records."
-        workspaceTitle="Role Governance"
-        workspaceSubtitle="Central permission view for Quality Assurance administration"
+        eyebrow="CRM Admin"
+        title="User Directory"
+        subtitle="Manage user profiles, emails, account status, and system roles from one controlled directory."
+        workspaceTitle="CRM Permission Center"
+        workspaceSubtitle="Central user profile management for QA Dashboard"
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
         <div className="grid gap-4 md:grid-cols-5">
-          <div className="rounded-[22px] border border-violet-100 bg-white p-5 shadow-sm">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">Total Users</div>
-            <div className="mt-3 text-3xl font-black text-slate-950">{totalUsers}</div>
-          </div>
-          <div className="rounded-[22px] border border-emerald-100 bg-white p-5 shadow-sm">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-600">Active</div>
-            <div className="mt-3 text-3xl font-black text-slate-950">{activeUsers}</div>
-          </div>
-          <div className="rounded-[22px] border border-sky-100 bg-white p-5 shadow-sm">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-600">Senior</div>
-            <div className="mt-3 text-3xl font-black text-slate-950">{seniorUsers}</div>
-          </div>
-          <div className="rounded-[22px] border border-sky-100 bg-white p-5 shadow-sm">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-600">Supervisors</div>
-            <div className="mt-3 text-3xl font-black text-slate-950">{supervisorUsers}</div>
-          </div>
-          <div className="rounded-[22px] border border-fuchsia-100 bg-white p-5 shadow-sm">
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-fuchsia-600">Quality Assurance</div>
-            <div className="mt-3 text-3xl font-black text-slate-950">{qaUsers}</div>
-          </div>
+          <MetricCard label="Total Users" value={totalUsers} tone="text-violet-600" />
+          <MetricCard label="Active" value={activeUsers} tone="text-emerald-600" />
+          <MetricCard label="Senior" value={seniorUsers} tone="text-amber-600" />
+          <MetricCard label="Supervisors" value={supervisorUsers} tone="text-sky-600" />
+          <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
         </div>
 
         <div className="mt-5 overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.08)]">
-          <div className="flex flex-col gap-4 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-4 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <div className="text-lg font-black text-slate-950">Role Directory</div>
+              <div className="text-lg font-black text-slate-950">User Directory</div>
               <div className="mt-1 text-sm text-slate-500">
-                Choose a new CRM-style role, then click Save Role to update that user.
+                {isEditing
+                  ? "Edit user details in one place, then save all changes at once."
+                  : "Read-only view. Click Edit Directory when you need to update users."}
               </div>
               {message ? <div className="mt-2 text-sm font-semibold text-violet-700">{message}</div> : null}
             </div>
-            <button
-              type="button"
-              onClick={handleExportPdf}
-              className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.22)] transition hover:opacity-95"
-            >
-              Export PDF
-            </button>
+
+            <div className="flex flex-wrap gap-3">
+              {isEditing ? (
+                <>
+                  <button type="button" onClick={handleAddUser} className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50">
+                    Add User
+                  </button>
+                  <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveDirectory}
+                    disabled={saving}
+                    className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={handleExportPdf} className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50">
+                    Export PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
+                      setIsEditing(true);
+                      setMessage("");
+                    }}
+                    className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(109,40,217,0.22)] transition hover:opacity-95"
+                  >
+                    Edit Directory
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="bg-slate-950 text-white">
-                  <th className="px-5 py-4 font-bold">User</th>
-                  <th className="px-5 py-4 font-bold">Email</th>
-                  <th className="px-5 py-4 font-bold">Current Role</th>
-                  <th className="px-5 py-4 font-bold">Edit Role</th>
-                  <th className="px-5 py-4 font-bold">Action</th>
-                  <th className="px-5 py-4 font-bold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const isSongpon = row.normalizedUsername === "songpon";
-                  const draftRole = draftRoles[row.normalizedUsername] || row.effectiveRole;
-                  const hasRoleChange = draftRole !== row.effectiveRole;
-                  return (
-                    <tr key={row.username} className="border-b border-slate-100 last:border-b-0">
-                      <td className="px-5 py-4">
-                        <div className="font-black text-slate-950">{row.displayName}</div>
-                        <div className="mt-0.5 text-xs font-semibold text-slate-500">{row.username}</div>
-                      </td>
-                      <td className="px-5 py-4 text-slate-600">{row.email || "-"}</td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${roleBadgeClass(row.effectiveRole)}`}>
-                          {row.effectiveRole}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <select
-                          value={draftRole}
-                          disabled={savingUsername === row.username || isSongpon}
-                          onChange={(event) => handleDraftRoleChange(row.username, event.target.value as UserRole)}
-                          className="min-w-[190px] rounded-2xl border border-violet-100 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                        >
-                          {ROLE_OPTIONS.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          disabled={!hasRoleChange || savingUsername === row.username || isSongpon}
-                          onClick={() => handleSaveRole(row, draftRole)}
-                          className="rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                        >
-                          {savingUsername === row.username ? "Saving..." : "Save Role"}
-                        </button>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${row.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                          {row.status}
-                        </div>
-                        {row.suspendReason ? <div className="mt-1 text-xs text-slate-500">{row.suspendReason}</div> : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {isEditing ? (
+            <EditableDirectoryTable
+              users={draftUsers}
+              saving={saving}
+              onChange={updateDraftUser}
+            />
+          ) : (
+            <ReadOnlyDirectoryTable rows={rows} />
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function MetricCard({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div className="rounded-[22px] border border-violet-100 bg-white p-5 shadow-sm">
+      <div className={`text-[11px] font-bold uppercase tracking-[0.22em] ${tone}`}>{label}</div>
+      <div className="mt-3 text-3xl font-black text-slate-950">{value}</div>
+    </div>
+  );
+}
+
+function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }> }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse text-left text-sm">
+        <thead>
+          <tr className="bg-slate-950 text-white">
+            <th className="px-5 py-4 font-bold">User</th>
+            <th className="px-5 py-4 font-bold">Agent Name</th>
+            <th className="px-5 py-4 font-bold">Email</th>
+            <th className="px-5 py-4 font-bold">Role</th>
+            <th className="px-5 py-4 font-bold">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.username} className="border-b border-slate-100 last:border-b-0">
+              <td className="px-5 py-4">
+                <div className="font-black text-slate-950">{row.displayName}</div>
+                <div className="mt-0.5 text-xs font-semibold text-slate-500">{row.username}</div>
+              </td>
+              <td className="px-5 py-4 text-slate-600">{row.agentName || "-"}</td>
+              <td className="px-5 py-4 text-slate-600">{row.email || "-"}</td>
+              <td className="px-5 py-4">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${roleBadgeClass(row.effectiveRole)}`}>
+                  {row.effectiveRole}
+                </span>
+              </td>
+              <td className="px-5 py-4">
+                <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${row.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                  {row.status}
+                </div>
+                {row.suspendReason ? <div className="mt-1 text-xs text-slate-500">{row.suspendReason}</div> : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EditableDirectoryTable({
+  users,
+  saving,
+  onChange,
+}: {
+  users: EditableUser[];
+  saving: boolean;
+  onChange: (index: number, key: keyof EditableUser, value: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-[1220px] border-collapse text-left text-sm">
+        <thead>
+          <tr className="bg-slate-950 text-white">
+            <th className="px-4 py-4 font-bold">Username</th>
+            <th className="px-4 py-4 font-bold">Display Name</th>
+            <th className="px-4 py-4 font-bold">Agent Name</th>
+            <th className="px-4 py-4 font-bold">Email</th>
+            <th className="px-4 py-4 font-bold">Role</th>
+            <th className="px-4 py-4 font-bold">Status</th>
+            <th className="px-4 py-4 font-bold">Suspend Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user, index) => {
+            const isSongpon = normalizeUsername(user.username) === "songpon";
+            return (
+              <tr key={`${user.username || "new"}-${index}`} className="border-b border-slate-100 last:border-b-0">
+                <td className="px-4 py-4">
+                  <TextInput value={user.username} disabled={saving || isSongpon} onChange={(value) => onChange(index, "username", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.displayName} disabled={saving} onChange={(value) => onChange(index, "displayName", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.agentName} disabled={saving} onChange={(value) => onChange(index, "agentName", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.email} disabled={saving} onChange={(value) => onChange(index, "email", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <select
+                    value={user.role}
+                    disabled={saving || isSongpon}
+                    onChange={(event) => onChange(index, "role", event.target.value)}
+                    className="min-w-[170px] rounded-2xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    {ROLE_OPTIONS.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-4">
+                  <select
+                    value={user.status}
+                    disabled={saving || isSongpon}
+                    onChange={(event) => onChange(index, "status", event.target.value)}
+                    className="min-w-[140px] rounded-2xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.suspendReason} disabled={saving || user.status === "Active"} onChange={(value) => onChange(index, "suspendReason", value)} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TextInput({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full min-w-[170px] rounded-2xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+    />
   );
 }
