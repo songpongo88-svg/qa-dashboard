@@ -6,9 +6,10 @@ import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
+import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
-type UserRole = "Agent" | "Supervisor";
+type UserRole = "Agent" | "Supervisor" | "Quality Assurance";
 
 type UserAccount = {
   username: string;
@@ -56,7 +57,7 @@ const USER_ACCOUNTS: UserAccount[] = [
   { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Agent", agentName: "Natcha Chai-in", email: "Natcha@robinhood.co.th" },
   { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Agent", agentName: "Nattapol Suprom", email: "Nattapol.s@robinhood.co.th" },
   { username: "Phrommarin", password: "RBH1234", displayName: "Phrommarin Thaithorn", role: "Supervisor", agentName: "Phrommarin Thaithorn", email: "phrommarin@robinhood.co.th" },
-  { username: "Songpon", password: "Boom@4421L2", displayName: "Songpon Phothong", role: "Supervisor", agentName: "Songpon Phothong", email: "Songpon@robinhood.co.th" },
+  { username: "Songpon", password: "Boom@4421L2", displayName: "Songpon Phothong", role: "Quality Assurance", agentName: "Songpon Phothong", email: "Songpon@robinhood.co.th" },
   { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritip", role: "Agent", agentName: "Sunijtra Siritip", email: "Sunijtra@robinhood.co.th" },
   { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Agent", agentName: "Supakrit Promkhamnoi", email: "Supakrit@robinhood.co.th" },
   { username: "Suphitcha", password: "Sp@8Ld2#Vk", displayName: "Suphitcha Keawliam", role: "Supervisor", agentName: "Suphitcha Keawliam", email: "Suphitcha@robinhood.co.th" },
@@ -115,32 +116,45 @@ type PasswordResetRequest = {
   tempPassword?: string;
 };
 
+const ROLE_OPTIONS: UserRole[] = ["Agent", "Supervisor", "Quality Assurance"];
+
+function isUserRole(value: unknown): value is UserRole {
+  return ROLE_OPTIONS.includes(value as UserRole);
+}
+
 function canAccessCoaching(user: CurrentUser | null) {
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
-  return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
+  return (user.role === "Supervisor" || user.role === "Quality Assurance") && (displayName === "songpon phothong" || username === "songpon");
 }
 
 function canAccessUsageLog(user: CurrentUser | null) {
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
-  return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
+  return (user.role === "Supervisor" || user.role === "Quality Assurance") && (displayName === "songpon phothong" || username === "songpon");
 }
 
 function canAccessPasswordResetAdmin(user: CurrentUser | null) {
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
-  return user.role === "Supervisor" && (PASSWORD_RESET_ADMIN_USERNAMES.has(username) || PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(displayName));
+  return (user.role === "Supervisor" || user.role === "Quality Assurance") && (PASSWORD_RESET_ADMIN_USERNAMES.has(username) || PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(displayName));
 }
 
 function canAccessAppealRequests(user: CurrentUser | null) {
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
-  return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
+  return (user.role === "Supervisor" || user.role === "Quality Assurance") && (displayName === "songpon phothong" || username === "songpon");
+}
+
+function canAccessUserRoleAdmin(user: CurrentUser | null) {
+  if (!user) return false;
+  const displayName = String(user.displayName || "").trim().toLowerCase();
+  const username = String(user.username || "").trim().toLowerCase();
+  return user.role === "Quality Assurance" && (displayName === "songpon phothong" || username === "songpon");
 }
 
 function isSongkranThemeActive() {
@@ -273,6 +287,35 @@ function getResetRequestId(log: UsageLogEvent) {
 
 function getResetRequestUsername(log: UsageLogEvent) {
   return String(log.target_agent || log.username || log.details?.username || "").trim();
+}
+
+function getRoleUpdateUsername(log: UsageLogEvent) {
+  return String(log.target_agent || log.details?.username || "").trim();
+}
+
+function buildUserRoleOverrides(logs: UsageLogEvent[]) {
+  const overrides: Record<string, UserRole> = {};
+
+  logs.forEach((item) => {
+    if (item.event_type !== "user_role_updated") return;
+    const normalizedUsername = getRoleUpdateUsername(item).toLowerCase();
+    const newRole = item.details?.newRole;
+    if (!normalizedUsername || overrides[normalizedUsername] || !isUserRole(newRole)) return;
+    overrides[normalizedUsername] = newRole;
+  });
+
+  return overrides;
+}
+
+async function getCentralUserRoleOverride(username: string) {
+  try {
+    const normalized = username.trim().toLowerCase();
+    const logs = await fetchUsageLogs(3000);
+    const overrides = buildUserRoleOverrides(logs);
+    return overrides[normalized] || "";
+  } catch {
+    return "";
+  }
 }
 
 async function getCentralPasswordOverride(username: string) {
@@ -972,11 +1015,12 @@ export default function App() {
   const [resetResultMessage, setResetResultMessage] = useState("");
   const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
   const [appealTaskCount, setAppealTaskCount] = useState(0);
+  const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "appeal-requests" | "summary" | "coaching" | "rubric" | "usage-log"
+    "dashboard" | "appeal" | "appeal-requests" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -999,14 +1043,17 @@ export default function App() {
   const usageLogAllowed = canAccessUsageLog(currentUser);
   const appealRequestsAllowed = canAccessAppealRequests(currentUser);
   const passwordResetAdminAllowed = canAccessPasswordResetAdmin(currentUser);
+  const roleAdminAllowed = canAccessUserRoleAdmin(currentUser);
+  const canUseAdminAccountMenu = currentUser?.role === "Supervisor" || currentUser?.role === "Quality Assurance";
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
       : "";
   const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
-  const accountOptions = currentUser?.role === "Supervisor"
+  const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
+        ...(roleAdminAllowed ? [{ value: "user-roles", label: "User Roles" }] : []),
         { value: "change-password", label: "Change Password" },
         ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Reset Password" }] : []),
         { value: "logout", label: "Log Out" },
@@ -1038,6 +1085,8 @@ export default function App() {
       setShowChangePasswordModal(true);
     } else if (value === "usage-log" && usageLogAllowed) {
       setActiveTab("usage-log");
+    } else if (value === "user-roles" && roleAdminAllowed) {
+      setActiveTab("user-roles");
     } else if (value === "reset-password" && passwordResetAdminAllowed) {
       resetPasswordModalState();
       setShowResetPasswordModal(true);
@@ -1062,6 +1111,25 @@ export default function App() {
       setAppealTaskCount(pendingCount);
     } catch {
       setAppealTaskCount(0);
+    }
+  };
+
+  const loadRoleOverrides = async () => {
+    try {
+      const logs = await fetchUsageLogs(5000);
+      const nextOverrides = buildUserRoleOverrides(logs);
+      setRoleOverrides(nextOverrides);
+
+      setCurrentUser((previousUser) => {
+        if (!previousUser) return previousUser;
+        const normalizedUsername = previousUser.username.trim().toLowerCase();
+        const baseAccount = USER_ACCOUNTS.find((account) => account.username.trim().toLowerCase() === normalizedUsername);
+        const nextRole = nextOverrides[normalizedUsername] || baseAccount?.role;
+        if (!nextRole || nextRole === previousUser.role) return previousUser;
+        return { ...previousUser, role: nextRole };
+      });
+    } catch {
+      setRoleOverrides({});
     }
   };
 
@@ -1091,7 +1159,19 @@ export default function App() {
     if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed]);
+    if (activeTab === "user-roles" && !roleAdminAllowed) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, roleAdminAllowed]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setRoleOverrides({});
+      return;
+    }
+
+    void loadRoleOverrides();
+  }, [currentUser?.username]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -1306,10 +1386,13 @@ export default function App() {
       return;
     }
 
+    const centralRole = await getCentralUserRoleOverride(matchedUser.username);
+    const effectiveRole = centralRole || matchedUser.role;
+
     const nextUser: CurrentUser = {
       username: matchedUser.username,
       displayName: matchedUser.displayName,
-      role: matchedUser.role,
+      role: effectiveRole,
       agentName: matchedUser.agentName,
       email: matchedUser.email || "",
       loginAt: new Date().toISOString(),
@@ -1324,9 +1407,10 @@ export default function App() {
     setPassword("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
+    setSelectedAgentGlobal(effectiveRole === "Agent" ? matchedUser.agentName : "");
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
+    void loadRoleOverrides();
   };
 
   const handleForgotPasswordReset = () => {
@@ -1899,6 +1983,13 @@ export default function App() {
           />
         ) : activeTab === "usage-log" && usageLogAllowed ? (
           <UsageLogMockup />
+        ) : activeTab === "user-roles" && roleAdminAllowed ? (
+          <UserRoleAdminMockup
+            accounts={USER_ACCOUNTS}
+            currentUser={currentUser}
+            roleOverrides={roleOverrides}
+            onRolesChanged={loadRoleOverrides}
+          />
         ) : (
           <QARubricMockup />
         )}

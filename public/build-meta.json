@@ -1,18 +1,24 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605132153",
-  "buildNumber": 2605132153,
-  "releaseLabel": "v1.0.0.2605132153",
-  "updatedAt": "13/05/2026 21:53:46",
+  "displayVersion": "1.0.0.2605132218",
+  "buildNumber": 2605132218,
+  "releaseLabel": "v1.0.0.2605132218",
+  "updatedAt": "13/05/2026 22:18:52",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ecce1988c46732a8d1140b2c4c573bb17cb95e38",
-  "commitMessage": "Add appeal task reset and inbox detail",
+  "commitHash": "2bde120ceb1ca06b51c6bcbd69f7ffd45cbda5c9",
+  "commitMessage": "Standardize page hero across tabs",
   "changedFiles": [
     "public/build-meta.json",
+    "src/AppealMockup.tsx",
     "src/AppealRequestsMockup.tsx",
-    "src/DashboardMockup.tsx"
+    "src/CoachingMockup.tsx",
+    "src/DashboardMockup.tsx",
+    "src/PageHero.tsx",
+    "src/QARubricMockup.tsx",
+    "src/SummaryMockup.tsx",
+    "src/UsageLogMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
