@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131453",
-  "buildNumber": 2605131453,
-  "releaseLabel": "v1.0.0.2605131453",
-  "updatedAt": "13/05/2026 14:53:55",
+  "displayVersion": "1.0.0.2605131544",
+  "buildNumber": 2605131544,
+  "releaseLabel": "v1.0.0.2605131544",
+  "updatedAt": "13/05/2026 15:44:27",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "0d6c99a159613ae732f237808c6e6e03bad9044a",
-  "commitMessage": "Update user email mapping",
+  "commitHash": "4561e13168e3c26a7e16929175cc49cd686f68b1",
+  "commitMessage": "Suspend departed user account",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"

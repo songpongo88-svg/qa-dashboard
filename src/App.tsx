@@ -5,7 +5,7 @@ import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
-import { logUsageEvent } from "./usageLog";
+import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
 type UserRole = "Agent" | "Supervisor";
 
@@ -86,6 +86,16 @@ const DEFAULT_BUILD_META: BuildMeta = {
   commitHash: "",
   commitMessage: "",
   timezone: "Asia/Bangkok",
+};
+
+type PasswordResetRequest = {
+  requestId: string;
+  username: string;
+  displayName: string;
+  email: string;
+  requestedAt: string;
+  status: "Pending" | "Approved" | "Rejected";
+  tempPassword?: string;
 };
 
 function canAccessCoaching(user: CurrentUser | null) {
@@ -209,6 +219,79 @@ function getEffectivePassword(account: UserAccount) {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function passwordPolicyError(value: string) {
+  if (value.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(value)) return "Password must include at least one uppercase letter";
+  if (!/[a-z]/.test(value)) return "Password must include at least one lowercase letter";
+  if (!/[0-9]/.test(value)) return "Password must include at least one number";
+  if (!/[^A-Za-z0-9]/.test(value)) return "Password must include at least one special character";
+  return "";
+}
+
+function generateTemporaryPassword() {
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const number = Math.floor(100 + Math.random() * 900);
+  return `Qa#${number}${suffix}A`;
+}
+
+function getResetRequestId(log: UsageLogEvent) {
+  return typeof log.details?.requestId === "string" ? log.details.requestId : log.id || "";
+}
+
+function getResetRequestUsername(log: UsageLogEvent) {
+  return String(log.target_agent || log.username || log.details?.username || "").trim();
+}
+
+async function getCentralPasswordOverride(username: string) {
+  try {
+    const normalized = username.trim().toLowerCase();
+    const logs = await fetchUsageLogs(2000);
+    const passwordEvent = logs.find((item) => {
+      const target = getResetRequestUsername(item).toLowerCase();
+      return (
+        target === normalized &&
+        (item.event_type === "password_reset_approved" || item.event_type === "password_changed") &&
+        typeof item.details?.password === "string"
+      );
+    });
+
+    return typeof passwordEvent?.details?.password === "string" ? passwordEvent.details.password : "";
+  } catch {
+    return "";
+  }
+}
+
+function buildResetRequests(logs: UsageLogEvent[]) {
+  const decisions = new Map<string, UsageLogEvent>();
+  logs.forEach((item) => {
+    if (item.event_type !== "password_reset_approved" && item.event_type !== "password_reset_rejected") return;
+    const requestId = getResetRequestId(item);
+    if (requestId && !decisions.has(requestId)) decisions.set(requestId, item);
+  });
+
+  return logs
+    .filter((item) => item.event_type === "password_reset_request")
+    .map((item): PasswordResetRequest => {
+      const requestId = getResetRequestId(item);
+      const decision = requestId ? decisions.get(requestId) : undefined;
+      const status =
+        decision?.event_type === "password_reset_approved"
+          ? "Approved"
+          : decision?.event_type === "password_reset_rejected"
+            ? "Rejected"
+            : "Pending";
+      return {
+        requestId,
+        username: getResetRequestUsername(item),
+        displayName: item.display_name || String(item.details?.displayName || ""),
+        email: String(item.details?.email || ""),
+        requestedAt: item.created_at || "",
+        status,
+        tempPassword: typeof decision?.details?.password === "string" ? decision.details.password : "",
+      };
+    });
 }
 
 function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
@@ -510,10 +593,6 @@ function ForgotPasswordModal({
   setUsernameInput,
   emailInput,
   setEmailInput,
-  newPasswordInput,
-  setNewPasswordInput,
-  confirmPasswordInput,
-  setConfirmPasswordInput,
   error,
   success,
   onSubmit,
@@ -524,10 +603,6 @@ function ForgotPasswordModal({
   setUsernameInput: (value: string) => void;
   emailInput: string;
   setEmailInput: (value: string) => void;
-  newPasswordInput: string;
-  setNewPasswordInput: (value: string) => void;
-  confirmPasswordInput: string;
-  setConfirmPasswordInput: (value: string) => void;
   error: string;
   success: string;
   onSubmit: () => void;
@@ -538,7 +613,7 @@ function ForgotPasswordModal({
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-xl font-bold text-slate-900">Forgot Password</div>
         <div className="mt-2 text-sm leading-6 text-slate-500">
-          Enter your username and registered email to set a new password for this browser.
+          Enter your username and registered email. Songpon will review the request and provide a temporary password after approval.
         </div>
         <div className="mt-6 space-y-4">
           <div>
@@ -549,20 +624,12 @@ function ForgotPasswordModal({
             <label className="mb-2 block text-sm font-semibold text-slate-800">Registered Email</label>
             <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">New Password</label>
-            <input type="password" value={newPasswordInput} onChange={(e) => setNewPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-800">Confirm New Password</label>
-            <input type="password" value={confirmPasswordInput} onChange={(e) => setConfirmPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
-          </div>
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
           {success ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{success}</div> : null}
         </div>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-          <button type="button" onClick={onSubmit} className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Reset Password</button>
+          <button type="button" onClick={onSubmit} className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Submit Request</button>
         </div>
       </div>
     </div>
@@ -576,6 +643,10 @@ function ResetPasswordModal({
   setSelectedUsername,
   onReset,
   resultMessage,
+  resetRequests,
+  onRefreshRequests,
+  onApproveRequest,
+  onRejectRequest,
 }: {
   open: boolean;
   onClose: () => void;
@@ -583,15 +654,52 @@ function ResetPasswordModal({
   setSelectedUsername: (value: string) => void;
   onReset: () => void;
   resultMessage: string;
+  resetRequests: PasswordResetRequest[];
+  onRefreshRequests: () => void;
+  onApproveRequest: (request: PasswordResetRequest) => void;
+  onRejectRequest: (request: PasswordResetRequest) => void;
 }) {
   if (!open) return null;
   const resettableUsers = USER_ACCOUNTS.filter((item) => item.role === "Agent");
+  const pendingRequests = resetRequests.filter((item) => item.status === "Pending");
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 px-4">
-      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-xl font-bold text-slate-900">Reset Password</div>
-        <div className="mt-2 text-sm text-slate-500">Supervisor can reset agent password back to default.</div>
+        <div className="mt-2 text-sm text-slate-500">Review password reset requests and provide a temporary password after approval.</div>
         <div className="mt-6 space-y-4">
+          <div className="rounded-3xl border border-violet-100 bg-violet-50/60 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Pending Requests</div>
+                <div className="mt-1 text-sm text-slate-600">{pendingRequests.length} request(s) waiting for review</div>
+              </div>
+              <button type="button" onClick={onRefreshRequests} className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50">Refresh</button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {pendingRequests.length ? (
+                pendingRequests.map((request) => (
+                  <div key={request.requestId} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <div className="text-base font-bold text-slate-950">{request.displayName || request.username}</div>
+                        <div className="mt-1 text-sm text-slate-500">{request.username} / {request.email}</div>
+                        <div className="mt-1 text-xs text-slate-400">Requested: {request.requestedAt ? new Date(request.requestedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => onApproveRequest(request)} className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Approve</button>
+                        <button type="button" onClick={() => onRejectRequest(request)} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">Reject</button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-violet-200 bg-white px-4 py-6 text-center text-sm text-slate-500">No pending password reset requests.</div>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-800">Select Agent</label>
             <select value={selectedUsername} onChange={(e) => setSelectedUsername(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100">
@@ -794,14 +902,13 @@ export default function App() {
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotUsernameInput, setForgotUsernameInput] = useState("");
   const [forgotEmailInput, setForgotEmailInput] = useState("");
-  const [forgotNewPasswordInput, setForgotNewPasswordInput] = useState("");
-  const [forgotConfirmPasswordInput, setForgotConfirmPasswordInput] = useState("");
   const [forgotPasswordError, setForgotPasswordError] = useState("");
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState("");
 
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
+  const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
@@ -827,6 +934,7 @@ export default function App() {
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const coachingAllowed = canAccessCoaching(currentUser);
   const usageLogAllowed = canAccessUsageLog(currentUser);
+  const passwordResetAdminAllowed = usageLogAllowed;
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
@@ -836,7 +944,7 @@ export default function App() {
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
         { value: "change-password", label: "Change Password" },
-        { value: "reset-password", label: "Reset Password" },
+        ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Reset Password" }] : []),
         { value: "logout", label: "Log Out" },
       ]
     : [
@@ -865,9 +973,10 @@ export default function App() {
       setShowChangePasswordModal(true);
     } else if (value === "usage-log" && usageLogAllowed) {
       setActiveTab("usage-log");
-    } else if (value === "reset-password" && currentUser?.role === "Supervisor") {
+    } else if (value === "reset-password" && passwordResetAdminAllowed) {
       resetPasswordModalState();
       setShowResetPasswordModal(true);
+      void loadPasswordResetRequests();
     } else if (value === "logout") {
       handleLogout();
     }
@@ -992,8 +1101,6 @@ export default function App() {
   const resetForgotPasswordState = () => {
     setForgotUsernameInput("");
     setForgotEmailInput("");
-    setForgotNewPasswordInput("");
-    setForgotConfirmPasswordInput("");
     setForgotPasswordError("");
     setForgotPasswordSuccess("");
   };
@@ -1074,6 +1181,10 @@ export default function App() {
   }, [currentUser, showSessionWarning]);
 
   const handleLogin = () => {
+    void handleLoginAsync();
+  };
+
+  const handleLoginAsync = async () => {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedPassword = password.trim();
 
@@ -1087,8 +1198,10 @@ export default function App() {
       return;
     }
 
+    const centralPassword = matchedAccount ? await getCentralPasswordOverride(matchedAccount.username) : "";
+    const effectivePassword = centralPassword || (matchedAccount ? getEffectivePassword(matchedAccount) : "");
     const matchedUser =
-      matchedAccount && getEffectivePassword(matchedAccount) === normalizedPassword
+      matchedAccount && effectivePassword === normalizedPassword
         ? matchedAccount
         : null;
 
@@ -1121,6 +1234,10 @@ export default function App() {
   };
 
   const handleForgotPasswordReset = () => {
+    void handleForgotPasswordRequest();
+  };
+
+  const handleForgotPasswordRequest = async () => {
     const normalizedUsername = forgotUsernameInput.trim().toLowerCase();
     const normalizedEmail = normalizeEmail(forgotEmailInput);
     const account = USER_ACCOUNTS.find((item) => item.username.trim().toLowerCase() === normalizedUsername);
@@ -1150,34 +1267,40 @@ export default function App() {
       return;
     }
 
-    if (!forgotNewPasswordInput.trim()) {
-      setForgotPasswordError("New password cannot be empty");
+    const requestId = `${account.username.toLowerCase()}-${Date.now()}`;
+    try {
+      await logUsageEvent(
+        {
+          username: account.username,
+          displayName: account.displayName,
+          role: account.role,
+          agentName: account.agentName,
+          loginAt: new Date().toISOString(),
+        },
+        "password_reset_request",
+        {
+          tab: "login",
+          target_agent: account.username,
+          details: {
+            requestId,
+            username: account.username,
+            displayName: account.displayName,
+            email: account.email,
+          },
+        }
+      );
+    } catch {
+      setForgotPasswordError("Submit request failed. Please try again.");
       setForgotPasswordSuccess("");
       return;
     }
 
-    if (forgotNewPasswordInput.length < 6) {
-      setForgotPasswordError("New password must be at least 6 characters");
-      setForgotPasswordSuccess("");
-      return;
-    }
-
-    if (forgotNewPasswordInput !== forgotConfirmPasswordInput) {
-      setForgotPasswordError("New password and confirm password do not match");
-      setForgotPasswordSuccess("");
-      return;
-    }
-
-    savePasswordOverride(account.username, forgotNewPasswordInput);
     setForgotPasswordError("");
-    setForgotPasswordSuccess("Password reset successfully. You can sign in with your new password.");
-    setUsername(account.username);
-    setPassword("");
-
+    setForgotPasswordSuccess("Request submitted. Please contact Songpon to receive a temporary password after approval.");
     setTimeout(() => {
       setShowForgotPasswordModal(false);
       resetForgotPasswordState();
-    }, 1300);
+    }, 1800);
   };
 
   const handleStayLoggedIn = () => {
@@ -1185,6 +1308,11 @@ export default function App() {
   };
 
   const handleChangePassword = () => {
+    if (!currentUser) return;
+    void handleChangePasswordAsync();
+  };
+
+  const handleChangePasswordAsync = async () => {
     if (!currentUser) return;
 
     const account = USER_ACCOUNTS.find(
@@ -1197,7 +1325,8 @@ export default function App() {
       return;
     }
 
-    const effectivePassword = getEffectivePassword(account);
+    const centralPassword = await getCentralPasswordOverride(account.username);
+    const effectivePassword = centralPassword || getEffectivePassword(account);
 
     if (currentPasswordInput !== effectivePassword) {
       setChangePasswordError("Current password is incorrect");
@@ -1211,8 +1340,9 @@ export default function App() {
       return;
     }
 
-    if (newPasswordInput.length < 6) {
-      setChangePasswordError("New password must be at least 6 characters");
+    const policyError = passwordPolicyError(newPasswordInput);
+    if (policyError) {
+      setChangePasswordError(policyError);
       setChangePasswordSuccess("");
       return;
     }
@@ -1224,6 +1354,11 @@ export default function App() {
     }
 
     savePasswordOverride(currentUser.username, newPasswordInput);
+    await logUsageEvent(currentUser, "password_changed", {
+      tab: "account",
+      target_agent: currentUser.username,
+      details: { password: newPasswordInput },
+    });
 
     setChangePasswordError("");
     setChangePasswordSuccess("Password changed successfully");
@@ -1238,11 +1373,65 @@ export default function App() {
   };
 
   const handleResetPasswordToDefault = () => {
+    void handleResetPasswordToDefaultAsync();
+  };
+
+  const handleResetPasswordToDefaultAsync = async () => {
     if (!resetTargetUsername) return;
     removePasswordOverride(resetTargetUsername);
     const targetAccount = USER_ACCOUNTS.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
+    if (currentUser && targetAccount) {
+      await logUsageEvent(currentUser, "password_reset_approved", {
+        tab: "account",
+        target_agent: targetAccount.username,
+        details: {
+          requestId: `manual-default-${targetAccount.username.toLowerCase()}-${Date.now()}`,
+          password: targetAccount.password,
+          email: targetAccount.email || "",
+          displayName: targetAccount.displayName,
+          resetMode: "default",
+        },
+      });
+    }
     setResetResultMessage(`Password for ${targetName} has been reset to default.`);
+  };
+
+  const loadPasswordResetRequests = async () => {
+    const logs = await fetchUsageLogs(2000);
+    setPasswordResetRequests(buildResetRequests(logs));
+  };
+
+  const handleApproveResetRequest = async (request: PasswordResetRequest) => {
+    if (!currentUser) return;
+    const tempPassword = generateTemporaryPassword();
+    await logUsageEvent(currentUser, "password_reset_approved", {
+      tab: "account",
+      target_agent: request.username,
+      details: {
+        requestId: request.requestId,
+        password: tempPassword,
+        email: request.email,
+        displayName: request.displayName,
+      },
+    });
+    setResetResultMessage(`Approved ${request.displayName || request.username}. Temporary password: ${tempPassword}`);
+    await loadPasswordResetRequests();
+  };
+
+  const handleRejectResetRequest = async (request: PasswordResetRequest) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "password_reset_rejected", {
+      tab: "account",
+      target_agent: request.username,
+      details: {
+        requestId: request.requestId,
+        email: request.email,
+        displayName: request.displayName,
+      },
+    });
+    setResetResultMessage(`Rejected reset request for ${request.displayName || request.username}.`);
+    await loadPasswordResetRequests();
   };
 
   if (!currentUser) {
@@ -1255,10 +1444,6 @@ export default function App() {
           setUsernameInput={setForgotUsernameInput}
           emailInput={forgotEmailInput}
           setEmailInput={setForgotEmailInput}
-          newPasswordInput={forgotNewPasswordInput}
-          setNewPasswordInput={setForgotNewPasswordInput}
-          confirmPasswordInput={forgotConfirmPasswordInput}
-          setConfirmPasswordInput={setForgotConfirmPasswordInput}
           error={forgotPasswordError}
           success={forgotPasswordSuccess}
           onSubmit={handleForgotPasswordReset}
@@ -1393,6 +1578,14 @@ export default function App() {
         setSelectedUsername={setResetTargetUsername}
         onReset={handleResetPasswordToDefault}
         resultMessage={resetResultMessage}
+        resetRequests={passwordResetRequests}
+        onRefreshRequests={loadPasswordResetRequests}
+        onApproveRequest={(request) => {
+          void handleApproveResetRequest(request);
+        }}
+        onRejectRequest={(request) => {
+          void handleRejectResetRequest(request);
+        }}
       />
 
       <div className="min-h-screen bg-slate-100">
