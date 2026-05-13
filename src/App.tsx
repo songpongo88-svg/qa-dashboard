@@ -2428,6 +2428,18 @@ export default function App() {
                       <span>{currentUser.role}</span>
                       <span className="mx-2 text-slate-300">/</span>
                       <span>{currentUser.agentName}</span>
+                      <span className="mx-2 text-slate-300">/</span>
+                      <span className="font-bold text-slate-700">
+                        Version {buildMeta.displayVersion || buildMeta.version}
+                        <span className="mx-1 text-slate-300">·</span>
+                        {buildMeta.updatedAt}
+                        {buildMeta.commitHash ? (
+                          <>
+                            <span className="mx-1 text-slate-300">·</span>
+                            {buildMeta.commitHash.slice(0, 7)}
+                          </>
+                        ) : null}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2505,8 +2517,6 @@ export default function App() {
                       {onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
                     </div>
                   </button>
-                  <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
-                  <VersionPill meta={buildMeta} />
                 </div>
               </div>
             </div>
