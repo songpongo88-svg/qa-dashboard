@@ -62,14 +62,28 @@ function toNumber(value: unknown, fallback = 0) {
 
 export function buildAppealRequests(logs: UsageLogEvent[]) {
   const reviews = new Map<string, UsageLogEvent>();
+  const resets = new Map<string, UsageLogEvent>();
   logs.forEach((log) => {
-    if (log.event_type !== "appeal_request_reviewed") return;
     const requestId = getRequestId(log);
-    if (requestId && !reviews.has(requestId)) reviews.set(requestId, log);
+    if (log.event_type === "appeal_request_reviewed" && requestId && !reviews.has(requestId)) {
+      reviews.set(requestId, log);
+    }
+    if (log.event_type === "appeal_request_reset" && requestId && !resets.has(requestId)) {
+      resets.set(requestId, log);
+    }
   });
 
   return logs
     .filter((log) => log.event_type === "appeal_request_submitted")
+    .filter((log) => {
+      const requestId = getRequestId(log);
+      const reset = requestId ? resets.get(requestId) : undefined;
+      if (!reset) return true;
+
+      const submittedAt = new Date(log.created_at || String(log.details?.submittedAt || "")).getTime();
+      const resetAt = new Date(reset.created_at || String(reset.details?.resetAt || "")).getTime();
+      return Number.isNaN(resetAt) || (!Number.isNaN(submittedAt) && resetAt <= submittedAt);
+    })
     .map((log): AppealRequest => {
       const requestId = getRequestId(log);
       const review = reviews.get(requestId);
@@ -179,7 +193,7 @@ export default function AppealRequestsMockup({
   const [busy, setBusy] = useState(false);
 
   const requests = useMemo(() => buildAppealRequests(logs), [logs]);
-  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || requests[0] || null;
+  const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
 
   const loadRequests = async () => {
     setLogs(await fetchUsageLogs(5000));
@@ -220,6 +234,36 @@ export default function AppealRequestsMockup({
     }
   };
 
+  const resetRequest = async () => {
+    if (!selectedRequest || busy) return;
+    const confirmed = window.confirm(`Reset appeal request for ${selectedRequest.caseId}? This will allow the case owner to submit a new appeal request again.`);
+    if (!confirmed) return;
+
+    setBusy(true);
+    try {
+      await logUsageEvent(currentUser, "appeal_request_reset", {
+        tab: "appeal-requests",
+        case_id: selectedRequest.caseId,
+        target_agent: selectedRequest.agent,
+        details: {
+          requestId: selectedRequest.requestId,
+          caseId: selectedRequest.caseId,
+          resetAt: new Date().toISOString(),
+          resetBy: currentUser?.displayName || currentUser?.username || "",
+          reason: "Reset by Songpon to allow the case owner to submit again.",
+        },
+      });
+      setSelectedRequestId("");
+      setDraftTopics([]);
+      setReviewSummary("");
+      setMessage(`Reset ${selectedRequest.caseId}. The case owner can submit this case again if the appeal window is still open.`);
+      await loadRequests();
+      onTasksChanged?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const pendingCount = requests.filter((item) => item.status === "Pending").length;
   const reviewedCount = requests.length - pendingCount;
 
@@ -247,11 +291,15 @@ export default function AppealRequestsMockup({
           </div>
         </div>
 
-        <div className="grid min-h-[640px] gap-0 lg:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="grid min-h-[640px] gap-0 lg:grid-cols-[430px_minmax(0,1fr)]">
           <div className="border-r border-violet-100 p-5">
             <div className="mb-3 flex gap-2">
               <button type="button" onClick={loadRequests} className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50">Refresh</button>
               <button type="button" onClick={() => exportAppealRows(requests)} className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800">Export Appeal ROWDATA</button>
+            </div>
+            <div className="mb-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Task Inbox</div>
+              <div className="mt-1 text-sm text-slate-600">Click a task subject to open and review details.</div>
             </div>
             <div className="space-y-3">
               {requests.map((item) => (
@@ -267,7 +315,8 @@ export default function AppealRequestsMockup({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-extrabold text-slate-950">{item.caseId}</div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700">Appeal Review Task</div>
+                      <div className="mt-1 text-sm font-extrabold text-slate-950">Appeal Request - {item.caseId}</div>
                       <div className="mt-1 text-xs text-slate-500">{item.agent}</div>
                     </div>
                     <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
@@ -277,7 +326,9 @@ export default function AppealRequestsMockup({
                     </span>
                   </div>
                   <div className="mt-2 text-xs text-slate-500">Submitted: {formatDateTime(item.submittedAt)}</div>
-                  <div className="mt-2 text-xs font-semibold text-violet-700">{item.topics.length} topic(s)</div>
+                  <div className="mt-2 text-xs font-semibold text-violet-700">
+                    {item.topics.filter((topic) => topic.wantsAppeal || topic.appealReason !== NO_APPEAL_TEXT).length} appealed topic(s)
+                  </div>
                 </button>
               ))}
               {!requests.length ? <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No appeal requests yet.</div> : null}
@@ -286,7 +337,15 @@ export default function AppealRequestsMockup({
 
           <div className="p-5">
             {!selectedRequest ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">Select a request to review.</div>
+              <div className="flex h-full min-h-[520px] items-center justify-center rounded-3xl border border-dashed border-violet-200 bg-violet-50/50 p-8 text-center">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">No Task Opened</div>
+                  <div className="mt-2 text-2xl font-extrabold text-slate-950">Select a task from Inbox</div>
+                  <div className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                    Choose an appeal task on the left to open the case details, review requested topics, and save the result.
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-5">
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
@@ -375,14 +434,24 @@ export default function AppealRequestsMockup({
                   </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-violet-700">{message}</div>
-                    <button
-                      type="button"
-                      disabled={busy || selectedRequest.status !== "Pending"}
-                      onClick={submitReview}
-                      className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      {busy ? "Saving..." : "Save Review"}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={resetRequest}
+                        className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        Reset This Task
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || selectedRequest.status !== "Pending"}
+                        onClick={submitReview}
+                        className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {busy ? "Saving..." : "Save Review"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

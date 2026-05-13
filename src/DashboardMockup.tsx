@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogs, logUsageEvent } from "./usageLog";
+import { buildAppealRequests } from "./AppealRequestsMockup";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -2114,10 +2115,8 @@ function SlideOverCaseDetail({
         const logs = await fetchUsageLogs(3000);
         if (cancelled) return;
         setAppealRequestExists(
-          logs.some(
-            (item) =>
-              (item.event_type === "appeal_request_submitted" || item.event_type === "appeal_request_reviewed") &&
-              String(item.case_id || item.details?.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
+          buildAppealRequests(logs).some(
+            (item) => String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
           )
         );
       } catch {
