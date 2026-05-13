@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131259",
-  "buildNumber": 2605131259,
-  "releaseLabel": "v1.0.0.2605131259",
-  "updatedAt": "13/05/2026 12:59:54",
+  "displayVersion": "1.0.0.2605131346",
+  "buildNumber": 2605131346,
+  "releaseLabel": "v1.0.0.2605131346",
+  "updatedAt": "13/05/2026 13:46:06",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "098e844a469ee71a434fcd3c79e5ddff97ac07fe",
-  "commitMessage": "Add May 13 raw data source",
+  "commitHash": "ab3d07a921dd050de603f308319cfbba7f356664",
+  "commitMessage": "Update summary raw data loading",
   "changedFiles": [
     "public/build-meta.json",
-    "src/DashboardMockup.tsx"
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -4,6 +4,8 @@ import AppealMockup from "./AppealMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
+import UsageLogMockup from "./UsageLogMockup";
+import { logUsageEvent } from "./usageLog";
 
 type UserRole = "Agent" | "Supervisor";
 
@@ -83,6 +85,13 @@ const DEFAULT_BUILD_META: BuildMeta = {
 };
 
 function canAccessCoaching(user: CurrentUser | null) {
+  if (!user) return false;
+  const displayName = String(user.displayName || "").trim().toLowerCase();
+  const username = String(user.username || "").trim().toLowerCase();
+  return user.role === "Supervisor" && (displayName === "songpon phothong" || username === "songpon");
+}
+
+function canAccessUsageLog(user: CurrentUser | null) {
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
@@ -714,7 +723,7 @@ export default function App() {
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "summary" | "coaching" | "rubric"
+    "dashboard" | "appeal" | "summary" | "coaching" | "rubric" | "usage-log"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -734,6 +743,7 @@ export default function App() {
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const coachingAllowed = canAccessCoaching(currentUser);
+  const usageLogAllowed = canAccessUsageLog(currentUser);
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
@@ -741,6 +751,7 @@ export default function App() {
   const reviewMenuValue = activeTab === "appeal" || activeTab === "rubric" ? activeTab : "";
   const accountOptions = currentUser?.role === "Supervisor"
     ? [
+        ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
         { value: "change-password", label: "Change Password" },
         { value: "reset-password", label: "Reset Password" },
         { value: "logout", label: "Log Out" },
@@ -769,6 +780,8 @@ export default function App() {
     if (value === "change-password") {
       resetChangePasswordState();
       setShowChangePasswordModal(true);
+    } else if (value === "usage-log" && usageLogAllowed) {
+      setActiveTab("usage-log");
     } else if (value === "reset-password" && currentUser?.role === "Supervisor") {
       resetPasswordModalState();
       setShowResetPasswordModal(true);
@@ -801,7 +814,18 @@ export default function App() {
     if (activeTab === "coaching" && !coachingAllowed) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, coachingAllowed]);
+    if (activeTab === "usage-log" && !usageLogAllowed) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, coachingAllowed, usageLogAllowed]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    logUsageEvent(currentUser, "tab_view", {
+      tab: activeTab,
+      details: { dashboardSubTab },
+    });
+  }, [activeTab, dashboardSubTab, currentUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -883,6 +907,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    if (currentUser) {
+      logUsageEvent(currentUser, "logout", { tab: activeTab });
+    }
     clearSessionTimers();
     setShowSessionWarning(false);
     setCurrentUser(null);
@@ -980,6 +1007,7 @@ export default function App() {
 
     setCurrentUser(nextUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+    logUsageEvent(nextUser, "login", { tab: "dashboard" });
 
     setLoginError("");
     setUsername("");
@@ -1268,8 +1296,21 @@ export default function App() {
               onSelectedAgentChange={setSelectedAgentGlobal}
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}
-              onOpenCaseDetail={() => { setActiveTab("dashboard"); setDashboardSubTab("case-detail"); }}
+              onOpenCaseDetail={(caseId, agentName) => {
+                setActiveTab("dashboard");
+                setDashboardSubTab("case-detail");
+                logUsageEvent(currentUser, "case_detail_open", {
+                  tab: "dashboard",
+                  case_id: caseId || "",
+                  target_agent: agentName || "",
+                });
+              }}
               onOpenAppealCase={(caseId, agentName) => {
+                logUsageEvent(currentUser, "appeal_case_open", {
+                  tab: "appeal",
+                  case_id: caseId,
+                  target_agent: agentName || "",
+                });
                 const params = new URLSearchParams();
                 params.set("tab", "appeal");
                 params.set("caseId", caseId);
@@ -1309,6 +1350,8 @@ export default function App() {
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
+        ) : activeTab === "usage-log" && usageLogAllowed ? (
+          <UsageLogMockup />
         ) : (
           <QARubricMockup />
         )}

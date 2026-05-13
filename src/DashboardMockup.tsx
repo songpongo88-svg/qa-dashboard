@@ -2992,7 +2992,7 @@ export default function DashboardMockup({
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
-  onOpenCaseDetail?: () => void;
+  onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
@@ -4474,7 +4474,7 @@ export default function DashboardMockup({
                                   item={item}
                                   onOpen={() => {
                                     setSelectedCaseKey(item.key);
-                                    onOpenCaseDetail?.();
+                                    onOpenCaseDetail?.(item.caseId, item.agent);
                                     setSlideOverOpen(true);
                                   }}
                                 />
@@ -4627,6 +4627,7 @@ export default function DashboardMockup({
                               isSelected={activeSelectedCase?.key === item.key}
                               onSelect={() => {
                                 setSelectedCaseKey(item.key);
+                                onOpenCaseDetail?.(item.caseId, item.agent);
                                 setSlideOverOpen(true);
                               }}
                             />
