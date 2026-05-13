@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131750",
-  "buildNumber": 2605131750,
-  "releaseLabel": "v1.0.0.2605131750",
-  "updatedAt": "13/05/2026 17:50:34",
+  "displayVersion": "1.0.0.2605131801",
+  "buildNumber": 2605131801,
+  "releaseLabel": "v1.0.0.2605131801",
+  "updatedAt": "13/05/2026 18:01:01",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "9edc64ef4c40823db97034e081bd6c584d324d24",
-  "commitMessage": "Expand password reset approvers",
+  "commitHash": "8390834c6080e967755accb3db371d14d67c72e3",
+  "commitMessage": "Add case detail appeal requests",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/AppealRequestsMockup.tsx",
+    "src/DashboardMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -52,6 +52,7 @@ type AppealDraftTopic = {
   score: number;
   max: number;
   comment?: string;
+  wantsAppeal: boolean;
   appealReason: string;
 };
 
@@ -2142,7 +2143,8 @@ function SlideOverCaseDetail({
         score: topic.score,
         max: topic.max,
         comment: topic.comment,
-        appealReason: "",
+        wantsAppeal: false,
+        appealReason: "ไม่อุทธรณ์หัวข้อนี้",
       }))
     );
     setAppealSubmitMessage("");
@@ -2156,11 +2158,16 @@ function SlideOverCaseDetail({
       return;
     }
 
-    const selectedTopics = appealDraftTopics.filter((topic) => topic.appealReason.trim());
-    if (!selectedTopics.length) {
+    const hasAppealedTopic = appealDraftTopics.some((topic) => topic.wantsAppeal && topic.appealReason.trim() && topic.appealReason.trim() !== "ไม่อุทธรณ์หัวข้อนี้");
+    if (!hasAppealedTopic) {
       setAppealSubmitMessage("Please enter an appeal reason for at least one topic.");
       return;
     }
+
+    const topicsForExport = appealDraftTopics.map((topic) => ({
+      ...topic,
+      appealReason: topic.wantsAppeal ? topic.appealReason.trim() : "ไม่อุทธรณ์หัวข้อนี้",
+    }));
 
     setAppealSubmitBusy(true);
     try {
@@ -2187,7 +2194,7 @@ function SlideOverCaseDetail({
           submittedByUsername: currentUser.username || "",
           submittedAt: new Date().toISOString(),
           deadlineAt: appealDeadline?.toISOString() || "",
-          topics: selectedTopics,
+          topics: topicsForExport,
         },
       });
       setAppealRequestExists(true);
@@ -2928,17 +2935,67 @@ function SlideOverCaseDetail({
                     <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
                       {topic.comment || "-"}
                     </div>
-                    <textarea
-                      value={topic.appealReason}
-                      onChange={(event) => {
-                        const nextValue = event.target.value;
-                        setAppealDraftTopics((current) =>
-                          current.map((item) => (item.code === topic.code ? { ...item, appealReason: nextValue } : item))
-                        );
-                      }}
-                      className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                      placeholder="Enter appeal reason for this topic only if you want to appeal it."
-                    />
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Appeal decision for this topic</div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAppealDraftTopics((current) =>
+                              current.map((item) =>
+                                item.code === topic.code
+                                  ? { ...item, wantsAppeal: false, appealReason: "ไม่อุทธรณ์หัวข้อนี้" }
+                                  : item
+                              )
+                            )
+                          }
+                          className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${
+                            !topic.wantsAppeal
+                              ? "border-slate-400 bg-slate-900 text-white"
+                              : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          ไม่อุทธรณ์หัวข้อนี้
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAppealDraftTopics((current) =>
+                              current.map((item) =>
+                                item.code === topic.code
+                                  ? { ...item, wantsAppeal: true, appealReason: item.appealReason === "ไม่อุทธรณ์หัวข้อนี้" ? "" : item.appealReason }
+                                  : item
+                              )
+                            )
+                          }
+                          className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${
+                            topic.wantsAppeal
+                              ? "border-emerald-500 bg-emerald-600 text-white"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                          }`}
+                        >
+                          ยื่นอุทธรณ์หัวข้อนี้
+                        </button>
+                      </div>
+
+                      {!topic.wantsAppeal ? (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
+                          Export value: ไม่อุทธรณ์หัวข้อนี้
+                        </div>
+                      ) : (
+                        <textarea
+                          value={topic.appealReason}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setAppealDraftTopics((current) =>
+                              current.map((item) => (item.code === topic.code ? { ...item, appealReason: nextValue } : item))
+                            );
+                          }}
+                          className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                          placeholder="Enter appeal reason for this topic only if you want to appeal it."
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

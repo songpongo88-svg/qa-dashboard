@@ -8,10 +8,13 @@ type AppealTopic = {
   score: number;
   max: number;
   comment?: string;
+  wantsAppeal?: boolean;
   appealReason: string;
   revisedScore?: number | string;
   revisedComment?: string;
 };
+
+const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
 
 type AppealRequest = {
   requestId: string;
@@ -148,7 +151,7 @@ function exportAppealRows(requests: AppealRequest[]) {
       row[`${code} Revised Score`] = item.status === "Approved" ? topic?.revisedScore ?? topic?.score ?? "" : topic?.score ?? "";
       row[`${code} Comment`] = topic?.comment ?? "";
       row[`${code} Revised Comment`] = item.status === "Approved" ? topic?.revisedComment ?? "" : "";
-      row[`${code} Appeal Reason`] = topic?.appealReason ?? "";
+      row[`${code} Appeal Reason`] = topic?.wantsAppeal ? topic?.appealReason ?? "" : NO_APPEAL_TEXT;
     });
 
     return row;
@@ -297,49 +300,51 @@ export default function AppealRequestsMockup({ currentUser }: { currentUser: any
                 </div>
 
                 <div className="space-y-3">
-                  {draftTopics.map((topic) => (
-                    <div key={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
-                          <div className="mt-1 text-xs font-semibold text-slate-500">Original {topic.score}/{topic.max}</div>
+                  {draftTopics
+                    .filter((topic) => topic.wantsAppeal || topic.appealReason !== NO_APPEAL_TEXT)
+                    .map((topic) => (
+                      <div key={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
+                            <div className="mt-1 text-xs font-semibold text-slate-500">Original {topic.score}/{topic.max}</div>
+                          </div>
+                          <input
+                            type="number"
+                            min={0}
+                            max={topic.max}
+                            step="0.01"
+                            value={topic.revisedScore ?? topic.score}
+                            disabled={selectedRequest.status !== "Pending"}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedScore: value } : item));
+                            }}
+                            className="w-32 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                          />
                         </div>
-                        <input
-                          type="number"
-                          min={0}
-                          max={topic.max}
-                          step="0.01"
-                          value={topic.revisedScore ?? topic.score}
+                        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Original Comment</div>
+                            {topic.comment || "-"}
+                          </div>
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">Appeal Reason</div>
+                            {topic.appealReason || "-"}
+                          </div>
+                        </div>
+                        <textarea
+                          value={topic.revisedComment || ""}
                           disabled={selectedRequest.status !== "Pending"}
                           onChange={(event) => {
                             const value = event.target.value;
-                            setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedScore: value } : item));
+                            setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedComment: value } : item));
                           }}
-                          className="w-32 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                          className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                          placeholder="Revised comment / reason after review"
                         />
                       </div>
-                      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                          <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Original Comment</div>
-                          {topic.comment || "-"}
-                        </div>
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-                          <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">Appeal Reason</div>
-                          {topic.appealReason || "-"}
-                        </div>
-                      </div>
-                      <textarea
-                        value={topic.revisedComment || ""}
-                        disabled={selectedRequest.status !== "Pending"}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedComment: value } : item));
-                        }}
-                        className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
-                        placeholder="Revised comment / reason after review"
-                      />
-                    </div>
-                  ))}
+                    ))}
                 </div>
 
                 <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
