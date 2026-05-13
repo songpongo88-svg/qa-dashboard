@@ -78,6 +78,12 @@ type PeriodRow = {
 };
 
 const CASE_TARGET = 10;
+const RAW_DATA_FILE_NAMES = [
+  "QA_RawData1.xlsx",
+  "QA_RawData11052026.xlsx",
+  "QA_RawData12052026.xlsx",
+  "QA_RawData13052026.xlsx",
+];
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
@@ -369,7 +375,12 @@ function buildHeaderHelpers(headerRow: any[]) {
     const idx = indexes[occurrence];
     return idx >= 0 ? row[idx] : null;
   };
-  return { getValue };
+  const getLastValue = (row: any[], name: string) => {
+    const indexes = findIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+  return { getValue, getLastValue };
 }
 
 function getAppealVersionRank(value: any) {
@@ -782,28 +793,45 @@ export default function SummaryMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const [rawResponse, appealResponse] = await Promise.all([
-          fetch("/QA_RawData1.xlsx", { cache: "no-store" }),
-          fetch("/Appleal ROWDATA.xlsx", { cache: "no-store" }),
-        ]);
+        const rawResponses = await Promise.all(
+          RAW_DATA_FILE_NAMES.map(async (fileName) => ({
+            fileName,
+            response: await fetch(`/${fileName}`, { cache: "no-store" }),
+          }))
+        );
+        const appealResponse = await fetch("/Appleal ROWDATA.xlsx", { cache: "no-store" });
 
-        if (!rawResponse.ok) throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+        const availableRawResponses = rawResponses.filter((item) => item.response.ok);
+        if (!availableRawResponses.length) {
+          throw new Error(`ไม่พบไฟล์ RawData ในโฟลเดอร์ public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
+        }
         if (!appealResponse.ok) throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
 
-        const rawBuffer = await rawResponse.arrayBuffer();
-        const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: false });
-        const rawSheet = rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, { header: 1, defval: null, raw: true });
+        const rawSources = await Promise.all(
+          availableRawResponses.map(async ({ fileName, response }) => {
+            const rawBuffer = await response.arrayBuffer();
+            const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: false });
+            const rawSheet = rawWorkbook.Sheets["Raw_Data"] || rawWorkbook.Sheets[rawWorkbook.SheetNames[0]];
+            const rawRows = XLSX.utils.sheet_to_json<any[]>(rawSheet, { header: 1, defval: null, raw: true });
 
-        const rawHeaderIndex = rawRows.findIndex((row: any[]) => {
-          const normalized = (row || []).map((v: any) => normalizeText(v));
-          return normalized.includes("agent name") && normalized.includes("case id");
-        });
-        if (rawHeaderIndex === -1) throw new Error("ไม่พบแถว Header ในไฟล์ QA_RawData1.xlsx");
+            const rawHeaderIndex = rawRows.findIndex((row: any[]) => {
+              const normalized = (row || []).map((v: any) => normalizeText(v));
+              return normalized.includes("agent name") && normalized.includes("case id");
+            });
+            if (rawHeaderIndex === -1) throw new Error(`ไม่พบแถว Header ในไฟล์ ${fileName}`);
 
-        const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
-        const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
-        const rawHelper = buildHeaderHelpers(rawHeaderRow);
+            const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
+            return {
+              fileName,
+              rawDataRows: rawRows.slice(rawHeaderIndex + 1),
+              rawHelper: buildHeaderHelpers(rawHeaderRow),
+            };
+          })
+        );
+
+        const rawDataEntries = rawSources.flatMap((source) =>
+          source.rawDataRows.map((row, rowIndex) => ({ row, rowIndex, source }))
+        );
 
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: false });
@@ -833,7 +861,7 @@ export default function SummaryMockup({
               revisedTopics.push({ code: master.code, label: master.label, score, max: master.max, pct: Number(((score / master.max) * 100).toFixed(2)) });
             });
 
-            const finalScoreRaw = appealHelper.getValue(row, "Final Score");
+            const finalScoreRaw = appealHelper.getLastValue(row, "Final Score");
             const previousScoreRaw = appealHelper.getValue(row, "Previous Score");
 
             appealMap.set(caseId, {
@@ -847,7 +875,8 @@ export default function SummaryMockup({
           });
         }
 
-        const mappedCases: CaseItem[] = rawDataRows.map((row: any[], index: number) => {
+        const mappedCases: CaseItem[] = rawDataEntries.map(({ row, rowIndex, source }) => {
+          const rawHelper = source.rawHelper;
           const caseId = String(rawHelper.getValue(row, "Case ID") || "").trim();
           if (!caseId) return null as any;
 
@@ -900,7 +929,7 @@ export default function SummaryMockup({
                   .filter(Boolean) as Topic[]
               : null;
 
-          const finalScoreRaw = rawHelper.getValue(row, "Final Score");
+          const finalScoreRaw = rawHelper.getLastValue(row, "Final Score");
           const baseFinalScore =
             finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
               ? Number(finalScoreRaw)
@@ -912,7 +941,7 @@ export default function SummaryMockup({
           const reviewStatus: ReviewStatus = normalizedRevisedTopics?.length ? "Revised" : "Original";
 
           return {
-            key: `row-${index + 1}-${caseId}`,
+            key: `${source.fileName}-row-${rowIndex + 1}-${caseId}`,
             agent,
             auditDate: formatAuditDate(auditRaw),
             auditDateObj,
@@ -933,7 +962,12 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
-        setAllCases(mappedCases);
+        const latestByCaseId = new Map<string, CaseItem>();
+        mappedCases.forEach((item) => {
+          latestByCaseId.set(item.caseId, item);
+        });
+
+        setAllCases([...latestByCaseId.values()]);
         setAppealMergeCount(appealMap.size);
       } catch (error: any) {
         setLoadError(error?.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
