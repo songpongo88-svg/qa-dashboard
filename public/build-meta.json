@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605131450",
-  "buildNumber": 2605131450,
-  "releaseLabel": "v1.0.0.2605131450",
-  "updatedAt": "13/05/2026 14:50:27",
+  "displayVersion": "1.0.0.2605131453",
+  "buildNumber": 2605131453,
+  "releaseLabel": "v1.0.0.2605131453",
+  "updatedAt": "13/05/2026 14:53:55",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "caab766684b885216b098ab798438e6fbf024cf6",
-  "commitMessage": "Add email-based forgot password reset",
+  "commitHash": "0d6c99a159613ae732f237808c6e6e03bad9044a",
+  "commitMessage": "Update user email mapping",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"

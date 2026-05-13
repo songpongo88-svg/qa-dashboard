@@ -16,6 +16,8 @@ type UserAccount = {
   role: UserRole;
   agentName: string;
   email?: string;
+  status?: "Active" | "Suspended";
+  suspendReason?: string;
 };
 
 type CurrentUser = {
@@ -45,7 +47,7 @@ type BuildMeta = {
 
 const USER_ACCOUNTS: UserAccount[] = [
   { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin", email: "Anucha@robinhood.co.th" },
-  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Agent", agentName: "Arisa Aiemrit" },
+  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Agent", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "ลาออกแล้ว" },
   { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Agent", agentName: "Chatkonnaphat Bhusomya", email: "Chatkonnaphat@robinhood.co.th" },
   { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Agent", agentName: "Jariyawadee Taboodda", email: "Jariyawadee@robinhood.co.th" },
   { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Agent", agentName: "Jureeporn Piddum", email: "Jureeporn@robinhood.co.th" },
@@ -1075,12 +1077,20 @@ export default function App() {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedPassword = password.trim();
 
-    const matchedUser = USER_ACCOUNTS.find((item) => {
-      const normalizedItemUsername = item.username.trim().toLowerCase();
-      const effectivePassword = getEffectivePassword(item);
+    const matchedAccount = USER_ACCOUNTS.find(
+      (item) => item.username.trim().toLowerCase() === normalizedUsername
+    );
 
-      return normalizedItemUsername === normalizedUsername && effectivePassword === normalizedPassword;
-    });
+    if (matchedAccount?.status === "Suspended") {
+      const reason = matchedAccount.suspendReason ? ` (${matchedAccount.suspendReason})` : "";
+      setLoginError(`This account has been suspended${reason}. Please contact Supervisor.`);
+      return;
+    }
+
+    const matchedUser =
+      matchedAccount && getEffectivePassword(matchedAccount) === normalizedPassword
+        ? matchedAccount
+        : null;
 
     if (!matchedUser) {
       setLoginError("Invalid username or password");
@@ -1117,6 +1127,13 @@ export default function App() {
 
     if (!account) {
       setForgotPasswordError("Username not found");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    if (account.status === "Suspended") {
+      const reason = account.suspendReason ? ` (${account.suspendReason})` : "";
+      setForgotPasswordError(`This account has been suspended${reason}. Password reset is not available.`);
       setForgotPasswordSuccess("");
       return;
     }
