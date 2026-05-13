@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { fetchUsageLogs, isUsageLogConfigured, UsageLogEvent } from "./usageLog";
 import PageHero from "./PageHero";
 
+const PAGE_SIZE = 25;
+
 function formatLogDate(value?: string) {
   if (!value) return "-";
   const date = new Date(value);
@@ -114,14 +116,14 @@ export default function UsageLogMockup() {
   const [error, setError] = useState("");
   const [userFilter, setUserFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState(formatInputDate(new Date()));
-  const [dateTo, setDateTo] = useState(formatInputDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(formatInputDate(new Date()));
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadLogs = async () => {
     try {
       setIsLoading(true);
       setError("");
-      setLogs(await fetchUsageLogs(2000));
+      setLogs(await fetchUsageLogs(5000));
     } catch (err: any) {
       setError(err?.message || "โหลด Usage Log ไม่สำเร็จ");
     } finally {
@@ -146,10 +148,19 @@ export default function UsageLogMockup() {
     const matchUser = userFilter === "all" || userName === userFilter;
     const matchEvent = eventFilter === "all" || item.event_type === eventFilter;
     const logDateKey = getBangkokDateKey(item.created_at);
-    const matchDateFrom = !dateFrom || (logDateKey && logDateKey >= dateFrom);
-    const matchDateTo = !dateTo || (logDateKey && logDateKey <= dateTo);
-    return matchUser && matchEvent && matchDateFrom && matchDateTo;
+    const matchDate = !selectedDate || logDateKey === selectedDate;
+    return matchUser && matchEvent && matchDate;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedLogs = filteredLogs.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
+  const pageStart = filteredLogs.length ? (safeCurrentPage - 1) * PAGE_SIZE + 1 : 0;
+  const pageEnd = Math.min(safeCurrentPage * PAGE_SIZE, filteredLogs.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [userFilter, eventFilter, selectedDate]);
 
   const handleGenerateLog = () => {
     const headers = ["Time", "User", "Agent", "Role", "Event", "Page", "Case ID", "Details"];
@@ -167,10 +178,8 @@ export default function UsageLogMockup() {
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const fromLabel = dateFrom || "all";
-    const toLabel = dateTo || "all";
     link.href = url;
-    link.download = `usage-log_${fromLabel}_to_${toLabel}.csv`;
+    link.download = `usage-log_${selectedDate || "all"}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -187,9 +196,9 @@ export default function UsageLogMockup() {
             subtitle="ดูประวัติการเข้าใช้งานของทุก user เช่น Login, เปิด Tab, เปิด Case Detail และเปิด Appeal Case"
           />
 
-          <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_170px_170px_170px_170px_140px_170px]">
+          <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_190px_190px_190px_140px_170px]">
             <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3">
-              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Total Logs</div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Logs On Selected Date</div>
               <div className="mt-1 text-2xl font-extrabold text-slate-950">{filteredLogs.length}</div>
             </div>
 
@@ -220,21 +229,11 @@ export default function UsageLogMockup() {
             </select>
 
             <label className="rounded-2xl border border-violet-200 bg-white px-4 py-2">
-              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Date From</span>
+              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Log Date</span>
               <input
                 type="date"
-                value={dateFrom}
-                onChange={(event) => setDateFrom(event.target.value)}
-                className="mt-1 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
-              />
-            </label>
-
-            <label className="rounded-2xl border border-violet-200 bg-white px-4 py-2">
-              <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700">Date To</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(event) => setDateTo(event.target.value)}
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
                 className="mt-1 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
               />
             </label>
@@ -266,8 +265,36 @@ export default function UsageLogMockup() {
           ) : error ? (
             <div className="px-6 py-8 text-sm text-rose-700">{error}</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-[1180px] w-full text-sm">
+            <div>
+              <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+                <div className="font-semibold">
+                  Showing {pageStart}-{pageEnd} of {filteredLogs.length} log(s)
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={safeCurrentPage <= 1}
+                    className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                  >
+                    Previous
+                  </button>
+                  <span className="rounded-xl bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
+                    Page {safeCurrentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={safeCurrentPage >= totalPages}
+                    className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-xs font-bold text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-[1180px] w-full text-sm">
                 <thead>
                   <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.12em] text-white">
                     <th className="px-4 py-3 text-left">Time</th>
@@ -280,8 +307,8 @@ export default function UsageLogMockup() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLogs.length ? (
-                    filteredLogs.map((item, index) => (
+                  {paginatedLogs.length ? (
+                    paginatedLogs.map((item, index) => (
                       <tr key={item.id || `${item.created_at}-${index}`} className="border-t border-slate-200 bg-white">
                         <td className="px-4 py-3 font-semibold text-slate-800">{formatLogDate(item.created_at)}</td>
                         <td className="px-4 py-3">
@@ -309,7 +336,8 @@ export default function UsageLogMockup() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           )}
         </div>
