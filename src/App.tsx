@@ -15,6 +15,7 @@ type UserAccount = {
   displayName: string;
   role: UserRole;
   agentName: string;
+  email?: string;
 };
 
 type CurrentUser = {
@@ -22,6 +23,7 @@ type CurrentUser = {
   displayName: string;
   role: UserRole;
   agentName: string;
+  email?: string;
   loginAt: string;
 };
 
@@ -42,21 +44,21 @@ type BuildMeta = {
 };
 
 const USER_ACCOUNTS: UserAccount[] = [
-  { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin" },
+  { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin", email: "Anucha@robinhood.co.th" },
   { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Agent", agentName: "Arisa Aiemrit" },
-  { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Agent", agentName: "Chatkonnaphat Bhusomya" },
-  { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Agent", agentName: "Jariyawadee Taboodda" },
-  { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Agent", agentName: "Jureeporn Piddum" },
-  { username: "Krivut", password: "Kv#9Ts4!Mb", displayName: "Krivut Vongkampan", role: "Supervisor", agentName: "Krivut Vongkampan" },
-  { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Agent", agentName: "Natcha Chai-in" },
-  { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Agent", agentName: "Nattapol Suprom" },
+  { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Agent", agentName: "Chatkonnaphat Bhusomya", email: "Chatkonnaphat@robinhood.co.th" },
+  { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Agent", agentName: "Jariyawadee Taboodda", email: "Jariyawadee@robinhood.co.th" },
+  { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Agent", agentName: "Jureeporn Piddum", email: "Jureeporn@robinhood.co.th" },
+  { username: "Krivut", password: "Kv#9Ts4!Mb", displayName: "Krivut Vongkampan", role: "Supervisor", agentName: "Krivut Vongkampan", email: "Krivut@robinhood.co.th" },
+  { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Agent", agentName: "Natcha Chai-in", email: "Natcha@robinhood.co.th" },
+  { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Agent", agentName: "Nattapol Suprom", email: "Nattapol.s@robinhood.co.th" },
   { username: "Phrommarin", password: "RBH1234", displayName: "Phrommarin Thaithorn", role: "Supervisor", agentName: "Phrommarin Thaithorn" },
   { username: "Songpon", password: "Boom@4421L", displayName: "Songpon Phothong", role: "Supervisor", agentName: "Songpon Phothong" },
-  { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritip", role: "Agent", agentName: "Sunijtra Siritip" },
-  { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Agent", agentName: "Supakrit Promkhamnoi" },
-  { username: "Suphitcha", password: "Sp@8Ld2#Vk", displayName: "Suphitcha Keawliam", role: "Supervisor", agentName: "Suphitcha Keawliam" },
-  { username: "Wachiraporn", password: "wL7$cl2@", displayName: "Wachiraporn Chailittichai", role: "Agent", agentName: "Wachiraporn Chailittichai" },
-  { username: "Wassana", password: "Ws!3Kr7@Pn", displayName: "Wassana Phothong", role: "Agent", agentName: "Wassana Phothong" },
+  { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritip", role: "Agent", agentName: "Sunijtra Siritip", email: "Sunijtra@robinhood.co.th" },
+  { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Agent", agentName: "Supakrit Promkhamnoi", email: "Supakrit@robinhood.co.th" },
+  { username: "Suphitcha", password: "Sp@8Ld2#Vk", displayName: "Suphitcha Keawliam", role: "Supervisor", agentName: "Suphitcha Keawliam", email: "Suphitcha@robinhood.co.th" },
+  { username: "Wachiraporn", password: "wL7$cl2@", displayName: "Wachiraporn Chailittichai", role: "Agent", agentName: "Wachiraporn Chailittichai", email: "wachiraporn@robinhood.co.th" },
+  { username: "Wassana", password: "Ws!3Kr7@Pn", displayName: "Wassana Phothong", role: "Agent", agentName: "Wassana Phothong", email: "Wassana@robinhood.co.th" },
 ];
 
 const STORAGE_KEY = "qa_current_user";
@@ -163,6 +165,7 @@ function readStoredUser(): CurrentUser | null {
       displayName: parsed.displayName,
       role: parsed.role,
       agentName: parsed.agentName,
+      email: typeof parsed.email === "string" ? parsed.email : "",
       loginAt: typeof parsed.loginAt === "string" ? parsed.loginAt : new Date().toISOString(),
     };
   } catch {
@@ -200,6 +203,10 @@ function removePasswordOverride(username: string) {
 function getEffectivePassword(account: UserAccount) {
   const overrides = readPasswordOverrides();
   return overrides[account.username.trim().toLowerCase()] || account.password;
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
@@ -494,6 +501,72 @@ function ChangePasswordModal({
   );
 }
 
+function ForgotPasswordModal({
+  open,
+  onClose,
+  usernameInput,
+  setUsernameInput,
+  emailInput,
+  setEmailInput,
+  newPasswordInput,
+  setNewPasswordInput,
+  confirmPasswordInput,
+  setConfirmPasswordInput,
+  error,
+  success,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  usernameInput: string;
+  setUsernameInput: (value: string) => void;
+  emailInput: string;
+  setEmailInput: (value: string) => void;
+  newPasswordInput: string;
+  setNewPasswordInput: (value: string) => void;
+  confirmPasswordInput: string;
+  setConfirmPasswordInput: (value: string) => void;
+  error: string;
+  success: string;
+  onSubmit: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+        <div className="text-xl font-bold text-slate-900">Forgot Password</div>
+        <div className="mt-2 text-sm leading-6 text-slate-500">
+          Enter your username and registered email to set a new password for this browser.
+        </div>
+        <div className="mt-6 space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Username</label>
+            <input type="text" value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Registered Email</label>
+            <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">New Password</label>
+            <input type="password" value={newPasswordInput} onChange={(e) => setNewPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-800">Confirm New Password</label>
+            <input type="password" value={confirmPasswordInput} onChange={(e) => setConfirmPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+          </div>
+          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
+          {success ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{success}</div> : null}
+        </div>
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+          <button type="button" onClick={onSubmit} className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Reset Password</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ResetPasswordModal({
   open,
   onClose,
@@ -716,6 +789,14 @@ export default function App() {
   const [changePasswordError, setChangePasswordError] = useState("");
   const [changePasswordSuccess, setChangePasswordSuccess] = useState("");
 
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotUsernameInput, setForgotUsernameInput] = useState("");
+  const [forgotEmailInput, setForgotEmailInput] = useState("");
+  const [forgotNewPasswordInput, setForgotNewPasswordInput] = useState("");
+  const [forgotConfirmPasswordInput, setForgotConfirmPasswordInput] = useState("");
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState("");
+
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [resetTargetUsername, setResetTargetUsername] = useState("");
   const [resetResultMessage, setResetResultMessage] = useState("");
@@ -906,6 +987,15 @@ export default function App() {
     setChangePasswordSuccess("");
   };
 
+  const resetForgotPasswordState = () => {
+    setForgotUsernameInput("");
+    setForgotEmailInput("");
+    setForgotNewPasswordInput("");
+    setForgotConfirmPasswordInput("");
+    setForgotPasswordError("");
+    setForgotPasswordSuccess("");
+  };
+
   const handleLogout = () => {
     if (currentUser) {
       logUsageEvent(currentUser, "logout", { tab: activeTab });
@@ -1002,6 +1092,7 @@ export default function App() {
       displayName: matchedUser.displayName,
       role: matchedUser.role,
       agentName: matchedUser.agentName,
+      email: matchedUser.email || "",
       loginAt: new Date().toISOString(),
     };
 
@@ -1017,6 +1108,59 @@ export default function App() {
     setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
+  };
+
+  const handleForgotPasswordReset = () => {
+    const normalizedUsername = forgotUsernameInput.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(forgotEmailInput);
+    const account = USER_ACCOUNTS.find((item) => item.username.trim().toLowerCase() === normalizedUsername);
+
+    if (!account) {
+      setForgotPasswordError("Username not found");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    if (!account.email) {
+      setForgotPasswordError("This user does not have a registered email yet. Please contact Supervisor.");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    if (normalizeEmail(account.email) !== normalizedEmail) {
+      setForgotPasswordError("Email does not match the registered user information");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    if (!forgotNewPasswordInput.trim()) {
+      setForgotPasswordError("New password cannot be empty");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    if (forgotNewPasswordInput.length < 6) {
+      setForgotPasswordError("New password must be at least 6 characters");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    if (forgotNewPasswordInput !== forgotConfirmPasswordInput) {
+      setForgotPasswordError("New password and confirm password do not match");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
+    savePasswordOverride(account.username, forgotNewPasswordInput);
+    setForgotPasswordError("");
+    setForgotPasswordSuccess("Password reset successfully. You can sign in with your new password.");
+    setUsername(account.username);
+    setPassword("");
+
+    setTimeout(() => {
+      setShowForgotPasswordModal(false);
+      resetForgotPasswordState();
+    }, 1300);
   };
 
   const handleStayLoggedIn = () => {
@@ -1086,10 +1230,27 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-gradient-to-br from-violet-50 via-white to-fuchsia-50"}`}>
-        {songkranTheme ? <SongkranBackdrop /> : null}
+      <>
+        <ForgotPasswordModal
+          open={showForgotPasswordModal}
+          onClose={() => { setShowForgotPasswordModal(false); resetForgotPasswordState(); }}
+          usernameInput={forgotUsernameInput}
+          setUsernameInput={setForgotUsernameInput}
+          emailInput={forgotEmailInput}
+          setEmailInput={setForgotEmailInput}
+          newPasswordInput={forgotNewPasswordInput}
+          setNewPasswordInput={setForgotNewPasswordInput}
+          confirmPasswordInput={forgotConfirmPasswordInput}
+          setConfirmPasswordInput={setForgotConfirmPasswordInput}
+          error={forgotPasswordError}
+          success={forgotPasswordSuccess}
+          onSubmit={handleForgotPasswordReset}
+        />
 
-        <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4 py-4 sm:px-5 lg:px-6">
+        <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-gradient-to-br from-violet-50 via-white to-fuchsia-50"}`}>
+          {songkranTheme ? <SongkranBackdrop /> : null}
+
+          <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4 py-4 sm:px-5 lg:px-6">
           <div className="grid w-full max-w-[1020px] overflow-hidden rounded-[24px] border border-violet-200/70 bg-white shadow-[0_18px_56px_rgba(76,29,149,0.10)] lg:grid-cols-[1fr_0.94fr]">
             <div className={`relative overflow-hidden p-5 text-white sm:p-6 lg:p-7 ${songkranTheme ? "bg-gradient-to-br from-sky-700 via-cyan-600 to-fuchsia-600" : "bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700"}`}>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_28%)]" />
@@ -1161,6 +1322,16 @@ export default function App() {
                   {loginError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{loginError}</div> : null}
 
                   <button type="button" onClick={handleLogin} className={`w-full rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95 ${songkranTheme ? "bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500" : "bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600"}`}>Sign In</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotUsernameInput(username);
+                      setShowForgotPasswordModal(true);
+                    }}
+                    className="w-full rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
+                  >
+                    Forgot Password
+                  </button>
                 </div>
 
                 <div className="mt-5 flex flex-col items-start gap-2">
@@ -1172,8 +1343,9 @@ export default function App() {
               </div>
             </div>
           </div>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
