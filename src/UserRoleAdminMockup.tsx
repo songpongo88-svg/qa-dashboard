@@ -49,7 +49,7 @@ type EditableUser = {
 };
 
 type DirectoryTab = "active" | "suspended";
-type AdminTab = "users" | "roles";
+type AdminTab = "users" | "roles" | "maintenance";
 type RoleAdminSubTab = "role-list" | "permission-builder";
 
 type RoleDefinition = {
@@ -819,7 +819,7 @@ export default function UserRoleAdminMockup({
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
-        <div className="grid gap-4 md:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           <MetricCard label="Total Users" value={totalUsers} tone="text-violet-600" />
           <MetricCard label="Active" value={activeUsers} tone="text-emerald-600" />
           <MetricCard label="Suspended" value={suspendedUsers} tone="text-rose-600" />
@@ -828,63 +828,29 @@ export default function UserRoleAdminMockup({
           <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
         </div>
 
-        <div className={`mt-5 rounded-[28px] border p-5 shadow-sm ${maintenanceState.enabled ? "border-amber-200 bg-amber-50" : "border-violet-100 bg-white"}`}>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div className="flex-1">
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700">System Maintenance</div>
-              <div className="mt-2 text-xl font-black text-slate-950">
-                {maintenanceState.enabled ? "Maintenance Mode is ON" : "Maintenance Mode is OFF"}
-              </div>
-              <div className="mt-1 text-sm font-semibold text-slate-500">
-                When enabled, non-admin users cannot access the dashboard and usage logging is paused for them.
-              </div>
-              <textarea
-                value={maintenanceMessage}
-                onChange={(event) => setMaintenanceMessage(event.target.value)}
-                className="mt-4 min-h-[76px] w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-              />
-              {maintenanceState.updatedBy ? (
-                <div className="mt-2 text-xs font-semibold text-slate-500">
-                  Last updated by {maintenanceState.updatedBy}
-                </div>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled={saving || maintenanceState.enabled}
-                onClick={() => void saveMaintenanceMode(true)}
-                className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Turn On Maintenance
-              </button>
-              <button
-                type="button"
-                disabled={saving || !maintenanceState.enabled}
-                onClick={() => void saveMaintenanceMode(false)}
-                className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Turn Off Maintenance
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 overflow-hidden rounded-[32px] border border-violet-100 bg-white shadow-[0_24px_70px_rgba(88,28,135,0.10)]">
-          <div className="relative overflow-hidden border-b border-violet-100 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.16),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8f3ff_52%,#fff7fb_100%)] px-5 py-5 lg:px-6">
+        <div className="mt-6 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_26px_80px_rgba(15,23,42,0.08)]">
+          <div className="relative overflow-hidden border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(139,92,246,0.15),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fafc_48%,#f5f3ff_100%)] px-5 py-6 lg:px-7">
             <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-fuchsia-200/30 blur-3xl" />
             <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl border border-violet-100 bg-white shadow-sm">
-                  <span className="text-2xl font-black text-violet-700">{adminTab === "roles" ? "R" : "U"}</span>
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] border border-slate-200 bg-white shadow-sm">
+                  <span className="text-2xl font-black text-slate-950">
+                    {adminTab === "roles" ? "R" : adminTab === "maintenance" ? "M" : "U"}
+                  </span>
                 </div>
                 <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-700">CRM Directory</div>
-                  <div className="mt-1 text-2xl font-black tracking-tight text-slate-950">User Directory</div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Enterprise Access Center</div>
+                  <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">
+                    {adminTab === "roles" ? "Roles & Permissions" : adminTab === "maintenance" ? "System Maintenance" : "User Directory"}
+                  </div>
                   <div className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
-                {isEditing
-                  ? "Edit user details in one place, then save all changes at once."
-                  : "Read-only view. Click Edit Directory when you need to update users."}
+                    {adminTab === "roles"
+                      ? "Build role access, control permissions, and keep system roles structured."
+                      : adminTab === "maintenance"
+                        ? "Control maintenance mode separately from user and role management."
+                        : isEditing
+                          ? "Edit user details in one place, then save all changes at once."
+                          : "Corporate user profile management with role, email, and account status in one controlled directory."}
                   </div>
                   {message ? (
                     <div className="mt-3 inline-flex max-w-full items-center rounded-2xl border border-violet-200 bg-white/90 px-4 py-2 text-sm font-black text-violet-700 shadow-sm">
@@ -900,7 +866,7 @@ export default function UserRoleAdminMockup({
               </div>
 
               <div className="flex flex-wrap gap-3 xl:justify-end">
-              {adminTab === "roles" ? null : isEditing ? (
+              {adminTab !== "users" ? null : isEditing ? (
                 <>
                   <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                     Cancel
@@ -943,6 +909,13 @@ export default function UserRoleAdminMockup({
             <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-slate-200 bg-slate-50 p-2">
             <DirectoryTabButton active={adminTab === "users"} label="Users" count={totalUsers} onClick={() => setAdminTab("users")} />
             <DirectoryTabButton active={adminTab === "roles"} label="Roles & Permissions" count={roleDefinitions.length} onClick={() => setAdminTab("roles")} />
+            <DirectoryTabButton
+              active={adminTab === "maintenance"}
+              label="Maintenance"
+              count={maintenanceState.enabled ? 1 : 0}
+              onClick={() => setAdminTab("maintenance")}
+              tone={maintenanceState.enabled ? "amber" : "slate"}
+            />
             </div>
           </div>
 
@@ -965,6 +938,14 @@ export default function UserRoleAdminMockup({
               permissionDrafts={permissionDrafts}
               onPermissionChange={updateRolePermission}
               onSavePermissions={() => void saveRolePermissions()}
+            />
+          ) : adminTab === "maintenance" ? (
+            <MaintenancePanel
+              saving={saving}
+              maintenanceState={maintenanceState}
+              maintenanceMessage={maintenanceMessage}
+              onMessageChange={setMaintenanceMessage}
+              onSaveMaintenanceMode={saveMaintenanceMode}
             />
           ) : (
             <>
@@ -1020,11 +1001,96 @@ export default function UserRoleAdminMockup({
   );
 }
 
+function MaintenancePanel({
+  saving,
+  maintenanceState,
+  maintenanceMessage,
+  onMessageChange,
+  onSaveMaintenanceMode,
+}: {
+  saving: boolean;
+  maintenanceState: MaintenanceState;
+  maintenanceMessage: string;
+  onMessageChange: (value: string) => void;
+  onSaveMaintenanceMode: (enabled: boolean) => void | Promise<void>;
+}) {
+  return (
+    <div className="bg-slate-50/70 p-5 lg:p-6">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className={`rounded-[28px] border bg-white p-6 shadow-sm ${maintenanceState.enabled ? "border-amber-200" : "border-slate-200"}`}>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Operational Control</div>
+              <div className="mt-2 text-2xl font-black text-slate-950">
+                {maintenanceState.enabled ? "Maintenance Mode is ON" : "Maintenance Mode is OFF"}
+              </div>
+              <div className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
+                When enabled, non-admin users cannot access QA Dashboard and usage logging is paused for them. Use this while editing data, roles, or system configuration.
+              </div>
+            </div>
+            <div className={`inline-flex rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] ${
+              maintenanceState.enabled
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}>
+              {maintenanceState.enabled ? "Protected" : "Open"}
+            </div>
+          </div>
+
+          <label className="mt-6 block">
+            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Message shown to users</div>
+            <textarea
+              value={maintenanceMessage}
+              onChange={(event) => onMessageChange(event.target.value)}
+              className="mt-3 min-h-[120px] w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+            />
+          </label>
+
+          {maintenanceState.updatedBy ? (
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
+              Last updated by {maintenanceState.updatedBy}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Action Panel</div>
+          <div className="mt-2 text-xl font-black text-slate-950">Maintenance Switch</div>
+          <div className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            Turn maintenance on before making large edits. Turn it off when the system is ready for everyone.
+          </div>
+          <div className="mt-6 grid gap-3">
+            <button
+              type="button"
+              disabled={saving || maintenanceState.enabled}
+              onClick={() => void onSaveMaintenanceMode(true)}
+              className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Turn On Maintenance
+            </button>
+            <button
+              type="button"
+              disabled={saving || !maintenanceState.enabled}
+              onClick={() => void onSaveMaintenanceMode(false)}
+              className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Turn Off Maintenance
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MetricCard({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-[22px] border border-violet-100 bg-white p-5 shadow-sm">
-      <div className={`text-[11px] font-bold uppercase tracking-[0.22em] ${tone}`}>{label}</div>
-      <div className="mt-3 text-3xl font-black text-slate-950">{value}</div>
+    <div className="group rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+      <div className={`text-[11px] font-black uppercase tracking-[0.22em] ${tone}`}>{label}</div>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="text-3xl font-black text-slate-950">{value}</div>
+        <div className="h-2 w-10 rounded-full bg-slate-100 transition group-hover:bg-violet-200" />
+      </div>
     </div>
   );
 }
@@ -1040,11 +1106,15 @@ function DirectoryTabButton({
   label: string;
   count: number;
   onClick: () => void;
-  tone?: "violet" | "rose";
+  tone?: "violet" | "rose" | "amber" | "slate";
 }) {
   const activeClass =
     tone === "rose"
       ? "border-rose-200 bg-white text-rose-700 shadow-[0_10px_24px_rgba(225,29,72,0.10)]"
+      : tone === "amber"
+        ? "border-amber-200 bg-white text-amber-700 shadow-[0_10px_24px_rgba(217,119,6,0.10)]"
+        : tone === "slate"
+          ? "border-slate-200 bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
       : "border-violet-200 bg-white text-violet-700 shadow-[0_10px_24px_rgba(109,40,217,0.12)]";
 
   return (
