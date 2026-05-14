@@ -6,6 +6,26 @@ import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
 type UserRole = string;
 type UserStatus = "Active" | "Suspended";
+type RolePermissionKey =
+  | "viewDashboard"
+  | "viewSummary"
+  | "viewCoaching"
+  | "viewAppeal"
+  | "submitAppeal"
+  | "reviewAppeals"
+  | "appealOverride"
+  | "viewRubric"
+  | "viewUsageLog"
+  | "exportPdf"
+  | "exportAppealRawdata"
+  | "manageUsers"
+  | "manageRoles"
+  | "resetPassword"
+  | "manageMaintenance"
+  | "useTeamChat";
+
+type RolePermissions = Record<RolePermissionKey, boolean>;
+type RolePermissionMap = Record<string, RolePermissions>;
 
 type UserAccount = {
   username: string;
@@ -60,6 +80,7 @@ type UserRoleAdminMockupProps = {
   accounts: UserAccount[];
   currentUser: CurrentUser;
   roleOverrides: Record<string, UserRole>;
+  rolePermissions: RolePermissionMap;
   maintenanceState: MaintenanceState;
   onMaintenanceChanged: () => void | Promise<void>;
   onRolesChanged: () => void | Promise<void>;
@@ -67,6 +88,96 @@ type UserRoleAdminMockupProps = {
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 const STATUS_OPTIONS: UserStatus[] = ["Active", "Suspended"];
+const PERMISSION_DEFINITIONS: Array<{
+  key: RolePermissionKey;
+  label: string;
+  category: "Performance" | "Review" | "Account" | "System";
+  description: string;
+}> = [
+  { key: "viewDashboard", label: "View Dashboard", category: "Performance", description: "Open Dashboard and case performance views." },
+  { key: "viewSummary", label: "View Summary", category: "Performance", description: "Open team/month summary pages." },
+  { key: "viewCoaching", label: "View Coaching", category: "Performance", description: "Open coaching insight and agent guidance." },
+  { key: "viewAppeal", label: "View Appeal", category: "Review", description: "Open appeal page and appeal information." },
+  { key: "submitAppeal", label: "Submit Appeal", category: "Review", description: "Submit appeal reason from case detail." },
+  { key: "reviewAppeals", label: "Review Appeals", category: "Review", description: "Open Appeal Requests and approve/reject requests." },
+  { key: "appealOverride", label: "Appeal Override", category: "Review", description: "Allow specific late cases to submit appeal." },
+  { key: "viewRubric", label: "View QA Rubric", category: "Review", description: "Open QA scoring standard page." },
+  { key: "viewUsageLog", label: "View Usage Log", category: "Account", description: "Open system usage log and export logs." },
+  { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
+  { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
+  { key: "resetPassword", label: "Reset Password", category: "Account", description: "Approve/reset user password requests." },
+  { key: "manageUsers", label: "Manage Users", category: "System", description: "Create users, edit profiles, suspend accounts." },
+  { key: "manageRoles", label: "Manage Roles", category: "System", description: "Create roles and edit role permissions." },
+  { key: "manageMaintenance", label: "Maintenance Mode", category: "System", description: "Turn system maintenance on/off and bypass it." },
+  { key: "useTeamChat", label: "Use Team Chat", category: "System", description: "Open Team Chat and send messages/files." },
+];
+
+const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
+
+const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
+  Agent: {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: false,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: false,
+    exportAppealRawdata: false,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  Senior: {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: true,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: true,
+    exportAppealRawdata: false,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  Supervisor: {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: true,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: true,
+    appealOverride: true,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: true,
+    exportAppealRawdata: true,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: true,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  "Quality Assurance": Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as RolePermissions,
+};
+
+function getDefaultRolePermissions(role: UserRole): RolePermissions {
+  return {
+    ...ROLE_PERMISSION_DEFAULTS.Agent,
+    ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
+  };
+}
 
 function buildRoleDefinitions(logs: UsageLogEvent[]) {
   const roleMap = new Map<string, RoleDefinition>();
@@ -166,6 +277,7 @@ export default function UserRoleAdminMockup({
   accounts,
   currentUser,
   roleOverrides,
+  rolePermissions,
   maintenanceState,
   onMaintenanceChanged,
   onRolesChanged,
@@ -180,6 +292,7 @@ export default function UserRoleAdminMockup({
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
   const [adminTab, setAdminTab] = useState<AdminTab>("users");
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>(() => buildRoleDefinitions([]));
+  const [permissionDrafts, setPermissionDrafts] = useState<RolePermissionMap>(rolePermissions);
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDescription, setNewRoleDescription] = useState("");
   const [maintenanceMessage, setMaintenanceMessage] = useState(maintenanceState.message);
@@ -224,6 +337,10 @@ export default function UserRoleAdminMockup({
   useEffect(() => {
     setMaintenanceMessage(maintenanceState.message);
   }, [maintenanceState.message]);
+
+  useEffect(() => {
+    setPermissionDrafts(rolePermissions);
+  }, [rolePermissions]);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -300,6 +417,50 @@ export default function UserRoleAdminMockup({
       return;
     }
     await saveRoleDefinition({ ...role, active: !role.active });
+  };
+
+  const updateRolePermission = (roleName: string, key: RolePermissionKey, value: boolean) => {
+    if (roleName === "Quality Assurance" && (key === "manageUsers" || key === "manageRoles" || key === "manageMaintenance")) {
+      setMessage("Quality Assurance admin permissions are locked for system safety.");
+      return;
+    }
+    setPermissionDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [roleName]: {
+        ...(currentDrafts[roleName] || getDefaultRolePermissions(roleName)),
+        [key]: value,
+      },
+    }));
+  };
+
+  const saveRolePermissions = async () => {
+    setSaving(true);
+    setMessage("");
+
+    for (const role of roleDefinitions) {
+      const nextPermissions = {
+        ...getDefaultRolePermissions(role.name),
+        ...(permissionDrafts[role.name] || {}),
+      };
+      if (role.name === "Quality Assurance") {
+        nextPermissions.manageUsers = true;
+        nextPermissions.manageRoles = true;
+        nextPermissions.manageMaintenance = true;
+      }
+      await logUsageEvent(currentUser, "role_permissions_saved", {
+        tab: "user-roles",
+        details: {
+          roleName: role.name,
+          permissions: nextPermissions,
+          updatedBy: currentUser?.displayName || currentUser?.username || "",
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    await onRolesChanged();
+    setSaving(false);
+    setMessage("Saved role permission matrix. Menu access will update automatically.");
   };
 
   const saveMaintenanceMode = async (enabled: boolean) => {
@@ -647,6 +808,9 @@ export default function UserRoleAdminMockup({
               onDescriptionChange={setNewRoleDescription}
               onSave={() => void saveRoleDefinition()}
               onToggle={(role) => void toggleRoleActive(role)}
+              permissionDrafts={permissionDrafts}
+              onPermissionChange={updateRolePermission}
+              onSavePermissions={() => void saveRolePermissions()}
             />
           ) : (
             <>
@@ -787,22 +951,45 @@ function RoleManagementPanel({
   newRoleName,
   newRoleDescription,
   saving,
+  permissionDrafts,
   onNameChange,
   onDescriptionChange,
   onSave,
   onToggle,
+  onPermissionChange,
+  onSavePermissions,
 }: {
   roles: RoleDefinition[];
   newRoleName: string;
   newRoleDescription: string;
   saving: boolean;
+  permissionDrafts: RolePermissionMap;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onSave: () => void;
   onToggle: (role: RoleDefinition) => void;
+  onPermissionChange: (roleName: string, key: RolePermissionKey, value: boolean) => void;
+  onSavePermissions: () => void;
 }) {
+  const activeRoles = roles.filter((role) => role.active);
+
   return (
     <div className="p-5">
+      <div className="mb-5 grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
+        <div className="rounded-[26px] border border-violet-100 bg-gradient-to-br from-slate-950 to-violet-900 p-5 text-white shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">Role Access Studio</div>
+          <div className="mt-3 text-2xl font-black">Roles & Permission Matrix</div>
+          <div className="mt-2 text-sm font-semibold leading-6 text-violet-100">
+            Control what each role can open, review, export, and administer. Changes affect every user assigned to that role after save.
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MiniAccessCard label="Active Roles" value={activeRoles.length} />
+          <MiniAccessCard label="Permissions" value={PERMISSION_DEFINITIONS.length} />
+          <MiniAccessCard label="Locked Admin" value={roles.some((role) => role.name === "Quality Assurance") ? 1 : 0} />
+        </div>
+      </div>
+
       <div className="grid gap-4 rounded-[24px] border border-violet-100 bg-violet-50/50 p-5 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
         <label className="block">
           <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">New Role Name</span>
@@ -875,9 +1062,92 @@ function RoleManagementPanel({
         </table>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-        Step 1 stores custom role names only. Menu permissions still follow protected system roles until permission mapping is added later.
+      <div className="mt-6 overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <div className="text-lg font-black text-slate-950">Permission Matrix</div>
+            <div className="mt-1 text-sm font-semibold text-slate-500">
+              Tick only the access each role should have. Quality Assurance keeps protected admin access.
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onSavePermissions}
+            className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {saving ? "Saving..." : "Save Permissions"}
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-[1180px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="bg-slate-950 text-white">
+                <th className="sticky left-0 z-10 bg-slate-950 px-5 py-4 font-bold">Permission</th>
+                {activeRoles.map((role) => (
+                  <th key={role.name} className="px-4 py-4 text-center font-bold">
+                    {role.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {PERMISSION_DEFINITIONS.map((permission) => (
+                <tr key={permission.key} className="border-b border-slate-100 last:border-b-0">
+                  <td className="sticky left-0 z-10 bg-white px-5 py-4">
+                    <div className="inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
+                      {permission.category}
+                    </div>
+                    <div className="mt-2 font-black text-slate-950">{permission.label}</div>
+                    <div className="mt-1 max-w-[360px] text-xs font-semibold leading-5 text-slate-500">{permission.description}</div>
+                  </td>
+                  {activeRoles.map((role) => {
+                    const checked = Boolean((permissionDrafts[role.name] || getDefaultRolePermissions(role.name))[permission.key]);
+                    const locked = role.name === "Quality Assurance" && (
+                      permission.key === "manageUsers" ||
+                      permission.key === "manageRoles" ||
+                      permission.key === "manageMaintenance"
+                    );
+                    return (
+                      <td key={`${role.name}-${permission.key}`} className="px-4 py-4 text-center">
+                        <label className="inline-flex cursor-pointer items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={saving || locked}
+                            onChange={(event) => onPermissionChange(role.name, permission.key, event.target.checked)}
+                            className="peer sr-only"
+                          />
+                          <span className={`relative h-7 w-12 rounded-full border transition ${
+                            checked
+                              ? "border-violet-500 bg-violet-600"
+                              : "border-slate-200 bg-slate-100"
+                          } ${saving || locked ? "cursor-not-allowed opacity-60" : ""}`}>
+                            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
+                              checked ? "left-6" : "left-1"
+                            }`} />
+                          </span>
+                        </label>
+                        {locked ? <div className="mt-1 text-[10px] font-bold text-slate-400">Locked</div> : null}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function MiniAccessCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-[22px] border border-violet-100 bg-white p-5 shadow-sm">
+      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">{label}</div>
+      <div className="mt-3 text-3xl font-black text-slate-950">{value}</div>
     </div>
   );
 }

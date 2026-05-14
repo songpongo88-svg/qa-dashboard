@@ -13,6 +13,26 @@ import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamC
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
 type UserRole = string;
+type RolePermissionKey =
+  | "viewDashboard"
+  | "viewSummary"
+  | "viewCoaching"
+  | "viewAppeal"
+  | "submitAppeal"
+  | "reviewAppeals"
+  | "appealOverride"
+  | "viewRubric"
+  | "viewUsageLog"
+  | "exportPdf"
+  | "exportAppealRawdata"
+  | "manageUsers"
+  | "manageRoles"
+  | "resetPassword"
+  | "manageMaintenance"
+  | "useTeamChat";
+
+type RolePermissions = Record<RolePermissionKey, boolean>;
+type RolePermissionMap = Record<string, RolePermissions>;
 
 type UserAccount = {
   username: string;
@@ -172,6 +192,129 @@ const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
+
+const PERMISSION_KEYS: RolePermissionKey[] = [
+  "viewDashboard",
+  "viewSummary",
+  "viewCoaching",
+  "viewAppeal",
+  "submitAppeal",
+  "reviewAppeals",
+  "appealOverride",
+  "viewRubric",
+  "viewUsageLog",
+  "exportPdf",
+  "exportAppealRawdata",
+  "manageUsers",
+  "manageRoles",
+  "resetPassword",
+  "manageMaintenance",
+  "useTeamChat",
+];
+
+const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
+  Agent: {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: false,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: false,
+    exportAppealRawdata: false,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  Senior: {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: true,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: true,
+    exportAppealRawdata: false,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  Supervisor: {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: true,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: true,
+    appealOverride: true,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: true,
+    exportAppealRawdata: true,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: true,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  "Quality Assurance": Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as RolePermissions,
+};
+
+function getDefaultRolePermissions(role: UserRole): RolePermissions {
+  return {
+    ...ROLE_PERMISSION_DEFAULTS.Agent,
+    ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
+  };
+}
+
+function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
+  const permissionMap: RolePermissionMap = {};
+  const savedRoles = new Set<string>();
+
+  ROLE_OPTIONS.forEach((role) => {
+    permissionMap[role] = getDefaultRolePermissions(role);
+  });
+
+  logs.forEach((item) => {
+    if (item.event_type !== "role_permissions_saved") return;
+    const roleName = String(item.details?.roleName || "").trim();
+    const permissions = item.details?.permissions;
+    const normalizedRole = roleName.toLowerCase();
+    if (savedRoles.has(normalizedRole)) return;
+    if (!roleName || !permissions || typeof permissions !== "object") return;
+    savedRoles.add(normalizedRole);
+
+    const current = permissionMap[roleName] || getDefaultRolePermissions(roleName);
+    const next = { ...current };
+    PERMISSION_KEYS.forEach((key) => {
+      const value = (permissions as Record<string, unknown>)[key];
+      if (typeof value === "boolean") next[key] = value;
+    });
+    permissionMap[roleName] = roleName === "Quality Assurance"
+      ? { ...next, manageUsers: true, manageRoles: true, manageMaintenance: true }
+      : next;
+  });
+
+  return permissionMap;
+}
+
+function hasRolePermission(user: CurrentUser | null, permissions: RolePermissionMap, key: RolePermissionKey) {
+  if (!user) return false;
+  const displayName = String(user.displayName || "").trim().toLowerCase();
+  const username = String(user.username || "").trim().toLowerCase();
+  if (user.role === "Quality Assurance" && (displayName === "songpon phothong" || username === "songpon")) return true;
+  return Boolean((permissions[user.role] || getDefaultRolePermissions(user.role))[key]);
+}
 
 function isUserRole(value: unknown): value is UserRole {
   return typeof value === "string" && value.trim().length > 0;
@@ -1547,6 +1690,7 @@ export default function App() {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>(() => buildRolePermissionOverrides([]));
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
@@ -1578,13 +1722,19 @@ export default function App() {
     () => buildEffectiveUserAccounts(USER_ACCOUNTS, profileOverrides, roleOverrides),
     [profileOverrides, roleOverrides]
   );
-  const coachingAllowed = canAccessCoaching(currentUser);
-  const usageLogAllowed = canAccessUsageLog(currentUser);
-  const appealRequestsAllowed = canAccessAppealRequests(currentUser);
-  const passwordResetAdminAllowed = canAccessPasswordResetAdmin(currentUser);
-  const roleAdminAllowed = canAccessUserRoleAdmin(currentUser);
-  const maintenanceBlocked = maintenanceState.enabled && !canBypassMaintenance(currentUser);
-  const canUseAdminAccountMenu = currentUser?.role === "Supervisor" || currentUser?.role === "Quality Assurance";
+  const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
+  const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
+  const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
+  const appealOverrideAllowed = hasRolePermission(currentUser, rolePermissions, "appealOverride");
+  const passwordResetAdminAllowed = hasRolePermission(currentUser, rolePermissions, "resetPassword");
+  const roleAdminAllowed =
+    hasRolePermission(currentUser, rolePermissions, "manageUsers") ||
+    hasRolePermission(currentUser, rolePermissions, "manageRoles") ||
+    hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
+  const maintenanceBlocked = maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
+  const canUseAdminAccountMenu = Boolean(currentUser) && (
+    usageLogAllowed || roleAdminAllowed || passwordResetAdminAllowed
+  );
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
@@ -1633,7 +1783,7 @@ export default function App() {
 
   const handleReviewMenuChange = (value: string) => {
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
-    if (value === "appeal-override" && !appealRequestsAllowed) return;
+    if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "appeal" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       setActiveTab(value);
     }
@@ -1948,8 +2098,10 @@ export default function App() {
       const logs = await fetchUsageLogs(5000);
       const nextOverrides = buildUserRoleOverrides(logs);
       const nextProfiles = buildUserProfileOverrides(logs);
+      const nextPermissions = buildRolePermissionOverrides(logs);
       setRoleOverrides(nextOverrides);
       setProfileOverrides(nextProfiles);
+      setRolePermissions(nextPermissions);
 
       setCurrentUser((previousUser) => {
         if (!previousUser) return previousUser;
@@ -1979,6 +2131,7 @@ export default function App() {
     } catch {
       setRoleOverrides({});
       setProfileOverrides({});
+      setRolePermissions(buildRolePermissionOverrides([]));
     }
   };
 
@@ -2025,13 +2178,13 @@ export default function App() {
     if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
       setActiveTab("dashboard");
     }
-    if (activeTab === "appeal-override" && !appealRequestsAllowed) {
+    if (activeTab === "appeal-override" && !appealOverrideAllowed) {
       setActiveTab("dashboard");
     }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, roleAdminAllowed]);
+  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, appealOverrideAllowed, roleAdminAllowed]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -2880,7 +3033,7 @@ export default function App() {
                     options={[
                       { value: "appeal", label: "Appeal" },
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
-                      ...(appealRequestsAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
+                      ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
                       { value: "rubric", label: "QA Rubric" },
                     ]}
                   />
@@ -3058,7 +3211,7 @@ export default function App() {
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
-        ) : activeTab === "appeal-override" && appealRequestsAllowed ? (
+        ) : activeTab === "appeal-override" && appealOverrideAllowed ? (
           <AppealOverrideMockup currentUser={currentUser} />
         ) : activeTab === "task-inbox" ? (
           <TaskInboxMockup
@@ -3110,6 +3263,7 @@ export default function App() {
             accounts={effectiveUserAccounts}
             currentUser={currentUser}
             roleOverrides={roleOverrides}
+            rolePermissions={rolePermissions}
             maintenanceState={maintenanceState}
             onMaintenanceChanged={handleMaintenanceChanged}
             onRolesChanged={loadRoleOverrides}
