@@ -812,10 +812,10 @@ export default function UserRoleAdminMockup({
     <div className="min-h-screen bg-[#fbf8ff] text-slate-950">
       <PageHero
         eyebrow="CRM Admin"
-        title="User Directory"
-        subtitle="Manage user profiles, emails, account status, and system roles from one controlled directory."
-        workspaceTitle="CRM Permission Center"
-        workspaceSubtitle="Central user profile management for QA Dashboard"
+        title="Account Administration"
+        subtitle="Manage user accounts, access permissions, and system availability from one administration console."
+        workspaceTitle="Administration Console"
+        workspaceSubtitle="Controlled access management for QA Dashboard"
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
@@ -828,98 +828,133 @@ export default function UserRoleAdminMockup({
           <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_26px_80px_rgba(15,23,42,0.08)]">
-          <div className="relative overflow-hidden border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_32%),radial-gradient(circle_at_top_right,rgba(139,92,246,0.15),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8fafc_48%,#f5f3ff_100%)] px-5 py-6 lg:px-7">
-            <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-fuchsia-200/30 blur-3xl" />
-            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] border border-slate-200 bg-white shadow-sm">
-                  <span className="text-2xl font-black text-slate-950">
-                    {adminTab === "roles" ? "R" : adminTab === "maintenance" ? "M" : "U"}
-                  </span>
-                </div>
-                <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-500">Enterprise Access Center</div>
-                  <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">
-                    {adminTab === "roles" ? "Roles & Permissions" : adminTab === "maintenance" ? "System Maintenance" : "User Directory"}
-                  </div>
-                  <div className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
-                    {adminTab === "roles"
-                      ? "Build role access, control permissions, and keep system roles structured."
-                      : adminTab === "maintenance"
-                        ? "Control maintenance mode separately from user and role management."
-                        : isEditing
-                          ? "Edit user details in one place, then save all changes at once."
-                          : "Corporate user profile management with role, email, and account status in one controlled directory."}
-                  </div>
-                  {message ? (
-                    <div className="mt-3 inline-flex max-w-full items-center rounded-2xl border border-violet-200 bg-white/90 px-4 py-2 text-sm font-black text-violet-700 shadow-sm">
-                      {message}
-                    </div>
-                  ) : null}
-                  {accessMessage ? (
-                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                      Temporary access password(s): {accessMessage}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3 xl:justify-end">
-              {adminTab !== "users" ? null : isEditing ? (
-                <>
-                  <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveDirectory}
-                    disabled={saving}
-                    className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  >
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800">
-                    Create User
-                  </button>
-                  <button type="button" onClick={handleExportPdf} className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50">
-                    Export PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
-                      setIsEditing(true);
-                      setMessage("");
-                    }}
-                    className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(109,40,217,0.22)] transition hover:opacity-95"
-                  >
-                    Edit Directory
-                  </button>
-                </>
-              )}
-              </div>
-            </div>
-          </div>
-
-          <div className="border-b border-violet-100 bg-white px-5 py-4">
-            <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-slate-200 bg-slate-50 p-2">
-            <DirectoryTabButton active={adminTab === "users"} label="Users" count={totalUsers} onClick={() => setAdminTab("users")} />
-            <DirectoryTabButton active={adminTab === "roles"} label="Roles & Permissions" count={roleDefinitions.length} onClick={() => setAdminTab("roles")} />
-            <DirectoryTabButton
-              active={adminTab === "maintenance"}
-              label="Maintenance"
-              count={maintenanceState.enabled ? 1 : 0}
-              onClick={() => setAdminTab("maintenance")}
-              tone={maintenanceState.enabled ? "amber" : "slate"}
+        <div className="mt-6 rounded-[28px] border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <AdminPrimaryTabButton
+              active={adminTab === "users"}
+              title="User Management"
+              description="Manage user profiles and account status"
+              count={totalUsers}
+              onClick={() => setAdminTab("users")}
             />
-            </div>
+            <AdminPrimaryTabButton
+              active={adminTab === "roles"}
+              title="Access Control"
+              description="Configure roles and permissions"
+              count={roleDefinitions.length}
+              onClick={() => setAdminTab("roles")}
+            />
+            <AdminPrimaryTabButton
+              active={adminTab === "maintenance"}
+              title="System Maintenance"
+              description={maintenanceState.enabled ? "Maintenance mode is active" : "System is open for users"}
+              count={maintenanceState.enabled ? 1 : 0}
+              tone={maintenanceState.enabled ? "amber" : "slate"}
+              onClick={() => setAdminTab("maintenance")}
+            />
           </div>
+        </div>
 
-          {adminTab === "roles" ? (
+        {message ? (
+          <div className="mt-4 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-bold text-violet-700 shadow-sm">
+            {message}
+          </div>
+        ) : null}
+        {accessMessage ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+            Temporary access password(s): {accessMessage}
+          </div>
+        ) : null}
+
+        {adminTab === "users" ? (
+          <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">User Management</div>
+                <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Corporate User Directory</div>
+                <div className="mt-1 text-sm leading-6 text-slate-500">
+                  {isEditing
+                    ? "Edit account information and save all directory changes in one action."
+                    : "Review user profiles, registered emails, assigned roles, and account availability."}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {isEditing ? (
+                  <>
+                    <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveDirectory}
+                      disabled={saving}
+                      className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {saving ? "Saving..." : "Save Changes"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-800">
+                      Create User
+                    </button>
+                    <button type="button" onClick={handleExportPdf} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:border-violet-200 hover:text-violet-700">
+                      Export PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
+                        setIsEditing(true);
+                        setMessage("");
+                      }}
+                      className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.20)] transition hover:opacity-95"
+                    >
+                      Edit Directory
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+              <div className="inline-flex flex-wrap gap-2 rounded-[22px] border border-slate-200 bg-white p-1.5">
+                <DirectoryTabButton
+                  active={directoryTab === "active"}
+                  label="Active Accounts"
+                  count={activeUsers}
+                  onClick={() => setDirectoryTab("active")}
+                />
+                <DirectoryTabButton
+                  active={directoryTab === "suspended"}
+                  label="Suspended Accounts"
+                  count={suspendedUsers}
+                  onClick={() => setDirectoryTab("suspended")}
+                  tone="rose"
+                />
+              </div>
+            </div>
+
+            {isEditing ? (
+              <EditableDirectoryTable
+                users={visibleDraftUsers}
+                saving={saving}
+                roleOptions={activeRoleOptions}
+                onChange={updateDraftUser}
+                onGeneratePassword={generateDraftPassword}
+              />
+            ) : (
+              <ReadOnlyDirectoryTable rows={visibleRows} />
+            )}
+          </div>
+        ) : adminTab === "roles" ? (
+          <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
+            <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Access Control</div>
+              <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Role & Permission Management</div>
+              <div className="mt-1 text-sm leading-6 text-slate-500">Create roles, update role descriptions, and control what each role can access.</div>
+            </div>
             <RoleManagementPanel
               roles={roleDefinitions}
               roleUserCounts={rows.reduce((counts, row) => {
@@ -939,7 +974,14 @@ export default function UserRoleAdminMockup({
               onPermissionChange={updateRolePermission}
               onSavePermissions={() => void saveRolePermissions()}
             />
-          ) : adminTab === "maintenance" ? (
+          </div>
+        ) : (
+          <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
+            <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
+              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">System Maintenance</div>
+              <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Maintenance Control Center</div>
+              <div className="mt-1 text-sm leading-6 text-slate-500">Temporarily restrict access while updating system configuration or QA data.</div>
+            </div>
             <MaintenancePanel
               saving={saving}
               maintenanceState={maintenanceState}
@@ -947,40 +989,8 @@ export default function UserRoleAdminMockup({
               onMessageChange={setMaintenanceMessage}
               onSaveMaintenanceMode={saveMaintenanceMode}
             />
-          ) : (
-            <>
-              <div className="border-b border-violet-100 bg-white px-5 py-4">
-                <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-slate-200 bg-slate-50 p-2">
-                <DirectoryTabButton
-                  active={directoryTab === "active"}
-                  label="Active Users"
-                  count={activeUsers}
-                  onClick={() => setDirectoryTab("active")}
-                />
-                <DirectoryTabButton
-                  active={directoryTab === "suspended"}
-                  label="Suspended Users"
-                  count={suspendedUsers}
-                  onClick={() => setDirectoryTab("suspended")}
-                  tone="rose"
-                />
-                </div>
-              </div>
-
-              {isEditing ? (
-                <EditableDirectoryTable
-                  users={visibleDraftUsers}
-                  saving={saving}
-                  roleOptions={activeRoleOptions}
-                  onChange={updateDraftUser}
-                  onGeneratePassword={generateDraftPassword}
-                />
-              ) : (
-                <ReadOnlyDirectoryTable rows={visibleRows} />
-              )}
-            </>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {createUserOpen ? (
@@ -1083,10 +1093,57 @@ function MaintenancePanel({
   );
 }
 
+function AdminPrimaryTabButton({
+  active,
+  title,
+  description,
+  count,
+  onClick,
+  tone = "violet",
+}: {
+  active: boolean;
+  title: string;
+  description: string;
+  count: number;
+  onClick: () => void;
+  tone?: "violet" | "amber" | "slate";
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "text-amber-700"
+      : tone === "slate"
+        ? "text-slate-700"
+        : "text-violet-700";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-[22px] border px-5 py-4 text-left transition ${
+        active
+          ? "border-violet-200 bg-gradient-to-br from-white to-violet-50 shadow-[0_14px_34px_rgba(109,40,217,0.12)]"
+          : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className={`text-sm font-bold ${active ? toneClass : "text-slate-700"}`}>{title}</div>
+          <div className="mt-1 text-xs font-medium leading-5 text-slate-500">{description}</div>
+        </div>
+        <span className={`inline-flex min-w-8 justify-center rounded-full px-2.5 py-1 text-xs font-bold ${
+          active ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+        }`}>
+          {count}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function MetricCard({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="group rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-      <div className={`text-[11px] font-black uppercase tracking-[0.22em] ${tone}`}>{label}</div>
+      <div className={`text-[11px] font-bold uppercase tracking-[0.18em] ${tone}`}>{label}</div>
       <div className="mt-3 flex items-end justify-between gap-3">
         <div className="text-3xl font-black text-slate-950">{value}</div>
         <div className="h-2 w-10 rounded-full bg-slate-100 transition group-hover:bg-violet-200" />
@@ -1121,7 +1178,7 @@ function DirectoryTabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-3 rounded-[18px] border px-5 py-3 text-sm font-black transition ${
+      className={`inline-flex items-center gap-3 rounded-[18px] border px-5 py-3 text-sm font-bold transition ${
         active ? activeClass : "border-transparent bg-transparent text-slate-500 hover:bg-white hover:text-violet-700"
       }`}
     >
