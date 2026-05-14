@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605140059",
-  "buildNumber": 2605140059,
-  "releaseLabel": "v1.0.0.2605140059",
-  "updatedAt": "14/05/2026 00:59:32",
+  "displayVersion": "1.0.0.2605140920",
+  "buildNumber": 2605140920,
+  "releaseLabel": "v1.0.0.2605140920",
+  "updatedAt": "14/05/2026 09:20:58",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2d1685c7ca76ddaa71069461ab26f6dc323c5842",
-  "commitMessage": "Add private chat attachments",
+  "commitHash": "5fd0ec88868143e88f88f53b97ed35c3d90665dd",
+  "commitMessage": "Move version into user header",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/TeamChatMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

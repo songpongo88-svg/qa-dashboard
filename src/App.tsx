@@ -604,6 +604,17 @@ function buildOnlineUsers(logs: UsageLogEvent[]) {
   return Array.from(users.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
+function formatHeaderDateTime(value: Date) {
+  return value.toLocaleString("th-TH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function getResetRequestDecisionStatus(logs: UsageLogEvent[], requestId: string): PasswordResetRequest["status"] {
   const decision = logs.find((item) => {
     if (item.event_type !== "password_reset_approved" && item.event_type !== "password_reset_rejected") return false;
@@ -1359,6 +1370,7 @@ export default function App() {
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
+  const [liveNow, setLiveNow] = useState(() => new Date());
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "appeal" | "appeal-requests" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
@@ -1397,6 +1409,7 @@ export default function App() {
   const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
   const unreadInboxTaskCount = inboxTasks.filter((item) => item.unread).length;
+  const shortBuildHash = buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "";
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -1641,6 +1654,14 @@ export default function App() {
         setSelectedAgentGlobal(requestedAgent);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setLiveNow(new Date());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -2401,19 +2422,25 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto w-full max-w-[1320px] px-4 py-3 sm:px-5 lg:px-6">
+          <div className="mx-auto grid w-full max-w-[1320px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_260px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[20px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex min-w-0 flex-1 items-center gap-3 xl:max-w-[360px]">
+                <div className="flex min-w-0 flex-1 items-start gap-3 xl:max-w-[560px]">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Robinhood QA</div>
-                    <div className="mt-1 text-[16px] font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[18px]">Welcome, {welcomeName}</div>
+                  <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold leading-6 text-slate-950 shadow-sm">
+                    <div>Robinhood QA Welcome</div>
+                    <div>User Login: {welcomeName}</div>
+                    <div>Position: {currentUser.role}</div>
+                    <div>
+                      Version {buildMeta.displayVersion || buildMeta.version}
+                      {shortBuildHash ? `:${shortBuildHash}` : ""}
+                    </div>
+                    <div>Login running time: {formatHeaderDateTime(liveNow)}</div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
                       <span className="text-slate-300">•</span>
@@ -2424,7 +2451,7 @@ export default function App() {
                       <span className="text-slate-300">•</span>
                       <span>{currentUser.agentName}</span>
                     </div>
-                    <div className="mt-1 text-sm text-slate-500">
+                    <div className="hidden mt-1 text-sm text-slate-500">
                       <span>{currentUser.role}</span>
                       <span className="mx-2 text-slate-300">/</span>
                       <span>{currentUser.agentName}</span>
@@ -2473,7 +2500,7 @@ export default function App() {
                   />
                 </div>
 
-                <div className="flex flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
+                <div className="hidden flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
                   <button
                     type="button"
                     onClick={() => {
@@ -2519,6 +2546,51 @@ export default function App() {
                   </button>
                 </div>
               </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("task-inbox");
+                  void loadInboxTasks();
+                }}
+                className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
+                    <div className="mt-1 text-sm font-extrabold">Inbox</div>
+                  </div>
+                  <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
+                    {unreadInboxTaskCount}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs font-semibold text-violet-100">
+                  {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread task(s)` : "No unread task"}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("team-chat");
+                  void sendPresence();
+                  void loadChatData();
+                }}
+                className="group relative overflow-hidden rounded-2xl border border-sky-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-sky-300 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Team Chat</div>
+                    <div className="mt-1 text-sm font-extrabold">Online Chat</div>
+                  </div>
+                  <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
+                    {onlineUsers.length}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-500">
+                  {onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                </div>
+              </button>
             </div>
           </div>
         </div>
