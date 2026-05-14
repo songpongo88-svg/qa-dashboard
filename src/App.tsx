@@ -191,7 +191,7 @@ const CHAT_READ_KEY = "qa_chat_read_at";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
 
-const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
+const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
 
 const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewDashboard",
@@ -213,6 +213,24 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
 ];
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
+  "Admin Live Chat": {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: false,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: false,
+    exportAppealRawdata: false,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
   Agent: {
     viewDashboard: true,
     viewSummary: true,
@@ -272,9 +290,13 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
 
 function getDefaultRolePermissions(role: UserRole): RolePermissions {
   return {
-    ...ROLE_PERMISSION_DEFAULTS.Agent,
+    ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
   };
+}
+
+function shouldScopeCasesToOwnRole(role?: UserRole) {
+  return role === "Admin Live Chat";
 }
 
 function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
@@ -1722,6 +1744,14 @@ export default function App() {
     () => buildEffectiveUserAccounts(USER_ACCOUNTS, profileOverrides, roleOverrides),
     [profileOverrides, roleOverrides]
   );
+  const roleScopedAgentNames = useMemo(() => {
+    if (!currentUser || !shouldScopeCasesToOwnRole(currentUser.role)) return [];
+    const currentRole = currentUser.role.trim().toLowerCase();
+    return effectiveUserAccounts
+      .filter((account) => account.status !== "Suspended" && account.role.trim().toLowerCase() === currentRole)
+      .map((account) => account.agentName || account.displayName)
+      .filter(Boolean);
+  }, [currentUser, effectiveUserAccounts]);
   const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
   const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
@@ -3156,6 +3186,7 @@ export default function App() {
               externalSelectedMonthKey={selectedMonthGlobal}
               externalSelectedWeek={selectedWeekGlobal}
               externalCaseIdSearch={selectedDashboardCaseId}
+              roleScopedAgentNames={roleScopedAgentNames}
               onSelectedAgentChange={setSelectedAgentGlobal}
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}
@@ -3242,6 +3273,7 @@ export default function App() {
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedMonth={selectedMonthGlobal}
             externalSelectedWeek={selectedWeekGlobal}
+            roleScopedAgentNames={roleScopedAgentNames}
             onSelectedAgentChange={setSelectedAgentGlobal}
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}

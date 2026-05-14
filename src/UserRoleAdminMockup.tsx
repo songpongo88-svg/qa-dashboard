@@ -87,7 +87,7 @@ type UserRoleAdminMockupProps = {
   onRolesChanged: () => void | Promise<void>;
 };
 
-const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
+const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
 const STATUS_OPTIONS: UserStatus[] = ["Active", "Suspended"];
 const PERMISSION_DEFINITIONS: Array<{
   key: RolePermissionKey;
@@ -116,6 +116,24 @@ const PERMISSION_DEFINITIONS: Array<{
 const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
+  "Admin Live Chat": {
+    viewDashboard: true,
+    viewSummary: true,
+    viewCoaching: false,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    viewUsageLog: false,
+    exportPdf: false,
+    exportAppealRawdata: false,
+    manageUsers: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
   Agent: {
     viewDashboard: true,
     viewSummary: true,
@@ -175,7 +193,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
 
 function getDefaultRolePermissions(role: UserRole): RolePermissions {
   return {
-    ...ROLE_PERMISSION_DEFAULTS.Agent,
+    ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
   };
 }
@@ -183,9 +201,14 @@ function getDefaultRolePermissions(role: UserRole): RolePermissions {
 function buildRoleDefinitions(logs: UsageLogEvent[]) {
   const roleMap = new Map<string, RoleDefinition>();
   ROLE_OPTIONS.forEach((role) => {
-    roleMap.set(role.toLowerCase(), {
-      name: role,
-      description: role === "Quality Assurance" ? "System admin role with protected access." : "Default system role.",
+      roleMap.set(role.toLowerCase(), {
+        name: role,
+        description:
+          role === "Quality Assurance"
+            ? "System admin role with protected access."
+            : role === "Admin Live Chat"
+              ? "Default live chat team role with scoped dashboard access."
+              : "Default system role.",
       active: true,
       createdAt: "",
       createdBy: "System",
@@ -212,6 +235,31 @@ function buildRoleDefinitions(logs: UsageLogEvent[]) {
         locked: name === "Quality Assurance",
       });
     });
+
+  const latestProfileRoles = new Set<string>();
+  const seenProfiles = new Set<string>();
+  logs.forEach((log) => {
+    if (log.event_type !== "user_profile_saved" && log.event_type !== "user_role_updated") return;
+    const username = String(log.target_agent || log.details?.username || "").trim().toLowerCase();
+    if (!username || seenProfiles.has(username)) return;
+    const role = String(log.details?.role || log.details?.newRole || "").trim();
+    if (!role) return;
+    seenProfiles.add(username);
+    latestProfileRoles.add(role);
+  });
+
+  latestProfileRoles.forEach((role) => {
+    const key = role.toLowerCase();
+    if (roleMap.has(key)) return;
+    roleMap.set(key, {
+      name: role,
+      description: "Role is still assigned to active user profiles.",
+      active: true,
+      createdAt: "",
+      createdBy: "System",
+      locked: role === "Quality Assurance",
+    });
+  });
 
   return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -275,7 +323,7 @@ function createBlankUser(): EditableUser {
     displayName: "",
     agentName: "",
     email: "",
-    role: "Agent",
+    role: "Admin Live Chat",
     status: "Active",
     suspendReason: "",
     temporaryPassword: generateTemporaryPassword(),

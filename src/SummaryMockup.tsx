@@ -746,6 +746,7 @@ export default function SummaryMockup({
   externalSelectedAgent,
   externalSelectedMonth,
   externalSelectedWeek,
+  roleScopedAgentNames,
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
@@ -754,6 +755,7 @@ export default function SummaryMockup({
   externalSelectedAgent?: string;
   externalSelectedMonth?: string;
   externalSelectedWeek?: string;
+  roleScopedAgentNames?: string[];
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -769,12 +771,21 @@ export default function SummaryMockup({
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const roleScopedAgentList = useMemo(
+    () => getUniqueNormalizedAgents((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
+    [roleScopedAgentNames]
+  );
 
   useEffect(() => {
-    if (typeof externalSelectedAgent === "string" && externalSelectedAgent !== selectedAgent && currentUser?.role !== "Agent") {
+    if (
+      typeof externalSelectedAgent === "string" &&
+      externalSelectedAgent !== selectedAgent &&
+      currentUser?.role !== "Agent" &&
+      !roleScopedAgentList.length
+    ) {
       setSelectedAgent(externalSelectedAgent);
     }
-  }, [externalSelectedAgent, selectedAgent, currentUser]);
+  }, [externalSelectedAgent, selectedAgent, currentUser, roleScopedAgentList.length]);
 
   useEffect(() => {
     if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
@@ -985,12 +996,16 @@ export default function SummaryMockup({
       (name) => (selectedMonth === "all" ? true : !shouldHideAgentByMonth(name, selectedMonth))
     );
 
+    if (roleScopedAgentList.length) {
+      return names.filter((name) => roleScopedAgentList.some((scopedAgent) => isSameAgent(name, scopedAgent)));
+    }
+
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
       return names.filter((name) => isSameAgent(name, currentUser.agentName));
     }
 
     return names;
-  }, [allCases, selectedMonth, currentUser]);
+  }, [allCases, selectedMonth, currentUser, roleScopedAgentList]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
@@ -1001,7 +1016,11 @@ export default function SummaryMockup({
       onSelectedAgentChange?.(lockedAgent);
       return;
     }
-  }, [currentUser, selectedAgent, onSelectedAgentChange]);
+    if (roleScopedAgentList.length && selectedAgent !== "all" && !availableAgents.some((agent) => isSameAgent(agent, selectedAgent))) {
+      setSelectedAgent("all");
+      onSelectedAgentChange?.("all");
+    }
+  }, [currentUser, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length, availableAgents]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && viewMode === "weekly-qa-by-agent") {
@@ -1032,13 +1051,14 @@ export default function SummaryMockup({
 
   const filteredCases = useMemo(() => {
     return allCases.filter((item) => {
+      if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
       if (effectiveSelectedAgent !== "all" && !isSameAgent(item.agent, effectiveSelectedAgent)) return false;
       if (selectedMonth !== "all" && item.monthKey !== selectedMonth) return false;
       if (selectedWeek !== "all" && item.weekLabel !== selectedWeek) return false;
       if (selectedYear !== "all" && item.yearKey !== selectedYear) return false;
       return true;
     });
-  }, [allCases, effectiveSelectedAgent, selectedMonth, selectedWeek, selectedYear]);
+  }, [allCases, effectiveSelectedAgent, selectedMonth, selectedWeek, selectedYear, roleScopedAgentList]);
 
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);

@@ -3287,6 +3287,7 @@ export default function DashboardMockup({
   externalSelectedMonthKey,
   externalSelectedWeek,
   externalCaseIdSearch,
+  roleScopedAgentNames,
   onSelectedAgentChange,
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
@@ -3300,6 +3301,7 @@ export default function DashboardMockup({
   externalSelectedMonthKey?: string;
   externalSelectedWeek?: string;
   externalCaseIdSearch?: string;
+  roleScopedAgentNames?: string[];
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -3324,6 +3326,10 @@ export default function DashboardMockup({
   const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const roleScopedAgentList = useMemo(
+    () => dedupeAgentNames((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
+    [roleScopedAgentNames]
+  );
 
   const effectiveMonthKeyForAgentVisibility = useMemo(() => {
     if (selectedMonthKey && selectedMonthKey !== "all") return selectedMonthKey;
@@ -3333,12 +3339,13 @@ export default function DashboardMockup({
   useEffect(() => {
     if (
       currentUser?.role !== "Agent" &&
+      !roleScopedAgentList.length &&
       typeof externalSelectedAgent === "string" &&
       externalSelectedAgent !== selectedAgent
     ) {
       setSelectedAgent(externalSelectedAgent);
     }
-  }, [externalSelectedAgent, currentUser, selectedAgent]);
+  }, [externalSelectedAgent, currentUser, selectedAgent, roleScopedAgentList.length]);
 
   useEffect(() => {
     if (
@@ -3771,12 +3778,16 @@ export default function DashboardMockup({
       (name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility)
     );
 
+    if (roleScopedAgentList.length) {
+      return mergedAgents.filter((agent) => roleScopedAgentList.some((scopedAgent) => isSameAgent(agent, scopedAgent)));
+    }
+
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser, effectiveMonthKeyForAgentVisibility]);
+  }, [allCases, currentUser, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
 
   useEffect(() => {
     if (currentUser?.role === "Agent" && currentUser.agentName) {
@@ -3788,11 +3799,17 @@ export default function DashboardMockup({
       return;
     }
 
+    if (roleScopedAgentList.length && selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
+      setSelectedAgent("");
+      onSelectedAgentChange?.("");
+      return;
+    }
+
     if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
+  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length]);
 
   const effectiveSelectedAgent =
     currentUser?.role === "Agent" && currentUser.agentName
@@ -3800,19 +3817,23 @@ export default function DashboardMockup({
       : String(selectedAgent || "").trim();
 
   const agentCases = useMemo(() => {
+    const scopedCases = roleScopedAgentList.length
+      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+      : allCases;
+
     if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return allCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+      return scopedCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
     }
 
     if (!effectiveSelectedAgent) {
-      return allCases;
+      return scopedCases;
     }
 
-    return allCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
-  }, [allCases, effectiveSelectedAgent, currentUser]);
+    return scopedCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
+  }, [allCases, effectiveSelectedAgent, currentUser, roleScopedAgentList]);
 
   const monthOptions = useMemo(() => {
-    const sourceCases = allCases;
+    const sourceCases = agentCases;
 
     return Array.from(
       new Map(
@@ -3823,7 +3844,7 @@ export default function DashboardMockup({
     )
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => b.value.localeCompare(a.value));
-  }, [agentCases, allCases]);
+  }, [agentCases]);
 
   useEffect(() => {
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
