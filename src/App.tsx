@@ -2813,12 +2813,12 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_330px] xl:items-start">
+          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[20px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
               <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex min-w-0 flex-1 items-start gap-3 xl:max-w-[520px]">
+                <div className="flex min-w-0 shrink-0 items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
                   </div>
@@ -2862,7 +2862,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-wrap md:justify-end md:gap-x-8 md:gap-y-5 xl:max-w-[820px]">
+                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-wrap md:justify-end md:gap-x-8 md:gap-y-5 xl:max-w-[860px]">
                   <HeaderSelect
                     label="Performance"
                     value={performanceMenuValue}
@@ -2983,15 +2983,15 @@ export default function App() {
                   {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
                 </div>
               </button>
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold leading-6 text-slate-950 shadow-sm">
-                <div>Robinhood QA Welcome</div>
+              <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-sm">
+                <div className="text-xs font-black">Robinhood QA Welcome</div>
                 <div>User Login: {welcomeName}</div>
                 <div>Position: {currentUser.role}</div>
-                <div className="whitespace-nowrap text-xs">
+                <div className="whitespace-nowrap">
                   Version {buildMeta.displayVersion || buildMeta.version}
                   {shortBuildHash ? `:${shortBuildHash}` : ""}
                 </div>
-                <div className="whitespace-nowrap text-xs">Login running time: {formatHeaderDateTime(liveNow)}</div>
+                <div className="whitespace-nowrap">Login running time: {formatHeaderDateTime(liveNow)}</div>
               </div>
             </div>
           </div>
