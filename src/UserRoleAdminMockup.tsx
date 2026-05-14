@@ -854,6 +854,7 @@ export default function UserRoleAdminMockup({
               permissionDrafts={permissionDrafts}
               onPermissionChange={updateRolePermission}
               onSavePermissions={() => void saveRolePermissions()}
+              onOpenUsers={() => setAdminTab("users")}
             />
           ) : (
             <>
@@ -1003,6 +1004,7 @@ function RoleManagementPanel({
   onDelete,
   onPermissionChange,
   onSavePermissions,
+  onOpenUsers,
 }: {
   roles: RoleDefinition[];
   roleUserCounts: Record<string, number>;
@@ -1017,6 +1019,7 @@ function RoleManagementPanel({
   onDelete: (role: RoleDefinition) => void;
   onPermissionChange: (roleName: string, key: RolePermissionKey, value: boolean) => void;
   onSavePermissions: () => void;
+  onOpenUsers: () => void;
 }) {
   const activeRoles = roles.filter((role) => role.active);
   const [roleAdminSubTab, setRoleAdminSubTab] = useState<RoleAdminSubTab>("role-list");
@@ -1082,6 +1085,13 @@ function RoleManagementPanel({
 
       {roleAdminSubTab === "role-list" ? (
       <>
+      <div className="mb-4 rounded-[22px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm font-semibold leading-6 text-sky-900">
+        <div className="font-black">How to use Role List</div>
+        <div className="mt-1">
+          Add Role creates a new custom role. Disable/Delete is available only when no users are assigned to that role.
+          If a button is grey, click Manage Users first and move those users to another role.
+        </div>
+      </div>
       <div className="grid gap-4 rounded-[24px] border border-violet-100 bg-violet-50/50 p-5 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
         <label className="block">
           <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">New Role Name</span>
@@ -1146,25 +1156,45 @@ function RoleManagementPanel({
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={saving || role.locked || (role.active && Boolean(roleUserCounts[role.name]))}
-                      title={role.active && roleUserCounts[role.name] ? "Move users to another role before disabling." : ""}
-                      onClick={() => onToggle(role)}
-                      className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                    >
-                      {role.active ? "Disable" : "Enable"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving || role.locked || isSystemRole(role.name) || Boolean(roleUserCounts[role.name])}
-                      title={isSystemRole(role.name) ? "Default system roles cannot be deleted." : roleUserCounts[role.name] ? "Move users to another role before deleting." : ""}
-                      onClick={() => onDelete(role)}
-                      className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                    >
-                      Delete
-                    </button>
+                    {roleUserCounts[role.name] ? (
+                      <button
+                        type="button"
+                        onClick={onOpenUsers}
+                        className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-700 transition hover:bg-sky-100"
+                      >
+                        Manage Users
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          disabled={saving || role.locked}
+                          onClick={() => onToggle(role)}
+                          className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          {role.active ? "Disable" : "Enable"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving || role.locked || isSystemRole(role.name)}
+                          title={isSystemRole(role.name) ? "Default system roles cannot be deleted." : ""}
+                          onClick={() => onDelete(role)}
+                          className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
+                  {roleUserCounts[role.name] ? (
+                    <div className="mt-2 max-w-[260px] text-xs font-semibold leading-5 text-slate-500">
+                      Locked because {roleUserCounts[role.name]} user(s) are assigned. Move users first.
+                    </div>
+                  ) : isSystemRole(role.name) ? (
+                    <div className="mt-2 max-w-[260px] text-xs font-semibold leading-5 text-slate-500">
+                      Default system role. You can disable it if unused, but cannot delete it.
+                    </div>
+                  ) : null}
                 </td>
               </tr>
             ))}
