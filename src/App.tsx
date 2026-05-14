@@ -12,7 +12,7 @@ import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
-type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
+type UserRole = string;
 
 type UserAccount = {
   username: string;
@@ -160,7 +160,7 @@ const ONLINE_USER_WINDOW_MS = 90 * 1000;
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 
 function isUserRole(value: unknown): value is UserRole {
-  return ROLE_OPTIONS.includes(value as UserRole);
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function canAccessCoaching(user: CurrentUser | null) {

@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
-import { logUsageEvent } from "./usageLog";
+import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
-type UserRole = "Agent" | "Senior" | "Supervisor" | "Quality Assurance";
+type UserRole = string;
 type UserStatus = "Active" | "Suspended";
 
 type UserAccount = {
@@ -29,6 +29,16 @@ type EditableUser = {
 };
 
 type DirectoryTab = "active" | "suspended";
+type AdminTab = "users" | "roles";
+
+type RoleDefinition = {
+  name: string;
+  description: string;
+  active: boolean;
+  createdAt: string;
+  createdBy: string;
+  locked?: boolean;
+};
 
 type CurrentUser = {
   username: string;
@@ -48,6 +58,38 @@ type UserRoleAdminMockupProps = {
 
 const ROLE_OPTIONS: UserRole[] = ["Agent", "Senior", "Supervisor", "Quality Assurance"];
 const STATUS_OPTIONS: UserStatus[] = ["Active", "Suspended"];
+
+function buildRoleDefinitions(logs: UsageLogEvent[]) {
+  const roleMap = new Map<string, RoleDefinition>();
+  ROLE_OPTIONS.forEach((role) => {
+    roleMap.set(role.toLowerCase(), {
+      name: role,
+      description: role === "Quality Assurance" ? "System admin role with protected access." : "Default system role.",
+      active: true,
+      createdAt: "",
+      createdBy: "System",
+      locked: role === "Quality Assurance",
+    });
+  });
+
+  [...logs]
+    .sort((a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime())
+    .forEach((log) => {
+      if (log.event_type !== "role_definition_saved") return;
+      const name = String(log.details?.name || "").trim();
+      if (!name) return;
+      roleMap.set(name.toLowerCase(), {
+        name,
+        description: String(log.details?.description || ""),
+        active: log.details?.active === false ? false : true,
+        createdAt: String(log.details?.updatedAt || log.created_at || ""),
+        createdBy: String(log.details?.updatedBy || log.display_name || log.username || ""),
+        locked: name === "Quality Assurance",
+      });
+    });
+
+  return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function roleBadgeClass(role: UserRole) {
   if (role === "Quality Assurance") return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700";
@@ -125,6 +167,24 @@ export default function UserRoleAdminMockup({
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [newUserDraft, setNewUserDraft] = useState<EditableUser>(() => createBlankUser());
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
+  const [adminTab, setAdminTab] = useState<AdminTab>("users");
+  const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>(() => buildRoleDefinitions([]));
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+
+  const activeRoleOptions = useMemo(
+    () => roleDefinitions.filter((role) => role.active).map((role) => role.name),
+    [roleDefinitions]
+  );
+
+  const loadRoleDefinitions = async () => {
+    try {
+      const logs = await fetchUsageLogs(5000);
+      setRoleDefinitions(buildRoleDefinitions(logs));
+    } catch {
+      setRoleDefinitions(buildRoleDefinitions([]));
+    }
+  };
 
   const rows = useMemo(() => {
     return accounts
@@ -144,6 +204,10 @@ export default function UserRoleAdminMockup({
     if (isEditing) return;
     setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
   }, [isEditing, rows]);
+
+  useEffect(() => {
+    void loadRoleDefinitions();
+  }, []);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -176,6 +240,50 @@ export default function UserRoleAdminMockup({
     setNewUserDraft(createBlankUser());
     setMessage("");
     setCreateUserOpen(true);
+  };
+
+  const saveRoleDefinition = async (role?: RoleDefinition) => {
+    const name = (role?.name || newRoleName).trim();
+    const description = (role?.description || newRoleDescription).trim();
+    if (!name) {
+      setMessage("Role name is required.");
+      return;
+    }
+    if (roleDefinitions.some((item) => item.name.toLowerCase() === name.toLowerCase() && !role)) {
+      setMessage(`Role already exists: ${name}`);
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    await logUsageEvent(currentUser, "role_definition_saved", {
+      tab: "user-roles",
+      details: {
+        name,
+        description,
+        active: role?.active ?? true,
+        updatedBy: currentUser?.displayName || currentUser?.username || "",
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    await loadRoleDefinitions();
+    setSaving(false);
+    setNewRoleName("");
+    setNewRoleDescription("");
+    setMessage(`Saved role ${name}.`);
+  };
+
+  const toggleRoleActive = async (role: RoleDefinition) => {
+    if (role.locked) {
+      setMessage("Quality Assurance role is locked for system safety.");
+      return;
+    }
+    const roleInUse = rows.some((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase());
+    if (role.active && roleInUse) {
+      setMessage(`Cannot disable ${role.name} because at least one user is using this role.`);
+      return;
+    }
+    await saveRoleDefinition({ ...role, active: !role.active });
   };
 
   const handleCancelEdit = () => {
@@ -411,7 +519,7 @@ export default function UserRoleAdminMockup({
             </div>
 
             <div className="flex flex-wrap gap-3">
-              {isEditing ? (
+              {adminTab === "roles" ? null : isEditing ? (
                 <>
                   <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                     Cancel
@@ -450,30 +558,51 @@ export default function UserRoleAdminMockup({
           </div>
 
           <div className="flex flex-wrap gap-3 border-b border-violet-100 bg-white px-5 py-4">
-            <DirectoryTabButton
-              active={directoryTab === "active"}
-              label="Active Users"
-              count={activeUsers}
-              onClick={() => setDirectoryTab("active")}
-            />
-            <DirectoryTabButton
-              active={directoryTab === "suspended"}
-              label="Suspended Users"
-              count={suspendedUsers}
-              onClick={() => setDirectoryTab("suspended")}
-              tone="rose"
-            />
+            <DirectoryTabButton active={adminTab === "users"} label="Users" count={totalUsers} onClick={() => setAdminTab("users")} />
+            <DirectoryTabButton active={adminTab === "roles"} label="Roles & Permissions" count={roleDefinitions.length} onClick={() => setAdminTab("roles")} />
           </div>
 
-          {isEditing ? (
-            <EditableDirectoryTable
-              users={visibleDraftUsers}
+          {adminTab === "roles" ? (
+            <RoleManagementPanel
+              roles={roleDefinitions}
+              newRoleName={newRoleName}
+              newRoleDescription={newRoleDescription}
               saving={saving}
-              onChange={updateDraftUser}
-              onGeneratePassword={generateDraftPassword}
+              onNameChange={setNewRoleName}
+              onDescriptionChange={setNewRoleDescription}
+              onSave={() => void saveRoleDefinition()}
+              onToggle={(role) => void toggleRoleActive(role)}
             />
           ) : (
-            <ReadOnlyDirectoryTable rows={visibleRows} />
+            <>
+              <div className="flex flex-wrap gap-3 border-b border-violet-100 bg-white px-5 py-4">
+                <DirectoryTabButton
+                  active={directoryTab === "active"}
+                  label="Active Users"
+                  count={activeUsers}
+                  onClick={() => setDirectoryTab("active")}
+                />
+                <DirectoryTabButton
+                  active={directoryTab === "suspended"}
+                  label="Suspended Users"
+                  count={suspendedUsers}
+                  onClick={() => setDirectoryTab("suspended")}
+                  tone="rose"
+                />
+              </div>
+
+              {isEditing ? (
+                <EditableDirectoryTable
+                  users={visibleDraftUsers}
+                  saving={saving}
+                  roleOptions={activeRoleOptions}
+                  onChange={updateDraftUser}
+                  onGeneratePassword={generateDraftPassword}
+                />
+              ) : (
+                <ReadOnlyDirectoryTable rows={visibleRows} />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -482,6 +611,7 @@ export default function UserRoleAdminMockup({
         <CreateUserModal
           user={newUserDraft}
           saving={saving}
+          roleOptions={activeRoleOptions}
           onChange={updateNewUserDraft}
           onGeneratePassword={() => updateNewUserDraft("temporaryPassword", generateTemporaryPassword())}
           onCancel={() => {
@@ -577,14 +707,116 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
   );
 }
 
+function RoleManagementPanel({
+  roles,
+  newRoleName,
+  newRoleDescription,
+  saving,
+  onNameChange,
+  onDescriptionChange,
+  onSave,
+  onToggle,
+}: {
+  roles: RoleDefinition[];
+  newRoleName: string;
+  newRoleDescription: string;
+  saving: boolean;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onSave: () => void;
+  onToggle: (role: RoleDefinition) => void;
+}) {
+  return (
+    <div className="p-5">
+      <div className="grid gap-4 rounded-[24px] border border-violet-100 bg-violet-50/50 p-5 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
+        <label className="block">
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">New Role Name</span>
+          <input
+            value={newRoleName}
+            disabled={saving}
+            onChange={(event) => onNameChange(event.target.value)}
+            placeholder="e.g. Trainer, QA Lead, Manager"
+            className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Description</span>
+          <input
+            value={newRoleDescription}
+            disabled={saving}
+            onChange={(event) => onDescriptionChange(event.target.value)}
+            placeholder="Short explanation for this role"
+            className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={onSave}
+          className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Add Role
+        </button>
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-100">
+        <table className="min-w-full border-collapse text-left text-sm">
+          <thead>
+            <tr className="bg-slate-950 text-white">
+              <th className="px-5 py-4 font-bold">Role</th>
+              <th className="px-5 py-4 font-bold">Description</th>
+              <th className="px-5 py-4 font-bold">Status</th>
+              <th className="px-5 py-4 font-bold">Control</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roles.map((role) => (
+              <tr key={role.name} className="border-b border-slate-100 last:border-b-0">
+                <td className="px-5 py-4">
+                  <div className="font-black text-slate-950">{role.name}</div>
+                  <div className="mt-0.5 text-xs font-semibold text-slate-500">
+                    {role.locked ? "Locked system role" : role.createdBy ? `Updated by ${role.createdBy}` : "Custom role"}
+                  </div>
+                </td>
+                <td className="px-5 py-4 text-slate-600">{role.description || "-"}</td>
+                <td className="px-5 py-4">
+                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                    {role.active ? "Active" : "Disabled"}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <button
+                    type="button"
+                    disabled={saving || role.locked}
+                    onClick={() => onToggle(role)}
+                    className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                  >
+                    {role.active ? "Disable" : "Enable"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        Step 1 stores custom role names only. Menu permissions still follow protected system roles until permission mapping is added later.
+      </div>
+    </div>
+  );
+}
+
 function EditableDirectoryTable({
   users,
   saving,
+  roleOptions,
   onChange,
   onGeneratePassword,
 }: {
   users: Array<{ user: EditableUser; index: number }>;
   saving: boolean;
+  roleOptions: string[];
   onChange: (index: number, key: keyof EditableUser, value: string) => void;
   onGeneratePassword: (index: number) => void;
 }) {
@@ -627,7 +859,7 @@ function EditableDirectoryTable({
                     onChange={(event) => onChange(index, "role", event.target.value)}
                     className="min-w-[170px] rounded-2xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                   >
-                    {ROLE_OPTIONS.map((role) => (
+                    {roleOptions.map((role) => (
                       <option key={role} value={role}>
                         {role}
                       </option>
@@ -686,6 +918,7 @@ function EditableDirectoryTable({
 function CreateUserModal({
   user,
   saving,
+  roleOptions,
   onChange,
   onGeneratePassword,
   onCancel,
@@ -693,6 +926,7 @@ function CreateUserModal({
 }: {
   user: EditableUser;
   saving: boolean;
+  roleOptions: string[];
   onChange: (key: keyof EditableUser, value: string) => void;
   onGeneratePassword: () => void;
   onCancel: () => void;
@@ -723,7 +957,7 @@ function CreateUserModal({
               onChange={(event) => onChange("role", event.target.value)}
               className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
             >
-              {ROLE_OPTIONS.map((role) => (
+              {roleOptions.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
