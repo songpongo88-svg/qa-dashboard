@@ -20,6 +20,9 @@ export type ChatMessage = {
   toDisplayName?: string;
   attachment?: ChatAttachment;
   kind?: "message" | "call";
+  callId?: string;
+  callStatus?: "pending" | "accepted" | "declined" | "ended";
+  callRespondedBy?: string;
   edited?: boolean;
   deleted?: boolean;
 };
@@ -90,6 +93,8 @@ export default function TeamChatMockup({
   onEditMessage,
   onDeleteMessage,
   onStartCall,
+  onCallResponse,
+  onEndCall,
   onMarkRoomRead,
   onRefresh,
 }: {
@@ -101,6 +106,8 @@ export default function TeamChatMockup({
   onEditMessage: (message: ChatMessage, nextMessage: string) => Promise<void>;
   onDeleteMessage: (message: ChatMessage) => Promise<void>;
   onStartCall: (toUser?: OnlineUser) => Promise<void>;
+  onCallResponse: (message: ChatMessage, response: "accepted" | "declined") => Promise<void>;
+  onEndCall: (message: ChatMessage) => Promise<void>;
   onMarkRoomRead: (roomKey: string) => void;
   onRefresh: () => void;
 }) {
@@ -110,6 +117,7 @@ export default function TeamChatMockup({
   const [editingMessageId, setEditingMessageId] = useState("");
   const [editingDraft, setEditingDraft] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeCall, setActiveCall] = useState<ChatMessage | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -134,6 +142,15 @@ export default function TeamChatMockup({
   }, [currentUser.username, messages, selectedRoom, selectedUser?.username]);
 
   const conversationStartedAt = visibleMessages[0]?.createdAt || "";
+  const incomingCalls = useMemo(() => {
+    const myUsername = currentUser.username.toLowerCase();
+    return messages.filter((message) => {
+      if (message.kind !== "call" || message.callStatus !== "pending") return false;
+      if (message.username.toLowerCase() === myUsername) return false;
+      if (message.room === "team") return true;
+      return String(message.toUsername || "").toLowerCase() === myUsername;
+    });
+  }, [currentUser.username, messages]);
 
   useEffect(() => {
     onMarkRoomRead(selectedRoomKey);
@@ -211,11 +228,102 @@ export default function TeamChatMockup({
     setShowEmojiPicker(false);
   };
 
+  const acceptCall = async (message: ChatMessage) => {
+    setSending(true);
+    setError("");
+    try {
+      await onCallResponse(message, "accepted");
+      setActiveCall(message);
+    } catch {
+      setError("Call could not be accepted. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const declineCall = async (message: ChatMessage) => {
+    setSending(true);
+    setError("");
+    try {
+      await onCallResponse(message, "declined");
+    } catch {
+      setError("Call could not be declined. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const endCall = async () => {
+    if (!activeCall) return;
+    setSending(true);
+    setError("");
+    try {
+      await onEndCall(activeCall);
+      setActiveCall(null);
+    } catch {
+      setError("Call could not be ended. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const roomTitle = selectedUser ? `Private Chat with ${selectedUser.displayName || selectedUser.username}` : "QA Dashboard Team Room";
   const roomSubtitle = selectedUser ? "Only you and this selected user will see this private thread in the dashboard UI." : "Messages here are visible to everyone in Team Chat.";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#edf7ff] px-5 py-6 lg:px-8">
+      {incomingCalls.length ? (
+        <div className="fixed right-6 top-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] rounded-[28px] border border-violet-200 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.25)]">
+          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700">Incoming Call</div>
+          <div className="mt-2 text-xl font-black text-slate-950">
+            {incomingCalls[0].displayName || incomingCalls[0].username}
+          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-500">
+            {incomingCalls[0].room === "team" ? "Group call in Team Room" : "Private call"}
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => void acceptCall(incomingCalls[0])}
+              disabled={sending}
+              className="flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              Accept
+            </button>
+            <button
+              type="button"
+              onClick={() => void declineCall(incomingCalls[0])}
+              disabled={sending}
+              className="flex-1 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-black text-white transition hover:bg-rose-700 disabled:opacity-50"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {activeCall ? (
+        <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-[520px] max-w-[calc(100vw-3rem)] rounded-[28px] border border-emerald-200 bg-slate-950 p-5 text-white shadow-[0_24px_70px_rgba(15,23,42,0.35)]">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Call Active</div>
+              <div className="mt-1 text-lg font-black">
+                {activeCall.room === "team" ? "Team group call" : `Private call with ${activeCall.displayName || activeCall.username}`}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-slate-300">Audio/video bridge placeholder is active in QA Dashboard.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void endCall()}
+              disabled={sending}
+              className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700 disabled:opacity-50"
+            >
+              End Call
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
           eyebrow="Team Chat"
@@ -337,6 +445,20 @@ export default function TeamChatMockup({
                         ) : (
                           <>
                             {message.message ? <div className={`mt-2 whitespace-pre-wrap text-sm leading-6 ${message.deleted ? "italic opacity-70" : ""}`}>{message.message}</div> : null}
+                            {message.kind === "call" ? (
+                              <div className={`mt-3 rounded-2xl border px-4 py-3 text-sm font-black ${
+                                message.callStatus === "accepted"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : message.callStatus === "declined"
+                                    ? "border-rose-200 bg-rose-50 text-rose-700"
+                                    : message.callStatus === "ended"
+                                      ? "border-slate-200 bg-slate-100 text-slate-600"
+                                      : "border-amber-200 bg-amber-100 text-amber-800"
+                              }`}>
+                                Status: {(message.callStatus || "pending").toUpperCase()}
+                                {message.callRespondedBy ? ` by ${message.callRespondedBy}` : ""}
+                              </div>
+                            ) : null}
                             {message.attachment ? (
                               <div className={`mt-3 rounded-2xl border p-3 ${isMine ? "border-white/20 bg-white/10" : "border-slate-200 bg-slate-50"}`}>
                                 {message.attachment.type.startsWith("image/") ? <img src={message.attachment.dataUrl} alt={message.attachment.name} className="max-h-72 rounded-xl object-contain" /> : null}
@@ -348,6 +470,12 @@ export default function TeamChatMockup({
                               <div className={`mt-3 flex gap-2 text-[11px] font-black ${isMine ? "text-violet-100" : "text-slate-500"}`}>
                                 <button type="button" onClick={() => { setEditingMessageId(message.id); setEditingDraft(message.message); }} className="underline">Edit</button>
                                 <button type="button" onClick={() => void onDeleteMessage(message)} className="underline">Delete</button>
+                              </div>
+                            ) : null}
+                            {!isMine && message.kind === "call" && message.callStatus === "pending" ? (
+                              <div className="mt-3 flex gap-2">
+                                <button type="button" onClick={() => void acceptCall(message)} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white">Accept</button>
+                                <button type="button" onClick={() => void declineCall(message)} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white">Decline</button>
                               </div>
                             ) : null}
                           </>

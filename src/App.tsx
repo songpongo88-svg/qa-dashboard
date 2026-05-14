@@ -591,7 +591,9 @@ function buildChatMessages(logs: UsageLogEvent[]) {
 
   sortedLogs.forEach((item) => {
     if (item.event_type === "chat_message" || item.event_type === "chat_call_invite") {
-      const id = item.id || `${item.username}-${item.created_at}`;
+      const id = item.event_type === "chat_call_invite"
+        ? String(item.details?.callId || item.id || `${item.username}-${item.created_at}`)
+        : item.id || `${item.username}-${item.created_at}`;
       const attachment =
         item.details?.attachment && typeof item.details.attachment === "object"
           ? (item.details.attachment as ChatAttachment)
@@ -611,6 +613,30 @@ function buildChatMessages(logs: UsageLogEvent[]) {
         toDisplayName: typeof item.details?.toDisplayName === "string" ? item.details.toDisplayName : "",
         attachment,
         kind: item.event_type === "chat_call_invite" ? "call" : "message",
+        callId: item.event_type === "chat_call_invite" ? id : undefined,
+        callStatus: item.event_type === "chat_call_invite" ? "pending" : undefined,
+      });
+    }
+
+    if (item.event_type === "chat_call_response" || item.event_type === "chat_call_ended") {
+      const callId = String(item.details?.callId || "");
+      const existing = messages.get(callId);
+      if (!existing) return;
+      const response = item.event_type === "chat_call_ended" ? "ended" : String(item.details?.response || "");
+      const callStatus =
+        response === "accepted" || response === "declined" || response === "ended" ? response : existing.callStatus;
+      messages.set(callId, {
+        ...existing,
+        callStatus,
+        callRespondedBy: item.display_name || item.username || existing.callRespondedBy,
+        message:
+          callStatus === "accepted"
+            ? `${item.display_name || item.username} accepted the call.`
+            : callStatus === "declined"
+              ? `${item.display_name || item.username} declined the call.`
+              : callStatus === "ended"
+                ? `${item.display_name || item.username} ended the call.`
+                : existing.message,
       });
     }
 
@@ -1779,16 +1805,47 @@ export default function App() {
   const startChatCall = async (toUser?: OnlineUser) => {
     if (!currentUser) return;
     const isPrivate = Boolean(toUser);
+    const callId = `call-${currentUser.username}-${Date.now()}`;
     await logUsageEvent(currentUser, "chat_call_invite", {
       tab: "team-chat",
       target_agent: toUser?.username || "",
       details: {
+        callId,
         message: isPrivate
           ? `${currentUser.displayName} started a private call invite for ${toUser?.displayName || toUser?.username}.`
           : `${currentUser.displayName} started a group call invite.`,
         room: isPrivate ? "private" : "team",
         toUsername: toUser?.username || "",
         toDisplayName: toUser?.displayName || "",
+      },
+    });
+    await loadChatData();
+  };
+
+  const respondChatCall = async (message: ChatMessage, response: "accepted" | "declined") => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "chat_call_response", {
+      tab: "team-chat",
+      target_agent: message.username || "",
+      details: {
+        callId: message.callId || message.id,
+        response,
+        room: message.room,
+        toUsername: message.username,
+        toDisplayName: message.displayName,
+      },
+    });
+    await loadChatData();
+  };
+
+  const endChatCall = async (message: ChatMessage) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "chat_call_ended", {
+      tab: "team-chat",
+      target_agent: message.username || "",
+      details: {
+        callId: message.callId || message.id,
+        room: message.room,
       },
     });
     await loadChatData();
@@ -2897,6 +2954,8 @@ export default function App() {
             onEditMessage={editChatMessage}
             onDeleteMessage={deleteChatMessage}
             onStartCall={startChatCall}
+            onCallResponse={respondChatCall}
+            onEndCall={endChatCall}
             onMarkRoomRead={markChatRoomRead}
             onRefresh={() => {
               void sendPresence();
