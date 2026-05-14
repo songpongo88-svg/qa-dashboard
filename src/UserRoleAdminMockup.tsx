@@ -49,10 +49,19 @@ type CurrentUser = {
   loginAt: string;
 } | null;
 
+type MaintenanceState = {
+  enabled: boolean;
+  message: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 type UserRoleAdminMockupProps = {
   accounts: UserAccount[];
   currentUser: CurrentUser;
   roleOverrides: Record<string, UserRole>;
+  maintenanceState: MaintenanceState;
+  onMaintenanceChanged: () => void | Promise<void>;
   onRolesChanged: () => void | Promise<void>;
 };
 
@@ -157,6 +166,8 @@ export default function UserRoleAdminMockup({
   accounts,
   currentUser,
   roleOverrides,
+  maintenanceState,
+  onMaintenanceChanged,
   onRolesChanged,
 }: UserRoleAdminMockupProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -171,6 +182,7 @@ export default function UserRoleAdminMockup({
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>(() => buildRoleDefinitions([]));
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDescription, setNewRoleDescription] = useState("");
+  const [maintenanceMessage, setMaintenanceMessage] = useState(maintenanceState.message);
 
   const activeRoleOptions = useMemo(
     () => roleDefinitions.filter((role) => role.active).map((role) => role.name),
@@ -208,6 +220,10 @@ export default function UserRoleAdminMockup({
   useEffect(() => {
     void loadRoleDefinitions();
   }, []);
+
+  useEffect(() => {
+    setMaintenanceMessage(maintenanceState.message);
+  }, [maintenanceState.message]);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -284,6 +300,23 @@ export default function UserRoleAdminMockup({
       return;
     }
     await saveRoleDefinition({ ...role, active: !role.active });
+  };
+
+  const saveMaintenanceMode = async (enabled: boolean) => {
+    setSaving(true);
+    setMessage("");
+    await logUsageEvent(currentUser, "system_maintenance_saved", {
+      tab: "user-roles",
+      details: {
+        enabled,
+        message: maintenanceMessage.trim() || "QA Dashboard is under maintenance. Please try again later.",
+        updatedBy: currentUser?.displayName || currentUser?.username || "",
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    await onMaintenanceChanged();
+    setSaving(false);
+    setMessage(enabled ? "Maintenance mode is now ON. Non-admin users cannot access the system." : "Maintenance mode is now OFF. Users can access the system again.");
   };
 
   const handleCancelEdit = () => {
@@ -499,6 +532,48 @@ export default function UserRoleAdminMockup({
           <MetricCard label="Senior" value={seniorUsers} tone="text-amber-600" />
           <MetricCard label="Supervisors" value={supervisorUsers} tone="text-sky-600" />
           <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
+        </div>
+
+        <div className={`mt-5 rounded-[28px] border p-5 shadow-sm ${maintenanceState.enabled ? "border-amber-200 bg-amber-50" : "border-violet-100 bg-white"}`}>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex-1">
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700">System Maintenance</div>
+              <div className="mt-2 text-xl font-black text-slate-950">
+                {maintenanceState.enabled ? "Maintenance Mode is ON" : "Maintenance Mode is OFF"}
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-500">
+                When enabled, non-admin users cannot access the dashboard and usage logging is paused for them.
+              </div>
+              <textarea
+                value={maintenanceMessage}
+                onChange={(event) => setMaintenanceMessage(event.target.value)}
+                className="mt-4 min-h-[76px] w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+              {maintenanceState.updatedBy ? (
+                <div className="mt-2 text-xs font-semibold text-slate-500">
+                  Last updated by {maintenanceState.updatedBy}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={saving || maintenanceState.enabled}
+                onClick={() => void saveMaintenanceMode(true)}
+                className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Turn On Maintenance
+              </button>
+              <button
+                type="button"
+                disabled={saving || !maintenanceState.enabled}
+                onClick={() => void saveMaintenanceMode(false)}
+                className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Turn Off Maintenance
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="mt-5 overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.08)]">

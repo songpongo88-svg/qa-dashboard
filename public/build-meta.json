@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141304",
-  "buildNumber": 2605141304,
-  "releaseLabel": "v1.0.0.2605141304",
-  "updatedAt": "14/05/2026 13:04:40",
+  "displayVersion": "1.0.0.2605141325",
+  "buildNumber": 2605141325,
+  "releaseLabel": "v1.0.0.2605141325",
+  "updatedAt": "14/05/2026 13:25:15",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f3ea97604bc6aa84933846f20bc72359f44d997c",
-  "commitMessage": "Separate create user modal",
+  "commitHash": "5edd6914b2518ec27b9d73cb455850b52037bca0",
+  "commitMessage": "Add custom role management",
   "changedFiles": [
     "public/build-meta.json",
+    "src/App.tsx",
     "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",

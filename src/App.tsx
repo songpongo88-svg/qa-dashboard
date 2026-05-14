@@ -60,6 +60,13 @@ type BuildMeta = {
   timezone?: string;
 };
 
+type MaintenanceState = {
+  enabled: boolean;
+  message: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 const USER_ACCOUNTS: UserAccount[] = [
   { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin", email: "Anucha@robinhood.co.th" },
   { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Agent", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "ลาออกแล้ว" },
@@ -119,6 +126,13 @@ const DEFAULT_BUILD_META: BuildMeta = {
   commitHash: "",
   commitMessage: "",
   timezone: "Asia/Bangkok",
+};
+
+const DEFAULT_MAINTENANCE_STATE: MaintenanceState = {
+  enabled: false,
+  message: "QA Dashboard is under maintenance. Please try again later.",
+  updatedAt: "",
+  updatedBy: "",
 };
 
 type PasswordResetRequest = {
@@ -196,6 +210,10 @@ function canAccessUserRoleAdmin(user: CurrentUser | null) {
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
   return user.role === "Quality Assurance" && (displayName === "songpon phothong" || username === "songpon");
+}
+
+function canBypassMaintenance(user: CurrentUser | null) {
+  return canAccessUserRoleAdmin(user);
 }
 
 function isSongkranThemeActive() {
@@ -581,6 +599,17 @@ function buildResetRequests(logs: UsageLogEvent[]) {
         tempPassword: typeof decision?.details?.password === "string" ? decision.details.password : "",
       };
     });
+}
+
+function buildMaintenanceState(logs: UsageLogEvent[]) {
+  const latest = logs.find((item) => item.event_type === "system_maintenance_saved");
+  if (!latest) return DEFAULT_MAINTENANCE_STATE;
+  return {
+    enabled: latest.details?.enabled === true,
+    message: String(latest.details?.message || DEFAULT_MAINTENANCE_STATE.message),
+    updatedAt: String(latest.details?.updatedAt || latest.created_at || ""),
+    updatedBy: String(latest.details?.updatedBy || latest.display_name || latest.username || ""),
+  };
 }
 
 function buildChatMessages(logs: UsageLogEvent[]) {
@@ -1448,6 +1477,46 @@ function TaskInboxMockup({
   );
 }
 
+function MaintenanceScreen({
+  state,
+  onLogout,
+  showLogout,
+}: {
+  state: MaintenanceState;
+  onLogout?: () => void;
+  showLogout?: boolean;
+}) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 px-5 py-8 text-white">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl items-center justify-center">
+        <div className="w-full overflow-hidden rounded-[36px] border border-white/15 bg-white/10 p-8 text-center shadow-[0_32px_90px_rgba(15,23,42,0.35)] backdrop-blur-xl">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/20 bg-white/15">
+            <img src="/robinhood-logo.png" alt="Robinhood QA" className="h-12 w-12 rounded-2xl bg-white/90 object-contain p-2" />
+          </div>
+          <div className="mt-6 text-xs font-black uppercase tracking-[0.3em] text-violet-200">Maintenance Mode</div>
+          <div className="mt-3 text-4xl font-black tracking-tight">QA Dashboard is under maintenance</div>
+          <div className="mx-auto mt-4 max-w-2xl text-base leading-7 text-violet-100">
+            {state.message || DEFAULT_MAINTENANCE_STATE.message}
+          </div>
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 px-5 py-4 text-sm font-semibold text-violet-100">
+            Usage log is paused for non-admin users while maintenance mode is active.
+            {state.updatedBy ? ` Last updated by ${state.updatedBy}.` : ""}
+          </div>
+          {showLogout ? (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="mt-6 rounded-2xl border border-white/20 bg-white px-6 py-3 text-sm font-black text-violet-800 shadow-sm transition hover:bg-violet-50"
+            >
+              Sign out
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
   const [username, setUsername] = useState("");
@@ -1479,6 +1548,7 @@ export default function App() {
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
+  const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
   const [liveNow, setLiveNow] = useState(() => new Date());
 
@@ -1513,6 +1583,7 @@ export default function App() {
   const appealRequestsAllowed = canAccessAppealRequests(currentUser);
   const passwordResetAdminAllowed = canAccessPasswordResetAdmin(currentUser);
   const roleAdminAllowed = canAccessUserRoleAdmin(currentUser);
+  const maintenanceBlocked = maintenanceState.enabled && !canBypassMaintenance(currentUser);
   const canUseAdminAccountMenu = currentUser?.role === "Supervisor" || currentUser?.role === "Quality Assurance";
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
@@ -1722,6 +1793,19 @@ export default function App() {
     }
   };
 
+  const loadMaintenanceState = async () => {
+    try {
+      const logs = await fetchUsageLogs(5000);
+      setMaintenanceState(buildMaintenanceState(logs));
+    } catch {
+      setMaintenanceState(DEFAULT_MAINTENANCE_STATE);
+    }
+  };
+
+  const handleMaintenanceChanged = async () => {
+    await loadMaintenanceState();
+  };
+
   const loadChatData = async () => {
     if (!currentUser) {
       setChatMessages([]);
@@ -1915,6 +1999,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    void loadMaintenanceState();
+    const timer = window.setInterval(() => {
+      void loadMaintenanceState();
+    }, 30000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       setLiveNow(new Date());
     }, 1000);
@@ -1952,14 +2045,15 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) return;
+    if (maintenanceBlocked) return;
     logUsageEvent(currentUser, "tab_view", {
       tab: activeTab,
       details: { dashboardSubTab },
     });
-  }, [activeTab, dashboardSubTab, currentUser]);
+  }, [activeTab, dashboardSubTab, currentUser, maintenanceBlocked]);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!currentUser || maintenanceBlocked) {
       setInboxTasks([]);
       return;
     }
@@ -1970,10 +2064,10 @@ export default function App() {
     }, 60000);
 
     return () => window.clearInterval(timer);
-  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber]);
+  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked]);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!currentUser || maintenanceBlocked) {
       setChatMessages([]);
       setOnlineUsers([]);
       return;
@@ -1993,7 +2087,7 @@ export default function App() {
       window.clearInterval(presenceTimer);
       window.clearInterval(chatTimer);
     };
-  }, [currentUser, activeTab]);
+  }, [currentUser, activeTab, maintenanceBlocked]);
 
   useEffect(() => {
     let isMounted = true;
@@ -2124,7 +2218,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    if (currentUser) {
+    if (currentUser && !maintenanceBlocked) {
       logUsageEvent(currentUser, "logout", { tab: activeTab });
     }
     clearSessionTimers();
@@ -2252,9 +2346,16 @@ export default function App() {
       loginAt: new Date().toISOString(),
     };
 
+    if (maintenanceState.enabled && !canBypassMaintenance(nextUser)) {
+      setLoginError(maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message);
+      return;
+    }
+
     setCurrentUser(nextUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-    logUsageEvent(nextUser, "login", { tab: "dashboard" });
+    if (!maintenanceState.enabled || canBypassMaintenance(nextUser)) {
+      logUsageEvent(nextUser, "login", { tab: "dashboard" });
+    }
 
     setLoginError("");
     setUsername("");
@@ -2289,6 +2390,12 @@ export default function App() {
   };
 
   const handleForgotPasswordRequest = async () => {
+    if (maintenanceState.enabled) {
+      setForgotPasswordError("Password reset is paused while the system is under maintenance.");
+      setForgotPasswordSuccess("");
+      return;
+    }
+
     const normalizedUsername = forgotUsernameInput.trim().toLowerCase();
     const normalizedEmail = normalizeEmail(forgotEmailInput);
     const centralUserAccounts = await getCentralEffectiveUserAccounts();
@@ -2604,8 +2711,18 @@ export default function App() {
                 <div className="mt-5">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">Sign In</div>
                   <div className="mt-2 text-[26px] font-bold tracking-tight text-slate-900 sm:text-[30px]">Welcome back</div>
-                  <div className="mt-2 text-sm leading-6 text-slate-500">Enter your credentials to access the Robinhood QA workspace.</div>
+                  <div className="mt-2 text-sm leading-6 text-slate-500">
+                    {maintenanceState.enabled
+                      ? "Maintenance mode is active. Only Songpon admin access can continue."
+                      : "Enter your credentials to access the Robinhood QA workspace."}
+                  </div>
                 </div>
+
+                {maintenanceState.enabled ? (
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                    {maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message}
+                  </div>
+                ) : null}
 
                 <div className="mt-7 space-y-4">
                   <div>
@@ -2646,6 +2763,10 @@ export default function App() {
         </div>
       </>
     );
+  }
+
+  if (maintenanceBlocked) {
+    return <MaintenanceScreen state={maintenanceState} onLogout={handleLogout} showLogout />;
   }
 
   return (
@@ -2989,6 +3110,8 @@ export default function App() {
             accounts={effectiveUserAccounts}
             currentUser={currentUser}
             roleOverrides={roleOverrides}
+            maintenanceState={maintenanceState}
+            onMaintenanceChanged={handleMaintenanceChanged}
             onRolesChanged={loadRoleOverrides}
           />
         ) : (
