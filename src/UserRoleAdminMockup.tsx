@@ -430,8 +430,8 @@ export default function UserRoleAdminMockup({
   };
 
   const deleteRoleDefinition = async (role: RoleDefinition) => {
-    if (role.locked || isSystemRole(role.name)) {
-      setMessage("Default system roles cannot be deleted. You can only delete custom roles.");
+    if (role.locked) {
+      setMessage("Quality Assurance role is locked for system safety.");
       return;
     }
     const roleInUse = rows.some((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase());
@@ -455,6 +455,53 @@ export default function UserRoleAdminMockup({
     await onRolesChanged();
     setSaving(false);
     setMessage(`Deleted role ${role.name}.`);
+  };
+
+  const saveRoleDetails = async (role: RoleDefinition, nextName: string, nextDescription: string) => {
+    const cleanedName = nextName.trim();
+    const cleanedDescription = nextDescription.trim();
+    if (!cleanedName) {
+      setMessage("Role name is required.");
+      return;
+    }
+
+    const roleInUse = rows.some((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase());
+    const nameChanged = cleanedName.toLowerCase() !== role.name.toLowerCase();
+    if (nameChanged && (role.locked || isSystemRole(role.name) || roleInUse)) {
+      setMessage("Role name can be changed only for custom roles that have no assigned users.");
+      return;
+    }
+    if (nameChanged && roleDefinitions.some((item) => item.name.toLowerCase() === cleanedName.toLowerCase())) {
+      setMessage(`Role already exists: ${cleanedName}`);
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    if (nameChanged) {
+      await logUsageEvent(currentUser, "role_definition_deleted", {
+        tab: "user-roles",
+        details: {
+          name: role.name,
+          deletedBy: currentUser?.displayName || currentUser?.username || "",
+          deletedAt: new Date().toISOString(),
+        },
+      });
+    }
+    await logUsageEvent(currentUser, "role_definition_saved", {
+      tab: "user-roles",
+      details: {
+        name: cleanedName,
+        description: cleanedDescription,
+        active: role.active,
+        updatedBy: currentUser?.displayName || currentUser?.username || "",
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    await loadRoleDefinitions();
+    await onRolesChanged();
+    setSaving(false);
+    setMessage(`Saved role ${cleanedName}.`);
   };
 
   const updateRolePermission = (roleName: string, key: RolePermissionKey, value: boolean) => {
@@ -849,12 +896,12 @@ export default function UserRoleAdminMockup({
               onNameChange={setNewRoleName}
               onDescriptionChange={setNewRoleDescription}
               onSave={() => void saveRoleDefinition()}
+              onSaveRoleDetails={(role, name, description) => void saveRoleDetails(role, name, description)}
               onToggle={(role) => void toggleRoleActive(role)}
               onDelete={(role) => void deleteRoleDefinition(role)}
               permissionDrafts={permissionDrafts}
               onPermissionChange={updateRolePermission}
               onSavePermissions={() => void saveRolePermissions()}
-              onOpenUsers={() => setAdminTab("users")}
             />
           ) : (
             <>
@@ -1000,11 +1047,11 @@ function RoleManagementPanel({
   onNameChange,
   onDescriptionChange,
   onSave,
+  onSaveRoleDetails,
   onToggle,
   onDelete,
   onPermissionChange,
   onSavePermissions,
-  onOpenUsers,
 }: {
   roles: RoleDefinition[];
   roleUserCounts: Record<string, number>;
@@ -1015,14 +1062,16 @@ function RoleManagementPanel({
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onSave: () => void;
+  onSaveRoleDetails: (role: RoleDefinition, name: string, description: string) => void;
   onToggle: (role: RoleDefinition) => void;
   onDelete: (role: RoleDefinition) => void;
   onPermissionChange: (roleName: string, key: RolePermissionKey, value: boolean) => void;
   onSavePermissions: () => void;
-  onOpenUsers: () => void;
 }) {
   const activeRoles = roles.filter((role) => role.active);
   const [roleAdminSubTab, setRoleAdminSubTab] = useState<RoleAdminSubTab>("role-list");
+  const [editingRoleName, setEditingRoleName] = useState("");
+  const [editingRoleDraft, setEditingRoleDraft] = useState({ name: "", description: "" });
   const [selectedRoleName, setSelectedRoleName] = useState(activeRoles[0]?.name || "");
   const selectedRole = activeRoles.find((role) => role.name === selectedRoleName) || activeRoles[0];
   const selectedPermissions = selectedRole
@@ -1088,8 +1137,7 @@ function RoleManagementPanel({
       <div className="mb-4 rounded-[22px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm font-semibold leading-6 text-sky-900">
         <div className="font-black">How to use Role List</div>
         <div className="mt-1">
-          Add Role creates a new custom role. Disable/Delete is available only when no users are assigned to that role.
-          If a button is grey, click Manage Users first and move those users to another role.
+          Add a role above, or use Edit on each card to update the role text. Disable/Delete is available when no users are assigned.
         </div>
       </div>
       <div className="grid gap-4 rounded-[24px] border border-violet-100 bg-violet-50/50 p-5 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
@@ -1123,86 +1171,134 @@ function RoleManagementPanel({
         </button>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-100">
-        <table className="min-w-full border-collapse text-left text-sm">
-          <thead>
-            <tr className="bg-slate-950 text-white">
-              <th className="px-5 py-4 font-bold">Role</th>
-              <th className="px-5 py-4 font-bold">Description</th>
-              <th className="px-5 py-4 font-bold">Users</th>
-              <th className="px-5 py-4 font-bold">Status</th>
-              <th className="px-5 py-4 font-bold">Control</th>
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((role) => (
-              <tr key={role.name} className="border-b border-slate-100 last:border-b-0">
-                <td className="px-5 py-4">
-                  <div className="font-black text-slate-950">{role.name}</div>
-                  <div className="mt-0.5 text-xs font-semibold text-slate-500">
-                    {role.locked ? "Locked system role" : role.createdBy ? `Updated by ${role.createdBy}` : "Custom role"}
-                  </div>
-                </td>
-                <td className="px-5 py-4 text-slate-600">{role.description || "-"}</td>
-                <td className="px-5 py-4">
-                  <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
-                    {roleUserCounts[role.name] || 0} user(s)
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                    {role.active ? "Active" : "Disabled"}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <div className="flex flex-wrap gap-2">
-                    {roleUserCounts[role.name] ? (
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        {roles.map((role) => {
+          const userCount = roleUserCounts[role.name] || 0;
+          const editing = editingRoleName === role.name;
+          const canRename = !role.locked && !isSystemRole(role.name) && userCount === 0;
+          const canToggle = !role.locked && userCount === 0;
+          const canDelete = !role.locked && userCount === 0;
+          return (
+            <div key={role.name} className={`rounded-[26px] border p-5 shadow-sm transition ${
+              role.active ? "border-violet-100 bg-white" : "border-rose-100 bg-rose-50/40"
+            }`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  {editing ? (
+                    <div className="space-y-3">
+                      <label className="block">
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Role Name</span>
+                        <input
+                          value={editingRoleDraft.name}
+                          disabled={!canRename || saving}
+                          onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, name: event.target.value }))}
+                          className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Description</span>
+                        <textarea
+                          value={editingRoleDraft.description}
+                          disabled={saving}
+                          onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, description: event.target.value }))}
+                          className="mt-2 min-h-[86px] w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-xl font-black text-slate-950">{role.name}</div>
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
+                          role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
+                        }`}>
+                          {role.active ? "Active" : "Disabled"}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        {role.locked ? "Locked system role" : role.createdBy ? `Updated by ${role.createdBy}` : "Custom role"}
+                      </div>
+                      <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-600">
+                        {role.description || "No description yet. Click Edit to add one."}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="shrink-0 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
+                  <div className="text-2xl font-black text-slate-950">{userCount}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Users</div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs font-semibold text-slate-500">
+                  {userCount ? "Assigned users keep this role protected from disable/delete." : canRename ? "Custom role with no users. Full edit is available." : "No users assigned. Status can be changed."}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {editing ? (
+                    <>
                       <button
                         type="button"
-                        onClick={onOpenUsers}
-                        className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-700 transition hover:bg-sky-100"
+                        onClick={() => {
+                          setEditingRoleName("");
+                          setEditingRoleDraft({ name: "", description: "" });
+                        }}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
                       >
-                        Manage Users
+                        Cancel
                       </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          disabled={saving || role.locked}
-                          onClick={() => onToggle(role)}
-                          className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                        >
-                          {role.active ? "Disable" : "Enable"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={saving || role.locked || isSystemRole(role.name)}
-                          title={isSystemRole(role.name) ? "Default system roles cannot be deleted." : ""}
-                          onClick={() => onDelete(role)}
-                          className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  {roleUserCounts[role.name] ? (
-                    <div className="mt-2 max-w-[260px] text-xs font-semibold leading-5 text-slate-500">
-                      Locked because {roleUserCounts[role.name]} user(s) are assigned. Move users first.
-                    </div>
-                  ) : isSystemRole(role.name) ? (
-                    <div className="mt-2 max-w-[260px] text-xs font-semibold leading-5 text-slate-500">
-                      Default system role. You can disable it if unused, but cannot delete it.
-                    </div>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          onSaveRoleDetails(role, editingRoleDraft.name, editingRoleDraft.description);
+                          setEditingRoleName("");
+                        }}
+                        className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        Save Role
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          setEditingRoleName(role.name);
+                          setEditingRoleDraft({ name: role.name, description: role.description || "" });
+                        }}
+                        className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={saving || !canToggle}
+                        onClick={() => onToggle(role)}
+                        className="rounded-2xl border border-amber-200 bg-white px-4 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        {role.active ? "Disable" : "Enable"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={saving || !canDelete}
+                        onClick={() => onDelete(role)}
+                        className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800">
-        Disable/Delete will be locked if users are still assigned to that role. Move those users to another role in the Users tab first.
+        Tip: Delete is now available for unused roles, including old default roles. If users are assigned, change their role in the Users tab first.
       </div>
       </>
       ) : null}

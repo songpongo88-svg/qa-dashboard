@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141551",
-  "buildNumber": 2605141551,
-  "releaseLabel": "v1.0.0.2605141551",
-  "updatedAt": "14/05/2026 15:51:52",
+  "displayVersion": "1.0.0.2605141610",
+  "buildNumber": 2605141610,
+  "releaseLabel": "v1.0.0.2605141610",
+  "updatedAt": "14/05/2026 16:10:40",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "26536cc5ea86fb3a8330fadbd93777f750a6220e",
-  "commitMessage": "Clarify role management controls",
+  "commitHash": "ceb5afa88e85cd1b41dd9373b9843a902f8bee0c",
+  "commitMessage": "Improve role list actions",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
