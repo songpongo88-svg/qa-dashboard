@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141446",
-  "buildNumber": 2605141446,
-  "releaseLabel": "v1.0.0.2605141446",
-  "updatedAt": "14/05/2026 14:46:27",
+  "displayVersion": "1.0.0.2605141451",
+  "buildNumber": 2605141451,
+  "releaseLabel": "v1.0.0.2605141451",
+  "updatedAt": "14/05/2026 14:51:29",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "402b728763215e83f7e4a3de7900a18f2c1d76d8",
-  "commitMessage": "Compact header welcome card",
+  "commitHash": "97faddb6f41dc09a1c3c5b5b953e6a1ae0709038",
+  "commitMessage": "Restore welcome details beside logo",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
