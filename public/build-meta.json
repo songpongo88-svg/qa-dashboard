@@ -1,19 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141130",
-  "buildNumber": 2605141130,
-  "releaseLabel": "v1.0.0.2605141130",
-  "updatedAt": "14/05/2026 11:30:54",
+  "displayVersion": "1.0.0.2605141151",
+  "buildNumber": 2605141151,
+  "releaseLabel": "v1.0.0.2605141151",
+  "updatedAt": "14/05/2026 11:51:26",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "62f126926435269112698d40326b24e03f34edf4",
-  "commitMessage": "Notify agents for appeal overrides",
+  "commitHash": "4ece8c336a418dff091c841810bd0307c789a479",
+  "commitMessage": "Upgrade team chat call workflow",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx",
-    "src/AppealOverrideMockup.tsx",
-    "src/DashboardMockup.tsx"
+    "src/TeamChatMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -25,6 +25,7 @@ type EditableUser = {
   role: UserRole;
   status: UserStatus;
   suspendReason: string;
+  temporaryPassword: string;
 };
 
 type DirectoryTab = "active" | "suspended";
@@ -64,6 +65,7 @@ function toEditableUser(account: UserAccount): EditableUser {
     role: account.role,
     status: account.status || "Active",
     suspendReason: account.suspendReason || "",
+    temporaryPassword: "",
   };
 }
 
@@ -84,6 +86,18 @@ function formatDateTime(value = new Date().toISOString()) {
   }).format(new Date(value));
 }
 
+function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function generateTemporaryPassword() {
+  const letters = Math.random().toString(36).slice(2, 8);
+  const number = Math.floor(100 + Math.random() * 900);
+  return `Qa#${number}${letters}A`;
+}
+
 export default function UserRoleAdminMockup({
   accounts,
   currentUser,
@@ -93,6 +107,7 @@ export default function UserRoleAdminMockup({
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [accessMessage, setAccessMessage] = useState("");
   const [draftUsers, setDraftUsers] = useState<EditableUser[]>([]);
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
 
@@ -134,6 +149,10 @@ export default function UserRoleAdminMockup({
     );
   };
 
+  const generateDraftPassword = (index: number) => {
+    updateDraftUser(index, "temporaryPassword", generateTemporaryPassword());
+  };
+
   const handleAddUser = () => {
     setDraftUsers((currentDrafts) => [
       {
@@ -144,15 +163,18 @@ export default function UserRoleAdminMockup({
         role: "Agent",
         status: "Active",
         suspendReason: "",
+        temporaryPassword: generateTemporaryPassword(),
       },
       ...currentDrafts,
     ]);
+    setDirectoryTab("active");
   };
 
   const handleCancelEdit = () => {
     setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
     setIsEditing(false);
     setMessage("");
+    setAccessMessage("");
   };
 
   const handleSaveDirectory = async () => {
@@ -187,6 +209,12 @@ export default function UserRoleAdminMockup({
 
     setSaving(true);
     setMessage("");
+    setAccessMessage("");
+
+    const existingUsernames = new Set(rows.map((row) => normalizeUsername(row.username)));
+    const accessUpdates = cleanedUsers.filter(
+      (user) => user.temporaryPassword || !existingUsernames.has(normalizeUsername(user.username))
+    );
 
     for (const user of cleanedUsers) {
       await logUsageEvent(currentUser, "user_profile_saved", {
@@ -198,12 +226,40 @@ export default function UserRoleAdminMockup({
           updatedAt: new Date().toISOString(),
         },
       });
+
+      if (user.temporaryPassword) {
+        const issuedAt = new Date();
+        await logUsageEvent(currentUser, "password_reset_approved", {
+          tab: "user-roles",
+          target_agent: user.username,
+          details: {
+            requestId: `directory-access-${normalizeUsername(user.username)}-${Date.now()}`,
+            username: user.username,
+            displayName: user.displayName,
+            email: user.email,
+            password: user.temporaryPassword,
+            passwordKind: "temporary",
+            issuedAt: issuedAt.toISOString(),
+            expiresAt: addDays(issuedAt, 15).toISOString(),
+            resetMode: "directory-access",
+            approvedBy: currentUser?.displayName || currentUser?.username || "",
+            approvedAt: issuedAt.toISOString(),
+          },
+        });
+      }
     }
 
     await onRolesChanged();
     setSaving(false);
     setIsEditing(false);
     setMessage(`Saved ${cleanedUsers.length} user profile(s).`);
+    if (accessUpdates.length) {
+      setAccessMessage(
+        accessUpdates
+          .map((user) => `${user.displayName || user.username}: ${user.temporaryPassword || "RBH1234"}`)
+          .join(" | ")
+      );
+    }
   };
 
   const handleExportPdf = () => {
@@ -277,13 +333,18 @@ export default function UserRoleAdminMockup({
                   : "Read-only view. Click Edit Directory when you need to update users."}
               </div>
               {message ? <div className="mt-2 text-sm font-semibold text-violet-700">{message}</div> : null}
+              {accessMessage ? (
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                  Temporary access password(s): {accessMessage}
+                </div>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap gap-3">
               {isEditing ? (
                 <>
                   <button type="button" onClick={handleAddUser} className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50">
-                    Add User
+                    Create User
                   </button>
                   <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                     Cancel
@@ -339,6 +400,7 @@ export default function UserRoleAdminMockup({
               users={visibleDraftUsers}
               saving={saving}
               onChange={updateDraftUser}
+              onGeneratePassword={generateDraftPassword}
             />
           ) : (
             <ReadOnlyDirectoryTable rows={visibleRows} />
@@ -435,10 +497,12 @@ function EditableDirectoryTable({
   users,
   saving,
   onChange,
+  onGeneratePassword,
 }: {
   users: Array<{ user: EditableUser; index: number }>;
   saving: boolean;
   onChange: (index: number, key: keyof EditableUser, value: string) => void;
+  onGeneratePassword: (index: number) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -452,6 +516,7 @@ function EditableDirectoryTable({
             <th className="px-4 py-4 font-bold">Role</th>
             <th className="px-4 py-4 font-bold">Status</th>
             <th className="px-4 py-4 font-bold">Suspend Reason</th>
+            <th className="px-4 py-4 font-bold">Access Password</th>
           </tr>
         </thead>
         <tbody>
@@ -501,6 +566,29 @@ function EditableDirectoryTable({
                 </td>
                 <td className="px-4 py-4">
                   <TextInput value={user.suspendReason} disabled={saving || user.status === "Active"} onChange={(value) => onChange(index, "suspendReason", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex min-w-[250px] items-center gap-2">
+                    <input
+                      type="text"
+                      value={user.temporaryPassword}
+                      disabled={saving}
+                      onChange={(event) => onChange(index, "temporaryPassword", event.target.value)}
+                      placeholder="Generate temporary password"
+                      className="w-full rounded-2xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={saving || !user.username}
+                      onClick={() => onGeneratePassword(index)}
+                      className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Generate
+                    </button>
+                  </div>
+                  <div className="mt-1 text-[11px] font-semibold text-slate-500">
+                    Temporary password expires in 15 days and forces password setup after login.
+                  </div>
                 </td>
               </tr>
             );
