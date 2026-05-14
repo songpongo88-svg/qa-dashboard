@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141422",
-  "buildNumber": 2605141422,
-  "releaseLabel": "v1.0.0.2605141422",
-  "updatedAt": "14/05/2026 14:22:48",
+  "displayVersion": "1.0.0.2605141433",
+  "buildNumber": 2605141433,
+  "releaseLabel": "v1.0.0.2605141433",
+  "updatedAt": "14/05/2026 14:33:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "27f3a23f252aa370314a4d31f9731541bfe78441",
-  "commitMessage": "Improve header menu spacing",
+  "commitHash": "3b10176a2114f09de0c7d16a7e8be483361d3617",
+  "commitMessage": "Prevent header dropdown overlap",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
