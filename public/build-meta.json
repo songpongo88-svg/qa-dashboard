@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141151",
-  "buildNumber": 2605141151,
-  "releaseLabel": "v1.0.0.2605141151",
-  "updatedAt": "14/05/2026 11:51:26",
+  "displayVersion": "1.0.0.2605141157",
+  "buildNumber": 2605141157,
+  "releaseLabel": "v1.0.0.2605141157",
+  "updatedAt": "14/05/2026 11:57:45",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "4ece8c336a418dff091c841810bd0307c789a479",
-  "commitMessage": "Upgrade team chat call workflow",
+  "commitHash": "eec2b3c294d662472d3fe2572fa9a20a3569db01",
+  "commitMessage": "Add user access password management",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/TeamChatMockup.tsx"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

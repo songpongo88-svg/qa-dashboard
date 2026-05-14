@@ -98,6 +98,19 @@ function generateTemporaryPassword() {
   return `Qa#${number}${letters}A`;
 }
 
+function createBlankUser(): EditableUser {
+  return {
+    username: "",
+    displayName: "",
+    agentName: "",
+    email: "",
+    role: "Agent",
+    status: "Active",
+    suspendReason: "",
+    temporaryPassword: generateTemporaryPassword(),
+  };
+}
+
 export default function UserRoleAdminMockup({
   accounts,
   currentUser,
@@ -109,6 +122,8 @@ export default function UserRoleAdminMockup({
   const [message, setMessage] = useState("");
   const [accessMessage, setAccessMessage] = useState("");
   const [draftUsers, setDraftUsers] = useState<EditableUser[]>([]);
+  const [createUserOpen, setCreateUserOpen] = useState(false);
+  const [newUserDraft, setNewUserDraft] = useState<EditableUser>(() => createBlankUser());
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
 
   const rows = useMemo(() => {
@@ -153,21 +168,14 @@ export default function UserRoleAdminMockup({
     updateDraftUser(index, "temporaryPassword", generateTemporaryPassword());
   };
 
-  const handleAddUser = () => {
-    setDraftUsers((currentDrafts) => [
-      {
-        username: "",
-        displayName: "",
-        agentName: "",
-        email: "",
-        role: "Agent",
-        status: "Active",
-        suspendReason: "",
-        temporaryPassword: generateTemporaryPassword(),
-      },
-      ...currentDrafts,
-    ]);
-    setDirectoryTab("active");
+  const updateNewUserDraft = (key: keyof EditableUser, value: string) => {
+    setNewUserDraft((currentDraft) => ({ ...currentDraft, [key]: value }));
+  };
+
+  const openCreateUserModal = () => {
+    setNewUserDraft(createBlankUser());
+    setMessage("");
+    setCreateUserOpen(true);
   };
 
   const handleCancelEdit = () => {
@@ -175,6 +183,68 @@ export default function UserRoleAdminMockup({
     setIsEditing(false);
     setMessage("");
     setAccessMessage("");
+  };
+
+  const saveNewUser = async () => {
+    const cleanedUser = {
+      ...newUserDraft,
+      username: newUserDraft.username.trim(),
+      displayName: newUserDraft.displayName.trim(),
+      agentName: newUserDraft.agentName.trim() || newUserDraft.displayName.trim(),
+      email: newUserDraft.email.trim(),
+      suspendReason: newUserDraft.suspendReason.trim(),
+      temporaryPassword: newUserDraft.temporaryPassword || generateTemporaryPassword(),
+    };
+
+    if (!cleanedUser.username || !cleanedUser.displayName) {
+      setMessage("Username and display name are required before creating a user.");
+      return;
+    }
+
+    if (rows.some((row) => normalizeUsername(row.username) === normalizeUsername(cleanedUser.username))) {
+      setMessage(`Username already exists: ${cleanedUser.username}`);
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    setAccessMessage("");
+
+    await logUsageEvent(currentUser, "user_profile_saved", {
+      tab: "user-roles",
+      target_agent: cleanedUser.username,
+      details: {
+        ...cleanedUser,
+        updatedBy: currentUser?.displayName || currentUser?.username || "",
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+    const issuedAt = new Date();
+    await logUsageEvent(currentUser, "password_reset_approved", {
+      tab: "user-roles",
+      target_agent: cleanedUser.username,
+      details: {
+        requestId: `directory-access-${normalizeUsername(cleanedUser.username)}-${Date.now()}`,
+        username: cleanedUser.username,
+        displayName: cleanedUser.displayName,
+        email: cleanedUser.email,
+        password: cleanedUser.temporaryPassword,
+        passwordKind: "temporary",
+        issuedAt: issuedAt.toISOString(),
+        expiresAt: addDays(issuedAt, 15).toISOString(),
+        resetMode: "directory-access",
+        approvedBy: currentUser?.displayName || currentUser?.username || "",
+        approvedAt: issuedAt.toISOString(),
+      },
+    });
+
+    await onRolesChanged();
+    setSaving(false);
+    setCreateUserOpen(false);
+    setDirectoryTab(cleanedUser.status === "Suspended" ? "suspended" : "active");
+    setMessage(`Created user ${cleanedUser.displayName}.`);
+    setAccessMessage(`${cleanedUser.displayName || cleanedUser.username}: ${cleanedUser.temporaryPassword}`);
   };
 
   const handleSaveDirectory = async () => {
@@ -343,9 +413,6 @@ export default function UserRoleAdminMockup({
             <div className="flex flex-wrap gap-3">
               {isEditing ? (
                 <>
-                  <button type="button" onClick={handleAddUser} className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50">
-                    Create User
-                  </button>
                   <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
                     Cancel
                   </button>
@@ -360,6 +427,9 @@ export default function UserRoleAdminMockup({
                 </>
               ) : (
                 <>
+                  <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800">
+                    Create User
+                  </button>
                   <button type="button" onClick={handleExportPdf} className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50">
                     Export PDF
                   </button>
@@ -407,6 +477,20 @@ export default function UserRoleAdminMockup({
           )}
         </div>
       </div>
+
+      {createUserOpen ? (
+        <CreateUserModal
+          user={newUserDraft}
+          saving={saving}
+          onChange={updateNewUserDraft}
+          onGeneratePassword={() => updateNewUserDraft("temporaryPassword", generateTemporaryPassword())}
+          onCancel={() => {
+            if (saving) return;
+            setCreateUserOpen(false);
+          }}
+          onSave={saveNewUser}
+        />
+      ) : null}
     </div>
   );
 }
@@ -596,6 +680,148 @@ function EditableDirectoryTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function CreateUserModal({
+  user,
+  saving,
+  onChange,
+  onGeneratePassword,
+  onCancel,
+  onSave,
+}: {
+  user: EditableUser;
+  saving: boolean;
+  onChange: (key: keyof EditableUser, value: string) => void;
+  onGeneratePassword: () => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-3xl overflow-hidden rounded-[30px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+        <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white">
+          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">New Access</div>
+          <div className="mt-2 text-2xl font-black">Create User</div>
+          <div className="mt-1 text-sm font-semibold text-violet-100">
+            Create a new dashboard account with role, status, email, and temporary password.
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-6 md:grid-cols-2">
+          <ModalField label="Username" value={user.username} onChange={(value) => onChange("username", value)} placeholder="e.g. anucha" />
+          <ModalField label="Display Name" value={user.displayName} onChange={(value) => onChange("displayName", value)} placeholder="Full name" />
+          <ModalField label="Agent Name" value={user.agentName} onChange={(value) => onChange("agentName", value)} placeholder="Name used in RawData" />
+          <ModalField label="Email" value={user.email} onChange={(value) => onChange("email", value)} placeholder="name@robinhood.co.th" />
+
+          <label className="block">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Role</span>
+            <select
+              value={user.role}
+              disabled={saving}
+              onChange={(event) => onChange("role", event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Status</span>
+            <select
+              value={user.status}
+              disabled={saving}
+              onChange={(event) => onChange("status", event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="md:col-span-2">
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Temporary Password</span>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={user.temporaryPassword}
+                  disabled={saving}
+                  onChange={(event) => onChange("temporaryPassword", event.target.value)}
+                  className="w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                />
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={onGeneratePassword}
+                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Generate
+                </button>
+              </div>
+              <div className="mt-2 text-xs font-semibold text-slate-500">
+                This password expires in 15 days. User must create a new password after login.
+              </div>
+            </label>
+          </div>
+
+          <div className="md:col-span-2">
+            <ModalField
+              label="Suspend Reason"
+              value={user.suspendReason}
+              onChange={(value) => onChange("suspendReason", value)}
+              placeholder="Required only when status is Suspended"
+              disabled={saving || user.status === "Active"}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
+          <button type="button" onClick={onCancel} disabled={saving} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            Cancel
+          </button>
+          <button type="button" onClick={onSave} disabled={saving} className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">
+            {saving ? "Creating..." : "Create User"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">{label}</span>
+      <input
+        type="text"
+        value={value}
+        disabled={disabled}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+      />
+    </label>
   );
 }
 
