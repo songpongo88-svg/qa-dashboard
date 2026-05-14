@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 
@@ -16,10 +17,62 @@ export type AppealCaseOverride = {
   note: string;
   addedAt: string;
   addedBy: string;
+  targetAgent: string;
 };
+
+const RAW_DATA_FILE_NAMES = [
+  "QA_RawData1.xlsx",
+  "QA_RawData11052026.xlsx",
+  "QA_RawData12052026.xlsx",
+  "QA_RawData13052026.xlsx",
+];
 
 function normalizeCaseId(value: unknown) {
   return String(value || "").trim().toUpperCase();
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function findHeaderIndex(headers: unknown[], expected: string) {
+  const normalizedExpected = normalizeText(expected);
+  return headers.findIndex((header) => normalizeText(header) === normalizedExpected);
+}
+
+async function loadCaseOwnerMap() {
+  const owners = new Map<string, string>();
+  await Promise.all(
+    RAW_DATA_FILE_NAMES.map(async (fileName) => {
+      try {
+        const response = await fetch(`/${fileName}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const buffer = await response.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+        const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: true });
+        const headerIndex = rows.findIndex((row) => {
+          const normalized = row.map((value) => normalizeText(value));
+          return normalized.includes("agent name") && normalized.includes("case id");
+        });
+        if (headerIndex < 0) return;
+
+        const headers = rows[headerIndex];
+        const caseIdIndex = findHeaderIndex(headers, "Case ID");
+        const agentIndex = findHeaderIndex(headers, "Agent Name");
+        if (caseIdIndex < 0 || agentIndex < 0) return;
+
+        rows.slice(headerIndex + 1).forEach((row) => {
+          const caseId = normalizeCaseId(row[caseIdIndex]);
+          const agent = String(row[agentIndex] || "").trim();
+          if (caseId && agent) owners.set(caseId, agent);
+        });
+      } catch {
+        // Ignore missing optional RawData files.
+      }
+    })
+  );
+  return owners;
 }
 
 function formatDateTime(value?: string) {
@@ -59,6 +112,7 @@ export function buildAppealCaseOverrides(logs: UsageLogEvent[]) {
       note: String(log.details?.note || ""),
       addedAt: String(log.details?.addedAt || log.created_at || ""),
       addedBy: String(log.details?.addedBy || log.display_name || log.username || ""),
+      targetAgent: String(log.target_agent || log.details?.targetAgent || ""),
     });
   });
 
@@ -71,11 +125,14 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
   const [logs, setLogs] = useState<UsageLogEvent[]>([]);
   const [caseIdInput, setCaseIdInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
+  const [manualAgentInput, setManualAgentInput] = useState("");
+  const [caseOwnerMap, setCaseOwnerMap] = useState<Map<string, string>>(new Map());
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const overrides = useMemo(() => buildAppealCaseOverrides(logs), [logs]);
   const existingCaseIds = useMemo(() => new Set(overrides.map((item) => item.caseId)), [overrides]);
+  const selectedCaseOwner = caseOwnerMap.get(normalizeCaseId(caseIdInput)) || "";
 
   const loadOverrides = async () => {
     try {
@@ -88,6 +145,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
 
   useEffect(() => {
     void loadOverrides();
+    void loadCaseOwnerMap().then(setCaseOwnerMap);
   }, []);
 
   const addOverride = async () => {
@@ -101,6 +159,11 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
       setMessage(`${caseId} is already allowed for appeal submission.`);
       return;
     }
+    const targetAgent = selectedCaseOwner || manualAgentInput.trim();
+    if (!targetAgent) {
+      setMessage("Please enter the case owner because this Case ID was not found in RawData.");
+      return;
+    }
 
     setBusy(true);
     setMessage("");
@@ -108,8 +171,10 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
     await logUsageEvent(currentUser, "appeal_case_override_added", {
       tab: "appeal-override",
       case_id: caseId,
+      target_agent: targetAgent,
       details: {
         caseId,
+        targetAgent,
         note: noteInput.trim(),
         addedAt,
         addedBy: currentUser.displayName || currentUser.username,
@@ -117,8 +182,9 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
     });
     setCaseIdInput("");
     setNoteInput("");
+    setManualAgentInput("");
     await loadOverrides();
-    setMessage(`${caseId} can now submit appeal even after the monthly deadline.`);
+    setMessage(`${caseId} can now submit appeal after deadline. Task sent to ${targetAgent}.`);
     setBusy(false);
   };
 
@@ -169,6 +235,16 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
                 className="mt-2 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
               />
             </label>
+            <label className="block lg:col-span-2">
+              <span className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700">Case Owner</span>
+              <input
+                value={selectedCaseOwner || manualAgentInput}
+                onChange={(event) => setManualAgentInput(event.target.value)}
+                disabled={Boolean(selectedCaseOwner)}
+                placeholder="Auto from RawData, or enter Agent name if not found"
+                className="mt-2 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-500"
+              />
+            </label>
             <button
               type="button"
               onClick={addOverride}
@@ -204,10 +280,14 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
           {overrides.length ? (
             <div className="divide-y divide-slate-100">
               {overrides.map((item) => (
-                <div key={item.caseId} className="grid gap-4 px-5 py-4 md:grid-cols-[180px_1fr_220px_auto] md:items-center">
+                <div key={item.caseId} className="grid gap-4 px-5 py-4 md:grid-cols-[150px_180px_1fr_220px_auto] md:items-center">
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Case ID</div>
                     <div className="mt-1 text-lg font-extrabold text-slate-950">{item.caseId}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Owner</div>
+                    <div className="mt-1 text-sm font-extrabold text-slate-950">{item.targetAgent || "-"}</div>
                   </div>
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Note</div>

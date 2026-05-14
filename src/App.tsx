@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
-import AppealOverrideMockup from "./AppealOverrideMockup";
+import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
@@ -141,13 +141,15 @@ type PasswordRecord = {
 
 type InboxTaskItem = {
   id: string;
-  type: "appeal" | "password" | "evaluation";
+  type: "appeal" | "appeal-override" | "password" | "evaluation";
   title: string;
   description: string;
   badge: string;
   count: number;
   unread: boolean;
   actionLabel: string;
+  caseId?: string;
+  agentName?: string;
 };
 
 const INBOX_READ_KEY = "qa_inbox_read_tasks";
@@ -1464,6 +1466,7 @@ export default function App() {
   const [selectedMonthGlobal, setSelectedMonthGlobal] = useState("all");
   const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
+  const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1592,6 +1595,38 @@ export default function App() {
           });
         }
       }
+
+      const submittedAppealCaseIds = new Set(
+        buildAppealRequests(logs).map((item) => String(item.caseId || "").trim().toLowerCase())
+      );
+      const activeAppealOverrides = buildAppealCaseOverrides(logs).filter((item) => {
+        if (submittedAppealCaseIds.has(item.caseId.trim().toLowerCase())) return false;
+        const target = item.targetAgent.trim().toLowerCase();
+        return Boolean(
+          target &&
+            (target === currentUser.username.trim().toLowerCase() ||
+              target === currentUser.displayName.trim().toLowerCase() ||
+              target === currentUser.agentName.trim().toLowerCase())
+        );
+      });
+
+      activeAppealOverrides.forEach((item) => {
+        const id = `appeal-override-${item.caseId}-${item.addedAt || "active"}`;
+        nextTasks.push({
+          id,
+          type: "appeal-override",
+          title: `Appeal reopened: ${item.caseId}`,
+          description: item.note
+            ? `This case is allowed for appeal after deadline. Note: ${item.note}`
+            : "This case is allowed for appeal after deadline. Open Case Detail to submit appeal.",
+          badge: "Appeal",
+          count: 1,
+          unread: !readIds.includes(id),
+          actionLabel: "Open case detail",
+          caseId: item.caseId,
+          agentName: item.targetAgent,
+        });
+      });
 
       const passwordDaysLeft = daysUntilDate(passwordRecord?.expiresAt);
       if (!passwordRecord) {
@@ -2005,6 +2040,15 @@ export default function App() {
       if (appealRequestsAllowed) {
         setActiveTab("appeal-requests");
       }
+      return;
+    }
+
+    if (task.type === "appeal-override") {
+      setActiveTab("dashboard");
+      setDashboardSubTab("case-detail");
+      setSelectedAppealCaseId("");
+      setSelectedDashboardCaseId(task.caseId || "");
+      setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
       return;
     }
 
@@ -2780,6 +2824,7 @@ export default function App() {
               externalSelectedAgent={selectedAgentGlobal}
               externalSelectedMonthKey={selectedMonthGlobal}
               externalSelectedWeek={selectedWeekGlobal}
+              externalCaseIdSearch={selectedDashboardCaseId}
               onSelectedAgentChange={setSelectedAgentGlobal}
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}

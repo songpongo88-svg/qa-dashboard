@@ -1,18 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141023",
-  "buildNumber": 2605141023,
-  "releaseLabel": "v1.0.0.2605141023",
-  "updatedAt": "14/05/2026 10:23:52",
+  "displayVersion": "1.0.0.2605141046",
+  "buildNumber": 2605141046,
+  "releaseLabel": "v1.0.0.2605141046",
+  "updatedAt": "14/05/2026 10:46:44",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d8b4800bab488a2cf6319a20ed5a3b52d8b3a0c5",
-  "commitMessage": "Enhance team chat notifications",
+  "commitHash": "61b5c6d3e9fc58198aec8ff753b7f6b2834bf24d",
+  "commitMessage": "Add appeal override controls",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx",
-    "src/TeamChatMockup.tsx"
+    "src/AppealOverrideMockup.tsx",
+    "src/DashboardMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

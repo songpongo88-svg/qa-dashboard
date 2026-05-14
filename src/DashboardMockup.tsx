@@ -3286,6 +3286,7 @@ export default function DashboardMockup({
   externalSelectedAgent,
   externalSelectedMonthKey,
   externalSelectedWeek,
+  externalCaseIdSearch,
   onSelectedAgentChange,
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
@@ -3298,6 +3299,7 @@ export default function DashboardMockup({
   externalSelectedAgent?: string;
   externalSelectedMonthKey?: string;
   externalSelectedWeek?: string;
+  externalCaseIdSearch?: string;
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -3352,6 +3354,12 @@ export default function DashboardMockup({
       setSelectedWeek(externalSelectedWeek);
     }
   }, [externalSelectedWeek, selectedWeek]);
+
+  useEffect(() => {
+    if (typeof externalCaseIdSearch === "string" && externalCaseIdSearch && externalCaseIdSearch !== caseIdSearch) {
+      setCaseIdSearch(externalCaseIdSearch);
+    }
+  }, [externalCaseIdSearch, caseIdSearch]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
