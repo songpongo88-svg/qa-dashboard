@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141513",
-  "buildNumber": 2605141513,
-  "releaseLabel": "v1.0.0.2605141513",
-  "updatedAt": "14/05/2026 15:13:46",
+  "displayVersion": "1.0.0.2605141527",
+  "buildNumber": 2605141527,
+  "releaseLabel": "v1.0.0.2605141527",
+  "updatedAt": "14/05/2026 15:27:12",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "bdeec0a0428626e9cc3f202e211e07b237ce43a0",
-  "commitMessage": "Keep header menus on one row",
+  "commitHash": "1cfebf85a57d2c1e33d505d0e97b1fc37a87e30c",
+  "commitMessage": "Add role permission matrix",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

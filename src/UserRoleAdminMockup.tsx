@@ -972,6 +972,23 @@ function RoleManagementPanel({
   onSavePermissions: () => void;
 }) {
   const activeRoles = roles.filter((role) => role.active);
+  const [selectedRoleName, setSelectedRoleName] = useState(activeRoles[0]?.name || "");
+  const selectedRole = activeRoles.find((role) => role.name === selectedRoleName) || activeRoles[0];
+  const selectedPermissions = selectedRole
+    ? permissionDrafts[selectedRole.name] || getDefaultRolePermissions(selectedRole.name)
+    : getDefaultRolePermissions("Agent");
+  const enabledPermissionCount = PERMISSION_KEYS.filter((key) => selectedPermissions[key]).length;
+  const permissionsByCategory = PERMISSION_DEFINITIONS.reduce((groups, permission) => {
+    groups[permission.category] = [...(groups[permission.category] || []), permission];
+    return groups;
+  }, {} as Record<string, typeof PERMISSION_DEFINITIONS>);
+
+  useEffect(() => {
+    if (!activeRoles.length) return;
+    if (!selectedRoleName || !activeRoles.some((role) => role.name === selectedRoleName)) {
+      setSelectedRoleName(activeRoles[0].name);
+    }
+  }, [activeRoles, selectedRoleName]);
 
   return (
     <div className="p-5">
@@ -1065,9 +1082,9 @@ function RoleManagementPanel({
       <div className="mt-6 overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="text-lg font-black text-slate-950">Permission Matrix</div>
+            <div className="text-lg font-black text-slate-950">Permission Builder</div>
             <div className="mt-1 text-sm font-semibold text-slate-500">
-              Tick only the access each role should have. Quality Assurance keeps protected admin access.
+              Select one role, then turn access on or off by category. This is easier than editing a wide matrix.
             </div>
           </div>
           <button
@@ -1080,63 +1097,123 @@ function RoleManagementPanel({
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-[1180px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="bg-slate-950 text-white">
-                <th className="sticky left-0 z-10 bg-slate-950 px-5 py-4 font-bold">Permission</th>
-                {activeRoles.map((role) => (
-                  <th key={role.name} className="px-4 py-4 text-center font-bold">
-                    {role.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PERMISSION_DEFINITIONS.map((permission) => (
-                <tr key={permission.key} className="border-b border-slate-100 last:border-b-0">
-                  <td className="sticky left-0 z-10 bg-white px-5 py-4">
-                    <div className="inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
-                      {permission.category}
+        <div className="grid gap-5 p-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="rounded-[24px] border border-slate-100 bg-slate-50 p-3">
+            <div className="px-2 pb-3 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Choose Role</div>
+            <div className="space-y-2">
+              {activeRoles.map((role) => {
+                const rolePermissions = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
+                const roleEnabledCount = PERMISSION_KEYS.filter((key) => rolePermissions[key]).length;
+                const selected = selectedRole?.name === role.name;
+                return (
+                  <button
+                    key={role.name}
+                    type="button"
+                    onClick={() => setSelectedRoleName(role.name)}
+                    className={`w-full rounded-[20px] border px-4 py-3 text-left transition ${
+                      selected
+                        ? "border-violet-300 bg-white shadow-[0_12px_28px_rgba(109,40,217,0.14)]"
+                        : "border-transparent bg-white/70 hover:border-violet-100 hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-black text-slate-950">{role.name}</div>
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${
+                        role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
+                      }`}>
+                        {role.active ? "Active" : "Disabled"}
+                      </span>
                     </div>
-                    <div className="mt-2 font-black text-slate-950">{permission.label}</div>
-                    <div className="mt-1 max-w-[360px] text-xs font-semibold leading-5 text-slate-500">{permission.description}</div>
-                  </td>
-                  {activeRoles.map((role) => {
-                    const checked = Boolean((permissionDrafts[role.name] || getDefaultRolePermissions(role.name))[permission.key]);
-                    const locked = role.name === "Quality Assurance" && (
-                      permission.key === "manageUsers" ||
-                      permission.key === "manageRoles" ||
-                      permission.key === "manageMaintenance"
-                    );
-                    return (
-                      <td key={`${role.name}-${permission.key}`} className="px-4 py-4 text-center">
-                        <label className="inline-flex cursor-pointer items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={saving || locked}
-                            onChange={(event) => onPermissionChange(role.name, permission.key, event.target.checked)}
-                            className="peer sr-only"
-                          />
-                          <span className={`relative h-7 w-12 rounded-full border transition ${
-                            checked
-                              ? "border-violet-500 bg-violet-600"
-                              : "border-slate-200 bg-slate-100"
-                          } ${saving || locked ? "cursor-not-allowed opacity-60" : ""}`}>
-                            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
-                              checked ? "left-6" : "left-1"
-                            }`} />
-                          </span>
-                        </label>
-                        {locked ? <div className="mt-1 text-[10px] font-bold text-slate-400">Locked</div> : null}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">{roleEnabledCount}/{PERMISSION_KEYS.length} permissions enabled</div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500"
+                        style={{ width: `${Math.round((roleEnabledCount / PERMISSION_KEYS.length) * 100)}%` }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            {selectedRole ? (
+              <>
+                <div className="mb-4 rounded-[24px] border border-violet-100 bg-gradient-to-r from-violet-50 to-white p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Editing Permission</div>
+                      <div className="mt-1 text-2xl font-black text-slate-950">{selectedRole.name}</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-500">{selectedRole.description || "No role description yet."}</div>
+                    </div>
+                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-center shadow-sm">
+                      <div className="text-2xl font-black text-violet-700">{enabledPermissionCount}</div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Enabled</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {Object.entries(permissionsByCategory).map(([category, permissions]) => (
+                    <div key={category} className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">{category}</div>
+                        <div className="text-xs font-bold text-slate-400">
+                          {permissions.filter((permission) => selectedPermissions[permission.key]).length}/{permissions.length}
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {permissions.map((permission) => {
+                          const checked = Boolean(selectedPermissions[permission.key]);
+                          const locked = selectedRole.name === "Quality Assurance" && (
+                            permission.key === "manageUsers" ||
+                            permission.key === "manageRoles" ||
+                            permission.key === "manageMaintenance"
+                          );
+                          return (
+                            <div key={permission.key} className={`rounded-2xl border px-4 py-3 ${
+                              checked ? "border-violet-100 bg-violet-50/50" : "border-slate-100 bg-slate-50/70"
+                            }`}>
+                              <div className="flex items-start justify-between gap-4">
+                                <div>
+                                  <div className="font-black text-slate-950">{permission.label}</div>
+                                  <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{permission.description}</div>
+                                  {locked ? <div className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-600">Locked for admin safety</div> : null}
+                                </div>
+                                <label className="inline-flex shrink-0 cursor-pointer items-center justify-center pt-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={saving || locked}
+                                    onChange={(event) => onPermissionChange(selectedRole.name, permission.key, event.target.checked)}
+                                    className="peer sr-only"
+                                  />
+                                  <span className={`relative h-7 w-12 rounded-full border transition ${
+                                    checked
+                                      ? "border-violet-500 bg-violet-600"
+                                      : "border-slate-200 bg-slate-200"
+                                  } ${saving || locked ? "cursor-not-allowed opacity-60" : ""}`}>
+                                    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
+                                      checked ? "left-6" : "left-1"
+                                    }`} />
+                                  </span>
+                                </label>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">
+                No active role selected.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
