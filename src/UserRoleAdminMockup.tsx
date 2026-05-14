@@ -870,24 +870,36 @@ export default function UserRoleAdminMockup({
           </div>
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.08)]">
-          <div className="flex flex-col gap-4 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <div className="text-lg font-black text-slate-950">User Directory</div>
-              <div className="mt-1 text-sm text-slate-500">
+        <div className="mt-5 overflow-hidden rounded-[32px] border border-violet-100 bg-white shadow-[0_24px_70px_rgba(88,28,135,0.10)]">
+          <div className="relative overflow-hidden border-b border-violet-100 bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.16),transparent_34%),linear-gradient(135deg,#ffffff_0%,#f8f3ff_52%,#fff7fb_100%)] px-5 py-5 lg:px-6">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-fuchsia-200/30 blur-3xl" />
+            <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl border border-violet-100 bg-white shadow-sm">
+                  <span className="text-2xl font-black text-violet-700">{adminTab === "roles" ? "R" : "U"}</span>
+                </div>
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-700">CRM Directory</div>
+                  <div className="mt-1 text-2xl font-black tracking-tight text-slate-950">User Directory</div>
+                  <div className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
                 {isEditing
                   ? "Edit user details in one place, then save all changes at once."
                   : "Read-only view. Click Edit Directory when you need to update users."}
-              </div>
-              {message ? <div className="mt-2 text-sm font-semibold text-violet-700">{message}</div> : null}
-              {accessMessage ? (
-                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                  Temporary access password(s): {accessMessage}
+                  </div>
+                  {message ? (
+                    <div className="mt-3 inline-flex max-w-full items-center rounded-2xl border border-violet-200 bg-white/90 px-4 py-2 text-sm font-black text-violet-700 shadow-sm">
+                      {message}
+                    </div>
+                  ) : null}
+                  {accessMessage ? (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                      Temporary access password(s): {accessMessage}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
+              </div>
 
-            <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 xl:justify-end">
               {adminTab === "roles" ? null : isEditing ? (
                 <>
                   <button type="button" onClick={handleCancelEdit} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
@@ -923,12 +935,15 @@ export default function UserRoleAdminMockup({
                   </button>
                 </>
               )}
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 border-b border-violet-100 bg-white px-5 py-4">
+          <div className="border-b border-violet-100 bg-white px-5 py-4">
+            <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-slate-200 bg-slate-50 p-2">
             <DirectoryTabButton active={adminTab === "users"} label="Users" count={totalUsers} onClick={() => setAdminTab("users")} />
             <DirectoryTabButton active={adminTab === "roles"} label="Roles & Permissions" count={roleDefinitions.length} onClick={() => setAdminTab("roles")} />
+            </div>
           </div>
 
           {adminTab === "roles" ? (
@@ -953,7 +968,8 @@ export default function UserRoleAdminMockup({
             />
           ) : (
             <>
-              <div className="flex flex-wrap gap-3 border-b border-violet-100 bg-white px-5 py-4">
+              <div className="border-b border-violet-100 bg-white px-5 py-4">
+                <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-slate-200 bg-slate-50 p-2">
                 <DirectoryTabButton
                   active={directoryTab === "active"}
                   label="Active Users"
@@ -967,6 +983,7 @@ export default function UserRoleAdminMockup({
                   onClick={() => setDirectoryTab("suspended")}
                   tone="rose"
                 />
+                </div>
               </div>
 
               {isEditing ? (
@@ -1027,19 +1044,19 @@ function DirectoryTabButton({
 }) {
   const activeClass =
     tone === "rose"
-      ? "border-rose-200 bg-rose-50 text-rose-700 shadow-sm"
-      : "border-violet-200 bg-violet-50 text-violet-700 shadow-sm";
+      ? "border-rose-200 bg-white text-rose-700 shadow-[0_10px_24px_rgba(225,29,72,0.10)]"
+      : "border-violet-200 bg-white text-violet-700 shadow-[0_10px_24px_rgba(109,40,217,0.12)]";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-3 rounded-2xl border px-5 py-3 text-sm font-black transition ${
-        active ? activeClass : "border-slate-200 bg-white text-slate-500 hover:border-violet-200 hover:text-violet-700"
+      className={`inline-flex items-center gap-3 rounded-[18px] border px-5 py-3 text-sm font-black transition ${
+        active ? activeClass : "border-transparent bg-transparent text-slate-500 hover:bg-white hover:text-violet-700"
       }`}
     >
       <span>{label}</span>
-      <span className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-900">{count}</span>
+      <span className={`rounded-full px-2.5 py-1 text-xs ${active ? "bg-slate-950 text-white" : "bg-white text-slate-900"}`}>{count}</span>
     </button>
   );
 }
