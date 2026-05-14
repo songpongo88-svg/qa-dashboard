@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
+import AppealOverrideMockup from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
@@ -624,14 +625,8 @@ function buildChatMessages(logs: UsageLogEvent[]) {
 
     if (item.event_type === "chat_message_deleted") {
       const messageId = String(item.details?.messageId || "");
-      const existing = messages.get(messageId);
-      if (!existing) return;
-      messages.set(messageId, {
-        ...existing,
-        message: "This message was deleted",
-        attachment: undefined,
-        deleted: true,
-      });
+      if (!messageId) return;
+      messages.delete(messageId);
     }
   });
 
@@ -1460,7 +1455,7 @@ export default function App() {
   const [liveNow, setLiveNow] = useState(() => new Date());
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "appeal-requests" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
+    "dashboard" | "appeal" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -1494,7 +1489,10 @@ export default function App() {
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
       : "";
-  const reviewMenuValue = activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "rubric" ? activeTab : "";
+  const reviewMenuValue =
+    activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "appeal-override" || activeTab === "rubric"
+      ? activeTab
+      : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
   const unreadInboxTaskCount = inboxTasks.filter((item) => item.unread).length;
   const shortBuildHash = buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "";
@@ -1535,7 +1533,8 @@ export default function App() {
 
   const handleReviewMenuChange = (value: string) => {
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
-    if (value === "appeal" || value === "appeal-requests" || value === "rubric") {
+    if (value === "appeal-override" && !appealRequestsAllowed) return;
+    if (value === "appeal" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       setActiveTab(value);
     }
   };
@@ -1839,6 +1838,9 @@ export default function App() {
       setActiveTab("dashboard");
     }
     if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
+      setActiveTab("dashboard");
+    }
+    if (activeTab === "appeal-override" && !appealRequestsAllowed) {
       setActiveTab("dashboard");
     }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
@@ -2656,6 +2658,7 @@ export default function App() {
                     options={[
                       { value: "appeal", label: "Appeal" },
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
+                      ...(appealRequestsAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
                       { value: "rubric", label: "QA Rubric" },
                     ]}
                   />
@@ -2832,6 +2835,8 @@ export default function App() {
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
+        ) : activeTab === "appeal-override" && appealRequestsAllowed ? (
+          <AppealOverrideMockup currentUser={currentUser} />
         ) : activeTab === "task-inbox" ? (
           <TaskInboxMockup
             tasks={inboxTasks}

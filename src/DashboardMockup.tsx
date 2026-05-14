@@ -4,6 +4,7 @@ import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogs, logUsageEvent } from "./usageLog";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
@@ -2092,6 +2093,7 @@ function SlideOverCaseDetail({
   const [verifiedImageUrls, setVerifiedImageUrls] = useState<string[]>([]);
   const [verifiedImagePdfUrls, setVerifiedImagePdfUrls] = useState<{ rawUrl: string; url: string; label: string }[]>([]);
   const [appealRequestExists, setAppealRequestExists] = useState(false);
+  const [appealOverrideAllowed, setAppealOverrideAllowed] = useState(false);
   const [appealSubmitOpen, setAppealSubmitOpen] = useState(false);
   const [appealDraftTopics, setAppealDraftTopics] = useState<AppealDraftTopic[]>([]);
   const [appealSubmitMessage, setAppealSubmitMessage] = useState("");
@@ -2106,7 +2108,7 @@ function SlideOverCaseDetail({
   } | null>(null);
 
   const appealDeadline = getAppealDeadline(caseItem.auditDateObj);
-  const canSubmitAppeal = isAppealWindowOpen(caseItem.auditDateObj) && !appealRequestExists;
+  const canSubmitAppeal = (isAppealWindowOpen(caseItem.auditDateObj) || appealOverrideAllowed) && !appealRequestExists;
 
   useEffect(() => {
     let cancelled = false;
@@ -2120,8 +2122,16 @@ function SlideOverCaseDetail({
             (item) => String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
           )
         );
+        setAppealOverrideAllowed(
+          buildAppealCaseOverrides(logs).some(
+            (item) => String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
+          )
+        );
       } catch {
-        if (!cancelled) setAppealRequestExists(false);
+        if (!cancelled) {
+          setAppealRequestExists(false);
+          setAppealOverrideAllowed(false);
+        }
       }
     };
 
@@ -3141,13 +3151,20 @@ function SlideOverCaseDetail({
                       ) : null}
 
                       {canSubmitAppeal ? (
-                        <button
-                          type="button"
-                          onClick={openAppealSubmitForm}
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                        >
-                          Submit Appeal
-                        </button>
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={openAppealSubmitForm}
+                            className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                          >
+                            Submit Appeal
+                          </button>
+                          {appealOverrideAllowed && !isAppealWindowOpen(caseItem.auditDateObj) ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[12px] font-semibold text-amber-700">
+                              Appeal override enabled for this case.
+                            </div>
+                          ) : null}
+                        </div>
                       ) : null}
 
                       {appealRequestExists ? (
