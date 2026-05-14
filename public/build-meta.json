@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141417",
-  "buildNumber": 2605141417,
-  "releaseLabel": "v1.0.0.2605141417",
-  "updatedAt": "14/05/2026 14:17:48",
+  "displayVersion": "1.0.0.2605141422",
+  "buildNumber": 2605141422,
+  "releaseLabel": "v1.0.0.2605141422",
+  "updatedAt": "14/05/2026 14:22:48",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f2f3e24a0a7d7e007904a41b267b0cfbac28a95f",
-  "commitMessage": "Add admin maintenance mode",
+  "commitHash": "27f3a23f252aa370314a4d31f9731541bfe78441",
+  "commitMessage": "Improve header menu spacing",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

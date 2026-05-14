@@ -931,7 +931,7 @@ function HeaderSelect({
   const selectedLabel = options.find((option) => option.value === value)?.label || label;
 
   return (
-    <label className="group flex min-w-[210px] flex-col gap-2">
+    <label className="group flex w-full min-w-0 flex-col gap-2 md:w-[230px] md:shrink-0 xl:w-[240px]">
       <span className="pl-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 group-focus-within:text-violet-700">{label}</span>
       <div className="relative">
         <select
@@ -2862,7 +2862,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid flex-1 gap-6 md:grid-cols-3 xl:max-w-[780px]">
+                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-wrap md:justify-end md:gap-x-8 md:gap-y-5 xl:max-w-[820px]">
                   <HeaderSelect
                     label="Performance"
                     value={performanceMenuValue}
