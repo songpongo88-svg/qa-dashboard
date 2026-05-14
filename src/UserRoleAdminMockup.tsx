@@ -50,6 +50,7 @@ type EditableUser = {
 
 type DirectoryTab = "active" | "suspended";
 type AdminTab = "users" | "roles";
+type RoleAdminSubTab = "role-list" | "permission-builder";
 
 type RoleDefinition = {
   name: string;
@@ -195,9 +196,13 @@ function buildRoleDefinitions(logs: UsageLogEvent[]) {
   [...logs]
     .sort((a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime())
     .forEach((log) => {
-      if (log.event_type !== "role_definition_saved") return;
+      if (log.event_type !== "role_definition_saved" && log.event_type !== "role_definition_deleted") return;
       const name = String(log.details?.name || "").trim();
       if (!name) return;
+      if (log.event_type === "role_definition_deleted") {
+        roleMap.delete(name.toLowerCase());
+        return;
+      }
       roleMap.set(name.toLowerCase(), {
         name,
         description: String(log.details?.description || ""),
@@ -216,6 +221,10 @@ function roleBadgeClass(role: UserRole) {
   if (role === "Supervisor") return "border-sky-200 bg-sky-50 text-sky-700";
   if (role === "Senior") return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
+function isSystemRole(roleName: string) {
+  return ROLE_OPTIONS.some((role) => role.toLowerCase() === roleName.toLowerCase());
 }
 
 function toEditableUser(account: UserAccount): EditableUser {
@@ -413,10 +422,39 @@ export default function UserRoleAdminMockup({
     }
     const roleInUse = rows.some((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase());
     if (role.active && roleInUse) {
-      setMessage(`Cannot disable ${role.name} because at least one user is using this role.`);
+      const userCount = rows.filter((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase()).length;
+      setMessage(`Cannot disable ${role.name}. ${userCount} user(s) are still assigned to this role. Move them to another role first.`);
       return;
     }
     await saveRoleDefinition({ ...role, active: !role.active });
+  };
+
+  const deleteRoleDefinition = async (role: RoleDefinition) => {
+    if (role.locked || isSystemRole(role.name)) {
+      setMessage("Default system roles cannot be deleted. You can only delete custom roles.");
+      return;
+    }
+    const roleInUse = rows.some((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase());
+    if (roleInUse) {
+      const userCount = rows.filter((row) => row.effectiveRole.toLowerCase() === role.name.toLowerCase()).length;
+      setMessage(`Cannot delete ${role.name}. ${userCount} user(s) are still assigned to this role. Move them to another role first.`);
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
+    await logUsageEvent(currentUser, "role_definition_deleted", {
+      tab: "user-roles",
+      details: {
+        name: role.name,
+        deletedBy: currentUser?.displayName || currentUser?.username || "",
+        deletedAt: new Date().toISOString(),
+      },
+    });
+    await loadRoleDefinitions();
+    await onRolesChanged();
+    setSaving(false);
+    setMessage(`Deleted role ${role.name}.`);
   };
 
   const updateRolePermission = (roleName: string, key: RolePermissionKey, value: boolean) => {
@@ -801,6 +839,10 @@ export default function UserRoleAdminMockup({
           {adminTab === "roles" ? (
             <RoleManagementPanel
               roles={roleDefinitions}
+              roleUserCounts={rows.reduce((counts, row) => {
+                counts[row.effectiveRole] = (counts[row.effectiveRole] || 0) + 1;
+                return counts;
+              }, {} as Record<string, number>)}
               newRoleName={newRoleName}
               newRoleDescription={newRoleDescription}
               saving={saving}
@@ -808,6 +850,7 @@ export default function UserRoleAdminMockup({
               onDescriptionChange={setNewRoleDescription}
               onSave={() => void saveRoleDefinition()}
               onToggle={(role) => void toggleRoleActive(role)}
+              onDelete={(role) => void deleteRoleDefinition(role)}
               permissionDrafts={permissionDrafts}
               onPermissionChange={updateRolePermission}
               onSavePermissions={() => void saveRolePermissions()}
@@ -948,6 +991,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
 
 function RoleManagementPanel({
   roles,
+  roleUserCounts,
   newRoleName,
   newRoleDescription,
   saving,
@@ -956,10 +1000,12 @@ function RoleManagementPanel({
   onDescriptionChange,
   onSave,
   onToggle,
+  onDelete,
   onPermissionChange,
   onSavePermissions,
 }: {
   roles: RoleDefinition[];
+  roleUserCounts: Record<string, number>;
   newRoleName: string;
   newRoleDescription: string;
   saving: boolean;
@@ -968,10 +1014,12 @@ function RoleManagementPanel({
   onDescriptionChange: (value: string) => void;
   onSave: () => void;
   onToggle: (role: RoleDefinition) => void;
+  onDelete: (role: RoleDefinition) => void;
   onPermissionChange: (roleName: string, key: RolePermissionKey, value: boolean) => void;
   onSavePermissions: () => void;
 }) {
   const activeRoles = roles.filter((role) => role.active);
+  const [roleAdminSubTab, setRoleAdminSubTab] = useState<RoleAdminSubTab>("role-list");
   const [selectedRoleName, setSelectedRoleName] = useState(activeRoles[0]?.name || "");
   const selectedRole = activeRoles.find((role) => role.name === selectedRoleName) || activeRoles[0];
   const selectedPermissions = selectedRole
@@ -1007,6 +1055,33 @@ function RoleManagementPanel({
         </div>
       </div>
 
+      <div className="mb-5 flex flex-wrap gap-3 rounded-[24px] border border-violet-100 bg-white p-3 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setRoleAdminSubTab("role-list")}
+          className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
+            roleAdminSubTab === "role-list"
+              ? "bg-slate-950 text-white shadow-sm"
+              : "bg-slate-50 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+          }`}
+        >
+          1. Role List
+        </button>
+        <button
+          type="button"
+          onClick={() => setRoleAdminSubTab("permission-builder")}
+          className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
+            roleAdminSubTab === "permission-builder"
+              ? "bg-slate-950 text-white shadow-sm"
+              : "bg-slate-50 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+          }`}
+        >
+          2. Permission Builder
+        </button>
+      </div>
+
+      {roleAdminSubTab === "role-list" ? (
+      <>
       <div className="grid gap-4 rounded-[24px] border border-violet-100 bg-violet-50/50 p-5 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
         <label className="block">
           <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">New Role Name</span>
@@ -1044,6 +1119,7 @@ function RoleManagementPanel({
             <tr className="bg-slate-950 text-white">
               <th className="px-5 py-4 font-bold">Role</th>
               <th className="px-5 py-4 font-bold">Description</th>
+              <th className="px-5 py-4 font-bold">Users</th>
               <th className="px-5 py-4 font-bold">Status</th>
               <th className="px-5 py-4 font-bold">Control</th>
             </tr>
@@ -1059,27 +1135,50 @@ function RoleManagementPanel({
                 </td>
                 <td className="px-5 py-4 text-slate-600">{role.description || "-"}</td>
                 <td className="px-5 py-4">
+                  <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">
+                    {roleUserCounts[role.name] || 0} user(s)
+                  </span>
+                </td>
+                <td className="px-5 py-4">
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
                     {role.active ? "Active" : "Disabled"}
                   </span>
                 </td>
                 <td className="px-5 py-4">
-                  <button
-                    type="button"
-                    disabled={saving || role.locked}
-                    onClick={() => onToggle(role)}
-                    className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                  >
-                    {role.active ? "Disable" : "Enable"}
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={saving || role.locked || (role.active && Boolean(roleUserCounts[role.name]))}
+                      title={role.active && roleUserCounts[role.name] ? "Move users to another role before disabling." : ""}
+                      onClick={() => onToggle(role)}
+                      className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                    >
+                      {role.active ? "Disable" : "Enable"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving || role.locked || isSystemRole(role.name) || Boolean(roleUserCounts[role.name])}
+                      title={isSystemRole(role.name) ? "Default system roles cannot be deleted." : roleUserCounts[role.name] ? "Move users to another role before deleting." : ""}
+                      onClick={() => onDelete(role)}
+                      className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800">
+        Disable/Delete will be locked if users are still assigned to that role. Move those users to another role in the Users tab first.
+      </div>
+      </>
+      ) : null}
 
-      <div className="mt-6 overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-sm">
+      {roleAdminSubTab === "permission-builder" ? (
+      <div className="overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="text-lg font-black text-slate-950">Permission Builder</div>
@@ -1216,6 +1315,7 @@ function RoleManagementPanel({
           </div>
         </div>
       </div>
+      ) : null}
     </div>
   );
 }
