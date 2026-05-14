@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
@@ -150,6 +150,7 @@ type InboxTaskItem = {
 };
 
 const INBOX_READ_KEY = "qa_inbox_read_tasks";
+const CHAT_READ_KEY = "qa_chat_read_at";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
 
@@ -370,6 +371,25 @@ function saveInboxReadIds(user: CurrentUser | null, ids: string[]) {
   localStorage.setItem(getInboxReadStorageKey(user), JSON.stringify(Array.from(new Set(ids))));
 }
 
+function getChatReadStorageKey(user: CurrentUser | null) {
+  const owner = user?.username?.trim().toLowerCase() || "guest";
+  return `${CHAT_READ_KEY}:${owner}`;
+}
+
+function readChatReadMap(user: CurrentUser | null) {
+  try {
+    const raw = localStorage.getItem(getChatReadStorageKey(user));
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveChatReadMap(user: CurrentUser | null, value: Record<string, string>) {
+  localStorage.setItem(getChatReadStorageKey(user), JSON.stringify(value));
+}
+
 function getPasswordRecordFromEvent(item: UsageLogEvent): PasswordRecord | null {
   const password = item.details?.password;
   if (typeof password !== "string" || !password) return null;
@@ -561,24 +581,61 @@ function buildResetRequests(logs: UsageLogEvent[]) {
 }
 
 function buildChatMessages(logs: UsageLogEvent[]) {
-  return logs
-    .filter((item) => item.event_type === "chat_message" && typeof item.details?.message === "string")
-    .map((item): ChatMessage => ({
-      id: item.id || `${item.username}-${item.created_at}`,
-      createdAt: item.created_at || new Date().toISOString(),
-      username: item.username || "",
-      displayName: item.display_name || item.username || "",
-      role: item.role || "",
-      message: String(item.details?.message || ""),
-      room: item.details?.room === "private" ? "private" : "team",
-      toUsername: typeof item.details?.toUsername === "string" ? item.details.toUsername : "",
-      toDisplayName: typeof item.details?.toDisplayName === "string" ? item.details.toDisplayName : "",
-      attachment:
+  const sortedLogs = [...logs].sort(
+    (a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
+  );
+  const messages = new Map<string, ChatMessage>();
+
+  sortedLogs.forEach((item) => {
+    if (item.event_type === "chat_message" || item.event_type === "chat_call_invite") {
+      const id = item.id || `${item.username}-${item.created_at}`;
+      const attachment =
         item.details?.attachment && typeof item.details.attachment === "object"
           ? (item.details.attachment as ChatAttachment)
-          : undefined,
-    }))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          : undefined;
+      const message = String(item.details?.message || "");
+      if (item.event_type === "chat_message" && !message && !attachment) return;
+
+      messages.set(id, {
+        id,
+        createdAt: item.created_at || new Date().toISOString(),
+        username: item.username || "",
+        displayName: item.display_name || item.username || "",
+        role: item.role || "",
+        message,
+        room: item.details?.room === "private" ? "private" : "team",
+        toUsername: typeof item.details?.toUsername === "string" ? item.details.toUsername : "",
+        toDisplayName: typeof item.details?.toDisplayName === "string" ? item.details.toDisplayName : "",
+        attachment,
+        kind: item.event_type === "chat_call_invite" ? "call" : "message",
+      });
+    }
+
+    if (item.event_type === "chat_message_edited") {
+      const messageId = String(item.details?.messageId || "");
+      const existing = messages.get(messageId);
+      if (!existing) return;
+      messages.set(messageId, {
+        ...existing,
+        message: String(item.details?.message || existing.message),
+        edited: true,
+      });
+    }
+
+    if (item.event_type === "chat_message_deleted") {
+      const messageId = String(item.details?.messageId || "");
+      const existing = messages.get(messageId);
+      if (!existing) return;
+      messages.set(messageId, {
+        ...existing,
+        message: "This message was deleted",
+        attachment: undefined,
+        deleted: true,
+      });
+    }
+  });
+
+  return Array.from(messages.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
 function buildOnlineUsers(logs: UsageLogEvent[]) {
@@ -613,6 +670,36 @@ function formatHeaderDateTime(value: Date) {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function getChatRoomKeyForUser(message: ChatMessage, user: CurrentUser | null) {
+  if (!user) return "team";
+  if (message.room === "team") return "team";
+  const myUsername = user.username.toLowerCase();
+  const sender = message.username.toLowerCase();
+  const target = String(message.toUsername || "").toLowerCase();
+  const otherUsername = sender === myUsername ? target : sender;
+  return `private:${otherUsername}`;
+}
+
+function playChatNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, context.currentTime);
+    gain.gain.setValueAtTime(0.08, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.22);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.22);
+  } catch {
+    // Browser may block sound until the user interacts with the page.
+  }
 }
 
 function getResetRequestDecisionStatus(logs: UsageLogEvent[], requestId: string): PasswordResetRequest["status"] {
@@ -1385,6 +1472,7 @@ export default function App() {
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestIncomingChatRef = useRef("");
 
   const welcomeName = useMemo(() => {
     if (!currentUser) return "";
@@ -1410,6 +1498,21 @@ export default function App() {
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
   const unreadInboxTaskCount = inboxTasks.filter((item) => item.unread).length;
   const shortBuildHash = buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "";
+  const chatUnreadCounts = useMemo(() => {
+    const readMap = readChatReadMap(currentUser);
+    const counts: Record<string, number> = {};
+    chatMessages.forEach((message) => {
+      if (!currentUser || message.username.toLowerCase() === currentUser.username.toLowerCase()) return;
+      const roomKey = getChatRoomKeyForUser(message, currentUser);
+      const readAt = readMap[roomKey] ? new Date(readMap[roomKey]).getTime() : 0;
+      const sentAt = new Date(message.createdAt).getTime();
+      if (!Number.isNaN(sentAt) && sentAt > readAt) {
+        counts[roomKey] = (counts[roomKey] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [chatMessages, currentUser]);
+  const totalChatUnreadCount = Object.values(chatUnreadCounts).reduce((sum, count) => sum + count, 0);
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -1568,7 +1671,20 @@ export default function App() {
 
     try {
       const logs = await fetchUsageLogs(1000);
-      setChatMessages(buildChatMessages(logs));
+      const nextMessages = buildChatMessages(logs);
+      const latestIncomingMessage = nextMessages
+        .filter((message) => message.username.toLowerCase() !== currentUser.username.toLowerCase())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      if (latestIncomingMessage) {
+        const latestKey = `${latestIncomingMessage.id}:${latestIncomingMessage.createdAt}`;
+        if (!latestIncomingChatRef.current) {
+          latestIncomingChatRef.current = latestKey;
+        } else if (latestIncomingChatRef.current !== latestKey) {
+          latestIncomingChatRef.current = latestKey;
+          playChatNotificationSound();
+        }
+      }
+      setChatMessages(nextMessages);
       setOnlineUsers(buildOnlineUsers(logs));
     } catch {
       setChatMessages([]);
@@ -1600,6 +1716,57 @@ export default function App() {
     await sendPresence();
     await loadChatData();
   };
+
+  const editChatMessage = async (message: ChatMessage, nextMessage: string) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "chat_message_edited", {
+      tab: "team-chat",
+      target_agent: message.toUsername || "",
+      details: {
+        messageId: message.id,
+        message: nextMessage,
+      },
+    });
+    await loadChatData();
+  };
+
+  const deleteChatMessage = async (message: ChatMessage) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "chat_message_deleted", {
+      tab: "team-chat",
+      target_agent: message.toUsername || "",
+      details: {
+        messageId: message.id,
+      },
+    });
+    await loadChatData();
+  };
+
+  const startChatCall = async (toUser?: OnlineUser) => {
+    if (!currentUser) return;
+    const isPrivate = Boolean(toUser);
+    await logUsageEvent(currentUser, "chat_call_invite", {
+      tab: "team-chat",
+      target_agent: toUser?.username || "",
+      details: {
+        message: isPrivate
+          ? `${currentUser.displayName} started a private call invite for ${toUser?.displayName || toUser?.username}.`
+          : `${currentUser.displayName} started a group call invite.`,
+        room: isPrivate ? "private" : "team",
+        toUsername: toUser?.username || "",
+        toDisplayName: toUser?.displayName || "",
+      },
+    });
+    await loadChatData();
+  };
+
+  const markChatRoomRead = useCallback((roomKey: string) => {
+    const readMap = readChatReadMap(currentUser);
+    saveChatReadMap(currentUser, {
+      ...readMap,
+      [roomKey]: new Date().toISOString(),
+    });
+  }, [currentUser]);
 
   const loadRoleOverrides = async () => {
     try {
@@ -2537,11 +2704,11 @@ export default function App() {
                         <div className="mt-1 text-sm font-extrabold">Online Chat</div>
                       </div>
                       <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
-                        {onlineUsers.length}
+                        {totalChatUnreadCount || onlineUsers.length}
                       </span>
                     </div>
                     <div className="mt-1 text-xs font-semibold text-slate-500">
-                      {onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                      {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
                     </div>
                   </button>
                 </div>
@@ -2584,11 +2751,11 @@ export default function App() {
                     <div className="mt-1 text-sm font-extrabold">Online Chat</div>
                   </div>
                   <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
-                    {onlineUsers.length}
+                    {totalChatUnreadCount || onlineUsers.length}
                   </span>
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                  {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
                 </div>
               </button>
             </div>
@@ -2675,7 +2842,12 @@ export default function App() {
             currentUser={currentUser}
             messages={chatMessages}
             onlineUsers={onlineUsers}
+            unreadCounts={chatUnreadCounts}
             onSendMessage={sendChatMessage}
+            onEditMessage={editChatMessage}
+            onDeleteMessage={deleteChatMessage}
+            onStartCall={startChatCall}
+            onMarkRoomRead={markChatRoomRead}
             onRefresh={() => {
               void sendPresence();
               void loadChatData();
