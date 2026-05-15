@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151605",
-  "buildNumber": 2605151605,
-  "releaseLabel": "v1.0.0.2605151605",
-  "updatedAt": "15/05/2026 16:05:36",
+  "displayVersion": "1.0.0.2605152009",
+  "buildNumber": 2605152009,
+  "releaseLabel": "v1.0.0.2605152009",
+  "updatedAt": "15/05/2026 20:09:16",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fb10bf4b1dc7608a24a6697301ff8fdedab94051",
-  "commitMessage": "Fix raw final score parsing",
+  "commitHash": "df8f0301580d242bc1ce2f2d99966d67a2c2db6e",
+  "commitMessage": "Restore appeal rowdata from V8 dashboard",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/DashboardMockup.tsx"
+    "public/Appleal ROWDATA.xlsx",
+    "public/Appleal ROWDATA15052026.xlsx",
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -8,6 +8,7 @@ import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
+import CreateEvaluationMockup from "./CreateEvaluationMockup";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
@@ -2074,7 +2075,7 @@ export default function App() {
   const [liveNow, setLiveNow] = useState(() => new Date());
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
+    "dashboard" | "appeal" | "create-evaluation" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -2124,7 +2125,7 @@ export default function App() {
       ? activeTab
       : "";
   const reviewMenuValue =
-    activeTab === "appeal" || activeTab === "appeal-requests" || activeTab === "appeal-override" || activeTab === "rubric"
+    activeTab === "appeal" || activeTab === "create-evaluation" || activeTab === "appeal-requests" || activeTab === "appeal-override" || activeTab === "rubric"
       ? activeTab
       : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
@@ -2168,7 +2169,7 @@ export default function App() {
   const handleReviewMenuChange = (value: string) => {
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
-    if (value === "appeal" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
+    if (value === "appeal" || value === "create-evaluation" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       setActiveTab(value);
     }
   };
@@ -3503,6 +3504,7 @@ export default function App() {
                     onChange={handleReviewMenuChange}
                     options={[
                       { value: "appeal", label: "Appeal" },
+                      { value: "create-evaluation", label: "Create Evaluation" },
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
                       ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
                       { value: "rubric", label: "QA Rubric" },
@@ -3693,6 +3695,8 @@ export default function App() {
               });
             }}
           />
+        ) : activeTab === "create-evaluation" ? (
+          <CreateEvaluationMockup />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (
