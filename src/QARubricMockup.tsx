@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import PageHero from "./PageHero";
+import { RUBRIC_VERSIONS, formatRubricDate } from "./lib/rubricVersions";
 
 type Topic = {
   code: string;
@@ -572,6 +573,14 @@ function formatDate(isoDate?: string) {
   });
 }
 
+function todayInputValue() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function isDateInRange(target: string, start: string, end?: string) {
   const t = new Date(`${target}T00:00:00`).getTime();
   const s = new Date(`${start}T00:00:00`).getTime();
@@ -593,11 +602,11 @@ function getAutoRubricKey() {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-200">
+    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(88,28,135,0.08)]">
+      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">
         {label}
       </div>
-      <div className="mt-1 text-xl font-bold text-white">{value}</div>
+      <div className="mt-1 text-xl font-black text-slate-950">{value}</div>
     </div>
   );
 }
@@ -608,6 +617,8 @@ export default function QARubricMockup({
   currentUser: any;
 }) {
   const [selectedKey, setSelectedKey] = useState<RubricVersion["key"]>(getAutoRubricKey());
+  const [rubricEndDateDraft, setRubricEndDateDraft] = useState("");
+  const [previewEndedDate, setPreviewEndedDate] = useState("");
 
   const activeRubric = useMemo(
     () => RUBRICS.find((item) => item.key === selectedKey) || APR_2026_RUBRIC,
@@ -618,6 +629,9 @@ export default function QARubricMockup({
     (sum, section) => sum + section.topics.length,
     0
   );
+  const managedRubric = RUBRIC_VERSIONS[0];
+  const managedEndDate = previewEndedDate || managedRubric.endDate;
+  const managedPeriod = `${formatRubricDate(managedRubric.startDate)} - ${formatRubricDate(managedEndDate)}`;
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   const isCurrentDefault = selectedKey === getAutoRubricKey();
@@ -635,10 +649,60 @@ export default function QARubricMockup({
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Version" value={activeRubric.label} />
+          <StatCard label="Rubric Code" value={managedRubric.code} />
           <StatCard label="Sections" value={activeRubric.sections.length} />
           <StatCard label="Topics" value={totalTopics} />
           <StatCard label="Total Score" value={activeRubric.totalScore} />
+        </div>
+
+        <div className="mb-6 overflow-hidden rounded-[32px] border border-violet-200 bg-white shadow-[0_22px_60px_rgba(88,28,135,0.10)]">
+          <div className="bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-800 px-6 py-5 text-white">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-200">Rubric Version Control</div>
+                <h2 className="mt-2 text-2xl font-black">{managedRubric.name}</h2>
+                <div className="mt-1 text-sm font-semibold text-white/80">{managedRubric.code} · {managedPeriod}</div>
+              </div>
+              <div className={`rounded-full px-4 py-2 text-sm font-black ${managedEndDate ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`}>
+                {managedEndDate ? `Ended ${formatRubricDate(managedEndDate)}` : "Active"}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-6 lg:grid-cols-[1fr_360px]">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-3xl border border-violet-100 bg-violet-50 p-4">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Start Date</div>
+                <div className="mt-2 text-lg font-black text-slate-950">{formatRubricDate(managedRubric.startDate)}</div>
+              </div>
+              <div className="rounded-3xl border border-sky-100 bg-sky-50 p-4">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">End Date</div>
+                <div className="mt-2 text-lg font-black text-slate-950">{formatRubricDate(managedEndDate)}</div>
+              </div>
+              <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Usage</div>
+                <div className="mt-2 text-sm font-bold leading-6 text-slate-800">Create Evaluation will select this rubric when Audit Date is inside the active period.</div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <label className="block">
+                <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Set End Date</span>
+                <input type="date" value={rubricEndDateDraft} onChange={(event) => setRubricEndDateDraft(event.target.value)} className="mt-2 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+              </label>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setPreviewEndedDate(rubricEndDateDraft || todayInputValue())} className="rounded-2xl bg-violet-700 px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(109,40,217,0.22)] transition hover:bg-violet-800">
+                  End Rubric
+                </button>
+                <button type="button" onClick={() => { setPreviewEndedDate(""); setRubricEndDateDraft(""); }} className="rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50">
+                  Clear
+                </button>
+              </div>
+              <div className="mt-3 text-xs font-semibold leading-5 text-slate-500">
+                Phase 1 นี้เป็น preview ในหน้าเว็บก่อน ยังไม่บันทึกถาวรลงฐานข้อมูล Rubric.
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mb-6 rounded-3xl border border-violet-200 bg-white shadow-sm">

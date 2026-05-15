@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605152027",
-  "buildNumber": 2605152027,
-  "releaseLabel": "v1.0.0.2605152027",
-  "updatedAt": "15/05/2026 20:27:38",
+  "displayVersion": "1.0.0.2605152045",
+  "buildNumber": 2605152045,
+  "releaseLabel": "v1.0.0.2605152045",
+  "updatedAt": "15/05/2026 20:45:21",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8f0e64e583c7fbea86f715c1883f487ee43104a3",
-  "commitMessage": "Clear create evaluation defaults",
+  "commitHash": "bff719bebd2ec58773699422d4e220d506c962db",
+  "commitMessage": "Add evidence attachment preview",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
