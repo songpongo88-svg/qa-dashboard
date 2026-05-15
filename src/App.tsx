@@ -898,6 +898,15 @@ function getChatRoomKeyForUser(message: ChatMessage, user: CurrentUser | null) {
   return `private:${otherUsername}`;
 }
 
+function canCurrentUserSeeChatMessage(message: ChatMessage, user: CurrentUser | null) {
+  if (!user) return false;
+  if (message.room === "team") return true;
+  const myUsername = user.username.trim().toLowerCase();
+  const sender = message.username.trim().toLowerCase();
+  const target = String(message.toUsername || "").trim().toLowerCase();
+  return sender === myUsername || target === myUsername;
+}
+
 function playChatNotificationSound() {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -2263,7 +2272,7 @@ export default function App() {
 
     try {
       const logs = await fetchUsageLogs(1000);
-      const nextMessages = buildChatMessages(logs);
+      const nextMessages = buildChatMessages(logs).filter((message) => canCurrentUserSeeChatMessage(message, currentUser));
       const latestIncomingMessage = nextMessages
         .filter((message) => message.username.toLowerCase() !== currentUser.username.toLowerCase())
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
