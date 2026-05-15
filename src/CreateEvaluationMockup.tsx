@@ -68,9 +68,7 @@ function formatThaiDate(value: string) {
 }
 
 function scoreOptions(max: number) {
-  if (max === 15) return [0, 5, 10, 12, 15];
-  if (max === 5) return [0, 2, 3, 4, 5];
-  return [0, 5, 8, 9, 10];
+  return Array.from({ length: max + 1 }, (_, index) => index);
 }
 
 function SectionCard({ label, children }: { label: string; children: ReactNode }) {
