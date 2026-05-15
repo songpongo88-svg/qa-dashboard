@@ -13,6 +13,14 @@ type TopicState = {
   reason: string;
 };
 
+type EvidenceFile = {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  previewUrl: string;
+};
+
 const AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
@@ -112,6 +120,7 @@ export default function CreateEvaluationMockup() {
   const [inquiry, setInquiry] = useState("");
   const [caseDescription, setCaseDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [criticalError, setCriticalError] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
@@ -132,6 +141,12 @@ export default function CreateEvaluationMockup() {
   const completionPct = Math.round((completedTopics / TOPICS.length) * 100);
   const grade = gradeFromScore(finalScore, criticalError);
 
+  const evidencePreviewValue = useMemo(() => {
+    const manualUrl = evidenceUrl.trim();
+    const attached = evidenceFiles.map((file) => `supabase://qa-evidence/${caseId || "draft-case"}/${file.name}`);
+    return [manualUrl, ...attached].filter(Boolean).join("\n");
+  }, [caseId, evidenceFiles, evidenceUrl]);
+
   const previewColumns = useMemo(() => {
     const base: Record<string, string | number> = {
       "Agent Name": agentName,
@@ -141,6 +156,7 @@ export default function CreateEvaluationMockup() {
       "Case ID": caseId,
       "Case URL": caseUrl || "-",
       "Customer Inquiry": inquiry || "-",
+      "Case Image URL": evidencePreviewValue || "-",
       "Final Score": criticalError ? 0 : finalScore,
       "Critical Error": criticalError ? "YES" : "NO",
       "Month Label": auditDate ? new Date(`${auditDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "-",
@@ -153,7 +169,7 @@ export default function CreateEvaluationMockup() {
     });
 
     return base;
-  }, [agentName, auditDate, caseId, caseUrl, criticalError, finalScore, inquiry, serviceTime, topicState, waitingTime]);
+  }, [agentName, auditDate, caseId, caseUrl, criticalError, evidencePreviewValue, finalScore, inquiry, serviceTime, topicState, waitingTime]);
 
   function updateTopic(code: string, patch: Partial<TopicState>) {
     setTopicState((current) => ({
@@ -163,6 +179,29 @@ export default function CreateEvaluationMockup() {
         ...patch,
       },
     }));
+  }
+
+  function handleEvidenceFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const nextFiles = Array.from(files)
+      .filter((file) => file.type.startsWith("image/") || file.type === "application/pdf")
+      .map((file) => ({
+        id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        previewUrl: URL.createObjectURL(file),
+      }));
+
+    setEvidenceFiles((current) => [...current, ...nextFiles]);
+  }
+
+  function removeEvidenceFile(id: string) {
+    setEvidenceFiles((current) => {
+      const target = current.find((file) => file.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((file) => file.id !== id);
+    });
   }
 
   return (
@@ -227,10 +266,56 @@ export default function CreateEvaluationMockup() {
                   <textarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} rows={5} placeholder="สรุปรายละเอียดเคสและสิ่งที่ Agent ดำเนินการ..." className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm leading-6 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
                 </label>
 
-                <label className="block rounded-[24px] border border-dashed border-sky-300 bg-sky-50/60 p-4">
+                <div className="rounded-[24px] border border-dashed border-sky-300 bg-sky-50/60 p-4">
                   <span className="text-xs font-black uppercase tracking-[0.16em] text-sky-700">Evidence URL / PDF / Image</span>
                   <input value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="วางลิงก์ Google Drive, PDF หรือรูปภาพ" className="mt-3 w-full rounded-2xl border border-sky-200 bg-white px-4 py-3 text-sm outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100" />
-                </label>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <label className="inline-flex cursor-pointer items-center rounded-2xl bg-sky-600 px-4 py-2.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(2,132,199,0.22)] transition hover:bg-sky-700">
+                      Attach Files
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={(event) => {
+                          handleEvidenceFiles(event.target.files);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    <span className="text-xs font-semibold text-slate-500">
+                      JPG, PNG, WEBP, PDF · multiple files
+                    </span>
+                  </div>
+
+                  {evidenceFiles.length ? (
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      {evidenceFiles.map((file) => {
+                        const isImage = file.type.startsWith("image/");
+                        return (
+                          <div key={file.id} className="overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm">
+                            {isImage ? (
+                              <img src={file.previewUrl} alt={file.name} className="h-24 w-full object-cover" />
+                            ) : (
+                              <div className="flex h-24 items-center justify-center bg-slate-100 text-sm font-black text-slate-600">PDF</div>
+                            )}
+                            <div className="space-y-2 p-3">
+                              <div className="truncate text-xs font-black text-slate-900" title={file.name}>{file.name}</div>
+                              <div className="text-[11px] font-semibold text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                              <button type="button" onClick={() => removeEvidenceFile(file.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-sky-100 bg-white/70 px-4 py-3 text-xs font-semibold text-slate-500">
+                      ยังไม่มีไฟล์แนบ รอบนี้เป็น Preview ในเครื่องก่อน ต่อ Supabase Storage แล้ว URL จะถูกสร้างอัตโนมัติ
+                    </div>
+                  )}
+                </div>
               </div>
             </SectionCard>
           </div>
