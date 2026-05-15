@@ -15,6 +15,7 @@ import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 type UserRole = string;
 type RolePermissionKey =
   | "viewDashboard"
+  | "viewAllAgents"
   | "viewSummary"
   | "viewCoaching"
   | "viewAppeal"
@@ -203,6 +204,7 @@ const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Qu
 
 const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewDashboard",
+  "viewAllAgents",
   "viewSummary",
   "viewCoaching",
   "viewAppeal",
@@ -223,6 +225,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
     viewDashboard: true,
+    viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
     viewAppeal: true,
@@ -241,6 +244,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Agent: {
     viewDashboard: true,
+    viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
     viewAppeal: true,
@@ -259,6 +263,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Senior: {
     viewDashboard: true,
+    viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
     viewAppeal: true,
@@ -277,6 +282,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Supervisor: {
     viewDashboard: true,
+    viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
     viewAppeal: true,
@@ -301,10 +307,6 @@ function getDefaultRolePermissions(role: UserRole): RolePermissions {
     ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
   };
-}
-
-function shouldScopeCasesToOwnRole(role?: UserRole) {
-  return role === "Admin Live Chat";
 }
 
 function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
@@ -1954,9 +1956,9 @@ export default function App() {
     [profileOverrides, roleOverrides]
   );
   const roleScopedAgentNames = useMemo(() => {
-    if (!currentUser || !shouldScopeCasesToOwnRole(currentUser.role)) return [];
+    if (!currentUser || hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return [];
     return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
-  }, [currentUser]);
+  }, [currentUser, rolePermissions]);
   const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
   const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");

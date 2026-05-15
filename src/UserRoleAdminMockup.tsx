@@ -8,6 +8,7 @@ type UserRole = string;
 type UserStatus = "Active" | "Suspended";
 type RolePermissionKey =
   | "viewDashboard"
+  | "viewAllAgents"
   | "viewSummary"
   | "viewCoaching"
   | "viewAppeal"
@@ -96,6 +97,7 @@ const PERMISSION_DEFINITIONS: Array<{
   description: string;
 }> = [
   { key: "viewDashboard", label: "View Dashboard", category: "Performance", description: "Open Dashboard and case performance views." },
+  { key: "viewAllAgents", label: "View All Agents", category: "Performance", description: "Allow this role to use All Agents and see every agent in Dashboard/Summary." },
   { key: "viewSummary", label: "View Summary", category: "Performance", description: "Open team/month summary pages." },
   { key: "viewCoaching", label: "View Coaching", category: "Performance", description: "Open coaching insight and agent guidance." },
   { key: "viewAppeal", label: "View Appeal", category: "Review", description: "Open appeal page and appeal information." },
@@ -118,6 +120,7 @@ const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
     viewDashboard: true,
+    viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
     viewAppeal: true,
@@ -136,6 +139,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Agent: {
     viewDashboard: true,
+    viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
     viewAppeal: true,
@@ -154,6 +158,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Senior: {
     viewDashboard: true,
+    viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
     viewAppeal: true,
@@ -172,6 +177,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Supervisor: {
     viewDashboard: true,
+    viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
     viewAppeal: true,

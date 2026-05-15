@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151008",
-  "buildNumber": 2605151008,
-  "releaseLabel": "v1.0.0.2605151008",
-  "updatedAt": "15/05/2026 10:08:49",
+  "displayVersion": "1.0.0.2605151016",
+  "buildNumber": 2605151016,
+  "releaseLabel": "v1.0.0.2605151016",
+  "updatedAt": "15/05/2026 10:16:18",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "0dd779049c30cdf26a780344b2454c611b79ed1a",
-  "commitMessage": "Limit admin live chat to own cases",
+  "commitHash": "5c3df0b1970362bac8527e3b4e0cecb6e7c1ff73",
+  "commitMessage": "Lock scoped agent filter labels",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
