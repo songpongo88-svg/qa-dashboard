@@ -3625,9 +3625,13 @@ export default function DashboardMockup({
               };
             });
 
+            const explicitRawFinalScore = rawHelper.getLastValue(row, "Final Score");
             const baseFinalScore =
-              Number(rawHelper.getValue(row, "Final Score")) ||
-              topics.reduce((sum, topic) => sum + topic.score, 0);
+              explicitRawFinalScore !== null &&
+              explicitRawFinalScore !== "" &&
+              !Number.isNaN(Number(explicitRawFinalScore))
+                ? Number(explicitRawFinalScore)
+                : topics.reduce((sum, topic) => sum + topic.score, 0);
 
             const finalScoreVal =
               mergedAppeal?.finalScore ??
