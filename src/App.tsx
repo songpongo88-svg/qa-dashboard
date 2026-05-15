@@ -175,7 +175,7 @@ type PasswordRecord = {
 
 type InboxTaskItem = {
   id: string;
-  type: "appeal" | "appeal-override" | "password" | "evaluation";
+  type: "appeal" | "appeal-result" | "appeal-override" | "password" | "evaluation";
   title: string;
   description: string;
   badge: string;
@@ -2046,6 +2046,40 @@ export default function App() {
         }
       }
 
+      buildAppealRequests(logs)
+        .filter((item) => item.status !== "Pending")
+        .filter((item) => {
+          const currentIdentities = [
+            currentUser.username,
+            currentUser.displayName,
+            currentUser.agentName,
+          ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+          const requestIdentities = [
+            item.agent,
+            item.submittedBy,
+            item.submittedByUsername,
+          ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+          return requestIdentities.some((value) => currentIdentities.includes(value));
+        })
+        .forEach((item) => {
+          const id = `appeal-result-${item.requestId}-${item.status}-${item.reviewedAt || "reviewed"}`;
+          nextTasks.push({
+            id,
+            type: "appeal-result",
+            title: `Appeal result: ${item.caseId}`,
+            description:
+              item.status === "Approved"
+                ? "Your appeal was approved. Open the case detail to review the decision. Dashboard score will update after Appeal ROWDATA is uploaded."
+                : "Your appeal was rejected. Open the case detail to review the decision summary.",
+            badge: item.status,
+            count: 1,
+            unread: !readIds.includes(id),
+            actionLabel: "Open case detail",
+            caseId: item.caseId,
+            agentName: item.agent,
+          });
+        });
+
       const submittedAppealCaseIds = new Set(
         buildAppealRequests(logs).map((item) => String(item.caseId || "").trim().toLowerCase())
       );
@@ -2547,6 +2581,15 @@ export default function App() {
       if (appealRequestsAllowed) {
         setActiveTab("appeal-requests");
       }
+      return;
+    }
+
+    if (task.type === "appeal-result") {
+      setActiveTab("dashboard");
+      setDashboardSubTab("case-detail");
+      setSelectedAppealCaseId("");
+      setSelectedDashboardCaseId(task.caseId || "");
+      setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
       return;
     }
 

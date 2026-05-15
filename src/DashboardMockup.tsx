@@ -204,6 +204,13 @@ function isSameAgent(a: string, b: string) {
   return canonicalAgentKey(a) === canonicalAgentKey(b);
 }
 
+function isCurrentUserCaseOwner(currentUser: any, caseAgent: string) {
+  if (!currentUser || !caseAgent) return false;
+  return [currentUser.agentName, currentUser.displayName, currentUser.username]
+    .filter(Boolean)
+    .some((name) => isSameAgent(String(name), caseAgent));
+}
+
 function dedupeAgentNames(names: string[]) {
   const map = new Map<string, string>();
 
@@ -2108,7 +2115,11 @@ function SlideOverCaseDetail({
   } | null>(null);
 
   const appealDeadline = getAppealDeadline(caseItem.auditDateObj);
-  const canSubmitAppeal = (isAppealWindowOpen(caseItem.auditDateObj) || appealOverrideAllowed) && !appealRequestExists;
+  const isOwnAppealCase = isCurrentUserCaseOwner(currentUser, caseItem.agent);
+  const canSubmitAppeal =
+    isOwnAppealCase &&
+    (isAppealWindowOpen(caseItem.auditDateObj) || appealOverrideAllowed) &&
+    !appealRequestExists;
 
   useEffect(() => {
     let cancelled = false;
@@ -2163,6 +2174,11 @@ function SlideOverCaseDetail({
 
   const submitAppealRequest = async () => {
     if (!currentUser || appealSubmitBusy) return;
+    if (!isOwnAppealCase) {
+      setAppealSubmitMessage("Only the case owner can submit an appeal for this case.");
+      return;
+    }
+
     if (!canSubmitAppeal) {
       setAppealSubmitMessage("This case is not available for appeal submission.");
       return;

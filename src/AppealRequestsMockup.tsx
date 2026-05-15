@@ -33,6 +33,7 @@ type AppealRequest = {
   status: "Pending" | "Approved" | "Rejected";
   reviewSummary?: string;
   reviewedAt?: string;
+  submittedByUsername?: string;
   topics: AppealTopic[];
 };
 
@@ -108,6 +109,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         status,
         reviewSummary: String(review?.details?.reviewSummary || ""),
         reviewedAt: String(review?.details?.reviewedAt || review?.created_at || ""),
+        submittedByUsername: String(log.details?.submittedByUsername || ""),
         topics: reviewTopics || baseTopics,
       };
     });
@@ -213,6 +215,16 @@ export default function AppealRequestsMockup({
 
   const submitReview = async () => {
     if (!selectedRequest || selectedRequest.status !== "Pending") return;
+    const confirmed = window.confirm(
+      [
+        `Confirm ${decision} for appeal case ${selectedRequest.caseId}?`,
+        "",
+        "After saving, this task will move out of Pending and the case owner will receive an Inbox notification.",
+        "Dashboard score will not change until you export and upload Appeal ROWDATA.",
+      ].join("\n")
+    );
+    if (!confirmed) return;
+
     setBusy(true);
     try {
       await logUsageEvent(currentUser, "appeal_request_reviewed", {
@@ -225,9 +237,16 @@ export default function AppealRequestsMockup({
           reviewSummary,
           reviewedAt: new Date().toISOString(),
           topics: draftTopics,
+          submittedBy: selectedRequest.submittedBy,
+          submittedByUsername: selectedRequest.submittedByUsername,
+          notificationTarget: selectedRequest.submittedByUsername || selectedRequest.submittedBy || selectedRequest.agent,
+          notificationTemplate: {
+            subject: `Appeal result for case ${selectedRequest.caseId}`,
+            body: `Your appeal for case ${selectedRequest.caseId} has been ${decision}. Please open Task Inbox to review the result. Dashboard score will update after Appeal ROWDATA is uploaded.`,
+          },
         },
       });
-      setMessage(`Saved review for ${selectedRequest.caseId}. Dashboard score is not updated until Appeal ROWDATA is uploaded.`);
+      setMessage(`Saved review for ${selectedRequest.caseId}. Result task was sent to the case owner. Dashboard score is not updated until Appeal ROWDATA is uploaded.`);
       await loadRequests();
       onTasksChanged?.();
     } finally {

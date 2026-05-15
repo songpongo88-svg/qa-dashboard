@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605150902",
-  "buildNumber": 2605150902,
-  "releaseLabel": "v1.0.0.2605150902",
-  "updatedAt": "15/05/2026 09:02:46",
+  "displayVersion": "1.0.0.2605150922",
+  "buildNumber": 2605150922,
+  "releaseLabel": "v1.0.0.2605150922",
+  "updatedAt": "15/05/2026 09:22:40",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "964e279e7d47b8b80d6db03b145bcdb09737ffb0",
-  "commitMessage": "Redesign account administration layout",
+  "commitHash": "967e3a46fcb922b91373a099217099ef18f5e740",
+  "commitMessage": "Add floating team chat widget",
   "changedFiles": [
     "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
