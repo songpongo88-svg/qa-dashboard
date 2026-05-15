@@ -184,6 +184,14 @@ type InboxTaskItem = {
   actionLabel: string;
   caseId?: string;
   agentName?: string;
+  mailTemplate?: {
+    subject: string;
+    to: string;
+    from: string;
+    status: string;
+    body: string[];
+    footer?: string;
+  };
 };
 
 const INBOX_READ_KEY = "qa_inbox_read_tasks";
@@ -1628,6 +1636,33 @@ function TaskInboxMockup({
               <div className="mt-4 text-sm font-black text-violet-700 transition group-hover:translate-x-1">
                 {task.actionLabel}
               </div>
+              {task.mailTemplate ? (
+                <div className="mt-5 rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-inner">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Internal Inbox Notice</div>
+                      <div className="mt-1 text-base font-black text-slate-950">{task.mailTemplate.subject}</div>
+                    </div>
+                    <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700">
+                      {task.mailTemplate.status}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-500 sm:grid-cols-2">
+                    <div>To: <span className="text-slate-800">{task.mailTemplate.to || "-"}</span></div>
+                    <div>From: <span className="text-slate-800">{task.mailTemplate.from || "-"}</span></div>
+                  </div>
+                  <div className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+                    {task.mailTemplate.body.map((line, index) => (
+                      <p key={`${task.id}-mail-line-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                  {task.mailTemplate.footer ? (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+                      {task.mailTemplate.footer}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </button>
           ))}
 
@@ -2042,6 +2077,17 @@ export default function App() {
             count: pendingCount,
             unread: !readIds.includes(id),
             actionLabel: "Open review inbox",
+            mailTemplate: {
+              subject: "มีรายการอุทธรณ์รอพิจารณา",
+              to: currentUser.displayName || currentUser.username,
+              from: "QA Dashboard System",
+              status: "Pending Review",
+              body: [
+                `มีคำขออุทธรณ์จำนวน ${pendingCount} รายการรอการพิจารณา`,
+                "กรุณาเปิด Appeal Requests เพื่อตรวจสอบรายละเอียด แก้ไขคะแนนหรือคอมเมนต์ และบันทึกผลเป็น Approve หรือ Reject",
+              ],
+              footer: "หลัง Save Review ระบบจะแจ้งผลกลับไปยัง Inbox ของเจ้าของเคสโดยอัตโนมัติ",
+            },
           });
         }
       }
@@ -2077,6 +2123,22 @@ export default function App() {
             actionLabel: "Open case detail",
             caseId: item.caseId,
             agentName: item.agent,
+            mailTemplate: {
+              subject: `ผลการพิจารณาอุทธรณ์เคส ${item.caseId}`,
+              to: item.submittedBy || item.agent || currentUser.displayName || currentUser.username,
+              from: "Quality Assurance / Songpon Phothong",
+              status: item.status,
+              body: [
+                `ผลการพิจารณา: ${item.status === "Approved" ? "อนุมัติการปรับคะแนน" : "ไม่อนุมัติการปรับคะแนน"}`,
+                `Case ID: ${item.caseId}`,
+                `Agent: ${item.agent || "-"}`,
+                item.reviewSummary ? `สรุปผลการพิจารณา: ${item.reviewSummary}` : "สรุปผลการพิจารณา: กรุณาเปิดรายละเอียดเคสเพื่อตรวจสอบข้อมูลเพิ่มเติม",
+              ],
+              footer:
+                item.status === "Approved"
+                  ? "หมายเหตุ: คะแนนใน Dashboard จะอัปเดตหลังจาก QA Export Appeal ROWDATA และอัปโหลดไฟล์กลับเข้าระบบ"
+                  : "หมายเหตุ: เคสนี้จะไม่ถูกปรับคะแนนใน Dashboard เว้นแต่ QA มีการพิจารณาและอัปเดต Appeal ROWDATA ใหม่",
+            },
           });
         });
 
@@ -2109,6 +2171,17 @@ export default function App() {
           actionLabel: "Open case detail",
           caseId: item.caseId,
           agentName: item.targetAgent,
+          mailTemplate: {
+            subject: `เปิดสิทธิ์ยื่นอุทธรณ์เคส ${item.caseId}`,
+            to: item.targetAgent || currentUser.displayName || currentUser.username,
+            from: "Quality Assurance / Songpon Phothong",
+            status: "Appeal Override",
+            body: [
+              `เคส ${item.caseId} ได้รับสิทธิ์ให้ยื่นอุทธรณ์ได้ แม้เลยกำหนดรอบปกติแล้ว`,
+              item.note ? `Reason / Note: ${item.note}` : "Reason / Note: เปิดสิทธิ์พิเศษโดย QA",
+            ],
+            footer: "สิทธิ์นี้ยังคงยึดเงื่อนไขยื่นได้ 1 ครั้งต่อเคส และต้องเป็นเจ้าของเคสเท่านั้น",
+          },
         });
       });
 

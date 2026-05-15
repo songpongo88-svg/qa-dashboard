@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605150922",
-  "buildNumber": 2605150922,
-  "releaseLabel": "v1.0.0.2605150922",
-  "updatedAt": "15/05/2026 09:22:40",
+  "displayVersion": "1.0.0.2605150929",
+  "buildNumber": 2605150929,
+  "releaseLabel": "v1.0.0.2605150929",
+  "updatedAt": "15/05/2026 09:29:47",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "967e3a46fcb922b91373a099217099ef18f5e740",
-  "commitMessage": "Add floating team chat widget",
+  "commitHash": "0ffe1b67f46dbac83eb528f97f0e41294dda570f",
+  "commitMessage": "Tighten appeal review workflow",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/AppealRequestsMockup.tsx",
+    "src/DashboardMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
