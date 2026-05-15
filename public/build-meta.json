@@ -1,18 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605152009",
-  "buildNumber": 2605152009,
-  "releaseLabel": "v1.0.0.2605152009",
-  "updatedAt": "15/05/2026 20:09:16",
+  "displayVersion": "1.0.0.2605152016",
+  "buildNumber": 2605152016,
+  "releaseLabel": "v1.0.0.2605152016",
+  "updatedAt": "15/05/2026 20:16:25",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "df8f0301580d242bc1ce2f2d99966d67a2c2db6e",
-  "commitMessage": "Restore appeal rowdata from V8 dashboard",
+  "commitHash": "6d0d09a6aa8df7c76c27405e92943d107d08c0be",
+  "commitMessage": "Add create evaluation phase one",
   "changedFiles": [
-    "public/Appleal ROWDATA.xlsx",
-    "public/Appleal ROWDATA15052026.xlsx",
-    "public/build-meta.json"
+    "mockups/create-qa-evaluation-phase1.svg",
+    "public/build-meta.json",
+    "src/App.tsx",
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

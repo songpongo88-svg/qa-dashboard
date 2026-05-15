@@ -52,7 +52,7 @@ const GROUP_LABELS: Array<{ key: Topic["group"]; title: string; note: string }> 
 
 function buildInitialTopicState() {
   return TOPICS.reduce<Record<string, TopicState>>((acc, topic) => {
-    acc[topic.code] = { score: topic.max, reason: "" };
+    acc[topic.code] = { score: 0, reason: "" };
     return acc;
   }, {});
 }
@@ -103,13 +103,13 @@ function SectionCard({
 }
 
 export default function CreateEvaluationMockup() {
-  const [agentName, setAgentName] = useState("Anucha Makundin");
+  const [agentName, setAgentName] = useState("");
   const [auditDate, setAuditDate] = useState(todayInputValue());
-  const [waitingTime, setWaitingTime] = useState("16:47");
-  const [serviceTime, setServiceTime] = useState("16:53");
-  const [caseId, setCaseId] = useState("AA215763");
+  const [waitingTime, setWaitingTime] = useState("");
+  const [serviceTime, setServiceTime] = useState("");
+  const [caseId, setCaseId] = useState("");
   const [caseUrl, setCaseUrl] = useState("");
-  const [inquiry, setInquiry] = useState("ไรเดอร์สอบถามค่ารอบไม่สอดคล้องกับระยะทาง");
+  const [inquiry, setInquiry] = useState("");
   const [caseDescription, setCaseDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [criticalError, setCriticalError] = useState(false);
@@ -183,6 +183,7 @@ export default function CreateEvaluationMockup() {
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Agent Full Name</span>
                   <select value={agentName} onChange={(event) => setAgentName(event.target.value)} className="mt-2 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100">
+                    <option value="">Select agent</option>
                     {AGENT_NAMES.map((name) => (
                       <option key={name} value={name}>{name}</option>
                     ))}
@@ -192,7 +193,7 @@ export default function CreateEvaluationMockup() {
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Case ID</span>
-                    <input value={caseId} onChange={(event) => setCaseId(event.target.value)} className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+                    <input value={caseId} onChange={(event) => setCaseId(event.target.value)} placeholder="AAxxxxxx" className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
                   </label>
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Audit Date</span>
@@ -203,11 +204,11 @@ export default function CreateEvaluationMockup() {
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Waiting Time</span>
-                    <input value={waitingTime} onChange={(event) => setWaitingTime(event.target.value)} className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+                    <input value={waitingTime} onChange={(event) => setWaitingTime(event.target.value)} placeholder="HH:mm" className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
                   </label>
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Service Time</span>
-                    <input value={serviceTime} onChange={(event) => setServiceTime(event.target.value)} className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+                    <input value={serviceTime} onChange={(event) => setServiceTime(event.target.value)} placeholder="HH:mm" className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
                   </label>
                 </div>
 
@@ -218,7 +219,7 @@ export default function CreateEvaluationMockup() {
 
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Customer Inquiry</span>
-                  <textarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} rows={3} className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm leading-6 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+                  <textarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} rows={3} placeholder="สรุปคำถามหรือประเด็นที่ลูกค้าติดต่อเข้ามา..." className="mt-2 w-full rounded-2xl border border-violet-200 px-4 py-3 text-sm leading-6 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
                 </label>
 
                 <label className="block">
