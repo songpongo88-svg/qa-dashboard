@@ -199,6 +199,7 @@ const INBOX_READ_KEY = "qa_inbox_read_tasks";
 const CHAT_READ_KEY = "qa_chat_read_at";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
+const CHAT_HISTORY_RESET_AT = "2026-05-15T10:40:51+07:00";
 
 const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
 
@@ -777,12 +778,30 @@ function buildMaintenanceState(logs: UsageLogEvent[]) {
 }
 
 function buildChatMessages(logs: UsageLogEvent[]) {
+  const resetAt = new Date(CHAT_HISTORY_RESET_AT).getTime();
   const sortedLogs = [...logs].sort(
     (a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
   );
   const messages = new Map<string, ChatMessage>();
 
   sortedLogs.forEach((item) => {
+    const createdAtMs = new Date(item.created_at || "").getTime();
+    if (
+      Number.isFinite(resetAt) &&
+      Number.isFinite(createdAtMs) &&
+      createdAtMs <= resetAt &&
+      (
+        item.event_type === "chat_message" ||
+        item.event_type === "chat_call_invite" ||
+        item.event_type === "chat_call_response" ||
+        item.event_type === "chat_call_ended" ||
+        item.event_type === "chat_message_edited" ||
+        item.event_type === "chat_message_deleted"
+      )
+    ) {
+      return;
+    }
+
     if (item.event_type === "chat_message" || item.event_type === "chat_call_invite") {
       const id = item.event_type === "chat_call_invite"
         ? String(item.details?.callId || item.id || `${item.username}-${item.created_at}`)
@@ -1815,23 +1834,27 @@ function FloatingChatWidget({
                 Refresh
               </button>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="max-h-[190px] space-y-2 overflow-y-auto pr-1">
               <button
                 type="button"
                 onClick={() => setSelectedUsername("team")}
-                className={`relative shrink-0 rounded-2xl border px-3 py-2 text-left transition ${
+                className={`relative w-full rounded-2xl border px-3 py-2 text-left transition ${
                   selectedUsername === "team"
                     ? "border-violet-400 bg-violet-50 text-violet-800"
                     : "border-slate-200 bg-slate-50 text-slate-700 hover:border-violet-200"
                 }`}
               >
-                <div className="text-xs font-black">Team Room</div>
-                <div className="text-[10px] font-semibold text-slate-400">Everyone</div>
-                {unreadCounts.team ? (
-                  <span className="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-black text-white">
-                    {unreadCounts.team}
-                  </span>
-                ) : null}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black">Team Room</div>
+                    <div className="text-[10px] font-semibold text-slate-400">Everyone</div>
+                  </div>
+                  {unreadCounts.team ? (
+                    <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">
+                      {unreadCounts.team}
+                    </span>
+                  ) : null}
+                </div>
               </button>
               {privateUsers.map((user) => {
                 const roomKey = `private:${user.username.toLowerCase()}`;
@@ -1840,19 +1863,23 @@ function FloatingChatWidget({
                     key={user.username}
                     type="button"
                     onClick={() => setSelectedUsername(user.username)}
-                    className={`relative min-w-[132px] shrink-0 rounded-2xl border px-3 py-2 text-left transition ${
+                    className={`relative w-full rounded-2xl border px-3 py-2 text-left transition ${
                       selectedUsername === user.username
                         ? "border-sky-400 bg-sky-50 text-sky-800"
                         : "border-slate-200 bg-slate-50 text-slate-700 hover:border-sky-200"
                     }`}
                   >
-                    <div className="truncate text-xs font-black">{user.displayName || user.username}</div>
-                    <div className="text-[10px] font-semibold text-emerald-600">Online</div>
-                    {unreadCounts[roomKey] ? (
-                      <span className="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-black text-white">
-                        {unreadCounts[roomKey]}
-                      </span>
-                    ) : null}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-black">{user.displayName || user.username}</div>
+                        <div className="text-[10px] font-semibold text-emerald-600">Online</div>
+                      </div>
+                      {unreadCounts[roomKey] ? (
+                        <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">
+                          {unreadCounts[roomKey]}
+                        </span>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })}

@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151035",
-  "buildNumber": 2605151035,
-  "releaseLabel": "v1.0.0.2605151035",
-  "updatedAt": "15/05/2026 10:35:23",
+  "displayVersion": "1.0.0.2605151042",
+  "buildNumber": 2605151042,
+  "releaseLabel": "v1.0.0.2605151042",
+  "updatedAt": "15/05/2026 10:42:17",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "55d720690c1b9525d09369258e65f7e550cc6f29",
-  "commitMessage": "Restrict private chat visibility",
+  "commitHash": "8942c3b0e49f33a865e84f829e4c5a0aab209777",
+  "commitMessage": "Add private rooms to floating chat",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
