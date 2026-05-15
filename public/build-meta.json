@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151103",
-  "buildNumber": 2605151103,
-  "releaseLabel": "v1.0.0.2605151103",
-  "updatedAt": "15/05/2026 11:03:14",
+  "displayVersion": "1.0.0.2605151114",
+  "buildNumber": 2605151114,
+  "releaseLabel": "v1.0.0.2605151114",
+  "updatedAt": "15/05/2026 11:14:50",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6109189640c8a24a28d2701ce27c9890cd549221",
-  "commitMessage": "Redesign user directory table",
+  "commitHash": "394054f6bde9986935597f8b3015399950c1d2b2",
+  "commitMessage": "Increase user directory visual contrast",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

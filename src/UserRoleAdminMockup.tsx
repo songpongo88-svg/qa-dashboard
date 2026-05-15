@@ -377,6 +377,10 @@ export default function UserRoleAdminMockup({
     () => roleDefinitions.filter((role) => role.active).map((role) => role.name),
     [roleDefinitions]
   );
+  const currentPermissions = rolePermissions[currentUser.role] || getDefaultRolePermissions(currentUser.role);
+  const canManageUsers = Boolean(currentPermissions.manageUsers);
+  const canManageRoles = Boolean(currentPermissions.manageRoles);
+  const canManageMaintenance = Boolean(currentPermissions.manageMaintenance);
 
   const loadRoleDefinitions = async () => {
     try {
@@ -417,6 +421,19 @@ export default function UserRoleAdminMockup({
   useEffect(() => {
     setPermissionDrafts(rolePermissions);
   }, [rolePermissions]);
+
+  useEffect(() => {
+    if (adminTab === "users" && canManageUsers) return;
+    if (adminTab === "roles" && canManageRoles) return;
+    if (adminTab === "maintenance" && canManageMaintenance) return;
+    if (canManageUsers) {
+      setAdminTab("users");
+    } else if (canManageRoles) {
+      setAdminTab("roles");
+    } else if (canManageMaintenance) {
+      setAdminTab("maintenance");
+    }
+  }, [adminTab, canManageMaintenance, canManageRoles, canManageUsers]);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -847,30 +864,36 @@ export default function UserRoleAdminMockup({
           <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
         </div>
 
-        <div className="mt-6 rounded-[30px] border border-violet-200 bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-800 p-3 shadow-[0_22px_60px_rgba(109,40,217,0.22)]">
+        <div className="mt-6 rounded-[30px] border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 p-3 shadow-[0_18px_48px_rgba(109,40,217,0.10)]">
           <div className="grid gap-3 lg:grid-cols-3">
-            <AdminPrimaryTabButton
-              active={adminTab === "users"}
-              title="User Management"
-              description="Manage user profiles and account status"
-              count={totalUsers}
-              onClick={() => setAdminTab("users")}
-            />
-            <AdminPrimaryTabButton
-              active={adminTab === "roles"}
-              title="Access Control"
-              description="Configure roles and permissions"
-              count={roleDefinitions.length}
-              onClick={() => setAdminTab("roles")}
-            />
-            <AdminPrimaryTabButton
-              active={adminTab === "maintenance"}
-              title="System Maintenance"
-              description={maintenanceState.enabled ? "Maintenance mode is active" : "System is open for users"}
-              count={maintenanceState.enabled ? 1 : 0}
-              tone={maintenanceState.enabled ? "amber" : "slate"}
-              onClick={() => setAdminTab("maintenance")}
-            />
+            {canManageUsers ? (
+              <AdminPrimaryTabButton
+                active={adminTab === "users"}
+                title="User Management"
+                description="Manage user profiles and account status"
+                count={totalUsers}
+                onClick={() => setAdminTab("users")}
+              />
+            ) : null}
+            {canManageRoles ? (
+              <AdminPrimaryTabButton
+                active={adminTab === "roles"}
+                title="Access Control"
+                description="Configure roles and permissions"
+                count={roleDefinitions.length}
+                onClick={() => setAdminTab("roles")}
+              />
+            ) : null}
+            {canManageMaintenance ? (
+              <AdminPrimaryTabButton
+                active={adminTab === "maintenance"}
+                title="System Maintenance"
+                description={maintenanceState.enabled ? "Maintenance mode is active" : "System is open for users"}
+                count={maintenanceState.enabled ? 1 : 0}
+                tone={maintenanceState.enabled ? "amber" : "slate"}
+                onClick={() => setAdminTab("maintenance")}
+              />
+            ) : null}
           </div>
         </div>
 
@@ -885,13 +908,13 @@ export default function UserRoleAdminMockup({
           </div>
         ) : null}
 
-        {adminTab === "users" ? (
+        {adminTab === "users" && canManageUsers ? (
           <div className="mt-5 overflow-hidden rounded-[32px] border border-violet-200 bg-white shadow-[0_24px_80px_rgba(88,28,135,0.12)]">
-            <div className="flex flex-col gap-4 border-b border-violet-200 bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-800 px-5 py-6 text-white lg:flex-row lg:items-center lg:justify-between lg:px-6">
+            <div className="flex flex-col gap-4 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50 to-fuchsia-50 px-5 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-6">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-fuchsia-200">User Management</div>
-                <div className="mt-1 text-3xl font-black tracking-tight text-white">Corporate User Directory</div>
-                <div className="mt-1 text-sm font-semibold leading-6 text-violet-100">
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">User Management</div>
+                <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">Corporate User Directory</div>
+                <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
                   {isEditing
                     ? "Edit account information and save all directory changes in one action."
                     : "Review user profiles, registered emails, assigned roles, and account availability."}
@@ -967,7 +990,7 @@ export default function UserRoleAdminMockup({
               <ReadOnlyDirectoryTable rows={visibleRows} />
             )}
           </div>
-        ) : adminTab === "roles" ? (
+        ) : adminTab === "roles" && canManageRoles ? (
           <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
             <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
               <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Access Control</div>
@@ -994,7 +1017,7 @@ export default function UserRoleAdminMockup({
               onSavePermissions={() => void saveRolePermissions()}
             />
           </div>
-        ) : (
+        ) : adminTab === "maintenance" && canManageMaintenance ? (
           <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
             <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
               <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">System Maintenance</div>
@@ -1009,7 +1032,7 @@ export default function UserRoleAdminMockup({
               onSaveMaintenanceMode={saveMaintenanceMode}
             />
           </div>
-        )}
+        ) : null}
       </div>
 
       {createUserOpen ? (
@@ -1129,10 +1152,10 @@ function AdminPrimaryTabButton({
 }) {
   const activeClass =
     tone === "amber"
-      ? "border-amber-300 bg-gradient-to-br from-amber-300 to-orange-500 text-slate-950 shadow-[0_16px_36px_rgba(245,158,11,0.28)]"
+      ? "border-amber-200 bg-gradient-to-br from-amber-100 to-orange-100 text-slate-950 shadow-[0_14px_32px_rgba(245,158,11,0.14)]"
       : tone === "slate"
-        ? "border-slate-400 bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-[0_16px_36px_rgba(15,23,42,0.28)]"
-        : "border-fuchsia-300 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-pink-500 text-white shadow-[0_16px_36px_rgba(217,70,239,0.28)]";
+        ? "border-slate-200 bg-gradient-to-br from-white to-slate-100 text-slate-950 shadow-[0_14px_32px_rgba(15,23,42,0.10)]"
+        : "border-violet-200 bg-gradient-to-br from-white via-violet-50 to-fuchsia-50 text-slate-950 shadow-[0_14px_32px_rgba(109,40,217,0.14)]";
 
   return (
     <button
@@ -1141,16 +1164,16 @@ function AdminPrimaryTabButton({
       className={`rounded-[24px] border px-5 py-4 text-left transition hover:-translate-y-0.5 ${
         active
           ? activeClass
-          : "border-white/15 bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] hover:border-white/35 hover:bg-white/18"
+          : "border-transparent bg-white/80 text-slate-700 shadow-sm hover:border-violet-100 hover:bg-white"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className={`text-sm font-black ${active && tone === "amber" ? "text-slate-950" : "text-white"}`}>{title}</div>
-          <div className={`mt-1 text-xs font-semibold leading-5 ${active && tone === "amber" ? "text-slate-900/75" : active ? "text-white/82" : "text-violet-100"}`}>{description}</div>
+          <div className="text-sm font-black text-slate-950">{title}</div>
+          <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{description}</div>
         </div>
         <span className={`inline-flex min-w-8 justify-center rounded-full px-2.5 py-1 text-xs font-bold ${
-          active ? "bg-white text-slate-950" : "bg-white/18 text-white"
+          active ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700"
         }`}>
           {count}
         </span>
@@ -1213,34 +1236,34 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
   const roleCount = new Set(rows.map((row) => row.effectiveRole)).size;
 
   return (
-    <div className="bg-gradient-to-br from-violet-100 via-fuchsia-50 to-sky-100 px-5 py-5">
+    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
       <div className="mb-5 grid gap-3 md:grid-cols-3">
-        <div className="rounded-[24px] border border-violet-300 bg-gradient-to-br from-violet-700 to-slate-950 px-5 py-4 text-white shadow-[0_18px_38px_rgba(109,40,217,0.22)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-100">Directory View</div>
+        <div className="rounded-[24px] border border-violet-100 bg-gradient-to-br from-white to-violet-50 px-5 py-4 shadow-[0_16px_34px_rgba(109,40,217,0.10)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">Directory View</div>
           <div className="mt-2 flex items-end justify-between gap-3">
-            <div className="text-3xl font-black text-white">{rows.length}</div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-violet-700">user(s)</div>
+            <div className="text-3xl font-black text-slate-950">{rows.length}</div>
+            <div className="rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white">user(s)</div>
           </div>
         </div>
-        <div className="rounded-[24px] border border-emerald-300 bg-gradient-to-br from-emerald-400 to-teal-700 px-5 py-4 text-white shadow-[0_18px_38px_rgba(16,185,129,0.20)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-50">Active Accounts</div>
+        <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 px-5 py-4 shadow-[0_16px_34px_rgba(16,185,129,0.10)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Active Accounts</div>
           <div className="mt-2 flex items-end justify-between gap-3">
-            <div className="text-3xl font-black text-white">{activeCount}</div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700">available</div>
+            <div className="text-3xl font-black text-slate-950">{activeCount}</div>
+            <div className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">available</div>
           </div>
         </div>
-        <div className="rounded-[24px] border border-fuchsia-300 bg-gradient-to-br from-fuchsia-500 to-pink-600 px-5 py-4 text-white shadow-[0_18px_38px_rgba(217,70,239,0.20)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-fuchsia-50">Access Groups</div>
+        <div className="rounded-[24px] border border-fuchsia-100 bg-gradient-to-br from-white to-fuchsia-50 px-5 py-4 shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-fuchsia-600">Access Groups</div>
           <div className="mt-2 flex items-end justify-between gap-3">
-            <div className="text-3xl font-black text-white">{roleCount}</div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-black text-fuchsia-700">{suspendedCount} suspended</div>
+            <div className="text-3xl font-black text-slate-950">{roleCount}</div>
+            <div className="rounded-full bg-fuchsia-500 px-3 py-1 text-xs font-black text-white">{suspendedCount} suspended</div>
           </div>
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <div className="min-w-[1060px] space-y-3">
-          <div className="grid grid-cols-[minmax(280px,1.35fr)_minmax(220px,1fr)_minmax(280px,1.1fr)_190px_160px] items-center gap-4 rounded-[20px] bg-slate-950 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-white">
+          <div className="grid grid-cols-[minmax(280px,1.35fr)_minmax(220px,1fr)_minmax(280px,1.1fr)_190px_160px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
             <div>User Profile</div>
             <div>Agent Name</div>
             <div>Registered Email</div>
@@ -1277,9 +1300,8 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
               </div>
 
               <div>
-                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${roleBadgeClass(row.effectiveRole)}`}>
-                  {row.effectiveRole}
-                </span>
+                <div className="text-sm font-black text-slate-800">{row.effectiveRole}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-400">Access role</div>
               </div>
 
               <div>
