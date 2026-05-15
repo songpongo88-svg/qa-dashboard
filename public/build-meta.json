@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151030",
-  "buildNumber": 2605151030,
-  "releaseLabel": "v1.0.0.2605151030",
-  "updatedAt": "15/05/2026 10:30:12",
+  "displayVersion": "1.0.0.2605151035",
+  "buildNumber": 2605151035,
+  "releaseLabel": "v1.0.0.2605151035",
+  "updatedAt": "15/05/2026 10:35:23",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "bcffefcfdb6e22b6001a89c65ef903abd6c52964",
-  "commitMessage": "Prefer saved profile roles",
+  "commitHash": "55d720690c1b9525d09369258e65f7e550cc6f29",
+  "commitMessage": "Restrict private chat visibility",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

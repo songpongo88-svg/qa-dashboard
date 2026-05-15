@@ -1726,7 +1726,7 @@ function FloatingChatWidget({
   totalUnread,
   onToggle,
   onOpenFullChat,
-  onSendTeamMessage,
+  onSendMessage,
   onRefresh,
 }: {
   open: boolean;
@@ -1737,29 +1737,43 @@ function FloatingChatWidget({
   totalUnread: number;
   onToggle: () => void;
   onOpenFullChat: () => void;
-  onSendTeamMessage: (message: string) => Promise<void>;
+  onSendMessage: (message: string, toUser?: OnlineUser) => Promise<void>;
   onRefresh: () => void;
 }) {
   const [draft, setDraft] = useState("");
+  const [selectedUsername, setSelectedUsername] = useState("team");
   const [sending, setSending] = useState(false);
   const myUsername = currentUser.username.toLowerCase();
   const unreadBadge = totalUnread > 9 ? "9+" : String(totalUnread);
-  const recentMessages = [...messages]
-    .filter((message) => !message.deleted)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+  const privateUsers = onlineUsers.filter((user) => user.username.toLowerCase() !== myUsername);
+  const selectedUser = privateUsers.find((user) => user.username === selectedUsername);
+  const selectedRoomKey = selectedUser ? `private:${selectedUser.username.toLowerCase()}` : "team";
+  const selectedRoomTitle = selectedUser ? selectedUser.displayName || selectedUser.username : "Team Room";
+  const roomMessages = [...messages]
+    .filter((message) => {
+      if (message.deleted) return false;
+      if (!selectedUser) return message.room === "team";
+      if (message.room !== "private") return false;
+      const otherUsername = selectedUser.username.toLowerCase();
+      const sender = message.username.toLowerCase();
+      const target = String(message.toUsername || "").toLowerCase();
+      return (sender === myUsername && target === otherUsername) || (sender === otherUsername && target === myUsername);
+    })
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(-5);
 
-  const unreadPreview = recentMessages.filter((message) => {
-    if (message.username.toLowerCase() === myUsername) return false;
-    const roomKey = getChatRoomKeyForUser(message, currentUser);
-    return (unreadCounts[roomKey] || 0) > 0;
-  });
+  useEffect(() => {
+    if (selectedUsername === "team") return;
+    if (!privateUsers.some((user) => user.username === selectedUsername)) {
+      setSelectedUsername("team");
+    }
+  }, [privateUsers, selectedUsername]);
 
   const handleSend = async () => {
     const message = draft.trim();
     if (!message || sending) return;
     setSending(true);
-    await onSendTeamMessage(message);
+    await onSendMessage(message, selectedUser);
     setDraft("");
     setSending(false);
   };
@@ -1787,8 +1801,66 @@ function FloatingChatWidget({
             </div>
           </div>
 
-          <div className="max-h-[320px] space-y-2 overflow-y-auto bg-slate-50 px-3 py-3">
-            {(unreadPreview.length ? unreadPreview : recentMessages).map((message) => {
+          <div className="border-b border-slate-200 bg-white px-3 py-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Selected Room</div>
+                <div className="text-sm font-black text-slate-950">{selectedRoomTitle}</div>
+              </div>
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-bold text-slate-500 transition hover:border-violet-200 hover:text-violet-700"
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setSelectedUsername("team")}
+                className={`relative shrink-0 rounded-2xl border px-3 py-2 text-left transition ${
+                  selectedUsername === "team"
+                    ? "border-violet-400 bg-violet-50 text-violet-800"
+                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-violet-200"
+                }`}
+              >
+                <div className="text-xs font-black">Team Room</div>
+                <div className="text-[10px] font-semibold text-slate-400">Everyone</div>
+                {unreadCounts.team ? (
+                  <span className="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                    {unreadCounts.team}
+                  </span>
+                ) : null}
+              </button>
+              {privateUsers.map((user) => {
+                const roomKey = `private:${user.username.toLowerCase()}`;
+                return (
+                  <button
+                    key={user.username}
+                    type="button"
+                    onClick={() => setSelectedUsername(user.username)}
+                    className={`relative min-w-[132px] shrink-0 rounded-2xl border px-3 py-2 text-left transition ${
+                      selectedUsername === user.username
+                        ? "border-sky-400 bg-sky-50 text-sky-800"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:border-sky-200"
+                    }`}
+                  >
+                    <div className="truncate text-xs font-black">{user.displayName || user.username}</div>
+                    <div className="text-[10px] font-semibold text-emerald-600">Online</div>
+                    {unreadCounts[roomKey] ? (
+                      <span className="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                        {unreadCounts[roomKey]}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="max-h-[260px] space-y-2 overflow-y-auto bg-slate-50 px-3 py-3">
+            {roomMessages.map((message) => {
               const isMine = message.username.toLowerCase() === myUsername;
               const isUnread = !isMine && (unreadCounts[getChatRoomKeyForUser(message, currentUser)] || 0) > 0;
               return (
@@ -1822,9 +1894,9 @@ function FloatingChatWidget({
               );
             })}
 
-            {!recentMessages.length ? (
+            {!roomMessages.length ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-500">
-                No chat messages yet.
+                {selectedUser ? "No private messages with this user yet." : "No team messages yet."}
               </div>
             ) : null}
           </div>
@@ -1840,7 +1912,7 @@ function FloatingChatWidget({
                     void handleSend();
                   }
                 }}
-                placeholder="Send message to Team Chat"
+                placeholder={selectedUser ? `Send private message to ${selectedUser.displayName || selectedUser.username}` : "Send message to Team Room"}
                 className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
               />
               <button
@@ -1853,13 +1925,9 @@ function FloatingChatWidget({
               </button>
             </div>
             <div className="mt-3 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={onRefresh}
-                className="text-xs font-bold text-slate-500 transition hover:text-violet-700"
-              >
-                Refresh
-              </button>
+              <div className="text-[11px] font-bold text-slate-400">
+                {selectedUser ? "Private: only sender and receiver can see this." : "Team: visible to everyone."}
+              </div>
               <button
                 type="button"
                 onClick={onOpenFullChat}
@@ -3628,8 +3696,8 @@ export default function App() {
           void sendPresence();
           void loadChatData();
         }}
-        onSendTeamMessage={async (message) => {
-          await sendChatMessage(message);
+        onSendMessage={async (message, toUser) => {
+          await sendChatMessage(message, toUser);
           await loadChatData();
         }}
         onRefresh={() => {
