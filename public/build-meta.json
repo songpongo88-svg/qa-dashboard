@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151055",
-  "buildNumber": 2605151055,
-  "releaseLabel": "v1.0.0.2605151055",
-  "updatedAt": "15/05/2026 10:55:24",
+  "displayVersion": "1.0.0.2605151103",
+  "buildNumber": 2605151103,
+  "releaseLabel": "v1.0.0.2605151103",
+  "updatedAt": "15/05/2026 11:03:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8255b8fb73adcf204068a38f616bbbfb066c208b",
-  "commitMessage": "Stack floating chat contacts and reset history",
+  "commitHash": "6109189640c8a24a28d2701ce27c9890cd549221",
+  "commitMessage": "Redesign user directory table",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
