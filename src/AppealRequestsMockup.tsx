@@ -30,7 +30,7 @@ type AppealRequest = {
   caseDescription: string;
   caseUrl: string;
   rawDataSourceName: string;
-  status: "Pending" | "Approved" | "Rejected";
+  status: "Pending" | "Approved" | "Rejected" | "Reset";
   reviewSummary?: string;
   reviewedAt?: string;
   submittedByUsername?: string;
@@ -88,21 +88,27 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
 
   return logs
     .filter((log) => log.event_type === "appeal_request_submitted")
-    .filter((log) => {
-      const requestId = getRequestId(log);
-      const reset = requestId ? resets.get(requestId) : undefined;
-      if (!reset) return true;
-
-      const submittedAt = new Date(log.created_at || String(log.details?.submittedAt || "")).getTime();
-      const resetAt = new Date(reset.created_at || String(reset.details?.resetAt || "")).getTime();
-      return Number.isNaN(resetAt) || (!Number.isNaN(submittedAt) && resetAt <= submittedAt);
-    })
     .map((log): AppealRequest => {
       const requestId = getRequestId(log);
       const review = reviews.get(requestId);
+      const reset = resets.get(requestId);
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
-      const status = review?.details?.decision === "Rejected" ? "Rejected" : review ? "Approved" : "Pending";
+      const submittedAtTime = new Date(log.created_at || String(log.details?.submittedAt || "")).getTime();
+      const reviewedAtTime = new Date(review?.created_at || String(review?.details?.reviewedAt || "")).getTime();
+      const resetAtTime = new Date(reset?.created_at || String(reset?.details?.resetAt || "")).getTime();
+      const isResetAfterSubmit =
+        Boolean(reset) &&
+        !Number.isNaN(resetAtTime) &&
+        (Number.isNaN(submittedAtTime) || resetAtTime > submittedAtTime) &&
+        (Number.isNaN(reviewedAtTime) || resetAtTime > reviewedAtTime);
+      const status = isResetAfterSubmit
+        ? "Reset"
+        : review?.details?.decision === "Rejected"
+          ? "Rejected"
+          : review
+            ? "Approved"
+            : "Pending";
 
       return {
         requestId,
@@ -140,7 +146,7 @@ function buildAppealResetHistory(logs: UsageLogEvent[]) {
 }
 
 function exportAppealRows(requests: AppealRequest[]) {
-  const reviewed = requests.filter((item) => item.status !== "Pending");
+  const reviewed = requests.filter((item) => item.status === "Approved" || item.status === "Rejected");
   const topicCodes = Array.from(
     new Set(reviewed.flatMap((item) => item.topics.map((topic) => topic.code)))
   ).sort((a, b) => Number(a) - Number(b));
@@ -224,8 +230,10 @@ export default function AppealRequestsMockup({
   const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
   const pendingRequests = requests.filter((item) => item.status === "Pending");
-  const reviewedRequests = requests.filter((item) => item.status !== "Pending");
-  const visibleRequests = listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : [];
+  const reviewedRequests = requests.filter((item) => item.status === "Approved" || item.status === "Rejected");
+  const resetRequests = requests.filter((item) => item.status === "Reset");
+  const visibleRequests =
+    listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
 
   const loadRequests = async () => {
     setLogs(await fetchUsageLogs(5000));
@@ -314,7 +322,8 @@ export default function AppealRequestsMockup({
   };
 
   const pendingCount = requests.filter((item) => item.status === "Pending").length;
-  const reviewedCount = requests.length - pendingCount;
+  const reviewedCount = reviewedRequests.length;
+  const resetCount = resetRequests.length;
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
@@ -358,7 +367,7 @@ export default function AppealRequestsMockup({
               {[
                 { key: "pending" as const, label: "Pending", count: pendingCount },
                 { key: "reviewed" as const, label: "Reviewed", count: reviewedCount },
-                { key: "reset" as const, label: "Reset", count: resetHistory.length },
+                { key: "reset" as const, label: "Reset", count: resetCount },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -396,7 +405,13 @@ export default function AppealRequestsMockup({
                       <div className="mt-1 text-xs text-slate-500">{item.agent}</div>
                     </div>
                     <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                      item.status === "Pending" ? "border-amber-200 bg-amber-50 text-amber-700" : item.status === "Approved" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
+                      item.status === "Pending"
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : item.status === "Approved"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : item.status === "Reset"
+                            ? "border-sky-200 bg-sky-50 text-sky-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
                     }`}>
                       {item.status}
                     </span>
@@ -407,30 +422,10 @@ export default function AppealRequestsMockup({
                   </div>
                 </button>
               ))}
-              {listTab === "reset" ? (
-                resetHistory.map((item) => (
-                  <div key={`${item.requestId}-${item.resetAt}`} className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">Reset History</div>
-                        <div className="mt-1 text-sm font-extrabold text-slate-950">Reset Task - {item.caseId}</div>
-                        <div className="mt-1 text-xs text-slate-500">{item.agent || "-"}</div>
-                      </div>
-                      <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-bold text-sky-700">Reset</span>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-500">Reset: {formatDateTime(item.resetAt)}</div>
-                    <div className="mt-1 text-xs text-slate-500">By: {item.resetBy || "-"}</div>
-                    {item.reason ? <div className="mt-2 text-xs font-semibold leading-5 text-sky-800">{item.reason}</div> : null}
-                  </div>
-                ))
-              ) : null}
-              {listTab !== "reset" && !visibleRequests.length ? (
+              {!visibleRequests.length ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
                   No {listTab} appeal requests in this view. Try another tab.
                 </div>
-              ) : null}
-              {listTab === "reset" && !resetHistory.length ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No reset history yet.</div>
               ) : null}
             </div>
           </div>

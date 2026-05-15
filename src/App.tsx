@@ -2194,7 +2194,7 @@ export default function App() {
       }
 
       buildAppealRequests(logs)
-        .filter((item) => item.status !== "Pending")
+        .filter((item) => item.status === "Approved" || item.status === "Rejected")
         .filter((item) => {
           const currentIdentities = [
             currentUser.username,
@@ -2244,7 +2244,9 @@ export default function App() {
         });
 
       const submittedAppealCaseIds = new Set(
-        buildAppealRequests(logs).map((item) => String(item.caseId || "").trim().toLowerCase())
+        buildAppealRequests(logs)
+          .filter((item) => item.status !== "Reset")
+          .map((item) => String(item.caseId || "").trim().toLowerCase())
       );
       const activeAppealOverrides = buildAppealCaseOverrides(logs).filter((item) => {
         if (submittedAppealCaseIds.has(item.caseId.trim().toLowerCase())) return false;

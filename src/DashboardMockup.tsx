@@ -2130,7 +2130,9 @@ function SlideOverCaseDetail({
         if (cancelled) return;
         setAppealRequestExists(
           buildAppealRequests(logs).some(
-            (item) => String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
+            (item) =>
+              item.status !== "Reset" &&
+              String(item.caseId || "").trim().toLowerCase() === caseItem.caseId.trim().toLowerCase()
           )
         );
         setAppealOverrideAllowed(

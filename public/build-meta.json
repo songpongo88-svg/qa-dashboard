@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151413",
-  "buildNumber": 2605151413,
-  "releaseLabel": "v1.0.0.2605151413",
-  "updatedAt": "15/05/2026 14:13:07",
+  "displayVersion": "1.0.0.2605151426",
+  "buildNumber": 2605151426,
+  "releaseLabel": "v1.0.0.2605151426",
+  "updatedAt": "15/05/2026 14:26:36",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8d2a2dbeff69737cb32ea0bb7536b7701be61ed6",
-  "commitMessage": "Split user directory view and manage permissions",
+  "commitHash": "b3a1b97805dafc793c0100aff90f33443601938b",
+  "commitMessage": "Show reviewed and reset appeal tasks",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/AppealRequestsMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
