@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151114",
-  "buildNumber": 2605151114,
-  "releaseLabel": "v1.0.0.2605151114",
-  "updatedAt": "15/05/2026 11:14:50",
+  "displayVersion": "1.0.0.2605151124",
+  "buildNumber": 2605151124,
+  "releaseLabel": "v1.0.0.2605151124",
+  "updatedAt": "15/05/2026 11:24:11",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "394054f6bde9986935597f8b3015399950c1d2b2",
-  "commitMessage": "Increase user directory visual contrast",
+  "commitHash": "1b744db145fc7b47c19852c1990c9fd9afdd913e",
+  "commitMessage": "Lock directory access and soften admin UI",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

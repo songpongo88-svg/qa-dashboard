@@ -26,6 +26,7 @@ type RolePermissionKey =
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
+  | "viewUserDirectory"
   | "manageUsers"
   | "manageRoles"
   | "resetPassword"
@@ -216,6 +217,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewUsageLog",
   "exportPdf",
   "exportAppealRawdata",
+  "viewUserDirectory",
   "manageUsers",
   "manageRoles",
   "resetPassword",
@@ -237,6 +239,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: false,
@@ -256,6 +259,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: false,
@@ -275,6 +279,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: false,
@@ -294,6 +299,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: true,
@@ -334,7 +340,7 @@ function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
       if (typeof value === "boolean") next[key] = value;
     });
     permissionMap[roleName] = roleName === "Quality Assurance"
-      ? { ...next, manageUsers: true, manageRoles: true, manageMaintenance: true }
+      ? { ...next, viewUserDirectory: true, manageUsers: true, manageRoles: true, manageMaintenance: true }
       : next;
   });
 
@@ -2057,8 +2063,11 @@ export default function App() {
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
   const appealOverrideAllowed = hasRolePermission(currentUser, rolePermissions, "appealOverride");
   const passwordResetAdminAllowed = hasRolePermission(currentUser, rolePermissions, "resetPassword");
+  const userDirectoryAllowed =
+    hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
+    hasRolePermission(currentUser, rolePermissions, "manageUsers");
   const roleAdminAllowed =
-    hasRolePermission(currentUser, rolePermissions, "manageUsers") ||
+    userDirectoryAllowed ||
     hasRolePermission(currentUser, rolePermissions, "manageRoles") ||
     hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const maintenanceBlocked = maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");

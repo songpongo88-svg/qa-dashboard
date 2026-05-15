@@ -19,6 +19,7 @@ type RolePermissionKey =
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
+  | "viewUserDirectory"
   | "manageUsers"
   | "manageRoles"
   | "resetPassword"
@@ -108,6 +109,7 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "viewUsageLog", label: "View Usage Log", category: "Account", description: "Open system usage log and export logs." },
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
   { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
+  { key: "viewUserDirectory", label: "View User Directory", category: "Account", description: "Open Corporate User Directory in read-only mode." },
   { key: "resetPassword", label: "Reset Password", category: "Account", description: "Approve/reset user password requests." },
   { key: "manageUsers", label: "Manage Users", category: "System", description: "Create users, edit profiles, suspend accounts." },
   { key: "manageRoles", label: "Manage Roles", category: "System", description: "Create roles and edit role permissions." },
@@ -131,6 +133,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: false,
@@ -150,6 +153,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: false,
@@ -169,6 +173,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: false,
@@ -188,6 +193,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
+    viewUserDirectory: false,
     manageUsers: false,
     manageRoles: false,
     resetPassword: true,
@@ -378,6 +384,7 @@ export default function UserRoleAdminMockup({
     [roleDefinitions]
   );
   const currentPermissions = rolePermissions[currentUser.role] || getDefaultRolePermissions(currentUser.role);
+  const canViewUserDirectory = Boolean(currentPermissions.viewUserDirectory || currentPermissions.manageUsers);
   const canManageUsers = Boolean(currentPermissions.manageUsers);
   const canManageRoles = Boolean(currentPermissions.manageRoles);
   const canManageMaintenance = Boolean(currentPermissions.manageMaintenance);
@@ -423,17 +430,23 @@ export default function UserRoleAdminMockup({
   }, [rolePermissions]);
 
   useEffect(() => {
-    if (adminTab === "users" && canManageUsers) return;
+    if (adminTab === "users" && canViewUserDirectory) return;
     if (adminTab === "roles" && canManageRoles) return;
     if (adminTab === "maintenance" && canManageMaintenance) return;
-    if (canManageUsers) {
+    if (canViewUserDirectory) {
       setAdminTab("users");
     } else if (canManageRoles) {
       setAdminTab("roles");
     } else if (canManageMaintenance) {
       setAdminTab("maintenance");
     }
-  }, [adminTab, canManageMaintenance, canManageRoles, canManageUsers]);
+  }, [adminTab, canManageMaintenance, canManageRoles, canViewUserDirectory]);
+
+  useEffect(() => {
+    if (canManageUsers) return;
+    if (isEditing) setIsEditing(false);
+    if (createUserOpen) setCreateUserOpen(false);
+  }, [canManageUsers, createUserOpen, isEditing]);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -589,16 +602,25 @@ export default function UserRoleAdminMockup({
   };
 
   const updateRolePermission = (roleName: string, key: RolePermissionKey, value: boolean) => {
-    if (roleName === "Quality Assurance" && (key === "manageUsers" || key === "manageRoles" || key === "manageMaintenance")) {
+    if (roleName === "Quality Assurance" && (key === "viewUserDirectory" || key === "manageUsers" || key === "manageRoles" || key === "manageMaintenance")) {
       setMessage("Quality Assurance admin permissions are locked for system safety.");
       return;
     }
     setPermissionDrafts((currentDrafts) => ({
       ...currentDrafts,
-      [roleName]: {
-        ...(currentDrafts[roleName] || getDefaultRolePermissions(roleName)),
-        [key]: value,
-      },
+      [roleName]: (() => {
+        const nextPermissions = {
+          ...(currentDrafts[roleName] || getDefaultRolePermissions(roleName)),
+          [key]: value,
+        };
+        if (key === "manageUsers" && value) {
+          nextPermissions.viewUserDirectory = true;
+        }
+        if (key === "viewUserDirectory" && !value) {
+          nextPermissions.manageUsers = false;
+        }
+        return nextPermissions;
+      })(),
     }));
   };
 
@@ -612,9 +634,13 @@ export default function UserRoleAdminMockup({
         ...(permissionDrafts[role.name] || {}),
       };
       if (role.name === "Quality Assurance") {
+        nextPermissions.viewUserDirectory = true;
         nextPermissions.manageUsers = true;
         nextPermissions.manageRoles = true;
         nextPermissions.manageMaintenance = true;
+      }
+      if (nextPermissions.manageUsers) {
+        nextPermissions.viewUserDirectory = true;
       }
       await logUsageEvent(currentUser, "role_permissions_saved", {
         tab: "user-roles",
@@ -866,11 +892,11 @@ export default function UserRoleAdminMockup({
 
         <div className="mt-6 rounded-[30px] border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 p-3 shadow-[0_18px_48px_rgba(109,40,217,0.10)]">
           <div className="grid gap-3 lg:grid-cols-3">
-            {canManageUsers ? (
+            {canViewUserDirectory ? (
               <AdminPrimaryTabButton
                 active={adminTab === "users"}
                 title="User Management"
-                description="Manage user profiles and account status"
+                description={canManageUsers ? "Manage user profiles and account status" : "View user profiles and account status"}
                 count={totalUsers}
                 onClick={() => setAdminTab("users")}
               />
@@ -908,19 +934,22 @@ export default function UserRoleAdminMockup({
           </div>
         ) : null}
 
-        {adminTab === "users" && canManageUsers ? (
+        {adminTab === "users" && canViewUserDirectory ? (
           <div className="mt-5 overflow-hidden rounded-[32px] border border-violet-200 bg-white shadow-[0_24px_80px_rgba(88,28,135,0.12)]">
             <div className="flex flex-col gap-4 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50 to-fuchsia-50 px-5 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-6">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">User Management</div>
                 <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">Corporate User Directory</div>
                 <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                  {isEditing
+                  {!canManageUsers
+                    ? "Read-only access. This role can review user profiles but cannot create, edit, or suspend accounts."
+                    : isEditing
                     ? "Edit account information and save all directory changes in one action."
                     : "Review user profiles, registered emails, assigned roles, and account availability."}
                 </div>
               </div>
 
+              {canManageUsers ? (
               <div className="flex flex-wrap gap-3">
                 {isEditing ? (
                   <>
@@ -958,6 +987,11 @@ export default function UserRoleAdminMockup({
                   </>
                 )}
               </div>
+              ) : (
+                <div className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 shadow-sm">
+                  Read Only
+                </div>
+              )}
             </div>
 
             <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-4">
@@ -1680,6 +1714,7 @@ function RoleManagementPanel({
                         {permissions.map((permission) => {
                           const checked = Boolean(selectedPermissions[permission.key]);
                           const locked = selectedRole.name === "Quality Assurance" && (
+                            permission.key === "viewUserDirectory" ||
                             permission.key === "manageUsers" ||
                             permission.key === "manageRoles" ||
                             permission.key === "manageMaintenance"
