@@ -27,7 +27,10 @@ type RolePermissionKey =
   | "exportPdf"
   | "exportAppealRawdata"
   | "viewUserDirectory"
+  | "viewAllTeams"
+  | "viewOwnTeam"
   | "manageUsers"
+  | "manageTeams"
   | "manageRoles"
   | "resetPassword"
   | "manageMaintenance"
@@ -43,6 +46,8 @@ type UserAccount = {
   role: UserRole;
   agentName: string;
   email?: string;
+  teamLead?: string;
+  teamName?: string;
   status?: "Active" | "Suspended";
   suspendReason?: string;
 };
@@ -53,6 +58,8 @@ type UserProfileSnapshot = {
   role: UserRole;
   agentName: string;
   email?: string;
+  teamLead?: string;
+  teamName?: string;
   status?: "Active" | "Suspended";
   suspendReason?: string;
 };
@@ -218,12 +225,33 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "exportPdf",
   "exportAppealRawdata",
   "viewUserDirectory",
+  "viewAllTeams",
+  "viewOwnTeam",
   "manageUsers",
+  "manageTeams",
   "manageRoles",
   "resetPassword",
   "manageMaintenance",
   "useTeamChat",
 ];
+
+const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: string }> = {
+  anucha: { teamLead: "Phrommarin Thaithorn", teamName: "ทีม Senior" },
+  arisa: { teamLead: "-", teamName: "-" },
+  chatkonnaphat: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
+  jariyawadee: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (ท้าพยัคฆ์ขนมหวาน)" },
+  jureeporn: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
+  krivut: { teamLead: "Phrommarin Thaithorn", teamName: "ทีม Senior" },
+  natcha: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
+  nattapol: { teamLead: "Suphitcha Keawliam", teamName: "Pink panther" },
+  phrommarin: { teamLead: "-", teamName: "ทีม Senior" },
+  songpon: { teamLead: "-", teamName: "ทีม Senior" },
+  sunijtra: { teamLead: "Suphitcha Keawliam", teamName: "Pink panther" },
+  supakrit: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
+  suphitcha: { teamLead: "Phrommarin Thaithorn", teamName: "ทีม Senior" },
+  wachiraporn: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (ท้าพยัคฆ์ขนมหวาน)" },
+  wassana: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (ท้าพยัคฆ์ขนมหวาน)" },
+};
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
@@ -240,7 +268,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
+    viewAllTeams: false,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: false,
     manageMaintenance: false,
@@ -260,7 +291,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
+    viewAllTeams: false,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: false,
     manageMaintenance: false,
@@ -280,7 +314,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: true,
     exportAppealRawdata: false,
     viewUserDirectory: false,
+    viewAllTeams: true,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: false,
     manageMaintenance: false,
@@ -300,7 +337,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: true,
     exportAppealRawdata: true,
     viewUserDirectory: false,
+    viewAllTeams: true,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: true,
     manageMaintenance: false,
@@ -340,7 +380,7 @@ function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
       if (typeof value === "boolean") next[key] = value;
     });
     permissionMap[roleName] = roleName === "Quality Assurance"
-      ? { ...next, viewUserDirectory: true, manageUsers: true, manageRoles: true, manageMaintenance: true }
+      ? { ...next, viewUserDirectory: true, viewAllTeams: true, viewOwnTeam: true, manageUsers: true, manageTeams: true, manageRoles: true, manageMaintenance: true }
       : next;
   });
 
@@ -659,6 +699,8 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
       displayName: String(item.details?.displayName || username),
       agentName: String(item.details?.agentName || item.details?.displayName || username),
       email: String(item.details?.email || ""),
+      teamLead: String(item.details?.teamLead || DEFAULT_TEAM_ASSIGNMENTS[normalizedUsername]?.teamLead || ""),
+      teamName: String(item.details?.teamName || DEFAULT_TEAM_ASSIGNMENTS[normalizedUsername]?.teamName || ""),
       role,
       status,
       suspendReason: String(item.details?.suspendReason || ""),
@@ -680,6 +722,7 @@ function buildEffectiveUserAccounts(
     const profile = profileOverrides[normalizedUsername];
     merged.set(normalizedUsername, {
       ...account,
+      ...(DEFAULT_TEAM_ASSIGNMENTS[normalizedUsername] || {}),
       ...profile,
       username: profile?.username || account.username,
       password: account.password,
@@ -696,6 +739,8 @@ function buildEffectiveUserAccounts(
       role: profile.role,
       agentName: profile.agentName,
       email: profile.email,
+      teamLead: profile.teamLead,
+      teamName: profile.teamName,
       status: profile.status,
       suspendReason: profile.suspendReason,
     });

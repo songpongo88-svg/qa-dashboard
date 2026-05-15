@@ -20,7 +20,10 @@ type RolePermissionKey =
   | "exportPdf"
   | "exportAppealRawdata"
   | "viewUserDirectory"
+  | "viewAllTeams"
+  | "viewOwnTeam"
   | "manageUsers"
+  | "manageTeams"
   | "manageRoles"
   | "resetPassword"
   | "manageMaintenance"
@@ -35,6 +38,8 @@ type UserAccount = {
   role: UserRole;
   agentName: string;
   email?: string;
+  teamLead?: string;
+  teamName?: string;
   status?: UserStatus;
   suspendReason?: string;
 };
@@ -44,6 +49,8 @@ type EditableUser = {
   displayName: string;
   agentName: string;
   email: string;
+  teamLead: string;
+  teamName: string;
   role: UserRole;
   status: UserStatus;
   suspendReason: string;
@@ -51,6 +58,7 @@ type EditableUser = {
 };
 
 type DirectoryTab = "active" | "suspended";
+type UserManagementView = "users" | "teams" | "team-management";
 type AdminTab = "users" | "roles" | "maintenance";
 type RoleAdminSubTab = "role-list" | "permission-builder";
 
@@ -110,8 +118,11 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
   { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
   { key: "viewUserDirectory", label: "View User Directory", category: "Account", description: "Open Corporate User Directory in read-only mode." },
+  { key: "viewAllTeams", label: "View All Teams", category: "Account", description: "See every team and every team member in directory views." },
+  { key: "viewOwnTeam", label: "View Own Team", category: "Account", description: "See only members in the same team when all-team access is off." },
   { key: "resetPassword", label: "Reset Password", category: "Account", description: "Approve/reset user password requests." },
   { key: "manageUsers", label: "Manage Users", category: "System", description: "Create users, edit profiles, suspend accounts." },
+  { key: "manageTeams", label: "Manage Teams", category: "System", description: "Create team names, assign team leads, and move users between teams." },
   { key: "manageRoles", label: "Manage Roles", category: "System", description: "Create roles and edit role permissions." },
   { key: "manageMaintenance", label: "Maintenance Mode", category: "System", description: "Turn system maintenance on/off and bypass it." },
   { key: "useTeamChat", label: "Use Team Chat", category: "System", description: "Open Team Chat and send messages/files." },
@@ -134,7 +145,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
+    viewAllTeams: false,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: false,
     manageMaintenance: false,
@@ -154,7 +168,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: false,
     exportAppealRawdata: false,
     viewUserDirectory: false,
+    viewAllTeams: false,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: false,
     manageMaintenance: false,
@@ -174,7 +191,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: true,
     exportAppealRawdata: false,
     viewUserDirectory: false,
+    viewAllTeams: true,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: false,
     manageMaintenance: false,
@@ -194,7 +214,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     exportPdf: true,
     exportAppealRawdata: true,
     viewUserDirectory: false,
+    viewAllTeams: true,
+    viewOwnTeam: true,
     manageUsers: false,
+    manageTeams: false,
     manageRoles: false,
     resetPassword: true,
     manageMaintenance: false,
@@ -296,6 +319,26 @@ function userInitials(value: string) {
   return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
+function buildTeamGroups<T extends { teamName?: string; teamLead?: string; status?: UserStatus }>(rows: T[]) {
+  const teamMap = new Map<string, { teamName: string; teamLead: string; users: T[]; activeCount: number; suspendedCount: number }>();
+  rows.forEach((row) => {
+    const teamName = row.teamName?.trim() || "Unassigned Team";
+    const existing = teamMap.get(teamName) || {
+      teamName,
+      teamLead: row.teamLead?.trim() || "-",
+      users: [],
+      activeCount: 0,
+      suspendedCount: 0,
+    };
+    if ((!existing.teamLead || existing.teamLead === "-") && row.teamLead) existing.teamLead = row.teamLead;
+    existing.users.push(row);
+    if (row.status === "Suspended") existing.suspendedCount += 1;
+    else existing.activeCount += 1;
+    teamMap.set(teamName, existing);
+  });
+  return Array.from(teamMap.values()).sort((a, b) => a.teamName.localeCompare(b.teamName));
+}
+
 function isSystemRole(roleName: string) {
   return ROLE_OPTIONS.some((role) => role.toLowerCase() === roleName.toLowerCase());
 }
@@ -306,6 +349,8 @@ function toEditableUser(account: UserAccount): EditableUser {
     displayName: account.displayName,
     agentName: account.agentName || account.displayName,
     email: account.email || "",
+    teamLead: account.teamLead || "",
+    teamName: account.teamName || "",
     role: account.role,
     status: account.status || "Active",
     suspendReason: account.suspendReason || "",
@@ -348,6 +393,8 @@ function createBlankUser(): EditableUser {
     displayName: "",
     agentName: "",
     email: "",
+    teamLead: "",
+    teamName: "",
     role: "Admin Live Chat",
     status: "Active",
     suspendReason: "",
@@ -372,6 +419,7 @@ export default function UserRoleAdminMockup({
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [newUserDraft, setNewUserDraft] = useState<EditableUser>(() => createBlankUser());
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
+  const [userManagementView, setUserManagementView] = useState<UserManagementView>("users");
   const [adminTab, setAdminTab] = useState<AdminTab>("users");
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>(() => buildRoleDefinitions([]));
   const [permissionDrafts, setPermissionDrafts] = useState<RolePermissionMap>(rolePermissions);
@@ -385,7 +433,10 @@ export default function UserRoleAdminMockup({
   );
   const currentPermissions = rolePermissions[currentUser.role] || getDefaultRolePermissions(currentUser.role);
   const canViewUserDirectory = Boolean(currentPermissions.viewUserDirectory || currentPermissions.manageUsers);
+  const canViewAllTeams = Boolean(currentPermissions.viewAllTeams || currentPermissions.manageTeams || currentPermissions.manageUsers);
+  const canViewOwnTeam = Boolean(currentPermissions.viewOwnTeam || canViewAllTeams);
   const canManageUsers = Boolean(currentPermissions.manageUsers);
+  const canManageTeams = Boolean(currentPermissions.manageTeams || currentPermissions.manageUsers);
   const canManageRoles = Boolean(currentPermissions.manageRoles);
   const canManageMaintenance = Boolean(currentPermissions.manageMaintenance);
 
@@ -406,6 +457,8 @@ export default function UserRoleAdminMockup({
           ...account,
           normalizedUsername,
           effectiveRole: account.role,
+          teamLead: account.teamLead || "",
+          teamName: account.teamName || "",
           status: account.status || "Active",
         };
       })
@@ -454,10 +507,18 @@ export default function UserRoleAdminMockup({
   const seniorUsers = rows.filter((row) => row.effectiveRole === "Senior").length;
   const supervisorUsers = rows.filter((row) => row.effectiveRole === "Supervisor").length;
   const qaUsers = rows.filter((row) => row.effectiveRole === "Quality Assurance").length;
-  const visibleRows = rows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
+  const currentTeamName = rows.find((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username))?.teamName || "";
+  const scopedRows = canViewAllTeams
+    ? rows
+    : canViewOwnTeam && currentTeamName
+      ? rows.filter((row) => row.teamName === currentTeamName)
+      : rows.filter((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username));
+  const teamGroups = buildTeamGroups(scopedRows);
+  const visibleRows = scopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
-    .filter(({ user }) => directoryTab === "active" ? user.status === "Active" : user.status === "Suspended");
+    .filter(({ user }) => directoryTab === "active" ? user.status === "Active" : user.status === "Suspended")
+    .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
   const updateDraftUser = (index: number, key: keyof EditableUser, value: string) => {
     setDraftUsers((currentDrafts) =>
@@ -616,8 +677,20 @@ export default function UserRoleAdminMockup({
         if (key === "manageUsers" && value) {
           nextPermissions.viewUserDirectory = true;
         }
+        if (key === "manageTeams" && value) {
+          nextPermissions.viewAllTeams = true;
+          nextPermissions.viewOwnTeam = true;
+          nextPermissions.viewUserDirectory = true;
+        }
+        if (key === "viewAllTeams" && value) {
+          nextPermissions.viewOwnTeam = true;
+        }
+        if (key === "viewAllTeams" && !value) {
+          nextPermissions.manageTeams = false;
+        }
         if (key === "viewUserDirectory" && !value) {
           nextPermissions.manageUsers = false;
+          nextPermissions.manageTeams = false;
         }
         return nextPermissions;
       })(),
@@ -635,12 +708,20 @@ export default function UserRoleAdminMockup({
       };
       if (role.name === "Quality Assurance") {
         nextPermissions.viewUserDirectory = true;
+        nextPermissions.viewAllTeams = true;
+        nextPermissions.viewOwnTeam = true;
         nextPermissions.manageUsers = true;
+        nextPermissions.manageTeams = true;
         nextPermissions.manageRoles = true;
         nextPermissions.manageMaintenance = true;
       }
       if (nextPermissions.manageUsers) {
         nextPermissions.viewUserDirectory = true;
+      }
+      if (nextPermissions.manageTeams) {
+        nextPermissions.viewUserDirectory = true;
+        nextPermissions.viewAllTeams = true;
+        nextPermissions.viewOwnTeam = true;
       }
       await logUsageEvent(currentUser, "role_permissions_saved", {
         tab: "user-roles",
@@ -689,6 +770,8 @@ export default function UserRoleAdminMockup({
       displayName: newUserDraft.displayName.trim(),
       agentName: newUserDraft.agentName.trim() || newUserDraft.displayName.trim(),
       email: newUserDraft.email.trim(),
+      teamLead: newUserDraft.teamLead.trim(),
+      teamName: newUserDraft.teamName.trim(),
       suspendReason: newUserDraft.suspendReason.trim(),
       temporaryPassword: newUserDraft.temporaryPassword || generateTemporaryPassword(),
     };
@@ -751,6 +834,8 @@ export default function UserRoleAdminMockup({
       displayName: item.displayName.trim(),
       agentName: item.agentName.trim() || item.displayName.trim(),
       email: item.email.trim(),
+      teamLead: item.teamLead.trim(),
+      teamName: item.teamName.trim(),
       suspendReason: item.suspendReason.trim(),
     }));
 
@@ -844,9 +929,10 @@ export default function UserRoleAdminMockup({
     doc.setFont("THSarabunNew", "bold");
     const startY = 46;
     doc.text("User", 14, startY);
-    doc.text("Email", 62, startY);
-    doc.text("Role", 122, startY);
-    doc.text("Status", 168, startY);
+    doc.text("Email", 52, startY);
+    doc.text("Team", 104, startY);
+    doc.text("Role", 146, startY);
+    doc.text("Status", 176, startY);
     doc.line(14, startY + 2, 196, startY + 2);
 
     doc.setFont("THSarabunNew", "normal");
@@ -857,9 +943,10 @@ export default function UserRoleAdminMockup({
         y = 18;
       }
       doc.text(row.displayName || row.username, 14, y);
-      doc.text(row.email || "-", 62, y);
-      doc.text(row.effectiveRole, 122, y);
-      doc.text(row.status, 168, y);
+      doc.text(row.email || "-", 52, y);
+      doc.text(row.teamName || "-", 104, y);
+      doc.text(row.effectiveRole, 146, y);
+      doc.text(row.status, 176, y);
       y += 8;
     });
 
@@ -995,24 +1082,35 @@ export default function UserRoleAdminMockup({
             </div>
 
             <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-4">
-              <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
-                <DirectoryTabButton
-                  active={directoryTab === "active"}
-                  label="Active Accounts"
-                  count={activeUsers}
-                  onClick={() => setDirectoryTab("active")}
-                />
-                <DirectoryTabButton
-                  active={directoryTab === "suspended"}
-                  label="Suspended Accounts"
-                  count={suspendedUsers}
-                  onClick={() => setDirectoryTab("suspended")}
-                  tone="rose"
-                />
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
+                  <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={scopedRows.length} onClick={() => setUserManagementView("users")} />
+                  <DirectoryTabButton active={userManagementView === "teams"} label="All Teams" count={teamGroups.length} onClick={() => setUserManagementView("teams")} tone="slate" />
+                  {canManageTeams ? (
+                    <DirectoryTabButton
+                      active={userManagementView === "team-management"}
+                      label="Team Management"
+                      count={teamGroups.length}
+                      onClick={() => {
+                        setUserManagementView("team-management");
+                        setIsEditing(true);
+                      }}
+                      tone="amber"
+                    />
+                  ) : null}
+                </div>
+                <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
+                  <DirectoryTabButton active={directoryTab === "active"} label="Active Accounts" count={activeUsers} onClick={() => setDirectoryTab("active")} />
+                  <DirectoryTabButton active={directoryTab === "suspended"} label="Suspended Accounts" count={suspendedUsers} onClick={() => setDirectoryTab("suspended")} tone="rose" />
+                </div>
               </div>
             </div>
 
-            {isEditing ? (
+            {userManagementView === "teams" ? (
+              <TeamOverviewPanel teamGroups={teamGroups} />
+            ) : userManagementView === "team-management" ? (
+              <TeamManagementPanel users={visibleDraftUsers} saving={saving} onChange={updateDraftUser} canManageTeams={canManageTeams} />
+            ) : isEditing ? (
               <EditableDirectoryTable
                 users={visibleDraftUsers}
                 saving={saving}
@@ -1296,11 +1394,12 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[1060px] space-y-3">
-          <div className="grid grid-cols-[minmax(280px,1.35fr)_minmax(220px,1fr)_minmax(280px,1.1fr)_190px_160px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+        <div className="min-w-[1280px] space-y-3">
+          <div className="grid grid-cols-[minmax(280px,1.25fr)_minmax(220px,0.9fr)_minmax(250px,1fr)_minmax(220px,0.9fr)_170px_140px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
             <div>User Profile</div>
             <div>Agent Name</div>
             <div>Registered Email</div>
+            <div>Team</div>
             <div>Role</div>
             <div>Status</div>
           </div>
@@ -1308,7 +1407,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
           {rows.map((row) => (
             <div
               key={row.username}
-              className={`grid grid-cols-[minmax(280px,1.35fr)_minmax(220px,1fr)_minmax(280px,1.1fr)_190px_160px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
+              className={`grid grid-cols-[minmax(280px,1.25fr)_minmax(220px,0.9fr)_minmax(250px,1fr)_minmax(220px,0.9fr)_170px_140px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
                 row.status === "Active" ? "border-white bg-white" : "border-rose-100 bg-rose-50/70"
               }`}
             >
@@ -1333,6 +1432,11 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
                 </div>
               </div>
 
+              <div className="min-w-0">
+                <div className="truncate font-black text-slate-800">{row.teamName || "Unassigned Team"}</div>
+                <div className="mt-1 truncate text-xs font-semibold text-slate-400">Lead: {row.teamLead || "-"}</div>
+              </div>
+
               <div>
                 <div className="text-sm font-black text-slate-800">{row.effectiveRole}</div>
                 <div className="mt-1 text-xs font-semibold text-slate-400">Access role</div>
@@ -1354,6 +1458,122 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
             </div>
           ) : null}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamOverviewPanel({
+  teamGroups,
+}: {
+  teamGroups: Array<{ teamName: string; teamLead: string; users: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }>; activeCount: number; suspendedCount: number }>;
+}) {
+  return (
+    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
+      <div className="grid gap-4 xl:grid-cols-2">
+        {teamGroups.map((team) => (
+          <div key={team.teamName} className="overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-[0_18px_45px_rgba(88,28,135,0.09)]">
+            <div className="bg-gradient-to-r from-violet-700 via-fuchsia-600 to-sky-500 px-5 py-4 text-white">
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/75">Team Workspace</div>
+              <div className="mt-1 text-2xl font-black">{team.teamName}</div>
+              <div className="mt-1 text-sm font-semibold text-white/80">Team Lead: {team.teamLead || "-"}</div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 border-b border-violet-100 bg-violet-50/60 p-4">
+              <MiniTeamStat label="Members" value={team.users.length} />
+              <MiniTeamStat label="Active" value={team.activeCount} tone="emerald" />
+              <MiniTeamStat label="Suspended" value={team.suspendedCount} tone="rose" />
+            </div>
+            <div className="divide-y divide-slate-100 p-2">
+              {team.users.map((user) => (
+                <div key={user.username} className="flex items-center justify-between gap-3 rounded-2xl px-3 py-3 hover:bg-slate-50">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-black text-white ${roleAvatarClass(user.effectiveRole)}`}>
+                      {userInitials(user.displayName || user.username)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-black text-slate-950">{user.displayName}</div>
+                      <div className="truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-black text-slate-800">{user.effectiveRole}</div>
+                    <div className={`mt-1 text-[11px] font-bold ${user.status === "Active" ? "text-emerald-600" : "text-rose-600"}`}>{user.status}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {!teamGroups.length ? (
+        <div className="rounded-[24px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">
+          No teams found in this view.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MiniTeamStat({ label, value, tone = "violet" }: { label: string; value: number; tone?: "violet" | "emerald" | "rose" }) {
+  const toneClass = tone === "emerald" ? "text-emerald-600" : tone === "rose" ? "text-rose-600" : "text-violet-700";
+  return (
+    <div className="rounded-2xl border border-white bg-white px-4 py-3 shadow-sm">
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</div>
+      <div className={`mt-1 text-2xl font-black ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function TeamManagementPanel({
+  users,
+  saving,
+  onChange,
+  canManageTeams,
+}: {
+  users: Array<{ user: EditableUser; index: number }>;
+  saving: boolean;
+  onChange: (index: number, key: keyof EditableUser, value: string) => void;
+  canManageTeams: boolean;
+}) {
+  return (
+    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
+      <div className="mb-4 rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold leading-6 text-amber-800">
+        Create a new team by typing a new Team Name on any user row. Set Team Lead to the supervisor/senior owner, then press Save Changes.
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[980px] border-collapse overflow-hidden rounded-[24px] bg-white text-left text-sm shadow-[0_18px_45px_rgba(88,28,135,0.09)]">
+          <thead>
+            <tr className="bg-slate-950 text-white">
+              <th className="px-4 py-4 font-bold">User</th>
+              <th className="px-4 py-4 font-bold">Current Role</th>
+              <th className="px-4 py-4 font-bold">Team Lead</th>
+              <th className="px-4 py-4 font-bold">Team Name</th>
+              <th className="px-4 py-4 font-bold">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map(({ user, index }) => (
+              <tr key={`${user.username}-${index}`} className="border-b border-slate-100 last:border-b-0">
+                <td className="px-4 py-4">
+                  <div className="font-black text-slate-950">{user.displayName || user.username}</div>
+                  <div className="text-xs font-semibold text-slate-500">{user.email || "-"}</div>
+                </td>
+                <td className="px-4 py-4 font-bold text-slate-700">{user.role}</td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.teamLead} disabled={saving || !canManageTeams} onChange={(value) => onChange(index, "teamLead", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.teamName} disabled={saving || !canManageTeams} onChange={(value) => onChange(index, "teamName", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                    {user.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -1793,13 +2013,15 @@ function EditableDirectoryTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[1220px] border-collapse text-left text-sm">
+      <table className="min-w-[1520px] border-collapse text-left text-sm">
         <thead>
           <tr className="bg-slate-950 text-white">
             <th className="px-4 py-4 font-bold">Username</th>
             <th className="px-4 py-4 font-bold">Display Name</th>
             <th className="px-4 py-4 font-bold">Agent Name</th>
             <th className="px-4 py-4 font-bold">Email</th>
+            <th className="px-4 py-4 font-bold">Team Lead</th>
+            <th className="px-4 py-4 font-bold">Team Name</th>
             <th className="px-4 py-4 font-bold">Role</th>
             <th className="px-4 py-4 font-bold">Status</th>
             <th className="px-4 py-4 font-bold">Suspend Reason</th>
@@ -1822,6 +2044,12 @@ function EditableDirectoryTable({
                 </td>
                 <td className="px-4 py-4">
                   <TextInput value={user.email} disabled={saving} onChange={(value) => onChange(index, "email", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.teamLead} disabled={saving} onChange={(value) => onChange(index, "teamLead", value)} />
+                </td>
+                <td className="px-4 py-4">
+                  <TextInput value={user.teamName} disabled={saving} onChange={(value) => onChange(index, "teamName", value)} />
                 </td>
                 <td className="px-4 py-4">
                   <select
@@ -1919,6 +2147,8 @@ function CreateUserModal({
           <ModalField label="Display Name" value={user.displayName} onChange={(value) => onChange("displayName", value)} placeholder="Full name" />
           <ModalField label="Agent Name" value={user.agentName} onChange={(value) => onChange("agentName", value)} placeholder="Name used in RawData" />
           <ModalField label="Email" value={user.email} onChange={(value) => onChange("email", value)} placeholder="name@robinhood.co.th" />
+          <ModalField label="Team Lead" value={user.teamLead} onChange={(value) => onChange("teamLead", value)} placeholder="e.g. Anucha Makundin" />
+          <ModalField label="Team Name" value={user.teamName} onChange={(value) => onChange("teamName", value)} placeholder="e.g. Sweet Warriors" />
 
           <label className="block">
             <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Role</span>
