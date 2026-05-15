@@ -513,11 +513,12 @@ export default function UserRoleAdminMockup({
     : canViewOwnTeam && currentTeamName
       ? rows.filter((row) => row.teamName === currentTeamName)
       : rows.filter((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username));
-  const teamGroups = buildTeamGroups(scopedRows);
+  const activeScopedRows = scopedRows.filter((row) => row.status === "Active");
+  const teamGroups = buildTeamGroups(activeScopedRows);
   const visibleRows = scopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
-    .filter(({ user }) => directoryTab === "active" ? user.status === "Active" : user.status === "Suspended")
+    .filter(({ user }) => userManagementView === "users" ? (directoryTab === "active" ? user.status === "Active" : user.status === "Suspended") : user.status === "Active")
     .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
   const updateDraftUser = (index: number, key: keyof EditableUser, value: string) => {

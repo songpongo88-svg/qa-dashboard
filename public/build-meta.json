@@ -1,19 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151459",
-  "buildNumber": 2605151459,
-  "releaseLabel": "v1.0.0.2605151459",
-  "updatedAt": "15/05/2026 14:59:36",
+  "displayVersion": "1.0.0.2605151507",
+  "buildNumber": 2605151507,
+  "releaseLabel": "v1.0.0.2605151507",
+  "updatedAt": "15/05/2026 15:07:51",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ac6adc2911378a8cd995e2f5168a56bc25ccacf0",
-  "commitMessage": "Keep appeal history visible after reset",
+  "commitHash": "b84129d62bb1e7f4b47b2854da063ed3128ed6f1",
+  "commitMessage": "Add team management to user directory",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx",
-    "src/AppealRequestsMockup.tsx",
-    "src/DashboardMockup.tsx"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
