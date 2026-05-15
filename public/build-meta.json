@@ -1,18 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151016",
-  "buildNumber": 2605151016,
-  "releaseLabel": "v1.0.0.2605151016",
-  "updatedAt": "15/05/2026 10:16:18",
+  "displayVersion": "1.0.0.2605151025",
+  "buildNumber": 2605151025,
+  "releaseLabel": "v1.0.0.2605151025",
+  "updatedAt": "15/05/2026 10:25:02",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "5c3df0b1970362bac8527e3b4e0cecb6e7c1ff73",
-  "commitMessage": "Lock scoped agent filter labels",
+  "commitHash": "d472e23c2f9734ae8194403b5b799a47dd5984e9",
+  "commitMessage": "Add view all agents permission",
   "changedFiles": [
     "public/build-meta.json",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx"
+    "src/App.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

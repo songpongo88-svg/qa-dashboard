@@ -697,17 +697,6 @@ function buildEffectiveUserAccounts(
   return Array.from(merged.values());
 }
 
-async function getCentralUserRoleOverride(username: string) {
-  try {
-    const normalized = username.trim().toLowerCase();
-    const logs = await fetchUsageLogs(3000);
-    const overrides = buildUserRoleOverrides(logs);
-    return overrides[normalized] || "";
-  } catch {
-    return "";
-  }
-}
-
 async function getCentralEffectiveUserAccounts() {
   try {
     const logs = await fetchUsageLogs(5000);
@@ -2812,13 +2801,10 @@ export default function App() {
       return;
     }
 
-    const centralRole = await getCentralUserRoleOverride(matchedUser.username);
-    const effectiveRole = centralRole || matchedUser.role;
-
     const nextUser: CurrentUser = {
       username: matchedUser.username,
       displayName: matchedUser.displayName,
-      role: effectiveRole,
+      role: matchedUser.role,
       agentName: matchedUser.agentName,
       email: matchedUser.email || "",
       loginAt: new Date().toISOString(),
@@ -2840,7 +2826,7 @@ export default function App() {
     setPassword("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentGlobal(effectiveRole === "Agent" ? matchedUser.agentName : "");
+    setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
     void loadRoleOverrides();

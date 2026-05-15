@@ -381,7 +381,7 @@ export default function UserRoleAdminMockup({
         return {
           ...account,
           normalizedUsername,
-          effectiveRole: roleOverrides[normalizedUsername] || account.role,
+          effectiveRole: account.role,
           status: account.status || "Active",
         };
       })
