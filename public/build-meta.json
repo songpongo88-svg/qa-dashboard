@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151124",
-  "buildNumber": 2605151124,
-  "releaseLabel": "v1.0.0.2605151124",
-  "updatedAt": "15/05/2026 11:24:11",
+  "displayVersion": "1.0.0.2605151413",
+  "buildNumber": 2605151413,
+  "releaseLabel": "v1.0.0.2605151413",
+  "updatedAt": "15/05/2026 14:13:07",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "1b744db145fc7b47c19852c1990c9fd9afdd913e",
-  "commitMessage": "Lock directory access and soften admin UI",
+  "commitHash": "8d2a2dbeff69737cb32ea0bb7536b7701be61ed6",
+  "commitMessage": "Split user directory view and manage permissions",
   "changedFiles": [
     "public/build-meta.json",
+    "src/App.tsx",
     "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",

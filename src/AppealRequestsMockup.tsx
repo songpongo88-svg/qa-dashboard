@@ -37,6 +37,17 @@ type AppealRequest = {
   topics: AppealTopic[];
 };
 
+type AppealListTab = "pending" | "reviewed" | "reset";
+
+type AppealResetHistoryItem = {
+  requestId: string;
+  caseId: string;
+  agent: string;
+  resetAt: string;
+  resetBy: string;
+  reason: string;
+};
+
 function getRequestId(log: UsageLogEvent) {
   return String(log.details?.requestId || log.id || "");
 }
@@ -113,6 +124,19 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         topics: reviewTopics || baseTopics,
       };
     });
+}
+
+function buildAppealResetHistory(logs: UsageLogEvent[]) {
+  return logs
+    .filter((log) => log.event_type === "appeal_request_reset")
+    .map((log): AppealResetHistoryItem => ({
+      requestId: getRequestId(log),
+      caseId: String(log.case_id || log.details?.caseId || ""),
+      agent: String(log.target_agent || log.details?.agent || ""),
+      resetAt: String(log.details?.resetAt || log.created_at || ""),
+      resetBy: String(log.details?.resetBy || log.display_name || ""),
+      reason: String(log.details?.reason || ""),
+    }));
 }
 
 function exportAppealRows(requests: AppealRequest[]) {
@@ -194,9 +218,14 @@ export default function AppealRequestsMockup({
   const [reviewSummary, setReviewSummary] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [listTab, setListTab] = useState<AppealListTab>("pending");
 
   const requests = useMemo(() => buildAppealRequests(logs), [logs]);
+  const resetHistory = useMemo(() => buildAppealResetHistory(logs), [logs]);
   const selectedRequest = requests.find((item) => item.requestId === selectedRequestId) || null;
+  const pendingRequests = requests.filter((item) => item.status === "Pending");
+  const reviewedRequests = requests.filter((item) => item.status !== "Pending");
+  const visibleRequests = listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : [];
 
   const loadRequests = async () => {
     setLogs(await fetchUsageLogs(5000));
@@ -296,7 +325,7 @@ export default function AppealRequestsMockup({
           subtitle="Review submitted cases, then export results for Appeal ROWDATA."
         />
 
-        <div className="grid gap-4 border-b border-violet-100 p-5 md:grid-cols-3">
+        <div className="grid gap-4 border-b border-violet-100 p-5 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Total Requests</div>
             <div className="mt-2 text-3xl font-extrabold text-slate-950">{requests.length}</div>
@@ -308,6 +337,10 @@ export default function AppealRequestsMockup({
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">Reviewed</div>
             <div className="mt-2 text-3xl font-extrabold text-emerald-700">{reviewedCount}</div>
+          </div>
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-700">Reset History</div>
+            <div className="mt-2 text-3xl font-extrabold text-sky-700">{resetHistory.length}</div>
           </div>
         </div>
 
@@ -321,8 +354,31 @@ export default function AppealRequestsMockup({
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700">Task Inbox</div>
               <div className="mt-1 text-sm text-slate-600">Click a task subject to open and review details.</div>
             </div>
+            <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+              {[
+                { key: "pending" as const, label: "Pending", count: pendingCount },
+                { key: "reviewed" as const, label: "Reviewed", count: reviewedCount },
+                { key: "reset" as const, label: "Reset", count: resetHistory.length },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setListTab(item.key);
+                    setSelectedRequestId("");
+                  }}
+                  className={`rounded-xl px-3 py-2 text-xs font-black transition ${
+                    listTab === item.key
+                      ? "bg-violet-700 text-white shadow-sm"
+                      : "bg-white text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                  }`}
+                >
+                  {item.label} <span className="ml-1">{item.count}</span>
+                </button>
+              ))}
+            </div>
             <div className="space-y-3">
-              {requests.map((item) => (
+              {visibleRequests.map((item) => (
                 <button
                   key={item.requestId}
                   type="button"
@@ -351,7 +407,31 @@ export default function AppealRequestsMockup({
                   </div>
                 </button>
               ))}
-              {!requests.length ? <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No appeal requests yet.</div> : null}
+              {listTab === "reset" ? (
+                resetHistory.map((item) => (
+                  <div key={`${item.requestId}-${item.resetAt}`} className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-left">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-sky-700">Reset History</div>
+                        <div className="mt-1 text-sm font-extrabold text-slate-950">Reset Task - {item.caseId}</div>
+                        <div className="mt-1 text-xs text-slate-500">{item.agent || "-"}</div>
+                      </div>
+                      <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-bold text-sky-700">Reset</span>
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">Reset: {formatDateTime(item.resetAt)}</div>
+                    <div className="mt-1 text-xs text-slate-500">By: {item.resetBy || "-"}</div>
+                    {item.reason ? <div className="mt-2 text-xs font-semibold leading-5 text-sky-800">{item.reason}</div> : null}
+                  </div>
+                ))
+              ) : null}
+              {listTab !== "reset" && !visibleRequests.length ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                  No {listTab} appeal requests in this view. Try another tab.
+                </div>
+              ) : null}
+              {listTab === "reset" && !resetHistory.length ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No reset history yet.</div>
+              ) : null}
             </div>
           </div>
 
