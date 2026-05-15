@@ -1955,12 +1955,8 @@ export default function App() {
   );
   const roleScopedAgentNames = useMemo(() => {
     if (!currentUser || !shouldScopeCasesToOwnRole(currentUser.role)) return [];
-    const currentRole = currentUser.role.trim().toLowerCase();
-    return effectiveUserAccounts
-      .filter((account) => account.status !== "Suspended" && account.role.trim().toLowerCase() === currentRole)
-      .map((account) => account.agentName || account.displayName)
-      .filter(Boolean);
-  }, [currentUser, effectiveUserAccounts]);
+    return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
+  }, [currentUser]);
   const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
   const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");

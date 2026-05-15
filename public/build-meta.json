@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605150951",
-  "buildNumber": 2605150951,
-  "releaseLabel": "v1.0.0.2605150951",
-  "updatedAt": "15/05/2026 09:51:28",
+  "displayVersion": "1.0.0.2605151000",
+  "buildNumber": 2605151000,
+  "releaseLabel": "v1.0.0.2605151000",
+  "updatedAt": "15/05/2026 10:00:27",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6074cae2296ff83ec2c7f50f368c4ef7397abd00",
-  "commitMessage": "Add internal inbox templates",
+  "commitHash": "2334d95decfacab960ab97bdf4f4e35bc391e48b",
+  "commitMessage": "Add inbox return navigation",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
