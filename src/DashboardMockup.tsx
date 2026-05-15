@@ -3806,6 +3806,15 @@ export default function DashboardMockup({
   }, [allCases, currentUser, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
 
   useEffect(() => {
+    if (roleScopedAgentList.length) {
+      const lockedAgent = roleScopedAgentList[0];
+      if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
+        setSelectedAgent(lockedAgent);
+      }
+      onSelectedAgentChange?.(lockedAgent || "");
+      return;
+    }
+
     if (currentUser?.role === "Agent" && currentUser.agentName) {
       const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
       if (!isSameAgent(selectedAgent || "", lockedAgent)) {
@@ -3828,7 +3837,9 @@ export default function DashboardMockup({
   }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length]);
 
   const effectiveSelectedAgent =
-    currentUser?.role === "Agent" && currentUser.agentName
+    roleScopedAgentList.length
+      ? roleScopedAgentList[0]
+      : currentUser?.role === "Agent" && currentUser.agentName
       ? toTitleCaseName(String(currentUser.agentName).trim())
       : String(selectedAgent || "").trim();
 
@@ -4174,7 +4185,7 @@ export default function DashboardMockup({
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Agent
                   </div>
-                  {currentUser?.role === "Agent" ? (
+                  {currentUser?.role === "Agent" || roleScopedAgentList.length ? (
                     <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
                       {effectiveSelectedAgent || "-"}
                     </div>

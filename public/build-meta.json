@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151000",
-  "buildNumber": 2605151000,
-  "releaseLabel": "v1.0.0.2605151000",
-  "updatedAt": "15/05/2026 10:00:27",
+  "displayVersion": "1.0.0.2605151008",
+  "buildNumber": 2605151008,
+  "releaseLabel": "v1.0.0.2605151008",
+  "updatedAt": "15/05/2026 10:08:49",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2334d95decfacab960ab97bdf4f4e35bc391e48b",
-  "commitMessage": "Add inbox return navigation",
+  "commitHash": "0dd779049c30cdf26a780344b2454c611b79ed1a",
+  "commitMessage": "Limit admin live chat to own cases",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"

@@ -1008,6 +1008,15 @@ export default function SummaryMockup({
   }, [allCases, selectedMonth, currentUser, roleScopedAgentList]);
 
   useEffect(() => {
+    if (roleScopedAgentList.length) {
+      const lockedAgent = roleScopedAgentList[0];
+      if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
+        setSelectedAgent(lockedAgent);
+      }
+      onSelectedAgentChange?.(lockedAgent || "all");
+      return;
+    }
+
     if (currentUser?.role === "Agent" && currentUser?.agentName) {
       const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
       if (!isSameAgent(selectedAgent || "", lockedAgent)) {
@@ -1045,7 +1054,9 @@ export default function SummaryMockup({
   }, [allCases]);
 
   const effectiveSelectedAgent =
-    currentUser?.role === "Agent" && currentUser?.agentName
+    roleScopedAgentList.length
+      ? roleScopedAgentList[0]
+      : currentUser?.role === "Agent" && currentUser?.agentName
       ? toTitleCaseName(String(currentUser.agentName).trim())
       : selectedAgent;
 
@@ -1162,7 +1173,22 @@ export default function SummaryMockup({
                 <div className="space-y-4">
                   <div>
                     <FilterLabel>Agent</FilterLabel>
-                    <div className="mt-2"><FilterSelect value={effectiveSelectedAgent || "all"} onChange={(value) => { if (currentUser?.role === "Agent") return; setSelectedAgent(value); onSelectedAgentChange?.(value); }} options={[{ value: "all", label: "All Agents" }].concat(availableAgents.map((agent) => ({ value: agent, label: agent })))} /></div>
+                    <div className="mt-2">
+                      {currentUser?.role === "Agent" || roleScopedAgentList.length ? (
+                        <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                          {effectiveSelectedAgent || "-"}
+                        </div>
+                      ) : (
+                        <FilterSelect
+                          value={effectiveSelectedAgent || "all"}
+                          onChange={(value) => {
+                            setSelectedAgent(value);
+                            onSelectedAgentChange?.(value);
+                          }}
+                          options={[{ value: "all", label: "All Agents" }].concat(availableAgents.map((agent) => ({ value: agent, label: agent })))}
+                        />
+                      )}
+                    </div>
                   </div>
                   <div>
                     <FilterLabel>Month</FilterLabel>
