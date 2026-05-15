@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605141707",
-  "buildNumber": 2605141707,
-  "releaseLabel": "v1.0.0.2605141707",
-  "updatedAt": "14/05/2026 17:07:22",
+  "displayVersion": "1.0.0.2605150902",
+  "buildNumber": 2605150902,
+  "releaseLabel": "v1.0.0.2605150902",
+  "updatedAt": "15/05/2026 09:02:46",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "28f73c9d6471fff99c05f4577fd96b5d7061a681",
-  "commitMessage": "Separate maintenance from user directory",
+  "commitHash": "964e279e7d47b8b80d6db03b145bcdb09737ffb0",
+  "commitMessage": "Redesign account administration layout",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

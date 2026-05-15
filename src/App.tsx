@@ -1682,6 +1682,178 @@ function MaintenanceScreen({
   );
 }
 
+function FloatingChatWidget({
+  open,
+  currentUser,
+  messages,
+  onlineUsers,
+  unreadCounts,
+  totalUnread,
+  onToggle,
+  onOpenFullChat,
+  onSendTeamMessage,
+  onRefresh,
+}: {
+  open: boolean;
+  currentUser: CurrentUser;
+  messages: ChatMessage[];
+  onlineUsers: OnlineUser[];
+  unreadCounts: Record<string, number>;
+  totalUnread: number;
+  onToggle: () => void;
+  onOpenFullChat: () => void;
+  onSendTeamMessage: (message: string) => Promise<void>;
+  onRefresh: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const myUsername = currentUser.username.toLowerCase();
+  const unreadBadge = totalUnread > 9 ? "9+" : String(totalUnread);
+  const recentMessages = [...messages]
+    .filter((message) => !message.deleted)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  const unreadPreview = recentMessages.filter((message) => {
+    if (message.username.toLowerCase() === myUsername) return false;
+    const roomKey = getChatRoomKeyForUser(message, currentUser);
+    return (unreadCounts[roomKey] || 0) > 0;
+  });
+
+  const handleSend = async () => {
+    const message = draft.trim();
+    if (!message || sending) return;
+    setSending(true);
+    await onSendTeamMessage(message);
+    setDraft("");
+    setSending(false);
+  };
+
+  return (
+    <div className="fixed bottom-5 right-5 z-[80] flex flex-col items-end gap-3">
+      {open ? (
+        <div className="w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.24)]">
+          <div className="bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 py-4 text-white">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Team Chat</div>
+                <div className="mt-1 text-lg font-black">Online Chat</div>
+                <div className="mt-1 text-xs font-semibold text-violet-100">
+                  {onlineUsers.length} online user(s) · {totalUnread} unread message(s)
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onToggle}
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-black text-white transition hover:bg-white/20"
+              >
+                Hide
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[320px] space-y-2 overflow-y-auto bg-slate-50 px-3 py-3">
+            {(unreadPreview.length ? unreadPreview : recentMessages).map((message) => {
+              const isMine = message.username.toLowerCase() === myUsername;
+              const isUnread = !isMine && (unreadCounts[getChatRoomKeyForUser(message, currentUser)] || 0) > 0;
+              return (
+                <div
+                  key={message.id}
+                  className={`rounded-2xl border px-3 py-2 text-sm shadow-sm ${
+                    isUnread ? "border-rose-200 bg-white" : "border-slate-200 bg-white/80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="truncate text-xs font-black text-slate-950">
+                      {isMine ? "You" : message.displayName}
+                    </div>
+                    <div className="shrink-0 text-[11px] font-semibold text-slate-400">
+                      {new Date(message.createdAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  <div className={`mt-1 line-clamp-2 text-xs leading-5 ${message.deleted ? "italic text-slate-400" : "text-slate-600"}`}>
+                    {message.kind === "call"
+                      ? `Call ${message.callStatus || ""}`
+                      : message.attachment
+                        ? `${message.message || "Attachment"} · ${message.attachment.name}`
+                        : message.message || "-"}
+                  </div>
+                  {isUnread ? (
+                    <div className="mt-2 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-rose-600">
+                      New
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+
+            {!recentMessages.length ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                No chat messages yet.
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t border-slate-200 bg-white p-3">
+            <div className="flex gap-2">
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleSend();
+                  }
+                }}
+                placeholder="Send message to Team Chat"
+                className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
+              />
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={!draft.trim() || sending}
+                className="rounded-2xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                Send
+              </button>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="text-xs font-bold text-slate-500 transition hover:text-violet-700"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={onOpenFullChat}
+                className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
+              >
+                Open full Team Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={onToggle}
+        className="group relative flex h-16 min-w-16 items-center justify-center rounded-full bg-gradient-to-br from-violet-700 via-fuchsia-600 to-rose-500 px-5 text-white shadow-[0_18px_45px_rgba(109,40,217,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(109,40,217,0.42)]"
+        aria-label="Open floating team chat"
+      >
+        <span className="text-sm font-black">{open ? "Chat" : "Chat"}</span>
+        {totalUnread > 0 ? (
+          <span className="absolute -right-1 -top-1 inline-flex min-w-7 items-center justify-center rounded-full border-2 border-white bg-rose-600 px-2 py-1 text-xs font-black text-white shadow-lg">
+            {unreadBadge}
+          </span>
+        ) : null}
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
   const [username, setUsername] = useState("");
@@ -1716,6 +1888,7 @@ export default function App() {
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
+  const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [liveNow, setLiveNow] = useState(() => new Date());
 
   const [activeTab, setActiveTab] = useState<
@@ -3304,6 +3477,37 @@ export default function App() {
           <QARubricMockup />
         )}
       </div>
+
+      <FloatingChatWidget
+        open={floatingChatOpen}
+        currentUser={currentUser}
+        messages={chatMessages}
+        onlineUsers={onlineUsers}
+        unreadCounts={chatUnreadCounts}
+        totalUnread={totalChatUnreadCount}
+        onToggle={() => {
+          const nextOpen = !floatingChatOpen;
+          setFloatingChatOpen(nextOpen);
+          if (nextOpen) {
+            void sendPresence();
+            void loadChatData();
+          }
+        }}
+        onOpenFullChat={() => {
+          setActiveTab("team-chat");
+          setFloatingChatOpen(false);
+          void sendPresence();
+          void loadChatData();
+        }}
+        onSendTeamMessage={async (message) => {
+          await sendChatMessage(message);
+          await loadChatData();
+        }}
+        onRefresh={() => {
+          void sendPresence();
+          void loadChatData();
+        }}
+      />
     </>
   );
 }
