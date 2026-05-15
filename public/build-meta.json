@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151522",
-  "buildNumber": 2605151522,
-  "releaseLabel": "v1.0.0.2605151522",
-  "updatedAt": "15/05/2026 15:22:03",
+  "displayVersion": "1.0.0.2605151526",
+  "buildNumber": 2605151526,
+  "releaseLabel": "v1.0.0.2605151526",
+  "updatedAt": "15/05/2026 15:26:47",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "404fa55e3c462b922f43ef931b9189de3322f7f4",
-  "commitMessage": "Hide suspended users from team views",
+  "commitHash": "4f2de496b9a5a434f916b7d3d6101347166a9a1f",
+  "commitMessage": "Update appeal rowdata 15052026",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "public/Appleal ROWDATA.xlsx",
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
