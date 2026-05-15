@@ -1,17 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151507",
-  "buildNumber": 2605151507,
-  "releaseLabel": "v1.0.0.2605151507",
-  "updatedAt": "15/05/2026 15:07:51",
+  "displayVersion": "1.0.0.2605151522",
+  "buildNumber": 2605151522,
+  "releaseLabel": "v1.0.0.2605151522",
+  "updatedAt": "15/05/2026 15:22:03",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "b84129d62bb1e7f4b47b2854da063ed3128ed6f1",
-  "commitMessage": "Add team management to user directory",
+  "commitHash": "404fa55e3c462b922f43ef931b9189de3322f7f4",
+  "commitMessage": "Hide suspended users from team views",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
     "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
