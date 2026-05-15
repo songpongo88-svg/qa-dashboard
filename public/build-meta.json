@@ -1,19 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605152101",
-  "buildNumber": 2605152101,
-  "releaseLabel": "v1.0.0.2605152101",
-  "updatedAt": "15/05/2026 21:01:39",
+  "displayVersion": "1.0.0.2605152119",
+  "buildNumber": 2605152119,
+  "releaseLabel": "v1.0.0.2605152119",
+  "updatedAt": "15/05/2026 21:19:22",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "16545bc238980ca645ae8375e27e2d0bb49c0988",
-  "commitMessage": "Add rubric version period controls",
+  "commitHash": "6039313889b765d73faf44259a2ed2c76c35da52",
+  "commitMessage": "Show full score options in evaluation",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx",
-    "src/QARubricMockup.tsx",
-    "src/lib/rubricVersions.ts"
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

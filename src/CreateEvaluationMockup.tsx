@@ -327,29 +327,48 @@ export default function CreateEvaluationMockup() {
                       </button>
 
                       {open ? (
-                        <div className="space-y-4 p-4">
+                        <div className="p-4">
+                          <div className="hidden rounded-t-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-600 lg:grid lg:grid-cols-[90px_minmax(220px,1.1fr)_120px_90px_minmax(300px,1.4fr)]">
+                            <div>Topic</div>
+                            <div>Description</div>
+                            <div>Score</div>
+                            <div>Max</div>
+                            <div>Assessment Reason</div>
+                          </div>
+                          <div className="overflow-hidden rounded-2xl border border-slate-200 lg:rounded-t-none lg:border-t-0">
                           {groupTopics.map((topic) => (
-                            <div key={topic.code} className="rounded-[24px] border border-violet-100 bg-gradient-to-br from-white to-violet-50/40 p-4">
-                              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                <div>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">{topic.code}</span>
-                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">Max {topic.max}</span>
-                                  </div>
-                                  <div className="mt-3 text-base font-black text-slate-950">{topic.title}</div>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {scoreOptions(topic.max).map((score) => (
-                                    <button key={score} type="button" onClick={() => updateTopic(topic.code, { score })} className={`min-w-12 rounded-2xl border px-3 py-2 text-sm font-black transition ${topicState[topic.code]?.score === score ? "border-violet-600 bg-violet-600 text-white shadow-[0_10px_20px_rgba(109,40,217,0.24)]" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50"}`}>
-                                      {score}
-                                    </button>
-                                  ))}
-                                </div>
+                            <div key={topic.code} className="grid gap-3 border-b border-slate-200 bg-white px-4 py-4 last:border-b-0 hover:bg-violet-50/40 lg:grid-cols-[90px_minmax(220px,1.1fr)_120px_90px_minmax(300px,1.4fr)] lg:items-start">
+                              <div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Topic</div>
+                                <div className="mt-1 inline-flex rounded-xl bg-violet-100 px-3 py-1 text-sm font-black text-violet-700 lg:mt-0">{topic.code}</div>
                               </div>
-
-                              <textarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} rows={3} placeholder="เหตุผลการประเมินหัวข้อนี้..." className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+                              <div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Description</div>
+                                <div className="mt-1 text-sm font-black leading-6 text-slate-950 lg:mt-0">{topic.title}</div>
+                              </div>
+                              <label className="block">
+                                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Score</span>
+                                <select
+                                  value={topicState[topic.code]?.score ?? 0}
+                                  onChange={(event) => updateTopic(topic.code, { score: Number(event.target.value) })}
+                                  className="mt-1 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm font-black text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 lg:mt-0"
+                                >
+                                  {scoreOptions(topic.max).map((score) => (
+                                    <option key={score} value={score}>{score}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <div>
+                                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Max</div>
+                                <div className="mt-1 inline-flex rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 lg:mt-0">{topic.max}</div>
+                              </div>
+                              <label className="block">
+                                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Assessment Reason</span>
+                                <textarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} rows={2} placeholder="เหตุผลการประเมินหัวข้อนี้..." className="mt-1 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 lg:mt-0" />
+                              </label>
                             </div>
                           ))}
+                          </div>
                         </div>
                       ) : null}
                     </div>
