@@ -1915,6 +1915,7 @@ export default function App() {
   const [resetResultMessage, setResetResultMessage] = useState("");
   const [passwordResetRequests, setPasswordResetRequests] = useState<PasswordResetRequest[]>([]);
   const [inboxTasks, setInboxTasks] = useState<InboxTaskItem[]>([]);
+  const [inboxReturnTitle, setInboxReturnTitle] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
@@ -2649,6 +2650,7 @@ export default function App() {
 
   const handleOpenInboxTask = (task: InboxTaskItem) => {
     markInboxTaskRead(task.id);
+    setInboxReturnTitle(task.title);
 
     if (task.type === "appeal") {
       if (appealRequestsAllowed) {
@@ -2687,6 +2689,12 @@ export default function App() {
     if (currentUser?.role === "Agent") {
       setSelectedAgentGlobal(currentUser.agentName);
     }
+  };
+
+  const openTaskInbox = () => {
+    setInboxReturnTitle("");
+    setActiveTab("task-inbox");
+    void loadInboxTasks();
   };
 
   const handleLogout = () => {
@@ -3367,10 +3375,7 @@ export default function App() {
                 <div className="hidden flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveTab("task-inbox");
-                      void loadInboxTasks();
-                    }}
+                    onClick={openTaskInbox}
                     className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -3414,10 +3419,7 @@ export default function App() {
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setActiveTab("task-inbox");
-                  void loadInboxTasks();
-                }}
+                onClick={openTaskInbox}
                 className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -3458,6 +3460,24 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {inboxReturnTitle && activeTab !== "task-inbox" ? (
+          <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
+            <div className="flex flex-col gap-3 rounded-[24px] border border-violet-200 bg-white px-4 py-3 shadow-[0_14px_36px_rgba(88,28,135,0.10)] sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from Task Inbox</div>
+                <div className="mt-1 text-sm font-bold text-slate-700">{inboxReturnTitle}</div>
+              </div>
+              <button
+                type="button"
+                onClick={openTaskInbox}
+                className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-800"
+              >
+                Back to Inbox
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {activeTab === "dashboard" ? (
           <div>

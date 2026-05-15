@@ -1,19 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605150929",
-  "buildNumber": 2605150929,
-  "releaseLabel": "v1.0.0.2605150929",
-  "updatedAt": "15/05/2026 09:29:47",
+  "displayVersion": "1.0.0.2605150951",
+  "buildNumber": 2605150951,
+  "releaseLabel": "v1.0.0.2605150951",
+  "updatedAt": "15/05/2026 09:51:28",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "0ffe1b67f46dbac83eb528f97f0e41294dda570f",
-  "commitMessage": "Tighten appeal review workflow",
+  "commitHash": "6074cae2296ff83ec2c7f50f368c4ef7397abd00",
+  "commitMessage": "Add internal inbox templates",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/AppealRequestsMockup.tsx",
-    "src/DashboardMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
