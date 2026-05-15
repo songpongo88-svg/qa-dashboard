@@ -277,6 +277,19 @@ function roleBadgeClass(role: UserRole) {
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
+function roleAvatarClass(role: UserRole) {
+  if (role === "Quality Assurance") return "from-fuchsia-500 to-violet-700 shadow-fuchsia-100";
+  if (role === "Supervisor") return "from-sky-500 to-blue-700 shadow-sky-100";
+  if (role === "Senior") return "from-amber-400 to-orange-600 shadow-amber-100";
+  return "from-emerald-400 to-teal-700 shadow-emerald-100";
+}
+
+function userInitials(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "U";
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
+}
+
 function isSystemRole(roleName: string) {
   return ROLE_OPTIONS.some((role) => role.toLowerCase() === roleName.toLowerCase());
 }
@@ -1195,42 +1208,97 @@ function DirectoryTabButton({
 }
 
 function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }> }) {
+  const activeCount = rows.filter((row) => row.status === "Active").length;
+  const suspendedCount = rows.length - activeCount;
+  const roleCount = new Set(rows.map((row) => row.effectiveRole)).size;
+
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse text-left text-sm">
-        <thead>
-          <tr className="bg-slate-950 text-white">
-            <th className="px-5 py-4 font-bold">User</th>
-            <th className="px-5 py-4 font-bold">Agent Name</th>
-            <th className="px-5 py-4 font-bold">Email</th>
-            <th className="px-5 py-4 font-bold">Role</th>
-            <th className="px-5 py-4 font-bold">Status</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="bg-gradient-to-br from-slate-50 via-white to-violet-50/40 px-5 py-5">
+      <div className="mb-5 grid gap-3 md:grid-cols-3">
+        <div className="rounded-[22px] border border-white bg-white/90 px-5 py-4 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Directory View</div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div className="text-3xl font-black text-slate-950">{rows.length}</div>
+            <div className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">user(s)</div>
+          </div>
+        </div>
+        <div className="rounded-[22px] border border-emerald-100 bg-white/90 px-5 py-4 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Active Accounts</div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div className="text-3xl font-black text-slate-950">{activeCount}</div>
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">available</div>
+          </div>
+        </div>
+        <div className="rounded-[22px] border border-violet-100 bg-white/90 px-5 py-4 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-600">Access Groups</div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div className="text-3xl font-black text-slate-950">{roleCount}</div>
+            <div className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">{suspendedCount} suspended</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="min-w-[1060px] space-y-3">
+          <div className="grid grid-cols-[minmax(280px,1.35fr)_minmax(220px,1fr)_minmax(280px,1.1fr)_190px_160px] items-center gap-4 px-5 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+            <div>User Profile</div>
+            <div>Agent Name</div>
+            <div>Registered Email</div>
+            <div>Role</div>
+            <div>Status</div>
+          </div>
+
           {rows.map((row) => (
-            <tr key={row.username} className="border-b border-slate-100 last:border-b-0">
-              <td className="px-5 py-4">
-                <div className="font-black text-slate-950">{row.displayName}</div>
-                <div className="mt-0.5 text-xs font-semibold text-slate-500">{row.username}</div>
-              </td>
-              <td className="px-5 py-4 text-slate-600">{row.agentName || "-"}</td>
-              <td className="px-5 py-4 text-slate-600">{row.email || "-"}</td>
-              <td className="px-5 py-4">
+            <div
+              key={row.username}
+              className={`grid grid-cols-[minmax(280px,1.35fr)_minmax(220px,1fr)_minmax(280px,1.1fr)_190px_160px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
+                row.status === "Active" ? "border-white bg-white" : "border-rose-100 bg-rose-50/70"
+              }`}
+            >
+              <div className="flex min-w-0 items-center gap-4">
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-black text-white shadow-lg ${roleAvatarClass(row.effectiveRole)}`}>
+                  {userInitials(row.displayName || row.username)}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-base font-black text-slate-950">{row.displayName}</div>
+                  <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">@{row.username}</div>
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="truncate font-bold text-slate-700">{row.agentName || "-"}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-400">QA profile owner</div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="truncate rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 font-semibold text-slate-600">
+                  {row.email || "No email assigned"}
+                </div>
+              </div>
+
+              <div>
                 <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${roleBadgeClass(row.effectiveRole)}`}>
                   {row.effectiveRole}
                 </span>
-              </td>
-              <td className="px-5 py-4">
-                <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${row.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+              </div>
+
+              <div>
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black ${row.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                  <span className={`h-2 w-2 rounded-full ${row.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
                   {row.status}
                 </div>
                 {row.suspendReason ? <div className="mt-1 text-xs text-slate-500">{row.suspendReason}</div> : null}
-              </td>
-            </tr>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+
+          {!rows.length ? (
+            <div className="rounded-[24px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">
+              No users found in this view.
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

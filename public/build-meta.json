@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605151042",
-  "buildNumber": 2605151042,
-  "releaseLabel": "v1.0.0.2605151042",
-  "updatedAt": "15/05/2026 10:42:17",
+  "displayVersion": "1.0.0.2605151055",
+  "buildNumber": 2605151055,
+  "releaseLabel": "v1.0.0.2605151055",
+  "updatedAt": "15/05/2026 10:55:24",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8942c3b0e49f33a865e84f829e4c5a0aab209777",
-  "commitMessage": "Add private rooms to floating chat",
+  "commitHash": "8255b8fb73adcf204068a38f616bbbfb066c208b",
+  "commitMessage": "Stack floating chat contacts and reset history",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
