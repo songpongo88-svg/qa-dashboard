@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import PageHero from "./PageHero";
 import {
   RUBRIC_GROUP_LABELS,
@@ -18,6 +18,14 @@ type EvidenceFile = {
   type: string;
   size: number;
   previewUrl: string;
+};
+
+type AutoGrowTextareaProps = {
+  value: string;
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder: string;
+  className: string;
+  minRows?: number;
 };
 
 const AGENT_NAMES = [
@@ -75,6 +83,41 @@ function scoreOptions(max: number) {
   return Array.from({ length: max + 1 }, (_, index) => index);
 }
 
+function formatTimestamp(date: Date) {
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function AutoGrowTextarea({ value, onChange, placeholder, className, minRows = 3 }: AutoGrowTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={onChange}
+      rows={minRows}
+      placeholder={placeholder}
+      className={className}
+      style={{ overflow: "hidden" }}
+    />
+  );
+}
+
 function SectionCard({
   label,
   title,
@@ -107,6 +150,9 @@ export default function CreateEvaluationMockup() {
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [criticalError, setCriticalError] = useState(false);
+  const [evaluationStartedAt, setEvaluationStartedAt] = useState("");
+  const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState("");
+  const [evaluationStatus, setEvaluationStatus] = useState<"Not Started" | "Draft" | "Submitted">("Not Started");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
     "Answer Quality": true,
@@ -160,6 +206,10 @@ export default function CreateEvaluationMockup() {
       "QA Scheme": activeRubric.code,
       "Rubric Version": activeRubric.name,
       "Rubric Active Period": rubricPeriod,
+      "Evaluator Name": "Songpon Phothong",
+      "Evaluation Started At": evaluationStartedAt || "-",
+      "Evaluation Submitted At": evaluationSubmittedAt || "-",
+      "Evaluation Status": evaluationStatus,
       "Final Score": criticalError ? 0 : finalScore,
       "Critical Error": criticalError ? "YES" : "NO",
       "Month Label": auditDate ? new Date(`${auditDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "-",
@@ -172,7 +222,23 @@ export default function CreateEvaluationMockup() {
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, evidencePreviewValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidencePreviewValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+
+  function startEvaluation() {
+    const timestamp = formatTimestamp(new Date());
+    setEvaluationStartedAt(timestamp);
+    setEvaluationSubmittedAt("");
+    setEvaluationStatus("Draft");
+  }
+
+  function submitEvaluation() {
+    const now = new Date();
+    if (!evaluationStartedAt) {
+      setEvaluationStartedAt(formatTimestamp(now));
+    }
+    setEvaluationSubmittedAt(formatTimestamp(now));
+    setEvaluationStatus("Submitted");
+  }
 
   function updateTopic(code: string, patch: Partial<TopicState>) {
     setTopicState((current) => ({
@@ -237,6 +303,37 @@ export default function CreateEvaluationMockup() {
           </div>
         </div>
 
+        <div className="rounded-[24px] border border-emerald-200 bg-white p-4 shadow-[0_16px_42px_rgba(15,23,42,0.07)]">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Evaluator</div>
+                <div className="mt-1 text-sm font-black text-slate-950">Songpon Phothong</div>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Status</div>
+                <div className="mt-1 text-sm font-black text-emerald-950">{evaluationStatus}</div>
+              </div>
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-700">Evaluation Started At</div>
+                <div className="mt-1 text-sm font-black text-slate-950">{evaluationStartedAt || "Not started"}</div>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">Evaluation Submitted At</div>
+                <div className="mt-1 text-sm font-black text-slate-950">{evaluationSubmittedAt || "Not submitted"}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={startEvaluation} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.22)] transition hover:bg-slate-800">
+                Start Evaluation
+              </button>
+              <button type="button" onClick={submitEvaluation} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800">
+                Submit Evaluation
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
           <div className="space-y-6">
             <SectionCard label="Section A" title="Case Information">
@@ -286,12 +383,12 @@ export default function CreateEvaluationMockup() {
 
                 <label className="block">
                   <span className={labelClass}>Customer Inquiry</span>
-                  <textarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} rows={3} placeholder="สรุปคำถามหรือประเด็นที่ลูกค้าติดต่อเข้ามา..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="สรุปคำถามหรือประเด็นที่ลูกค้าติดต่อเข้ามา..." className={`${inputClass} leading-6`} />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <textarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} rows={5} placeholder="สรุปรายละเอียดเคสและสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="สรุปรายละเอียดเคสและสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
                 </label>
               </div>
             </SectionCard>
@@ -411,7 +508,7 @@ export default function CreateEvaluationMockup() {
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <textarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} rows={3} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-2 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );
@@ -468,7 +565,7 @@ export default function CreateEvaluationMockup() {
                   </div>
                 </div>
 
-                <button type="button" className="w-full rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(4,120,87,0.24)] transition hover:bg-emerald-800">Submit Evaluation</button>
+                <button type="button" onClick={submitEvaluation} className="w-full rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(4,120,87,0.24)] transition hover:bg-emerald-800">Submit Evaluation</button>
                 <button type="button" className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50">Save Draft</button>
               </div>
             </div>

@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605160936",
-  "buildNumber": 2605160936,
-  "releaseLabel": "v1.0.0.2605160936",
-  "updatedAt": "16/05/2026 09:36:11",
+  "displayVersion": "1.0.0.2605160950",
+  "buildNumber": 2605160950,
+  "releaseLabel": "v1.0.0.2605160950",
+  "updatedAt": "16/05/2026 09:50:59",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "9df43434bcce953264a9f71e9ddb75ee506c31eb",
-  "commitMessage": "Redesign create evaluation workbook",
+  "commitHash": "6d85bdd0703b4c6953b85206b4c668ebdec6380d",
+  "commitMessage": "Move evaluation reason below score row",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
