@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605161006",
-  "buildNumber": 2605161006,
-  "releaseLabel": "v1.0.0.2605161006",
-  "updatedAt": "16/05/2026 10:06:00",
+  "displayVersion": "1.0.0.2605161042",
+  "buildNumber": 2605161042,
+  "releaseLabel": "v1.0.0.2605161042",
+  "updatedAt": "16/05/2026 10:42:16",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "37d17776c7c798b50dcce0291b5fca0c152c5d29",
-  "commitMessage": "Remove duplicate evaluation submit button",
+  "commitHash": "e22b29c17637ca61f62fd2da96f96ecb5f4b6067",
+  "commitMessage": "Persist evaluation drafts locally",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"

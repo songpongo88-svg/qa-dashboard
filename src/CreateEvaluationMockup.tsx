@@ -29,6 +29,8 @@ type AutoGrowTextareaProps = {
 };
 
 type EvaluationDraft = {
+  draftId?: string;
+  title?: string;
   agentName: string;
   auditDate: string;
   waitingTime: string;
@@ -44,6 +46,7 @@ type EvaluationDraft = {
   evaluationStatus: "Not Started" | "Draft" | "Submitted";
   topicState: Record<string, TopicState>;
   savedAt: string;
+  savedAtMs?: number;
 };
 
 const AGENT_NAMES = [
@@ -65,7 +68,8 @@ const AGENT_NAMES = [
 const inputClass =
   "mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-950 shadow-inner outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100";
 const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
-const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
+const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
+const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
@@ -174,6 +178,8 @@ export default function CreateEvaluationMockup() {
   const [evaluationStatus, setEvaluationStatus] = useState<"Not Started" | "Draft" | "Submitted">("Not Started");
   const [draftSavedAt, setDraftSavedAt] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
+  const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
     "Answer Quality": true,
@@ -197,27 +203,25 @@ export default function CreateEvaluationMockup() {
   }, [activeRubric.code, topics]);
 
   useEffect(() => {
-    const rawDraft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!rawDraft) return;
+    const rawDrafts = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    const rawLegacyDraft = window.localStorage.getItem(LEGACY_DRAFT_STORAGE_KEY);
+    if (!rawDrafts && !rawLegacyDraft) return;
 
     try {
-      const draft = JSON.parse(rawDraft) as EvaluationDraft;
-      setAgentName(draft.agentName || "");
-      setAuditDate(draft.auditDate || todayInputValue());
-      setWaitingTime(draft.waitingTime || "");
-      setServiceTime(draft.serviceTime || "");
-      setCaseId(draft.caseId || "");
-      setCaseUrl(draft.caseUrl || "");
-      setInquiry(draft.inquiry || "");
-      setCaseDescription(draft.caseDescription || "");
-      setEvidenceUrl(draft.evidenceUrl || "");
-      setCriticalError(Boolean(draft.criticalError));
-      setEvaluationStartedAt(draft.evaluationStartedAt || "");
-      setEvaluationSubmittedAt(draft.evaluationSubmittedAt || "");
-      setEvaluationStatus(draft.evaluationStatus || "Draft");
-      setTopicState((current) => ({ ...current, ...(draft.topicState || {}) }));
-      setDraftSavedAt(draft.savedAt || "");
-      setDraftMessage(draft.savedAt ? `Loaded draft saved at ${draft.savedAt}` : "Loaded saved draft");
+      const parsedDrafts = rawDrafts ? JSON.parse(rawDrafts) : [];
+      const drafts = Array.isArray(parsedDrafts) ? parsedDrafts as EvaluationDraft[] : [];
+      if (!drafts.length && rawLegacyDraft) {
+        const legacyDraft = normalizeDraft(JSON.parse(rawLegacyDraft) as EvaluationDraft);
+        window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify([legacyDraft]));
+        window.localStorage.removeItem(LEGACY_DRAFT_STORAGE_KEY);
+        setDraftInbox([legacyDraft]);
+        loadDraftIntoForm(legacyDraft);
+        return;
+      }
+
+      const normalizedDrafts = sortDrafts(drafts.map(normalizeDraft));
+      setDraftInbox(normalizedDrafts);
+      if (normalizedDrafts[0]) loadDraftIntoForm(normalizedDrafts[0]);
     } catch {
       setDraftMessage("Draft could not be loaded. Please save a new draft.");
     }
@@ -273,27 +277,40 @@ export default function CreateEvaluationMockup() {
     return base;
   }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidencePreviewValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
 
-  function startEvaluation() {
-    const timestamp = formatTimestamp(new Date());
-    setEvaluationStartedAt(timestamp);
-    setEvaluationSubmittedAt("");
-    setEvaluationStatus("Draft");
+  function makeDraftId(draftCaseId: string, draftAuditDate: string) {
+    const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
+    const dateKey = draftAuditDate || todayInputValue();
+    return `${caseKey}::${dateKey}`;
   }
 
-  function submitEvaluation() {
-    const now = new Date();
-    if (!evaluationStartedAt) {
-      setEvaluationStartedAt(formatTimestamp(now));
-    }
-    setEvaluationSubmittedAt(formatTimestamp(now));
-    setEvaluationStatus("Submitted");
+  function sortDrafts(drafts: EvaluationDraft[]) {
+    return [...drafts].sort((a, b) => Number(b.savedAtMs || 0) - Number(a.savedAtMs || 0));
   }
 
-  function saveDraft() {
-    const now = new Date();
-    const savedAt = formatTimestamp(now);
+  function normalizeDraft(draft: EvaluationDraft): EvaluationDraft {
+    const draftId = draft.draftId || makeDraftId(draft.caseId || "", draft.auditDate || "");
+    return {
+      ...draft,
+      draftId,
+      title: draft.title || `${draft.caseId || "Untitled Case"} · ${draft.agentName || "No agent selected"}`,
+      savedAtMs: draft.savedAtMs || Date.now(),
+      evaluationStatus: draft.evaluationStatus || "Draft",
+      topicState: draft.topicState || {},
+    };
+  }
+
+  function persistDrafts(nextDrafts: EvaluationDraft[]) {
+    const sortedDrafts = sortDrafts(nextDrafts.map(normalizeDraft));
+    setDraftInbox(sortedDrafts);
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(sortedDrafts));
+  }
+
+  function buildCurrentDraft(savedAt: string, savedAtMs: number): EvaluationDraft {
     const startedAt = evaluationStartedAt || savedAt;
-    const draft: EvaluationDraft = {
+    const draftId = makeDraftId(caseId, auditDate);
+    return {
+      draftId,
+      title: `${caseId || "Untitled Case"} · ${agentName || "No agent selected"}`,
       agentName,
       auditDate,
       waitingTime,
@@ -309,13 +326,75 @@ export default function CreateEvaluationMockup() {
       evaluationStatus: "Draft",
       topicState,
       savedAt,
+      savedAtMs,
     };
+  }
 
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-    setEvaluationStartedAt(startedAt);
+  function loadDraftIntoForm(draft: EvaluationDraft) {
+    const normalizedDraft = normalizeDraft(draft);
+    setAgentName(normalizedDraft.agentName || "");
+    setAuditDate(normalizedDraft.auditDate || todayInputValue());
+    setWaitingTime(normalizedDraft.waitingTime || "");
+    setServiceTime(normalizedDraft.serviceTime || "");
+    setCaseId(normalizedDraft.caseId || "");
+    setCaseUrl(normalizedDraft.caseUrl || "");
+    setInquiry(normalizedDraft.inquiry || "");
+    setCaseDescription(normalizedDraft.caseDescription || "");
+    setEvidenceUrl(normalizedDraft.evidenceUrl || "");
+    setCriticalError(Boolean(normalizedDraft.criticalError));
+    setEvaluationStartedAt(normalizedDraft.evaluationStartedAt || "");
+    setEvaluationSubmittedAt(normalizedDraft.evaluationSubmittedAt || "");
+    setEvaluationStatus(normalizedDraft.evaluationStatus || "Draft");
+    setTopicState((current) => ({ ...current, ...(normalizedDraft.topicState || {}) }));
+    setDraftSavedAt(normalizedDraft.savedAt || "");
+    setActiveDraftId(normalizedDraft.draftId || "");
+    setDraftMessage(normalizedDraft.savedAt ? `Loaded draft saved at ${normalizedDraft.savedAt}` : "Loaded saved draft");
+  }
+
+  function deleteDraft(draftId: string) {
+    const nextDrafts = draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId);
+    persistDrafts(nextDrafts);
+    if (activeDraftId === draftId) {
+      setActiveDraftId("");
+      setDraftSavedAt("");
+    }
+    setDraftMessage("Draft deleted. The current form stays open until you start another draft.");
+  }
+
+  function startEvaluation() {
+    const timestamp = formatTimestamp(new Date());
+    setEvaluationStartedAt(timestamp);
+    setEvaluationSubmittedAt("");
+    setEvaluationStatus("Draft");
+  }
+
+  function submitEvaluation() {
+    const now = new Date();
+    const submittedAt = formatTimestamp(now);
+    const draftId = activeDraftId || makeDraftId(caseId, auditDate);
+    if (!evaluationStartedAt) {
+      setEvaluationStartedAt(submittedAt);
+    }
+    setEvaluationSubmittedAt(submittedAt);
+    setEvaluationStatus("Submitted");
+    persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
+    setActiveDraftId("");
+    setDraftSavedAt("");
+    setDraftMessage(`Evaluation submitted at ${submittedAt}. Draft was removed from the inbox.`);
+  }
+
+  function saveDraft() {
+    const now = new Date();
+    const savedAt = formatTimestamp(now);
+    const savedAtMs = now.getTime();
+    const draft = buildCurrentDraft(savedAt, savedAtMs);
+    const nextDrafts = [draft, ...draftInbox.filter((item) => (item.draftId || makeDraftId(item.caseId, item.auditDate)) !== draft.draftId)];
+    persistDrafts(nextDrafts);
+    setActiveDraftId(draft.draftId || "");
+    setEvaluationStartedAt(draft.evaluationStartedAt);
     setEvaluationStatus("Draft");
     setDraftSavedAt(savedAt);
-    setDraftMessage(`Draft saved at ${savedAt}`);
+    setDraftMessage(`Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}`);
   }
 
   function updateTopic(code: string, patch: Partial<TopicState>) {
@@ -419,6 +498,71 @@ export default function CreateEvaluationMockup() {
               {draftMessage}
             </div>
           ) : null}
+        </div>
+
+        <div className="overflow-hidden rounded-[26px] border border-sky-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
+          <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-slate-950 via-sky-900 to-emerald-800 px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Evaluation Draft Inbox</div>
+              <div className="mt-1 text-xl font-black">Saved Draft Cases</div>
+              <div className="mt-1 text-xs font-semibold text-white/75">Save Draft จะเก็บเป็นรายการเคส กดกลับมาเปิดแก้ต่อหรือลบ draft ได้</div>
+            </div>
+            <div className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2">
+              <span className="text-2xl font-black">{draftInbox.length}</span>
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-white/75">draft(s)</span>
+            </div>
+          </div>
+          <div className="p-5">
+            {draftInbox.length ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {draftInbox.map((draft) => {
+                  const draftId = draft.draftId || makeDraftId(draft.caseId, draft.auditDate);
+                  const draftScore = topics.reduce((sum, topic) => sum + Number(draft.topicState?.[topic.code]?.score || 0), 0);
+                  const isActive = activeDraftId === draftId;
+                  return (
+                    <div key={draftId} className={`rounded-[20px] border p-4 shadow-sm transition ${isActive ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-sky-300 hover:bg-white"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Case Draft</div>
+                          <div className="mt-1 text-lg font-black text-slate-950">{draft.caseId || "Untitled Case"}</div>
+                          <div className="mt-1 text-xs font-semibold text-slate-500">{draft.agentName || "No agent selected"}</div>
+                        </div>
+                        <div className={`rounded-full px-3 py-1 text-[11px] font-black ${isActive ? "bg-emerald-700 text-white" : "bg-white text-slate-600"}`}>
+                          {isActive ? "Open" : "Draft"}
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Audit Date</div>
+                          <div className="mt-1">{formatThaiDate(draft.auditDate) || "-"}</div>
+                        </div>
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Score</div>
+                          <div className="mt-1">{draft.criticalError ? 0 : draftScore}/{activeRubric.totalScore}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500">
+                        Saved at: <span className="font-black text-slate-800">{draft.savedAt || "-"}</span>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <button type="button" onClick={() => loadDraftIntoForm(draft)} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white shadow-[0_10px_18px_rgba(3,105,161,0.18)] transition hover:bg-sky-800">
+                          Open Draft
+                        </button>
+                        <button type="button" onClick={() => deleteDraft(draftId)} className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[20px] border border-dashed border-sky-200 bg-sky-50 px-5 py-8 text-center">
+                <div className="text-base font-black text-slate-950">No saved evaluation draft yet.</div>
+                <div className="mt-1 text-sm font-semibold text-slate-500">กรอกเคสแล้วกด Save Draft ระบบจะเพิ่มเคสนั้นไว้ในกล่องนี้ให้กลับมาแก้ต่อได้</div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
