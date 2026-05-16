@@ -28,6 +28,24 @@ type AutoGrowTextareaProps = {
   minRows?: number;
 };
 
+type EvaluationDraft = {
+  agentName: string;
+  auditDate: string;
+  waitingTime: string;
+  serviceTime: string;
+  caseId: string;
+  caseUrl: string;
+  inquiry: string;
+  caseDescription: string;
+  evidenceUrl: string;
+  criticalError: boolean;
+  evaluationStartedAt: string;
+  evaluationSubmittedAt: string;
+  evaluationStatus: "Not Started" | "Draft" | "Submitted";
+  topicState: Record<string, TopicState>;
+  savedAt: string;
+};
+
 const AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
@@ -47,6 +65,7 @@ const AGENT_NAMES = [
 const inputClass =
   "mt-2 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-950 shadow-inner outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100";
 const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
+const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
@@ -153,6 +172,8 @@ export default function CreateEvaluationMockup() {
   const [evaluationStartedAt, setEvaluationStartedAt] = useState("");
   const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState("");
   const [evaluationStatus, setEvaluationStatus] = useState<"Not Started" | "Draft" | "Submitted">("Not Started");
+  const [draftSavedAt, setDraftSavedAt] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
     "Answer Quality": true,
@@ -174,6 +195,33 @@ export default function CreateEvaluationMockup() {
       return next;
     });
   }, [activeRubric.code, topics]);
+
+  useEffect(() => {
+    const rawDraft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!rawDraft) return;
+
+    try {
+      const draft = JSON.parse(rawDraft) as EvaluationDraft;
+      setAgentName(draft.agentName || "");
+      setAuditDate(draft.auditDate || todayInputValue());
+      setWaitingTime(draft.waitingTime || "");
+      setServiceTime(draft.serviceTime || "");
+      setCaseId(draft.caseId || "");
+      setCaseUrl(draft.caseUrl || "");
+      setInquiry(draft.inquiry || "");
+      setCaseDescription(draft.caseDescription || "");
+      setEvidenceUrl(draft.evidenceUrl || "");
+      setCriticalError(Boolean(draft.criticalError));
+      setEvaluationStartedAt(draft.evaluationStartedAt || "");
+      setEvaluationSubmittedAt(draft.evaluationSubmittedAt || "");
+      setEvaluationStatus(draft.evaluationStatus || "Draft");
+      setTopicState((current) => ({ ...current, ...(draft.topicState || {}) }));
+      setDraftSavedAt(draft.savedAt || "");
+      setDraftMessage(draft.savedAt ? `Loaded draft saved at ${draft.savedAt}` : "Loaded saved draft");
+    } catch {
+      setDraftMessage("Draft could not be loaded. Please save a new draft.");
+    }
+  }, []);
 
   const finalScore = useMemo(
     () => topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
@@ -209,6 +257,7 @@ export default function CreateEvaluationMockup() {
       "Evaluator Name": "Songpon Phothong",
       "Evaluation Started At": evaluationStartedAt || "-",
       "Evaluation Submitted At": evaluationSubmittedAt || "-",
+      "Draft Saved At": draftSavedAt || "-",
       "Evaluation Status": evaluationStatus,
       "Final Score": criticalError ? 0 : finalScore,
       "Critical Error": criticalError ? "YES" : "NO",
@@ -222,7 +271,7 @@ export default function CreateEvaluationMockup() {
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidencePreviewValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidencePreviewValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
 
   function startEvaluation() {
     const timestamp = formatTimestamp(new Date());
@@ -238,6 +287,35 @@ export default function CreateEvaluationMockup() {
     }
     setEvaluationSubmittedAt(formatTimestamp(now));
     setEvaluationStatus("Submitted");
+  }
+
+  function saveDraft() {
+    const now = new Date();
+    const savedAt = formatTimestamp(now);
+    const startedAt = evaluationStartedAt || savedAt;
+    const draft: EvaluationDraft = {
+      agentName,
+      auditDate,
+      waitingTime,
+      serviceTime,
+      caseId,
+      caseUrl,
+      inquiry,
+      caseDescription,
+      evidenceUrl,
+      criticalError,
+      evaluationStartedAt: startedAt,
+      evaluationSubmittedAt,
+      evaluationStatus: "Draft",
+      topicState,
+      savedAt,
+    };
+
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    setEvaluationStartedAt(startedAt);
+    setEvaluationStatus("Draft");
+    setDraftSavedAt(savedAt);
+    setDraftMessage(`Draft saved at ${savedAt}`);
   }
 
   function updateTopic(code: string, patch: Partial<TopicState>) {
@@ -322,6 +400,10 @@ export default function CreateEvaluationMockup() {
                 <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">Evaluation Submitted At</div>
                 <div className="mt-1 text-sm font-black text-slate-950">{evaluationSubmittedAt || "Not submitted"}</div>
               </div>
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700">Draft Saved At</div>
+                <div className="mt-1 text-sm font-black text-slate-950">{draftSavedAt || "Not saved"}</div>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={startEvaluation} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.22)] transition hover:bg-slate-800">
@@ -332,6 +414,11 @@ export default function CreateEvaluationMockup() {
               </button>
             </div>
           </div>
+          {draftMessage ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
+              {draftMessage}
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
@@ -557,7 +644,7 @@ export default function CreateEvaluationMockup() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Status</div>
-                    <div className="mt-1 text-sm font-black text-slate-950">Draft</div>
+                    <div className="mt-1 text-sm font-black text-slate-950">{evaluationStatus}</div>
                   </div>
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <div className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">QA Scheme</div>
@@ -565,7 +652,7 @@ export default function CreateEvaluationMockup() {
                   </div>
                 </div>
 
-                <button type="button" className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50">Save Draft</button>
+                <button type="button" onClick={saveDraft} className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50">Save Draft</button>
               </div>
             </div>
 
