@@ -565,7 +565,6 @@ export default function CreateEvaluationMockup() {
                   </div>
                 </div>
 
-                <button type="button" onClick={submitEvaluation} className="w-full rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(4,120,87,0.24)] transition hover:bg-emerald-800">Submit Evaluation</button>
                 <button type="button" className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50">Save Draft</button>
               </div>
             </div>

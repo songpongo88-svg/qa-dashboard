@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605160950",
-  "buildNumber": 2605160950,
-  "releaseLabel": "v1.0.0.2605160950",
-  "updatedAt": "16/05/2026 09:50:59",
+  "displayVersion": "1.0.0.2605160959",
+  "buildNumber": 2605160959,
+  "releaseLabel": "v1.0.0.2605160959",
+  "updatedAt": "16/05/2026 09:59:52",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6d85bdd0703b4c6953b85206b4c668ebdec6380d",
-  "commitMessage": "Move evaluation reason below score row",
+  "commitHash": "d42bb63b1d92f0835f62f006fced68cdff91f428",
+  "commitMessage": "Add evaluation timestamps and auto grow reasons",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
