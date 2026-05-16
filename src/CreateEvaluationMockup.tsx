@@ -371,46 +371,47 @@ export default function CreateEvaluationMockup() {
 
                       {open ? (
                         <div className="bg-[#f8fbf8] p-4">
-                          <div className="hidden rounded-t-xl border border-emerald-300 bg-[#217346] px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] text-white lg:grid lg:grid-cols-[74px_minmax(220px,1.2fr)_118px_76px_minmax(320px,1.55fr)]">
+                          <div className="hidden rounded-t-xl border border-emerald-300 bg-[#217346] px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] text-white lg:grid lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px]">
                             <div>Topic</div>
                             <div>Description</div>
                             <div>Score</div>
                             <div>Max</div>
-                            <div>Assessment Reason</div>
                           </div>
                           <div className="overflow-hidden rounded-xl border border-emerald-200 bg-white lg:rounded-t-none lg:border-t-0">
                             {groupTopics.map((topic, index) => {
                               const selectedScore = topicState[topic.code]?.score ?? 0;
                               return (
-                                <div key={topic.code} className={`grid gap-3 border-b border-emerald-100 px-4 py-4 last:border-b-0 lg:grid-cols-[74px_minmax(220px,1.2fr)_118px_76px_minmax(320px,1.55fr)] lg:items-start ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
-                                  <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Topic</div>
-                                    <div className="mt-1 inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-800 lg:mt-0">{topic.code}</div>
+                                <div key={topic.code} className={`border-b border-emerald-100 px-4 py-4 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
+                                  <div className="grid gap-3 lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px] lg:items-start">
+                                    <div>
+                                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Topic</div>
+                                      <div className="mt-1 inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-black text-emerald-800 lg:mt-0">{topic.code}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Description</div>
+                                      <div className="mt-1 text-sm font-bold leading-6 text-slate-950 lg:mt-0">{topic.title}</div>
+                                    </div>
+                                    <label className="block">
+                                      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Score</span>
+                                      <select
+                                        value={selectedScore}
+                                        onChange={(event) => updateTopic(topic.code, { score: Number(event.target.value) })}
+                                        className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
+                                      >
+                                        {scoreOptions(topic.max).map((score) => (
+                                          <option key={score} value={score}>{score}</option>
+                                        ))}
+                                      </select>
+                                      <div className="mt-1 text-[11px] font-bold text-emerald-700">Score {selectedScore}/{topic.max}</div>
+                                    </label>
+                                    <div>
+                                      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Max</div>
+                                      <div className="mt-1 inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 lg:mt-0">{topic.max}</div>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Description</div>
-                                    <div className="mt-1 text-sm font-bold leading-6 text-slate-950 lg:mt-0">{topic.title}</div>
-                                  </div>
-                                  <label className="block">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Score</span>
-                                    <select
-                                      value={selectedScore}
-                                      onChange={(event) => updateTopic(topic.code, { score: Number(event.target.value) })}
-                                      className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
-                                    >
-                                      {scoreOptions(topic.max).map((score) => (
-                                        <option key={score} value={score}>{score}</option>
-                                      ))}
-                                    </select>
-                                    <div className="mt-1 text-[11px] font-bold text-emerald-700">Score {selectedScore}/{topic.max}</div>
-                                  </label>
-                                  <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Max</div>
-                                    <div className="mt-1 inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 lg:mt-0">{topic.max}</div>
-                                  </div>
-                                  <label className="block">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Assessment Reason</span>
-                                    <textarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} rows={2} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-1 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 lg:mt-0" />
+                                  <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
+                                    <textarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} rows={3} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-2 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );

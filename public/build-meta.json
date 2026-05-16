@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605160915",
-  "buildNumber": 2605160915,
-  "releaseLabel": "v1.0.0.2605160915",
-  "updatedAt": "16/05/2026 09:15:19",
+  "displayVersion": "1.0.0.2605160936",
+  "buildNumber": 2605160936,
+  "releaseLabel": "v1.0.0.2605160936",
+  "updatedAt": "16/05/2026 09:36:11",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fdfe7c84dcdfbddda9c2c7d8480a61625c499403",
-  "commitMessage": "Use spreadsheet style score inputs",
+  "commitHash": "9df43434bcce953264a9f71e9ddb75ee506c31eb",
+  "commitMessage": "Redesign create evaluation workbook",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
