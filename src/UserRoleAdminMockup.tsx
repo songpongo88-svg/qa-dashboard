@@ -22,6 +22,7 @@ type RolePermissionKey =
   | "viewUserDirectory"
   | "viewAllTeams"
   | "viewOwnTeam"
+  | "qaEvaluationTarget"
   | "manageUsers"
   | "manageTeams"
   | "manageRoles"
@@ -120,6 +121,7 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "viewUserDirectory", label: "View User Directory", category: "Account", description: "Open Corporate User Directory in read-only mode." },
   { key: "viewAllTeams", label: "View All Teams", category: "Account", description: "See every team and every team member in directory views." },
   { key: "viewOwnTeam", label: "View Own Team", category: "Account", description: "See only members in the same team when all-team access is off." },
+  { key: "qaEvaluationTarget", label: "QA Evaluation Target", category: "Review", description: "Users in this role can be selected in Create QA Evaluation and receive QA result tasks." },
   { key: "resetPassword", label: "Reset Password", category: "Account", description: "Approve/reset user password requests." },
   { key: "manageUsers", label: "Manage Users", category: "System", description: "Create users, edit profiles, suspend accounts." },
   { key: "manageTeams", label: "Manage Teams", category: "System", description: "Create team names, assign team leads, and move users between teams." },
@@ -147,6 +149,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: false,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -170,6 +173,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: false,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -193,6 +197,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: true,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -216,6 +221,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: true,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -223,7 +229,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     manageMaintenance: false,
     useTeamChat: true,
   },
-  "Quality Assurance": Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as RolePermissions,
+  "Quality Assurance": {
+    ...(Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as RolePermissions),
+    qaEvaluationTarget: false,
+  },
 };
 
 function getDefaultRolePermissions(role: UserRole): RolePermissions {
@@ -711,6 +720,7 @@ export default function UserRoleAdminMockup({
         nextPermissions.viewUserDirectory = true;
         nextPermissions.viewAllTeams = true;
         nextPermissions.viewOwnTeam = true;
+        nextPermissions.qaEvaluationTarget = false;
         nextPermissions.manageUsers = true;
         nextPermissions.manageTeams = true;
         nextPermissions.manageRoles = true;

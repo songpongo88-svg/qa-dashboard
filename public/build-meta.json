@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605161042",
-  "buildNumber": 2605161042,
-  "releaseLabel": "v1.0.0.2605161042",
-  "updatedAt": "16/05/2026 10:42:16",
+  "displayVersion": "1.0.0.2605161435",
+  "buildNumber": 2605161435,
+  "releaseLabel": "v1.0.0.2605161435",
+  "updatedAt": "16/05/2026 14:35:20",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "e22b29c17637ca61f62fd2da96f96ecb5f4b6067",
-  "commitMessage": "Persist evaluation drafts locally",
+  "commitHash": "883f38b5138dc8adf6c6fc5960fa17cf1a3a8e64",
+  "commitMessage": "Add evaluation draft inbox",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"

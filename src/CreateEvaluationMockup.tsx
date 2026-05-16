@@ -49,7 +49,36 @@ type EvaluationDraft = {
   savedAtMs?: number;
 };
 
-const AGENT_NAMES = [
+export type EvaluationAgentOption = {
+  username: string;
+  displayName: string;
+  agentName: string;
+  role: string;
+  email?: string;
+};
+
+export type EvaluationSubmitPayload = {
+  caseId: string;
+  agentName: string;
+  targetUsername: string;
+  targetDisplayName: string;
+  targetEmail?: string;
+  targetRole: string;
+  auditDate: string;
+  finalScore: number;
+  grade: string;
+  criticalError: boolean;
+  qaScheme: string;
+  rubricName: string;
+  rubricPeriod: string;
+  completedTopics: number;
+  totalTopics: number;
+  strengths: string[];
+  improvements: string[];
+  submittedAt: string;
+};
+
+const FALLBACK_AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
   "Jariyawadee Taboodda",
@@ -161,7 +190,13 @@ function SectionCard({
   );
 }
 
-export default function CreateEvaluationMockup() {
+export default function CreateEvaluationMockup({
+  agentOptions,
+  onSubmitEvaluation,
+}: {
+  agentOptions?: EvaluationAgentOption[];
+  onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
+}) {
   const [agentName, setAgentName] = useState("");
   const [auditDate, setAuditDate] = useState(todayInputValue());
   const [waitingTime, setWaitingTime] = useState("");
@@ -191,6 +226,22 @@ export default function CreateEvaluationMockup() {
   const topics = activeRubric.topics;
   const rubricPeriod = `${formatRubricDate(activeRubric.startDate)} - ${formatRubricDate(activeRubric.endDate)}`;
   const [topicState, setTopicState] = useState<Record<string, TopicState>>(() => buildInitialTopicState(topics));
+  const availableAgentOptions = useMemo(() => {
+    const options = (agentOptions || [])
+      .filter((agent) => agent.agentName || agent.displayName)
+      .sort((a, b) => (a.agentName || a.displayName).localeCompare(b.agentName || b.displayName));
+    if (options.length) return options;
+    return FALLBACK_AGENT_NAMES.map((name) => ({
+      username: name.split(" ")[0] || name,
+      displayName: name,
+      agentName: name,
+      role: "QA Target",
+    }));
+  }, [agentOptions]);
+  const selectedAgentOption = useMemo(
+    () => availableAgentOptions.find((agent) => agent.agentName === agentName || agent.displayName === agentName),
+    [agentName, availableAgentOptions]
+  );
 
   useEffect(() => {
     setTopicState((current) => {
@@ -368,10 +419,24 @@ export default function CreateEvaluationMockup() {
     setEvaluationStatus("Draft");
   }
 
-  function submitEvaluation() {
+  async function submitEvaluation() {
     const now = new Date();
     const submittedAt = formatTimestamp(now);
     const draftId = activeDraftId || makeDraftId(caseId, auditDate);
+    const topicSummaries = topics.map((topic) => ({
+      topic,
+      score: Number(topicState[topic.code]?.score || 0),
+      reason: topicState[topic.code]?.reason || "",
+      pct: topic.max ? (Number(topicState[topic.code]?.score || 0) / topic.max) * 100 : 0,
+    }));
+    const strengths = topicSummaries
+      .filter((item) => item.pct >= 90)
+      .slice(0, 3)
+      .map((item) => `${item.topic.code} ${item.topic.title}: ${item.score}/${item.topic.max}`);
+    const improvements = topicSummaries
+      .filter((item) => item.pct < 80)
+      .slice(0, 3)
+      .map((item) => `${item.topic.code} ${item.topic.title}: ${item.score}/${item.topic.max}`);
     if (!evaluationStartedAt) {
       setEvaluationStartedAt(submittedAt);
     }
@@ -380,7 +445,27 @@ export default function CreateEvaluationMockup() {
     persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
     setActiveDraftId("");
     setDraftSavedAt("");
-    setDraftMessage(`Evaluation submitted at ${submittedAt}. Draft was removed from the inbox.`);
+    await onSubmitEvaluation?.({
+      caseId: caseId || "Untitled Case",
+      agentName,
+      targetUsername: selectedAgentOption?.username || "",
+      targetDisplayName: selectedAgentOption?.displayName || agentName,
+      targetEmail: selectedAgentOption?.email || "",
+      targetRole: selectedAgentOption?.role || "",
+      auditDate,
+      finalScore: criticalError ? 0 : finalScore,
+      grade,
+      criticalError,
+      qaScheme: activeRubric.code,
+      rubricName: activeRubric.name,
+      rubricPeriod,
+      completedTopics,
+      totalTopics: topics.length,
+      strengths,
+      improvements,
+      submittedAt,
+    });
+    setDraftMessage(`Evaluation submitted at ${submittedAt}. Result task was sent to ${selectedAgentOption?.displayName || agentName || "the selected agent"}.`);
   }
 
   function saveDraft() {
@@ -573,10 +658,15 @@ export default function CreateEvaluationMockup() {
                   <span className={labelClass}>Agent Full Name</span>
                   <select value={agentName} onChange={(event) => setAgentName(event.target.value)} className={inputClass}>
                     <option value="">Select agent</option>
-                    {AGENT_NAMES.map((name) => (
-                      <option key={name} value={name}>{name}</option>
+                    {availableAgentOptions.map((agent) => (
+                      <option key={`${agent.username}-${agent.agentName}`} value={agent.agentName || agent.displayName}>
+                        {agent.agentName || agent.displayName}{agent.role ? ` · ${agent.role}` : ""}
+                      </option>
                     ))}
                   </select>
+                  <span className="mt-2 block text-xs font-semibold text-slate-500">
+                    แสดงเฉพาะ user ที่ Role ถูกเปิดสิทธิ์ QA Evaluation Target
+                  </span>
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">

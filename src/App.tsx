@@ -8,7 +8,7 @@ import SummaryMockup from "./SummaryMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
-import CreateEvaluationMockup from "./CreateEvaluationMockup";
+import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
@@ -30,6 +30,7 @@ type RolePermissionKey =
   | "viewUserDirectory"
   | "viewAllTeams"
   | "viewOwnTeam"
+  | "qaEvaluationTarget"
   | "manageUsers"
   | "manageTeams"
   | "manageRoles"
@@ -228,6 +229,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewUserDirectory",
   "viewAllTeams",
   "viewOwnTeam",
+  "qaEvaluationTarget",
   "manageUsers",
   "manageTeams",
   "manageRoles",
@@ -271,6 +273,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: false,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -294,6 +297,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: false,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -317,6 +321,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: true,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -340,6 +345,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewUserDirectory: false,
     viewAllTeams: true,
     viewOwnTeam: true,
+    qaEvaluationTarget: true,
     manageUsers: false,
     manageTeams: false,
     manageRoles: false,
@@ -347,7 +353,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     manageMaintenance: false,
     useTeamChat: true,
   },
-  "Quality Assurance": Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as RolePermissions,
+  "Quality Assurance": {
+    ...(Object.fromEntries(PERMISSION_KEYS.map((key) => [key, true])) as RolePermissions),
+    qaEvaluationTarget: false,
+  },
 };
 
 function getDefaultRolePermissions(role: UserRole): RolePermissions {
@@ -381,7 +390,7 @@ function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
       if (typeof value === "boolean") next[key] = value;
     });
     permissionMap[roleName] = roleName === "Quality Assurance"
-      ? { ...next, viewUserDirectory: true, viewAllTeams: true, viewOwnTeam: true, manageUsers: true, manageTeams: true, manageRoles: true, manageMaintenance: true }
+      ? { ...next, viewUserDirectory: true, viewAllTeams: true, viewOwnTeam: true, qaEvaluationTarget: false, manageUsers: true, manageTeams: true, manageRoles: true, manageMaintenance: true }
       : next;
   });
 
@@ -2104,6 +2113,18 @@ export default function App() {
     if (!currentUser || hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return [];
     return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
   }, [currentUser, rolePermissions]);
+  const qaEvaluationAgentOptions = useMemo(() => {
+    return effectiveUserAccounts
+      .filter((account) => account.status !== "Suspended")
+      .filter((account) => Boolean((rolePermissions[account.role] || getDefaultRolePermissions(account.role)).qaEvaluationTarget))
+      .map((account) => ({
+        username: account.username,
+        displayName: account.displayName,
+        agentName: account.agentName || account.displayName,
+        role: account.role,
+        email: account.email,
+      }));
+  }, [effectiveUserAccounts, rolePermissions]);
   const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
   const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
@@ -2195,6 +2216,22 @@ export default function App() {
     window.setTimeout(() => {
       setAccountMenuValue("");
     }, 0);
+  };
+
+  const handleEvaluationSubmitted = async (payload: EvaluationSubmitPayload) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "qa_evaluation_submitted", {
+      tab: "create-evaluation",
+      case_id: payload.caseId,
+      target_agent: payload.targetUsername || payload.agentName,
+      details: {
+        ...payload,
+        evaluatorName: currentUser.displayName || currentUser.username,
+        evaluatorUsername: currentUser.username,
+        savedAt: new Date().toISOString(),
+      },
+    });
+    await loadInboxTasks();
   };
 
   const loadInboxTasks = async () => {
@@ -2333,6 +2370,65 @@ export default function App() {
           },
         });
       });
+
+      logs
+        .filter((item) => item.event_type === "qa_evaluation_submitted")
+        .filter((item) => {
+          const details = item.details || {};
+          const currentIdentities = [
+            currentUser.username,
+            currentUser.displayName,
+            currentUser.agentName,
+            currentUser.email,
+          ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+          const targetIdentities = [
+            item.target_agent,
+            details.targetUsername,
+            details.targetDisplayName,
+            details.agentName,
+            details.targetEmail,
+          ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+          return targetIdentities.some((value) => currentIdentities.includes(value));
+        })
+        .slice(0, 25)
+        .forEach((item) => {
+          const details = item.details || {};
+          const caseId = String(item.case_id || details.caseId || "-");
+          const agentName = String(details.agentName || details.targetDisplayName || currentUser.agentName || "");
+          const finalScore = Number(details.finalScore || 0);
+          const grade = String(details.grade || "-");
+          const strengths = Array.isArray(details.strengths) ? details.strengths.map((value) => String(value)) : [];
+          const improvements = Array.isArray(details.improvements) ? details.improvements.map((value) => String(value)) : [];
+          const submittedAt = String(details.submittedAt || item.created_at || "");
+          const id = `qa-evaluation-result-${caseId}-${submittedAt || item.id || "submitted"}`;
+          nextTasks.push({
+            id,
+            type: "evaluation",
+            title: `QA Evaluation Result · ${caseId}`,
+            description: `You have a new QA evaluation result for case ${caseId}. Score ${finalScore}/100, Grade ${grade}.`,
+            badge: "QA Result",
+            count: 1,
+            unread: !readIds.includes(id),
+            actionLabel: "Open case detail",
+            caseId,
+            agentName,
+            mailTemplate: {
+              subject: `QA Evaluation Result · ${caseId}`,
+              to: String(details.targetDisplayName || agentName || currentUser.displayName || currentUser.username),
+              from: String(details.evaluatorName || "Quality Assurance"),
+              status: `Score ${finalScore}/100 · Grade ${grade}`,
+              body: [
+                `You have been evaluated for case ${caseId}.`,
+                `Final Score: ${finalScore}/100`,
+                `Grade: ${grade}`,
+                `Audit Date: ${String(details.auditDate || "-")}`,
+                strengths.length ? `Strong points: ${strengths.join(" | ")}` : "Strong points: Please open Case Detail to review the topic summary.",
+                improvements.length ? `Improvement focus: ${improvements.join(" | ")}` : "Improvement focus: No major low-score topic captured in this evaluation.",
+              ],
+              footer: "Open this task to view the Case Detail. The generated PDF button will be available after the Case Detail PDF step is connected.",
+            },
+          });
+        });
 
       const passwordDaysLeft = daysUntilDate(passwordRecord?.expiresAt);
       if (!passwordRecord) {
@@ -2829,6 +2925,15 @@ export default function App() {
       resetChangePasswordState();
       setChangePasswordPromptReason(task.description);
       setShowChangePasswordModal(true);
+      return;
+    }
+
+    if (task.type === "evaluation") {
+      setActiveTab("dashboard");
+      setDashboardSubTab(task.caseId ? "case-detail" : "overview");
+      setSelectedAppealCaseId("");
+      setSelectedDashboardCaseId(task.caseId || "");
+      setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
       return;
     }
 
@@ -3696,7 +3801,10 @@ export default function App() {
             }}
           />
         ) : activeTab === "create-evaluation" ? (
-          <CreateEvaluationMockup />
+          <CreateEvaluationMockup
+            agentOptions={qaEvaluationAgentOptions}
+            onSubmitEvaluation={handleEvaluationSubmitted}
+          />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (
