@@ -975,12 +975,9 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
-        const latestByCaseId = new Map<string, CaseItem>();
-        mappedCases.forEach((item) => {
-          latestByCaseId.set(item.caseId, item);
-        });
-
-        setAllCases([...latestByCaseId.values()]);
+        // Keep row-level records (do not deduplicate by case ID) to match Excel summary behavior,
+        // especially for rewritten/re-audited cases that appear more than once.
+        setAllCases(mappedCases);
         setAppealMergeCount(appealMap.size);
       } catch (error: any) {
         setLoadError(error?.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
