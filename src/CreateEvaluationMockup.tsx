@@ -78,6 +78,14 @@ export type EvaluationSubmitPayload = {
   submittedAt: string;
 };
 
+type EvaluationRecord = EvaluationSubmitPayload & {
+  recordId: string;
+  pdfButtonLabel: string;
+  rawDataPreview: Record<string, string | number>;
+};
+
+type EvaluationWorkspaceView = "form" | "drafts" | "history" | "report";
+
 const FALLBACK_AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
@@ -99,6 +107,7 @@ const inputClass =
 const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slate-500";
 const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
+const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
 
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
@@ -215,6 +224,8 @@ export default function CreateEvaluationMockup({
   const [draftMessage, setDraftMessage] = useState("");
   const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState("");
+  const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>("form");
+  const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
     "Answer Quality": true,
@@ -275,6 +286,19 @@ export default function CreateEvaluationMockup({
       if (normalizedDrafts[0]) loadDraftIntoForm(normalizedDrafts[0]);
     } catch {
       setDraftMessage("Draft could not be loaded. Please save a new draft.");
+    }
+  }, []);
+
+  useEffect(() => {
+    const rawHistory = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!rawHistory) return;
+    try {
+      const parsed = JSON.parse(rawHistory);
+      if (Array.isArray(parsed)) {
+        setEvaluationHistory(parsed as EvaluationRecord[]);
+      }
+    } catch {
+      setDraftMessage("History could not be loaded.");
     }
   }, []);
 
@@ -356,6 +380,11 @@ export default function CreateEvaluationMockup({
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(sortedDrafts));
   }
 
+  function persistHistory(nextHistory: EvaluationRecord[]) {
+    setEvaluationHistory(nextHistory);
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+  }
+
   function buildCurrentDraft(savedAt: string, savedAtMs: number): EvaluationDraft {
     const startedAt = evaluationStartedAt || savedAt;
     const draftId = makeDraftId(caseId, auditDate);
@@ -417,9 +446,40 @@ export default function CreateEvaluationMockup({
     setEvaluationStartedAt(timestamp);
     setEvaluationSubmittedAt("");
     setEvaluationStatus("Draft");
+    setWorkspaceView("form");
+  }
+
+  function resetEvaluationForm() {
+    setAgentName("");
+    setAuditDate(todayInputValue());
+    setWaitingTime("");
+    setServiceTime("");
+    setCaseId("");
+    setCaseUrl("");
+    setInquiry("");
+    setCaseDescription("");
+    setEvidenceUrl("");
+    setEvidenceFiles((current) => {
+      current.forEach((file) => URL.revokeObjectURL(file.previewUrl));
+      return [];
+    });
+    setCriticalError(false);
+    setEvaluationStartedAt("");
+    setEvaluationSubmittedAt("");
+    setEvaluationStatus("Not Started");
+    setDraftSavedAt("");
+    setActiveDraftId("");
+    setTopicState(buildInitialTopicState(topics));
   }
 
   async function submitEvaluation() {
+    const confirmed = window.confirm(
+      `Submit this evaluation?\n\nCase: ${caseId || "Untitled Case"}\nAgent: ${agentName || "-"}\nScore: ${criticalError ? 0 : finalScore}/${activeRubric.totalScore}\nGrade: ${grade}`
+    );
+    if (!confirmed) {
+      setDraftMessage("Submit canceled. You can continue editing before final submit.");
+      return;
+    }
     const now = new Date();
     const submittedAt = formatTimestamp(now);
     const draftId = activeDraftId || makeDraftId(caseId, auditDate);
@@ -465,6 +525,32 @@ export default function CreateEvaluationMockup({
       improvements,
       submittedAt,
     });
+    const historyRecord: EvaluationRecord = {
+      recordId: `${caseId || "UNTITLED"}-${now.getTime()}`,
+      pdfButtonLabel: `${caseId || "Untitled"} Original PDF`,
+      rawDataPreview: previewColumns,
+      caseId: caseId || "Untitled Case",
+      agentName,
+      targetUsername: selectedAgentOption?.username || "",
+      targetDisplayName: selectedAgentOption?.displayName || agentName,
+      targetEmail: selectedAgentOption?.email || "",
+      targetRole: selectedAgentOption?.role || "",
+      auditDate,
+      finalScore: criticalError ? 0 : finalScore,
+      grade,
+      criticalError,
+      qaScheme: activeRubric.code,
+      rubricName: activeRubric.name,
+      rubricPeriod,
+      completedTopics,
+      totalTopics: topics.length,
+      strengths,
+      improvements,
+      submittedAt,
+    };
+    persistHistory([historyRecord, ...evaluationHistory]);
+    resetEvaluationForm();
+    setWorkspaceView("form");
     setDraftMessage(`Evaluation submitted at ${submittedAt}. Result task was sent to ${selectedAgentOption?.displayName || agentName || "the selected agent"}.`);
   }
 
@@ -480,6 +566,7 @@ export default function CreateEvaluationMockup({
     setEvaluationStatus("Draft");
     setDraftSavedAt(savedAt);
     setDraftMessage(`Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}`);
+    setWorkspaceView("drafts");
   }
 
   function updateTopic(code: string, patch: Partial<TopicState>) {
@@ -573,6 +660,16 @@ export default function CreateEvaluationMockup({
               <button type="button" onClick={startEvaluation} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.22)] transition hover:bg-slate-800">
                 Start Evaluation
               </button>
+              <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-indigo-300 bg-indigo-50 px-5 py-3 text-sm font-black text-indigo-800 transition hover:bg-indigo-100">
+                Task Draft
+                <span className="ml-2 inline-flex min-w-[24px] items-center justify-center rounded-full bg-indigo-700 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
+              </button>
+              <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-sky-300 bg-sky-50 px-5 py-3 text-sm font-black text-sky-800 transition hover:bg-sky-100">
+                Task History
+              </button>
+              <button type="button" onClick={() => setWorkspaceView("report")} className="rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-900 transition hover:bg-emerald-100">
+                Report
+              </button>
               <button type="button" onClick={submitEvaluation} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800">
                 Submit Evaluation
               </button>
@@ -584,72 +681,86 @@ export default function CreateEvaluationMockup({
             </div>
           ) : null}
         </div>
-
-        <div className="overflow-hidden rounded-[26px] border border-sky-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
-          <div className="flex flex-col gap-3 border-b border-sky-100 bg-gradient-to-r from-slate-950 via-sky-900 to-emerald-800 px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Evaluation Draft Inbox</div>
-              <div className="mt-1 text-xl font-black">Saved Draft Cases</div>
-              <div className="mt-1 text-xs font-semibold text-white/75">Save Draft จะเก็บเป็นรายการเคส กดกลับมาเปิดแก้ต่อหรือลบ draft ได้</div>
+        {workspaceView === "drafts" ? (
+          <div className="overflow-hidden rounded-[26px] border border-sky-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
+            <div className="flex items-center justify-between border-b border-sky-100 bg-gradient-to-r from-slate-950 via-sky-900 to-emerald-800 px-5 py-5 text-white">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Task Draft</div>
+                <div className="mt-1 text-xl font-black">Saved Draft Cases</div>
+              </div>
+              <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
+                Back to Form
+              </button>
             </div>
-            <div className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2">
-              <span className="text-2xl font-black">{draftInbox.length}</span>
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-white/75">draft(s)</span>
+            <div className="p-5">
+              {draftInbox.length ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {draftInbox.map((draft) => {
+                    const draftId = draft.draftId || makeDraftId(draft.caseId, draft.auditDate);
+                    const draftScore = topics.reduce((sum, topic) => sum + Number(draft.topicState?.[topic.code]?.score || 0), 0);
+                    return (
+                      <div key={draftId} className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:border-sky-300 hover:bg-white">
+                        <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Case Draft</div>
+                        <div className="mt-1 text-lg font-black text-slate-950">{draft.caseId || "Untitled Case"}</div>
+                        <div className="mt-1 text-xs font-semibold text-slate-500">{draft.agentName || "No agent selected"}</div>
+                        <div className="mt-3 text-xs font-semibold text-slate-600">Saved at: <span className="font-black text-slate-900">{draft.savedAt || "-"}</span></div>
+                        <div className="mt-1 text-xs font-semibold text-slate-600">Score: <span className="font-black text-slate-900">{draft.criticalError ? 0 : draftScore}/{activeRubric.totalScore}</span></div>
+                        <div className="mt-4 flex gap-2">
+                          <button type="button" onClick={() => { loadDraftIntoForm(draft); setWorkspaceView("form"); }} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-800">
+                            Open Draft
+                          </button>
+                          <button type="button" onClick={() => deleteDraft(draftId)} className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-[20px] border border-dashed border-sky-200 bg-sky-50 px-5 py-8 text-center">
+                  <div className="text-base font-black text-slate-950">No draft case right now.</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-500">Save Draft from the form and your case will appear here.</div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="p-5">
-            {draftInbox.length ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {draftInbox.map((draft) => {
-                  const draftId = draft.draftId || makeDraftId(draft.caseId, draft.auditDate);
-                  const draftScore = topics.reduce((sum, topic) => sum + Number(draft.topicState?.[topic.code]?.score || 0), 0);
-                  const isActive = activeDraftId === draftId;
-                  return (
-                    <div key={draftId} className={`rounded-[20px] border p-4 shadow-sm transition ${isActive ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-sky-300 hover:bg-white"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Case Draft</div>
-                          <div className="mt-1 text-lg font-black text-slate-950">{draft.caseId || "Untitled Case"}</div>
-                          <div className="mt-1 text-xs font-semibold text-slate-500">{draft.agentName || "No agent selected"}</div>
-                        </div>
-                        <div className={`rounded-full px-3 py-1 text-[11px] font-black ${isActive ? "bg-emerald-700 text-white" : "bg-white text-slate-600"}`}>
-                          {isActive ? "Open" : "Draft"}
-                        </div>
-                      </div>
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-slate-600">
-                        <div className="rounded-xl bg-white px-3 py-2">
-                          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Audit Date</div>
-                          <div className="mt-1">{formatThaiDate(draft.auditDate) || "-"}</div>
-                        </div>
-                        <div className="rounded-xl bg-white px-3 py-2">
-                          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Score</div>
-                          <div className="mt-1">{draft.criticalError ? 0 : draftScore}/{activeRubric.totalScore}</div>
-                        </div>
-                      </div>
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500">
-                        Saved at: <span className="font-black text-slate-800">{draft.savedAt || "-"}</span>
-                      </div>
-                      <div className="mt-4 flex gap-2">
-                        <button type="button" onClick={() => loadDraftIntoForm(draft)} className="flex-1 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white shadow-[0_10px_18px_rgba(3,105,161,0.18)] transition hover:bg-sky-800">
-                          Open Draft
-                        </button>
-                        <button type="button" onClick={() => deleteDraft(draftId)} className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-700 transition hover:bg-rose-50">
-                          Delete
-                        </button>
-                      </div>
+        ) : null}
+
+        {workspaceView === "history" ? (
+          <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-950 px-5 py-5 text-white">
+              <div className="text-xl font-black">Task History</div>
+              <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">Back to Form</button>
+            </div>
+            <div className="p-5">
+              {evaluationHistory.length ? (
+                <div className="space-y-3">
+                  {evaluationHistory.slice(0, 20).map((item) => (
+                    <div key={item.recordId} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="text-sm font-black text-slate-950">{item.caseId} - {item.targetDisplayName || item.agentName || "-"}</div>
+                      <div className="mt-1 text-xs font-semibold text-slate-600">Submitted at {item.submittedAt} | Score {item.finalScore}/{activeRubric.totalScore} | Grade {item.grade}</div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-[20px] border border-dashed border-sky-200 bg-sky-50 px-5 py-8 text-center">
-                <div className="text-base font-black text-slate-950">No saved evaluation draft yet.</div>
-                <div className="mt-1 text-sm font-semibold text-slate-500">กรอกเคสแล้วกด Save Draft ระบบจะเพิ่มเคสนั้นไว้ในกล่องนี้ให้กลับมาแก้ต่อได้</div>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm font-semibold text-slate-500">No submitted evaluation history yet.</div>
+              )}
+            </div>
           </div>
-        </div>
+        ) : null}
 
+        {workspaceView === "report" ? (
+          <div className="overflow-hidden rounded-[26px] border border-emerald-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
+            <div className="flex items-center justify-between border-b border-emerald-200 bg-gradient-to-r from-emerald-800 to-sky-700 px-5 py-5 text-white">
+              <div className="text-xl font-black">Report Workspace</div>
+              <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">Back to Form</button>
+            </div>
+            <div className="p-5 text-sm font-semibold text-slate-600">Report export panel will be connected in the next step of Flow 1-8.</div>
+          </div>
+        ) : null}
+
+        {workspaceView === "form" ? (
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
           <div className="space-y-6">
             <SectionCard label="Section A" title="Case Information">
@@ -903,6 +1014,7 @@ export default function CreateEvaluationMockup({
             </div>
           </div>
         </div>
+        ) : null}
       </div>
     </div>
   );

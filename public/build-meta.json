@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605161435",
-  "buildNumber": 2605161435,
-  "releaseLabel": "v1.0.0.2605161435",
-  "updatedAt": "16/05/2026 14:35:20",
+  "displayVersion": "1.0.0.2605200939",
+  "buildNumber": 2605200939,
+  "releaseLabel": "v1.0.0.2605200939",
+  "updatedAt": "20/05/2026 09:39:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "883f38b5138dc8adf6c6fc5960fa17cf1a3a8e64",
-  "commitMessage": "Add evaluation draft inbox",
+  "commitHash": "5ae1d67df1000672935fb61075ccfad9bab2b57f",
+  "commitMessage": "Notify evaluated users from QA submissions",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx"
+    "src/App.tsx",
+    "src/CreateEvaluationMockup.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
