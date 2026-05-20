@@ -86,6 +86,7 @@ const RAW_DATA_FILE_NAMES = [
   "QA_RawData13052026.xlsx",
   "QA_RawData20052026.xlsx",
 ];
+const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
@@ -805,6 +806,108 @@ export default function SummaryMockup({
       try {
         setIsLoading(true);
         setLoadError("");
+
+        const v8Response = await fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "no-store" });
+        if (v8Response.ok) {
+          const v8Buffer = await v8Response.arrayBuffer();
+          const v8Workbook = XLSX.read(v8Buffer, { type: "array", cellDates: false });
+          const v8Sheet = v8Workbook.Sheets["Effective_Data"] || v8Workbook.Sheets[v8Workbook.SheetNames[0]];
+          const v8Rows = XLSX.utils.sheet_to_json<any[]>(v8Sheet, { header: 1, defval: null, raw: true });
+
+          const v8HeaderIndex = v8Rows.findIndex((row: any[]) => {
+            const normalized = (row || []).map((v: any) => normalizeText(v));
+            return normalized.includes("agent name") && normalized.includes("case id") && normalized.includes("final score");
+          });
+
+          if (v8HeaderIndex >= 0) {
+            const v8HeaderRow = (v8Rows[v8HeaderIndex] || []) as any[];
+            const v8DataRows = v8Rows.slice(v8HeaderIndex + 1);
+            const v8Helper = buildHeaderHelpers(v8HeaderRow);
+
+            const mappedCases: CaseItem[] = v8DataRows
+              .map((row, rowIndex) => {
+                const caseId = String(v8Helper.getValue(row, "Case ID") || "").trim();
+                if (!caseId) return null;
+
+                const agent = toTitleCaseName(String(v8Helper.getValue(row, "Agent Name") || "").trim());
+                if (!agent) return null;
+
+                const auditRaw = v8Helper.getValue(row, "Audit Date");
+                const auditDateObj = excelDateToJSDate(auditRaw);
+                const monthDate = getReportingMonthDate(
+                  v8Helper.getValue(row, "Month Start"),
+                  v8Helper.getValue(row, "Month Label"),
+                  auditDateObj
+                );
+                const monthKey = getMonthKey(monthDate);
+                const topicMaster = getTopicMasterByMonth(monthKey);
+                const topics: Topic[] = topicMaster.map((master) => {
+                  const scoreRaw =
+                    v8Helper.getValue(row, `${master.code} Revised Score`) ??
+                    v8Helper.getValue(row, `${master.code} Score`) ??
+                    v8Helper.getValue(row, master.code) ??
+                    0;
+                  const score = Number(scoreRaw || 0);
+                  return {
+                    code: master.code,
+                    label: master.label,
+                    score: Number.isFinite(score) ? score : 0,
+                    max: master.max,
+                    pct: Number((((Number.isFinite(score) ? score : 0) / master.max) * 100).toFixed(2)),
+                  };
+                });
+
+                const finalScoreRaw = v8Helper.getLastValue(row, "Final Score");
+                const previousScoreRaw = v8Helper.getValue(row, "Previous Score");
+                const finalScore = finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
+                  ? Number(finalScoreRaw)
+                  : Number(topics.reduce((sum, topic) => sum + topic.score, 0).toFixed(2));
+                const previousScore = previousScoreRaw !== null && previousScoreRaw !== "" && !Number.isNaN(Number(previousScoreRaw))
+                  ? Number(previousScoreRaw)
+                  : finalScore;
+
+                const latestAppealStatus = String(v8Helper.getValue(row, "Latest Appeal Status") || "").toLowerCase();
+                const changeRemark = String(v8Helper.getValue(row, "Change Remark") || "").toLowerCase();
+                const dataSource = String(v8Helper.getValue(row, "Data Source") || "").toLowerCase();
+                const isRevised =
+                  latestAppealStatus.includes("approved") ||
+                  changeRemark.includes("revis") ||
+                  dataSource.includes("appeal") ||
+                  Math.abs(finalScore - previousScore) > 0.0001;
+
+                return {
+                  key: `v8-row-${rowIndex + 1}-${caseId}`,
+                  agent,
+                  auditDate: formatAuditDate(auditRaw),
+                  auditDateObj,
+                  monthKey,
+                  monthLabel: getReportingMonthLabel(v8Helper.getValue(row, "Month Label"), monthDate),
+                  yearKey: getYearKey(auditDateObj),
+                  weekLabel: String(v8Helper.getValue(row, "Week") || v8Helper.getValue(row, "Week Label") || "-").trim(),
+                  caseId,
+                  inquiryTh: String(v8Helper.getValue(row, "Inquiry") || v8Helper.getValue(row, "Customer Inquiry") || "-").trim(),
+                  inquiryEn: String(v8Helper.getValue(row, "Inquiry") || v8Helper.getValue(row, "Customer Inquiry") || "-").trim(),
+                  finalScore: Number(finalScore.toFixed(2)),
+                  previousScore: Number(previousScore.toFixed(2)),
+                  grade: scoreToGrade(finalScore, monthKey),
+                  reviewStatus: isRevised ? "Revised" : "Original",
+                  topics,
+                  revisedTopics: null,
+                  displayRevisedTopicCodes: [],
+                } as CaseItem;
+              })
+              .filter(Boolean) as CaseItem[];
+
+            const latestByCaseId = new Map<string, CaseItem>();
+            mappedCases.forEach((item) => latestByCaseId.set(item.caseId, item));
+            setAllCases([...latestByCaseId.values()]);
+            setAppealMergeCount(
+              [...latestByCaseId.values()].filter((item) => item.reviewStatus === "Revised").length
+            );
+            setIsLoading(false);
+            return;
+          }
+        }
 
         const rawResponses = await Promise.all(
           RAW_DATA_FILE_NAMES.map(async (fileName) => ({

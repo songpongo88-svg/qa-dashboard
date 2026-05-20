@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605201532",
-  "buildNumber": 2605201532,
-  "releaseLabel": "v1.0.0.2605201532",
-  "updatedAt": "20/05/2026 15:32:58",
+  "displayVersion": "1.0.0.2605201546",
+  "buildNumber": 2605201546,
+  "releaseLabel": "v1.0.0.2605201546",
+  "updatedAt": "20/05/2026 15:46:46",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "63417cd8a2041ab480ed6b94c2868889abed348a",
-  "commitMessage": "Align dashboard monthly count with Excel row-level logic",
+  "commitHash": "6211cdc19d36e7c1c380c310f01f57c977167f57",
+  "commitMessage": "Keep overview and summary monthly logic consistent",
   "changedFiles": [
     "public/build-meta.json",
-    "src/DashboardMockup.tsx"
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

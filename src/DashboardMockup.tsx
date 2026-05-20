@@ -99,6 +99,7 @@ const RAW_DATA_FILE_NAMES = [
   "QA_RawData13052026.xlsx",
   "QA_RawData20052026.xlsx",
 ];
+const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -3392,6 +3393,137 @@ export default function DashboardMockup({
       try {
         setIsLoading(true);
         setLoadError("");
+
+        const v8Response = await fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "no-store" });
+        if (v8Response.ok) {
+          const v8Buffer = await v8Response.arrayBuffer();
+          const v8Workbook = XLSX.read(v8Buffer, { type: "array", cellDates: false });
+          const v8Sheet = v8Workbook.Sheets["Effective_Data"] || v8Workbook.Sheets[v8Workbook.SheetNames[0]];
+          const v8Rows = XLSX.utils.sheet_to_json<any[]>(v8Sheet, {
+            header: 1,
+            defval: null,
+            raw: true,
+          });
+
+          const v8HeaderIndex = (() => {
+            for (let i = 0; i < v8Rows.length; i++) {
+              const row = (v8Rows[i] || []) as any[];
+              const normalized = row.map((v) => normalizeText(v));
+              if (normalized.includes("agent name") && normalized.includes("case id") && normalized.includes("final score")) return i;
+            }
+            return -1;
+          })();
+
+          if (v8HeaderIndex >= 0) {
+            const v8HeaderRow = (v8Rows[v8HeaderIndex] || []) as any[];
+            const v8DataRows = v8Rows.slice(v8HeaderIndex + 1);
+            const v8Helper = buildHeaderHelpers(v8HeaderRow);
+
+            const mapped: CaseItem[] = v8DataRows
+              .map((row, rowOffset) => {
+                const caseId = String(v8Helper.getValue(row, "Case ID") || "").trim();
+                if (!caseId) return null;
+                const agent = toTitleCaseName(String(v8Helper.getValue(row, "Agent Name") || "").trim());
+                if (!agent) return null;
+
+                const auditRaw = v8Helper.getValue(row, "Audit Date");
+                const timestampRaw = getFirstAvailableHeaderValue(v8Helper, row, ["Timestamp", "Audit Timestamp"], auditRaw);
+                const auditDateObj = excelDateToJSDate(auditRaw);
+                const monthDate = getReportingMonthDate(
+                  v8Helper.getValue(row, "Month Start"),
+                  v8Helper.getValue(row, "Month Label"),
+                  auditDateObj
+                );
+                const monthKey = getMonthKey(monthDate);
+                const topicMaster = getTopicMasterByMonth(monthKey);
+
+                const topics: Topic[] = topicMaster.map((topic) => {
+                  const scoreRaw =
+                    v8Helper.getValue(row, `${topic.code} Revised Score`) ??
+                    v8Helper.getValue(row, `${topic.code} Score`) ??
+                    v8Helper.getValue(row, topic.code) ??
+                    0;
+                  const score = Number(scoreRaw || 0);
+                  return {
+                    code: topic.code,
+                    label: topic.label,
+                    score: Number.isFinite(score) ? score : 0,
+                    max: topic.max,
+                    pct: topic.max > 0 ? Math.round(((Number.isFinite(score) ? score : 0) / topic.max) * 100) : 0,
+                    comment: String(v8Helper.getValue(row, `${topic.code} Revised Comment`) || v8Helper.getValue(row, `${topic.code} Comment`) || "").trim(),
+                  };
+                });
+
+                const finalScoreRaw = v8Helper.getLastValue(row, "Final Score");
+                const previousScoreRaw = v8Helper.getValue(row, "Previous Score");
+                const finalScore =
+                  finalScoreRaw !== null && finalScoreRaw !== "" && !Number.isNaN(Number(finalScoreRaw))
+                    ? Number(finalScoreRaw)
+                    : topics.reduce((sum, topic) => sum + topic.score, 0);
+                const previousScore =
+                  previousScoreRaw !== null && previousScoreRaw !== "" && !Number.isNaN(Number(previousScoreRaw))
+                    ? Number(previousScoreRaw)
+                    : finalScore;
+
+                const latestAppealStatus = String(v8Helper.getValue(row, "Latest Appeal Status") || "").toLowerCase();
+                const changeRemark = String(v8Helper.getValue(row, "Change Remark") || "").toLowerCase();
+                const dataSource = String(v8Helper.getValue(row, "Data Source") || "").toLowerCase();
+                const isRevised =
+                  latestAppealStatus.includes("approved") ||
+                  changeRemark.includes("revis") ||
+                  dataSource.includes("appeal") ||
+                  Math.abs(finalScore - previousScore) > 0.0001;
+
+                const caseUrl = getFirstAvailableHeaderValue(v8Helper, row, ["Case URL", "Case Url", "URL"], "");
+                const rawDataSourceName = String(
+                  getFirstAvailableHeaderValue(v8Helper, row, ["RawData File", "Raw Data File", "Data Source"], V8_EFFECTIVE_FILE_NAME)
+                ).trim() || V8_EFFECTIVE_FILE_NAME;
+                const inquiry = getFirstAvailableHeaderValue(v8Helper, row, ["Customer Inquiry", "Inquiry TH", "Inquiry"], "-");
+
+                return {
+                  key: `v8-row-${rowOffset + 1}-${caseId}`,
+                  agent,
+                  auditDate: formatAuditDateForDisplay(auditRaw),
+                  auditDateObj,
+                  auditTimestamp: formatAuditTimestamp(timestampRaw),
+                  monthKey,
+                  monthLabel: getReportingMonthLabel(v8Helper.getValue(row, "Month Label"), monthDate),
+                  weekLabel: String(v8Helper.getValue(row, "Week Label") || v8Helper.getValue(row, "Week") || "-").trim(),
+                  caseId,
+                  rawDataSourceName,
+                  caseUrl: caseUrl ? String(caseUrl).trim() : "",
+                  waitingTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Waiting Time", "WaitingTime"], "")),
+                  serviceTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Service Time", "ServiceTime"], "")),
+                  inquiryTh: String(inquiry || "-").trim(),
+                  inquiryEn: String(inquiry || "-").trim(),
+                  caseDescription: String(getFirstAvailableHeaderValue(v8Helper, row, ["Case Description", "Case Description / รายละเอียดเคส คำอธิบายเคส"], "") || "").trim(),
+                  caseImageUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case Image URL", "Case Image"], "")),
+                  casePdfUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF URL", "Case PDF"], caseId ? `/case-pdfs/${caseId}.pdf` : "")),
+                  casePdfOriginalUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Original URL"], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")),
+                  casePdfRevisedUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Revised URL"], caseId ? `/case-pdfs/${caseId}-revised.pdf` : "")),
+                  finalScore,
+                  previousScore,
+                  grade: scoreToGrade(finalScore, monthKey),
+                  reviewStatus: isRevised ? "Revised" : "Original",
+                  topics,
+                  revisedTopics: null,
+                  displayRevisedTopicCodes: [],
+                } as CaseItem;
+              })
+              .filter(Boolean) as CaseItem[];
+
+            const latestByCaseId = new Map<string, CaseItem>();
+            mapped
+              .filter((item) => item.agent && item.caseId && item.auditDateObj)
+              .forEach((item) => latestByCaseId.set(item.caseId, item));
+            setAllCases([...latestByCaseId.values()]);
+            setAppealMergeCount(
+              [...latestByCaseId.values()].filter((item) => item.reviewStatus === "Revised").length
+            );
+            setIsLoading(false);
+            return;
+          }
+        }
 
         const rawResponses = await Promise.all(
           RAW_DATA_FILE_NAMES.map(async (fileName) => ({
