@@ -3775,10 +3775,14 @@ export default function DashboardMockup({
             };
           });
 
-        const validRows = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
-        // Keep row-level records to match Excel dashboard behavior
-        // (do not deduplicate by Case ID for monthly calculations).
-        setAllCases(validRows);
+        const latestByCaseId = new Map<string, CaseItem>();
+        mapped
+          .filter((item) => item.agent && item.caseId && item.auditDateObj)
+          .forEach((item) => {
+            latestByCaseId.set(item.caseId, item);
+          });
+
+        setAllCases([...latestByCaseId.values()]);
       } catch (error: any) {
         console.error("Load Error:", error);
         setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
