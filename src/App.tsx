@@ -2440,10 +2440,45 @@ export default function App() {
       ]);
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
+      const appealRequests = buildAppealRequests(logs);
       const v8CaseUploadTasks = await buildV8CaseUploadInboxTasks(currentUser, effectiveUserAccounts, readIds);
       nextTasks.push(...v8CaseUploadTasks);
 
       if (appealRequestsAllowed) {
+        appealRequests
+          .filter((item) => item.status === "Pending")
+          .forEach((item) => {
+            const id = `appeal-review-${item.requestId}-${item.caseId}`;
+            nextTasks.push({
+              id,
+              type: "appeal",
+              title: `Appeal request: ${item.caseId}`,
+              description: `${item.agent || "Case owner"} submitted an appeal request. Open Case Detail to review the case before making a decision.`,
+              badge: "Review",
+              count: 1,
+              unread: !readIds.includes(id),
+              actionLabel: "Open case detail",
+              caseId: item.caseId,
+              agentName: item.agent,
+              mailTemplate: {
+                subject: `Appeal request waiting: ${item.caseId}`,
+                to: currentUser.displayName || currentUser.username,
+                from: "QA Dashboard System",
+                status: "Pending Review",
+                body: [
+                  `Case ID: ${item.caseId}`,
+                  `Agent: ${item.agent || "-"}`,
+                  `Submitted by: ${item.submittedBy || "-"}`,
+                  `Submitted at: ${item.submittedAt ? new Date(item.submittedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}`,
+                  `Current score: ${item.finalScore || "-"} / Grade ${item.grade || "-"}`,
+                ],
+                footer: "Open Case Detail from this task. Use Review > Appeal Requests when you are ready to approve or reject the appeal.",
+              },
+            });
+          });
+      }
+
+      if (false && appealRequestsAllowed) {
         const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
         if (pendingCount > 0) {
           const id = `appeal-review-${pendingCount}`;
@@ -2471,7 +2506,7 @@ export default function App() {
         }
       }
 
-      buildAppealRequests(logs)
+      appealRequests
         .filter((item) => item.status === "Approved" || item.status === "Rejected")
         .filter((item) => {
           const currentIdentities = [
@@ -2522,7 +2557,7 @@ export default function App() {
         });
 
       const submittedAppealCaseIds = new Set(
-        buildAppealRequests(logs)
+        appealRequests
           .filter((item) => item.status !== "Reset")
           .map((item) => String(item.caseId || "").trim().toLowerCase())
       );
@@ -3092,6 +3127,14 @@ export default function App() {
     setInboxReturnTitle(task.title);
 
     if (task.type === "appeal") {
+      if (task.caseId) {
+        setActiveTab("dashboard");
+        setDashboardSubTab("case-detail");
+        setSelectedAppealCaseId("");
+        setSelectedDashboardCaseId(task.caseId);
+        setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
+        return;
+      }
       if (appealRequestsAllowed) {
         setActiveTab("appeal-requests");
       }
