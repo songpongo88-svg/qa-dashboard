@@ -898,11 +898,9 @@ export default function SummaryMockup({
               })
               .filter(Boolean) as CaseItem[];
 
-            const latestByCaseId = new Map<string, CaseItem>();
-            mappedCases.forEach((item) => latestByCaseId.set(item.caseId, item));
-            setAllCases([...latestByCaseId.values()]);
+            setAllCases(mappedCases);
             setAppealMergeCount(
-              [...latestByCaseId.values()].filter((item) => item.reviewStatus === "Revised").length
+              mappedCases.filter((item) => item.reviewStatus === "Revised").length
             );
             setIsLoading(false);
             return;

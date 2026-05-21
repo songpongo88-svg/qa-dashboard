@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
 import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMockup";
@@ -210,6 +211,7 @@ const CHAT_READ_KEY = "qa_chat_read_at";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
 const CHAT_HISTORY_RESET_AT = "2026-05-15T10:40:51+07:00";
+const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
 
 const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
 
@@ -450,6 +452,197 @@ function canBypassMaintenance(user: CurrentUser | null) {
 
 function isSongkranThemeActive() {
   return false;
+}
+
+function normalizeInboxText(value: unknown) {
+  return String(value ?? "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function compactInboxText(value: unknown) {
+  return normalizeInboxText(value).replace(/[^a-z0-9]/g, "");
+}
+
+function buildInboxHeaderHelper(headerRow: unknown[]) {
+  const map = new Map<string, number[]>();
+  headerRow.forEach((header, index) => {
+    const key = normalizeInboxText(header);
+    if (!key) return;
+    const current = map.get(key) || [];
+    current.push(index);
+    map.set(key, current);
+  });
+
+  const getValue = (row: unknown[], headerName: string, fallback: unknown = null) => {
+    const indexes = map.get(normalizeInboxText(headerName));
+    if (!indexes?.length) return fallback;
+    for (const index of indexes) {
+      const value = row[index];
+      if (value !== null && value !== undefined && value !== "") return value;
+    }
+    return fallback;
+  };
+
+  const getLastValue = (row: unknown[], headerName: string, fallback: unknown = null) => {
+    const indexes = map.get(normalizeInboxText(headerName));
+    if (!indexes?.length) return fallback;
+    for (let i = indexes.length - 1; i >= 0; i -= 1) {
+      const value = row[indexes[i]];
+      if (value !== null && value !== undefined && value !== "") return value;
+    }
+    return fallback;
+  };
+
+  return { getValue, getLastValue };
+}
+
+function excelInboxDateToJSDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (!parsed) return null;
+    return new Date(parsed.y, parsed.m - 1, parsed.d, parsed.H || 0, parsed.M || 0, parsed.S || 0);
+  }
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatInboxDate(value: unknown) {
+  const date = excelInboxDateToJSDate(value);
+  if (!date) return String(value || "").trim();
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
+function getInboxWeekLabel(row: unknown[], helper: ReturnType<typeof buildInboxHeaderHelper>) {
+  const weekLabel = String(helper.getValue(row, "Week Label", "") || "").trim();
+  if (weekLabel) return weekLabel;
+  const weekStart = helper.getValue(row, "Week Start", "");
+  const weekEnd = helper.getValue(row, "Week End", "");
+  const startLabel = formatInboxDate(weekStart);
+  const endLabel = formatInboxDate(weekEnd);
+  return startLabel && endLabel ? `${startLabel} - ${endLabel}` : "-";
+}
+
+function scoreToInboxGrade(score: number, auditDate: unknown): string {
+  const date = excelInboxDateToJSDate(auditDate);
+  const isNewPolicy = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` >= "2026-04" : true;
+  if (isNewPolicy) {
+    if (score >= 90) return "A";
+    if (score >= 85) return "B";
+    if (score >= 80) return "C";
+    return "D";
+  }
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  return "F";
+}
+
+function isInboxSamePerson(a: unknown, b: unknown) {
+  const left = compactInboxText(a);
+  const right = compactInboxText(b);
+  return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
+}
+
+function isInboxCaseOwner(currentUser: CurrentUser, agentName: string, account?: UserAccount) {
+  return [currentUser.username, currentUser.displayName, currentUser.agentName, account?.username, account?.displayName, account?.agentName]
+    .filter(Boolean)
+    .some((identity) => isInboxSamePerson(identity, agentName));
+}
+
+async function buildV8CaseUploadInboxTasks(
+  currentUser: CurrentUser,
+  effectiveUserAccounts: UserAccount[],
+  readIds: string[]
+): Promise<InboxTaskItem[]> {
+  try {
+    const response = await fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const buffer = await response.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+    const sheet = workbook.Sheets["Effective_Data"];
+    if (!sheet) return [];
+
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+    const headerIndex = rows.findIndex((row) => {
+      const normalized = row.map((value) => normalizeInboxText(value));
+      return normalized.includes("agent name") && normalized.includes("case id") && normalized.includes("final score");
+    });
+    if (headerIndex < 0) return [];
+
+    const helper = buildInboxHeaderHelper(rows[headerIndex]);
+    const dataRows = rows.slice(headerIndex + 1).filter((row) => helper.getValue(row, "Case ID") && helper.getValue(row, "Agent Name"));
+    const weekEntries = dataRows
+      .map((row) => ({
+        label: getInboxWeekLabel(row, helper),
+        startTime: excelInboxDateToJSDate(helper.getValue(row, "Week Start", ""))?.getTime() || 0,
+      }))
+      .filter((item) => item.label && item.label !== "-")
+      .sort((a, b) => a.startTime - b.startTime || a.label.localeCompare(b.label));
+    const latestWeekLabel = weekEntries.length ? weekEntries[weekEntries.length - 1].label : "";
+    if (!latestWeekLabel) return [];
+
+    const currentAccount = effectiveUserAccounts.find((account) =>
+      [account.username, account.displayName, account.agentName].some((identity) => isInboxSamePerson(identity, currentUser.username))
+    );
+    const seenCaseIds = new Set<string>();
+
+    return dataRows
+      .filter((row) => getInboxWeekLabel(row, helper) === latestWeekLabel)
+      .map((row) => {
+        const caseId = String(helper.getValue(row, "Case ID", "") || "").trim();
+        const agentName = String(helper.getValue(row, "Agent Name", "") || "").trim();
+        const auditDate = helper.getValue(row, "Audit Date", "");
+        const finalScore = Number(helper.getLastValue(row, "Final Score", 0) || 0);
+        const grade = scoreToInboxGrade(finalScore, auditDate);
+        return { row, caseId, agentName, auditDate, finalScore, grade };
+      })
+      .filter((item) => {
+        if (!item.caseId || !isInboxCaseOwner(currentUser, item.agentName, currentAccount)) return false;
+        const key = item.caseId.toLowerCase();
+        if (seenCaseIds.has(key)) return false;
+        seenCaseIds.add(key);
+        return true;
+      })
+      .map((item) => {
+        const scoreText = Number.isFinite(item.finalScore) ? item.finalScore.toFixed(2) : "-";
+        const id = `v8-new-case-${latestWeekLabel}-${item.caseId}-${scoreText}`;
+        return {
+          id,
+          type: "evaluation",
+          title: `New QA case uploaded: ${item.caseId}`,
+          description: `A new QA result for week ${latestWeekLabel} is ready. Score ${scoreText}/100, Grade ${item.grade}.`,
+          badge: "New Case",
+          count: 1,
+          unread: !readIds.includes(id),
+          actionLabel: "Open case detail",
+          caseId: item.caseId,
+          agentName: item.agentName,
+          mailTemplate: {
+            subject: `New QA case uploaded: ${item.caseId}`,
+            to: currentUser.displayName || currentUser.username,
+            from: "QA Dashboard System",
+            status: `Score ${scoreText}/100 · Grade ${item.grade}`,
+            body: [
+              `Case ID: ${item.caseId}`,
+              `Week: ${latestWeekLabel}`,
+              `Audit Date: ${formatInboxDate(item.auditDate) || "-"}`,
+              `Score: ${scoreText}/100`,
+              `Grade: ${item.grade}`,
+            ],
+            footer: "Open this task to review the Case Detail for this uploaded QA result.",
+          },
+        } as InboxTaskItem;
+      });
+  } catch {
+    return [];
+  }
 }
 
 function formatThaiDayDate(input: string | Date) {
@@ -2247,6 +2440,8 @@ export default function App() {
       ]);
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
+      const v8CaseUploadTasks = await buildV8CaseUploadInboxTasks(currentUser, effectiveUserAccounts, readIds);
+      nextTasks.push(...v8CaseUploadTasks);
 
       if (appealRequestsAllowed) {
         const pendingCount = buildAppealRequests(logs).filter((item) => item.status === "Pending").length;
@@ -2772,7 +2967,7 @@ export default function App() {
     }, 60000);
 
     return () => window.clearInterval(timer);
-  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked]);
+  }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);
 
   useEffect(() => {
     if (!currentUser || maintenanceBlocked) {

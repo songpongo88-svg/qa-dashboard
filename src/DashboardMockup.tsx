@@ -3512,13 +3512,10 @@ export default function DashboardMockup({
               })
               .filter(Boolean) as CaseItem[];
 
-            const latestByCaseId = new Map<string, CaseItem>();
-            mapped
-              .filter((item) => item.agent && item.caseId && item.auditDateObj)
-              .forEach((item) => latestByCaseId.set(item.caseId, item));
-            setAllCases([...latestByCaseId.values()]);
+            const validMappedCases = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
+            setAllCases(validMappedCases);
             setAppealMergeCount(
-              [...latestByCaseId.values()].filter((item) => item.reviewStatus === "Revised").length
+              validMappedCases.filter((item) => item.reviewStatus === "Revised").length
             );
             setIsLoading(false);
             return;

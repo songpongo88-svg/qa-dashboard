@@ -1,15 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605201546",
-  "buildNumber": 2605201546,
-  "releaseLabel": "v1.0.0.2605201546",
-  "updatedAt": "20/05/2026 15:46:46",
+  "displayVersion": "1.0.0.2605210948",
+  "buildNumber": 2605210948,
+  "releaseLabel": "v1.0.0.2605210948",
+  "updatedAt": "21/05/2026 09:48:49",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6211cdc19d36e7c1c380c310f01f57c977167f57",
-  "commitMessage": "Keep overview and summary monthly logic consistent",
+  "commitHash": "10768e7d8f129c765ab986611750ae8e0235a63b",
+  "commitMessage": "Use V8 Effective_Data as primary source for dashboard and summary",
   "changedFiles": [
+    "public/QA_Score_Dashboard_byDao_V8.xlsx",
     "public/build-meta.json",
     "src/DashboardMockup.tsx",
     "src/SummaryMockup.tsx"
