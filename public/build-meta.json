@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605211022",
-  "buildNumber": 2605211022,
-  "releaseLabel": "v1.0.0.2605211022",
-  "updatedAt": "21/05/2026 10:22:11",
+  "displayVersion": "1.0.0.2605211453",
+  "buildNumber": 2605211453,
+  "releaseLabel": "v1.0.0.2605211453",
+  "updatedAt": "21/05/2026 14:53:27",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "05f58d2699a9d050e13354cba02f354a8d41d435",
-  "commitMessage": "Open appeal inbox tasks in case detail",
+  "commitHash": "12ce1c0f9645826acff99faec578b5c20560d899",
+  "commitMessage": "Open appeal case detail from review page",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/App.tsx",
+    "src/AppealRequestsMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

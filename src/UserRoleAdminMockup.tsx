@@ -420,7 +420,7 @@ export default function UserRoleAdminMockup({
   onMaintenanceChanged,
   onRolesChanged,
 }: UserRoleAdminMockupProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [editingUserManagementView, setEditingUserManagementView] = useState<UserManagementView | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [accessMessage, setAccessMessage] = useState("");
@@ -435,6 +435,9 @@ export default function UserRoleAdminMockup({
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDescription, setNewRoleDescription] = useState("");
   const [maintenanceMessage, setMaintenanceMessage] = useState(maintenanceState.message);
+  const isEditing = editingUserManagementView !== null;
+  const isEditingUsers = editingUserManagementView === "users";
+  const isEditingTeamManagement = editingUserManagementView === "team-management";
 
   const activeRoleOptions = useMemo(
     () => roleDefinitions.filter((role) => role.active).map((role) => role.name),
@@ -506,9 +509,14 @@ export default function UserRoleAdminMockup({
 
   useEffect(() => {
     if (canManageUsers) return;
-    if (isEditing) setIsEditing(false);
+    if (editingUserManagementView === "users") setEditingUserManagementView(null);
     if (createUserOpen) setCreateUserOpen(false);
-  }, [canManageUsers, createUserOpen, isEditing]);
+  }, [canManageUsers, createUserOpen, editingUserManagementView]);
+
+  useEffect(() => {
+    if (canManageTeams) return;
+    if (editingUserManagementView === "team-management") setEditingUserManagementView(null);
+  }, [canManageTeams, editingUserManagementView]);
 
   const totalUsers = rows.length;
   const activeUsers = rows.filter((row) => row.status === "Active").length;
@@ -530,11 +538,42 @@ export default function UserRoleAdminMockup({
     .filter(({ user }) => userManagementView === "users" ? (directoryTab === "active" ? user.status === "Active" : user.status === "Suspended") : user.status === "Active")
     .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
+  const resetDraftUsers = () => {
+    setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
+  };
+
+  const switchUserManagementView = (view: UserManagementView) => {
+    if (editingUserManagementView && editingUserManagementView !== view) {
+      resetDraftUsers();
+      setEditingUserManagementView(null);
+      setAccessMessage("");
+      setMessage("");
+    }
+    setUserManagementView(view);
+  };
+
+  const startEditingUserManagementView = (view: UserManagementView) => {
+    resetDraftUsers();
+    setEditingUserManagementView(view);
+    setMessage("");
+    setAccessMessage("");
+  };
+
   const updateDraftUser = (index: number, key: keyof EditableUser, value: string) => {
     setDraftUsers((currentDrafts) =>
       currentDrafts.map((item, itemIndex) =>
         itemIndex === index ? { ...item, [key]: value } : item
       )
+    );
+  };
+
+  const updateDraftTeam = (teamName: string, key: "teamLead" | "teamName", value: string) => {
+    setDraftUsers((currentDrafts) =>
+      currentDrafts.map((item) => {
+        const currentTeamName = item.teamName.trim() || "Unassigned Team";
+        if (currentTeamName !== teamName) return item;
+        return { ...item, [key]: value };
+      })
     );
   };
 
@@ -768,8 +807,8 @@ export default function UserRoleAdminMockup({
   };
 
   const handleCancelEdit = () => {
-    setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
-    setIsEditing(false);
+    resetDraftUsers();
+    setEditingUserManagementView(null);
     setMessage("");
     setAccessMessage("");
   };
@@ -914,8 +953,12 @@ export default function UserRoleAdminMockup({
 
     await onRolesChanged();
     setSaving(false);
-    setIsEditing(false);
-    setMessage(`Saved ${cleanedUsers.length} user profile(s).`);
+    setEditingUserManagementView(null);
+    setMessage(
+      editingUserManagementView === "team-management"
+        ? `Saved team structure for ${cleanedUsers.length} active profile(s).`
+        : `Saved ${cleanedUsers.length} user profile(s).`
+    );
     if (accessUpdates.length) {
       setAccessMessage(
         accessUpdates
@@ -925,47 +968,168 @@ export default function UserRoleAdminMockup({
     }
   };
 
-  const handleExportPdf = () => {
+  const canEditCurrentUserManagementView =
+    userManagementView === "users"
+      ? canManageUsers
+      : userManagementView === "team-management"
+        ? canManageTeams
+        : false;
+  const currentUserManagementEditLabel = userManagementView === "team-management" ? "Edit Teams" : "Edit Directory";
+  const currentUserManagementSaveLabel = userManagementView === "team-management" ? "Save Team Changes" : "Save Changes";
+
+  const handleExportPdf = async () => {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     registerTHSarabunNew(doc);
+    const exportContext =
+      adminTab === "roles"
+        ? "access_control"
+        : adminTab === "maintenance"
+          ? "system_maintenance"
+          : userManagementView === "teams"
+            ? "team_overview"
+            : userManagementView === "team-management"
+              ? "team_management"
+              : "user_directory";
+    const exportTitle =
+      exportContext === "access_control"
+        ? "QA Dashboard - Access Control"
+        : exportContext === "system_maintenance"
+          ? "QA Dashboard - System Maintenance"
+          : exportContext === "team_overview"
+            ? "QA Dashboard - Team Overview"
+            : exportContext === "team_management"
+              ? "QA Dashboard - Team Management"
+              : "QA Dashboard - User Directory";
+
     doc.setFont("THSarabunNew", "bold");
     doc.setFontSize(20);
-    doc.text("QA Dashboard - User Directory", 14, 18);
+    doc.text(exportTitle, 14, 18);
 
     doc.setFont("THSarabunNew", "normal");
     doc.setFontSize(12);
     doc.text(`Generated by: ${currentUser?.displayName || "-"}`, 14, 27);
     doc.text(`Generated at: ${formatDateTime()}`, 14, 34);
 
-    doc.setFont("THSarabunNew", "bold");
-    const startY = 46;
-    doc.text("User", 14, startY);
-    doc.text("Email", 52, startY);
-    doc.text("Team", 104, startY);
-    doc.text("Role", 146, startY);
-    doc.text("Status", 176, startY);
-    doc.line(14, startY + 2, 196, startY + 2);
+    let y = 46;
+    const ensurePage = (neededHeight = 8) => {
+      if (y + neededHeight <= 284) return;
+      doc.addPage();
+      y = 18;
+    };
+    const drawTable = (headers: string[], widths: number[], rowsToDraw: string[][]) => {
+      const startX = 14;
+      const drawHeader = () => {
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(12);
+        let x = startX;
+        headers.forEach((header, index) => {
+          doc.text(header, x, y);
+          x += widths[index];
+        });
+        doc.line(startX, y + 2, 196, y + 2);
+        y += 9;
+        doc.setFont("THSarabunNew", "normal");
+      };
 
-    doc.setFont("THSarabunNew", "normal");
-    let y = startY + 10;
-    visibleRows.forEach((row) => {
-      if (y > 280) {
-        doc.addPage();
-        y = 18;
-      }
-      doc.text(row.displayName || row.username, 14, y);
-      doc.text(row.email || "-", 52, y);
-      doc.text(row.teamName || "-", 104, y);
-      doc.text(row.effectiveRole, 146, y);
-      doc.text(row.status, 176, y);
+      drawHeader();
+      rowsToDraw.forEach((row) => {
+        const wrappedCells = row.map((cell, index) => doc.splitTextToSize(cell || "-", Math.max(widths[index] - 2, 14)) as string[]);
+        const lineCount = Math.max(1, ...wrappedCells.map((cell) => cell.length));
+        ensurePage(Math.max(8, lineCount * 5 + 4));
+        if (y === 18) drawHeader();
+        let x = startX;
+        wrappedCells.forEach((cellLines, index) => {
+          doc.text(cellLines, x, y);
+          x += widths[index];
+        });
+        y += Math.max(8, lineCount * 5 + 4);
+      });
+    };
+
+    if (exportContext === "access_control") {
+      const permissionRows = roleDefinitions.flatMap((role) => {
+        const permissions = {
+          ...getDefaultRolePermissions(role.name),
+          ...(permissionDrafts[role.name] || {}),
+        };
+        return PERMISSION_DEFINITIONS.map((permission) => [
+          role.name,
+          role.active ? "Active" : "Disabled",
+          permission.category,
+          permission.label,
+          permissions[permission.key] ? "Enabled" : "Disabled",
+        ]);
+      });
+      drawTable(["Role", "Status", "Category", "Permission", "Access"], [36, 24, 28, 62, 30], permissionRows);
+    } else if (exportContext === "system_maintenance") {
+      doc.setFont("THSarabunNew", "bold");
+      doc.text("Current Status", 14, y);
       y += 8;
-    });
+      doc.setFont("THSarabunNew", "normal");
+      doc.text(`Maintenance: ${maintenanceState.enabled ? "ON" : "OFF"}`, 14, y);
+      y += 7;
+      doc.text(`Updated by: ${maintenanceState.updatedBy || "-"}`, 14, y);
+      y += 7;
+      doc.text(`Updated at: ${maintenanceState.updatedAt ? formatDateTime(maintenanceState.updatedAt) : "-"}`, 14, y);
+      y += 7;
+      doc.text(doc.splitTextToSize(`Message: ${maintenanceState.message || "-"}`, 180), 14, y);
+      y += 16;
+      let maintenanceLogs: UsageLogEvent[] = [];
+      try {
+        maintenanceLogs = (await fetchUsageLogs(300)).filter((log) => log.event_type === "system_maintenance_saved").slice(0, 20);
+      } catch {
+        maintenanceLogs = [];
+      }
+      drawTable(
+        ["Time", "Updated By", "Status", "Message"],
+        [34, 42, 24, 80],
+        maintenanceLogs.map((log) => [
+          log.created_at ? formatDateTime(log.created_at) : "-",
+          log.display_name || log.username || "-",
+          (log.details?.enabled as boolean | undefined) ? "ON" : "OFF",
+          String(log.details?.message || "-"),
+        ])
+      );
+    } else if (exportContext === "team_overview") {
+      drawTable(
+        ["Team", "Team Lead", "Members", "Active", "Suspended"],
+        [54, 54, 24, 24, 28],
+        teamGroups.map((team) => [
+          team.teamName,
+          team.teamLead || "-",
+          String(team.users.length),
+          String(team.activeCount),
+          String(team.suspendedCount),
+        ])
+      );
+    } else if (exportContext === "team_management") {
+      const teamRows = visibleDraftUsers.map(({ user }) => [
+        user.displayName || user.username,
+        user.role,
+        user.teamName || "Unassigned Team",
+        user.teamLead || "-",
+        user.status,
+      ]);
+      drawTable(["User", "Role", "Team", "Team Lead", "Status"], [42, 34, 42, 42, 22], teamRows);
+    } else {
+      drawTable(
+        ["User", "Email", "Team", "Role", "Status"],
+        [38, 52, 42, 30, 20],
+        visibleRows.map((row) => [
+          row.displayName || row.username,
+          row.email || "-",
+          row.teamName || "-",
+          row.effectiveRole,
+          row.status,
+        ])
+      );
+    }
 
-    logUsageEvent(currentUser, "pdf_generate", {
+    await logUsageEvent(currentUser, "pdf_generate", {
       tab: "user-roles",
-      details: { pdfType: "user_directory" },
+      details: { pdfType: exportContext },
     });
-    doc.save(`QA_User_Directory_${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`QA_${exportContext}_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   return (
@@ -1039,15 +1203,16 @@ export default function UserRoleAdminMockup({
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">User Management</div>
                 <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">Corporate User Directory</div>
                 <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                  {!canManageUsers
-                    ? "Read-only access. This role can review user profiles but cannot create, edit, or suspend accounts."
-                    : isEditing
+                  {!canEditCurrentUserManagementView
+                    ? "Read-only access for this view. You can review the information without changing records."
+                    : isEditingUsers
                     ? "Edit account information and save all directory changes in one action."
+                    : isEditingTeamManagement
+                    ? "Edit team names, team leads, and user team assignments without changing user roles."
                     : "Review user profiles, registered emails, assigned roles, and account availability."}
                 </div>
               </div>
 
-              {canManageUsers ? (
               <div className="flex flex-wrap gap-3">
                 {isEditing ? (
                   <>
@@ -1060,52 +1225,48 @@ export default function UserRoleAdminMockup({
                       disabled={saving}
                       className="rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-400"
                     >
-                      {saving ? "Saving..." : "Save Changes"}
+                      {saving ? "Saving..." : currentUserManagementSaveLabel}
                     </button>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600">
-                      Create User
-                    </button>
-                    <button type="button" onClick={handleExportPdf} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+                    {userManagementView === "users" && canManageUsers ? (
+                      <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600">
+                        Create User
+                      </button>
+                    ) : null}
+                    <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                       Export PDF
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDraftUsers(rows.map((row) => toEditableUser({ ...row, role: row.effectiveRole })));
-                        setIsEditing(true);
-                        setMessage("");
-                      }}
-                      className="rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-6 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(217,70,239,0.32)] transition hover:scale-[1.02]"
-                    >
-                      Edit Directory
-                    </button>
+                    {canEditCurrentUserManagementView ? (
+                      <button
+                        type="button"
+                        onClick={() => startEditingUserManagementView(userManagementView)}
+                        className="rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-6 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(217,70,239,0.32)] transition hover:scale-[1.02]"
+                      >
+                        {currentUserManagementEditLabel}
+                      </button>
+                    ) : (
+                      <div className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 shadow-sm">
+                        Read Only
+                      </div>
+                    )}
                   </>
                 )}
               </div>
-              ) : (
-                <div className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 shadow-sm">
-                  Read Only
-                </div>
-              )}
             </div>
 
             <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
-                  <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={scopedRows.length} onClick={() => setUserManagementView("users")} />
-                  <DirectoryTabButton active={userManagementView === "teams"} label="All Teams" count={teamGroups.length} onClick={() => setUserManagementView("teams")} tone="slate" />
+                  <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={scopedRows.length} onClick={() => switchUserManagementView("users")} />
+                  <DirectoryTabButton active={userManagementView === "teams"} label="All Teams" count={teamGroups.length} onClick={() => switchUserManagementView("teams")} tone="slate" />
                   {canManageTeams ? (
                     <DirectoryTabButton
                       active={userManagementView === "team-management"}
                       label="Team Management"
                       count={teamGroups.length}
-                      onClick={() => {
-                        setUserManagementView("team-management");
-                        setIsEditing(true);
-                      }}
+                      onClick={() => switchUserManagementView("team-management")}
                       tone="amber"
                     />
                   ) : null}
@@ -1120,8 +1281,15 @@ export default function UserRoleAdminMockup({
             {userManagementView === "teams" ? (
               <TeamOverviewPanel teamGroups={teamGroups} />
             ) : userManagementView === "team-management" ? (
-              <TeamManagementPanel users={visibleDraftUsers} saving={saving} onChange={updateDraftUser} canManageTeams={canManageTeams} />
-            ) : isEditing ? (
+              <TeamManagementPanel
+                users={visibleDraftUsers}
+                saving={saving}
+                onChange={updateDraftUser}
+                onTeamChange={updateDraftTeam}
+                canManageTeams={canManageTeams}
+                isEditing={isEditingTeamManagement}
+              />
+            ) : isEditingUsers ? (
               <EditableDirectoryTable
                 users={visibleDraftUsers}
                 saving={saving}
@@ -1135,10 +1303,15 @@ export default function UserRoleAdminMockup({
           </div>
         ) : adminTab === "roles" && canManageRoles ? (
           <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
-            <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Access Control</div>
-              <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Role & Permission Management</div>
-              <div className="mt-1 text-sm leading-6 text-slate-500">Create roles, update role descriptions, and control what each role can access.</div>
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Access Control</div>
+                <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Role & Permission Management</div>
+                <div className="mt-1 text-sm leading-6 text-slate-500">Create roles, update role descriptions, and control what each role can access.</div>
+              </div>
+              <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+                Export PDF
+              </button>
             </div>
             <RoleManagementPanel
               roles={roleDefinitions}
@@ -1162,10 +1335,15 @@ export default function UserRoleAdminMockup({
           </div>
         ) : adminTab === "maintenance" && canManageMaintenance ? (
           <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
-            <div className="border-b border-slate-200 bg-white px-5 py-5 lg:px-6">
-              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">System Maintenance</div>
-              <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Maintenance Control Center</div>
-              <div className="mt-1 text-sm leading-6 text-slate-500">Temporarily restrict access while updating system configuration or QA data.</div>
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">System Maintenance</div>
+                <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Maintenance Control Center</div>
+                <div className="mt-1 text-sm leading-6 text-slate-500">Temporarily restrict access while updating system configuration or QA data.</div>
+              </div>
+              <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+                Export PDF
+              </button>
             </div>
             <MaintenancePanel
               saving={saving}
@@ -1540,51 +1718,138 @@ function TeamManagementPanel({
   saving,
   onChange,
   canManageTeams,
+  onTeamChange,
+  isEditing,
 }: {
   users: Array<{ user: EditableUser; index: number }>;
   saving: boolean;
   onChange: (index: number, key: keyof EditableUser, value: string) => void;
   canManageTeams: boolean;
+  onTeamChange: (teamName: string, key: "teamLead" | "teamName", value: string) => void;
+  isEditing: boolean;
 }) {
+  const teamGroups = useMemo(() => {
+    const map = new Map<string, { teamName: string; teamLead: string; members: Array<{ user: EditableUser; index: number }> }>();
+    users.forEach((entry) => {
+      const teamName = entry.user.teamName.trim() || "Unassigned Team";
+      const existing = map.get(teamName) || {
+        teamName,
+        teamLead: entry.user.teamLead.trim() || "",
+        members: [],
+      };
+      if (!existing.teamLead && entry.user.teamLead) existing.teamLead = entry.user.teamLead;
+      existing.members.push(entry);
+      map.set(teamName, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => a.teamName.localeCompare(b.teamName));
+  }, [users]);
+  const teamOptions = teamGroups.map((team) => team.teamName);
+  const editable = canManageTeams && isEditing && !saving;
+
   return (
     <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
-      <div className="mb-4 rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold leading-6 text-amber-800">
-        Create a new team by typing a new Team Name on any user row. Set Team Lead to the supervisor/senior owner, then press Save Changes.
+      <div className={`mb-5 rounded-[26px] border px-5 py-4 text-sm font-bold leading-6 ${
+        isEditing
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-sky-200 bg-sky-50 text-sky-800"
+      }`}>
+        {isEditing
+          ? "You are editing Team Management only. Team Name and Team Lead changes apply to every user in that team. User roles stay unchanged."
+          : "Review team structure here. Press Edit Teams to update team names, team leads, or move users between teams."}
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[980px] border-collapse overflow-hidden rounded-[24px] bg-white text-left text-sm shadow-[0_18px_45px_rgba(88,28,135,0.09)]">
-          <thead>
-            <tr className="bg-slate-950 text-white">
-              <th className="px-4 py-4 font-bold">User</th>
-              <th className="px-4 py-4 font-bold">Current Role</th>
-              <th className="px-4 py-4 font-bold">Team Lead</th>
-              <th className="px-4 py-4 font-bold">Team Name</th>
-              <th className="px-4 py-4 font-bold">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(({ user, index }) => (
-              <tr key={`${user.username}-${index}`} className="border-b border-slate-100 last:border-b-0">
-                <td className="px-4 py-4">
-                  <div className="font-black text-slate-950">{user.displayName || user.username}</div>
-                  <div className="text-xs font-semibold text-slate-500">{user.email || "-"}</div>
-                </td>
-                <td className="px-4 py-4 font-bold text-slate-700">{user.role}</td>
-                <td className="px-4 py-4">
-                  <TextInput value={user.teamLead} disabled={saving || !canManageTeams} onChange={(value) => onChange(index, "teamLead", value)} />
-                </td>
-                <td className="px-4 py-4">
-                  <TextInput value={user.teamName} disabled={saving || !canManageTeams} onChange={(value) => onChange(index, "teamName", value)} />
-                </td>
-                <td className="px-4 py-4">
-                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                    {user.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        {teamGroups.map((team) => (
+          <div key={team.teamName} className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_50px_rgba(88,28,135,0.10)]">
+            <div className="bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-900 px-5 py-5 text-white">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-black uppercase tracking-[0.24em] text-violet-200">Team Structure</div>
+                  {isEditing ? (
+                    <input
+                      value={team.teamName}
+                      disabled={!editable}
+                      onChange={(event) => onTeamChange(team.teamName, "teamName", event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-xl font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
+                    />
+                  ) : (
+                    <div className="mt-1 truncate text-2xl font-black">{team.teamName}</div>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-right">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Members</div>
+                  <div className="mt-1 text-3xl font-black">{team.members.length}</div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Team Lead</div>
+                {isEditing ? (
+                  <input
+                    value={team.teamLead}
+                    disabled={!editable}
+                    onChange={(event) => onTeamChange(team.teamName, "teamLead", event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
+                    placeholder="Assign team lead"
+                  />
+                ) : (
+                  <div className="mt-1 text-sm font-bold text-white/80">{team.teamLead || "-"}</div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/40 p-4">
+              <div className="grid grid-cols-[minmax(220px,1fr)_150px_minmax(180px,0.8fr)] gap-3 rounded-2xl bg-white/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                <div>User</div>
+                <div>Role</div>
+                <div>Assigned Team</div>
+              </div>
+              {team.members.map(({ user, index }) => (
+                <div key={`${team.teamName}-${user.username}-${index}`} className="grid grid-cols-[minmax(220px,1fr)_150px_minmax(180px,0.8fr)] items-center gap-3 rounded-[22px] border border-white bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-black text-white ${roleAvatarClass(user.role)}`}>
+                      {userInitials(user.displayName || user.username)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
+                      <div className="truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
+                      <div className="mt-1 text-[11px] font-bold text-slate-400">Lead: {user.teamLead || team.teamLead || "-"}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-slate-800">{user.role}</div>
+                    <div className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+                      {user.status}
+                    </div>
+                  </div>
+                  <div>
+                    {isEditing ? (
+                      <select
+                        value={user.teamName.trim() || "Unassigned Team"}
+                        disabled={!editable}
+                        onChange={(event) => onChange(index, "teamName", event.target.value === "Unassigned Team" ? "" : event.target.value)}
+                        className="w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-black text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      >
+                        {teamOptions.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-black text-violet-800">
+                        {user.teamName || "Unassigned Team"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {!teamGroups.length ? (
+          <div className="rounded-[24px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">
+            No active users found for team management.
+          </div>
+        ) : null}
       </div>
     </div>
   );
