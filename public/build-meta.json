@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605211453",
-  "buildNumber": 2605211453,
-  "releaseLabel": "v1.0.0.2605211453",
-  "updatedAt": "21/05/2026 14:53:27",
+  "displayVersion": "1.0.0.2605211501",
+  "buildNumber": 2605211501,
+  "releaseLabel": "v1.0.0.2605211501",
+  "updatedAt": "21/05/2026 15:01:04",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "12ce1c0f9645826acff99faec578b5c20560d899",
-  "commitMessage": "Open appeal case detail from review page",
+  "commitHash": "4ef3c394574edf1579fd7aa0767e2028fc0cdbea",
+  "commitMessage": "Isolate team management edit mode",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/AppealRequestsMockup.tsx"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
