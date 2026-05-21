@@ -1,19 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605211007",
-  "buildNumber": 2605211007,
-  "releaseLabel": "v1.0.0.2605211007",
-  "updatedAt": "21/05/2026 10:07:14",
+  "displayVersion": "1.0.0.2605211022",
+  "buildNumber": 2605211022,
+  "releaseLabel": "v1.0.0.2605211022",
+  "updatedAt": "21/05/2026 10:22:11",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a8c9eaa0dc598d65d3a2d865e8175bd1a0d4e893",
-  "commitMessage": "Align V8 row-level averages and notify case owners",
+  "commitHash": "05f58d2699a9d050e13354cba02f354a8d41d435",
+  "commitMessage": "Open appeal inbox tasks in case detail",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

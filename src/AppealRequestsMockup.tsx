@@ -210,6 +210,16 @@ function exportAppealRows(requests: AppealRequest[]) {
   XLSX.writeFile(workbook, `Appeal_ROWDATA_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
+function openCaseDetailTab(request: AppealRequest) {
+  const params = new URLSearchParams({
+    tab: "dashboard",
+    subTab: "case-detail",
+    caseId: request.caseId,
+  });
+  if (request.agent) params.set("agent", request.agent);
+  window.open(`${window.location.origin}${window.location.pathname}?${params.toString()}`, "_blank", "noopener,noreferrer");
+}
+
 export default function AppealRequestsMockup({
   currentUser,
   onTasksChanged,
@@ -450,6 +460,13 @@ export default function AppealRequestsMockup({
                       <div className="mt-2 text-2xl font-extrabold text-slate-950">{selectedRequest.caseId}</div>
                       <div className="mt-1 text-sm text-slate-600">{selectedRequest.agent} / Audit Date {selectedRequest.auditDate || "-"}</div>
                       <div className="mt-1 text-xs text-slate-500">Submitted by {selectedRequest.submittedBy || "-"} at {formatDateTime(selectedRequest.submittedAt)}</div>
+                      <button
+                        type="button"
+                        onClick={() => openCaseDetailTab(selectedRequest)}
+                        className="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-black text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
+                      >
+                        Open Case Detail
+                      </button>
                     </div>
                     <div className="rounded-2xl border border-white bg-white px-4 py-3 text-right shadow-sm">
                       <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Original Score</div>

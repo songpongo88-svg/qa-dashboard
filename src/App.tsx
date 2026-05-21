@@ -212,6 +212,7 @@ const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
 const CHAT_HISTORY_RESET_AT = "2026-05-15T10:40:51+07:00";
 const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
+let v8EffectiveRowsCache: Promise<unknown[][] | null> | null = null;
 
 const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
 
@@ -561,15 +562,21 @@ async function buildV8CaseUploadInboxTasks(
   readIds: string[]
 ): Promise<InboxTaskItem[]> {
   try {
-    const response = await fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!v8EffectiveRowsCache) {
+      v8EffectiveRowsCache = fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "force-cache" })
+        .then(async (response) => {
+          if (!response.ok) return null;
+          const buffer = await response.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+          const sheet = workbook.Sheets["Effective_Data"];
+          if (!sheet) return null;
+          return XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+        })
+        .catch(() => null);
+    }
 
-    const buffer = await response.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
-    const sheet = workbook.Sheets["Effective_Data"];
-    if (!sheet) return [];
-
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+    const rows = await v8EffectiveRowsCache;
+    if (!rows?.length) return [];
     const headerIndex = rows.findIndex((row) => {
       const normalized = row.map((value) => normalizeInboxText(value));
       return normalized.includes("agent name") && normalized.includes("case id") && normalized.includes("final score");
@@ -2933,6 +2940,13 @@ export default function App() {
       if (requestedAgent) {
         setSelectedAgentGlobal(requestedAgent);
       }
+    } else if (requestedTab === "dashboard") {
+      setActiveTab("dashboard");
+      setDashboardSubTab(params.get("subTab") === "case-detail" || requestedCaseId ? "case-detail" : "overview");
+      setSelectedDashboardCaseId(requestedCaseId);
+      if (requestedAgent) {
+        setSelectedAgentGlobal(requestedAgent);
+      }
     }
   }, []);
 
@@ -3127,14 +3141,6 @@ export default function App() {
     setInboxReturnTitle(task.title);
 
     if (task.type === "appeal") {
-      if (task.caseId) {
-        setActiveTab("dashboard");
-        setDashboardSubTab("case-detail");
-        setSelectedAppealCaseId("");
-        setSelectedDashboardCaseId(task.caseId);
-        setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
-        return;
-      }
       if (appealRequestsAllowed) {
         setActiveTab("appeal-requests");
       }
