@@ -123,6 +123,162 @@ const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slat
 const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
+const RAW_DATA_FILE_NAMES = [
+  "QA_RawData1.xlsx",
+  "QA_RawData11052026.xlsx",
+  "QA_RawData12052026.xlsx",
+  "QA_RawData13052026.xlsx",
+  "QA_RawData20052026.xlsx",
+];
+
+type RawReportRecord = {
+  recordId: string;
+  caseId: string;
+  agentName: string;
+  auditDate: string;
+  auditDateMs: number;
+  finalScore: string | number;
+  grade: string;
+  sourceName: string;
+  rowData: Record<string, string | number>;
+};
+
+function normalizeHeaderText(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function excelDateToJSDate(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const utcDays = Math.floor(value - 25569);
+    const utcValue = utcDays * 86400;
+    const dateInfo = new Date(utcValue * 1000);
+    const fractionalDay = value - Math.floor(value) + 0.0000001;
+    const totalSeconds = Math.floor(86400 * fractionalDay);
+    dateInfo.setSeconds(totalSeconds);
+    return dateInfo;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+    const match = trimmed.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+    if (match) {
+      const day = Number(match[1]);
+      const month = Number(match[2]) - 1;
+      const rawYear = Number(match[3]);
+      const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+      const date = new Date(year, month, day);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+  return null;
+}
+
+function formatDateInputFromAny(value: unknown) {
+  const date = excelDateToJSDate(value);
+  if (!date) return "";
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDateForRowData(value: unknown) {
+  const inputDate = formatDateInputFromAny(value);
+  return inputDate ? formatThaiDate(inputDate) : String(value ?? "");
+}
+
+function buildRawHeaderHelpers(headerRow: unknown[]) {
+  const normalizedHeaders = headerRow.map((header) => normalizeHeaderText(header));
+  const colIndexes = (name: string) => {
+    const target = normalizeHeaderText(name);
+    return normalizedHeaders
+      .map((header, index) => (header === target ? index : -1))
+      .filter((index) => index >= 0);
+  };
+  const getValue = (row: unknown[], name: string, occurrence = 0) => {
+    const index = colIndexes(name)[occurrence];
+    return index >= 0 ? row[index] : null;
+  };
+  const getLastValue = (row: unknown[], name: string) => {
+    const indexes = colIndexes(name);
+    if (!indexes.length) return null;
+    return row[indexes[indexes.length - 1]];
+  };
+  return { getValue, getLastValue };
+}
+
+function normalizeRowValue(value: unknown) {
+  if (value instanceof Date) return formatDateForRowData(value);
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number" || typeof value === "string") return value;
+  return String(value);
+}
+
+async function loadRawDataReportRecords(): Promise<RawReportRecord[]> {
+  const responses = await Promise.all(
+    RAW_DATA_FILE_NAMES.map(async (fileName) => ({
+      fileName,
+      response: await fetch(`/${fileName}`, { cache: "no-store" }),
+    }))
+  );
+  const availableResponses = responses.filter((item) => item.response.ok);
+  const records: RawReportRecord[] = [];
+
+  for (const { fileName, response } of availableResponses) {
+    const buffer = await response.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+    const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+      header: 1,
+      defval: null,
+      raw: true,
+    });
+    const headerIndex = rows.findIndex((row) => {
+      const normalized = (row || []).map((value) => normalizeHeaderText(value));
+      return normalized.includes("agent name") && normalized.includes("case id");
+    });
+    if (headerIndex < 0) continue;
+
+    const headerRow = rows[headerIndex] || [];
+    const helper = buildRawHeaderHelpers(headerRow);
+    rows.slice(headerIndex + 1).forEach((row, rowIndex) => {
+      const caseId = String(helper.getValue(row, "Case ID") ?? "").trim();
+      if (!caseId) return;
+      const auditRaw = helper.getValue(row, "Audit Date");
+      const auditDate = formatDateInputFromAny(auditRaw);
+      const auditDateMs = auditDate ? new Date(`${auditDate}T00:00:00`).getTime() : Number.NaN;
+      const agentName = String(helper.getValue(row, "Agent Name") ?? "").trim();
+      const rowData: Record<string, string | number> = {};
+
+      headerRow.forEach((header, index) => {
+        const key = String(header || `Column ${index + 1}`).trim() || `Column ${index + 1}`;
+        rowData[key] = normalizeRowValue(row[index]);
+      });
+      rowData["RawData File"] = String(rowData["RawData File"] || rowData["Raw Data File"] || fileName);
+      if (auditDate) rowData["Audit Date"] = formatThaiDate(auditDate);
+
+      records.push({
+        recordId: `raw-${fileName}-${rowIndex}-${caseId}`,
+        caseId,
+        agentName,
+        auditDate,
+        auditDateMs,
+        finalScore: normalizeRowValue(helper.getLastValue(row, "Final Score")),
+        grade: String(helper.getValue(row, "Grade") ?? ""),
+        sourceName: fileName,
+        rowData,
+      });
+    });
+  }
+
+  return records;
+}
 
 function fileToDataUrl(file: File) {
   return new Promise<string>((resolve) => {
@@ -257,8 +413,10 @@ export default function CreateEvaluationMockup({
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
   const [submittedRecords, setSubmittedRecords] = useState<EvaluationRecord[]>([]);
   const [submittedRecordsLoading, setSubmittedRecordsLoading] = useState(false);
+  const [rawReportRecords, setRawReportRecords] = useState<RawReportRecord[]>([]);
   const [reportDateFrom, setReportDateFrom] = useState(currentYearStartInputValue());
   const [reportDateTo, setReportDateTo] = useState(todayInputValue());
+  const [reportSearch, setReportSearch] = useState("");
   const [reportMessage, setReportMessage] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
@@ -516,6 +674,33 @@ export default function CreateEvaluationMockup({
   }
 
   async function submitEvaluation() {
+    const normalizedSubmitCaseId = normalizeCaseId(caseId);
+    if (!normalizedSubmitCaseId) {
+      setDraftMessage("Please enter Case ID before submitting the evaluation.");
+      return;
+    }
+    try {
+      const [stored, rawRecords] = await Promise.all([
+        fetchStoredEvaluations(),
+        loadRawDataReportRecords(),
+      ]);
+      const duplicateSubmitted = stored.find(
+        (record) =>
+          normalizeCaseId(record.caseId) === normalizedSubmitCaseId &&
+          String(record.id || "") !== String(activeSubmittedRecordId || "")
+      );
+      const duplicateRaw = rawRecords.find((record) => normalizeCaseId(record.caseId) === normalizedSubmitCaseId);
+      if (duplicateSubmitted || duplicateRaw) {
+        const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
+        setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
+        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\nระบบไม่ให้ Submit เลขเคสซ้ำ ถ้าต้องแก้เคสที่เคยประเมินแล้ว ให้ไปที่ Report แล้วกด Edit เคสนั้นครับ`);
+        return;
+      }
+    } catch (error) {
+      setDraftMessage(error instanceof Error ? error.message : "Could not validate duplicate Case ID before submit.");
+      return;
+    }
+
     const confirmed = window.confirm(
       `Submit this evaluation?\n\nCase: ${caseId || "Untitled Case"}\nAgent: ${agentName || "-"}\nScore: ${criticalError ? 0 : finalScore}/${activeRubric.totalScore}\nGrade: ${grade}`
     );
@@ -723,6 +908,43 @@ export default function CreateEvaluationMockup({
     });
   }
 
+  function filterRawRecordsByReportDate(records: RawReportRecord[]) {
+    const fromMs = reportDateFrom ? new Date(`${reportDateFrom}T00:00:00`).getTime() : Number.NEGATIVE_INFINITY;
+    const toMs = reportDateTo ? new Date(`${reportDateTo}T23:59:59`).getTime() : Number.POSITIVE_INFINITY;
+    return records.filter((record) => {
+      if (Number.isNaN(record.auditDateMs)) return false;
+      return record.auditDateMs >= fromMs && record.auditDateMs <= toMs;
+    });
+  }
+
+  function normalizeCaseId(value: unknown) {
+    return String(value ?? "").trim().toUpperCase();
+  }
+
+  function matchesReportSearch(record: Pick<EvaluationRecord, "caseId" | "agentName" | "targetDisplayName" | "auditDate" | "grade">) {
+    const keyword = reportSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    return [
+      record.caseId,
+      record.agentName,
+      record.targetDisplayName,
+      record.auditDate ? formatThaiDate(record.auditDate) : "",
+      record.grade,
+    ].some((value) => String(value || "").toLowerCase().includes(keyword));
+  }
+
+  function matchesRawReportSearch(record: RawReportRecord) {
+    const keyword = reportSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    return [
+      record.caseId,
+      record.agentName,
+      record.auditDate ? formatThaiDate(record.auditDate) : "",
+      record.grade,
+      record.sourceName,
+    ].some((value) => String(value || "").toLowerCase().includes(keyword));
+  }
+
   function storedRecordToEvaluationRecord(item: Awaited<ReturnType<typeof fetchStoredEvaluations>>[number]): EvaluationRecord {
     return {
       ...item,
@@ -737,9 +959,13 @@ export default function CreateEvaluationMockup({
   async function loadSubmittedRecords() {
     setSubmittedRecordsLoading(true);
     try {
-      const stored = await fetchStoredEvaluations();
+      const [stored, rawRecords] = await Promise.all([
+        fetchStoredEvaluations(),
+        loadRawDataReportRecords(),
+      ]);
       setSubmittedRecords(stored.map(storedRecordToEvaluationRecord));
-      setReportMessage(stored.length ? `Loaded ${stored.length} submitted evaluation record(s).` : "No submitted evaluations found yet.");
+      setRawReportRecords(rawRecords);
+      setReportMessage(`Loaded ${stored.length} submitted evaluation record(s) and ${rawRecords.length} RawData row(s).`);
     } catch (error) {
       setReportMessage(error instanceof Error ? error.message : "Submitted evaluations could not be loaded.");
     } finally {
@@ -791,21 +1017,29 @@ export default function CreateEvaluationMockup({
   }
 
   async function exportEvaluationRowData() {
-    setReportMessage("Loading submitted evaluations...");
-    const stored = await fetchStoredEvaluations();
+    setReportMessage("Loading RawData and submitted evaluations...");
+    const [stored, rawRecords] = await Promise.all([
+      fetchStoredEvaluations(),
+      loadRawDataReportRecords(),
+    ]);
     const storedRecords: EvaluationRecord[] = stored.map(storedRecordToEvaluationRecord);
-    const merged = storedRecords.length ? storedRecords : evaluationHistory;
-    const filtered = filterRecordsByReportDate(merged);
-    if (!filtered.length) {
-      setReportMessage("No submitted evaluations found in this date range.");
+    const submittedSource = storedRecords.length ? storedRecords : evaluationHistory;
+    const filteredSubmitted = filterRecordsByReportDate(submittedSource);
+    const filteredRaw = filterRawRecordsByReportDate(rawRecords);
+    const exportRows = [
+      ...filteredRaw.map((record) => record.rowData),
+      ...buildRowDataRows(filteredSubmitted),
+    ];
+    if (!exportRows.length) {
+      setReportMessage("No RawData or submitted evaluations found in this date range.");
       return;
     }
 
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(buildRowDataRows(filtered));
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Raw_Data");
     XLSX.writeFile(workbook, `QA_Evaluation_RowData_${reportDateFrom || "start"}_${reportDateTo || "end"}.xlsx`);
-    setReportMessage(`Exported ${filtered.length} submitted evaluation row(s).`);
+    setReportMessage(`Exported ${filteredRaw.length} RawData row(s) and ${filteredSubmitted.length} submitted evaluation row(s).`);
   }
 
   function removeEvidenceFile(id: string) {
@@ -815,6 +1049,9 @@ export default function CreateEvaluationMockup({
       return current.filter((file) => file.id !== id);
     });
   }
+
+  const visibleSubmittedReportRecords = filterRecordsByReportDate(submittedRecords).filter(matchesReportSearch);
+  const visibleRawReportRecords = filterRawRecordsByReportDate(rawReportRecords).filter(matchesRawReportSearch);
 
   return (
     <div className="min-h-screen bg-[#eef5f1] text-slate-950" style={{ fontFamily: "Aptos, 'Noto Sans Thai', 'Segoe UI', sans-serif" }}>
@@ -971,7 +1208,7 @@ export default function CreateEvaluationMockup({
               <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">Back to Form</button>
             </div>
             <div className="p-5">
-              <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.4fr_auto]">
                 <label className="block">
                   <span className={labelClass}>Date From</span>
                   <input type="date" value={reportDateFrom} onChange={(event) => setReportDateFrom(event.target.value)} className={inputClass} />
@@ -979,6 +1216,15 @@ export default function CreateEvaluationMockup({
                 <label className="block">
                   <span className={labelClass}>Date To</span>
                   <input type="date" value={reportDateTo} onChange={(event) => setReportDateTo(event.target.value)} className={inputClass} />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Search Case / Agent</span>
+                  <input
+                    value={reportSearch}
+                    onChange={(event) => setReportSearch(event.target.value)}
+                    placeholder="Search Case ID, Agent, Grade, Source..."
+                    className={inputClass}
+                  />
                 </label>
                 <div className="flex items-end">
                   <button
@@ -991,7 +1237,7 @@ export default function CreateEvaluationMockup({
                 </div>
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
-                Export เฉพาะเคสที่ Submit Evaluation ผ่านฟอร์ม และเลือกตาม Audit Date ที่ต้องการได้
+                Export จะรวม RawData เดิมจาก GitHub และเคสใหม่จาก QA Evaluation Form ตามช่วง Audit Date ที่เลือก ส่วนเคสจากฟอร์มสามารถค้นหาแล้วกด Edit เพื่อแก้ไขต่อได้
               </div>
               {reportMessage ? (
                 <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
@@ -1002,7 +1248,7 @@ export default function CreateEvaluationMockup({
                 <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-950 px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Submitted Evaluations</div>
-                    <div className="mt-1 text-base font-black">Edit / Delete saved cases</div>
+                    <div className="mt-1 text-base font-black">Search / Edit saved cases</div>
                   </div>
                   <button type="button" onClick={loadSubmittedRecords} className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
                     Refresh List
@@ -1011,34 +1257,68 @@ export default function CreateEvaluationMockup({
                 <div className="p-4">
                   {submittedRecordsLoading ? (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">Loading submitted evaluations...</div>
-                  ) : filterRecordsByReportDate(submittedRecords).length ? (
-                    <div className="space-y-3">
-                      {filterRecordsByReportDate(submittedRecords).slice(0, 60).map((record) => (
-                        <div key={record.recordId} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
-                          <div>
-                            <div className="text-sm font-black text-slate-950">{record.caseId}</div>
-                            <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || record.targetDisplayName || "-"} | Audit {formatThaiDate(record.auditDate)}</div>
-                          </div>
-                          <div className="text-xs font-semibold text-slate-600">
-                            Submitted: <span className="font-black text-slate-900">{record.submittedAt || "-"}</span>
-                          </div>
-                          <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-center text-sm font-black text-emerald-800">
-                            {record.finalScore}/100 {record.grade}
-                          </div>
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => openSubmittedRecord(record)} className="flex-1 rounded-xl bg-sky-700 px-3 py-2 text-xs font-black text-white transition hover:bg-sky-800">
-                              Edit
-                            </button>
-                            <button type="button" onClick={() => deleteSubmittedRecord(record)} className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100">
-                              Delete
-                            </button>
-                          </div>
+                  ) : visibleSubmittedReportRecords.length || visibleRawReportRecords.length ? (
+                    <div className="space-y-5">
+                      {visibleSubmittedReportRecords.length ? (
+                        <div className="space-y-3">
+                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">QA Evaluation Form · Editable</div>
+                          {visibleSubmittedReportRecords.slice(0, 60).map((record) => (
+                            <div key={record.recordId} className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
+                              <div>
+                                <div className="text-sm font-black text-slate-950">{record.caseId}</div>
+                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || record.targetDisplayName || "-"} | Audit {formatThaiDate(record.auditDate)}</div>
+                              </div>
+                              <div className="text-xs font-semibold text-slate-600">
+                                Submitted: <span className="font-black text-slate-900">{record.submittedAt || "-"}</span>
+                              </div>
+                              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-center text-sm font-black text-emerald-800">
+                                {record.finalScore}/100 {record.grade}
+                              </div>
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => openSubmittedRecord(record)} className="flex-1 rounded-xl bg-sky-700 px-3 py-2 text-xs font-black text-white transition hover:bg-sky-800">
+                                  Edit
+                                </button>
+                                <button type="button" onClick={() => deleteSubmittedRecord(record)} className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100">
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : null}
+
+                      {visibleRawReportRecords.length ? (
+                        <div className="space-y-3">
+                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">GitHub RawData · Export only</div>
+                          {visibleRawReportRecords.slice(0, 80).map((record) => (
+                            <div key={record.recordId} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
+                              <div>
+                                <div className="text-sm font-black text-slate-950">{record.caseId}</div>
+                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || "-"} | Audit {formatThaiDate(record.auditDate)}</div>
+                              </div>
+                              <div className="text-xs font-semibold text-slate-600">
+                                Source: <span className="font-black text-slate-900">{record.sourceName}</span>
+                              </div>
+                              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm font-black text-slate-700">
+                                {record.finalScore || "-"} {record.grade}
+                              </div>
+                              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-black text-slate-500">
+                                Export only
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {(visibleSubmittedReportRecords.length + visibleRawReportRecords.length) > 140 ? (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+                          Showing first 140 matching records. Use search or date range to narrow results.
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-                      No submitted evaluations in this date range.
+                      No RawData or submitted evaluations match this date/search.
                     </div>
                   )}
                 </div>
@@ -1115,8 +1395,17 @@ export default function CreateEvaluationMockup({
             <SectionCard label="Section B" title="Evidence Attachment">
               <div className="space-y-4">
                 <label className="block">
-                  <span className={labelClass}>Evidence URL / PDF / Image</span>
-                  <input value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="วางลิงก์ Google Drive, PDF หรือรูปภาพ" className={inputClass} />
+                  <span className={labelClass}>Google Drive Evidence Links / PDF / Image</span>
+                  <AutoGrowTextarea
+                    value={evidenceUrl}
+                    onChange={(event) => setEvidenceUrl(event.target.value)}
+                    minRows={4}
+                    placeholder="Paste Google Drive share links here. Use one link per line for multiple PDFs/images."
+                    className={`${inputClass} leading-6`}
+                  />
+                  <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">
+                    Upload PDF/images to Google Drive, set sharing permission, then paste the links here. Local image attachments are saved as preview data only; automatic Google Drive upload will be a separate integration.
+                  </span>
                 </label>
                 <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50 p-4">
                   <div className="flex flex-wrap items-center gap-2">
