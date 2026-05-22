@@ -66,6 +66,13 @@ type EditableUser = {
   temporaryPassword: string;
 };
 
+type TeamDraft = {
+  teamName: string;
+  teamLead: string;
+  assignedRole: UserRole;
+  memberUsernames: string[];
+};
+
 type DirectoryTab = "active" | "suspended";
 type UserManagementView = "users" | "teams" | "team-management";
 type AdminTab = "users" | "roles" | "maintenance";
@@ -489,6 +496,15 @@ function createBlankUser(): EditableUser {
   };
 }
 
+function createBlankTeamDraft(roleOptions: UserRole[]): TeamDraft {
+  return {
+    teamName: "",
+    teamLead: "",
+    assignedRole: roleOptions[0] || "Admin Live Chat",
+    memberUsernames: [],
+  };
+}
+
 export default function UserRoleAdminMockup({
   accounts,
   currentUser,
@@ -505,6 +521,8 @@ export default function UserRoleAdminMockup({
   const [draftUsers, setDraftUsers] = useState<EditableUser[]>([]);
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [newUserDraft, setNewUserDraft] = useState<EditableUser>(() => createBlankUser());
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [newTeamDraft, setNewTeamDraft] = useState<TeamDraft>(() => createBlankTeamDraft(ROLE_OPTIONS));
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
   const [userManagementView, setUserManagementView] = useState<UserManagementView>("users");
   const [adminTab, setAdminTab] = useState<AdminTab>("users");
@@ -675,6 +693,71 @@ export default function UserRoleAdminMockup({
     setNewUserDraft(createBlankUser());
     setMessage("");
     setCreateUserOpen(true);
+  };
+
+  const openCreateTeamModal = () => {
+    if (!isEditingTeamManagement) {
+      startEditingUserManagementView("team-management");
+      setUserManagementView("team-management");
+    }
+    setNewTeamDraft(createBlankTeamDraft(activeRoleOptions));
+    setMessage("");
+    setCreateTeamOpen(true);
+  };
+
+  const updateNewTeamDraft = (key: keyof TeamDraft, value: string | string[]) => {
+    setNewTeamDraft((currentDraft) => ({ ...currentDraft, [key]: value }));
+  };
+
+  const toggleNewTeamMember = (username: string) => {
+    setNewTeamDraft((currentDraft) => {
+      const normalized = normalizeUsername(username);
+      const exists = currentDraft.memberUsernames.some((item) => normalizeUsername(item) === normalized);
+      return {
+        ...currentDraft,
+        memberUsernames: exists
+          ? currentDraft.memberUsernames.filter((item) => normalizeUsername(item) !== normalized)
+          : [...currentDraft.memberUsernames, username],
+      };
+    });
+  };
+
+  const applyNewTeamDraft = () => {
+    const teamName = newTeamDraft.teamName.trim();
+    const assignedRole = newTeamDraft.assignedRole.trim();
+    if (!teamName) {
+      setMessage("Team name is required before creating a team.");
+      return;
+    }
+    if (!assignedRole) {
+      setMessage("Assigned Role is required before creating a team.");
+      return;
+    }
+    const duplicateTeam = draftUsers.some((user) => (user.teamName.trim() || "Unassigned Team").toLowerCase() === teamName.toLowerCase());
+    if (duplicateTeam) {
+      setMessage(`Team already exists: ${teamName}`);
+      return;
+    }
+    if (!newTeamDraft.memberUsernames.length) {
+      setMessage("Select at least one member before creating a team.");
+      return;
+    }
+
+    const selected = new Set(newTeamDraft.memberUsernames.map(normalizeUsername));
+    setDraftUsers((currentDrafts) =>
+      currentDrafts.map((user) =>
+        selected.has(normalizeUsername(user.username))
+          ? {
+              ...user,
+              teamName,
+              teamLead: newTeamDraft.teamLead.trim(),
+              role: assignedRole,
+            }
+          : user
+      )
+    );
+    setCreateTeamOpen(false);
+    setMessage(`Created draft team ${teamName}. Press Save Team Changes to keep it.`);
   };
 
   const saveRoleDefinition = async (role?: RoleDefinition) => {
@@ -1400,6 +1483,11 @@ export default function UserRoleAdminMockup({
               <div className="flex flex-wrap gap-3">
                 {isEditing ? (
                   <>
+                    {isEditingTeamManagement && canManageTeams ? (
+                      <button type="button" onClick={openCreateTeamModal} className="rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(245,158,11,0.24)] transition hover:bg-amber-600">
+                        Create Team
+                      </button>
+                    ) : null}
                     <button type="button" onClick={handleCancelEdit} className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(225,29,72,0.28)] transition hover:bg-rose-700">
                       Cancel
                     </button>
@@ -1417,6 +1505,11 @@ export default function UserRoleAdminMockup({
                     {userManagementView === "users" && canManageUsers ? (
                       <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600">
                         Create User
+                      </button>
+                    ) : null}
+                    {userManagementView === "team-management" && canManageTeams ? (
+                      <button type="button" onClick={openCreateTeamModal} className="rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(245,158,11,0.24)] transition hover:bg-amber-600">
+                        Create Team
                       </button>
                     ) : null}
                     <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
@@ -1553,6 +1646,21 @@ export default function UserRoleAdminMockup({
             setCreateUserOpen(false);
           }}
           onSave={saveNewUser}
+        />
+      ) : null}
+      {createTeamOpen ? (
+        <CreateTeamModal
+          team={newTeamDraft}
+          users={draftUsers.filter((user) => user.status === "Active")}
+          roleOptions={activeRoleOptions}
+          saving={saving}
+          onChange={updateNewTeamDraft}
+          onToggleMember={toggleNewTeamMember}
+          onCancel={() => {
+            if (saving) return;
+            setCreateTeamOpen(false);
+          }}
+          onSave={applyNewTeamDraft}
         />
       ) : null}
     </div>
@@ -2724,6 +2832,122 @@ function CreateUserModal({
           </button>
           <button type="button" onClick={onSave} disabled={saving} className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? "Creating..." : "Create User"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateTeamModal({
+  team,
+  users,
+  roleOptions,
+  saving,
+  onChange,
+  onToggleMember,
+  onCancel,
+  onSave,
+}: {
+  team: TeamDraft;
+  users: EditableUser[];
+  roleOptions: UserRole[];
+  saving: boolean;
+  onChange: (key: keyof TeamDraft, value: string | string[]) => void;
+  onToggleMember: (username: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const selected = new Set(team.memberUsernames.map(normalizeUsername));
+  const selectedCount = team.memberUsernames.length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+        <div className="border-b border-amber-100 bg-gradient-to-r from-slate-950 via-violet-900 to-amber-600 px-6 py-5 text-white">
+          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-100">Team Builder</div>
+          <div className="mt-2 text-2xl font-black">Create Team</div>
+          <div className="mt-1 text-sm font-semibold text-white/80">
+            Create a team, assign its role, then select members. The member role will sync to the assigned team role.
+          </div>
+        </div>
+
+        <div className="grid gap-5 overflow-y-auto p-6 lg:grid-cols-[360px_1fr]">
+          <div className="space-y-4">
+            <ModalField label="Team Name" value={team.teamName} onChange={(value) => onChange("teamName", value)} placeholder="e.g. Escalation Support" disabled={saving} />
+            <ModalField label="Team Lead" value={team.teamLead} onChange={(value) => onChange("teamLead", value)} placeholder="e.g. Anucha Makundin" disabled={saving} />
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Assigned Role</span>
+              <select
+                value={team.assignedRole}
+                disabled={saving}
+                onChange={(event) => onChange("assignedRole", event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              >
+                {roleOptions.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </label>
+            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">Selected Members</div>
+              <div className="mt-2 text-4xl font-black text-amber-700">{selectedCount}</div>
+              <div className="mt-1 text-sm font-bold leading-6 text-amber-800">
+                After you press Create Team, remember to press Save Team Changes to persist it.
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-[26px] border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-sky-50">
+            <div className="border-b border-violet-100 bg-white/80 px-5 py-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Select Members</div>
+              <div className="mt-1 text-sm font-semibold text-slate-500">Choose active users to move into this new team.</div>
+            </div>
+            <div className="max-h-[430px] space-y-2 overflow-y-auto p-4">
+              {users.map((user) => {
+                const isSelected = selected.has(normalizeUsername(user.username));
+                return (
+                  <button
+                    key={user.username}
+                    type="button"
+                    disabled={saving}
+                    onClick={() => onToggleMember(user.username)}
+                    className={`flex w-full items-center justify-between gap-4 rounded-[22px] border px-4 py-3 text-left transition ${
+                      isSelected
+                        ? "border-violet-300 bg-violet-100 shadow-[0_12px_24px_rgba(109,40,217,0.12)]"
+                        : "border-white bg-white hover:border-violet-200 hover:bg-violet-50"
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-black text-white ${roleAvatarClass(user.role)}`}>
+                        {userInitials(user.displayName || user.username)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
+                        <div className="truncate text-xs font-semibold text-slate-500">{user.teamName || "Unassigned Team"} • {user.role}</div>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${isSelected ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"}`}>
+                      {isSelected ? "Selected" : "Add"}
+                    </span>
+                  </button>
+                );
+              })}
+              {!users.length ? (
+                <div className="rounded-[22px] border border-dashed border-slate-200 bg-white px-5 py-8 text-center text-sm font-bold text-slate-500">
+                  No active users available.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
+          <button type="button" onClick={onCancel} disabled={saving} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+            Cancel
+          </button>
+          <button type="button" onClick={onSave} disabled={saving} className="rounded-2xl bg-gradient-to-r from-amber-500 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">
+            Create Team
           </button>
         </div>
       </div>
