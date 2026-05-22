@@ -13,6 +13,14 @@ import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluat
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import {
+  fetchStoredMaintenanceState,
+  fetchStoredRolePermissions,
+  fetchStoredUserProfiles,
+  StoredMaintenanceState,
+  StoredRolePermission,
+  StoredUserProfile,
+} from "./userRoleStore";
 
 type UserRole = string;
 type RolePermissionKey =
@@ -918,6 +926,56 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
   });
 
   return profiles;
+}
+
+function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
+  const profiles: Record<string, UserProfileSnapshot> = {};
+  rows.forEach((row) => {
+    const username = String(row.username || "").trim();
+    if (!username) return;
+    profiles[username.toLowerCase()] = {
+      username,
+      displayName: row.displayName || username,
+      agentName: row.agentName || row.displayName || username,
+      email: row.email || "",
+      teamLead: row.teamLead || "",
+      teamName: row.teamName || "",
+      role: row.role || "Admin Live Chat",
+      status: row.status === "Suspended" ? "Suspended" : "Active",
+      suspendReason: row.suspendReason || "",
+    };
+  });
+  return profiles;
+}
+
+function buildRolePermissionOverridesFromStore(rows: StoredRolePermission[]) {
+  const permissionMap = buildRolePermissionOverrides([]);
+
+  rows.forEach((row) => {
+    const roleName = String(row.roleName || "").trim();
+    if (!roleName) return;
+    const current = permissionMap[roleName] || getDefaultRolePermissions(roleName);
+    const next = { ...current };
+    PERMISSION_KEYS.forEach((key) => {
+      const value = row.permissions?.[key];
+      if (typeof value === "boolean") next[key] = value;
+    });
+    permissionMap[roleName] = roleName === "Quality Assurance"
+      ? { ...next, viewUserDirectory: true, viewAllTeams: true, viewOwnTeam: true, qaEvaluationTarget: false, manageUsers: true, manageTeams: true, manageRoles: true, manageMaintenance: true }
+      : next;
+  });
+
+  return permissionMap;
+}
+
+function buildMaintenanceStateFromStore(row: StoredMaintenanceState | null) {
+  if (!row) return null;
+  return {
+    enabled: row.enabled === true,
+    message: row.message || DEFAULT_MAINTENANCE_STATE.message,
+    updatedAt: row.updatedAt || "",
+    updatedBy: row.updatedBy || "",
+  };
 }
 
 function buildEffectiveUserAccounts(
@@ -2737,6 +2795,16 @@ export default function App() {
 
   const loadMaintenanceState = async () => {
     try {
+      const storedMaintenance = buildMaintenanceStateFromStore(await fetchStoredMaintenanceState());
+      if (storedMaintenance) {
+        setMaintenanceState(storedMaintenance);
+        return;
+      }
+    } catch {
+      // Fall back to the legacy event log while the new tables are not installed.
+    }
+
+    try {
       const logs = await fetchUsageLogs(5000);
       setMaintenanceState(buildMaintenanceState(logs));
     } catch {
@@ -2887,10 +2955,32 @@ export default function App() {
 
   const loadRoleOverrides = async () => {
     try {
-      const logs = await fetchUsageLogs(5000);
+      const logs = await fetchUsageLogs(5000).catch(() => [] as UsageLogEvent[]);
       const nextOverrides = buildUserRoleOverrides(logs);
-      const nextProfiles = buildUserProfileOverrides(logs);
-      const nextPermissions = buildRolePermissionOverrides(logs);
+      let nextProfiles = buildUserProfileOverrides(logs);
+      let nextPermissions = buildRolePermissionOverrides(logs);
+
+      try {
+        const [storedProfiles, storedPermissions] = await Promise.all([
+          fetchStoredUserProfiles(),
+          fetchStoredRolePermissions(),
+        ]);
+        if (storedProfiles.length) {
+          nextProfiles = {
+            ...nextProfiles,
+            ...buildUserProfileOverridesFromStore(storedProfiles),
+          };
+        }
+        if (storedPermissions.length) {
+          nextPermissions = {
+            ...nextPermissions,
+            ...buildRolePermissionOverridesFromStore(storedPermissions),
+          };
+        }
+      } catch {
+        // The new persistent tables may not exist yet; legacy logs still keep the app usable.
+      }
+
       setRoleOverrides(nextOverrides);
       setProfileOverrides(nextProfiles);
       setRolePermissions(nextPermissions);

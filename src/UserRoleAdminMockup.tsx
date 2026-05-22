@@ -3,6 +3,14 @@ import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import {
+  deleteStoredRoleDefinition,
+  fetchStoredRoleDefinitions,
+  upsertStoredMaintenanceState,
+  upsertStoredRoleDefinition,
+  upsertStoredRolePermissions,
+  upsertStoredUserProfiles,
+} from "./userRoleStore";
 
 type UserRole = string;
 type UserStatus = "Active" | "Suspended";
@@ -308,6 +316,60 @@ function buildRoleDefinitions(logs: UsageLogEvent[]) {
   return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function buildRoleDefinitionsFromStore(rows: Array<{
+  name: string;
+  description: string;
+  active: boolean;
+  locked: boolean;
+  updatedBy: string;
+  updatedAt: string;
+}>) {
+  const roleMap = new Map<string, RoleDefinition>();
+  ROLE_OPTIONS.forEach((role) => {
+    roleMap.set(role.toLowerCase(), {
+      name: role,
+      description:
+        role === "Quality Assurance"
+          ? "System admin role with protected access."
+          : role === "Admin Live Chat"
+            ? "Default live chat team role with scoped dashboard access."
+            : "Default system role.",
+      active: true,
+      createdAt: "",
+      createdBy: "System",
+      locked: role === "Quality Assurance",
+    });
+  });
+
+  rows.forEach((row) => {
+    if (!row.name) return;
+    roleMap.set(row.name.toLowerCase(), {
+      name: row.name,
+      description: row.description || "",
+      active: row.active,
+      createdAt: row.updatedAt || "",
+      createdBy: row.updatedBy || "System",
+      locked: row.name === "Quality Assurance" || row.locked,
+    });
+  });
+
+  return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function editableToStoredProfile(user: EditableUser) {
+  return {
+    username: user.username,
+    displayName: user.displayName,
+    agentName: user.agentName || user.displayName,
+    email: user.email,
+    role: user.role,
+    teamLead: user.teamLead,
+    teamName: user.teamName,
+    status: user.status,
+    suspendReason: user.suspendReason,
+  };
+}
+
 function roleBadgeClass(role: UserRole) {
   if (role === "Quality Assurance") return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700";
   if (role === "Supervisor") return "border-sky-200 bg-sky-50 text-sky-700";
@@ -453,6 +515,14 @@ export default function UserRoleAdminMockup({
   const canManageMaintenance = Boolean(currentPermissions.manageMaintenance);
 
   const loadRoleDefinitions = async () => {
+    try {
+      const storedRoles = await fetchStoredRoleDefinitions();
+      setRoleDefinitions(buildRoleDefinitionsFromStore(storedRoles));
+      return;
+    } catch {
+      // Fall back to usage logs until the persistent role tables are created.
+    }
+
     try {
       const logs = await fetchUsageLogs(5000);
       setRoleDefinitions(buildRoleDefinitions(logs));
@@ -605,14 +675,28 @@ export default function UserRoleAdminMockup({
 
     setSaving(true);
     setMessage("");
+    const updatedAt = new Date().toISOString();
+    const updatedBy = currentUser?.displayName || currentUser?.username || "";
+    try {
+      await upsertStoredRoleDefinition({
+        name,
+        description,
+        active: role?.active ?? true,
+        locked: name === "Quality Assurance",
+        updatedBy,
+        updatedAt,
+      });
+    } catch {
+      // Legacy log fallback keeps old deployments usable if the new tables are not installed yet.
+    }
     await logUsageEvent(currentUser, "role_definition_saved", {
       tab: "user-roles",
       details: {
         name,
         description,
         active: role?.active ?? true,
-        updatedBy: currentUser?.displayName || currentUser?.username || "",
-        updatedAt: new Date().toISOString(),
+        updatedBy,
+        updatedAt,
       },
     });
     await loadRoleDefinitions();
@@ -650,6 +734,11 @@ export default function UserRoleAdminMockup({
 
     setSaving(true);
     setMessage("");
+    try {
+      await deleteStoredRoleDefinition(role.name);
+    } catch {
+      // Legacy log fallback keeps delete tracked when the store table is not installed yet.
+    }
     await logUsageEvent(currentUser, "role_definition_deleted", {
       tab: "user-roles",
       details: {
@@ -686,6 +775,11 @@ export default function UserRoleAdminMockup({
     setSaving(true);
     setMessage("");
     if (nameChanged) {
+      try {
+        await deleteStoredRoleDefinition(role.name);
+      } catch {
+        // Keep going; the legacy log below still records the delete.
+      }
       await logUsageEvent(currentUser, "role_definition_deleted", {
         tab: "user-roles",
         details: {
@@ -695,14 +789,28 @@ export default function UserRoleAdminMockup({
         },
       });
     }
+    const updatedAt = new Date().toISOString();
+    const updatedBy = currentUser?.displayName || currentUser?.username || "";
+    try {
+      await upsertStoredRoleDefinition({
+        name: cleanedName,
+        description: cleanedDescription,
+        active: role.active,
+        locked: cleanedName === "Quality Assurance" || role.locked === true,
+        updatedBy,
+        updatedAt,
+      });
+    } catch {
+      // Legacy log fallback keeps role details available if the new table is not installed yet.
+    }
     await logUsageEvent(currentUser, "role_definition_saved", {
       tab: "user-roles",
       details: {
         name: cleanedName,
         description: cleanedDescription,
         active: role.active,
-        updatedBy: currentUser?.displayName || currentUser?.username || "",
-        updatedAt: new Date().toISOString(),
+        updatedBy,
+        updatedAt,
       },
     });
     await loadRoleDefinitions();
@@ -749,6 +857,9 @@ export default function UserRoleAdminMockup({
   const saveRolePermissions = async () => {
     setSaving(true);
     setMessage("");
+    const permissionRows: Array<{ roleName: string; permissions: RolePermissions; updatedBy: string; updatedAt: string }> = [];
+    const updatedAt = new Date().toISOString();
+    const updatedBy = currentUser?.displayName || currentUser?.username || "";
 
     for (const role of roleDefinitions) {
       const nextPermissions = {
@@ -773,15 +884,27 @@ export default function UserRoleAdminMockup({
         nextPermissions.viewAllTeams = true;
         nextPermissions.viewOwnTeam = true;
       }
+      permissionRows.push({
+        roleName: role.name,
+        permissions: nextPermissions,
+        updatedBy,
+        updatedAt,
+      });
       await logUsageEvent(currentUser, "role_permissions_saved", {
         tab: "user-roles",
         details: {
           roleName: role.name,
           permissions: nextPermissions,
-          updatedBy: currentUser?.displayName || currentUser?.username || "",
-          updatedAt: new Date().toISOString(),
+          updatedBy,
+          updatedAt,
         },
       });
+    }
+
+    try {
+      await upsertStoredRolePermissions(permissionRows);
+    } catch {
+      // Legacy logs remain the fallback until the new permission table is installed.
     }
 
     await onRolesChanged();
@@ -792,13 +915,26 @@ export default function UserRoleAdminMockup({
   const saveMaintenanceMode = async (enabled: boolean) => {
     setSaving(true);
     setMessage("");
+    const updatedAt = new Date().toISOString();
+    const updatedBy = currentUser?.displayName || currentUser?.username || "";
+    const message = maintenanceMessage.trim() || "QA Dashboard is under maintenance. Please try again later.";
+    try {
+      await upsertStoredMaintenanceState({
+        enabled,
+        message,
+        updatedBy,
+        updatedAt,
+      });
+    } catch {
+      // Legacy log fallback keeps maintenance mode usable before the new table exists.
+    }
     await logUsageEvent(currentUser, "system_maintenance_saved", {
       tab: "user-roles",
       details: {
         enabled,
-        message: maintenanceMessage.trim() || "QA Dashboard is under maintenance. Please try again later.",
-        updatedBy: currentUser?.displayName || currentUser?.username || "",
-        updatedAt: new Date().toISOString(),
+        message,
+        updatedBy,
+        updatedAt,
       },
     });
     await onMaintenanceChanged();
@@ -839,6 +975,12 @@ export default function UserRoleAdminMockup({
     setSaving(true);
     setMessage("");
     setAccessMessage("");
+
+    try {
+      await upsertStoredUserProfiles([editableToStoredProfile(cleanedUser)]);
+    } catch {
+      // Legacy log fallback keeps created users available before the new table exists.
+    }
 
     await logUsageEvent(currentUser, "user_profile_saved", {
       tab: "user-roles",
@@ -912,6 +1054,12 @@ export default function UserRoleAdminMockup({
     setSaving(true);
     setMessage("");
     setAccessMessage("");
+
+    try {
+      await upsertStoredUserProfiles(cleanedUsers.map(editableToStoredProfile));
+    } catch {
+      // Legacy log fallback keeps directory changes available before the new table exists.
+    }
 
     const existingUsernames = new Set(rows.map((row) => normalizeUsername(row.username)));
     const accessUpdates = cleanedUsers.filter(
