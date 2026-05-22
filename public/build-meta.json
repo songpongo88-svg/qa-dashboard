@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605221134",
-  "buildNumber": 2605221134,
-  "releaseLabel": "v1.0.0.2605221134",
-  "updatedAt": "22/05/2026 11:34:54",
+  "displayVersion": "1.0.0.2605221154",
+  "buildNumber": 2605221154,
+  "releaseLabel": "v1.0.0.2605221154",
+  "updatedAt": "22/05/2026 11:54:27",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2a8d1ee32f7b010806540586c7e556dbe53d75b8",
-  "commitMessage": "Assign roles from team management",
+  "commitHash": "d65cb80d12e10769826bee9d893c7a57c92848ed",
+  "commitMessage": "Add team creation workflow",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

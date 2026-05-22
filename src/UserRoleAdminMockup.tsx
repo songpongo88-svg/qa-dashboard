@@ -69,6 +69,7 @@ type EditableUser = {
 type TeamDraft = {
   teamName: string;
   teamLead: string;
+  roleMode: "keep" | "sync";
   assignedRole: UserRole;
   memberUsernames: string[];
 };
@@ -500,6 +501,7 @@ function createBlankTeamDraft(roleOptions: UserRole[]): TeamDraft {
   return {
     teamName: "",
     teamLead: "",
+    roleMode: "keep",
     assignedRole: roleOptions[0] || "Admin Live Chat",
     memberUsernames: [],
   };
@@ -671,11 +673,12 @@ export default function UserRoleAdminMockup({
     );
   };
 
-  const updateDraftTeam = (teamName: string, key: "teamLead" | "teamName" | "role", value: string) => {
+  const updateDraftTeam = (teamName: string, key: "teamLead" | "teamName" | "role" | "roleMode", value: string) => {
     setDraftUsers((currentDrafts) =>
       currentDrafts.map((item) => {
         const currentTeamName = item.teamName.trim() || "Unassigned Team";
         if (currentTeamName !== teamName) return item;
+        if (key === "roleMode") return item;
         return { ...item, [key]: value };
       })
     );
@@ -729,7 +732,7 @@ export default function UserRoleAdminMockup({
       setMessage("Team name is required before creating a team.");
       return;
     }
-    if (!assignedRole) {
+    if (newTeamDraft.roleMode === "sync" && !assignedRole) {
       setMessage("Assigned Role is required before creating a team.");
       return;
     }
@@ -751,7 +754,7 @@ export default function UserRoleAdminMockup({
               ...user,
               teamName,
               teamLead: newTeamDraft.teamLead.trim(),
-              role: assignedRole,
+              role: newTeamDraft.roleMode === "sync" ? assignedRole : user.role,
             }
           : user
       )
@@ -2022,10 +2025,11 @@ function TeamManagementPanel({
   saving: boolean;
   onChange: (index: number, key: keyof EditableUser, value: string) => void;
   canManageTeams: boolean;
-  onTeamChange: (teamName: string, key: "teamLead" | "teamName" | "role", value: string) => void;
+  onTeamChange: (teamName: string, key: "teamLead" | "teamName" | "role" | "roleMode", value: string) => void;
   roleOptions: UserRole[];
   isEditing: boolean;
 }) {
+  const [teamRoleModes, setTeamRoleModes] = useState<Record<string, "keep" | "sync">>({});
   const teamGroups = useMemo(() => {
     const map = new Map<string, { teamName: string; teamLead: string; assignedRole: string; roleCounts: Record<string, number>; members: Array<{ user: EditableUser; index: number }> }>();
     users.forEach((entry) => {
@@ -2054,6 +2058,11 @@ function TeamManagementPanel({
   }, [users]);
   const teamOptions = teamGroups.map((team) => team.teamName);
   const editable = canManageTeams && isEditing && !saving;
+  const getTeamRoleMode = (teamName: string, assignedRole: string) =>
+    teamRoleModes[teamName] || (assignedRole === "Mixed Roles" ? "keep" : "sync");
+  const setTeamRoleMode = (teamName: string, mode: "keep" | "sync") => {
+    setTeamRoleModes((current) => ({ ...current, [teamName]: mode }));
+  };
 
   return (
     <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
@@ -2063,8 +2072,8 @@ function TeamManagementPanel({
           : "border-sky-200 bg-sky-50 text-sky-800"
       }`}>
         {isEditing
-          ? "You are editing Team Management only. Team Name, Team Lead, and Assigned Role changes apply to every active user in that team."
-          : "Review team structure here. Press Edit Teams to update team names, team leads, team roles, or move users between teams."}
+          ? "You are editing Team Management only. Keep individual roles for mixed-position teams, or sync one role to every active user in that team."
+          : "Review team structure here. Press Edit Teams to update team names, team leads, role mode, or move users between teams."}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -2091,7 +2100,7 @@ function TeamManagementPanel({
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Team Lead</div>
                   {isEditing ? (
@@ -2107,17 +2116,41 @@ function TeamManagementPanel({
                   )}
                 </div>
                 <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Role Mode</div>
+                  {isEditing ? (
+                    <select
+                      value={getTeamRoleMode(team.teamName, team.assignedRole)}
+                      disabled={!editable}
+                      onChange={(event) => {
+                        const mode = event.target.value === "sync" ? "sync" : "keep";
+                        setTeamRoleMode(team.teamName, mode);
+                        if (mode === "keep") return;
+                        const fallbackRole = roleOptions.includes(team.assignedRole) ? team.assignedRole : roleOptions[0];
+                        if (fallbackRole) onTeamChange(team.teamName, "role", fallbackRole);
+                      }}
+                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
+                    >
+                      <option value="keep">Keep individual roles</option>
+                      <option value="sync">Sync one role to all members</option>
+                    </select>
+                  ) : (
+                    <div className="mt-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90">
+                      {team.assignedRole === "Mixed Roles" ? "Keep individual roles" : "Synced role"}
+                    </div>
+                  )}
+                </div>
+                <div>
                   <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Assigned Role</div>
                   {isEditing ? (
                     <select
                       value={roleOptions.includes(team.assignedRole) ? team.assignedRole : ""}
-                      disabled={!editable}
+                      disabled={!editable || getTeamRoleMode(team.teamName, team.assignedRole) === "keep"}
                       onChange={(event) => {
                         if (event.target.value) onTeamChange(team.teamName, "role", event.target.value);
                       }}
                       className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
                     >
-                      <option value="" disabled>{team.assignedRole === "Mixed Roles" ? "Mixed Roles - select to sync" : "Select role"}</option>
+                      <option value="" disabled>{team.assignedRole === "Mixed Roles" ? "Mixed Roles - keep as-is" : "Select role"}</option>
                       {roleOptions.map((role) => (
                         <option key={role} value={role}>{role}</option>
                       ))}
@@ -2877,10 +2910,25 @@ function CreateTeamModal({
             <ModalField label="Team Name" value={team.teamName} onChange={(value) => onChange("teamName", value)} placeholder="e.g. Escalation Support" disabled={saving} />
             <ModalField label="Team Lead" value={team.teamLead} onChange={(value) => onChange("teamLead", value)} placeholder="e.g. Anucha Makundin" disabled={saving} />
             <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Role Mode</span>
+              <select
+                value={team.roleMode}
+                disabled={saving}
+                onChange={(event) => onChange("roleMode", event.target.value === "sync" ? "sync" : "keep")}
+                className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              >
+                <option value="keep">Keep individual roles</option>
+                <option value="sync">Sync one role to all members</option>
+              </select>
+              <div className="mt-2 text-xs font-bold leading-5 text-slate-500">
+                Keep keeps each user's current role. Sync changes every selected member to the assigned role.
+              </div>
+            </label>
+            <label className="block">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Assigned Role</span>
               <select
                 value={team.assignedRole}
-                disabled={saving}
+                disabled={saving || team.roleMode === "keep"}
                 onChange={(event) => onChange("assignedRole", event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
