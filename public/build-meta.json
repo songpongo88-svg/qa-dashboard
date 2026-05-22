@@ -1,20 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605221038",
-  "buildNumber": 2605221038,
-  "releaseLabel": "v1.0.0.2605221038",
-  "updatedAt": "22/05/2026 10:38:37",
+  "displayVersion": "1.0.0.2605221055",
+  "buildNumber": 2605221055,
+  "releaseLabel": "v1.0.0.2605221055",
+  "updatedAt": "22/05/2026 10:55:44",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "dfc23a8e693271c1c1287a4af3c9b0793ba001cb",
-  "commitMessage": "Persist user roles in Supabase tables",
+  "commitHash": "72c7bf8aa0cdb419b5d7145f37381b8990e0522a",
+  "commitMessage": "Persist changed password records",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx",
-    "src/userRoleStore.ts",
-    "supabase-user-role-store.sql"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

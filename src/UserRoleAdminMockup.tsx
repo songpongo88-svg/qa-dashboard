@@ -390,8 +390,12 @@ function userInitials(value: string) {
   return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
-function buildTeamGroups<T extends { teamName?: string; teamLead?: string; status?: UserStatus }>(rows: T[]) {
-  const teamMap = new Map<string, { teamName: string; teamLead: string; users: T[]; activeCount: number; suspendedCount: number }>();
+function getRowRole(row: { role?: UserRole; effectiveRole?: UserRole }) {
+  return String(row.effectiveRole || row.role || "").trim();
+}
+
+function buildTeamGroups<T extends { teamName?: string; teamLead?: string; status?: UserStatus; role?: UserRole; effectiveRole?: UserRole }>(rows: T[]) {
+  const teamMap = new Map<string, { teamName: string; teamLead: string; users: T[]; activeCount: number; suspendedCount: number; assignedRole: string; roleCounts: Record<string, number> }>();
   rows.forEach((row) => {
     const teamName = row.teamName?.trim() || "Unassigned Team";
     const existing = teamMap.get(teamName) || {
@@ -400,14 +404,26 @@ function buildTeamGroups<T extends { teamName?: string; teamLead?: string; statu
       users: [],
       activeCount: 0,
       suspendedCount: 0,
+      assignedRole: "-",
+      roleCounts: {},
     };
     if ((!existing.teamLead || existing.teamLead === "-") && row.teamLead) existing.teamLead = row.teamLead;
     existing.users.push(row);
+    const rowRole = getRowRole(row);
+    if (rowRole) existing.roleCounts[rowRole] = (existing.roleCounts[rowRole] || 0) + 1;
     if (row.status === "Suspended") existing.suspendedCount += 1;
     else existing.activeCount += 1;
     teamMap.set(teamName, existing);
   });
-  return Array.from(teamMap.values()).sort((a, b) => a.teamName.localeCompare(b.teamName));
+  return Array.from(teamMap.values())
+    .map((team) => {
+      const roleNames = Object.keys(team.roleCounts);
+      return {
+        ...team,
+        assignedRole: roleNames.length === 1 ? roleNames[0] : roleNames.length > 1 ? "Mixed Roles" : "-",
+      };
+    })
+    .sort((a, b) => a.teamName.localeCompare(b.teamName));
 }
 
 function isSystemRole(roleName: string) {
@@ -637,7 +653,7 @@ export default function UserRoleAdminMockup({
     );
   };
 
-  const updateDraftTeam = (teamName: string, key: "teamLead" | "teamName", value: string) => {
+  const updateDraftTeam = (teamName: string, key: "teamLead" | "teamName" | "role", value: string) => {
     setDraftUsers((currentDrafts) =>
       currentDrafts.map((item) => {
         const currentTeamName = item.teamName.trim() || "Unassigned Team";
@@ -1240,11 +1256,12 @@ export default function UserRoleAdminMockup({
       );
     } else if (exportContext === "team_overview") {
       drawTable(
-        ["Team", "Team Lead", "Members", "Active", "Suspended"],
-        [54, 54, 24, 24, 28],
+        ["Team", "Team Lead", "Assigned Role", "Members", "Active", "Suspended"],
+        [44, 44, 38, 20, 18, 20],
         teamGroups.map((team) => [
           team.teamName,
           team.teamLead || "-",
+          team.assignedRole || "-",
           String(team.users.length),
           String(team.activeCount),
           String(team.suspendedCount),
@@ -1262,8 +1279,9 @@ export default function UserRoleAdminMockup({
         doc.setFontSize(15);
         doc.text(team.teamName, 18, y + 4);
         doc.setFontSize(11);
-        doc.text(`Team Lead: ${team.teamLead || "-"}`, 112, y + 4);
-        doc.text(`Members: ${team.users.length}`, 166, y + 4);
+        doc.text(`Lead: ${team.teamLead || "-"}`, 92, y + 4);
+        doc.text(`Role: ${team.assignedRole || "-"}`, 140, y + 4);
+        doc.text(`Members: ${team.users.length}`, 174, y + 4);
         y += 16;
         doc.setTextColor(15, 23, 42);
         drawTable(
@@ -1374,7 +1392,7 @@ export default function UserRoleAdminMockup({
                     : isEditingUsers
                     ? "Edit account information and save all directory changes in one action."
                     : isEditingTeamManagement
-                    ? "Edit team names, team leads, and user team assignments without changing user roles."
+                    ? "Edit team names, team leads, assigned roles, and user team assignments in one controlled view."
                     : "Review user profiles, registered emails, assigned roles, and account availability."}
                 </div>
               </div>
@@ -1452,6 +1470,7 @@ export default function UserRoleAdminMockup({
                 saving={saving}
                 onChange={updateDraftUser}
                 onTeamChange={updateDraftTeam}
+                roleOptions={activeRoleOptions}
                 canManageTeams={canManageTeams}
                 isEditing={isEditingTeamManagement}
               />
@@ -1821,7 +1840,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
 function TeamOverviewPanel({
   teamGroups,
 }: {
-  teamGroups: Array<{ teamName: string; teamLead: string; users: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }>; activeCount: number; suspendedCount: number }>;
+  teamGroups: Array<{ teamName: string; teamLead: string; assignedRole: string; users: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }>; activeCount: number; suspendedCount: number }>;
 }) {
   return (
     <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
@@ -1832,6 +1851,9 @@ function TeamOverviewPanel({
               <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/75">Team Workspace</div>
               <div className="mt-1 text-2xl font-black">{team.teamName}</div>
               <div className="mt-1 text-sm font-semibold text-white/80">Team Lead: {team.teamLead || "-"}</div>
+              <div className="mt-2 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black text-white">
+                Role: {team.assignedRole || "-"}
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3 border-b border-violet-100 bg-violet-50/60 p-4">
               <MiniTeamStat label="Members" value={team.users.length} />
@@ -1885,29 +1907,42 @@ function TeamManagementPanel({
   onChange,
   canManageTeams,
   onTeamChange,
+  roleOptions,
   isEditing,
 }: {
   users: Array<{ user: EditableUser; index: number }>;
   saving: boolean;
   onChange: (index: number, key: keyof EditableUser, value: string) => void;
   canManageTeams: boolean;
-  onTeamChange: (teamName: string, key: "teamLead" | "teamName", value: string) => void;
+  onTeamChange: (teamName: string, key: "teamLead" | "teamName" | "role", value: string) => void;
+  roleOptions: UserRole[];
   isEditing: boolean;
 }) {
   const teamGroups = useMemo(() => {
-    const map = new Map<string, { teamName: string; teamLead: string; members: Array<{ user: EditableUser; index: number }> }>();
+    const map = new Map<string, { teamName: string; teamLead: string; assignedRole: string; roleCounts: Record<string, number>; members: Array<{ user: EditableUser; index: number }> }>();
     users.forEach((entry) => {
       const teamName = entry.user.teamName.trim() || "Unassigned Team";
       const existing = map.get(teamName) || {
         teamName,
         teamLead: entry.user.teamLead.trim() || "",
+        assignedRole: "-",
+        roleCounts: {},
         members: [],
       };
       if (!existing.teamLead && entry.user.teamLead) existing.teamLead = entry.user.teamLead;
+      if (entry.user.role) existing.roleCounts[entry.user.role] = (existing.roleCounts[entry.user.role] || 0) + 1;
       existing.members.push(entry);
       map.set(teamName, existing);
     });
-    return Array.from(map.values()).sort((a, b) => a.teamName.localeCompare(b.teamName));
+    return Array.from(map.values())
+      .map((team) => {
+        const roles = Object.keys(team.roleCounts);
+        return {
+          ...team,
+          assignedRole: roles.length === 1 ? roles[0] : roles.length > 1 ? "Mixed Roles" : "-",
+        };
+      })
+      .sort((a, b) => a.teamName.localeCompare(b.teamName));
   }, [users]);
   const teamOptions = teamGroups.map((team) => team.teamName);
   const editable = canManageTeams && isEditing && !saving;
@@ -1920,8 +1955,8 @@ function TeamManagementPanel({
           : "border-sky-200 bg-sky-50 text-sky-800"
       }`}>
         {isEditing
-          ? "You are editing Team Management only. Team Name and Team Lead changes apply to every user in that team. User roles stay unchanged."
-          : "Review team structure here. Press Edit Teams to update team names, team leads, or move users between teams."}
+          ? "You are editing Team Management only. Team Name, Team Lead, and Assigned Role changes apply to every active user in that team."
+          : "Review team structure here. Press Edit Teams to update team names, team leads, team roles, or move users between teams."}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -1948,30 +1983,52 @@ function TeamManagementPanel({
                 </div>
               </div>
 
-              <div className="mt-4">
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Team Lead</div>
-                {isEditing ? (
-                  <input
-                    value={team.teamLead}
-                    disabled={!editable}
-                    onChange={(event) => onTeamChange(team.teamName, "teamLead", event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
-                    placeholder="Assign team lead"
-                  />
-                ) : (
-                  <div className="mt-1 text-sm font-bold text-white/80">{team.teamLead || "-"}</div>
-                )}
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Team Lead</div>
+                  {isEditing ? (
+                    <input
+                      value={team.teamLead}
+                      disabled={!editable}
+                      onChange={(event) => onTeamChange(team.teamName, "teamLead", event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
+                      placeholder="Assign team lead"
+                    />
+                  ) : (
+                    <div className="mt-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90">{team.teamLead || "-"}</div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Assigned Role</div>
+                  {isEditing ? (
+                    <select
+                      value={roleOptions.includes(team.assignedRole) ? team.assignedRole : ""}
+                      disabled={!editable}
+                      onChange={(event) => {
+                        if (event.target.value) onTeamChange(team.teamName, "role", event.target.value);
+                      }}
+                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
+                    >
+                      <option value="" disabled>{team.assignedRole === "Mixed Roles" ? "Mixed Roles - select to sync" : "Select role"}</option>
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="mt-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90">{team.assignedRole}</div>
+                  )}
+                </div>
               </div>
             </div>
 
             <div className="space-y-3 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/40 p-4">
-              <div className="grid grid-cols-[minmax(220px,1fr)_150px_minmax(180px,0.8fr)] gap-3 rounded-2xl bg-white/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <div className="grid grid-cols-[minmax(220px,1fr)_170px_minmax(180px,0.8fr)] gap-3 rounded-2xl bg-white/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                 <div>User</div>
                 <div>Role</div>
                 <div>Assigned Team</div>
               </div>
               {team.members.map(({ user, index }) => (
-                <div key={`${team.teamName}-${user.username}-${index}`} className="grid grid-cols-[minmax(220px,1fr)_150px_minmax(180px,0.8fr)] items-center gap-3 rounded-[22px] border border-white bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
+                <div key={`${team.teamName}-${user.username}-${index}`} className="grid grid-cols-[minmax(220px,1fr)_170px_minmax(180px,0.8fr)] items-center gap-3 rounded-[22px] border border-white bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-black text-white ${roleAvatarClass(user.role)}`}>
                       {userInitials(user.displayName || user.username)}
