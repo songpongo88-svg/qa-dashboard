@@ -591,6 +591,19 @@ function getMonthLabel(date: Date | null) {
   }).format(date);
 }
 
+function getWeekLabelFromAuditDate(date: Date | null) {
+  if (!date) return "-";
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + mondayOffset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const format = (item: Date) =>
+    `${String(item.getDate()).padStart(2, "0")}/${String(item.getMonth() + 1).padStart(2, "0")}/${item.getFullYear()}`;
+  return `${format(start)} - ${format(end)}`;
+}
+
 function getAppealDeadline(auditDate: Date | null) {
   if (!auditDate) return null;
   return new Date(auditDate.getFullYear(), auditDate.getMonth() + 1, 10, 23, 59, 59, 999);
@@ -1614,15 +1627,16 @@ function splitAssetUrls(raw: unknown) {
   const value = String(raw ?? "").trim();
   if (!value) return [];
 
-  const urlMatches = value.match(/https?:\/\/[^\s,|;]+/g);
-  const parts = urlMatches?.length
-    ? urlMatches
-    : value
-        .split(/[\n,|;]+/)
-        .map((item) => item.trim())
-        .filter(Boolean);
+  const dataMatches = value.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/g) || [];
+  const valueWithoutData = dataMatches.reduce((next, dataUrl) => next.replace(dataUrl, "\n"), value);
+  const urlMatches = valueWithoutData.match(/https?:\/\/[^\s,|;]+/g) || [];
+  const parts = valueWithoutData
+    .split(/[\n,|;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => !item.startsWith("http://") && !item.startsWith("https://"));
 
-  return [...new Set(parts)];
+  return [...new Set([...dataMatches, ...urlMatches, ...parts])];
 }
 
 function isGoogleDriveAssetUrl(url: string) {
@@ -1670,6 +1684,10 @@ function getCasePdfActionLabel(url: string, caseId: string) {
 
 async function urlExists(url: string) {
   if (!url) return false;
+
+  if (url.startsWith("data:image/")) {
+    return true;
+  }
 
   if (isGoogleDriveAssetUrl(url)) {
     return true;
@@ -4006,7 +4024,7 @@ export default function DashboardMockup({
               auditTimestamp: record.auditTimestamp || formatBangkokDateTime(record.submittedAt),
               monthKey,
               monthLabel: getMonthLabel(monthDate),
-              weekLabel: "-",
+              weekLabel: getWeekLabelFromAuditDate(validAuditDate),
               caseId: record.caseId,
               rawDataSourceName: "QA Evaluation Form",
               caseUrl: record.caseUrl,

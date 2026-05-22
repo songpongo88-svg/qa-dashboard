@@ -1,22 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605221435",
-  "buildNumber": 2605221435,
-  "releaseLabel": "v1.0.0.2605221435",
-  "updatedAt": "22/05/2026 14:35:47",
+  "displayVersion": "1.0.0.2605221526",
+  "buildNumber": 2605221526,
+  "releaseLabel": "v1.0.0.2605221526",
+  "updatedAt": "22/05/2026 15:26:36",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ff6adc782cd64df1f195580bba01beee10a4ec81",
-  "commitMessage": "Persist QA evaluation submissions",
+  "commitHash": "7cfef2078e4cec6461dacb08e0d44bc468c356b3",
+  "commitMessage": "Update build metadata",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/App.tsx",
-    "src/CreateEvaluationMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx",
-    "src/evaluationStore.ts",
-    "supabase-qa-evaluations.sql"
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

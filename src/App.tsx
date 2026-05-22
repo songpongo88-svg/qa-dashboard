@@ -2532,14 +2532,15 @@ export default function App() {
     const submittedAtMs = Date.now();
     const normalizedCaseId = String(payload.caseId || "UNTITLED").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "-");
     const normalizedAgent = String(payload.agentName || payload.targetDisplayName || "UNKNOWN").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const evaluationKey = [
+    const generatedEvaluationKey = [
       "web-eval",
       normalizedCaseId,
       normalizedAgent,
       payload.auditDate || "no-date",
       submittedAtMs,
     ].join("|");
-    const evaluationId = evaluationKey.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const evaluationKey = payload.evaluationKey || generatedEvaluationKey;
+    const evaluationId = payload.recordId || evaluationKey.replace(/[^a-zA-Z0-9_-]/g, "_");
 
     try {
       await upsertStoredEvaluation({

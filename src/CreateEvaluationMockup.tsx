@@ -1,7 +1,7 @@
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
-import { fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
+import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
 import {
   RUBRIC_GROUP_LABELS,
   formatRubricDate,
@@ -20,6 +20,7 @@ type EvidenceFile = {
   type: string;
   size: number;
   previewUrl: string;
+  storedUrl: string;
 };
 
 type AutoGrowTextareaProps = {
@@ -60,6 +61,8 @@ export type EvaluationAgentOption = {
 };
 
 export type EvaluationSubmitPayload = {
+  recordId?: string;
+  evaluationKey?: string;
   caseId: string;
   agentName: string;
   targetUsername: string;
@@ -121,6 +124,15 @@ const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
     acc[topic.code] = { score: 0, reason: "" };
@@ -143,6 +155,10 @@ function todayInputValue() {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function currentYearStartInputValue() {
+  return `${new Date().getFullYear()}-01-01`;
 }
 
 function formatThaiDate(value: string) {
@@ -236,9 +252,12 @@ export default function CreateEvaluationMockup({
   const [draftMessage, setDraftMessage] = useState("");
   const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState("");
+  const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState("");
   const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>("form");
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
-  const [reportDateFrom, setReportDateFrom] = useState(todayInputValue());
+  const [submittedRecords, setSubmittedRecords] = useState<EvaluationRecord[]>([]);
+  const [submittedRecordsLoading, setSubmittedRecordsLoading] = useState(false);
+  const [reportDateFrom, setReportDateFrom] = useState(currentYearStartInputValue());
   const [reportDateTo, setReportDateTo] = useState(todayInputValue());
   const [reportMessage, setReportMessage] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
@@ -317,6 +336,12 @@ export default function CreateEvaluationMockup({
     }
   }, []);
 
+  useEffect(() => {
+    if (workspaceView === "report") {
+      void loadSubmittedRecords();
+    }
+  }, [workspaceView]);
+
   const finalScore = useMemo(
     () => topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
     [topicState, topics]
@@ -330,7 +355,7 @@ export default function CreateEvaluationMockup({
 
   const evidencePreviewValue = useMemo(() => {
     const manualUrl = evidenceUrl.trim();
-    const attached = evidenceFiles.map((file) => `supabase://qa-evidence/${caseId || "draft-case"}/${file.name}`);
+    const attached = evidenceFiles.map((file) => file.storedUrl || file.previewUrl || `attachment://${caseId || "draft-case"}/${file.name}`);
     return [manualUrl, ...attached].filter(Boolean).join("\n");
   }, [caseId, evidenceFiles, evidenceUrl]);
 
@@ -443,6 +468,7 @@ export default function CreateEvaluationMockup({
     setTopicState((current) => ({ ...current, ...(normalizedDraft.topicState || {}) }));
     setDraftSavedAt(normalizedDraft.savedAt || "");
     setActiveDraftId(normalizedDraft.draftId || "");
+    setActiveSubmittedRecordId("");
     setDraftMessage(normalizedDraft.savedAt ? `Loaded draft saved at ${normalizedDraft.savedAt}` : "Loaded saved draft");
   }
 
@@ -461,6 +487,7 @@ export default function CreateEvaluationMockup({
     setEvaluationStartedAt(timestamp);
     setEvaluationSubmittedAt("");
     setEvaluationStatus("Draft");
+    setActiveSubmittedRecordId("");
     setWorkspaceView("form");
   }
 
@@ -484,6 +511,7 @@ export default function CreateEvaluationMockup({
     setEvaluationStatus("Not Started");
     setDraftSavedAt("");
     setActiveDraftId("");
+    setActiveSubmittedRecordId("");
     setTopicState(buildInitialTopicState(topics));
   }
 
@@ -528,6 +556,8 @@ export default function CreateEvaluationMockup({
     setActiveDraftId("");
     setDraftSavedAt("");
     await onSubmitEvaluation?.({
+      recordId: activeSubmittedRecordId || undefined,
+      evaluationKey: activeSubmittedRecordId || undefined,
       caseId: caseId || "Untitled Case",
       agentName,
       targetUsername: selectedAgentOption?.username || "",
@@ -558,7 +588,8 @@ export default function CreateEvaluationMockup({
       submittedAt,
     });
     const historyRecord: EvaluationRecord = {
-      recordId: `${caseId || "UNTITLED"}-${now.getTime()}`,
+      recordId: activeSubmittedRecordId || `${caseId || "UNTITLED"}-${now.getTime()}`,
+      evaluationKey: activeSubmittedRecordId || undefined,
       pdfButtonLabel: `${caseId || "Untitled"} Original PDF`,
       caseId: caseId || "Untitled Case",
       agentName,
@@ -590,6 +621,7 @@ export default function CreateEvaluationMockup({
       submittedAt,
     };
     persistHistory([historyRecord, ...evaluationHistory]);
+    setActiveSubmittedRecordId("");
     resetEvaluationForm();
     setWorkspaceView("form");
     setDraftMessage(`Evaluation submitted at ${submittedAt}. Result task was sent to ${selectedAgentOption?.displayName || agentName || "the selected agent"}.`);
@@ -620,17 +652,23 @@ export default function CreateEvaluationMockup({
     }));
   }
 
-  function handleEvidenceFiles(files: FileList | null) {
+  async function handleEvidenceFiles(files: FileList | null) {
     if (!files?.length) return;
-    const nextFiles = Array.from(files)
-      .filter((file) => file.type.startsWith("image/") || file.type === "application/pdf")
-      .map((file) => ({
+    const acceptedFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type === "application/pdf");
+    const nextFiles = await Promise.all(
+      acceptedFiles.map(async (file) => {
+        const previewUrl = URL.createObjectURL(file);
+        const dataUrl = file.type.startsWith("image/") && file.size <= 4 * 1024 * 1024 ? await fileToDataUrl(file) : "";
+        return {
         id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: file.name,
         type: file.type,
         size: file.size,
-        previewUrl: URL.createObjectURL(file),
-      }));
+          previewUrl,
+          storedUrl: dataUrl || previewUrl,
+        };
+      })
+    );
 
     setEvidenceFiles((current) => [...current, ...nextFiles]);
   }
@@ -685,16 +723,77 @@ export default function CreateEvaluationMockup({
     });
   }
 
-  async function exportEvaluationRowData() {
-    setReportMessage("Loading submitted evaluations...");
-    const stored = await fetchStoredEvaluations();
-    const storedRecords: EvaluationRecord[] = stored.map((item) => ({
+  function storedRecordToEvaluationRecord(item: Awaited<ReturnType<typeof fetchStoredEvaluations>>[number]): EvaluationRecord {
+    return {
       ...item,
       recordId: item.id,
+      evaluationKey: item.evaluationKey,
       pdfButtonLabel: `${item.caseId || "Untitled"} Original PDF`,
       rawDataPreview: item.rawDataPreview || {},
       targetEmail: item.targetEmail,
-    }));
+    };
+  }
+
+  async function loadSubmittedRecords() {
+    setSubmittedRecordsLoading(true);
+    try {
+      const stored = await fetchStoredEvaluations();
+      setSubmittedRecords(stored.map(storedRecordToEvaluationRecord));
+      setReportMessage(stored.length ? `Loaded ${stored.length} submitted evaluation record(s).` : "No submitted evaluations found yet.");
+    } catch (error) {
+      setReportMessage(error instanceof Error ? error.message : "Submitted evaluations could not be loaded.");
+    } finally {
+      setSubmittedRecordsLoading(false);
+    }
+  }
+
+  function openSubmittedRecord(record: EvaluationRecord) {
+    setActiveSubmittedRecordId(record.recordId);
+    setAgentName(record.agentName || record.targetDisplayName || "");
+    setAuditDate(record.auditDate || todayInputValue());
+    setWaitingTime(record.waitingTime || "");
+    setServiceTime(record.serviceTime || "");
+    setCaseId(record.caseId || "");
+    setCaseUrl(record.caseUrl || "");
+    setInquiry(record.inquiry || "");
+    setCaseDescription(record.caseDescription || "");
+    setEvidenceUrl((record.evidenceUrls || []).join("\n"));
+    setEvidenceFiles([]);
+    setCriticalError(Boolean(record.criticalError));
+    setEvaluationStartedAt(record.evaluationStartedAt || record.auditTimestamp || "");
+    setEvaluationSubmittedAt(record.submittedAt || "");
+    setEvaluationStatus("Draft");
+    setDraftSavedAt("");
+    const nextTopicState = buildInitialTopicState(getRubricForDate(record.auditDate || auditDate).topics);
+    (record.topics || []).forEach((topic) => {
+      nextTopicState[topic.code] = {
+        score: Number(topic.score || 0),
+        reason: topic.comment || "",
+      };
+    });
+    setTopicState(nextTopicState);
+    setWorkspaceView("form");
+    setDraftMessage(`Loaded submitted case ${record.caseId} for editing. Submit Evaluation again to update the saved record.`);
+  }
+
+  async function deleteSubmittedRecord(record: EvaluationRecord) {
+    const ok = window.confirm(`Delete submitted evaluation ${record.caseId}? This removes it from Dashboard/Summary after refresh.`);
+    if (!ok) return;
+    try {
+      await deleteStoredEvaluation(record.recordId);
+      setSubmittedRecords((current) => current.filter((item) => item.recordId !== record.recordId));
+      setEvaluationHistory((current) => current.filter((item) => item.recordId !== record.recordId));
+      setReportMessage(`Deleted submitted evaluation ${record.caseId}. Refresh Dashboard/Summary to remove it from the score.`);
+      if (activeSubmittedRecordId === record.recordId) setActiveSubmittedRecordId("");
+    } catch (error) {
+      setReportMessage(error instanceof Error ? error.message : "Submitted evaluation could not be deleted.");
+    }
+  }
+
+  async function exportEvaluationRowData() {
+    setReportMessage("Loading submitted evaluations...");
+    const stored = await fetchStoredEvaluations();
+    const storedRecords: EvaluationRecord[] = stored.map(storedRecordToEvaluationRecord);
     const merged = storedRecords.length ? storedRecords : evaluationHistory;
     const filtered = filterRecordsByReportDate(merged);
     if (!filtered.length) {
@@ -899,6 +998,51 @@ export default function CreateEvaluationMockup({
                   {reportMessage}
                 </div>
               ) : null}
+              <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-950 px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">Submitted Evaluations</div>
+                    <div className="mt-1 text-base font-black">Edit / Delete saved cases</div>
+                  </div>
+                  <button type="button" onClick={loadSubmittedRecords} className="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
+                    Refresh List
+                  </button>
+                </div>
+                <div className="p-4">
+                  {submittedRecordsLoading ? (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">Loading submitted evaluations...</div>
+                  ) : filterRecordsByReportDate(submittedRecords).length ? (
+                    <div className="space-y-3">
+                      {filterRecordsByReportDate(submittedRecords).slice(0, 60).map((record) => (
+                        <div key={record.recordId} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
+                          <div>
+                            <div className="text-sm font-black text-slate-950">{record.caseId}</div>
+                            <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || record.targetDisplayName || "-"} | Audit {formatThaiDate(record.auditDate)}</div>
+                          </div>
+                          <div className="text-xs font-semibold text-slate-600">
+                            Submitted: <span className="font-black text-slate-900">{record.submittedAt || "-"}</span>
+                          </div>
+                          <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-center text-sm font-black text-emerald-800">
+                            {record.finalScore}/100 {record.grade}
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => openSubmittedRecord(record)} className="flex-1 rounded-xl bg-sky-700 px-3 py-2 text-xs font-black text-white transition hover:bg-sky-800">
+                              Edit
+                            </button>
+                            <button type="button" onClick={() => deleteSubmittedRecord(record)} className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100">
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
+                      No submitted evaluations in this date range.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ) : null}

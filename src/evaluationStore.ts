@@ -166,6 +166,20 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
   if (!response.ok) throw new Error(`Supabase evaluation upsert failed: ${response.status}`);
 }
 
+export async function deleteStoredEvaluation(id: string) {
+  if (!isEvaluationStoreConfigured()) throw new Error("Supabase is not configured.");
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId) throw new Error("Evaluation id is required.");
+  const params = new URLSearchParams({
+    id: `eq.${normalizedId}`,
+  });
+  const response = await fetch(endpoint(`?${params.toString()}`), {
+    method: "DELETE",
+    headers: headers("return=minimal"),
+  });
+  if (!response.ok) throw new Error(`Supabase evaluation delete failed: ${response.status}`);
+}
+
 export async function fetchStoredEvaluations(limit = 5000) {
   if (!isEvaluationStoreConfigured()) return [];
   const params = new URLSearchParams({

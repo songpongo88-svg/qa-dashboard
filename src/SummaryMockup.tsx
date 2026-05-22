@@ -284,6 +284,19 @@ function getMonthLabel(date: Date | null) {
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
 }
 
+function getWeekLabelFromAuditDate(date: Date | null) {
+  if (!date) return "-";
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + mondayOffset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const format = (item: Date) =>
+    `${String(item.getDate()).padStart(2, "0")}/${String(item.getMonth() + 1).padStart(2, "0")}/${item.getFullYear()}`;
+  return `${format(start)} - ${format(end)}`;
+}
+
 function parseMonthLabelDate(value: any): Date | null {
   const text = String(value ?? "").trim();
   if (!text) return null;
@@ -1177,7 +1190,7 @@ export default function SummaryMockup({
               monthKey,
               monthLabel: getMonthLabel(monthDate),
               yearKey: getYearKey(validAuditDate),
-              weekLabel: "-",
+              weekLabel: getWeekLabelFromAuditDate(validAuditDate),
               caseId: record.caseId,
               inquiryTh: record.inquiry || "-",
               inquiryEn: record.inquiry || "-",
