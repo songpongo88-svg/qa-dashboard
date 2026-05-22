@@ -127,6 +127,7 @@ const USER_ACCOUNTS: UserAccount[] = [
 
 const STORAGE_KEY = "qa_current_user";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
+const PASSWORD_RECORD_KEY = "qa_password_records";
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
@@ -744,6 +745,52 @@ function writePasswordOverrides(value: Record<string, string>) {
   localStorage.setItem(PASSWORD_OVERRIDE_KEY, JSON.stringify(value));
 }
 
+function readLocalPasswordRecords(): Record<string, PasswordRecord> {
+  try {
+    const raw = localStorage.getItem(PASSWORD_RECORD_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as Record<string, PasswordRecord>;
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalPasswordRecords(value: Record<string, PasswordRecord>) {
+  localStorage.setItem(PASSWORD_RECORD_KEY, JSON.stringify(value));
+}
+
+function saveLocalPasswordRecord(username: string, record: PasswordRecord) {
+  const current = readLocalPasswordRecords();
+  current[username.trim().toLowerCase()] = record;
+  writeLocalPasswordRecords(current);
+}
+
+function removeLocalPasswordRecord(username: string) {
+  const current = readLocalPasswordRecords();
+  delete current[username.trim().toLowerCase()];
+  writeLocalPasswordRecords(current);
+}
+
+function getLocalPasswordRecord(username: string): PasswordRecord | null {
+  const record = readLocalPasswordRecords()[username.trim().toLowerCase()];
+  if (!record || typeof record.password !== "string" || !record.password) return null;
+  return record;
+}
+
+function getLatestPasswordRecord(primary: PasswordRecord | null, fallback: PasswordRecord | null) {
+  if (!primary) return fallback;
+  if (!fallback) return primary;
+
+  const primaryTime = new Date(primary.issuedAt || "").getTime();
+  const fallbackTime = new Date(fallback.issuedAt || "").getTime();
+  if (Number.isFinite(fallbackTime) && (!Number.isFinite(primaryTime) || fallbackTime > primaryTime)) {
+    return fallback;
+  }
+  return primary;
+}
+
 function savePasswordOverride(username: string, newPassword: string) {
   const current = readPasswordOverrides();
   current[username.trim().toLowerCase()] = newPassword;
@@ -754,6 +801,7 @@ function removePasswordOverride(username: string) {
   const current = readPasswordOverrides();
   delete current[username.trim().toLowerCase()];
   writePasswordOverrides(current);
+  removeLocalPasswordRecord(username);
 }
 
 function getEffectivePassword(account: UserAccount) {
@@ -1036,6 +1084,7 @@ async function getCentralPasswordOverride(username: string) {
 }
 
 async function getCentralPasswordRecord(username: string): Promise<PasswordRecord | null> {
+  const localRecord = getLocalPasswordRecord(username);
   try {
     const normalized = username.trim().toLowerCase();
     const logs = await fetchUsageLogs(2000);
@@ -1048,9 +1097,10 @@ async function getCentralPasswordRecord(username: string): Promise<PasswordRecor
       );
     });
 
-    return passwordEvent ? getPasswordRecordFromEvent(passwordEvent) : null;
+    const centralRecord = passwordEvent ? getPasswordRecordFromEvent(passwordEvent) : null;
+    return getLatestPasswordRecord(centralRecord, localRecord);
   } catch {
-    return null;
+    return localRecord;
   }
 }
 
@@ -3580,6 +3630,13 @@ export default function App() {
     const expiresAt = addMonths(changedAt, PERMANENT_PASSWORD_VALID_MONTHS);
 
     savePasswordOverride(currentUser.username, newPasswordInput);
+    saveLocalPasswordRecord(currentUser.username, {
+      password: newPasswordInput,
+      kind: "permanent",
+      issuedAt: changedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      eventType: "password_changed",
+    });
     await logUsageEvent(currentUser, "password_changed", {
       tab: "account",
       target_agent: currentUser.username,
