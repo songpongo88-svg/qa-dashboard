@@ -34,6 +34,7 @@ type RolePermissionKey =
   | "reviewAppeals"
   | "appealOverride"
   | "viewRubric"
+  | "createEvaluation"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -236,6 +237,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "reviewAppeals",
   "appealOverride",
   "viewRubric",
+  "createEvaluation",
   "viewUsageLog",
   "exportPdf",
   "exportAppealRawdata",
@@ -280,6 +282,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -304,6 +307,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -328,6 +332,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -352,6 +357,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: true,
     appealOverride: true,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
@@ -2436,6 +2442,7 @@ export default function App() {
   }, [effectiveUserAccounts, rolePermissions]);
   const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
   const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
+  const createEvaluationAllowed = hasRolePermission(currentUser, rolePermissions, "createEvaluation");
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
   const appealOverrideAllowed = hasRolePermission(currentUser, rolePermissions, "appealOverride");
   const passwordResetAdminAllowed = hasRolePermission(currentUser, rolePermissions, "resetPassword");
@@ -2455,7 +2462,11 @@ export default function App() {
       ? activeTab
       : "";
   const reviewMenuValue =
-    activeTab === "appeal" || activeTab === "create-evaluation" || activeTab === "appeal-requests" || activeTab === "appeal-override" || activeTab === "rubric"
+    activeTab === "appeal" ||
+    (activeTab === "create-evaluation" && createEvaluationAllowed) ||
+    activeTab === "appeal-requests" ||
+    activeTab === "appeal-override" ||
+    activeTab === "rubric"
       ? activeTab
       : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
@@ -2497,6 +2508,7 @@ export default function App() {
   };
 
   const handleReviewMenuChange = (value: string) => {
+    if (value === "create-evaluation" && !createEvaluationAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "appeal" || value === "create-evaluation" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
@@ -3172,10 +3184,13 @@ export default function App() {
     if (activeTab === "appeal-override" && !appealOverrideAllowed) {
       setActiveTab("dashboard");
     }
+    if (activeTab === "create-evaluation" && !createEvaluationAllowed) {
+      setActiveTab("dashboard");
+    }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, appealOverrideAllowed, roleAdminAllowed]);
+  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, appealOverrideAllowed, createEvaluationAllowed, roleAdminAllowed]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -4052,7 +4067,7 @@ export default function App() {
                     onChange={handleReviewMenuChange}
                     options={[
                       { value: "appeal", label: "Appeal" },
-                      { value: "create-evaluation", label: "Create Evaluation" },
+                      ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create Evaluation" }] : []),
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
                       ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
                       { value: "rubric", label: "QA Rubric" },
@@ -4243,7 +4258,7 @@ export default function App() {
               });
             }}
           />
-        ) : activeTab === "create-evaluation" ? (
+        ) : activeTab === "create-evaluation" && createEvaluationAllowed ? (
           <CreateEvaluationMockup
             agentOptions={qaEvaluationAgentOptions}
             onSubmitEvaluation={handleEvaluationSubmitted}

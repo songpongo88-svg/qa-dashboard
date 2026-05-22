@@ -24,6 +24,7 @@ type RolePermissionKey =
   | "reviewAppeals"
   | "appealOverride"
   | "viewRubric"
+  | "createEvaluation"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -131,6 +132,7 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "reviewAppeals", label: "Review Appeals", category: "Review", description: "Open Appeal Requests and approve/reject requests." },
   { key: "appealOverride", label: "Appeal Override", category: "Review", description: "Allow specific late cases to submit appeal." },
   { key: "viewRubric", label: "View QA Rubric", category: "Review", description: "Open QA scoring standard page." },
+  { key: "createEvaluation", label: "Create QA Evaluation", category: "Review", description: "Open Create QA Evaluation and submit new QA assessment records." },
   { key: "viewUsageLog", label: "View Usage Log", category: "Account", description: "Open system usage log and export logs." },
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
   { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
@@ -159,6 +161,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -183,6 +186,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -207,6 +211,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -231,6 +236,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: true,
     appealOverride: true,
     viewRubric: true,
+    createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
