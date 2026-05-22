@@ -10,6 +10,7 @@ import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
+import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
@@ -2528,6 +2529,56 @@ export default function App() {
 
   const handleEvaluationSubmitted = async (payload: EvaluationSubmitPayload) => {
     if (!currentUser) return;
+    const submittedAtMs = Date.now();
+    const normalizedCaseId = String(payload.caseId || "UNTITLED").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "-");
+    const normalizedAgent = String(payload.agentName || payload.targetDisplayName || "UNKNOWN").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const evaluationKey = [
+      "web-eval",
+      normalizedCaseId,
+      normalizedAgent,
+      payload.auditDate || "no-date",
+      submittedAtMs,
+    ].join("|");
+    const evaluationId = evaluationKey.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    try {
+      await upsertStoredEvaluation({
+        id: evaluationId,
+        evaluationKey,
+        caseId: payload.caseId,
+        agentName: payload.agentName,
+        targetUsername: payload.targetUsername,
+        targetDisplayName: payload.targetDisplayName,
+        targetEmail: payload.targetEmail || "",
+        targetRole: payload.targetRole,
+        auditDate: payload.auditDate,
+        auditTimestamp: payload.auditTimestamp,
+        waitingTime: payload.waitingTime,
+        serviceTime: payload.serviceTime,
+        caseUrl: payload.caseUrl,
+        inquiry: payload.inquiry,
+        caseDescription: payload.caseDescription,
+        evidenceUrls: payload.evidenceUrls || [],
+        criticalError: payload.criticalError,
+        finalScore: payload.finalScore,
+        grade: payload.grade,
+        qaScheme: payload.qaScheme,
+        rubricName: payload.rubricName,
+        rubricPeriod: payload.rubricPeriod,
+        completedTopics: payload.completedTopics,
+        totalTopics: payload.totalTopics,
+        strengths: payload.strengths,
+        improvements: payload.improvements,
+        topics: payload.topics || [],
+        rawDataPreview: payload.rawDataPreview || {},
+        evaluatorUsername: currentUser.username || "",
+        evaluatorName: currentUser.displayName || currentUser.username || "",
+        submittedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.warn("Evaluation store save failed; usage log fallback will still be recorded.", error);
+    }
+
     await logUsageEvent(currentUser, "qa_evaluation_submitted", {
       tab: "create-evaluation",
       case_id: payload.caseId,

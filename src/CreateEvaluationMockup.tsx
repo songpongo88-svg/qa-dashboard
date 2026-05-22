@@ -1,5 +1,7 @@
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
+import { fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
 import {
   RUBRIC_GROUP_LABELS,
   formatRubricDate,
@@ -65,6 +67,13 @@ export type EvaluationSubmitPayload = {
   targetEmail?: string;
   targetRole: string;
   auditDate: string;
+  auditTimestamp: string;
+  waitingTime: string;
+  serviceTime: string;
+  caseUrl: string;
+  inquiry: string;
+  caseDescription: string;
+  evidenceUrls: string[];
   finalScore: number;
   grade: string;
   criticalError: boolean;
@@ -75,6 +84,9 @@ export type EvaluationSubmitPayload = {
   totalTopics: number;
   strengths: string[];
   improvements: string[];
+  topics: StoredEvaluationTopic[];
+  rawDataPreview: Record<string, string | number>;
+  evaluationStartedAt: string;
   submittedAt: string;
 };
 
@@ -226,6 +238,9 @@ export default function CreateEvaluationMockup({
   const [activeDraftId, setActiveDraftId] = useState("");
   const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>("form");
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
+  const [reportDateFrom, setReportDateFrom] = useState(todayInputValue());
+  const [reportDateTo, setReportDateTo] = useState(todayInputValue());
+  const [reportMessage, setReportMessage] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
     "Answer Quality": true,
@@ -489,6 +504,13 @@ export default function CreateEvaluationMockup({
       reason: topicState[topic.code]?.reason || "",
       pct: topic.max ? (Number(topicState[topic.code]?.score || 0) / topic.max) * 100 : 0,
     }));
+    const submittedTopicRows: StoredEvaluationTopic[] = topicSummaries.map((item) => ({
+      code: item.topic.code,
+      title: item.topic.title,
+      max: item.topic.max,
+      score: item.score,
+      comment: item.reason,
+    }));
     const strengths = topicSummaries
       .filter((item) => item.pct >= 90)
       .slice(0, 3)
@@ -513,6 +535,13 @@ export default function CreateEvaluationMockup({
       targetEmail: selectedAgentOption?.email || "",
       targetRole: selectedAgentOption?.role || "",
       auditDate,
+      auditTimestamp: submittedAt,
+      waitingTime,
+      serviceTime,
+      caseUrl,
+      inquiry,
+      caseDescription,
+      evidenceUrls: evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
       finalScore: criticalError ? 0 : finalScore,
       grade,
       criticalError,
@@ -523,12 +552,14 @@ export default function CreateEvaluationMockup({
       totalTopics: topics.length,
       strengths,
       improvements,
+      topics: submittedTopicRows,
+      rawDataPreview: previewColumns,
+      evaluationStartedAt: evaluationStartedAt || submittedAt,
       submittedAt,
     });
     const historyRecord: EvaluationRecord = {
       recordId: `${caseId || "UNTITLED"}-${now.getTime()}`,
       pdfButtonLabel: `${caseId || "Untitled"} Original PDF`,
-      rawDataPreview: previewColumns,
       caseId: caseId || "Untitled Case",
       agentName,
       targetUsername: selectedAgentOption?.username || "",
@@ -536,6 +567,13 @@ export default function CreateEvaluationMockup({
       targetEmail: selectedAgentOption?.email || "",
       targetRole: selectedAgentOption?.role || "",
       auditDate,
+      auditTimestamp: submittedAt,
+      waitingTime,
+      serviceTime,
+      caseUrl,
+      inquiry,
+      caseDescription,
+      evidenceUrls: evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
       finalScore: criticalError ? 0 : finalScore,
       grade,
       criticalError,
@@ -546,6 +584,9 @@ export default function CreateEvaluationMockup({
       totalTopics: topics.length,
       strengths,
       improvements,
+      topics: submittedTopicRows,
+      rawDataPreview: previewColumns,
+      evaluationStartedAt: evaluationStartedAt || submittedAt,
       submittedAt,
     };
     persistHistory([historyRecord, ...evaluationHistory]);
@@ -592,6 +633,80 @@ export default function CreateEvaluationMockup({
       }));
 
     setEvidenceFiles((current) => [...current, ...nextFiles]);
+  }
+
+  function buildRowDataRows(records: EvaluationRecord[]) {
+    const allTopicCodes = Array.from(
+      new Set(records.flatMap((record) => record.topics.map((topic) => topic.code)))
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    return records.map((record) => {
+      const row: Record<string, string | number> = {
+        Timestamp: record.submittedAt,
+        "Agent Name": record.agentName,
+        "Audit Date": formatThaiDate(record.auditDate),
+        "Waiting Time": record.waitingTime || "",
+        "Service Time": record.serviceTime || "",
+        "Case ID": record.caseId,
+        "Case URL": record.caseUrl || "",
+        "Customer Inquiry": record.inquiry || "",
+        "Case Description": record.caseDescription || "",
+        "Case Image URL": record.evidenceUrls.join("\n"),
+        "QA Scheme": record.qaScheme,
+        "Rubric Version": record.rubricName,
+        "Rubric Active Period": record.rubricPeriod,
+        "Evaluator Name": "Songpon Phothong",
+        "Evaluation Started At": record.evaluationStartedAt,
+        "Evaluation Submitted At": record.submittedAt,
+        "Evaluation Status": "Submitted",
+        "Final Score": record.finalScore,
+        "Grade": record.grade,
+        "Critical Error": record.criticalError ? "YES" : "NO",
+        "RawData File": "QA Evaluation Form",
+      };
+
+      allTopicCodes.forEach((code) => {
+        const topic = record.topics.find((item) => item.code === code);
+        row[`${code} Score`] = topic?.score ?? "";
+        row[`${code} Comment`] = topic?.comment ?? "";
+      });
+
+      return row;
+    });
+  }
+
+  function filterRecordsByReportDate(records: EvaluationRecord[]) {
+    const fromMs = reportDateFrom ? new Date(`${reportDateFrom}T00:00:00`).getTime() : Number.NEGATIVE_INFINITY;
+    const toMs = reportDateTo ? new Date(`${reportDateTo}T23:59:59`).getTime() : Number.POSITIVE_INFINITY;
+    return records.filter((record) => {
+      const dateMs = record.auditDate ? new Date(`${record.auditDate}T00:00:00`).getTime() : Number.NaN;
+      if (Number.isNaN(dateMs)) return false;
+      return dateMs >= fromMs && dateMs <= toMs;
+    });
+  }
+
+  async function exportEvaluationRowData() {
+    setReportMessage("Loading submitted evaluations...");
+    const stored = await fetchStoredEvaluations();
+    const storedRecords: EvaluationRecord[] = stored.map((item) => ({
+      ...item,
+      recordId: item.id,
+      pdfButtonLabel: `${item.caseId || "Untitled"} Original PDF`,
+      rawDataPreview: item.rawDataPreview || {},
+      targetEmail: item.targetEmail,
+    }));
+    const merged = storedRecords.length ? storedRecords : evaluationHistory;
+    const filtered = filterRecordsByReportDate(merged);
+    if (!filtered.length) {
+      setReportMessage("No submitted evaluations found in this date range.");
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(buildRowDataRows(filtered));
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Raw_Data");
+    XLSX.writeFile(workbook, `QA_Evaluation_RowData_${reportDateFrom || "start"}_${reportDateTo || "end"}.xlsx`);
+    setReportMessage(`Exported ${filtered.length} submitted evaluation row(s).`);
   }
 
   function removeEvidenceFile(id: string) {
@@ -756,7 +871,35 @@ export default function CreateEvaluationMockup({
               <div className="text-xl font-black">Report Workspace</div>
               <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">Back to Form</button>
             </div>
-            <div className="p-5 text-sm font-semibold text-slate-600">Report export panel will be connected in the next step of Flow 1-8.</div>
+            <div className="p-5">
+              <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+                <label className="block">
+                  <span className={labelClass}>Date From</span>
+                  <input type="date" value={reportDateFrom} onChange={(event) => setReportDateFrom(event.target.value)} className={inputClass} />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Date To</span>
+                  <input type="date" value={reportDateTo} onChange={(event) => setReportDateTo(event.target.value)} className={inputClass} />
+                </label>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={exportEvaluationRowData}
+                    className="w-full rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800"
+                  >
+                    Export RowData
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
+                Export เฉพาะเคสที่ Submit Evaluation ผ่านฟอร์ม และเลือกตาม Audit Date ที่ต้องการได้
+              </div>
+              {reportMessage ? (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                  {reportMessage}
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 

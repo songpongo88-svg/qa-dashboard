@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogs, logUsageEvent } from "./usageLog";
+import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
@@ -3974,8 +3975,63 @@ export default function DashboardMockup({
             };
           });
 
+        const storedEvaluations = await fetchStoredEvaluations();
+        const evaluationCases: CaseItem[] = storedEvaluations
+          .map((record) => {
+            const auditDateObj = record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : null;
+            const validAuditDate = auditDateObj && !Number.isNaN(auditDateObj.getTime()) ? auditDateObj : null;
+            const monthKey = getMonthKey(validAuditDate);
+            const monthDate = validAuditDate ? new Date(validAuditDate.getFullYear(), validAuditDate.getMonth(), 1) : null;
+            const topicMaster = getTopicMasterByMonth(monthKey);
+            const topics: Topic[] = topicMaster.map((master) => {
+              const matched = record.topics.find((topic) => topic.code === master.code);
+              const score = Number(matched?.score || 0);
+              return {
+                code: master.code,
+                label: matched?.title || master.label,
+                score: Number.isFinite(score) ? score : 0,
+                max: master.max,
+                pct: master.max > 0 ? Math.round(((Number.isFinite(score) ? score : 0) / master.max) * 100) : 0,
+                comment: matched?.comment || "",
+              };
+            });
+            const finalScoreVal = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
+            const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
+            return {
+              key: evaluationKey,
+              evaluationKey,
+              agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
+              auditDate: formatAuditDateForDisplay(record.auditDate),
+              auditDateObj: validAuditDate,
+              auditTimestamp: record.auditTimestamp || formatBangkokDateTime(record.submittedAt),
+              monthKey,
+              monthLabel: getMonthLabel(monthDate),
+              weekLabel: "-",
+              caseId: record.caseId,
+              rawDataSourceName: "QA Evaluation Form",
+              caseUrl: record.caseUrl,
+              waitingTime: record.waitingTime,
+              serviceTime: record.serviceTime,
+              inquiryTh: record.inquiry || "-",
+              inquiryEn: record.inquiry || "-",
+              caseDescription: record.caseDescription || "",
+              caseImageUrl: record.evidenceUrls.find((url) => !url.toLowerCase().endsWith(".pdf")) || "",
+              casePdfUrl: record.evidenceUrls.find((url) => url.toLowerCase().endsWith(".pdf")) || "",
+              casePdfOriginalUrl: "",
+              casePdfRevisedUrl: "",
+              finalScore: finalScoreVal,
+              previousScore: finalScoreVal,
+              grade: scoreToGrade(finalScoreVal, monthKey),
+              reviewStatus: "Original",
+              topics,
+              revisedTopics: null,
+              displayRevisedTopicCodes: [],
+            } as CaseItem;
+          })
+          .filter((item) => item.agent && item.caseId && item.auditDateObj);
+
         const latestByEvaluationKey = new Map<string, CaseItem>();
-        mapped
+        [...mapped, ...evaluationCases]
           .filter((item) => item.agent && item.caseId && item.auditDateObj)
           .forEach((item) => {
             latestByEvaluationKey.set(item.evaluationKey, item);

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
+import { fetchStoredEvaluations } from "./evaluationStore";
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
@@ -1145,8 +1146,54 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
+        const storedEvaluations = await fetchStoredEvaluations();
+        const evaluationCases: CaseItem[] = storedEvaluations
+          .map((record) => {
+            const auditDateObj = record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : null;
+            const validAuditDate = auditDateObj && !Number.isNaN(auditDateObj.getTime()) ? auditDateObj : null;
+            const monthKey = getMonthKey(validAuditDate);
+            const monthDate = validAuditDate ? new Date(validAuditDate.getFullYear(), validAuditDate.getMonth(), 1) : null;
+            const topicMaster = getTopicMasterByMonth(monthKey);
+            const topics: Topic[] = topicMaster.map((master) => {
+              const matched = record.topics.find((topic) => topic.code === master.code);
+              const score = Number(matched?.score || 0);
+              return {
+                code: master.code,
+                label: matched?.title || master.label,
+                score: Number.isFinite(score) ? score : 0,
+                max: master.max,
+                pct: Number((((Number.isFinite(score) ? score : 0) / master.max) * 100).toFixed(2)),
+                comment: matched?.comment || "",
+              };
+            });
+            const finalScore = Number(record.finalScore || topics.reduce((sum, topic) => sum + topic.score, 0));
+            const evaluationKey = record.evaluationKey || `web-eval|${record.caseId}|${record.agentName}|${record.auditDate}|${record.id}`;
+            return {
+              key: evaluationKey,
+              evaluationKey,
+              agent: toTitleCaseName(record.agentName || record.targetDisplayName || ""),
+              auditDate: formatAuditDate(record.auditDate),
+              auditDateObj: validAuditDate,
+              monthKey,
+              monthLabel: getMonthLabel(monthDate),
+              yearKey: getYearKey(validAuditDate),
+              weekLabel: "-",
+              caseId: record.caseId,
+              inquiryTh: record.inquiry || "-",
+              inquiryEn: record.inquiry || "-",
+              finalScore: Number(finalScore.toFixed(2)),
+              previousScore: Number(finalScore.toFixed(2)),
+              grade: scoreToGrade(finalScore, monthKey),
+              reviewStatus: "Original",
+              topics,
+              revisedTopics: null,
+              displayRevisedTopicCodes: [],
+            } as CaseItem;
+          })
+          .filter((item) => item.agent && item.caseId && item.auditDateObj);
+
         const latestByEvaluationKey = new Map<string, CaseItem>();
-        mappedCases.forEach((item) => {
+        [...mappedCases, ...evaluationCases].forEach((item) => {
           latestByEvaluationKey.set(item.evaluationKey, item);
         });
         setAllCases([...latestByEvaluationKey.values()]);

@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605221154",
-  "buildNumber": 2605221154,
-  "releaseLabel": "v1.0.0.2605221154",
-  "updatedAt": "22/05/2026 11:54:27",
+  "displayVersion": "1.0.0.2605221431",
+  "buildNumber": 2605221431,
+  "releaseLabel": "v1.0.0.2605221431",
+  "updatedAt": "22/05/2026 14:31:44",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d65cb80d12e10769826bee9d893c7a57c92848ed",
-  "commitMessage": "Add team creation workflow",
+  "commitHash": "fab7a866da562fddffb11a279cc6cf095d9f9073",
+  "commitMessage": "Add team role mode selection",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
