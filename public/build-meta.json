@@ -1,17 +1,22 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605221431",
-  "buildNumber": 2605221431,
-  "releaseLabel": "v1.0.0.2605221431",
-  "updatedAt": "22/05/2026 14:31:44",
+  "displayVersion": "1.0.0.2605221435",
+  "buildNumber": 2605221435,
+  "releaseLabel": "v1.0.0.2605221435",
+  "updatedAt": "22/05/2026 14:35:47",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fab7a866da562fddffb11a279cc6cf095d9f9073",
-  "commitMessage": "Add team role mode selection",
+  "commitHash": "ff6adc782cd64df1f195580bba01beee10a4ec81",
+  "commitMessage": "Persist QA evaluation submissions",
   "changedFiles": [
     "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx",
+    "src/CreateEvaluationMockup.tsx",
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx",
+    "src/evaluationStore.ts",
+    "supabase-qa-evaluations.sql"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
