@@ -1,19 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605220928",
-  "buildNumber": 2605220928,
-  "releaseLabel": "v1.0.0.2605220928",
-  "updatedAt": "22/05/2026 09:28:30",
+  "displayVersion": "1.0.0.2605220952",
+  "buildNumber": 2605220952,
+  "releaseLabel": "v1.0.0.2605220952",
+  "updatedAt": "22/05/2026 09:52:34",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a269fddbf83140caafbe87c27bab71590148c255",
-  "commitMessage": "Match Excel evaluation row scoring",
+  "commitHash": "815504ad91c618b3541f9ff1eb63ea5c918decd8",
+  "commitMessage": "Refresh build metadata",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
