@@ -1103,14 +1103,32 @@ export default function UserRoleAdminMockup({
         ])
       );
     } else if (exportContext === "team_management") {
-      const teamRows = visibleDraftUsers.map(({ user }) => [
-        user.displayName || user.username,
-        user.role,
-        user.teamName || "Unassigned Team",
-        user.teamLead || "-",
-        user.status,
-      ]);
-      drawTable(["User", "Role", "Team", "Team Lead", "Status"], [42, 34, 42, 42, 22], teamRows);
+      const exportTeamGroups = buildTeamGroups(visibleDraftUsers.map(({ user }) => user));
+      exportTeamGroups.forEach((team, teamIndex) => {
+        ensurePage(34);
+        if (teamIndex > 0) y += 5;
+        doc.setFillColor(88, 28, 135);
+        doc.roundedRect(14, y - 5, 182, 14, 3, 3, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(15);
+        doc.text(team.teamName, 18, y + 4);
+        doc.setFontSize(11);
+        doc.text(`Team Lead: ${team.teamLead || "-"}`, 112, y + 4);
+        doc.text(`Members: ${team.users.length}`, 166, y + 4);
+        y += 16;
+        doc.setTextColor(15, 23, 42);
+        drawTable(
+          ["Member", "Role", "Email", "Status"],
+          [48, 38, 72, 24],
+          team.users.map((user) => [
+            user.displayName || user.username,
+            user.role,
+            user.email || "-",
+            user.status,
+          ])
+        );
+      });
     } else {
       drawTable(
         ["User", "Email", "Team", "Role", "Status"],

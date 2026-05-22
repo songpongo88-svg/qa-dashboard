@@ -1,17 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605211501",
-  "buildNumber": 2605211501,
-  "releaseLabel": "v1.0.0.2605211501",
-  "updatedAt": "21/05/2026 15:01:04",
+  "displayVersion": "1.0.0.2605220925",
+  "buildNumber": 2605220925,
+  "releaseLabel": "v1.0.0.2605220925",
+  "updatedAt": "22/05/2026 09:25:23",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "4ef3c394574edf1579fd7aa0767e2028fc0cdbea",
-  "commitMessage": "Isolate team management edit mode",
+  "commitHash": "420f61874e421f751a4d23288b3d10ba4c953081",
+  "commitMessage": "Refresh build metadata",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

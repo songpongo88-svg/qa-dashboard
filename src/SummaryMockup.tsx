@@ -16,6 +16,7 @@ type Topic = {
 
 type CaseItem = {
   key: string;
+  evaluationKey: string;
   agent: string;
   auditDate: string;
   auditDateObj: Date | null;
@@ -86,7 +87,7 @@ const RAW_DATA_FILE_NAMES = [
   "QA_RawData13052026.xlsx",
   "QA_RawData20052026.xlsx",
 ];
-const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
+const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 
@@ -455,6 +456,52 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
     return sum + active.score;
   }, 0);
   return roundToTwo(total);
+}
+
+function normalizeEvaluationKeyPart(value: unknown) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function formatEvaluationDateKey(value: any) {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return normalizeEvaluationKeyPart(value);
+  const yyyy = dt.getFullYear();
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  return `${yyyy}${mm}${dd}`;
+}
+
+function buildTopicScoreHash(topics: Topic[]) {
+  return topics
+    .map((topic) => `${topic.code}:${Number.isFinite(topic.score) ? Number(topic.score).toFixed(2) : "0.00"}`)
+    .join("|");
+}
+
+function buildEvaluationKeyFromRow(
+  helper: ReturnType<typeof buildHeaderHelpers>,
+  row: any[],
+  caseId: string,
+  agent: string,
+  auditRaw: any,
+  finalScore: number,
+  topics: Topic[]
+) {
+  const monthKeyRaw =
+    helper.getValue(row, "Month Key") ??
+    helper.getValue(row, "Evaluation Key") ??
+    helper.getValue(row, "Assessment Key");
+  const monthKey = normalizeEvaluationKeyPart(monthKeyRaw);
+  if (monthKey) return `month-key:${monthKey}`;
+
+  const scoreKey = Number.isFinite(finalScore) ? Number(finalScore).toFixed(2) : "0.00";
+  return [
+    "row",
+    normalizeEvaluationKeyPart(caseId).toUpperCase(),
+    normalizeEvaluationKeyPart(agent).toLowerCase(),
+    formatEvaluationDateKey(auditRaw),
+    scoreKey,
+    buildTopicScoreHash(topics),
+  ].join("|");
 }
 
 function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
@@ -875,8 +922,19 @@ export default function SummaryMockup({
                   dataSource.includes("appeal") ||
                   Math.abs(finalScore - previousScore) > 0.0001;
 
+                const evaluationKey = buildEvaluationKeyFromRow(
+                  v8Helper,
+                  row,
+                  caseId,
+                  agent,
+                  auditRaw,
+                  finalScore,
+                  topics
+                );
+
                 return {
-                  key: `v8-row-${rowIndex + 1}-${caseId}`,
+                  key: `v8-${evaluationKey}`,
+                  evaluationKey,
                   agent,
                   auditDate: formatAuditDate(auditRaw),
                   auditDateObj,
@@ -1054,8 +1112,19 @@ export default function SummaryMockup({
           const previousScoreVal = mergedAppeal?.previousScore ?? baseFinalScore;
           const reviewStatus: ReviewStatus = normalizedRevisedTopics?.length ? "Revised" : "Original";
 
+          const evaluationKey = buildEvaluationKeyFromRow(
+            rawHelper,
+            row,
+            caseId,
+            agent,
+            auditRaw,
+            finalScoreVal,
+            topics
+          );
+
           return {
-            key: `${source.fileName}-row-${rowIndex + 1}-${caseId}`,
+            key: evaluationKey,
+            evaluationKey,
             agent,
             auditDate: formatAuditDate(auditRaw),
             auditDateObj,
@@ -1076,11 +1145,11 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
-        const latestByCaseId = new Map<string, CaseItem>();
+        const latestByEvaluationKey = new Map<string, CaseItem>();
         mappedCases.forEach((item) => {
-          latestByCaseId.set(item.caseId, item);
+          latestByEvaluationKey.set(item.evaluationKey, item);
         });
-        setAllCases([...latestByCaseId.values()]);
+        setAllCases([...latestByEvaluationKey.values()]);
         setAppealMergeCount(appealMap.size);
       } catch (error: any) {
         setLoadError(error?.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");

@@ -21,6 +21,7 @@ type Topic = {
 
 type CaseItem = {
   key: string;
+  evaluationKey: string;
   agent: string;
   auditDate: string;
   auditDateObj: Date | null;
@@ -99,7 +100,7 @@ const RAW_DATA_FILE_NAMES = [
   "QA_RawData13052026.xlsx",
   "QA_RawData20052026.xlsx",
 ];
-const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
+const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -1708,6 +1709,52 @@ function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
     return sum + active.score;
   }, 0);
   return roundTo(total, 2);
+}
+
+function normalizeEvaluationKeyPart(value: unknown) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function formatEvaluationDateKey(value: any) {
+  const dt = excelDateToJSDate(value);
+  if (!dt) return normalizeEvaluationKeyPart(value);
+  const yyyy = dt.getFullYear();
+  const mm = `${dt.getMonth() + 1}`.padStart(2, "0");
+  const dd = `${dt.getDate()}`.padStart(2, "0");
+  return `${yyyy}${mm}${dd}`;
+}
+
+function buildTopicScoreHash(topics: Topic[]) {
+  return topics
+    .map((topic) => `${topic.code}:${Number.isFinite(topic.score) ? Number(topic.score).toFixed(2) : "0.00"}`)
+    .join("|");
+}
+
+function buildEvaluationKeyFromRow(
+  helper: ReturnType<typeof buildHeaderHelpers>,
+  row: any[],
+  caseId: string,
+  agent: string,
+  auditRaw: any,
+  finalScore: number,
+  topics: Topic[]
+) {
+  const monthKeyRaw =
+    helper.getValue(row, "Month Key") ??
+    helper.getValue(row, "Evaluation Key") ??
+    helper.getValue(row, "Assessment Key");
+  const monthKey = normalizeEvaluationKeyPart(monthKeyRaw);
+  if (monthKey) return `month-key:${monthKey}`;
+
+  const scoreKey = Number.isFinite(finalScore) ? Number(finalScore).toFixed(2) : "0.00";
+  return [
+    "row",
+    normalizeEvaluationKeyPart(caseId).toUpperCase(),
+    normalizeEvaluationKeyPart(agent).toLowerCase(),
+    formatEvaluationDateKey(auditRaw),
+    scoreKey,
+    buildTopicScoreHash(topics),
+  ].join("|");
 }
 
 function LogoHeaderBox() {
@@ -3394,7 +3441,7 @@ export default function DashboardMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const v8Response = await fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "no-store" });
+        const v8Response = { ok: false } as Response;
         if (v8Response.ok) {
           const v8Buffer = await v8Response.arrayBuffer();
           const v8Workbook = XLSX.read(v8Buffer, { type: "array", cellDates: false });
@@ -3480,8 +3527,19 @@ export default function DashboardMockup({
                 ).trim() || V8_EFFECTIVE_FILE_NAME;
                 const inquiry = getFirstAvailableHeaderValue(v8Helper, row, ["Customer Inquiry", "Inquiry TH", "Inquiry"], "-");
 
+                const evaluationKey = buildEvaluationKeyFromRow(
+                  v8Helper,
+                  row,
+                  caseId,
+                  agent,
+                  auditRaw,
+                  finalScore,
+                  topics
+                );
+
                 return {
-                  key: `v8-row-${rowOffset + 1}-${caseId}`,
+                  key: `v8-${evaluationKey}`,
+                  evaluationKey,
                   agent,
                   auditDate: formatAuditDateForDisplay(auditRaw),
                   auditDateObj,
@@ -3873,9 +3931,21 @@ export default function DashboardMockup({
 
             const auditDateDisplay = formatAuditDateForDisplay(auditRaw);
 
+            const agent = toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim());
+            const evaluationKey = buildEvaluationKeyFromRow(
+              rawHelper,
+              row,
+              caseId,
+              agent,
+              auditRaw,
+              finalScoreVal,
+              topics
+            );
+
             return {
-              key: `${source.fileName}-row-${rowOffset + 1}-${caseId}`,
-              agent: toTitleCaseName(String(rawHelper.getValue(row, "Agent Name")).trim()),
+              key: evaluationKey,
+              evaluationKey,
+              agent,
               auditDate: auditDateDisplay,
               auditDateObj,
               auditTimestamp: formatAuditTimestamp(timestampRaw),
@@ -3904,14 +3974,14 @@ export default function DashboardMockup({
             };
           });
 
-        const latestByCaseId = new Map<string, CaseItem>();
+        const latestByEvaluationKey = new Map<string, CaseItem>();
         mapped
           .filter((item) => item.agent && item.caseId && item.auditDateObj)
           .forEach((item) => {
-            latestByCaseId.set(item.caseId, item);
+            latestByEvaluationKey.set(item.evaluationKey, item);
           });
 
-        setAllCases([...latestByCaseId.values()]);
+        setAllCases([...latestByEvaluationKey.values()]);
       } catch (error: any) {
         console.error("Load Error:", error);
         setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
