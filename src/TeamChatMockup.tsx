@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PageHero from "./PageHero";
 
 export type ChatAttachment = {
@@ -33,6 +33,16 @@ export type OnlineUser = {
   role: string;
   agentName: string;
   lastSeenAt: string;
+};
+
+export type WebRtcSignal = {
+  id: string;
+  callId: string;
+  fromUsername: string;
+  toUsername: string;
+  type: "offer" | "answer" | "candidate" | "hangup";
+  payload: Record<string, unknown>;
+  createdAt: string;
 };
 
 type ChatUser = {
@@ -118,6 +128,8 @@ export default function TeamChatMockup({
   onStartCall,
   onCallResponse,
   onEndCall,
+  webRtcSignals,
+  onSendWebRtcSignal,
   onMarkRoomRead,
   onRefresh,
 }: {
@@ -128,9 +140,11 @@ export default function TeamChatMockup({
   onSendMessage: (message: string, toUser?: OnlineUser, attachment?: ChatAttachment) => Promise<void>;
   onEditMessage: (message: ChatMessage, nextMessage: string) => Promise<void>;
   onDeleteMessage: (message: ChatMessage) => Promise<void>;
-  onStartCall: (toUser?: OnlineUser) => Promise<void>;
+  onStartCall: (toUser?: OnlineUser) => Promise<string | undefined>;
   onCallResponse: (message: ChatMessage, response: "accepted" | "declined") => Promise<void>;
   onEndCall: (message: ChatMessage) => Promise<void>;
+  webRtcSignals: WebRtcSignal[];
+  onSendWebRtcSignal: (signal: Omit<WebRtcSignal, "id" | "createdAt" | "fromUsername">) => Promise<void>;
   onMarkRoomRead: (roomKey: string) => void;
   onRefresh: () => void;
 }) {
@@ -141,9 +155,21 @@ export default function TeamChatMockup({
   const [editingDraft, setEditingDraft] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeCall, setActiveCall] = useState<ChatMessage | null>(null);
+  const [voiceCall, setVoiceCall] = useState<{
+    callId: string;
+    peerUsername: string;
+    peerDisplayName: string;
+    status: "dialing" | "connecting" | "connected";
+    muted: boolean;
+    error?: string;
+  } | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const processedSignalIdsRef = useRef<Set<string>>(new Set());
 
   const privateUsers = onlineUsers.filter(
     (user) => user.username.toLowerCase() !== currentUser.username.toLowerCase()
@@ -185,6 +211,116 @@ export default function TeamChatMockup({
   useEffect(() => {
     onMarkRoomRead(selectedRoomKey);
   }, [onMarkRoomRead, selectedRoomKey, visibleMessages.length]);
+
+  const cleanupVoiceCall = () => {
+    peerConnectionRef.current?.close();
+    peerConnectionRef.current = null;
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+    processedSignalIdsRef.current.clear();
+    setVoiceCall(null);
+  };
+
+  useEffect(() => cleanupVoiceCall, []);
+
+  const getLocalAudioStream = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Your browser does not support microphone calls.");
+    }
+    if (localStreamRef.current) return localStreamRef.current;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    localStreamRef.current = stream;
+    return stream;
+  };
+
+  const createPeerConnection = (callId: string, peerUsername: string) => {
+    peerConnectionRef.current?.close();
+    const connection = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ],
+    });
+
+    connection.onicecandidate = (event) => {
+      if (!event.candidate) return;
+      void onSendWebRtcSignal({
+        callId,
+        toUsername: peerUsername,
+        type: "candidate",
+        payload: event.candidate.toJSON(),
+      });
+    };
+    connection.ontrack = (event) => {
+      const [stream] = event.streams;
+      if (remoteAudioRef.current && stream) {
+        remoteAudioRef.current.srcObject = stream;
+        void remoteAudioRef.current.play().catch(() => undefined);
+      }
+    };
+    connection.onconnectionstatechange = () => {
+      if (connection.connectionState === "connected") {
+        setVoiceCall((call) => call ? { ...call, status: "connected", error: "" } : call);
+      }
+      if (connection.connectionState === "failed" || connection.connectionState === "disconnected") {
+        setVoiceCall((call) => call ? { ...call, error: "Voice connection dropped. Please end and call again." } : call);
+      }
+    };
+
+    peerConnectionRef.current = connection;
+    return connection;
+  };
+
+  const preparePeer = async (callId: string, peerUsername: string) => {
+    const stream = await getLocalAudioStream();
+    const connection = createPeerConnection(callId, peerUsername);
+    stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+    return connection;
+  };
+
+  useEffect(() => {
+    if (!voiceCall) return;
+    const connection = peerConnectionRef.current;
+    if (!connection) return;
+    const myUsername = currentUser.username.toLowerCase();
+    const relevantSignals = webRtcSignals.filter((signal) => {
+      if (signal.callId !== voiceCall.callId) return false;
+      if (signal.fromUsername.toLowerCase() === myUsername) return false;
+      if (signal.toUsername && signal.toUsername.toLowerCase() !== myUsername) return false;
+      return !processedSignalIdsRef.current.has(signal.id);
+    });
+
+    relevantSignals.forEach((signal) => {
+      processedSignalIdsRef.current.add(signal.id);
+      void (async () => {
+        try {
+          if (signal.type === "offer") {
+            await connection.setRemoteDescription(new RTCSessionDescription(signal.payload as RTCSessionDescriptionInit));
+            const answer = await connection.createAnswer();
+            await connection.setLocalDescription(answer);
+            await onSendWebRtcSignal({
+              callId: signal.callId,
+              toUsername: signal.fromUsername,
+              type: "answer",
+              payload: { type: answer.type || "answer", sdp: answer.sdp || "" },
+            });
+            setVoiceCall((call) => call ? { ...call, status: "connecting", error: "" } : call);
+          } else if (signal.type === "answer") {
+            await connection.setRemoteDescription(new RTCSessionDescription(signal.payload as RTCSessionDescriptionInit));
+            setVoiceCall((call) => call ? { ...call, status: "connecting", error: "" } : call);
+          } else if (signal.type === "candidate") {
+            await connection.addIceCandidate(new RTCIceCandidate(signal.payload as RTCIceCandidateInit));
+          } else if (signal.type === "hangup") {
+            cleanupVoiceCall();
+            setActiveCall(null);
+          }
+        } catch {
+          setVoiceCall((call) => call ? { ...call, error: "Voice setup failed. Please end and try again." } : call);
+        }
+      })();
+    });
+  }, [currentUser.username, onSendWebRtcSignal, voiceCall, webRtcSignals]);
 
   const setAttachmentFromFile = async (file: File, pasted = false) => {
     if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
@@ -264,6 +400,17 @@ export default function TeamChatMockup({
     try {
       await onCallResponse(message, "accepted");
       setActiveCall(message);
+      if (message.room === "private") {
+        const peerUsername = message.username;
+        await preparePeer(message.callId || message.id, peerUsername);
+        setVoiceCall({
+          callId: message.callId || message.id,
+          peerUsername,
+          peerDisplayName: message.displayName || peerUsername,
+          status: "connecting",
+          muted: false,
+        });
+      }
     } catch {
       setError("Call could not be accepted. Please try again.");
     } finally {
@@ -288,7 +435,16 @@ export default function TeamChatMockup({
     setSending(true);
     setError("");
     try {
+      if (voiceCall) {
+        await onSendWebRtcSignal({
+          callId: voiceCall.callId,
+          toUsername: voiceCall.peerUsername,
+          type: "hangup",
+          payload: {},
+        });
+      }
       await onEndCall(activeCall);
+      cleanupVoiceCall();
       setActiveCall(null);
     } catch {
       setError("Call could not be ended. Please try again.");
@@ -300,8 +456,74 @@ export default function TeamChatMockup({
   const roomTitle = selectedUser ? `Private Chat with ${selectedUser.displayName || selectedUser.username}` : "QA Dashboard Team Room";
   const roomSubtitle = selectedUser ? "Only you and this selected user will see this private thread in the dashboard UI." : "Messages here are visible to everyone in Team Chat.";
 
+  const startVoiceCall = async () => {
+    if (!selectedUser) {
+      await onStartCall(undefined);
+      setError("Group call invite was sent. Phase 1 real microphone voice is available for private 1:1 calls only.");
+      return;
+    }
+    if (voiceCall) {
+      setError("A voice call is already active. End it before starting another call.");
+      return;
+    }
+
+    setSending(true);
+    setError("");
+    try {
+      const callId = await onStartCall(selectedUser);
+      if (!callId) return;
+      setActiveCall({
+        id: callId,
+        createdAt: new Date().toISOString(),
+        username: selectedUser.username,
+        displayName: selectedUser.displayName || selectedUser.username,
+        role: selectedUser.role,
+        message: "",
+        room: "private",
+        toUsername: currentUser.username,
+        toDisplayName: currentUser.displayName,
+        kind: "call",
+        callId,
+        callStatus: "pending",
+      });
+      const connection = await preparePeer(callId, selectedUser.username);
+      setVoiceCall({
+        callId,
+        peerUsername: selectedUser.username,
+        peerDisplayName: selectedUser.displayName || selectedUser.username,
+        status: "dialing",
+        muted: false,
+      });
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      await onSendWebRtcSignal({
+        callId,
+        toUsername: selectedUser.username,
+        type: "offer",
+        payload: { type: offer.type || "offer", sdp: offer.sdp || "" },
+      });
+    } catch {
+      cleanupVoiceCall();
+      setError("Microphone call could not start. Please allow microphone permission and try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const toggleMute = () => {
+    setVoiceCall((call) => {
+      if (!call) return call;
+      const nextMuted = !call.muted;
+      localStreamRef.current?.getAudioTracks().forEach((track) => {
+        track.enabled = !nextMuted;
+      });
+      return { ...call, muted: nextMuted };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#edf7ff] px-5 py-6 lg:px-8">
+      <audio ref={remoteAudioRef} autoPlay playsInline />
       {incomingCalls.length ? (
         <div className="fixed right-6 top-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] rounded-[28px] border border-violet-200 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.25)]">
           <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700">Incoming Call</div>
@@ -341,10 +563,22 @@ export default function TeamChatMockup({
             <div>
               <div className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Call Active</div>
               <div className="mt-1 text-lg font-black">
-                {activeCall.room === "team" ? "Team group call" : `Private call with ${activeCall.displayName || activeCall.username}`}
+                {voiceCall ? `Voice call with ${voiceCall.peerDisplayName}` : activeCall.room === "team" ? "Team group call" : `Private call with ${activeCall.displayName || activeCall.username}`}
               </div>
-              <div className="mt-1 text-xs font-semibold text-slate-300">Audio/video bridge placeholder is active in QA Dashboard.</div>
+              <div className="mt-1 text-xs font-semibold text-slate-300">
+                {voiceCall ? `WebRTC audio: ${voiceCall.status}${voiceCall.muted ? " · muted" : ""}` : "Group call voice is not enabled in Phase 1."}
+              </div>
+              {voiceCall?.error ? <div className="mt-2 text-xs font-bold text-amber-300">{voiceCall.error}</div> : null}
             </div>
+            {voiceCall ? (
+              <button
+                type="button"
+                onClick={toggleMute}
+                className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20"
+              >
+                {voiceCall.muted ? "Unmute" : "Mute"}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => void endCall()}
@@ -430,10 +664,10 @@ export default function TeamChatMockup({
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => void onStartCall(selectedUser)}
+                  onClick={() => void startVoiceCall()}
                   className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-black text-white transition hover:bg-white/20"
                 >
-                  {selectedUser ? "Call User" : "Start Group Call"}
+                  {selectedUser ? "Voice Call User" : "Start Group Call"}
                 </button>
                 {conversationStartedAt ? <span className="text-xs font-semibold text-slate-300">Conversation started {formatChatTime(conversationStartedAt)}</span> : null}
               </div>

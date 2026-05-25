@@ -12,7 +12,7 @@ import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
 import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
-import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser } from "./TeamChatMockup";
+import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 import {
   fetchStoredMaintenanceState,
@@ -1289,6 +1289,39 @@ function buildOnlineUsers(logs: UsageLogEvent[]) {
   return Array.from(users.values()).sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
+function buildWebRtcSignals(logs: UsageLogEvent[]) {
+  return logs
+    .filter((item) => item.event_type === "chat_webrtc_signal")
+    .map((item): WebRtcSignal | null => {
+      const details = item.details || {};
+      const callId = String(details.callId || "");
+      const toUsername = String(details.toUsername || "");
+      const type = String(details.type || "");
+      if (!callId || !toUsername || !["offer", "answer", "candidate", "hangup"].includes(type)) return null;
+      const payload =
+        details.payload && typeof details.payload === "object"
+          ? (details.payload as Record<string, unknown>)
+          : {};
+      return {
+        id: item.id || `${item.username || "signal"}-${item.created_at || ""}-${type}`,
+        callId,
+        fromUsername: item.username || "",
+        toUsername,
+        type: type as WebRtcSignal["type"],
+        payload,
+        createdAt: item.created_at || "",
+      };
+    })
+    .filter((item): item is WebRtcSignal => Boolean(item))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
+function canCurrentUserSeeWebRtcSignal(signal: WebRtcSignal, user: CurrentUser | null) {
+  if (!user) return false;
+  const myUsername = user.username.trim().toLowerCase();
+  return signal.fromUsername.trim().toLowerCase() === myUsername || signal.toUsername.trim().toLowerCase() === myUsername;
+}
+
 function formatHeaderDateTime(value: Date) {
   return value.toLocaleString("th-TH", {
     day: "2-digit",
@@ -2414,6 +2447,7 @@ export default function App() {
   const [inboxReturnTitle, setInboxReturnTitle] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [webRtcSignals, setWebRtcSignals] = useState<WebRtcSignal[]>([]);
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>(() => buildRolePermissionOverrides([]));
@@ -2959,12 +2993,14 @@ export default function App() {
     if (!currentUser) {
       setChatMessages([]);
       setOnlineUsers([]);
+      setWebRtcSignals([]);
       return;
     }
 
     try {
       const logs = await fetchUsageLogs(1000);
       const nextMessages = buildChatMessages(logs).filter((message) => canCurrentUserSeeChatMessage(message, currentUser));
+      const nextSignals = buildWebRtcSignals(logs).filter((signal) => canCurrentUserSeeWebRtcSignal(signal, currentUser));
       const latestIncomingMessage = nextMessages
         .filter((message) => message.username.toLowerCase() !== currentUser.username.toLowerCase())
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
@@ -2978,10 +3014,12 @@ export default function App() {
         }
       }
       setChatMessages(nextMessages);
+      setWebRtcSignals(nextSignals);
       setOnlineUsers(buildOnlineUsers(logs));
     } catch {
       setChatMessages([]);
       setOnlineUsers([]);
+      setWebRtcSignals([]);
     }
   };
 
@@ -3036,7 +3074,7 @@ export default function App() {
   };
 
   const startChatCall = async (toUser?: OnlineUser) => {
-    if (!currentUser) return;
+    if (!currentUser) return undefined;
     const isPrivate = Boolean(toUser);
     const callId = `call-${currentUser.username}-${Date.now()}`;
     await logUsageEvent(currentUser, "chat_call_invite", {
@@ -3053,6 +3091,7 @@ export default function App() {
       },
     });
     await loadChatData();
+    return callId;
   };
 
   const respondChatCall = async (message: ChatMessage, response: "accepted" | "declined") => {
@@ -3079,6 +3118,21 @@ export default function App() {
       details: {
         callId: message.callId || message.id,
         room: message.room,
+      },
+    });
+    await loadChatData();
+  };
+
+  const sendWebRtcSignal = async (signal: Omit<WebRtcSignal, "id" | "createdAt" | "fromUsername">) => {
+    if (!currentUser) return;
+    await logUsageEvent(currentUser, "chat_webrtc_signal", {
+      tab: "team-chat",
+      target_agent: signal.toUsername,
+      details: {
+        callId: signal.callId,
+        toUsername: signal.toUsername,
+        type: signal.type,
+        payload: signal.payload,
       },
     });
     await loadChatData();
@@ -3254,6 +3308,7 @@ export default function App() {
     if (!currentUser || maintenanceBlocked) {
       setChatMessages([]);
       setOnlineUsers([]);
+      setWebRtcSignals([]);
       return;
     }
 
@@ -4309,6 +4364,8 @@ export default function App() {
             onStartCall={startChatCall}
             onCallResponse={respondChatCall}
             onEndCall={endChatCall}
+            webRtcSignals={webRtcSignals}
+            onSendWebRtcSignal={sendWebRtcSignal}
             onMarkRoomRead={markChatRoomRead}
             onRefresh={() => {
               void sendPresence();

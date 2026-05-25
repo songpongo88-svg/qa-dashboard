@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605251034",
-  "buildNumber": 2605251034,
-  "releaseLabel": "v1.0.0.2605251034",
-  "updatedAt": "25/05/2026 10:34:07",
+  "displayVersion": "1.0.0.2605251258",
+  "buildNumber": 2605251258,
+  "releaseLabel": "v1.0.0.2605251258",
+  "updatedAt": "25/05/2026 12:58:04",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "b8f73e8fcf013fcac1225f96273ed85df335148b",
-  "commitMessage": "Expand evaluation report workflow",
+  "commitHash": "e82615419e04245b559938852a6f97e57cfdbf08",
+  "commitMessage": "Add missed call handling to team chat",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx"
+    "src/App.tsx",
+    "src/TeamChatMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
