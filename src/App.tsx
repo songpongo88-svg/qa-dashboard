@@ -221,6 +221,7 @@ const INBOX_READ_KEY = "qa_inbox_read_tasks";
 const CHAT_READ_KEY = "qa_chat_read_at";
 const PASSWORD_EXPIRY_WARNING_DAYS = 30;
 const ONLINE_USER_WINDOW_MS = 90 * 1000;
+const CHAT_CALL_TIMEOUT_MS = 45 * 1000;
 const CHAT_HISTORY_RESET_AT = "2026-05-15T10:40:51+07:00";
 const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
 let v8EffectiveRowsCache: Promise<unknown[][] | null> | null = null;
@@ -1212,7 +1213,9 @@ function buildChatMessages(logs: UsageLogEvent[]) {
       if (!existing) return;
       const response = item.event_type === "chat_call_ended" ? "ended" : String(item.details?.response || "");
       const callStatus =
-        response === "accepted" || response === "declined" || response === "ended" ? response : existing.callStatus;
+        response === "accepted" || response === "declined" || response === "ended" || response === "missed"
+          ? response
+          : existing.callStatus;
       messages.set(callId, {
         ...existing,
         callStatus,
@@ -1224,7 +1227,9 @@ function buildChatMessages(logs: UsageLogEvent[]) {
               ? `${item.display_name || item.username} declined the call.`
               : callStatus === "ended"
                 ? `${item.display_name || item.username} ended the call.`
-                : existing.message,
+                : callStatus === "missed"
+                  ? "Call was not answered."
+                  : existing.message,
       });
     }
 
@@ -1246,7 +1251,19 @@ function buildChatMessages(logs: UsageLogEvent[]) {
     }
   });
 
-  return Array.from(messages.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const now = Date.now();
+  return Array.from(messages.values())
+    .map((message) => {
+      if (message.kind !== "call" || message.callStatus !== "pending") return message;
+      const createdAt = new Date(message.createdAt).getTime();
+      if (Number.isNaN(createdAt) || now - createdAt < CHAT_CALL_TIMEOUT_MS) return message;
+      return {
+        ...message,
+        callStatus: "missed" as const,
+        message: "Call was not answered.",
+      };
+    })
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
 function buildOnlineUsers(logs: UsageLogEvent[]) {
@@ -2283,7 +2300,15 @@ function FloatingChatWidget({
                   </div>
                   <div className={`mt-1 line-clamp-2 text-xs leading-5 ${message.deleted ? "italic text-slate-400" : "text-slate-600"}`}>
                     {message.kind === "call"
-                      ? `Call ${message.callStatus || ""}`
+                      ? message.callStatus === "missed"
+                        ? "Missed call"
+                        : message.callStatus === "accepted"
+                          ? "Answered call"
+                          : message.callStatus === "declined"
+                            ? "Declined call"
+                            : message.callStatus === "ended"
+                              ? "Call ended"
+                              : "Ringing call"
                       : message.attachment
                         ? `${message.message || "Attachment"} · ${message.attachment.name}`
                         : message.message || "-"}

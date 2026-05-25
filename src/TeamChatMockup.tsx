@@ -21,7 +21,7 @@ export type ChatMessage = {
   attachment?: ChatAttachment;
   kind?: "message" | "call";
   callId?: string;
-  callStatus?: "pending" | "accepted" | "declined" | "ended";
+  callStatus?: "pending" | "accepted" | "declined" | "ended" | "missed";
   callRespondedBy?: string;
   edited?: boolean;
   deleted?: boolean;
@@ -43,6 +43,7 @@ type ChatUser = {
 };
 
 const MAX_ATTACHMENT_SIZE_BYTES = 1.5 * 1024 * 1024;
+const CALL_TIMEOUT_SECONDS = 45;
 const EMOJI_OPTIONS = ["😀", "👍", "🙏", "🎉", "✅", "❗", "❤️", "🙌", "😊", "🔥"];
 
 function formatChatTime(value: string) {
@@ -73,6 +74,28 @@ function formatFileSize(size: number) {
   if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   if (size >= 1024) return `${Math.round(size / 1024)} KB`;
   return `${size} B`;
+}
+
+function getCallAgeSeconds(message: ChatMessage, now: number) {
+  const startedAt = new Date(message.createdAt).getTime();
+  if (Number.isNaN(startedAt)) return 0;
+  return Math.max(0, Math.floor((now - startedAt) / 1000));
+}
+
+function getCallStatusLabel(status?: ChatMessage["callStatus"]) {
+  if (status === "accepted") return "Answered";
+  if (status === "declined") return "Declined";
+  if (status === "ended") return "Ended";
+  if (status === "missed") return "Missed Call";
+  return "Ringing";
+}
+
+function getCallStatusStyle(status?: ChatMessage["callStatus"]) {
+  if (status === "accepted") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "declined") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (status === "ended") return "border-slate-200 bg-slate-100 text-slate-600";
+  if (status === "missed") return "border-orange-200 bg-orange-50 text-orange-700";
+  return "border-amber-200 bg-amber-100 text-amber-800";
 }
 
 function readFileAsDataUrl(file: File) {
@@ -120,6 +143,7 @@ export default function TeamChatMockup({
   const [activeCall, setActiveCall] = useState<ChatMessage | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   const privateUsers = onlineUsers.filter(
     (user) => user.username.toLowerCase() !== currentUser.username.toLowerCase()
@@ -146,11 +170,17 @@ export default function TeamChatMockup({
     const myUsername = currentUser.username.toLowerCase();
     return messages.filter((message) => {
       if (message.kind !== "call" || message.callStatus !== "pending") return false;
+      if (getCallAgeSeconds(message, now) >= CALL_TIMEOUT_SECONDS) return false;
       if (message.username.toLowerCase() === myUsername) return false;
       if (message.room === "team") return true;
       return String(message.toUsername || "").toLowerCase() === myUsername;
     });
-  }, [currentUser.username, messages]);
+  }, [currentUser.username, messages, now]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     onMarkRoomRead(selectedRoomKey);
@@ -280,6 +310,9 @@ export default function TeamChatMockup({
           </div>
           <div className="mt-1 text-sm font-semibold text-slate-500">
             {incomingCalls[0].room === "team" ? "Group call in Team Room" : "Private call"}
+          </div>
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black text-amber-800">
+            Auto missed in {Math.max(0, CALL_TIMEOUT_SECONDS - getCallAgeSeconds(incomingCalls[0], now))}s
           </div>
           <div className="mt-4 flex gap-3">
             <button
@@ -446,17 +479,10 @@ export default function TeamChatMockup({
                           <>
                             {message.message ? <div className={`mt-2 whitespace-pre-wrap text-sm leading-6 ${message.deleted ? "italic opacity-70" : ""}`}>{message.message}</div> : null}
                             {message.kind === "call" ? (
-                              <div className={`mt-3 rounded-2xl border px-4 py-3 text-sm font-black ${
-                                message.callStatus === "accepted"
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : message.callStatus === "declined"
-                                    ? "border-rose-200 bg-rose-50 text-rose-700"
-                                    : message.callStatus === "ended"
-                                      ? "border-slate-200 bg-slate-100 text-slate-600"
-                                      : "border-amber-200 bg-amber-100 text-amber-800"
-                              }`}>
-                                Status: {(message.callStatus || "pending").toUpperCase()}
+                              <div className={`mt-3 rounded-2xl border px-4 py-3 text-sm font-black ${getCallStatusStyle(message.callStatus)}`}>
+                                {getCallStatusLabel(message.callStatus)}
                                 {message.callRespondedBy ? ` by ${message.callRespondedBy}` : ""}
+                                {message.callStatus === "pending" ? ` · no answer after ${CALL_TIMEOUT_SECONDS}s` : ""}
                               </div>
                             ) : null}
                             {message.attachment ? (
@@ -472,7 +498,7 @@ export default function TeamChatMockup({
                                 <button type="button" onClick={() => void onDeleteMessage(message)} className="underline">Delete</button>
                               </div>
                             ) : null}
-                            {!isMine && message.kind === "call" && message.callStatus === "pending" ? (
+                            {!isMine && message.kind === "call" && message.callStatus === "pending" && getCallAgeSeconds(message, now) < CALL_TIMEOUT_SECONDS ? (
                               <div className="mt-3 flex gap-2">
                                 <button type="button" onClick={() => void acceptCall(message)} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white">Accept</button>
                                 <button type="button" onClick={() => void declineCall(message)} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white">Decline</button>

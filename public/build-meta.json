@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605221630",
-  "buildNumber": 2605221630,
-  "releaseLabel": "v1.0.0.2605221630",
-  "updatedAt": "22/05/2026 16:30:58",
+  "displayVersion": "1.0.0.2605251034",
+  "buildNumber": 2605251034,
+  "releaseLabel": "v1.0.0.2605251034",
+  "updatedAt": "25/05/2026 10:34:07",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "b16f5aa5e7318a0a2f8b9a0c6c423517ec8f0833",
-  "commitMessage": "Add create evaluation role permission",
+  "commitHash": "b8f73e8fcf013fcac1225f96273ed85df335148b",
+  "commitMessage": "Expand evaluation report workflow",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
