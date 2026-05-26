@@ -1,18 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605251503",
-  "buildNumber": 2605251503,
-  "releaseLabel": "v1.0.0.2605251503",
-  "updatedAt": "25/05/2026 15:03:35",
+  "displayVersion": "1.0.0.2605261338",
+  "buildNumber": 2605261338,
+  "releaseLabel": "v1.0.0.2605261338",
+  "updatedAt": "26/05/2026 13:38:49",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "16ee5bca3e736c4306c943fbc9b5a3ca7c20185e",
-  "commitMessage": "Add WebRTC private voice calls",
+  "commitHash": "8e1b7277fc4ea01d2154b668a1bf2e546796d9e7",
+  "commitMessage": "Add files via upload",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/App.tsx",
-    "src/TeamChatMockup.tsx"
+    "public/Appleal ROWDATA.xlsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

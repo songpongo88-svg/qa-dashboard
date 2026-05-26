@@ -169,7 +169,6 @@ export default function TeamChatMockup({
   const [editingMessageId, setEditingMessageId] = useState("");
   const [editingDraft, setEditingDraft] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [workspaceView, setWorkspaceView] = useState<"messages" | "calls">("messages");
   const [activeCall, setActiveCall] = useState<ChatMessage | null>(null);
   const [voiceCall, setVoiceCall] = useState<{
     callId: string;
@@ -636,6 +635,104 @@ export default function TeamChatMockup({
           workspaceSubtitle="Unread badge, edit/delete, date grouping, sound alerts, and call invites"
         />
 
+        <div className="border-b border-violet-100 bg-gradient-to-r from-slate-50 via-white to-violet-50/70 p-5">
+          <section className="overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_16px_40px_rgba(88,28,135,0.10)]">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-800 px-5 py-4 text-white">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">Call History Center</div>
+                <div className="mt-1 text-2xl font-black">ประวัติการโทรทั้งหมด</div>
+                <div className="mt-1 text-xs font-semibold text-violet-100">
+                  แยกจากห้องแชท เพื่อดูสายเข้า สายออก สายที่ไม่ได้รับ และเปิดแชทส่วนตัวต่อได้ทันที
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2">
+                  <div className="text-2xl font-black">{callHistory.length}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-100">All Calls</div>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2">
+                  <div className="text-2xl font-black">{callHistory.filter((call) => call.callStatus === "missed").length}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-orange-100">Missed</div>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2">
+                  <div className="text-2xl font-black">{callHistory.filter((call) => call.direction === "Incoming").length}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100">Incoming</div>
+                </div>
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2">
+                  <div className="text-2xl font-black">{callHistory.filter((call) => call.direction === "Outgoing").length}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100">Outgoing</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto p-4">
+              <div className="min-w-[980px] overflow-hidden rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-[1.05fr_1fr_1fr_0.8fr_0.9fr_0.9fr_0.8fr_0.75fr] gap-3 bg-slate-950 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white">
+                  <div>Time</div>
+                  <div>Caller</div>
+                  <div>Receiver</div>
+                  <div>Type</div>
+                  <div>Status</div>
+                  <div>Room</div>
+                  <div>Duration</div>
+                  <div>Action</div>
+                </div>
+                <div className="max-h-[310px] divide-y divide-slate-100 overflow-y-auto bg-white">
+                  {callHistory.map((call) => (
+                    <div key={call.id} className="grid grid-cols-[1.05fr_1fr_1fr_0.8fr_0.9fr_0.9fr_0.8fr_0.75fr] items-center gap-3 px-4 py-4 text-left transition hover:bg-violet-50/70">
+                      <div className="text-sm font-bold text-slate-900">{formatChatTime(call.createdAt)}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-black text-slate-950">{call.displayName || call.username}</div>
+                        <div className="truncate text-[11px] font-semibold text-slate-500">{call.username}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold text-slate-700">{call.room === "team" ? "Team Room" : call.toDisplayName || call.toUsername || "-"}</div>
+                        <div className="truncate text-[11px] font-semibold text-slate-500">{call.room === "team" ? "Group" : call.toUsername || "-"}</div>
+                      </div>
+                      <div>
+                        <span className={`rounded-full px-3 py-1 text-xs font-black ${call.direction === "Outgoing" ? "bg-sky-50 text-sky-700" : "bg-violet-50 text-violet-700"}`}>
+                          {call.direction}
+                        </span>
+                      </div>
+                      <div>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-black ${getCallStatusStyle(call.callStatus)}`}>
+                          {getCallStatusLabel(call.callStatus)}
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-slate-700">{call.roomLabel}</div>
+                      <div className="text-sm font-bold text-slate-700">{getCallDurationLabel(call)}</div>
+                      <div>
+                        {call.room === "private" && call.peerUsername ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUsername(call.peerUsername)}
+                            className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
+                          >
+                            Open Chat
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUsername("team")}
+                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600 transition hover:bg-slate-100"
+                          >
+                            Team Room
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {!callHistory.length ? (
+                    <div className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                      No call history yet. Calls will appear here separately from chat messages.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
         <div className="grid gap-5 p-5 lg:grid-cols-[340px_minmax(0,1fr)]">
           <aside className="rounded-[28px] border border-violet-100 bg-violet-50/60 p-5">
             <div className="flex items-center justify-between gap-3">
@@ -698,21 +795,7 @@ export default function TeamChatMockup({
               <div className="mt-1 text-lg font-black">{roomTitle}</div>
               <div className="mt-1 text-xs font-semibold text-slate-300">{roomSubtitle}</div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceView("messages")}
-                  className={`rounded-full border px-4 py-1.5 text-xs font-black transition ${workspaceView === "messages" ? "border-white bg-white text-slate-950" : "border-white/20 bg-white/10 text-white hover:bg-white/20"}`}
-                >
-                  Messages
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWorkspaceView("calls")}
-                  className={`rounded-full border px-4 py-1.5 text-xs font-black transition ${workspaceView === "calls" ? "border-white bg-white text-slate-950" : "border-white/20 bg-white/10 text-white hover:bg-white/20"}`}
-                >
-                  Call History
-                  {callHistory.length ? <span className="ml-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] text-white">{callHistory.length}</span> : null}
-                </button>
+                <span className="rounded-full border border-white bg-white px-4 py-1.5 text-xs font-black text-slate-950">Messages</span>
                 <button
                   type="button"
                   onClick={() => void startVoiceCall()}
@@ -725,84 +808,6 @@ export default function TeamChatMockup({
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/80 p-5">
-              {workspaceView === "calls" ? (
-                <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div>
-                      <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700">Call History</div>
-                      <div className="mt-1 text-xl font-black text-slate-950">All call activity</div>
-                    </div>
-                    <div className="rounded-full bg-violet-50 px-4 py-2 text-sm font-black text-violet-700">
-                      {callHistory.length} call(s)
-                    </div>
-                  </div>
-
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
-                    <div className="hidden grid-cols-[1.1fr_1fr_1fr_0.8fr_0.9fr_0.9fr_0.8fr] gap-3 bg-slate-950 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white lg:grid">
-                      <div>Time</div>
-                      <div>Caller</div>
-                      <div>Receiver</div>
-                      <div>Type</div>
-                      <div>Status</div>
-                      <div>Room</div>
-                      <div>Duration</div>
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      {callHistory.map((call) => (
-                        <button
-                          key={call.id}
-                          type="button"
-                          onClick={() => {
-                            if (call.room === "private" && call.peerUsername) {
-                              setSelectedUsername(call.peerUsername);
-                              setWorkspaceView("messages");
-                            }
-                          }}
-                          className="grid w-full gap-3 px-4 py-4 text-left transition hover:bg-violet-50/70 lg:grid-cols-[1.1fr_1fr_1fr_0.8fr_0.9fr_0.9fr_0.8fr]"
-                        >
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Time</div>
-                            <div className="text-sm font-bold text-slate-900">{formatChatTime(call.createdAt)}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Caller</div>
-                            <div className="text-sm font-black text-slate-950">{call.displayName || call.username}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Receiver</div>
-                            <div className="text-sm font-bold text-slate-700">{call.room === "team" ? "Team Room" : call.toDisplayName || call.toUsername || "-"}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Type</div>
-                            <span className={`rounded-full px-3 py-1 text-xs font-black ${call.direction === "Outgoing" ? "bg-sky-50 text-sky-700" : "bg-violet-50 text-violet-700"}`}>
-                              {call.direction}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Status</div>
-                            <span className={`rounded-full border px-3 py-1 text-xs font-black ${getCallStatusStyle(call.callStatus)}`}>
-                              {getCallStatusLabel(call.callStatus)}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Room</div>
-                            <div className="text-sm font-bold text-slate-700">{call.roomLabel}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 lg:hidden">Duration</div>
-                            <div className="text-sm font-bold text-slate-700">{getCallDurationLabel(call)}</div>
-                          </div>
-                        </button>
-                      ))}
-                      {!callHistory.length ? (
-                        <div className="px-4 py-12 text-center text-sm font-semibold text-slate-500">
-                          No call history yet.
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : (
               <>
               {visibleMessages.map((message, index) => {
                 const isMine = message.username.toLowerCase() === currentUser.username.toLowerCase();
@@ -886,7 +891,6 @@ export default function TeamChatMockup({
                 </div>
               ) : null}
               </>
-              )}
             </div>
 
             <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-4">
