@@ -13,6 +13,7 @@ import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluat
 import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
+import CallHistoryMockup from "./CallHistoryMockup";
 import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
 import {
   fetchStoredMaintenanceState,
@@ -2458,7 +2459,7 @@ export default function App() {
   const [liveNow, setLiveNow] = useState(() => new Date());
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "create-evaluation" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
+    "dashboard" | "appeal" | "create-evaluation" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "call-history" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >("dashboard");
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
@@ -2546,6 +2547,8 @@ export default function App() {
     return counts;
   }, [chatMessages, currentUser]);
   const totalChatUnreadCount = Object.values(chatUnreadCounts).reduce((sum, count) => sum + count, 0);
+  const totalCallHistoryCount = chatMessages.filter((message) => message.kind === "call").length;
+  const missedCallHistoryCount = chatMessages.filter((message) => message.kind === "call" && message.callStatus === "missed").length;
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
@@ -4202,6 +4205,27 @@ export default function App() {
                       {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
                     </div>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("call-history");
+                      void loadChatData();
+                    }}
+                    className="group relative overflow-hidden rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call History</div>
+                        <div className="mt-1 text-sm font-extrabold">Voice Records</div>
+                      </div>
+                      <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-sm font-extrabold text-indigo-700">
+                        {missedCallHistoryCount || totalCallHistoryCount}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-500">
+                      {missedCallHistoryCount ? `${missedCallHistoryCount} missed call(s)` : totalCallHistoryCount ? `${totalCallHistoryCount} call record(s)` : "No call record yet"}
+                    </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -4244,6 +4268,27 @@ export default function App() {
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">
                   {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("call-history");
+                  void loadChatData();
+                }}
+                className="group relative overflow-hidden rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call History</div>
+                    <div className="mt-1 text-sm font-extrabold">Voice Records</div>
+                  </div>
+                  <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-sm font-extrabold text-indigo-700">
+                    {missedCallHistoryCount || totalCallHistoryCount}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-500">
+                  {missedCallHistoryCount ? `${missedCallHistoryCount} missed call(s)` : totalCallHistoryCount ? `${totalCallHistoryCount} call record(s)` : "No call record yet"}
                 </div>
               </button>
             </div>
@@ -4368,6 +4413,16 @@ export default function App() {
             onSendWebRtcSignal={sendWebRtcSignal}
             onMarkRoomRead={markChatRoomRead}
             onRefresh={() => {
+              void sendPresence();
+              void loadChatData();
+            }}
+          />
+        ) : activeTab === "call-history" ? (
+          <CallHistoryMockup
+            currentUser={currentUser}
+            messages={chatMessages}
+            onOpenChat={() => {
+              setActiveTab("team-chat");
               void sendPresence();
               void loadChatData();
             }}

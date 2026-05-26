@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605261338",
-  "buildNumber": 2605261338,
-  "releaseLabel": "v1.0.0.2605261338",
-  "updatedAt": "26/05/2026 13:38:49",
+  "displayVersion": "1.0.0.2605261455",
+  "buildNumber": 2605261455,
+  "releaseLabel": "v1.0.0.2605261455",
+  "updatedAt": "26/05/2026 14:55:40",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8e1b7277fc4ea01d2154b668a1bf2e546796d9e7",
-  "commitMessage": "Add files via upload",
+  "commitHash": "056969dfa2c23c2473681310cda6380961c4d7ba",
+  "commitMessage": "Separate call history from chat room",
   "changedFiles": [
-    "public/Appleal ROWDATA.xlsx"
+    "public/build-meta.json",
+    "src/TeamChatMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
