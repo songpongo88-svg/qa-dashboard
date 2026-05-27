@@ -4977,23 +4977,23 @@ export default function DashboardMockup({
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">Excellent</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,500</td>
+                                  </tr>
+                                  <tr className="bg-white">
+                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
                                   </tr>
                                   <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">200</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
-                                  </tr>
-                                  <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">Fair</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">350</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">650</td>
                                   </tr>
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">

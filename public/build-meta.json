@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605271210",
-  "buildNumber": 2605271210,
-  "releaseLabel": "v1.0.0.2605271210",
-  "updatedAt": "27/05/2026 12:10:44",
+  "displayVersion": "1.0.0.2605271302",
+  "buildNumber": 2605271302,
+  "releaseLabel": "v1.0.0.2605271302",
+  "updatedAt": "27/05/2026 13:02:47",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a1a15aab6298de69f61bec0e043d0b4ce3b8a14a",
-  "commitMessage": "Sort case navigator by audit time",
+  "commitHash": "c3d684ed0345502a19009027d2fa342e9441a3bf",
+  "commitMessage": "Update special month incentive rules",
   "changedFiles": [
     "public/build-meta.json",
-    "src/DashboardMockup.tsx"
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
