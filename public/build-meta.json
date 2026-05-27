@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605271403",
-  "buildNumber": 2605271403,
-  "releaseLabel": "v1.0.0.2605271403",
-  "updatedAt": "27/05/2026 14:03:01",
+  "displayVersion": "1.0.0.2605271416",
+  "buildNumber": 2605271416,
+  "releaseLabel": "v1.0.0.2605271416",
+  "updatedAt": "27/05/2026 14:16:32",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "efb7499bb176504e4351074db5b34d4f6f156647",
-  "commitMessage": "Update incentive guide table",
+  "commitHash": "89f287c7d51f2b8dc318f710eb4217f7738ac212",
+  "commitMessage": "Match incentive totals to reference file",
   "changedFiles": [
     "public/build-meta.json",
-    "src/DashboardMockup.tsx"
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
