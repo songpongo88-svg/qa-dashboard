@@ -730,7 +730,7 @@ function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
       switch (grade) {
         case "A":
           return {
-            total: 1500,
+            total: 1000,
             cash: 1000,
             promo: 500,
             label: "1,000 Cash + 500 RBH Promo Code",
@@ -738,7 +738,7 @@ function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
           };
         case "B":
           return {
-            total: 1000,
+            total: 700,
             cash: 700,
             promo: 300,
             label: "700 Cash + 300 RBH Promo Code",
@@ -746,7 +746,7 @@ function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
           };
         case "C":
           return {
-            total: 650,
+            total: 500,
             cash: 500,
             promo: 150,
             label: "500 Cash + 150 RBH Promo Code",
@@ -4979,21 +4979,21 @@ export default function DashboardMockup({
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">A</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,500</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
                                   </tr>
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">Good</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
                                   </tr>
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">Fair</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
-                                    <td className="border-t border-slate-200 px-4 py-3 text-center">650</td>
+                                    <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
                                   </tr>
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">

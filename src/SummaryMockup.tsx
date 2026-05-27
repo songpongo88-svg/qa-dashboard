@@ -372,9 +372,9 @@ function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
   if (caseCount < CASE_TARGET) return 0;
   if (isNewPolicyMonth(monthKey)) {
     if (isSpecialIncentiveMonth(monthKey)) {
-      if (avg >= 90) return 1500;
-      if (avg >= 85) return 1000;
-      if (avg >= 80) return 650;
+      if (avg >= 90) return 1000;
+      if (avg >= 85) return 700;
+      if (avg >= 80) return 500;
       return 0;
     }
     if (avg >= 90) return 1000;
