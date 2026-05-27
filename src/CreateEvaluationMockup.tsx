@@ -145,8 +145,11 @@ type RawReportRecord = {
   finalScore: string | number;
   grade: string;
   sourceName: string;
-  rowData: Record<string, string | number>;
+  rowData: RawDataExportRow;
 };
+
+type RawDataExportValue = string | number | Date;
+type RawDataExportRow = Record<string, RawDataExportValue>;
 
 function normalizeHeaderText(value: unknown) {
   return String(value ?? "")
@@ -218,11 +221,120 @@ function buildRawHeaderHelpers(headerRow: unknown[]) {
   return { getValue, getLastValue };
 }
 
-function normalizeRowValue(value: unknown) {
-  if (value instanceof Date) return formatDateForRowData(value);
+function normalizeRowValue(value: unknown): RawDataExportValue {
+  if (value instanceof Date) return value;
   if (value === null || value === undefined) return "";
   if (typeof value === "number" || typeof value === "string") return value;
   return String(value);
+}
+
+function parseDateTimeValue(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "number" && Number.isFinite(value)) return excelDateToJSDate(value);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const slashMatch = trimmed.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:,\s*|\s+)?(\d{1,2})?:?(\d{2})?:?(\d{2})?/);
+  if (slashMatch) {
+    const day = Number(slashMatch[1]);
+    const month = Number(slashMatch[2]) - 1;
+    const rawYear = Number(slashMatch[3]);
+    const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+    const hour = Number(slashMatch[4] || 0);
+    const minute = Number(slashMatch[5] || 0);
+    const second = Number(slashMatch[6] || 0);
+    const date = new Date(year, month, day, hour, minute, second);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseTimeValue(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(1899, 11, 30, value.getHours(), value.getMinutes(), value.getSeconds());
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return excelDateToJSDate(value);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  return new Date(1899, 11, 30, Number(match[1]), Number(match[2]), Number(match[3] || 0));
+}
+
+function normalizeExportHeader(header: string) {
+  return header.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function coerceExportCellValue(header: string, value: RawDataExportValue): RawDataExportValue {
+  const normalized = normalizeExportHeader(header);
+  if (normalized === "waiting time" || normalized === "service time") {
+    return parseTimeValue(value) || value;
+  }
+  if (
+    normalized === "timestamp" ||
+    normalized === "evaluation started at" ||
+    normalized === "evaluation submitted at"
+  ) {
+    return parseDateTimeValue(value) || value;
+  }
+  if (
+    normalized === "audit date" ||
+    normalized === "month start" ||
+    normalized === "week start" ||
+    normalized === "week end"
+  ) {
+    return excelDateToJSDate(value) || value;
+  }
+  return value;
+}
+
+function getExportCellFormat(header: string) {
+  const normalized = normalizeExportHeader(header);
+  if (normalized === "waiting time" || normalized === "service time") return "hh:mm:ss";
+  if (
+    normalized === "timestamp" ||
+    normalized === "evaluation started at" ||
+    normalized === "evaluation submitted at"
+  ) {
+    return "dd/mm/yyyy hh:mm:ss";
+  }
+  if (
+    normalized === "audit date" ||
+    normalized === "month start" ||
+    normalized === "week start" ||
+    normalized === "week end"
+  ) {
+    return "dd/mm/yyyy";
+  }
+  return "";
+}
+
+function buildRawDataWorksheet(rows: RawDataExportRow[]) {
+  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  const normalizedRows = rows.map((row) =>
+    headers.reduce<RawDataExportRow>((acc, header) => {
+      acc[header] = coerceExportCellValue(header, row[header] ?? "");
+      return acc;
+    }, {})
+  );
+  const worksheet = XLSX.utils.json_to_sheet(normalizedRows, {
+    header: headers,
+    cellDates: true,
+  });
+  headers.forEach((header, columnIndex) => {
+    const format = getExportCellFormat(header);
+    if (!format) return;
+    for (let rowIndex = 2; rowIndex <= rows.length + 1; rowIndex += 1) {
+      const address = XLSX.utils.encode_cell({ c: columnIndex, r: rowIndex - 1 });
+      const cell = worksheet[address];
+      if (cell) cell.z = format;
+    }
+  });
+  worksheet["!cols"] = headers.map((header) => ({
+    wch: Math.min(Math.max(header.length + 4, 14), 36),
+  }));
+  return worksheet;
 }
 
 async function loadRawDataReportRecords(): Promise<RawReportRecord[]> {
@@ -259,14 +371,14 @@ async function loadRawDataReportRecords(): Promise<RawReportRecord[]> {
       const auditDate = formatDateInputFromAny(auditRaw);
       const auditDateMs = auditDate ? new Date(`${auditDate}T00:00:00`).getTime() : Number.NaN;
       const agentName = String(helper.getValue(row, "Agent Name") ?? "").trim();
-      const rowData: Record<string, string | number> = {};
+      const rowData: RawDataExportRow = {};
 
       headerRow.forEach((header, index) => {
         const key = String(header || `Column ${index + 1}`).trim() || `Column ${index + 1}`;
         rowData[key] = normalizeRowValue(row[index]);
       });
       rowData["RawData File"] = String(rowData["RawData File"] || rowData["Raw Data File"] || fileName);
-      if (auditDate) rowData["Audit Date"] = formatThaiDate(auditDate);
+      if (auditDate) rowData["Audit Date"] = new Date(`${auditDate}T00:00:00`);
 
       records.push({
         recordId: `raw-${fileName}-${rowIndex}-${caseId}`,
@@ -832,18 +944,18 @@ export default function CreateEvaluationMockup({
     setEvidenceFiles((current) => [...current, ...nextFiles]);
   }
 
-  function buildRowDataRows(records: EvaluationRecord[]) {
+  function buildRowDataRows(records: EvaluationRecord[]): RawDataExportRow[] {
     const allTopicCodes = Array.from(
       new Set(records.flatMap((record) => record.topics.map((topic) => topic.code)))
     ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     return records.map((record) => {
-      const row: Record<string, string | number> = {
-        Timestamp: record.submittedAt,
+      const row: RawDataExportRow = {
+        Timestamp: parseDateTimeValue(record.submittedAt) || record.submittedAt,
         "Agent Name": record.agentName,
-        "Audit Date": formatThaiDate(record.auditDate),
-        "Waiting Time": record.waitingTime || "",
-        "Service Time": record.serviceTime || "",
+        "Audit Date": record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : "",
+        "Waiting Time": parseTimeValue(record.waitingTime) || record.waitingTime || "",
+        "Service Time": parseTimeValue(record.serviceTime) || record.serviceTime || "",
         "Case ID": record.caseId,
         "Case URL": record.caseUrl || "",
         "Customer Inquiry": record.inquiry || "",
@@ -853,8 +965,8 @@ export default function CreateEvaluationMockup({
         "Rubric Version": record.rubricName,
         "Rubric Active Period": record.rubricPeriod,
         "Evaluator Name": "Songpon Phothong",
-        "Evaluation Started At": record.evaluationStartedAt,
-        "Evaluation Submitted At": record.submittedAt,
+        "Evaluation Started At": parseDateTimeValue(record.evaluationStartedAt) || record.evaluationStartedAt,
+        "Evaluation Submitted At": parseDateTimeValue(record.submittedAt) || record.submittedAt,
         "Evaluation Status": "Submitted",
         "Final Score": record.finalScore,
         "Grade": record.grade,
@@ -1010,7 +1122,7 @@ export default function CreateEvaluationMockup({
     }
 
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const worksheet = buildRawDataWorksheet(exportRows);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Raw_Data");
     XLSX.writeFile(workbook, `QA_Evaluation_RowData_${reportDateFrom || "start"}_${reportDateTo || "end"}.xlsx`);
     setReportMessage(`Exported ${filteredRaw.length} RawData row(s) and ${filteredSubmitted.length} submitted evaluation row(s).`);
