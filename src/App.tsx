@@ -2460,7 +2460,14 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "appeal" | "create-evaluation" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "call-history" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
-  >("dashboard");
+  >(() => {
+    try {
+      const initialTab = new URL(window.location.href).searchParams.get("tab");
+      return initialTab === "create-evaluation" ? "create-evaluation" : "dashboard";
+    } catch {
+      return "dashboard";
+    }
+  });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
   const [accountMenuValue, setAccountMenuValue] = useState("");
 
@@ -2573,6 +2580,12 @@ export default function App() {
     if (value === "create-evaluation" && !createEvaluationAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
+    if (value === "create-evaluation") {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("tab", "create-evaluation");
+      window.open(nextUrl.toString(), "_blank", "noopener,noreferrer");
+      return;
+    }
     if (value === "appeal" || value === "create-evaluation" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       setActiveTab(value);
     }

@@ -2188,6 +2188,7 @@ function SlideOverCaseDetail({
     isOwnAppealCase &&
     (isAppealWindowOpen(caseItem.auditDateObj) || appealOverrideAllowed) &&
     !appealRequestExists;
+  const isQaEvaluationCase = normalizeText(caseItem.rawDataSourceName) === normalizeText("QA Evaluation Form");
 
   useEffect(() => {
     let cancelled = false;
@@ -3259,6 +3260,17 @@ function SlideOverCaseDetail({
                         </div>
                       ) : null}
 
+                      {isQaEvaluationCase ? (
+                        <button
+                          type="button"
+                          onClick={handleGenerateCaseDetailPdf}
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                          title={`Generate ${caseItem.caseId} Original PDF from QA Evaluation Form`}
+                        >
+                          {caseItem.caseId} Original PDF
+                        </button>
+                      ) : null}
+
                       <button
                         type="button"
                         onClick={handleGenerateCaseDetailPdf}
@@ -4033,7 +4045,7 @@ export default function DashboardMockup({
               inquiryTh: record.inquiry || "-",
               inquiryEn: record.inquiry || "-",
               caseDescription: record.caseDescription || "",
-              caseImageUrl: record.evidenceUrls.find((url) => !url.toLowerCase().endsWith(".pdf")) || "",
+              caseImageUrl: record.evidenceUrls.filter((url) => !url.toLowerCase().endsWith(".pdf")).join("\n"),
               casePdfUrl: record.evidenceUrls.find((url) => url.toLowerCase().endsWith(".pdf")) || "",
               casePdfOriginalUrl: "",
               casePdfRevisedUrl: "",

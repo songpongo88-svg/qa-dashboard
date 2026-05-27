@@ -101,6 +101,11 @@ type EvaluationRecord = EvaluationSubmitPayload & {
 
 type EvaluationWorkspaceView = "form" | "drafts" | "history" | "report";
 
+type SubmitPreviewState = {
+  record: EvaluationRecord;
+  draftId: string;
+};
+
 const FALLBACK_AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
@@ -413,6 +418,7 @@ export default function CreateEvaluationMockup({
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
   const [submittedRecords, setSubmittedRecords] = useState<EvaluationRecord[]>([]);
   const [submittedRecordsLoading, setSubmittedRecordsLoading] = useState(false);
+  const [submitPreview, setSubmitPreview] = useState<SubmitPreviewState | null>(null);
   const [rawReportRecords, setRawReportRecords] = useState<RawReportRecord[]>([]);
   const [reportDateFrom, setReportDateFrom] = useState(currentYearStartInputValue());
   const [reportDateTo, setReportDateTo] = useState(todayInputValue());
@@ -701,13 +707,6 @@ export default function CreateEvaluationMockup({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Submit this evaluation?\n\nCase: ${caseId || "Untitled Case"}\nAgent: ${agentName || "-"}\nScore: ${criticalError ? 0 : finalScore}/${activeRubric.totalScore}\nGrade: ${grade}`
-    );
-    if (!confirmed) {
-      setDraftMessage("Submit canceled. You can continue editing before final submit.");
-      return;
-    }
     const now = new Date();
     const submittedAt = formatTimestamp(now);
     const draftId = activeDraftId || makeDraftId(caseId, auditDate);
@@ -732,46 +731,6 @@ export default function CreateEvaluationMockup({
       .filter((item) => item.pct < 80)
       .slice(0, 3)
       .map((item) => `${item.topic.code} ${item.topic.title}: ${item.score}/${item.topic.max}`);
-    if (!evaluationStartedAt) {
-      setEvaluationStartedAt(submittedAt);
-    }
-    setEvaluationSubmittedAt(submittedAt);
-    setEvaluationStatus("Submitted");
-    persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
-    setActiveDraftId("");
-    setDraftSavedAt("");
-    await onSubmitEvaluation?.({
-      recordId: activeSubmittedRecordId || undefined,
-      evaluationKey: activeSubmittedRecordId || undefined,
-      caseId: caseId || "Untitled Case",
-      agentName,
-      targetUsername: selectedAgentOption?.username || "",
-      targetDisplayName: selectedAgentOption?.displayName || agentName,
-      targetEmail: selectedAgentOption?.email || "",
-      targetRole: selectedAgentOption?.role || "",
-      auditDate,
-      auditTimestamp: submittedAt,
-      waitingTime,
-      serviceTime,
-      caseUrl,
-      inquiry,
-      caseDescription,
-      evidenceUrls: evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
-      finalScore: criticalError ? 0 : finalScore,
-      grade,
-      criticalError,
-      qaScheme: activeRubric.code,
-      rubricName: activeRubric.name,
-      rubricPeriod,
-      completedTopics,
-      totalTopics: topics.length,
-      strengths,
-      improvements,
-      topics: submittedTopicRows,
-      rawDataPreview: previewColumns,
-      evaluationStartedAt: evaluationStartedAt || submittedAt,
-      submittedAt,
-    });
     const historyRecord: EvaluationRecord = {
       recordId: activeSubmittedRecordId || `${caseId || "UNTITLED"}-${now.getTime()}`,
       evaluationKey: activeSubmittedRecordId || undefined,
@@ -805,11 +764,26 @@ export default function CreateEvaluationMockup({
       evaluationStartedAt: evaluationStartedAt || submittedAt,
       submittedAt,
     };
-    persistHistory([historyRecord, ...evaluationHistory]);
+    setSubmitPreview({ record: historyRecord, draftId });
+    setDraftMessage("Review the Case Detail preview, then confirm submit to save the evaluation.");
+  }
+
+  async function confirmSubmitEvaluation() {
+    if (!submitPreview) return;
+    const { record, draftId } = submitPreview;
+    setEvaluationStartedAt(record.evaluationStartedAt || record.submittedAt);
+    setEvaluationSubmittedAt(record.submittedAt);
+    setEvaluationStatus("Submitted");
+    persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
+    setActiveDraftId("");
+    setDraftSavedAt("");
+    await onSubmitEvaluation?.(record);
+    persistHistory([record, ...evaluationHistory.filter((item) => item.recordId !== record.recordId)]);
     setActiveSubmittedRecordId("");
+    setSubmitPreview(null);
     resetEvaluationForm();
     setWorkspaceView("form");
-    setDraftMessage(`Evaluation submitted at ${submittedAt}. Result task was sent to ${selectedAgentOption?.displayName || agentName || "the selected agent"}.`);
+    setDraftMessage(`Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`);
   }
 
   function saveDraft() {
@@ -1592,6 +1566,130 @@ export default function CreateEvaluationMockup({
         </div>
         ) : null}
       </div>
+      {submitPreview ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 px-4 py-8 backdrop-blur-sm">
+          <div className="mx-auto max-w-[1180px] overflow-hidden rounded-[28px] border border-white/30 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+            <div className="flex flex-col gap-4 bg-gradient-to-r from-slate-950 via-emerald-900 to-sky-800 px-6 py-5 text-white lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">Submit Preview</div>
+                <div className="mt-1 text-2xl font-black">Case Detail Template</div>
+                <div className="mt-1 text-sm font-semibold text-white/75">Review this document before saving the evaluation.</div>
+              </div>
+              <div className="rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-right">
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">PDF Button</div>
+                <div className="mt-1 text-lg font-black">{submitPreview.record.pdfButtonLabel}</div>
+              </div>
+            </div>
+
+            <div className="bg-[#f5f8f3] p-5">
+              <div className="rounded-[22px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="border-b border-slate-200 pb-4">
+                  <div className="text-3xl font-black text-slate-950">Case Detail</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-500">Generated from QA Evaluation Form after final confirmation.</div>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Agent</div>
+                    <div className="mt-1 text-lg font-black text-slate-950">{submitPreview.record.agentName || "-"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Month / Audit Date</div>
+                    <div className="mt-1 text-lg font-black text-slate-950">{formatThaiDate(submitPreview.record.auditDate) || "-"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Case ID</div>
+                    <div className="mt-1 text-lg font-black text-emerald-950">{submitPreview.record.caseId}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_160px_120px]">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Critical Error</div>
+                    <div className="mt-1 text-base font-black text-slate-950">{submitPreview.record.criticalError ? "YES" : "NO"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Customer Inquiry</div>
+                    <div className="mt-1 line-clamp-3 text-sm font-semibold leading-6 text-slate-800">{submitPreview.record.inquiry || "-"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-700">Final Score</div>
+                    <div className="mt-1 text-3xl font-black text-sky-950">{submitPreview.record.finalScore}</div>
+                  </div>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">Grade</div>
+                    <div className="mt-1 text-3xl font-black text-amber-950">{submitPreview.record.grade}</div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Case Description</div>
+                  <div className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800">{submitPreview.record.caseDescription || "-"}</div>
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Case URL</div>
+                    <div className="mt-2 break-all text-sm font-semibold text-sky-800">{submitPreview.record.caseUrl || "-"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Evidence URL / PDF / Image</div>
+                    <div className="mt-2 space-y-1">
+                      {submitPreview.record.evidenceUrls.length ? submitPreview.record.evidenceUrls.slice(0, 4).map((url, index) => (
+                        <div key={`${url}-${index}`} className="break-all text-sm font-semibold text-sky-800">{url}</div>
+                      )) : <div className="text-sm font-semibold text-slate-500">-</div>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-300 bg-white">
+                  <div className="grid grid-cols-[80px_minmax(240px,1fr)_90px_80px_90px_120px] bg-[#217346] px-4 py-3 text-[11px] font-black uppercase tracking-[0.13em] text-white">
+                    <div>Topic</div>
+                    <div>Description</div>
+                    <div>Score</div>
+                    <div>Max</div>
+                    <div>Score %</div>
+                    <div>Status</div>
+                  </div>
+                  <div className="max-h-[420px] overflow-auto">
+                    {submitPreview.record.topics.map((topic, index) => {
+                      const pct = topic.max ? Math.round((topic.score / topic.max) * 100) : 0;
+                      const status = pct >= 90 ? "Excellent" : pct >= 80 ? "Good" : pct >= 70 ? "Watch" : "Focus";
+                      return (
+                        <div key={topic.code} className={`${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"} border-b border-emerald-100`}>
+                          <div className="grid grid-cols-[80px_minmax(240px,1fr)_90px_80px_90px_120px] px-4 py-3 text-sm">
+                            <div className="font-black text-emerald-800">{topic.code}</div>
+                            <div className="font-bold text-slate-950">{topic.title}</div>
+                            <div className="font-black text-slate-950">{topic.score}</div>
+                            <div className="font-bold text-slate-700">{topic.max}</div>
+                            <div className="font-bold text-slate-700">{pct}%</div>
+                            <div className="font-black text-emerald-800">{status}</div>
+                          </div>
+                          {topic.comment ? (
+                            <div className="border-t border-emerald-100 px-4 py-3">
+                              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluation Comment</div>
+                              <div className="mt-1 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700">{topic.comment}</div>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-6 py-5 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => { setSubmitPreview(null); setDraftMessage("Submit canceled. You can continue editing before final submit."); }} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                Back to Edit
+              </button>
+              <button type="button" onClick={confirmSubmitEvaluation} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800">
+                OK, Confirm Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
