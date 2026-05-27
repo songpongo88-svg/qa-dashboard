@@ -730,26 +730,26 @@ function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
       switch (grade) {
         case "A":
           return {
+            total: 1500,
+            cash: 1000,
+            promo: 500,
+            label: "1,000 Cash + 500 RBH Promo Code",
+            remark: "Special incentive for January / April",
+          };
+        case "B":
+          return {
             total: 1000,
             cash: 700,
             promo: 300,
             label: "700 Cash + 300 RBH Promo Code",
             remark: "Special incentive for January / April",
           };
-        case "B":
-          return {
-            total: 700,
-            cash: 500,
-            promo: 200,
-            label: "500 Cash + 200 RBH Promo Code",
-            remark: "Special incentive for January / April",
-          };
         case "C":
           return {
-            total: 500,
-            cash: 350,
+            total: 650,
+            cash: 500,
             promo: 150,
-            label: "350 Cash + 150 RBH Promo Code",
+            label: "500 Cash + 150 RBH Promo Code",
             remark: "Special incentive for January / April",
           };
         default:

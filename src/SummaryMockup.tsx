@@ -330,6 +330,11 @@ function isNewPolicyMonth(monthKey: string) {
   return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
 }
 
+function isSpecialIncentiveMonth(monthKey: string) {
+  if (!isNewPolicyMonth(monthKey)) return false;
+  return monthKey.endsWith("-01") || monthKey.endsWith("-04");
+}
+
 function scoreToGrade(score: number, monthKey: string): Grade {
   if (isNewPolicyMonth(monthKey)) {
     if (score >= 90) return "A";
@@ -366,6 +371,12 @@ function formatCurrencyTHB(value: number) {
 function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
   if (caseCount < CASE_TARGET) return 0;
   if (isNewPolicyMonth(monthKey)) {
+    if (isSpecialIncentiveMonth(monthKey)) {
+      if (avg >= 90) return 1500;
+      if (avg >= 85) return 1000;
+      if (avg >= 80) return 650;
+      return 0;
+    }
     if (avg >= 90) return 1000;
     if (avg >= 85) return 700;
     if (avg >= 80) return 500;
