@@ -531,6 +531,18 @@ function formatWaitingServiceRange(waitingTime?: string, serviceTime?: string) {
 
 
 
+function compareCaseAuditDateAndWaitingTime(a: CaseItem, b: CaseItem) {
+  const dateA = a.auditDateObj && !Number.isNaN(a.auditDateObj.getTime()) ? a.auditDateObj.getTime() : Number.MAX_SAFE_INTEGER;
+  const dateB = b.auditDateObj && !Number.isNaN(b.auditDateObj.getTime()) ? b.auditDateObj.getTime() : Number.MAX_SAFE_INTEGER;
+  if (dateA !== dateB) return dateA - dateB;
+
+  const waitA = parseClockMinutes(a.waitingTime) ?? Number.MAX_SAFE_INTEGER;
+  const waitB = parseClockMinutes(b.waitingTime) ?? Number.MAX_SAFE_INTEGER;
+  if (waitA !== waitB) return waitA - waitB;
+
+  return String(a.caseId || "").localeCompare(String(b.caseId || ""));
+}
+
 async function loadImageAsDataUrl(url: string) {
   try {
     const response = await fetch(url);
@@ -4222,13 +4234,13 @@ export default function DashboardMockup({
   );
 
   const dashboardCases = useMemo(() => {
+    let nextCases = dashboardCasesBase;
     if (overviewMode === "revisedOnly") {
-      return dashboardCasesBase.filter((item) => item.reviewStatus === "Revised");
+      nextCases = dashboardCasesBase.filter((item) => item.reviewStatus === "Revised");
+    } else if (overviewMode === "originalOnly") {
+      nextCases = dashboardCasesBase.filter((item) => item.reviewStatus === "Original");
     }
-    if (overviewMode === "originalOnly") {
-      return dashboardCasesBase.filter((item) => item.reviewStatus === "Original");
-    }
-    return dashboardCasesBase;
+    return [...nextCases].sort(compareCaseAuditDateAndWaitingTime);
   }, [dashboardCasesBase, overviewMode]);
 
   const activeSelectedCase = useMemo(() => {

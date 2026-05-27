@@ -1,16 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605271126",
-  "buildNumber": 2605271126,
-  "releaseLabel": "v1.0.0.2605271126",
-  "updatedAt": "27/05/2026 11:26:12",
+  "displayVersion": "1.0.0.2605271145",
+  "buildNumber": 2605271145,
+  "releaseLabel": "v1.0.0.2605271145",
+  "updatedAt": "27/05/2026 11:45:18",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8aa7143162bcb175b6e8aab6f749ed606017b9f9",
-  "commitMessage": "Add files via upload",
+  "commitHash": "e4a9d8132839158771e9b4356bb672b6fcd5ecf0",
+  "commitMessage": "Add QA evaluation submit preview",
   "changedFiles": [
-    "public/case-pdfs/AA238074-revised.pdf"
+    "public/build-meta.json",
+    "src/App.tsx",
+    "src/CreateEvaluationMockup.tsx",
+    "src/DashboardMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
