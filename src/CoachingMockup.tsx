@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
+import { scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 
-type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
 
 type Topic = {
@@ -226,21 +226,6 @@ function buildTopicPraiseNote(topic: Topic) {
 
 function isNewPolicyMonth(monthKey: string) {
   return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
-}
-
-function scoreToGrade(score: number, monthKey: string): Grade {
-  if (isNewPolicyMonth(monthKey)) {
-    if (score >= 90) return "A";
-    if (score >= 85) return "B";
-    if (score >= 80) return "C";
-    return "D";
-  }
-
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
 }
 
 function roundExcelLikeMinute(date: Date) {

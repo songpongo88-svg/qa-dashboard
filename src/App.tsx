@@ -23,6 +23,7 @@ import {
   StoredRolePermission,
   StoredUserProfile,
 } from "./userRoleStore";
+import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 
 type UserRole = string;
 type RolePermissionKey =
@@ -548,18 +549,8 @@ function getInboxWeekLabel(row: unknown[], helper: ReturnType<typeof buildInboxH
 
 function scoreToInboxGrade(score: number, auditDate: unknown): string {
   const date = excelInboxDateToJSDate(auditDate);
-  const isNewPolicy = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` >= "2026-04" : true;
-  if (isNewPolicy) {
-    if (score >= 90) return "A";
-    if (score >= 85) return "B";
-    if (score >= 80) return "C";
-    return "D";
-  }
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
+  const monthKey = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` : "unknown";
+  return scoreToGrade(score, monthKey);
 }
 
 function isInboxSamePerson(a: unknown, b: unknown) {

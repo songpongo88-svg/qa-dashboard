@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605281012",
-  "buildNumber": 2605281012,
-  "releaseLabel": "v1.0.0.2605281012",
-  "updatedAt": "28/05/2026 10:12:15",
+  "displayVersion": "1.0.0.2605281531",
+  "buildNumber": 2605281531,
+  "releaseLabel": "v1.0.0.2605281531",
+  "updatedAt": "28/05/2026 15:31:19",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "7659b91b5080c76d94c77fe55988a6ee76a10b4a",
-  "commitMessage": "Format report exports as Excel dates",
+  "commitHash": "6e84ce99e7409abc93fe66ab6ea72364bcb3d1b3",
+  "commitMessage": "Use score dropdowns for appeal reviews",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx"
+    "src/AppealRequestsMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

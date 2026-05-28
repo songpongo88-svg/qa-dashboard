@@ -6,7 +6,7 @@ export type DeductionLevel = "None" | "Minor" | "Moderate" | "Severe";
 
 export type ToneCheck = "Good" | "Fair" | "Poor" | "N/A";
 
-export type FinalGrade = "A" | "B" | "C" | "D";
+export type FinalGrade = "A" | "B" | "C" | "D" | "F" | "G";
 
 export interface CaseMaster {
   caseId: string;

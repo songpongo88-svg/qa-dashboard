@@ -3,9 +3,9 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import PageHero from "./PageHero";
+import { scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 
 type ReviewStatus = "Original" | "Revised";
-type Grade = "A" | "B" | "C" | "D" | "F";
 
 type Topic = {
   code: string;
@@ -371,21 +371,6 @@ function getFirstNonEmptyValue(
   return null;
 }
 
-function scoreToGrade(score: number, monthKey: string): Grade {
-  if (isNewPolicyMonth(monthKey)) {
-    if (score >= 90) return "A";
-    if (score >= 85) return "B";
-    if (score >= 80) return "C";
-    return "D";
-  }
-
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
-}
-
 function gradeTone(grade: Grade) {
   switch (grade) {
     case "A":
@@ -587,7 +572,7 @@ function gradeShiftTone(originalGrade: Grade, revisedGrade: Grade) {
     };
   }
 
-  const rank: Record<Grade, number> = { A: 5, B: 4, C: 3, D: 2, F: 1 };
+  const rank: Record<Grade, number> = { A: 6, B: 5, C: 4, D: 3, F: 2, G: 1 };
   const improved = rank[revisedGrade] > rank[originalGrade];
 
   return improved

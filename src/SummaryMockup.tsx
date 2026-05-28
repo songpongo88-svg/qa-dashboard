@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { fetchStoredEvaluations } from "./evaluationStore";
+import { getIncentiveByScore, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 
-type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
 
 type Topic = {
@@ -330,25 +330,6 @@ function isNewPolicyMonth(monthKey: string) {
   return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
 }
 
-function isSpecialIncentiveMonth(monthKey: string) {
-  if (!isNewPolicyMonth(monthKey)) return false;
-  return monthKey.endsWith("-01") || monthKey.endsWith("-04");
-}
-
-function scoreToGrade(score: number, monthKey: string): Grade {
-  if (isNewPolicyMonth(monthKey)) {
-    if (score >= 90) return "A";
-    if (score >= 85) return "B";
-    if (score >= 80) return "C";
-    return "D";
-  }
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
-}
-
 function getGradeTone(grade: Grade) {
   switch (grade) {
     case "A":
@@ -370,22 +351,7 @@ function formatCurrencyTHB(value: number) {
 
 function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
   if (caseCount < CASE_TARGET) return 0;
-  if (isNewPolicyMonth(monthKey)) {
-    if (isSpecialIncentiveMonth(monthKey)) {
-      if (avg >= 90) return 1000;
-      if (avg >= 85) return 700;
-      if (avg >= 80) return 500;
-      return 0;
-    }
-    if (avg >= 90) return 1000;
-    if (avg >= 85) return 700;
-    if (avg >= 80) return 500;
-    return 0;
-  }
-  if (avg >= 90) return 1000;
-  if (avg >= 80) return 700;
-  if (avg >= 70) return 300;
-  return 0;
+  return getIncentiveByScore(avg, monthKey).total;
 }
 
 function getPolicyMonthKeyForCases(cases: CaseItem[]) {

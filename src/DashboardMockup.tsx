@@ -7,8 +7,14 @@ import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
+import {
+  getIncentivePolicyKey,
+  getIncentiveByGrade,
+  scoreToGrade,
+  type Grade,
+  type IncentiveResult,
+} from "./lib/scoreIncentivePolicy";
 
-type Grade = "A" | "B" | "C" | "D" | "F";
 type ReviewStatus = "Original" | "Revised";
 
 type Topic = {
@@ -82,14 +88,6 @@ type AppealMergeItem = {
   reviewStatus?: ReviewStatus;
   revisedTopics: Topic[];
   displayRevisedTopicCodes: string[];
-};
-
-type IncentiveResult = {
-  total: number;
-  cash: number;
-  promo: number;
-  label: string;
-  remark: string;
 };
 
 const CASE_TARGET = 10;
@@ -268,26 +266,6 @@ function isNewPolicyMonth(monthKey: string) {
   return monthKey !== "unknown" && monthKey >= NEW_POLICY_START_MONTH_KEY;
 }
 
-function isSpecialIncentiveMonth(monthKey: string) {
-  if (!isNewPolicyMonth(monthKey)) return false;
-  return monthKey.endsWith("-01") || monthKey.endsWith("-04");
-}
-
-function scoreToGrade(score: number, monthKey: string): Grade {
-  if (isNewPolicyMonth(monthKey)) {
-    if (score >= 90) return "A";
-    if (score >= 85) return "B";
-    if (score >= 80) return "C";
-    return "D";
-  }
-
-  if (score >= 90) return "A";
-  if (score >= 80) return "B";
-  if (score >= 70) return "C";
-  if (score >= 60) return "D";
-  return "F";
-}
-
 function gradeTone(grade: Grade) {
   switch (grade) {
     case "A":
@@ -329,28 +307,35 @@ function currentGradeTone(value: string) {
       return {
         card: "from-sky-50 via-white to-sky-100/70 border-sky-200",
         badge: "border-sky-200 bg-sky-100 text-sky-700",
-        level: "Good",
+        level: "Strong",
         levelText: "text-sky-700",
       };
     case "C":
       return {
         card: "from-amber-50 via-white to-amber-100/70 border-amber-200",
         badge: "border-amber-200 bg-amber-100 text-amber-700",
-        level: "Fair",
+        level: "Standard",
         levelText: "text-amber-700",
       };
     case "D":
       return {
         card: "from-orange-50 via-white to-orange-100/70 border-orange-200",
         badge: "border-orange-200 bg-orange-100 text-orange-700",
-        level: "Improvement Required",
+        level: "Improvement Needed",
         levelText: "text-orange-700",
       };
     case "F":
       return {
         card: "from-rose-50 via-white to-rose-100/70 border-rose-200",
         badge: "border-rose-200 bg-rose-100 text-rose-700",
-        level: "Fail",
+        level: "Unsatisfactory",
+        levelText: "text-rose-700",
+      };
+    case "G":
+      return {
+        card: "from-red-50 via-white to-red-100/70 border-red-200",
+        badge: "border-red-200 bg-red-100 text-red-700",
+        level: "Written Warning",
         levelText: "text-rose-700",
       };
     default:
@@ -724,125 +709,6 @@ function formatCurrencyTHB(value: number) {
   }).format(value);
 }
 
-function getIncentiveByGrade(grade: Grade, monthKey: string): IncentiveResult {
-  if (isNewPolicyMonth(monthKey)) {
-    if (isSpecialIncentiveMonth(monthKey)) {
-      switch (grade) {
-        case "A":
-          return {
-            total: 1000,
-            cash: 1000,
-            promo: 500,
-            label: "1,000 Cash + 500 RBH Promo Code",
-            remark: "Special incentive for January / April",
-          };
-        case "B":
-          return {
-            total: 700,
-            cash: 700,
-            promo: 300,
-            label: "700 Cash + 300 RBH Promo Code",
-            remark: "Special incentive for January / April",
-          };
-        case "C":
-          return {
-            total: 500,
-            cash: 500,
-            promo: 150,
-            label: "500 Cash + 150 RBH Promo Code",
-            remark: "Special incentive for January / April",
-          };
-        default:
-          return {
-            total: 0,
-            cash: 0,
-            promo: 0,
-            label: "No Incentive",
-            remark: "Below incentive criteria",
-          };
-      }
-    }
-
-    switch (grade) {
-      case "A":
-        return {
-          total: 1000,
-          cash: 1000,
-          promo: 0,
-          label: "1,000 THB",
-          remark: "Excellent",
-        };
-      case "B":
-        return {
-          total: 700,
-          cash: 700,
-          promo: 0,
-          label: "700 THB",
-          remark: "Good",
-        };
-      case "C":
-        return {
-          total: 500,
-          cash: 500,
-          promo: 0,
-          label: "500 THB",
-          remark: "Fair",
-        };
-      default:
-        return {
-          total: 0,
-          cash: 0,
-          promo: 0,
-          label: "No Incentive",
-          remark: "Improvement Required",
-        };
-    }
-  }
-
-  switch (grade) {
-    case "A":
-      return {
-        total: 1000,
-        cash: 1000,
-        promo: 0,
-        label: "1,000 THB",
-        remark: "Excellent",
-      };
-    case "B":
-      return {
-        total: 700,
-        cash: 700,
-        promo: 0,
-        label: "700 THB",
-        remark: "Good",
-      };
-    case "C":
-      return {
-        total: 300,
-        cash: 300,
-        promo: 0,
-        label: "300 THB",
-        remark: "Fair",
-      };
-    case "D":
-      return {
-        total: 0,
-        cash: 0,
-        promo: 0,
-        label: "No Incentive",
-        remark: "Improvement Required",
-      };
-    default:
-      return {
-        total: 0,
-        cash: 0,
-        promo: 0,
-        label: "No Incentive",
-        remark: "Fail",
-      };
-  }
-}
-
 function getIncentiveResult(caseCount: number, avg: number, monthKey: string): IncentiveResult {
   if (caseCount < CASE_TARGET) {
     return {
@@ -888,7 +754,7 @@ function buildAgentSummary(cases: CaseItem[]): Summary {
   const average =
     cases.reduce((sum, item) => sum + item.finalScore, 0) / Math.max(cases.length, 1);
 
-  const gradeCounts: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+  const gradeCounts: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0, G: 0 };
   for (const item of cases) gradeCounts[item.grade] += 1;
 
   const topicPerformance = getTopicMasterByMonth(getPolicyMonthKeyForCases(cases)).map((master) => {
@@ -4852,13 +4718,15 @@ export default function DashboardMockup({
                     <PanelHeader
                       title="QA Grade & Incentive Guide"
                       subtitle={
-                        isNewPolicyMonth(effectiveViewMonthKey)
-                          ? "New criteria applies from April 2026 onward. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
-                          : "Previous criteria remains for months before April 2026. Monthly incentive is calculated only when the agent has at least 10 reviewed cases in that month."
+                        getIncentivePolicyKey(effectiveViewMonthKey) === "JAN_FEB_2026"
+                          ? "January-February 2026 uses the special 80/70/60 grading policy. Monthly incentive is calculated only when the agent has at least 10 reviewed cases."
+                          : getIncentivePolicyKey(effectiveViewMonthKey) === "MAR_2026"
+                            ? "March 2026 uses the March-only grading policy. Monthly incentive is calculated only when the agent has at least 10 reviewed cases."
+                            : "April 2026 onward uses the current grading policy. Monthly incentive is calculated only when the agent has at least 10 reviewed cases."
                       }
                     />
                     <PanelBody className="space-y-6">
-                      {isNewPolicyMonth(effectiveViewMonthKey) ? (
+                      {getIncentivePolicyKey(effectiveViewMonthKey) === "APR_2026_ONWARD" ? (
                         <>
                           <div className="overflow-x-auto rounded-2xl border border-violet-100">
                             <table className="min-w-[860px] w-full text-sm">
@@ -4885,7 +4753,7 @@ export default function DashboardMockup({
                                 </tr>
                                 <tr className="bg-white">
                                   <td className="border-t border-slate-200 px-4 py-3">85-89</td>
-                                  <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Strong</td>
                                   <td className="border-t border-slate-200 px-4 py-3 text-center">
                                     <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
                                       B
@@ -4897,7 +4765,7 @@ export default function DashboardMockup({
                                 </tr>
                                 <tr className="bg-white">
                                   <td className="border-t border-slate-200 px-4 py-3">80-84</td>
-                                  <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">Standard</td>
                                   <td className="border-t border-slate-200 px-4 py-3 text-center">
                                     <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
                                       C
@@ -4910,7 +4778,7 @@ export default function DashboardMockup({
                                 <tr className="bg-white">
                                   <td className="border-t border-slate-200 px-4 py-3">&lt;80</td>
                                   <td className="border-t border-slate-200 px-4 py-3">
-                                    Improvement Required
+                                    Improvement Needed
                                   </td>
                                   <td className="border-t border-slate-200 px-4 py-3 text-center">
                                     <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
@@ -4942,18 +4810,18 @@ export default function DashboardMockup({
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
                                   </tr>
                                   <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3">Strong</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
                                   </tr>
                                   <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3">Standard</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
                                   </tr>
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">
-                                      Improvement Required
+                                      Improvement Needed
                                     </td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
@@ -4982,14 +4850,14 @@ export default function DashboardMockup({
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">1,000</td>
                                   </tr>
                                   <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                    <td className="border-t border-slate-200 px-4 py-3">Strong</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">B</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">300</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">700</td>
                                   </tr>
                                   <tr className="bg-white">
-                                    <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                    <td className="border-t border-slate-200 px-4 py-3">Standard</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">C</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">500</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">150</td>
@@ -4997,7 +4865,7 @@ export default function DashboardMockup({
                                   </tr>
                                   <tr className="bg-white">
                                     <td className="border-t border-slate-200 px-4 py-3">
-                                      Improvement Required
+                                      Improvement Needed
                                     </td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">D</td>
                                     <td className="border-t border-slate-200 px-4 py-3 text-center">0</td>
@@ -5009,6 +4877,40 @@ export default function DashboardMockup({
                             </div>
                           </div>
                         </>
+                      ) : getIncentivePolicyKey(effectiveViewMonthKey) === "JAN_FEB_2026" ? (
+                        <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                          <table className="min-w-[760px] w-full text-sm">
+                            <thead>
+                              <tr className="bg-violet-950 text-[11px] text-white">
+                                <th className="px-4 py-3 text-left">Score Range</th>
+                                <th className="px-4 py-3 text-left">Level</th>
+                                <th className="px-4 py-3 text-center">Grade</th>
+                                <th className="px-4 py-3 text-center">Incentive (THB)</th>
+                                <th className="px-4 py-3 text-left">Remark</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[
+                                ["80-100", "Excellent", "A", "1,000"],
+                                ["70-79", "Strong", "B", "500"],
+                                ["60-69", "Standard", "C", "300"],
+                                ["<60", "Improvement Needed", "D", "0"],
+                              ].map(([range, level, grade, incentive]) => (
+                                <tr key={grade} className="bg-white">
+                                  <td className="border-t border-slate-200 px-4 py-3">{range}</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">{level}</td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">
+                                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade as Grade)}`}>
+                                      {grade}
+                                    </span>
+                                  </td>
+                                  <td className="border-t border-slate-200 px-4 py-3 text-center">{incentive}</td>
+                                  <td className="border-t border-slate-200 px-4 py-3">January-February 2026 only</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : (
                         <div className="overflow-x-auto">
                           <table className="min-w-[860px] w-full text-sm">
@@ -5035,7 +4937,7 @@ export default function DashboardMockup({
                               </tr>
                               <tr className="bg-white">
                                 <td className="border-t border-slate-200 px-4 py-3">80-89</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Good</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Strong</td>
                                 <td className="border-t border-slate-200 px-4 py-3 text-center">
                                   <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
                                     B
@@ -5046,7 +4948,7 @@ export default function DashboardMockup({
                               </tr>
                               <tr className="bg-white">
                                 <td className="border-t border-slate-200 px-4 py-3">70-79</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Fair</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Standard</td>
                                 <td className="border-t border-slate-200 px-4 py-3 text-center">
                                   <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
                                     C
@@ -5057,7 +4959,7 @@ export default function DashboardMockup({
                               </tr>
                               <tr className="bg-white">
                                 <td className="border-t border-slate-200 px-4 py-3">60-69</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Improvement Required</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Improvement Needed</td>
                                 <td className="border-t border-slate-200 px-4 py-3 text-center">
                                   <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">
                                     D
@@ -5068,7 +4970,7 @@ export default function DashboardMockup({
                               </tr>
                               <tr className="bg-white">
                                 <td className="border-t border-slate-200 px-4 py-3">&lt;60</td>
-                                <td className="border-t border-slate-200 px-4 py-3">Fail</td>
+                                <td className="border-t border-slate-200 px-4 py-3">Unsatisfactory</td>
                                 <td className="border-t border-slate-200 px-4 py-3 text-center">
                                   <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
                                     F
