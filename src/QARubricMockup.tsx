@@ -891,6 +891,170 @@ const JUNE_FOCUS_TABLE_ROWS = [
 type JuneRubricWorkbookTab = "focus" | "deduction";
 
 function JuneRubricWorkbook() {
+  const deductionGroups = JUNE_DEDUCTION_GUIDE.reduce<
+    Array<{ category: string; max: number; items: typeof JUNE_DEDUCTION_GUIDE }>
+  >((groups, row) => {
+    const existing = groups.find((group) => group.category === row.category);
+    if (existing) {
+      existing.items.push(row);
+      return groups;
+    }
+
+    groups.push({
+      category: row.category,
+      max: row.max,
+      items: [row],
+    });
+    return groups;
+  }, []);
+
+  const severityStyles = [
+    "border-emerald-200 bg-emerald-50 text-emerald-900",
+    "border-sky-200 bg-sky-50 text-sky-900",
+    "border-amber-200 bg-amber-50 text-amber-900",
+    "border-orange-200 bg-orange-50 text-orange-900",
+    "border-rose-200 bg-rose-50 text-rose-900",
+  ];
+
+  return (
+    <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_24px_70px_rgba(15,118,110,0.12)]">
+      <div className="bg-gradient-to-r from-[#0f5f3c] via-[#167348] to-[#0f6f8e] px-6 py-6 text-white">
+        <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">
+          June 2026 Rubric Workbook
+        </div>
+        <h2 className="mt-2 text-2xl font-black">QA Admin Live Chat Criteria</h2>
+        <p className="mt-2 max-w-5xl text-sm font-semibold leading-6 text-white/82">
+          แสดงข้อมูลตามไฟล์ Excel ล่าสุดแบบอ่านง่ายขึ้น: ตารางหลักสำหรับเกณฑ์ประเมิน และส่วนระดับการหักคะแนนที่เรียงครบทุกหมวดในหน้าเดียวโดยไม่ต้องกด Filter.
+        </p>
+      </div>
+
+      <div className="grid gap-3 border-b border-emerald-100 bg-emerald-50/70 p-5 md:grid-cols-4">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Sections</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_2026_RUBRIC_SOURCE.topics.length}</div>
+        </div>
+        <div className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">Focus Items</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_FOCUS_TABLE_ROWS.length}</div>
+        </div>
+        <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">Deduction Groups</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{deductionGroups.length}</div>
+        </div>
+        <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Effective Date</div>
+          <div className="mt-2 text-lg font-black text-slate-950">01/06/2026</div>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Assessment Topics</div>
+            <h3 className="mt-1 text-xl font-black text-slate-950">เกณฑ์หลักและหัวข้อประเมิน</h3>
+          </div>
+          <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800">
+            ข้อมูลเรียงตาม Excel
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-emerald-200">
+          <table className="min-w-[1520px] text-left text-sm">
+            <thead className="bg-[#217346] text-white">
+              <tr>
+                <th className="w-24 px-4 py-3 font-black">หมวด</th>
+                <th className="w-[260px] px-4 py-3 font-black">หัวข้อหลัก</th>
+                <th className="w-24 px-4 py-3 text-center font-black">คะแนนเต็ม</th>
+                <th className="w-[260px] px-4 py-3 font-black">หัวข้อประเมิน</th>
+                <th className="w-24 px-4 py-3 text-center font-black">ข้อโฟกัส</th>
+                <th className="w-[300px] px-4 py-3 font-black">หัวข้อที่ดู</th>
+                <th className="w-[360px] px-4 py-3 font-black">วิธีประเมิน</th>
+                <th className="w-[360px] px-4 py-3 font-black">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน</th>
+              </tr>
+            </thead>
+            <tbody>
+              {JUNE_FOCUS_TABLE_ROWS.map((row, index) => (
+                <tr key={`${row.categoryCode}-${row.focusNo}`} className={index % 2 === 0 ? "bg-white" : "bg-emerald-50/55"}>
+                  <td className="border-t border-emerald-100 px-4 py-4 align-top font-black text-emerald-800">{row.displayCategoryCode}</td>
+                  <td className="border-t border-emerald-100 px-4 py-4 align-top font-bold leading-6 text-slate-950">{row.displayCategory}</td>
+                  <td className="border-t border-emerald-100 px-4 py-4 text-center align-top font-black text-slate-900">{row.displayMax}</td>
+                  <td className="border-t border-emerald-100 px-4 py-4 align-top font-semibold leading-6 text-slate-800">{row.displayAssessment}</td>
+                  <td className="border-t border-emerald-100 px-4 py-4 text-center align-top">
+                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-100 px-3 text-xs font-black text-emerald-800">
+                      {row.categoryCode}.{row.focusNo}
+                    </span>
+                  </td>
+                  <td className="border-t border-emerald-100 px-4 py-4 align-top font-semibold leading-6 text-slate-800">{row.focusItem}</td>
+                  <td className="border-t border-emerald-100 px-4 py-4 align-top leading-6 text-slate-700">{row.reviewGuide}</td>
+                  <td className="border-t border-emerald-100 px-4 py-4 align-top leading-6 text-slate-700">{row.examples}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-8 rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5">
+          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Deduction Severity</div>
+              <h3 className="mt-1 text-xl font-black text-slate-950">ระดับการหักคะแนนตามความรุนแรง</h3>
+              <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
+                โชว์ครบทุกหมวดในหน้าเดียว แยกเป็นข้อ ๆ ตามลำดับ Excel เพื่อให้เทียบช่วงคะแนนและเหตุผลการหักได้เร็วขึ้น.
+              </p>
+            </div>
+            <div className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-black text-emerald-800">
+              {JUNE_DEDUCTION_GUIDE.length} รายการ
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            {deductionGroups.map((group, groupIndex) => (
+              <section key={group.category} className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white shadow-[0_16px_36px_rgba(15,118,110,0.08)]">
+                <div className="flex flex-col gap-3 border-b border-emerald-100 bg-slate-950 px-5 py-4 text-white md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">หมวด {groupIndex + 1}</div>
+                    <h4 className="mt-1 text-lg font-black leading-7">{group.category}</h4>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white/12 px-3 py-1 text-xs font-black">คะแนนเต็ม {group.max}</span>
+                    <span className="rounded-full bg-emerald-300 px-3 py-1 text-xs font-black text-emerald-950">{group.items.length} ระดับ</span>
+                  </div>
+                </div>
+
+                <div className="max-h-[520px] space-y-3 overflow-y-auto p-4 pr-2">
+                  {group.items.map((item, itemIndex) => {
+                    const tone = severityStyles[itemIndex] || severityStyles[severityStyles.length - 1];
+                    return (
+                      <div key={`${item.category}-${item.level}`} className={`rounded-2xl border p-4 ${tone}`}>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 min-w-10 items-center justify-center rounded-2xl bg-white text-sm font-black shadow-sm">
+                              {groupIndex + 1}.{itemIndex + 1}
+                            </div>
+                            <div>
+                              <div className="text-base font-black leading-6">{item.level}</div>
+                              <div className="mt-1 text-xs font-bold opacity-80">ช่วงคะแนนที่หัก</div>
+                            </div>
+                          </div>
+                          <div className="inline-flex rounded-2xl bg-white px-4 py-2 text-lg font-black shadow-sm">
+                            {item.range}
+                          </div>
+                        </div>
+                        <p className="mt-3 rounded-2xl bg-white/75 p-4 text-sm font-semibold leading-7 text-slate-700">
+                          {item.note}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const [activeTab, setActiveTab] = useState<JuneRubricWorkbookTab>("focus");
 
   const tabs: Array<{ key: JuneRubricWorkbookTab; label: string; description: string }> = [

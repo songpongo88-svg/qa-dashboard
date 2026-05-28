@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605282020",
-  "buildNumber": 2605282020,
-  "releaseLabel": "v1.0.0.2605282020",
-  "updatedAt": "28/05/2026 20:20:41",
+  "displayVersion": "1.0.0.2605282050",
+  "buildNumber": 2605282050,
+  "releaseLabel": "v1.0.0.2605282050",
+  "updatedAt": "28/05/2026 20:50:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "bd6091fa85d8a77bd219ad26c4650e44917d01c6",
-  "commitMessage": "Align June rubric focus guidance",
+  "commitHash": "a55e3671e5e33c740d9d8e1e086987f592dd31c5",
+  "commitMessage": "Match adjusted June rubric workbook",
   "changedFiles": [
     "public/build-meta.json",
     "src/QARubricMockup.tsx"
