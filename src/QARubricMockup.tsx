@@ -706,13 +706,13 @@ const JUNE_DEDUCTION_GUIDE = [
 const JUNE_FOCUS_TABLE_ROWS = [
   {
     "categoryCode": "1",
-    "category": "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+    "category": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
     "max": 30,
-    "assessment": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
+    "assessment": "",
     "displayCategoryCode": "1",
-    "displayCategory": "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+    "displayCategory": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
     "displayMax": 30,
-    "displayAssessment": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
+    "displayAssessment": "",
     "focusNo": "1",
     "focusItem": "เปิดและปิดแชทตามมาตรฐาน (Standard Opening & Closing)",
     "reviewGuide": "ดูว่าแอดมินเริ่มแชทและจบแชทถูกต้องหรือไม่ เช่น ทักทาย แนะนำตัว แจ้งว่าพร้อมช่วยเหลือ และปิดแชทเมื่อให้ข้อมูลครบแล้ว โดยควรระบุชื่อแอดมินตามมาตรฐานอย่างน้อย 2 ครั้ง และไม่รีบปิดเคสก่อนผู้ติดต่อได้คำตอบครบ",
@@ -720,9 +720,9 @@ const JUNE_FOCUS_TABLE_ROWS = [
   },
   {
     "categoryCode": "1",
-    "category": "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+    "category": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
     "max": 30,
-    "assessment": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -734,9 +734,9 @@ const JUNE_FOCUS_TABLE_ROWS = [
   },
   {
     "categoryCode": "1",
-    "category": "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+    "category": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
     "max": 30,
-    "assessment": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -748,9 +748,9 @@ const JUNE_FOCUS_TABLE_ROWS = [
   },
   {
     "categoryCode": "1",
-    "category": "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+    "category": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
     "max": 30,
-    "assessment": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -762,13 +762,13 @@ const JUNE_FOCUS_TABLE_ROWS = [
   },
   {
     "categoryCode": "2",
-    "category": "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
+    "category": "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
     "max": 20,
-    "assessment": "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
+    "assessment": "",
     "displayCategoryCode": "2",
-    "displayCategory": "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
+    "displayCategory": "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
     "displayMax": 20,
-    "displayAssessment": "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
+    "displayAssessment": "",
     "focusNo": "1",
     "focusItem": "ตอบถูกต้องและครบประเด็น (Answer Accuracy & Completeness)",
     "reviewGuide": "ดูว่าคำตอบถูกต้อง ตรงกับประเภทผู้ติดต่อ เช่น ลูกค้า ไรเดอร์ หรือร้านค้า และตอบครบทุกคำถามที่ผู้ติดต่อถาม ทั้งคำถามหลัก คำถามต่อเนื่อง และข้อมูลที่จำเป็นต่อการตัดสินใจ ไม่ทำให้ต้องถามซ้ำในเรื่องเดิม",
@@ -776,9 +776,9 @@ const JUNE_FOCUS_TABLE_ROWS = [
   },
   {
     "categoryCode": "2",
-    "category": "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
+    "category": "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
     "max": 20,
-    "assessment": "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -792,11 +792,11 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "3",
     "category": "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
     "max": 25,
-    "assessment": "การรับผิดชอบเคสต่อเนื่อง (Case Ownership)",
+    "assessment": "",
     "displayCategoryCode": "3",
     "displayCategory": "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
     "displayMax": 25,
-    "displayAssessment": "การรับผิดชอบเคสต่อเนื่อง (Case Ownership)",
+    "displayAssessment": "",
     "focusNo": "1",
     "focusItem": "ดูแลเคสตั้งแต่รับเรื่องจนมีข้อสรุป (End-to-End Case Handling)",
     "reviewGuide": "ดูว่าแอดมินรับเรื่องแล้วดูแลต่อเนื่องหรือไม่ ไม่ตอบแล้วปล่อย ไม่โยนภาระให้ผู้ติดต่อโดยไม่จำเป็น และทำให้ผู้ติดต่อมั่นใจว่าเรื่องได้รับการดูแลจนมีข้อสรุปหรือมีทางไปต่อ",
@@ -806,7 +806,7 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "3",
     "category": "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
     "max": 25,
-    "assessment": "การรับผิดชอบเคสต่อเนื่อง (Case Ownership)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -820,7 +820,7 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "3",
     "category": "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
     "max": 25,
-    "assessment": "การรับผิดชอบเคสต่อเนื่อง (Case Ownership)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -834,11 +834,11 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "4",
     "category": "ทักษะการสื่อสาร (Communication Skills)",
     "max": 25,
-    "assessment": "ภาษาและลำดับการสื่อสาร (Communication Flow & Language Use)",
+    "assessment": "",
     "displayCategoryCode": "4",
     "displayCategory": "ทักษะการสื่อสาร (Communication Skills)",
     "displayMax": 25,
-    "displayAssessment": "ภาษาและลำดับการสื่อสาร (Communication Flow & Language Use)",
+    "displayAssessment": "",
     "focusNo": "1",
     "focusItem": "อ่านง่ายและเรียงลำดับชัด (Clear Structure & Logical Flow)",
     "reviewGuide": "ดูว่าข้อความอ่านเข้าใจง่ายหรือไม่ ควรเรียงจากรับเรื่อง → ตรวจสอบ/แจ้งผล → บอกขั้นตอนถัดไป แยกประเด็นให้ชัด ไม่เขียนรวมกันจนผู้ติดต่อสับสน",
@@ -848,7 +848,7 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "4",
     "category": "ทักษะการสื่อสาร (Communication Skills)",
     "max": 25,
-    "assessment": "ภาษาและลำดับการสื่อสาร (Communication Flow & Language Use)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -862,7 +862,7 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "4",
     "category": "ทักษะการสื่อสาร (Communication Skills)",
     "max": 25,
-    "assessment": "ภาษาและลำดับการสื่อสาร (Communication Flow & Language Use)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -876,7 +876,7 @@ const JUNE_FOCUS_TABLE_ROWS = [
     "categoryCode": "4",
     "category": "ทักษะการสื่อสาร (Communication Skills)",
     "max": 25,
-    "assessment": "ภาษาและลำดับการสื่อสาร (Communication Flow & Language Use)",
+    "assessment": "",
     "displayCategoryCode": "",
     "displayCategory": "",
     "displayMax": "",
@@ -1024,16 +1024,13 @@ function JuneRubricWorkbook() {
         <div className={activeTab === "focus" ? "space-y-5" : "hidden"}>
           {focusGroups.map((group) => (
             <section
-              key={`${group.categoryCode}-${group.assessment}`}
+              key={group.categoryCode}
               className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white shadow-[0_16px_36px_rgba(15,118,110,0.08)]"
             >
               <div className="grid gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-700 px-5 py-5 text-white lg:grid-cols-[1fr_auto]">
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">หมวดหลัก {group.categoryCode}</div>
                   <h4 className="mt-2 text-xl font-black leading-8">{group.category}</h4>
-                  <div className="mt-3 inline-flex max-w-full rounded-2xl bg-white/12 px-3 py-2 text-xs font-bold leading-5 text-white/88">
-                    หัวข้อประเมิน: {group.assessment}
-                  </div>
                 </div>
                 <div className="flex gap-2 lg:flex-col lg:items-end">
                   <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-900">คะแนนเต็ม {group.max}</span>
@@ -1041,23 +1038,28 @@ function JuneRubricWorkbook() {
                 </div>
               </div>
 
-              <div className="divide-y divide-emerald-100">
+              <div className="space-y-3 bg-emerald-50/35 p-4">
                 {group.rows.map((row) => (
-                  <div key={`${row.categoryCode}-${row.focusNo}`} className="grid gap-4 p-5 xl:grid-cols-[220px_1fr]">
-                    <div>
-                      <div className="inline-flex items-center gap-2 rounded-2xl bg-emerald-100 px-3 py-2 text-sm font-black text-emerald-800">
+                  <div
+                    key={`${row.categoryCode}-${row.focusNo}`}
+                    className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start">
+                      <div className="flex h-9 min-w-9 items-center justify-center rounded-xl bg-emerald-100 text-sm font-black text-emerald-800">
                         {row.focusNo}
                       </div>
-                      <div className="mt-3 text-base font-black leading-7 text-slate-950">{row.focusItem}</div>
-                    </div>
-                    <div className="grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
-                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-700">วิธีประเมิน</div>
-                        <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{row.reviewGuide}</p>
-                      </div>
-                      <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน</div>
-                        <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{row.examples}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-base font-black leading-7 text-slate-950">{row.focusItem}</div>
+                        <div className="mt-3 space-y-2 text-sm font-semibold leading-7 text-slate-700">
+                          <p>
+                            <span className="font-black text-sky-700">วิธีประเมิน: </span>
+                            {row.reviewGuide}
+                          </p>
+                          <p>
+                            <span className="font-black text-amber-700">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน: </span>
+                            {row.examples}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605282129",
-  "buildNumber": 2605282129,
-  "releaseLabel": "v1.0.0.2605282129",
-  "updatedAt": "28/05/2026 21:29:16",
+  "displayVersion": "1.0.0.2605282149",
+  "buildNumber": 2605282149,
+  "releaseLabel": "v1.0.0.2605282149",
+  "updatedAt": "28/05/2026 21:49:10",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8a813db1bff9b9c53b1040627eb979a58a61ee14",
-  "commitMessage": "Refine June rubric tabs",
+  "commitHash": "e17f88e09bd87ceb006fdc324ac76141879df42f",
+  "commitMessage": "Clarify June rubric focus labels",
   "changedFiles": [
     "public/build-meta.json",
     "src/QARubricMockup.tsx"
