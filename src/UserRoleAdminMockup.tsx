@@ -24,6 +24,7 @@ type RolePermissionKey =
   | "reviewAppeals"
   | "appealOverride"
   | "viewRubric"
+  | "manageRubric"
   | "createEvaluation"
   | "viewUsageLog"
   | "exportPdf"
@@ -132,6 +133,7 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "reviewAppeals", label: "Review Appeals", category: "Review", description: "Open Appeal Requests and approve/reject requests." },
   { key: "appealOverride", label: "Appeal Override", category: "Review", description: "Allow specific late cases to submit appeal." },
   { key: "viewRubric", label: "View QA Rubric", category: "Review", description: "Open QA scoring standard page." },
+  { key: "manageRubric", label: "Manage QA Rubric", category: "Review", description: "Show rubric version control and allow End Rubric preview actions." },
   { key: "createEvaluation", label: "Create QA Evaluation", category: "Review", description: "Open Create QA Evaluation and submit new QA assessment records." },
   { key: "viewUsageLog", label: "View Usage Log", category: "Account", description: "Open system usage log and export logs." },
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
@@ -161,6 +163,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
@@ -186,6 +189,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
@@ -211,6 +215,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
@@ -236,6 +241,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: true,
     appealOverride: true,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
@@ -928,7 +934,7 @@ export default function UserRoleAdminMockup({
   };
 
   const updateRolePermission = (roleName: string, key: RolePermissionKey, value: boolean) => {
-    if (roleName === "Quality Assurance" && (key === "viewUserDirectory" || key === "manageUsers" || key === "manageRoles" || key === "manageMaintenance")) {
+    if (roleName === "Quality Assurance" && (key === "viewUserDirectory" || key === "manageUsers" || key === "manageRoles" || key === "manageRubric" || key === "manageMaintenance")) {
       setMessage("Quality Assurance admin permissions are locked for system safety.");
       return;
     }
@@ -2583,6 +2589,7 @@ function RoleManagementPanel({
                             permission.key === "viewUserDirectory" ||
                             permission.key === "manageUsers" ||
                             permission.key === "manageRoles" ||
+                            permission.key === "manageRubric" ||
                             permission.key === "manageMaintenance"
                           );
                           return (

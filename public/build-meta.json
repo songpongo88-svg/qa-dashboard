@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605281629",
-  "buildNumber": 2605281629,
-  "releaseLabel": "v1.0.0.2605281629",
-  "updatedAt": "28/05/2026 16:29:50",
+  "displayVersion": "1.0.0.2605281656",
+  "buildNumber": 2605281656,
+  "releaseLabel": "v1.0.0.2605281656",
+  "updatedAt": "28/05/2026 16:56:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ac1ac0a21614c0172bae7bbca97086381807f9d3",
-  "commitMessage": "Add June admin live chat rubric",
+  "commitHash": "39a00b9a5a72360523a7f4c32822c0f4b3157150",
+  "commitMessage": "Refine June rubric workbook layout",
   "changedFiles": [
     "public/build-meta.json",
-    "src/QARubricMockup.tsx",
-    "src/lib/rubricVersions.ts"
+    "src/QARubricMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

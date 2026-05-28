@@ -36,6 +36,7 @@ type RolePermissionKey =
   | "reviewAppeals"
   | "appealOverride"
   | "viewRubric"
+  | "manageRubric"
   | "createEvaluation"
   | "viewUsageLog"
   | "exportPdf"
@@ -240,6 +241,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "reviewAppeals",
   "appealOverride",
   "viewRubric",
+  "manageRubric",
   "createEvaluation",
   "viewUsageLog",
   "exportPdf",
@@ -285,6 +287,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
@@ -310,6 +313,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: false,
@@ -335,6 +339,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: false,
     appealOverride: false,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
@@ -360,6 +365,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     reviewAppeals: true,
     appealOverride: true,
     viewRubric: true,
+    manageRubric: false,
     createEvaluation: true,
     viewUsageLog: false,
     exportPdf: true,
@@ -412,7 +418,7 @@ function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
       if (typeof value === "boolean") next[key] = value;
     });
     permissionMap[roleName] = roleName === "Quality Assurance"
-      ? { ...next, viewUserDirectory: true, viewAllTeams: true, viewOwnTeam: true, qaEvaluationTarget: false, manageUsers: true, manageTeams: true, manageRoles: true, manageMaintenance: true }
+      ? { ...next, viewUserDirectory: true, viewAllTeams: true, viewOwnTeam: true, qaEvaluationTarget: false, manageUsers: true, manageTeams: true, manageRoles: true, manageRubric: true, manageMaintenance: true }
       : next;
   });
 
@@ -2503,6 +2509,8 @@ export default function App() {
   const createEvaluationAllowed = hasRolePermission(currentUser, rolePermissions, "createEvaluation");
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
   const appealOverrideAllowed = hasRolePermission(currentUser, rolePermissions, "appealOverride");
+  const rubricAllowed = hasRolePermission(currentUser, rolePermissions, "viewRubric");
+  const rubricManageAllowed = hasRolePermission(currentUser, rolePermissions, "manageRubric");
   const passwordResetAdminAllowed = hasRolePermission(currentUser, rolePermissions, "resetPassword");
   const userDirectoryAllowed =
     hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
@@ -2524,7 +2532,7 @@ export default function App() {
     (activeTab === "create-evaluation" && createEvaluationAllowed) ||
     activeTab === "appeal-requests" ||
     activeTab === "appeal-override" ||
-    activeTab === "rubric"
+    (activeTab === "rubric" && rubricAllowed)
       ? activeTab
       : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
@@ -4157,7 +4165,7 @@ export default function App() {
                       ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create Evaluation" }] : []),
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
                       ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
-                      { value: "rubric", label: "QA Rubric" },
+                      ...(rubricAllowed ? [{ value: "rubric", label: "QA Rubric" }] : []),
                     ]}
                   />
                   <HeaderSelect
@@ -4464,8 +4472,10 @@ export default function App() {
             onMaintenanceChanged={handleMaintenanceChanged}
             onRolesChanged={loadRoleOverrides}
           />
+        ) : activeTab === "rubric" && rubricAllowed ? (
+          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} />
         ) : (
-          <QARubricMockup />
+          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} />
         )}
       </div>
 

@@ -819,8 +819,10 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 
 export default function QARubricMockup({
   currentUser,
+  canManageRubric = false,
 }: {
-  currentUser: any;
+  currentUser?: any;
+  canManageRubric?: boolean;
 }) {
   const [selectedKey, setSelectedKey] = useState<RubricVersion["key"]>(getAutoRubricKey());
   const [rubricEndDateDraft, setRubricEndDateDraft] = useState("");
@@ -861,6 +863,7 @@ export default function QARubricMockup({
           <StatCard label="Total Score" value={activeRubric.totalScore} />
         </div>
 
+        {canManageRubric ? (
         <div className="mb-6 overflow-hidden rounded-[32px] border border-violet-200 bg-white shadow-[0_22px_60px_rgba(88,28,135,0.10)]">
           <div className="bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-800 px-6 py-5 text-white">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -910,6 +913,7 @@ export default function QARubricMockup({
             </div>
           </div>
         </div>
+        ) : null}
 
         <div className="mb-6 rounded-3xl border border-violet-200 bg-white shadow-sm">
           <div className="border-b border-violet-100 px-6 py-4">
