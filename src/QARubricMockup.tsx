@@ -916,6 +916,46 @@ function JuneRubricWorkbook() {
     "border-rose-200 bg-rose-50 text-rose-900",
   ];
 
+  const [activeTab, setActiveTab] = useState<JuneRubricWorkbookTab>("focus");
+  const focusGroups = JUNE_FOCUS_TABLE_ROWS.reduce<
+    Array<{
+      categoryCode: string;
+      category: string;
+      max: number;
+      assessment: string;
+      rows: typeof JUNE_FOCUS_TABLE_ROWS;
+    }>
+  >((groups, row) => {
+    const existing = groups.find(
+      (group) => group.categoryCode === row.categoryCode && group.assessment === row.assessment
+    );
+    if (existing) {
+      existing.rows.push(row);
+      return groups;
+    }
+
+    groups.push({
+      categoryCode: row.categoryCode,
+      category: row.category,
+      max: row.max,
+      assessment: row.assessment,
+      rows: [row],
+    });
+    return groups;
+  }, []);
+  const workbookTabs: Array<{ key: JuneRubricWorkbookTab; label: string; description: string }> = [
+    {
+      key: "focus",
+      label: "เกณฑ์หลักและหัวข้อประเมิน",
+      description: "มุมมองแบบกลุ่ม อ่านหัวข้อ วิธีประเมิน และตัวอย่างข้อผิดพลาดได้ง่ายขึ้น",
+    },
+    {
+      key: "deduction",
+      label: "ระดับการหักคะแนนตามความรุนแรง",
+      description: "แสดงช่วงหักคะแนนแยกตามหมวด โดยไม่ใช้กล่อง scroll ภายใน",
+    },
+  ];
+
   return (
     <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_24px_70px_rgba(15,118,110,0.12)]">
       <div className="bg-gradient-to-r from-[#0f5f3c] via-[#167348] to-[#0f6f8e] px-6 py-6 text-white">
@@ -947,8 +987,31 @@ function JuneRubricWorkbook() {
         </div>
       </div>
 
+      <div className="border-b border-emerald-100 bg-white p-4">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {workbookTabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`rounded-2xl border px-5 py-4 text-left transition ${
+                  isActive
+                    ? "border-emerald-400 bg-emerald-50 shadow-[0_14px_28px_rgba(16,185,129,0.16)]"
+                    : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50"
+                }`}
+              >
+                <div className={`text-sm font-black ${isActive ? "text-emerald-800" : "text-slate-800"}`}>{tab.label}</div>
+                <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{tab.description}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="p-5">
-        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div className={`${activeTab === "focus" ? "mb-4 flex" : "hidden"} flex-col gap-2 md:flex-row md:items-end md:justify-between`}>
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Assessment Topics</div>
             <h3 className="mt-1 text-xl font-black text-slate-950">เกณฑ์หลักและหัวข้อประเมิน</h3>
@@ -958,7 +1021,51 @@ function JuneRubricWorkbook() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-emerald-200">
+        <div className={activeTab === "focus" ? "space-y-5" : "hidden"}>
+          {focusGroups.map((group) => (
+            <section
+              key={`${group.categoryCode}-${group.assessment}`}
+              className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white shadow-[0_16px_36px_rgba(15,118,110,0.08)]"
+            >
+              <div className="grid gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-700 px-5 py-5 text-white lg:grid-cols-[1fr_auto]">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">หมวด {group.categoryCode}</div>
+                  <h4 className="mt-2 text-xl font-black leading-8">{group.category}</h4>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-white/82">{group.assessment}</p>
+                </div>
+                <div className="flex gap-2 lg:flex-col lg:items-end">
+                  <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-900">คะแนนเต็ม {group.max}</span>
+                  <span className="rounded-full bg-emerald-200 px-4 py-2 text-xs font-black text-emerald-950">{group.rows.length} ข้อโฟกัส</span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-emerald-100">
+                {group.rows.map((row) => (
+                  <div key={`${row.categoryCode}-${row.focusNo}`} className="grid gap-4 p-5 xl:grid-cols-[220px_1fr]">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-2xl bg-emerald-100 px-3 py-2 text-sm font-black text-emerald-800">
+                        {row.categoryCode}.{row.focusNo}
+                      </div>
+                      <div className="mt-3 text-base font-black leading-7 text-slate-950">{row.focusItem}</div>
+                    </div>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-700">วิธีประเมิน</div>
+                        <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{row.reviewGuide}</p>
+                      </div>
+                      <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน</div>
+                        <p className="mt-2 text-sm font-semibold leading-7 text-slate-700">{row.examples}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-2xl border border-emerald-200">
           <table className="min-w-[1520px] text-left text-sm">
             <thead className="bg-[#217346] text-white">
               <tr>
@@ -993,7 +1100,7 @@ function JuneRubricWorkbook() {
           </table>
         </div>
 
-        <div className="mt-8 rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5">
+        <div className={`${activeTab === "deduction" ? "block" : "hidden"} rounded-[28px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5`}>
           <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Deduction Severity</div>
@@ -1021,7 +1128,7 @@ function JuneRubricWorkbook() {
                   </div>
                 </div>
 
-                <div className="max-h-[520px] space-y-3 overflow-y-auto p-4 pr-2">
+                <div className="space-y-3 p-4">
                   {group.items.map((item, itemIndex) => {
                     const tone = severityStyles[itemIndex] || severityStyles[severityStyles.length - 1];
                     return (
@@ -1055,7 +1162,7 @@ function JuneRubricWorkbook() {
     </div>
   );
 
-  const [activeTab, setActiveTab] = useState<JuneRubricWorkbookTab>("focus");
+  const [legacyActiveTab, legacySetActiveTab] = useState<JuneRubricWorkbookTab>("focus");
 
   const tabs: Array<{ key: JuneRubricWorkbookTab; label: string; description: string }> = [
     {
