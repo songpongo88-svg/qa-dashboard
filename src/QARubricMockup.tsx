@@ -1029,9 +1029,11 @@ function JuneRubricWorkbook() {
             >
               <div className="grid gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-700 px-5 py-5 text-white lg:grid-cols-[1fr_auto]">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">หมวด {group.categoryCode}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">หมวดหลัก {group.categoryCode}</div>
                   <h4 className="mt-2 text-xl font-black leading-8">{group.category}</h4>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-white/82">{group.assessment}</p>
+                  <div className="mt-3 inline-flex max-w-full rounded-2xl bg-white/12 px-3 py-2 text-xs font-bold leading-5 text-white/88">
+                    หัวข้อประเมิน: {group.assessment}
+                  </div>
                 </div>
                 <div className="flex gap-2 lg:flex-col lg:items-end">
                   <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-900">คะแนนเต็ม {group.max}</span>
@@ -1044,7 +1046,7 @@ function JuneRubricWorkbook() {
                   <div key={`${row.categoryCode}-${row.focusNo}`} className="grid gap-4 p-5 xl:grid-cols-[220px_1fr]">
                     <div>
                       <div className="inline-flex items-center gap-2 rounded-2xl bg-emerald-100 px-3 py-2 text-sm font-black text-emerald-800">
-                        {row.categoryCode}.{row.focusNo}
+                        {row.focusNo}
                       </div>
                       <div className="mt-3 text-base font-black leading-7 text-slate-950">{row.focusItem}</div>
                     </div>

@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605282118",
-  "buildNumber": 2605282118,
-  "releaseLabel": "v1.0.0.2605282118",
-  "updatedAt": "28/05/2026 21:18:11",
+  "displayVersion": "1.0.0.2605282129",
+  "buildNumber": 2605282129,
+  "releaseLabel": "v1.0.0.2605282129",
+  "updatedAt": "28/05/2026 21:29:16",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6ca318acba07e7224395fcbe6ee249b9f26b625b",
-  "commitMessage": "Redesign June deduction guide",
+  "commitHash": "8a813db1bff9b9c53b1040627eb979a58a61ee14",
+  "commitMessage": "Refine June rubric tabs",
   "changedFiles": [
     "public/build-meta.json",
     "src/QARubricMockup.tsx"
