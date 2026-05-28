@@ -1,17 +1,24 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605281531",
-  "buildNumber": 2605281531,
-  "releaseLabel": "v1.0.0.2605281531",
-  "updatedAt": "28/05/2026 15:31:19",
+  "displayVersion": "1.0.0.2605281610",
+  "buildNumber": 2605281610,
+  "releaseLabel": "v1.0.0.2605281610",
+  "updatedAt": "28/05/2026 16:10:38",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6e84ce99e7409abc93fe66ab6ea72364bcb3d1b3",
-  "commitMessage": "Use score dropdowns for appeal reviews",
+  "commitHash": "5abd25bc3b64758a4d6ec268e92806c76047bf66",
+  "commitMessage": "Align grade incentive policies",
   "changedFiles": [
     "public/build-meta.json",
-    "src/AppealRequestsMockup.tsx"
+    "src/App.tsx",
+    "src/AppealMockup.tsx",
+    "src/CoachingMockup.tsx",
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx",
+    "src/lib/evaluation/evaluationTypes.ts",
+    "src/lib/evaluation/gradeIncentiveEngine.ts",
+    "src/lib/scoreIncentivePolicy.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

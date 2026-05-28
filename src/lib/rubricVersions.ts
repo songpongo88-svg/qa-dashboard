@@ -5,6 +5,9 @@ export type RubricTopic = {
   title: string;
   max: number;
   group: RubricTopicGroup;
+  focusItems?: string[];
+  reviewGuide?: string;
+  examples?: string;
 };
 
 export type RubricVersionDefinition = {
@@ -18,18 +21,89 @@ export type RubricVersionDefinition = {
 };
 
 export const RUBRIC_GROUP_LABELS: Array<{ key: RubricTopicGroup; title: string; note: string }> = [
-  { key: "Service Standard", title: "1. Service Standard", note: "Greeting, Policy, Process, SLA" },
-  { key: "Answer Quality", title: "2. Answer Quality", note: "Accuracy, completeness, clear next step" },
-  { key: "Resolution", title: "3. Resolution & Ownership", note: "Root cause, ownership, next action" },
-  { key: "Communication", title: "4. Communication Quality", note: "Structure, language, tone" },
+  { key: "Service Standard", title: "1. Process & Policy", note: "Process, PDPA, SLA, Tag, Case Note" },
+  { key: "Answer Quality", title: "2. Answer Quality", note: "Accuracy, verification, complete answer" },
+  { key: "Resolution", title: "3. Case Handling", note: "Ownership, next step, follow-up" },
+  { key: "Communication", title: "4. Communication Skills", note: "Structure, wording, tone, situation awareness" },
 ];
 
 export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
   {
+    code: "QA-2026-06",
+    name: "June 2026 - Admin Live Chat Criteria",
+    status: "Active",
+    startDate: "2026-06-01",
+    totalScore: 100,
+    topics: [
+      {
+        code: "1",
+        title: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+        max: 30,
+        group: "Service Standard",
+        focusItems: [
+          "เปิดและปิดแชทตามมาตรฐาน (Standard Opening & Closing)",
+          "ยืนยันข้อมูล / PDPA / Policy (Verification, PDPA & Policy Compliance)",
+          "Process / SLA / การส่งต่อ / การปิดเคส (Process, SLA, Escalation & Case Closure)",
+          "Case Note / Tag / การบันทึกเคส (Case Notes, Tagging & Documentation)",
+        ],
+        reviewGuide:
+          "ตรวจว่าแอดมินเริ่มและจบแชทถูกมาตรฐาน ขอและใช้ข้อมูลตาม PDPA ทำตาม Process/SLA ส่งต่อถูกทีม และบันทึก Case Note/Tag ครบพอให้ทีมถัดไปตามงานต่อได้",
+        examples:
+          "ไม่ทักทายหรือปิดแชทไม่ครบ, ขอข้อมูลเกินจำเป็น, ไม่ยืนยันข้อมูลในเคสที่ต้องตรวจสอบ, รับแชทเกิน SLA, ส่งต่อผิดทีม, ใส่ Tag หรือ Case Note ไม่ครบ",
+      },
+      {
+        code: "2",
+        title: "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
+        max: 20,
+        group: "Answer Quality",
+        focusItems: [
+          "ตอบถูกต้องและครบประเด็น (Answer Accuracy & Completeness)",
+          "ตรวจสอบข้อมูลก่อนสรุปคำตอบ (Information Verification Before Response)",
+        ],
+        reviewGuide:
+          "ตรวจว่าคำตอบถูกต้องตามประเภทผู้ติดต่อ ตอบครบทุกคำถาม ตรวจระบบ/ประวัติเคส/หลักฐานก่อนสรุป และไม่ตอบจากการคาดเดา",
+        examples:
+          "แจ้งเงื่อนไข สถานะ หรือยอดเงินผิด, ตอบไม่ครบ, ข้ามคำถามหลัก, ไม่ขอข้อมูลจำเป็นก่อนตอบ, วิเคราะห์ผิดประเด็น",
+      },
+      {
+        code: "3",
+        title: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
+        max: 25,
+        group: "Resolution",
+        focusItems: [
+          "ดูแลเคสตั้งแต่รับเรื่องจนมีข้อสรุป (End-to-End Case Handling)",
+          "แจ้งขั้นตอนถัดไปให้ชัด (Clear Next Step Communication)",
+          "ติดตามและแจ้งผลตรวจสอบ (Follow-up & Result Update)",
+        ],
+        reviewGuide:
+          "ตรวจว่าแอดมินรับเรื่องแล้วดูแลต่อเนื่อง ไม่ปล่อยให้ผู้ติดต่อไม่รู้สถานะ แจ้งขั้นตอนถัดไป ระยะเวลารอ ข้อมูลที่ต้องส่งเพิ่ม และสรุปผลหลังตรวจสอบ/ประสานงาน",
+        examples:
+          "รับเรื่องแล้วไม่ดำเนินการต่อ, แจ้งให้รอแต่ไม่บอกระยะเวลา, ไม่บอกช่องทางติดตาม, ตรวจสอบหรือโทรออกแล้วไม่สรุปผล",
+      },
+      {
+        code: "4",
+        title: "ทักษะการสื่อสาร (Communication Skills)",
+        max: 25,
+        group: "Communication",
+        focusItems: [
+          "อ่านง่ายและเรียงลำดับชัด (Clear Structure & Logical Flow)",
+          "กระชับและตรงประเด็น (Concise & Relevant Communication)",
+          "สะกดถูกและใช้คำเหมาะสม (Correct Spelling & Appropriate Wording)",
+          "การสื่อสารอย่างสุภาพและเข้าใจสถานการณ์ (Polite & Situation-Aware Communication)",
+        ],
+        reviewGuide:
+          "ตรวจว่าข้อความเรียงลำดับชัด อ่านง่าย กระชับ สะกดถูก ใช้คำเหมาะกับผู้ติดต่อ และมีน้ำเสียงสุภาพ/เข้าใจสถานการณ์ โดยเฉพาะเคสที่มีผลกระทบหรือร้องเรียน",
+        examples:
+          "ข้อความยาวติดกันหรือลำดับสลับ, ใช้คำฟุ่มเฟือย, สะกดผิดหลายจุด, เรียกผู้ติดต่อผิดประเภท, ตอบแข็งหรือไม่รับทราบข้อมูลที่ผู้ติดต่อส่งมา",
+      },
+    ],
+  },
+  {
     code: "QA-2026-04",
     name: "April 2026 - Current Rubric",
-    status: "Active",
+    status: "Ended",
     startDate: "2026-04-03",
+    endDate: "2026-05-31",
     totalScore: 100,
     topics: [
       { code: "1.1", title: "มาตรฐานการทักทายและปิดการสนทนา", max: 10, group: "Service Standard" },

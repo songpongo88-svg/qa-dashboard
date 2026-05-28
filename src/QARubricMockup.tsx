@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from "react";
 import PageHero from "./PageHero";
-import { RUBRIC_VERSIONS, formatRubricDate } from "./lib/rubricVersions";
+import {
+  RUBRIC_GROUP_LABELS,
+  RUBRIC_VERSIONS,
+  formatRubricDate,
+} from "./lib/rubricVersions";
 
 type Topic = {
   code: string;
@@ -22,7 +26,7 @@ type Section = {
 };
 
 type RubricVersion = {
-  key: "MARCH_2026" | "APR_2026";
+  key: "MARCH_2026" | "APR_2026" | "JUNE_2026";
   label: string;
   subtitle: string;
   effectiveFrom: string;
@@ -528,7 +532,58 @@ const APR_2026_RUBRIC: RubricVersion = {
   ],
 };
 
-const RUBRICS: RubricVersion[] = [MARCH_2026_RUBRIC, APR_2026_RUBRIC];
+const JUNE_2026_RUBRIC_SOURCE = RUBRIC_VERSIONS.find((rubric) => rubric.code === "QA-2026-06") || RUBRIC_VERSIONS[0];
+
+const JUNE_2026_RUBRIC: RubricVersion = {
+  key: "JUNE_2026",
+  label: "June 2026 - Admin Live Chat Criteria",
+  subtitle: "Effective 01 June 2026 onward",
+  effectiveFrom: "2026-06-01",
+  sourceLabel: "QA_Admin_LiveChat_Criteria_01June2026.xlsx",
+  totalScore: JUNE_2026_RUBRIC_SOURCE.totalScore,
+  sections: RUBRIC_GROUP_LABELS.map((group, index) => {
+    const topics = JUNE_2026_RUBRIC_SOURCE.topics.filter((topic) => topic.group === group.key);
+    return {
+      id: `JUNE-S${index + 1}`,
+      title: group.title,
+      score: topics.reduce((sum, topic) => sum + topic.max, 0),
+      topics: topics.map((topic) => ({
+        code: topic.code,
+        title: topic.title,
+        score: topic.max,
+        focus: topic.focusItems?.join(" / "),
+        reviewGuide: topic.reviewGuide,
+        improveTip: topic.examples,
+        checklist: topic.focusItems,
+      })),
+    };
+  }).filter((section) => section.topics.length > 0),
+};
+
+const JUNE_DEDUCTION_GUIDE = [
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "ผิดเล็กน้อย", range: "3 - 5", note: "ผิดพลาดเล็กน้อย เช่น ทักทาย/ปิดแชทไม่ครบเล็กน้อย Tag หรือ Case Note ยังไม่สมบูรณ์ แต่ยังไม่ทำให้ผู้ติดต่อเข้าใจผิด" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "ผิดปานกลาง", range: "6 - 10", note: "ทำตามขั้นตอนไม่ครบบางส่วน เปิด/ปิดแชทไม่สมบูรณ์ บันทึกข้อมูลขาดบางจุด หรือมี SLA เกินเกณฑ์บางช่วง" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "ผิดค่อนข้างมาก", range: "11 - 16", note: "ขาดขั้นตอนสำคัญ ไม่บันทึกข้อมูลหลัก เลือก Tag ผิด ไม่ทำตาม Process หรือส่งต่อ/ปิดเคสไม่เหมาะสม" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "ผิดรุนแรง", range: "17 - 23", note: "ผิดนโยบายหรือขั้นตอนสำคัญ ไม่ยืนยันข้อมูล ส่งต่อผิดทีม ไม่โทรออก/ประสานงานตามเงื่อนไข หรือปิดเคสทั้งที่ยังไม่มีแนวทางต่อ" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "ผิดระดับสูงสุด", range: "24 - 30", note: "เสี่ยงสูงด้าน PDPA/Policy เปิดเผยข้อมูลส่วนบุคคลเกินจำเป็น หรือผิดขั้นตอนจนกระทบความปลอดภัยและความน่าเชื่อถือ" },
+  { category: "คุณภาพคำตอบและการวิเคราะห์ปัญหา", max: 20, level: "ผิดเล็กน้อย", range: "2 - 3", note: "คำตอบหลักยังถูกต้อง แต่ตกหล่นรายละเอียดเล็กน้อยหรือยังไม่ได้สรุปข้อมูลสำคัญให้เข้าใจง่าย" },
+  { category: "คุณภาพคำตอบและการวิเคราะห์ปัญหา", max: 20, level: "ผิดปานกลาง", range: "4 - 6", note: "ตอบไม่ครบหรือวิเคราะห์ยังไม่ตรงบางส่วน ขอข้อมูลไม่ครบ ตรวจสอบระบบไม่พอ หรือทำให้ผู้ติดต่อต้องถามซ้ำ" },
+  { category: "คุณภาพคำตอบและการวิเคราะห์ปัญหา", max: 20, level: "ผิดค่อนข้างมาก", range: "7 - 10", note: "คำตอบหลักไม่ครบ ไม่ตรงจุด หรือขาดการตรวจสอบข้อมูลสำคัญ ทั้งที่จำเป็นต่อการตอบ" },
+  { category: "คุณภาพคำตอบและการวิเคราะห์ปัญหา", max: 20, level: "ผิดรุนแรง", range: "11 - 15", note: "ให้ข้อมูลผิดในประเด็นสำคัญ เช่น สถานะ ยอดเงิน เงื่อนไข หรือสาเหตุผิด" },
+  { category: "คุณภาพคำตอบและการวิเคราะห์ปัญหา", max: 20, level: "ผิดระดับสูงสุด", range: "16 - 20", note: "คำตอบผิดมาก ตอบจากการคาดเดา หรือให้ข้อมูลผิดจนผู้ติดต่อเสียโอกาสหรือเสียหาย" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "ผิดเล็กน้อย", range: "3 - 4", note: "ดูแลเคสได้เป็นหลัก แต่ควรเพิ่มความชัดเจน เช่น ขั้นตอนถัดไปหรือสรุปผลตรวจสอบยังไม่ครบเล็กน้อย" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "ผิดปานกลาง", range: "5 - 8", note: "การดูแลเคสยังไม่ต่อเนื่อง แจ้งให้รอแต่ไม่บอกระยะเวลา ไม่บอกช่องทางติดตาม หรือยังไม่สรุปผลบางส่วน" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "ผิดค่อนข้างมาก", range: "9 - 13", note: "ขาดการติดตามหรือขั้นตอนถัดไปสำคัญ รับเรื่องแล้วไม่แจ้งว่าจะทำอะไรต่อ หรือไม่สรุปผลหลังตรวจสอบ" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "ผิดรุนแรง", range: "14 - 19", note: "แจ้งว่าจะติดต่อกลับแต่ไม่ดำเนินการ ไม่สรุปผลตรวจสอบ หรือปล่อยให้เคสค้างโดยไม่มีแนวทางต่อ" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "ผิดระดับสูงสุด", range: "20 - 25", note: "ปล่อยเคสหรือดูแลต่อผิดพลาดมาก ไม่มีการช่วยเหลือต่อหลังรับเรื่อง หรือทำให้ผู้ติดต่อเสียโอกาส" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "ผิดเล็กน้อย", range: "3 - 4", note: "ข้อความยังเข้าใจได้และน้ำเสียงเหมาะสม แต่มีคำผิดเล็กน้อย ประโยคยังไม่ลื่น หรือรับทราบข้อมูลไม่ชัดพอ" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "ผิดปานกลาง", range: "5 - 8", note: "การสื่อสารเริ่มกระทบความเข้าใจ ข้อความวกวน ลำดับไม่ชัด คำผิดหลายจุด หรือใช้คำเรียกผู้ติดต่อไม่เหมาะ" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "ผิดค่อนข้างมาก", range: "9 - 13", note: "ข้อความไม่เป็นลำดับหรือทำให้เข้าใจคลาดเคลื่อน รวมหลายเรื่องจนสับสน ใช้คำผิดความหมาย หรือสื่อสารขั้นตอนสำคัญไม่ชัด" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "ผิดรุนแรง", range: "14 - 19", note: "น้ำเสียงหรือภาษากระทบประสบการณ์ผู้ติดต่อชัดเจน ตอบห้วน ตัดบท ไม่แสดงความเข้าใจ หรือข้ามหลักฐานสำคัญ" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "ผิดระดับสูงสุด", range: "20 - 25", note: "ใช้ถ้อยคำไม่สุภาพ รุนแรง ประชดประชัน กล่าวโทษผู้ติดต่อ หรือทำให้ภาพลักษณ์งานบริการเสียหายชัดเจน" },
+];
+
+const RUBRICS: RubricVersion[] = [MARCH_2026_RUBRIC, APR_2026_RUBRIC, JUNE_2026_RUBRIC];
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 function isSongkranThemeActive() {
@@ -595,9 +650,10 @@ function getAutoRubricKey() {
   const dd = String(today.getDate()).padStart(2, "0");
   const todayIso = `${yyyy}-${mm}-${dd}`;
 
-  if (isDateInRange(todayIso, "2026-04-03")) return "APR_2026";
+  if (isDateInRange(todayIso, "2026-06-01")) return "JUNE_2026";
+  if (isDateInRange(todayIso, "2026-04-03", "2026-05-31")) return "APR_2026";
   if (isDateInRange(todayIso, "2026-03-11", "2026-03-31")) return "MARCH_2026";
-  return "APR_2026";
+  return "JUNE_2026";
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -621,7 +677,7 @@ export default function QARubricMockup({
   const [previewEndedDate, setPreviewEndedDate] = useState("");
 
   const activeRubric = useMemo(
-    () => RUBRICS.find((item) => item.key === selectedKey) || APR_2026_RUBRIC,
+    () => RUBRICS.find((item) => item.key === selectedKey) || JUNE_2026_RUBRIC,
     [selectedKey]
   );
 
@@ -713,7 +769,7 @@ export default function QARubricMockup({
                   Effective Rubric Version
                 </div>
                 <div className="mt-1 text-sm text-slate-500">
-                  March 2026 uses the legacy non-voice criteria. April 2026 onward uses the detailed guide.
+                  March 2026 uses the legacy non-voice criteria. April-May 2026 uses the first detailed guide. June 2026 onward uses Admin Live Chat Criteria.
                 </div>
               </div>
 
@@ -771,6 +827,42 @@ export default function QARubricMockup({
             </div>
           </div>
         </div>
+
+        {selectedKey === "JUNE_2026" ? (
+          <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_20px_55px_rgba(15,118,110,0.10)]">
+            <div className="bg-gradient-to-r from-emerald-800 via-teal-700 to-sky-700 px-6 py-5 text-white">
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">Excel Scoring Guide</div>
+              <h2 className="mt-2 text-2xl font-black">ระดับการหักคะแนนตามความรุนแรง</h2>
+              <p className="mt-2 text-sm font-semibold text-white/80">
+                ใช้ประกอบการให้คะแนน 4 หมวดหลัก โดยเลือกช่วงหักคะแนนตามผลกระทบของข้อผิดพลาดในเคสนั้น
+              </p>
+            </div>
+            <div className="overflow-x-auto p-5">
+              <table className="min-w-full overflow-hidden rounded-2xl border border-emerald-200 text-left text-sm">
+                <thead className="bg-[#217346] text-white">
+                  <tr>
+                    <th className="px-4 py-3 font-black">หมวด</th>
+                    <th className="px-4 py-3 font-black">คะแนนเต็ม</th>
+                    <th className="px-4 py-3 font-black">ระดับความผิดพลาด</th>
+                    <th className="px-4 py-3 font-black">ช่วงคะแนนหัก</th>
+                    <th className="px-4 py-3 font-black">คำอธิบาย</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {JUNE_DEDUCTION_GUIDE.map((row, index) => (
+                    <tr key={`${row.category}-${row.level}`} className={index % 2 === 0 ? "bg-white" : "bg-emerald-50/45"}>
+                      <td className="border-t border-emerald-100 px-4 py-3 font-bold text-slate-950">{row.category}</td>
+                      <td className="border-t border-emerald-100 px-4 py-3 font-black text-emerald-800">{row.max}</td>
+                      <td className="border-t border-emerald-100 px-4 py-3 font-bold text-slate-800">{row.level}</td>
+                      <td className="border-t border-emerald-100 px-4 py-3 font-black text-rose-700">{row.range}</td>
+                      <td className="border-t border-emerald-100 px-4 py-3 leading-6 text-slate-700">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
 
         <div className="space-y-5">
           {activeRubric.sections.map((section) => (
