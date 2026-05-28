@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605281656",
-  "buildNumber": 2605281656,
-  "releaseLabel": "v1.0.0.2605281656",
-  "updatedAt": "28/05/2026 16:56:14",
+  "displayVersion": "1.0.0.2605281933",
+  "buildNumber": 2605281933,
+  "releaseLabel": "v1.0.0.2605281933",
+  "updatedAt": "28/05/2026 19:33:33",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "39a00b9a5a72360523a7f4c32822c0f4b3157150",
-  "commitMessage": "Refine June rubric workbook layout",
+  "commitHash": "5a95b4b4788e694705284c6e3684b7922391aba3",
+  "commitMessage": "Add manage rubric permission",
   "changedFiles": [
     "public/build-meta.json",
-    "src/QARubricMockup.tsx"
+    "src/App.tsx",
+    "src/QARubricMockup.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
