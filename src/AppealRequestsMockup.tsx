@@ -73,6 +73,11 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function scoreOptions(max: number) {
+  const safeMax = Math.max(0, Math.floor(Number(max) || 0));
+  return Array.from({ length: safeMax + 1 }, (_, index) => index);
+}
+
 export function buildAppealRequests(logs: UsageLogEvent[]) {
   const reviews = new Map<string, UsageLogEvent>();
   const resets = new Map<string, UsageLogEvent>();
@@ -262,6 +267,14 @@ export default function AppealRequestsMockup({
 
   const submitReview = async () => {
     if (!selectedRequest || selectedRequest.status !== "Pending") return;
+    const invalidTopic = draftTopics.find((topic) => {
+      const revisedScore = toNumber(topic.revisedScore, Number.NaN);
+      return Number.isNaN(revisedScore) || revisedScore < 0 || revisedScore > topic.max;
+    });
+    if (invalidTopic) {
+      window.alert(`Revised score for ${invalidTopic.code} must be between 0 and ${invalidTopic.max}.`);
+      return;
+    }
     const confirmed = window.confirm(
       [
         `Confirm ${decision} for appeal case ${selectedRequest.caseId}?`,
@@ -487,19 +500,21 @@ export default function AppealRequestsMockup({
                             <div className="text-base font-extrabold text-slate-950">{topic.code} {topic.label}</div>
                             <div className="mt-1 text-xs font-semibold text-slate-500">Original {topic.score}/{topic.max}</div>
                           </div>
-                          <input
-                            type="number"
-                            min={0}
-                            max={topic.max}
-                            step="0.01"
+                          <select
                             value={topic.revisedScore ?? topic.score}
                             disabled={selectedRequest.status !== "Pending"}
                             onChange={(event) => {
-                              const value = event.target.value;
+                              const value = Number(event.target.value);
                               setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedScore: value } : item));
                             }}
-                            className="w-32 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
-                          />
+                            className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                          >
+                            {scoreOptions(topic.max).map((score) => (
+                              <option key={score} value={score}>
+                                {score} / {topic.max}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <div className="mt-3 grid gap-3 lg:grid-cols-2">
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">

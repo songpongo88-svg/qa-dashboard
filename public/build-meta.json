@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605271718",
-  "buildNumber": 2605271718,
-  "releaseLabel": "v1.0.0.2605271718",
-  "updatedAt": "27/05/2026 17:18:55",
+  "displayVersion": "1.0.0.2605281012",
+  "buildNumber": 2605281012,
+  "releaseLabel": "v1.0.0.2605281012",
+  "updatedAt": "28/05/2026 10:12:15",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "c480abd172d984869e4aba43b0d7bb95a264f0df",
-  "commitMessage": "Update build metadata",
+  "commitHash": "7659b91b5080c76d94c77fe55988a6ee76a10b4a",
+  "commitMessage": "Format report exports as Excel dates",
   "changedFiles": [
-    "public/build-meta.json"
+    "public/build-meta.json",
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
