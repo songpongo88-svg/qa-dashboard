@@ -1,24 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605281610",
-  "buildNumber": 2605281610,
-  "releaseLabel": "v1.0.0.2605281610",
-  "updatedAt": "28/05/2026 16:10:38",
+  "displayVersion": "1.0.0.2605281629",
+  "buildNumber": 2605281629,
+  "releaseLabel": "v1.0.0.2605281629",
+  "updatedAt": "28/05/2026 16:29:50",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "5abd25bc3b64758a4d6ec268e92806c76047bf66",
-  "commitMessage": "Align grade incentive policies",
+  "commitHash": "ac1ac0a21614c0172bae7bbca97086381807f9d3",
+  "commitMessage": "Add June admin live chat rubric",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/AppealMockup.tsx",
-    "src/CoachingMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx",
-    "src/lib/evaluation/evaluationTypes.ts",
-    "src/lib/evaluation/gradeIncentiveEngine.ts",
-    "src/lib/scoreIncentivePolicy.ts"
+    "src/QARubricMockup.tsx",
+    "src/lib/rubricVersions.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

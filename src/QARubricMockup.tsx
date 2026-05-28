@@ -583,6 +583,156 @@ const JUNE_DEDUCTION_GUIDE = [
   { category: "ทักษะการสื่อสาร", max: 25, level: "ผิดระดับสูงสุด", range: "20 - 25", note: "ใช้ถ้อยคำไม่สุภาพ รุนแรง ประชดประชัน กล่าวโทษผู้ติดต่อ หรือทำให้ภาพลักษณ์งานบริการเสียหายชัดเจน" },
 ];
 
+const JUNE_FOCUS_TABLE_ROWS = JUNE_2026_RUBRIC_SOURCE.topics.flatMap((topic) =>
+  (topic.focusItems || ["-"]).map((focusItem, focusIndex) => ({
+    categoryCode: topic.code,
+    category: topic.title,
+    max: topic.max,
+    assessment: topic.title,
+    focusNo: focusIndex + 1,
+    focusItem,
+    reviewGuide: topic.reviewGuide || "-",
+    examples: topic.examples || "-",
+  }))
+);
+
+type JuneRubricWorkbookTab = "focus" | "deduction";
+
+function JuneRubricWorkbook() {
+  const [activeTab, setActiveTab] = useState<JuneRubricWorkbookTab>("focus");
+
+  const tabs: Array<{ key: JuneRubricWorkbookTab; label: string; description: string }> = [
+    {
+      key: "focus",
+      label: "เกณฑ์หลักและหัวข้อประเมิน",
+      description: "แสดงหมวด คะแนนเต็ม จุดที่ต้องตรวจ และแนวทางประเมินแบบตาราง Excel",
+    },
+    {
+      key: "deduction",
+      label: "ระดับการหักคะแนนตามความรุนแรง",
+      description: "เลือกดูระดับความผิดพลาดและช่วงคะแนนที่ควรหักแยกจากตารางหลัก",
+    },
+  ];
+
+  return (
+    <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_24px_70px_rgba(15,118,110,0.12)]">
+      <div className="bg-gradient-to-r from-[#0f5f3c] via-[#167348] to-[#0f6f8e] px-6 py-5 text-white">
+        <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">June 2026 Rubric Workbook</div>
+        <h2 className="mt-2 text-2xl font-black">QA Admin Live Chat Criteria</h2>
+        <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-white/82">
+          มุมมองนี้จัดเกณฑ์เดือนมิถุนายนให้เหมือน worksheet: ตารางหลักสำหรับอ่านหมวดและข้อประเมิน และแท็บแยกระดับการหักคะแนนเพื่อไม่ให้ข้อมูลแน่นเกินไป
+        </p>
+      </div>
+
+      <div className="border-b border-emerald-100 bg-emerald-50/70 p-4">
+        <div className="grid gap-3 lg:grid-cols-2">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`rounded-2xl border px-5 py-4 text-left transition ${
+                  isActive
+                    ? "border-emerald-400 bg-white shadow-[0_14px_28px_rgba(16,185,129,0.16)]"
+                    : "border-emerald-100 bg-white/65 hover:border-emerald-300 hover:bg-white"
+                }`}
+              >
+                <div className={`text-sm font-black ${isActive ? "text-emerald-800" : "text-slate-800"}`}>{tab.label}</div>
+                <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{tab.description}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {activeTab === "focus" ? (
+        <div className="p-5">
+          <div className="mb-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Sections</div>
+              <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_2026_RUBRIC_SOURCE.topics.length}</div>
+            </div>
+            <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">Focus Items</div>
+              <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_FOCUS_TABLE_ROWS.length}</div>
+            </div>
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">Total Score</div>
+              <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_2026_RUBRIC_SOURCE.totalScore}</div>
+            </div>
+            <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Effective Date</div>
+              <div className="mt-2 text-lg font-black text-slate-950">01/06/2026</div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-emerald-200">
+            <table className="min-w-[1280px] text-left text-sm">
+              <thead className="bg-[#217346] text-white">
+                <tr>
+                  <th className="w-24 px-4 py-3 font-black">หมวด</th>
+                  <th className="w-[260px] px-4 py-3 font-black">หัวข้อหลัก</th>
+                  <th className="w-24 px-4 py-3 text-center font-black">คะแนนเต็ม</th>
+                  <th className="w-24 px-4 py-3 text-center font-black">ข้อโฟกัส</th>
+                  <th className="w-[300px] px-4 py-3 font-black">หัวข้อที่ดู</th>
+                  <th className="w-[360px] px-4 py-3 font-black">วิธีประเมิน</th>
+                  <th className="w-[360px] px-4 py-3 font-black">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {JUNE_FOCUS_TABLE_ROWS.map((row, index) => (
+                  <tr key={`${row.categoryCode}-${row.focusNo}`} className={index % 2 === 0 ? "bg-white" : "bg-emerald-50/55"}>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top font-black text-emerald-800">{row.categoryCode}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top font-bold leading-6 text-slate-950">{row.category}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 text-center align-top font-black text-slate-900">{row.max}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 text-center align-top">
+                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-emerald-100 px-3 text-xs font-black text-emerald-800">
+                        {row.categoryCode}.{row.focusNo}
+                      </span>
+                    </td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top font-semibold leading-6 text-slate-800">{row.focusItem}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top leading-6 text-slate-700">{row.reviewGuide}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top leading-6 text-slate-700">{row.examples}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="p-5">
+          <div className="overflow-x-auto rounded-2xl border border-emerald-200">
+            <table className="min-w-[1120px] text-left text-sm">
+              <thead className="bg-[#217346] text-white">
+                <tr>
+                  <th className="w-[260px] px-4 py-3 font-black">หมวด</th>
+                  <th className="w-28 px-4 py-3 text-center font-black">คะแนนเต็ม</th>
+                  <th className="w-[210px] px-4 py-3 font-black">ระดับความผิดพลาด</th>
+                  <th className="w-36 px-4 py-3 font-black">ช่วงคะแนนหัก</th>
+                  <th className="px-4 py-3 font-black">คำอธิบาย</th>
+                </tr>
+              </thead>
+              <tbody>
+                {JUNE_DEDUCTION_GUIDE.map((row, index) => (
+                  <tr key={`${row.category}-${row.level}`} className={index % 2 === 0 ? "bg-white" : "bg-emerald-50/55"}>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top font-bold leading-6 text-slate-950">{row.category}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 text-center align-top font-black text-emerald-800">{row.max}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top font-bold text-slate-800">{row.level}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top font-black text-rose-700">{row.range}</td>
+                    <td className="border-t border-emerald-100 px-4 py-4 align-top leading-6 text-slate-700">{row.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const RUBRICS: RubricVersion[] = [MARCH_2026_RUBRIC, APR_2026_RUBRIC, JUNE_2026_RUBRIC];
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
@@ -828,7 +978,9 @@ export default function QARubricMockup({
           </div>
         </div>
 
-        {selectedKey === "JUNE_2026" ? (
+        {selectedKey === "JUNE_2026" ? <JuneRubricWorkbook /> : null}
+
+        {false && selectedKey === "JUNE_2026" ? (
           <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_20px_55px_rgba(15,118,110,0.10)]">
             <div className="bg-gradient-to-r from-emerald-800 via-teal-700 to-sky-700 px-6 py-5 text-white">
               <div className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">Excel Scoring Guide</div>
@@ -864,7 +1016,7 @@ export default function QARubricMockup({
           </div>
         ) : null}
 
-        <div className="space-y-5">
+        <div className={selectedKey === "JUNE_2026" ? "hidden" : "space-y-5"}>
           {activeRubric.sections.map((section) => (
             <div
               key={section.id}
