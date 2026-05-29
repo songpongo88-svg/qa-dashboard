@@ -4288,6 +4288,45 @@ export default function DashboardMockup({
     }));
   }, [searchScopedCases]);
 
+  const recentMonthlyAnalytics = useMemo(() => {
+    const monthKeys = Array.from(new Set(agentCases.map((item) => item.monthKey).filter((key) => key && key !== "unknown")))
+      .sort((a, b) => b.localeCompare(a))
+      .slice(0, 3)
+      .sort((a, b) => a.localeCompare(b));
+
+    const currentScopeCases = agentCases.filter((item) => monthKeys.includes(item.monthKey));
+
+    return monthKeys.map((monthKey) => {
+      const monthCases = currentScopeCases.filter((item) => item.monthKey === monthKey);
+      const monthScores = monthCases.map((item) => item.finalScore);
+      const monthTarget = isAllAgentsView ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET : CASE_TARGET;
+      return {
+        monthKey,
+        label: monthOptions.find((month) => month.value === monthKey)?.label || monthKey,
+        shortLabel: monthOptions.find((month) => month.value === monthKey)?.label?.replace(" 2026", "") || monthKey,
+        average: monthScores.length
+          ? Number((monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length).toFixed(2))
+          : 0,
+        cases: monthCases.length,
+        completion: monthTarget ? Number(((monthCases.length / monthTarget) * 100).toFixed(1)) : 0,
+      };
+    });
+  }, [agentCases, isAllAgentsView, monthOptions, visibleTargetAgents.length]);
+
+  const recentMonthlyScoreChartData = useMemo(() => {
+    return recentMonthlyAnalytics.map((item) => ({
+      label: item.shortLabel,
+      value: item.average,
+    }));
+  }, [recentMonthlyAnalytics]);
+
+  const recentMonthlyCaseChartData = useMemo(() => {
+    return recentMonthlyAnalytics.map((item) => ({
+      label: item.shortLabel,
+      value: item.cases,
+    }));
+  }, [recentMonthlyAnalytics]);
+
   const agentAverageChartData = useMemo(() => {
     const agentMap = new Map<string, number[]>();
 
@@ -4823,42 +4862,46 @@ export default function DashboardMockup({
                       title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
                       subtitle={
                         isAllAgentsView
-                          ? "Monthly charts by agent for the selected period"
-                          : "Monthly charts for the selected agent"
+                          ? "Last 3 months summary for all visible agents"
+                          : "Last 3 months summary for the selected agent"
                       }
                     />
-                    <PanelBody>
-                      {isAllAgentsView ? (
-                        <div className="grid gap-6 xl:grid-cols-2">
-                          <PremiumBarChart
-                            title="Average Score by Agent"
-                            subtitle="Average final score for each visible agent"
-                            data={agentAverageChartData}
-                            height={260}
-                          />
-                          <PremiumBarChart
-                            title="Case Volume by Agent"
-                            subtitle="Reviewed case count against monthly target"
-                            data={agentCaseVolumeChartData}
-                            height={260}
-                          />
-                        </div>
-                      ) : (
-                        <div className="grid gap-6 xl:grid-cols-2">
-                          <PremiumLineChart
-                            title="Case Score Trend"
-                            subtitle="Final score by case in audit order"
-                            data={agentCaseScoreTrendData}
-                            height={260}
-                          />
-                          <PremiumBarChart
-                            title="Monthly Case Volume"
-                            subtitle="Reviewed cases in the selected period"
-                            data={agentCaseVolumeChartData}
-                            height={260}
-                          />
-                        </div>
-                      )}
+                    <PanelBody className="space-y-5">
+                      <div className="grid gap-4 md:grid-cols-3">
+                        {recentMonthlyAnalytics.map((item) => (
+                          <div key={item.monthKey} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-xl bg-violet-50 px-2 py-2">
+                                <div className="text-[10px] font-bold text-violet-500">Avg</div>
+                                <div className="text-sm font-black text-violet-900">{item.average || "-"}</div>
+                              </div>
+                              <div className="rounded-xl bg-sky-50 px-2 py-2">
+                                <div className="text-[10px] font-bold text-sky-500">Cases</div>
+                                <div className="text-sm font-black text-sky-900">{item.cases}</div>
+                              </div>
+                              <div className="rounded-xl bg-emerald-50 px-2 py-2">
+                                <div className="text-[10px] font-bold text-emerald-500">Target</div>
+                                <div className="text-sm font-black text-emerald-900">{item.completion}%</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid gap-6 xl:grid-cols-2">
+                        <PremiumBarChart
+                          title="Average Score by Month"
+                          subtitle="Last 3 monthly average score"
+                          data={recentMonthlyScoreChartData}
+                          height={230}
+                        />
+                        <PremiumBarChart
+                          title="Case Volume by Month"
+                          subtitle="Last 3 monthly reviewed case count"
+                          data={recentMonthlyCaseChartData}
+                          height={230}
+                        />
+                      </div>
                     </PanelBody>
                   </Panel>
 
