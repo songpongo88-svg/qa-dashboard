@@ -262,6 +262,21 @@ function parseTimeValue(value: unknown): Date | null {
   return new Date(1899, 11, 30, Number(match[1]), Number(match[2]), Number(match[3] || 0));
 }
 
+function normalizeTimeTyping(value: string) {
+  return value.replace(/\D/g, "").slice(0, 4);
+}
+
+function formatTimeInput(value: string) {
+  const digits = normalizeTimeTyping(value);
+  if (!digits) return "";
+  if (digits.length <= 2) return digits;
+  const hourPart = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+  const minutePart = digits.length === 3 ? digits.slice(1) : digits.slice(2);
+  const hour = Math.min(Number(hourPart), 23);
+  const minute = Math.min(Number(minutePart), 59);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 function normalizeExportHeader(header: string) {
   return header.trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -946,6 +961,14 @@ export default function CreateEvaluationMockup({
     setWorkspaceView("drafts");
   }
 
+  function updateWaitingTime(value: string) {
+    setWaitingTime(normalizeTimeTyping(value));
+  }
+
+  function updateServiceTime(value: string) {
+    setServiceTime(normalizeTimeTyping(value));
+  }
+
   function updateTopic(code: string, patch: Partial<TopicState>) {
     setTopicState((current) => ({
       ...current,
@@ -1239,7 +1262,7 @@ export default function CreateEvaluationMockup({
                   Start
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
-                  Saved Drafts
+                  Draft List
                   <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
@@ -1515,11 +1538,25 @@ export default function CreateEvaluationMockup({
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
                     <span className={labelClass}>Waiting Time</span>
-                    <input value={waitingTime} onChange={(event) => setWaitingTime(event.target.value)} placeholder="HH:mm" className={inputClass} />
+                    <input
+                      value={waitingTime}
+                      onChange={(event) => updateWaitingTime(event.target.value)}
+                      onBlur={(event) => setWaitingTime(formatTimeInput(event.target.value))}
+                      inputMode="numeric"
+                      placeholder="e.g. 1650"
+                      className={inputClass}
+                    />
                   </label>
                   <label className="block">
                     <span className={labelClass}>Service Time</span>
-                    <input value={serviceTime} onChange={(event) => setServiceTime(event.target.value)} placeholder="HH:mm" className={inputClass} />
+                    <input
+                      value={serviceTime}
+                      onChange={(event) => updateServiceTime(event.target.value)}
+                      onBlur={(event) => setServiceTime(formatTimeInput(event.target.value))}
+                      inputMode="numeric"
+                      placeholder="e.g. 1650"
+                      className={inputClass}
+                    />
                   </label>
                 </div>
 
