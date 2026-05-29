@@ -767,6 +767,14 @@ export default function CreateEvaluationMockup({
     setWorkspaceView("form");
   }
 
+  function cancelSubmittedEdit() {
+    const editingCaseId = caseId || "current case";
+    setActiveSubmittedRecordId("");
+    setSubmitPreview(null);
+    setWorkspaceView("report");
+    setDraftMessage(`Edit cancelled for ${editingCaseId}. No changes were saved.`);
+  }
+
   function resetEvaluationForm() {
     setAgentName("");
     setAuditDate(todayInputValue());
@@ -1197,6 +1205,11 @@ export default function CreateEvaluationMockup({
               <button type="button" onClick={startEvaluation} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.22)] transition hover:bg-slate-800">
                 Start Evaluation
               </button>
+              {activeSubmittedRecordId ? (
+                <button type="button" onClick={cancelSubmittedEdit} className="rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100">
+                  Cancel Edit
+                </button>
+              ) : null}
               <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-indigo-300 bg-indigo-50 px-5 py-3 text-sm font-black text-indigo-800 transition hover:bg-indigo-100">
                 Task Draft
                 <span className="ml-2 inline-flex min-w-[24px] items-center justify-center rounded-full bg-indigo-700 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
@@ -1212,6 +1225,16 @@ export default function CreateEvaluationMockup({
               </button>
             </div>
           </div>
+          {activeSubmittedRecordId ? (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Editing submitted case {caseId || "-"}. Submit Evaluation will update this saved case.
+              </span>
+              <button type="button" onClick={cancelSubmittedEdit} className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-xs font-black text-amber-800 transition hover:bg-amber-100">
+                Cancel Edit
+              </button>
+            </div>
+          ) : null}
           {draftMessage ? (
             <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
               {draftMessage}

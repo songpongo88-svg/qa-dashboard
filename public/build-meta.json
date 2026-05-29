@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605290926",
-  "buildNumber": 2605290926,
-  "releaseLabel": "v1.0.0.2605290926",
-  "updatedAt": "29/05/2026 09:26:55",
+  "displayVersion": "1.0.0.2605291002",
+  "buildNumber": 2605291002,
+  "releaseLabel": "v1.0.0.2605291002",
+  "updatedAt": "29/05/2026 10:02:51",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d4022440582849edece73a5b12da36afcbf5a644",
-  "commitMessage": "Update June focus rubric layout",
+  "commitHash": "f1324959c4c068ffbba1d261a9d6679ff1dd62c3",
+  "commitMessage": "Support June 2026 QA rubric scoring",
   "changedFiles": [
     "public/build-meta.json",
-    "src/QARubricMockup.tsx"
+    "src/AppealMockup.tsx",
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
