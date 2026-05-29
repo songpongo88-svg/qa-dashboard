@@ -437,6 +437,44 @@ function evidenceUrlDisplayLabel(value: string, index: number) {
   return value;
 }
 
+function splitEditableEvidence(urls: string[]) {
+  const manualUrls: string[] = [];
+  const attachedFiles: EvidenceFile[] = [];
+
+  urls.forEach((url, index) => {
+    const value = String(url || "").trim();
+    if (!value) return;
+
+    if (value.startsWith("data:image/") || value.startsWith("blob:")) {
+      attachedFiles.push({
+        id: `loaded-evidence-${index}-${Date.now()}`,
+        name: value.startsWith("data:image/") ? `embedded-image-${index + 1}.png` : `local-preview-${index + 1}`,
+        type: value.startsWith("data:image/") ? "image/png" : "image/*",
+        size: 0,
+        previewUrl: value,
+        storedUrl: value,
+      });
+      return;
+    }
+
+    if (value.startsWith("attachment://")) {
+      attachedFiles.push({
+        id: `loaded-attachment-${index}-${Date.now()}`,
+        name: value.replace(/^attachment:\/\/[^/]*\//, "") || `attachment-${index + 1}`,
+        type: "application/octet-stream",
+        size: 0,
+        previewUrl: value,
+        storedUrl: value,
+      });
+      return;
+    }
+
+    manualUrls.push(value);
+  });
+
+  return { manualUrls: manualUrls.join("\n"), attachedFiles };
+}
+
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
     acc[topic.code] = { score: null, reason: "" };
@@ -1149,8 +1187,9 @@ export default function CreateEvaluationMockup({
     setCaseUrl(record.caseUrl || "");
     setInquiry(record.inquiry || "");
     setCaseDescription(record.caseDescription || "");
-    setEvidenceUrl((record.evidenceUrls || []).join("\n"));
-    setEvidenceFiles([]);
+    const editableEvidence = splitEditableEvidence(record.evidenceUrls || []);
+    setEvidenceUrl(editableEvidence.manualUrls);
+    setEvidenceFiles(editableEvidence.attachedFiles);
     setCriticalError(Boolean(record.criticalError));
     setEvaluationStartedAt(record.evaluationStartedAt || record.auditTimestamp || "");
     setEvaluationSubmittedAt(record.submittedAt || "");
