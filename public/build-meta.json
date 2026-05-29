@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291232",
-  "buildNumber": 2605291232,
-  "releaseLabel": "v1.0.0.2605291232",
-  "updatedAt": "29/05/2026 12:32:22",
+  "displayVersion": "1.0.0.2605291413",
+  "buildNumber": 2605291413,
+  "releaseLabel": "v1.0.0.2605291413",
+  "updatedAt": "29/05/2026 14:13:30",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "b2c32c91df67e895b675e956066fe3432e903bec",
-  "commitMessage": "Show last three monthly analytics",
+  "commitHash": "46efe5e6eaf3d33917047452a7dbf645c5964ed0",
+  "commitMessage": "Add share links for case detail and rubric",
   "changedFiles": [
     "public/build-meta.json",
-    "src/DashboardMockup.tsx"
+    "src/App.tsx",
+    "src/DashboardMockup.tsx",
+    "src/QARubricMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -2473,6 +2473,7 @@ export default function App() {
   const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
   const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
+  const [selectedRubricCode, setSelectedRubricCode] = useState("");
   const [shareLinkMessage, setShareLinkMessage] = useState("");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2609,8 +2610,8 @@ export default function App() {
     void copyShareLink("Case Detail", shareUrl);
   }
 
-  function shareRubricLink() {
-    void copyShareLink("QA Rubric", buildWorkspaceUrl({ tab: "rubric" }));
+  function shareRubricLink(rubricCode?: string) {
+    void copyShareLink("QA Rubric", buildWorkspaceUrl({ tab: "rubric", rubricCode: rubricCode || "" }));
   }
 
   const handlePerformanceMenuChange = (value: string) => {
@@ -3277,6 +3278,7 @@ export default function App() {
     const requestedTab = params.get("tab");
     const requestedCaseId = params.get("caseId")?.trim() || "";
     const requestedAgent = params.get("agent")?.trim() || "";
+    const requestedRubricCode = params.get("rubricCode")?.trim() || "";
 
     if (requestedTab === "appeal") {
       setActiveTab("appeal");
@@ -3294,6 +3296,7 @@ export default function App() {
       }
     } else if (requestedTab === "rubric" && rubricAllowed) {
       setActiveTab("rubric");
+      setSelectedRubricCode(requestedRubricCode);
     }
   }, [currentUser, rubricAllowed]);
 
@@ -4531,9 +4534,9 @@ export default function App() {
             onRolesChanged={loadRoleOverrides}
           />
         ) : activeTab === "rubric" && rubricAllowed ? (
-          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} onShareLink={shareRubricLink} />
+          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} initialRubricCode={selectedRubricCode} onShareLink={shareRubricLink} />
         ) : (
-          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} onShareLink={shareRubricLink} />
+          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} initialRubricCode={selectedRubricCode} onShareLink={shareRubricLink} />
         )}
       </div>
 

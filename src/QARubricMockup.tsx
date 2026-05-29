@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import PageHero from "./PageHero";
 import {
   RUBRIC_GROUP_LABELS,
@@ -35,6 +35,22 @@ type RubricVersion = {
   totalScore: number;
   sections: Section[];
 };
+
+const RUBRIC_SHARE_CODES: Record<RubricVersion["key"], string> = {
+  MARCH_2026: "QA-2026-03",
+  APR_2026: "QA-2026-04",
+  JUNE_2026: "QA-2026-06",
+};
+
+function getRubricKeyFromShareCode(rubricCode?: string): RubricVersion["key"] | null {
+  const normalizedCode = String(rubricCode || "").trim().toUpperCase();
+  if (!normalizedCode) return null;
+
+  const matchedEntry = Object.entries(RUBRIC_SHARE_CODES).find(
+    ([key, code]) => normalizedCode === key || normalizedCode === code
+  );
+  return (matchedEntry?.[0] as RubricVersion["key"] | undefined) || null;
+}
 
 const MARCH_2026_RUBRIC: RubricVersion = {
   key: "MARCH_2026",
@@ -1389,13 +1405,17 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 export default function QARubricMockup({
   currentUser,
   canManageRubric = false,
+  initialRubricCode = "",
   onShareLink,
 }: {
   currentUser?: any;
   canManageRubric?: boolean;
-  onShareLink?: () => void;
+  initialRubricCode?: string;
+  onShareLink?: (rubricCode?: string) => void;
 }) {
-  const [selectedKey, setSelectedKey] = useState<RubricVersion["key"]>(getAutoRubricKey());
+  const [selectedKey, setSelectedKey] = useState<RubricVersion["key"]>(
+    () => getRubricKeyFromShareCode(initialRubricCode) || getAutoRubricKey()
+  );
   const [rubricEndDateDraft, setRubricEndDateDraft] = useState("");
   const [previewEndedDate, setPreviewEndedDate] = useState("");
 
@@ -1414,6 +1434,14 @@ export default function QARubricMockup({
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   const isCurrentDefault = selectedKey === getAutoRubricKey();
+  const selectedRubricCode = RUBRIC_SHARE_CODES[selectedKey];
+
+  useEffect(() => {
+    const linkedKey = getRubricKeyFromShareCode(initialRubricCode);
+    if (linkedKey && linkedKey !== selectedKey) {
+      setSelectedKey(linkedKey);
+    }
+  }, [initialRubricCode, selectedKey]);
 
   return (
     <div className="min-h-screen bg-slate-100 p-6">
@@ -1430,7 +1458,7 @@ export default function QARubricMockup({
         <div className="mb-6 flex justify-end">
           <button
             type="button"
-            onClick={onShareLink}
+            onClick={() => onShareLink?.(selectedRubricCode)}
             className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
           >
             Share QA Rubric Link
@@ -1438,7 +1466,7 @@ export default function QARubricMockup({
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="Rubric Code" value={managedRubric.code} />
+          <StatCard label="Rubric Code" value={selectedRubricCode} />
           <StatCard label="Sections" value={activeRubric.sections.length} />
           <StatCard label="Topics" value={totalTopics} />
           <StatCard label="Total Score" value={activeRubric.totalScore} />
