@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291742",
-  "buildNumber": 2605291742,
-  "releaseLabel": "v1.0.0.2605291742",
-  "updatedAt": "29/05/2026 17:42:37",
+  "displayVersion": "1.0.0.2605291759",
+  "buildNumber": 2605291759,
+  "releaseLabel": "v1.0.0.2605291759",
+  "updatedAt": "29/05/2026 17:59:37",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "40de7dba1575e8f1e1b2dde0d40a305690bb43eb",
-  "commitMessage": "Hide embedded evidence data in previews",
+  "commitHash": "f30c0c10953596aba437e23a5a4b25bb533d1960",
+  "commitMessage": "Keep embedded evidence out of edit fields",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"

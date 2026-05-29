@@ -8,6 +8,7 @@ import {
   getRubricForDate,
   type RubricTopic,
 } from "./lib/rubricVersions";
+import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 
 type TopicState = {
   score: number | null;
@@ -482,15 +483,6 @@ function buildInitialTopicState(topics: RubricTopic[]) {
   }, {});
 }
 
-function gradeFromScore(score: number, criticalError: boolean) {
-  if (criticalError) return "G";
-  if (score >= 90) return "A";
-  if (score >= 85) return "B";
-  if (score >= 80) return "C";
-  if (score >= 70) return "D";
-  return "F";
-}
-
 function todayInputValue() {
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -707,7 +699,7 @@ export default function CreateEvaluationMockup({
     [topicState, topics]
   );
   const completionPct = topics.length ? Math.round((completedTopics / topics.length) * 100) : 0;
-  const grade = gradeFromScore(finalScore, criticalError);
+  const grade = scoreToGrade(finalScore, auditDate, criticalError);
 
   const evidencePreviewValue = useMemo(() => {
     const manualUrl = evidenceUrl.trim();
