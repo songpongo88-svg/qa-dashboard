@@ -10,7 +10,7 @@ import {
 } from "./lib/rubricVersions";
 
 type TopicState = {
-  score: number;
+  score: number | null;
   reason: string;
 };
 
@@ -408,7 +408,7 @@ function fileToDataUrl(file: File) {
 
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
-    acc[topic.code] = { score: 0, reason: "" };
+    acc[topic.code] = { score: null, reason: "" };
     return acc;
   }, {});
 }
@@ -628,6 +628,11 @@ export default function CreateEvaluationMockup({
     () => topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
     [topicState, topics]
   );
+  const missingScoreTopics = useMemo(
+    () => topics.filter((topic) => topicState[topic.code]?.score === null || topicState[topic.code]?.score === undefined),
+    [topicState, topics]
+  );
+  const missingScoreText = missingScoreTopics.map((topic) => topic.code).join(", ");
   const completedTopics = useMemo(
     () => topics.filter((topic) => topicState[topic.code]?.reason.trim()).length,
     [topicState, topics]
@@ -667,7 +672,7 @@ export default function CreateEvaluationMockup({
     };
 
     topics.forEach((topic) => {
-      base[`${topic.code} Score`] = topicState[topic.code]?.score ?? 0;
+      base[`${topic.code} Score`] = topicState[topic.code]?.score ?? "-";
       base[`${topic.code} Comment`] = topicState[topic.code]?.reason || "-";
     });
 
@@ -806,6 +811,13 @@ export default function CreateEvaluationMockup({
   }
 
   async function submitEvaluation() {
+    if (missingScoreTopics.length) {
+      const message = `Please select score for every topic before submitting. Missing: ${missingScoreText}`;
+      setDraftMessage(message);
+      window.alert(message);
+      return;
+    }
+
     const normalizedSubmitCaseId = normalizeCaseId(caseId);
     if (!normalizedSubmitCaseId) {
       setDraftMessage("Please enter Case ID before submitting the evaluation.");
@@ -913,6 +925,13 @@ export default function CreateEvaluationMockup({
   }
 
   function saveDraft() {
+    if (missingScoreTopics.length) {
+      const message = `Please select score for every topic before saving draft. Missing: ${missingScoreText}`;
+      setDraftMessage(message);
+      window.alert(message);
+      return;
+    }
+
     const now = new Date();
     const savedAt = formatTimestamp(now);
     const savedAtMs = now.getTime();
@@ -1220,7 +1239,7 @@ export default function CreateEvaluationMockup({
                   Start
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
-                  Draft
+                  Saved Drafts
                   <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
@@ -1234,7 +1253,12 @@ export default function CreateEvaluationMockup({
                     Cancel Edit
                   </button>
                 ) : null}
-                <button type="button" onClick={submitEvaluation} className="col-span-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.24)] transition hover:bg-emerald-500">
+                <button
+                  type="button"
+                  onClick={submitEvaluation}
+                  disabled={Boolean(missingScoreTopics.length)}
+                  className="col-span-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.24)] transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none"
+                >
                   Submit Evaluation
                 </button>
               </div>
@@ -1260,7 +1284,7 @@ export default function CreateEvaluationMockup({
           <div className="overflow-hidden rounded-[26px] border border-sky-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
             <div className="flex items-center justify-between border-b border-sky-100 bg-gradient-to-r from-slate-950 via-sky-900 to-emerald-800 px-5 py-5 text-white">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Task Draft</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-sky-100">Saved Drafts</div>
                 <div className="mt-1 text-xl font-black">Saved Draft Cases</div>
               </div>
               <button type="button" onClick={() => setWorkspaceView("form")} className="rounded-xl border border-white/35 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white/20">
@@ -1608,7 +1632,7 @@ export default function CreateEvaluationMockup({
                           </div>
                           <div className="overflow-hidden rounded-xl border border-emerald-200 bg-white lg:rounded-t-none lg:border-t-0">
                             {groupTopics.map((topic, index) => {
-                              const selectedScore = topicState[topic.code]?.score ?? 0;
+                              const selectedScore = topicState[topic.code]?.score ?? null;
                               return (
                                 <div key={topic.code} className={`border-b border-emerald-100 px-4 py-4 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-emerald-50/35"}`}>
                                   <div className="grid gap-3 lg:grid-cols-[74px_minmax(260px,1fr)_130px_80px] lg:items-start">
@@ -1623,15 +1647,18 @@ export default function CreateEvaluationMockup({
                                     <label className="block">
                                       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Score</span>
                                       <select
-                                        value={selectedScore}
-                                        onChange={(event) => updateTopic(topic.code, { score: Number(event.target.value) })}
+                                        value={selectedScore ?? ""}
+                                        onChange={(event) => updateTopic(topic.code, { score: event.target.value === "" ? null : Number(event.target.value) })}
                                         className="mt-1 w-full rounded-lg border border-emerald-300 bg-white px-3 py-2.5 text-sm font-black text-slate-950 shadow-inner outline-none transition focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100 lg:mt-0"
                                       >
+                                        <option value="">- Select -</option>
                                         {scoreOptions(topic.max).map((score) => (
                                           <option key={score} value={score}>{score}</option>
                                         ))}
                                       </select>
-                                      <div className="mt-1 text-[11px] font-bold text-emerald-700">Score {selectedScore}/{topic.max}</div>
+                                      <div className={`mt-1 text-[11px] font-bold ${selectedScore === null ? "text-amber-700" : "text-emerald-700"}`}>
+                                        {selectedScore === null ? `Score not selected / ${topic.max}` : `Score ${selectedScore}/${topic.max}`}
+                                      </div>
                                     </label>
                                     <div>
                                       <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 lg:hidden">Max</div>
@@ -1681,6 +1708,16 @@ export default function CreateEvaluationMockup({
                   <div className="mt-2 text-xs font-semibold text-slate-500">{completedTopics}/{topics.length} topic reason(s) completed</div>
                 </div>
 
+                {missingScoreTopics.length ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-900">
+                    Score required before Save Draft / Submit: {missingScoreText}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-900">
+                    All topic scores selected.
+                  </div>
+                )}
+
                 <label className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                   <span className="text-sm font-black text-amber-900">Critical Error</span>
                   <input type="checkbox" checked={criticalError} onChange={(event) => setCriticalError(event.target.checked)} className="h-5 w-5 accent-rose-600" />
@@ -1697,7 +1734,14 @@ export default function CreateEvaluationMockup({
                   </div>
                 </div>
 
-                <button type="button" onClick={saveDraft} className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50">Save Draft</button>
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  disabled={Boolean(missingScoreTopics.length)}
+                  className="w-full rounded-xl border border-emerald-300 bg-white px-5 py-3.5 text-sm font-black text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-500"
+                >
+                  Save Draft
+                </button>
               </div>
             </div>
 
