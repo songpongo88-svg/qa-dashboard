@@ -119,6 +119,13 @@ const APRIL_2026_TOPIC_MASTER = [
   { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
 ] as const;
 
+const JUNE_2026_TOPIC_MASTER = [
+  { code: "1", label: "Process & Policy Compliance", max: 30 },
+  { code: "2", label: "Answer Quality & Problem Analysis", max: 20 },
+  { code: "3", label: "Case Handling & Follow-up", max: 25 },
+  { code: "4", label: "Communication Skills", max: 25 },
+] as const;
+
 type TopicMasterItem = {
   code: string;
   label: string;
@@ -126,6 +133,9 @@ type TopicMasterItem = {
 };
 
 function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
+  if (monthKey !== "unknown" && monthKey >= "2026-06") {
+    return JUNE_2026_TOPIC_MASTER;
+  }
   return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
 }
 
