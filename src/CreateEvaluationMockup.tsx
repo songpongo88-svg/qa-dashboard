@@ -421,6 +421,22 @@ function fileToDataUrl(file: File) {
   });
 }
 
+function formatFileSize(size: number) {
+  if (!Number.isFinite(size) || size <= 0) return "0 MB";
+  return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function evidenceFileLabel(file: EvidenceFile) {
+  return `${file.type === "application/pdf" ? "PDF" : "Image"}: ${file.name} (${formatFileSize(file.size)})`;
+}
+
+function evidenceUrlDisplayLabel(value: string, index: number) {
+  if (value.startsWith("data:image/")) return `Embedded image preview #${index + 1}`;
+  if (value.startsWith("blob:")) return `Local attached file preview #${index + 1}`;
+  if (value.startsWith("attachment://")) return value.replace("attachment://", "Attachment: ");
+  return value;
+}
+
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
     acc[topic.code] = { score: null, reason: "" };
@@ -660,6 +676,14 @@ export default function CreateEvaluationMockup({
     const attached = evidenceFiles.map((file) => file.storedUrl || file.previewUrl || `attachment://${caseId || "draft-case"}/${file.name}`);
     return [manualUrl, ...attached].filter(Boolean).join("\n");
   }, [caseId, evidenceFiles, evidenceUrl]);
+  const evidenceDisplayValue = useMemo(() => {
+    const manualLinks = evidenceUrl
+      .split(/\n+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const attached = evidenceFiles.map(evidenceFileLabel);
+    return [...manualLinks, ...attached].filter(Boolean).join("\n");
+  }, [evidenceFiles, evidenceUrl]);
 
   const previewColumns = useMemo(() => {
     const base: Record<string, string | number> = {
@@ -671,7 +695,7 @@ export default function CreateEvaluationMockup({
       "Case URL": caseUrl || "-",
       "Customer Inquiry": inquiry || "-",
       "Case Description": caseDescription || "-",
-      "Case Image URL": evidencePreviewValue || "-",
+      "Case Image URL": evidenceDisplayValue || "-",
       "QA Scheme": activeRubric.code,
       "Rubric Version": activeRubric.name,
       "Rubric Active Period": rubricPeriod,
@@ -692,7 +716,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidencePreviewValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -1610,7 +1634,7 @@ export default function CreateEvaluationMockup({
                             {isImage ? <img src={file.previewUrl} alt={file.name} className="h-24 w-full object-cover" /> : <div className="flex h-24 items-center justify-center bg-slate-100 text-sm font-black text-slate-600">PDF</div>}
                             <div className="space-y-2 p-3">
                               <div className="truncate text-xs font-black text-slate-900" title={file.name}>{file.name}</div>
-                              <div className="text-[11px] font-semibold text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                              <div className="text-[11px] font-semibold text-slate-500">{formatFileSize(file.size)}</div>
                               <button type="button" onClick={() => removeEvidenceFile(file.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">Remove</button>
                             </div>
                           </div>
@@ -1867,7 +1891,7 @@ export default function CreateEvaluationMockup({
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Evidence URL / PDF / Image</div>
                     <div className="mt-2 space-y-1">
                       {submitPreview.record.evidenceUrls.length ? submitPreview.record.evidenceUrls.slice(0, 4).map((url, index) => (
-                        <div key={`${url}-${index}`} className="break-all text-sm font-semibold text-sky-800">{url}</div>
+                        <div key={`${url}-${index}`} className="break-words text-sm font-semibold text-sky-800">{evidenceUrlDisplayLabel(url, index)}</div>
                       )) : <div className="text-sm font-semibold text-slate-500">-</div>}
                     </div>
                   </div>

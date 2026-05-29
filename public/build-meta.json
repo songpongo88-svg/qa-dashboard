@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291517",
-  "buildNumber": 2605291517,
-  "releaseLabel": "v1.0.0.2605291517",
-  "updatedAt": "29/05/2026 15:17:01",
+  "displayVersion": "1.0.0.2605291631",
+  "buildNumber": 2605291631,
+  "releaseLabel": "v1.0.0.2605291631",
+  "updatedAt": "29/05/2026 16:31:19",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "0501df1a30bbb7aac808efac82707a43bff67f32",
-  "commitMessage": "Require selected scores before saving evaluations",
+  "commitHash": "4a026b9369a55ae2260cda3396b8040206c7df2f",
+  "commitMessage": "Clarify drafts and format evaluation times",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
