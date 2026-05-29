@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291021",
-  "buildNumber": 2605291021,
-  "releaseLabel": "v1.0.0.2605291021",
-  "updatedAt": "29/05/2026 10:21:06",
+  "displayVersion": "1.0.0.2605291054",
+  "buildNumber": 2605291054,
+  "releaseLabel": "v1.0.0.2605291054",
+  "updatedAt": "29/05/2026 10:54:13",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "06c63f162d2273dedd5b0ca133403ebaae9f97b2",
-  "commitMessage": "Add cancel edit for evaluation records",
+  "commitHash": "78baa285447da651c1b6d8895d675c311df98edc",
+  "commitMessage": "Clean up evaluation workspace header",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"

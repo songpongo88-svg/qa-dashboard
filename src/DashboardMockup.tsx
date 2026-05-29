@@ -4145,6 +4145,27 @@ export default function DashboardMockup({
 
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;
+  const isAllAgentsView = !effectiveSelectedAgent;
+  const visibleTargetAgents = useMemo(() => {
+    if (currentUser?.role === "Agent" && currentUser.agentName) {
+      return [toTitleCaseName(String(currentUser.agentName).trim())];
+    }
+    if (roleScopedAgentList.length) return roleScopedAgentList;
+    return visibleAgentList;
+  }, [currentUser, roleScopedAgentList, visibleAgentList]);
+  const evaluatedAgentNames = useMemo(() => {
+    return dedupeAgentNames(dashboardCases.map((item) => item.agent).filter(Boolean));
+  }, [dashboardCases]);
+  const progressTarget = isAllAgentsView
+    ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET
+    : CASE_TARGET;
+  const progressCompleted = metricCaseCount;
+  const progressComplete = progressCompleted >= progressTarget;
+  const progressSubText = isAllAgentsView
+    ? `${visibleTargetAgents.length} agent(s) x ${CASE_TARGET} cases monthly target`
+    : progressComplete
+    ? "Target reached"
+    : "Target not reached";
 
   const effectiveViewMonthKey =
     selectedMonthKey === "all"
@@ -4156,13 +4177,15 @@ export default function DashboardMockup({
       ? isNewPolicyMonth(effectiveViewMonthKey)
         ? "D"
         : "F"
-      : metricCaseCount < CASE_TARGET
+      : !isAllAgentsView && metricCaseCount < CASE_TARGET
       ? "-"
       : scoreToGrade(Number(metricAverageDisplay), effectiveViewMonthKey);
 
   const currentGradeSub =
     metricCaseCount === 0
       ? "No evaluated case in selected month"
+      : isAllAgentsView
+      ? "Team grade calculated from current average score"
       : metricCaseCount < CASE_TARGET
       ? "Grade will appear when completed 10 cases"
       : isNewPolicyMonth(effectiveViewMonthKey)
@@ -4264,6 +4287,56 @@ export default function DashboardMockup({
       value: scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1),
     }));
   }, [searchScopedCases]);
+
+  const agentAverageChartData = useMemo(() => {
+    const agentMap = new Map<string, number[]>();
+
+    dashboardCases.forEach((item) => {
+      const agent = item.agent || "Unknown";
+      if (!agentMap.has(agent)) agentMap.set(agent, []);
+      agentMap.get(agent)!.push(item.finalScore);
+    });
+
+    const allAgentNames = isAllAgentsView ? visibleTargetAgents : evaluatedAgentNames;
+
+    return allAgentNames
+      .map((agent) => {
+        const scores = agentMap.get(agent) || [];
+        return {
+          label: agent.split(" ")[0] || agent,
+          value: scores.length
+            ? Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(2))
+            : 0,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [dashboardCases, evaluatedAgentNames, isAllAgentsView, visibleTargetAgents]);
+
+  const agentCaseVolumeChartData = useMemo(() => {
+    const countMap = new Map<string, number>();
+
+    dashboardCases.forEach((item) => {
+      const agent = item.agent || "Unknown";
+      countMap.set(agent, (countMap.get(agent) || 0) + 1);
+    });
+
+    return (isAllAgentsView ? visibleTargetAgents : evaluatedAgentNames)
+      .map((agent) => ({
+        label: agent.split(" ")[0] || agent,
+        value: countMap.get(agent) || 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [dashboardCases, evaluatedAgentNames, isAllAgentsView, visibleTargetAgents]);
+
+  const agentCaseScoreTrendData = useMemo(() => {
+    return dashboardCases
+      .slice()
+      .sort(compareCaseAuditDateAndWaitingTime)
+      .map((item) => ({
+        label: item.caseId,
+        value: item.finalScore,
+      }));
+  }, [dashboardCases]);
 
   const currentViewingMonthLabel =
     selectedMonthKey === "all"
@@ -4588,7 +4661,10 @@ export default function DashboardMockup({
               dashboardSubTab === "overview" ? (
                 <>
                   <Panel>
-                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
+                    <PanelHeader
+                      title={isAllAgentsView ? "Team Overview Scope" : "Agent Overview Scope"}
+                      subtitle={isAllAgentsView ? "Formal monthly view for all visible agents" : "Selected agent and period"}
+                    />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
@@ -4621,7 +4697,7 @@ export default function DashboardMockup({
                     </PanelBody>
                   </Panel>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <div className={`grid gap-4 md:grid-cols-2 ${isAllAgentsView ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
                     <MetricCard
                       title="Average Score"
                       value={metricAverageDisplay}
@@ -4634,13 +4710,13 @@ export default function DashboardMockup({
                       valueClassName={songkranTheme ? "text-cyan-700" : "text-violet-900"}
                       helper={
                         <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                          Team Score
+                          {isAllAgentsView ? "Team Score" : "Agent Score"}
                         </span>
                       }
                     />
 
                     <MetricCard
-                      title="Current Grade"
+                      title={isAllAgentsView ? "Current Team Grade" : "Current Grade"}
                       value={currentGradeDisplay}
                       sub={currentGradeSub}
                       accent={currentGradeTone(currentGradeDisplay).card}
@@ -4665,65 +4741,126 @@ export default function DashboardMockup({
 
                     <MetricCard
                       title="Evaluation Progress"
-                      value={`${metricCaseCount}/${CASE_TARGET}`}
-                      sub={metricCaseCount >= CASE_TARGET ? "Target reached" : "Target not reached"}
+                      value={`${progressCompleted}/${progressTarget}`}
+                      sub={progressSubText}
                       accent={
-                        metricCaseCount >= CASE_TARGET
+                        progressComplete
                           ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
                           : "from-amber-50 via-white to-amber-100/70 border-amber-200"
                       }
-                      valueClassName={metricCaseCount >= CASE_TARGET ? "text-emerald-700" : "text-amber-700"}
+                      valueClassName={progressComplete ? "text-emerald-700" : "text-amber-700"}
                       helper={
                         <span
                           className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                            metricCaseCount >= CASE_TARGET
+                            progressComplete
                               ? "border-emerald-200 bg-emerald-100 text-emerald-700"
                               : "border-amber-200 bg-amber-100 text-amber-700"
                           }`}
                         >
-                          {metricCaseCount >= CASE_TARGET ? "Completed" : "In Progress"}
+                          {progressComplete ? "Completed" : "In Progress"}
                         </span>
                       }
                     />
 
-                    <MetricCard
-                      title="Estimated Incentive"
-                      value={incentiveDisplay}
-                      sub={incentiveRemark}
-                      accent={
-                        songkranTheme
-                          ? "from-white via-cyan-50/50 to-fuchsia-100/60 border-cyan-200"
-                          : "from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
-                      }
-                      valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
-                      helper={
-                        <div className="flex flex-wrap gap-2">
-                          <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
-                            Monthly Estimate
+                    {isAllAgentsView ? (
+                      <MetricCard
+                        title="Reviewed Agents"
+                        value={`${evaluatedAgentNames.length}/${visibleTargetAgents.length}`}
+                        sub="Agent(s) with at least one evaluated case in current view"
+                        accent="from-white via-sky-50/50 to-emerald-50/60 border-sky-200"
+                        valueClassName="text-sky-700"
+                        helper={
+                          <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                            Team Coverage
                           </span>
-                          {incentiveResult.promo > 0 ? (
-                            <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-700">
-                              Cash {formatCurrencyTHB(incentiveResult.cash)} + Promo{" "}
-                              {formatCurrencyTHB(incentiveResult.promo)}
-                            </span>
-                          ) : null}
-                        </div>
-                      }
-                    />
+                        }
+                      />
+                    ) : (
+                      <>
+                        <MetricCard
+                          title="Estimated Incentive"
+                          value={incentiveDisplay}
+                          sub={incentiveRemark}
+                          accent={
+                            songkranTheme
+                              ? "from-white via-cyan-50/50 to-fuchsia-100/60 border-cyan-200"
+                              : "from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
+                          }
+                          valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
+                          helper={
+                            <div className="flex flex-wrap gap-2">
+                              <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
+                                Monthly Estimate
+                              </span>
+                              {incentiveResult.promo > 0 ? (
+                                <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-700">
+                                  Cash {formatCurrencyTHB(incentiveResult.cash)} + Promo{" "}
+                                  {formatCurrencyTHB(incentiveResult.promo)}
+                                </span>
+                              ) : null}
+                            </div>
+                          }
+                        />
 
-                    <MetricCard
-                      title="Review Mix"
-                      value={`${revisedCount}`}
-                      sub="Revised case(s) in current view"
-                      accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
-                      valueClassName="text-sky-700"
-                      helper={
-                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                          Revised Cases
-                        </span>
+                        <MetricCard
+                          title="Review Mix"
+                          value={`${revisedCount}`}
+                          sub="Revised case(s) in current view"
+                          accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
+                          valueClassName="text-sky-700"
+                          helper={
+                            <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                              Revised Cases
+                            </span>
+                          }
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  <Panel>
+                    <PanelHeader
+                      title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
+                      subtitle={
+                        isAllAgentsView
+                          ? "Monthly charts by agent for the selected period"
+                          : "Monthly charts for the selected agent"
                       }
                     />
-                  </div>
+                    <PanelBody>
+                      {isAllAgentsView ? (
+                        <div className="grid gap-6 xl:grid-cols-2">
+                          <PremiumBarChart
+                            title="Average Score by Agent"
+                            subtitle="Average final score for each visible agent"
+                            data={agentAverageChartData}
+                            height={260}
+                          />
+                          <PremiumBarChart
+                            title="Case Volume by Agent"
+                            subtitle="Reviewed case count against monthly target"
+                            data={agentCaseVolumeChartData}
+                            height={260}
+                          />
+                        </div>
+                      ) : (
+                        <div className="grid gap-6 xl:grid-cols-2">
+                          <PremiumLineChart
+                            title="Case Score Trend"
+                            subtitle="Final score by case in audit order"
+                            data={agentCaseScoreTrendData}
+                            height={260}
+                          />
+                          <PremiumBarChart
+                            title="Monthly Case Volume"
+                            subtitle="Reviewed cases in the selected period"
+                            data={agentCaseVolumeChartData}
+                            height={260}
+                          />
+                        </div>
+                      )}
+                    </PanelBody>
+                  </Panel>
 
                   <Panel>
                     <PanelHeader
