@@ -2473,6 +2473,7 @@ export default function App() {
   const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
   const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
+  const [shareLinkMessage, setShareLinkMessage] = useState("");
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2567,6 +2568,50 @@ export default function App() {
         { value: "change-password", label: "Change Password" },
         { value: "logout", label: "Log Out" },
       ];
+
+  function buildWorkspaceUrl(params: Record<string, string | undefined>) {
+    const nextParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) nextParams.set(key, value);
+    });
+    return `${window.location.origin}${window.location.pathname}?${nextParams.toString()}`;
+  }
+
+  async function copyShareLink(label: string, url: string) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setShareLinkMessage(`${label} link copied.`);
+    } catch {
+      setShareLinkMessage(`Copy failed. Please copy this link manually: ${url}`);
+    }
+
+    window.setTimeout(() => setShareLinkMessage(""), 3500);
+  }
+
+  function shareCaseDetailLink(caseId?: string, agentName?: string) {
+    const shareUrl = buildWorkspaceUrl({
+      tab: "dashboard",
+      subTab: "case-detail",
+      caseId: caseId || "",
+      agent: agentName || "",
+    });
+    void copyShareLink("Case Detail", shareUrl);
+  }
+
+  function shareRubricLink() {
+    void copyShareLink("QA Rubric", buildWorkspaceUrl({ tab: "rubric" }));
+  }
 
   const handlePerformanceMenuChange = (value: string) => {
     if (value === "coaching" && !coachingAllowed) return;
@@ -3226,6 +3271,8 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!currentUser) return;
+
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const requestedCaseId = params.get("caseId")?.trim() || "";
@@ -3245,8 +3292,10 @@ export default function App() {
       if (requestedAgent) {
         setSelectedAgentGlobal(requestedAgent);
       }
+    } else if (requestedTab === "rubric" && rubricAllowed) {
+      setActiveTab("rubric");
     }
-  }, []);
+  }, [currentUser, rubricAllowed]);
 
   useEffect(() => {
     void loadMaintenanceState();
@@ -4325,6 +4374,14 @@ export default function App() {
           </div>
         ) : null}
 
+        {shareLinkMessage ? (
+          <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
+            <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-900 shadow-[0_12px_28px_rgba(16,185,129,0.12)]">
+              {shareLinkMessage}
+            </div>
+          </div>
+        ) : null}
+
         {activeTab === "dashboard" ? (
           <div>
             <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 sm:px-5 lg:px-6 2xl:px-8">
@@ -4345,6 +4402,7 @@ export default function App() {
               onSelectedAgentChange={setSelectedAgentGlobal}
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}
+              onShareCaseDetail={shareCaseDetailLink}
               onOpenCaseDetail={(caseId, agentName) => {
                 setActiveTab("dashboard");
                 setDashboardSubTab("case-detail");
@@ -4473,9 +4531,9 @@ export default function App() {
             onRolesChanged={loadRoleOverrides}
           />
         ) : activeTab === "rubric" && rubricAllowed ? (
-          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} />
+          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} onShareLink={shareRubricLink} />
         ) : (
-          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} />
+          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} onShareLink={shareRubricLink} />
         )}
       </div>
 

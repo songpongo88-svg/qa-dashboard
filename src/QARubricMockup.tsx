@@ -1389,9 +1389,11 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 export default function QARubricMockup({
   currentUser,
   canManageRubric = false,
+  onShareLink,
 }: {
   currentUser?: any;
   canManageRubric?: boolean;
+  onShareLink?: () => void;
 }) {
   const [selectedKey, setSelectedKey] = useState<RubricVersion["key"]>(getAutoRubricKey());
   const [rubricEndDateDraft, setRubricEndDateDraft] = useState("");
@@ -1423,6 +1425,16 @@ export default function QARubricMockup({
             title="QA Rubric"
             subtitle={`Logged in as ${currentUser?.displayName || "-"} (${currentUser?.role || "-"})`}
           />
+        </div>
+
+        <div className="mb-6 flex justify-end">
+          <button
+            type="button"
+            onClick={onShareLink}
+            className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
+          >
+            Share QA Rubric Link
+          </button>
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

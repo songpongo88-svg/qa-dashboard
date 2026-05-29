@@ -2010,6 +2010,7 @@ function SlideOverCaseDetail({
   onClose,
   onOpenAppealCase,
   onGeneratePdf,
+  onShareCaseDetail,
 }: {
   open: boolean;
   caseItem: CaseItem | null;
@@ -2017,6 +2018,7 @@ function SlideOverCaseDetail({
   onClose: () => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
+  onShareCaseDetail?: (caseId: string, agentName?: string) => void;
 }) {
   if (!open || !caseItem) return null;
 
@@ -3126,6 +3128,14 @@ function SlideOverCaseDetail({
                         </a>
                       ) : null}
 
+                      <button
+                        type="button"
+                        onClick={() => onShareCaseDetail?.(caseItem.caseId, caseItem.agent)}
+                        className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[13px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                      >
+                        Share Case Detail Link
+                      </button>
+
                       {canSubmitAppeal ? (
                         <div className="space-y-2">
                           <button
@@ -3281,6 +3291,7 @@ export default function DashboardMockup({
   onOpenCaseDetail,
   onOpenAppealCase,
   onGeneratePdf,
+  onShareCaseDetail,
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
@@ -3295,6 +3306,7 @@ export default function DashboardMockup({
   onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
+  onShareCaseDetail?: (caseId: string, agentName?: string) => void;
 }) {
   const firstDayOfCurrentMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 
@@ -4119,6 +4131,19 @@ export default function DashboardMockup({
     }
     return [...nextCases].sort(compareCaseAuditDateAndWaitingTime);
   }, [dashboardCasesBase, overviewMode]);
+
+  useEffect(() => {
+    if (dashboardSubTab !== "case-detail" || !externalCaseIdSearch || !dashboardCases.length) return;
+    const targetCaseId = String(externalCaseIdSearch || "").trim().toLowerCase();
+    const targetCase = dashboardCases.find((item) => String(item.caseId || "").trim().toLowerCase() === targetCaseId);
+    if (!targetCase) return;
+    if (selectedCaseKey !== targetCase.key) {
+      setSelectedCaseKey(targetCase.key);
+    }
+    if (!slideOverOpen) {
+      setSlideOverOpen(true);
+    }
+  }, [dashboardCases, dashboardSubTab, externalCaseIdSearch, selectedCaseKey, slideOverOpen]);
 
   const activeSelectedCase = useMemo(() => {
     if (!selectedCaseKey) return null;
@@ -5408,6 +5433,7 @@ export default function DashboardMockup({
                     onClose={() => setSlideOverOpen(false)}
                     onOpenAppealCase={onOpenAppealCase}
                     onGeneratePdf={onGeneratePdf}
+                    onShareCaseDetail={onShareCaseDetail}
                   />
                 </>
               )

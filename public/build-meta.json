@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291109",
-  "buildNumber": 2605291109,
-  "releaseLabel": "v1.0.0.2605291109",
-  "updatedAt": "29/05/2026 11:09:16",
+  "displayVersion": "1.0.0.2605291232",
+  "buildNumber": 2605291232,
+  "releaseLabel": "v1.0.0.2605291232",
+  "updatedAt": "29/05/2026 12:32:22",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a4906123bbf597290c26b80c1a6fa0b7435df54b",
-  "commitMessage": "Redesign dashboard team overview metrics",
+  "commitHash": "b2c32c91df67e895b675e956066fe3432e903bec",
+  "commitMessage": "Show last three monthly analytics",
   "changedFiles": [
     "public/build-meta.json",
     "src/DashboardMockup.tsx"
