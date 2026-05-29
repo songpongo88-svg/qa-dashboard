@@ -1,19 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291002",
-  "buildNumber": 2605291002,
-  "releaseLabel": "v1.0.0.2605291002",
-  "updatedAt": "29/05/2026 10:02:51",
+  "displayVersion": "1.0.0.2605291021",
+  "buildNumber": 2605291021,
+  "releaseLabel": "v1.0.0.2605291021",
+  "updatedAt": "29/05/2026 10:21:06",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f1324959c4c068ffbba1d261a9d6679ff1dd62c3",
-  "commitMessage": "Support June 2026 QA rubric scoring",
+  "commitHash": "06c63f162d2273dedd5b0ca133403ebaae9f97b2",
+  "commitMessage": "Add cancel edit for evaluation records",
   "changedFiles": [
     "public/build-meta.json",
-    "src/AppealMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx"
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

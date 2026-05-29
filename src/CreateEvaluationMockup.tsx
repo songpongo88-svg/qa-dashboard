@@ -457,6 +457,12 @@ function formatTimestamp(date: Date) {
   });
 }
 
+function formatDisplayTimestamp(value: string, fallback: string) {
+  if (!value) return fallback;
+  const parsed = parseDateTimeValue(value);
+  return parsed ? formatTimestamp(parsed) : value;
+}
+
 function AutoGrowTextarea({ value, onChange, placeholder, className, minRows = 3 }: AutoGrowTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -1177,56 +1183,65 @@ export default function CreateEvaluationMockup({
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-emerald-200 bg-white p-4 shadow-[0_16px_42px_rgba(15,23,42,0.07)]">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Evaluator</div>
-                <div className="mt-1 text-sm font-black text-slate-950">Songpon Phothong</div>
+        <div className="overflow-hidden rounded-[26px] border border-emerald-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
+          <div className="grid gap-0 xl:grid-cols-[1fr_380px]">
+            <div className="border-b border-emerald-100 bg-gradient-to-br from-white via-slate-50 to-emerald-50/60 p-5 xl:border-b-0 xl:border-r">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Evaluation Workspace</div>
+                  <div className="mt-1 text-xl font-black text-slate-950">{caseId || "New QA Evaluation"}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-500">Evaluator: <span className="font-black text-slate-800">Songpon Phothong</span></div>
+                </div>
+                <div className="inline-flex w-fit rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm">
+                  {evaluationStatus}
+                </div>
               </div>
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Status</div>
-                <div className="mt-1 text-sm font-black text-emerald-950">{evaluationStatus}</div>
-              </div>
-              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-700">Evaluation Started At</div>
-                <div className="mt-1 text-sm font-black text-slate-950">{evaluationStartedAt || "Not started"}</div>
-              </div>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">Evaluation Submitted At</div>
-                <div className="mt-1 text-sm font-black text-slate-950">{evaluationSubmittedAt || "Not submitted"}</div>
-              </div>
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700">Draft Saved At</div>
-                <div className="mt-1 text-sm font-black text-slate-950">{draftSavedAt || "Not saved"}</div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Started</div>
+                  <div className="mt-1 text-sm font-black text-slate-950">{formatDisplayTimestamp(evaluationStartedAt, "Not started")}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Submitted</div>
+                  <div className="mt-1 text-sm font-black text-slate-950">{formatDisplayTimestamp(evaluationSubmittedAt, "Not submitted")}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Draft Saved</div>
+                  <div className="mt-1 text-sm font-black text-slate-950">{formatDisplayTimestamp(draftSavedAt, "Not saved")}</div>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={startEvaluation} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.22)] transition hover:bg-slate-800">
-                Start Evaluation
-              </button>
-              {activeSubmittedRecordId ? (
-                <button type="button" onClick={cancelSubmittedEdit} className="rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100">
-                  Cancel Edit
+
+            <div className="bg-slate-950 p-5 text-white">
+              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Quick Actions</div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button type="button" onClick={startEvaluation} className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 shadow-sm transition hover:bg-emerald-50">
+                  Start
                 </button>
-              ) : null}
-              <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-indigo-300 bg-indigo-50 px-5 py-3 text-sm font-black text-indigo-800 transition hover:bg-indigo-100">
-                Task Draft
-                <span className="ml-2 inline-flex min-w-[24px] items-center justify-center rounded-full bg-indigo-700 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
-              </button>
-              <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-sky-300 bg-sky-50 px-5 py-3 text-sm font-black text-sky-800 transition hover:bg-sky-100">
-                Task History
-              </button>
-              <button type="button" onClick={() => setWorkspaceView("report")} className="rounded-xl border border-emerald-300 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-900 transition hover:bg-emerald-100">
-                Report
-              </button>
-              <button type="button" onClick={submitEvaluation} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800">
-                Submit Evaluation
-              </button>
+                <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
+                  Draft
+                  <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
+                </button>
+                <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
+                  History
+                </button>
+                <button type="button" onClick={() => setWorkspaceView("report")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
+                  Report
+                </button>
+                {activeSubmittedRecordId ? (
+                  <button type="button" onClick={cancelSubmittedEdit} className="col-span-2 rounded-xl border border-rose-300/50 bg-rose-500/15 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-500/25">
+                    Cancel Edit
+                  </button>
+                ) : null}
+                <button type="button" onClick={submitEvaluation} className="col-span-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.24)] transition hover:bg-emerald-500">
+                  Submit Evaluation
+                </button>
+              </div>
             </div>
           </div>
           {activeSubmittedRecordId ? (
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mx-5 mb-5 mt-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950 sm:flex-row sm:items-center sm:justify-between">
               <span>
                 Editing submitted case {caseId || "-"}. Submit Evaluation will update this saved case.
               </span>
@@ -1236,7 +1251,7 @@ export default function CreateEvaluationMockup({
             </div>
           ) : null}
           {draftMessage ? (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
+            <div className="mx-5 mb-5 mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
               {draftMessage}
             </div>
           ) : null}
