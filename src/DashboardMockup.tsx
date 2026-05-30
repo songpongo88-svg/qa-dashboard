@@ -3285,6 +3285,7 @@ export default function DashboardMockup({
   externalSelectedWeek,
   externalCaseIdSearch,
   roleScopedAgentNames,
+  dataRefreshKey,
   onSelectedAgentChange,
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
@@ -3300,6 +3301,7 @@ export default function DashboardMockup({
   externalSelectedWeek?: string;
   externalCaseIdSearch?: string;
   roleScopedAgentNames?: string[];
+  dataRefreshKey?: number;
   onSelectedAgentChange?: (agentName: string) => void;
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -3978,7 +3980,7 @@ export default function DashboardMockup({
     };
 
     loadWorkbook();
-  }, []);
+  }, [dataRefreshKey]);
 
   const visibleAgentList = useMemo(() => {
     const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);

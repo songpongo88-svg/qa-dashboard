@@ -798,6 +798,7 @@ export default function SummaryMockup({
   externalSelectedMonth,
   externalSelectedWeek,
   roleScopedAgentNames,
+  dataRefreshKey,
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
@@ -807,6 +808,7 @@ export default function SummaryMockup({
   externalSelectedMonth?: string;
   externalSelectedWeek?: string;
   roleScopedAgentNames?: string[];
+  dataRefreshKey?: number;
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -1207,7 +1209,7 @@ export default function SummaryMockup({
     };
 
     loadWorkbook();
-  }, []);
+  }, [dataRefreshKey]);
 
   const availableAgents = useMemo(() => {
     const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter(

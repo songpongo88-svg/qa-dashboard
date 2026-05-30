@@ -174,6 +174,8 @@ const DEFAULT_BUILD_META: BuildMeta = {
   timezone: "Asia/Bangkok",
 };
 
+const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
+
 const DEFAULT_MAINTENANCE_STATE: MaintenanceState = {
   enabled: false,
   message: "QA Dashboard is under maintenance. Please try again later.",
@@ -2455,6 +2457,10 @@ export default function App() {
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [liveNow, setLiveNow] = useState(() => new Date());
+  const [qaDataRefreshKey, setQaDataRefreshKey] = useState(() => {
+    const stored = Number(window.localStorage.getItem(QA_DATA_REFRESH_STORAGE_KEY) || 0);
+    return Number.isFinite(stored) ? stored : 0;
+  });
 
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "appeal" | "create-evaluation" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "call-history" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
@@ -2491,6 +2497,30 @@ export default function App() {
     () => buildEffectiveUserAccounts(USER_ACCOUNTS, profileOverrides, roleOverrides),
     [profileOverrides, roleOverrides]
   );
+
+  useEffect(() => {
+    const syncRefreshKey = (value: unknown) => {
+      const nextKey = Number(value || 0);
+      if (Number.isFinite(nextKey) && nextKey > 0) {
+        setQaDataRefreshKey(nextKey);
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === QA_DATA_REFRESH_STORAGE_KEY) syncRefreshKey(event.newValue);
+    };
+
+    const handleLocalRefresh = (event: Event) => {
+      syncRefreshKey((event as CustomEvent<number>).detail);
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("qa-dashboard-data-refresh", handleLocalRefresh);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("qa-dashboard-data-refresh", handleLocalRefresh);
+    };
+  }, []);
   const roleScopedAgentNames = useMemo(() => {
     if (!currentUser || hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return [];
     return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
@@ -2660,6 +2690,13 @@ export default function App() {
     }, 0);
   };
 
+  const notifyQaDataChanged = () => {
+    const nextKey = Date.now();
+    setQaDataRefreshKey(nextKey);
+    window.localStorage.setItem(QA_DATA_REFRESH_STORAGE_KEY, String(nextKey));
+    window.dispatchEvent(new CustomEvent("qa-dashboard-data-refresh", { detail: nextKey }));
+  };
+
   const handleEvaluationSubmitted = async (payload: EvaluationSubmitPayload) => {
     if (!currentUser) return;
     const submittedAtMs = Date.now();
@@ -2675,6 +2712,7 @@ export default function App() {
     const evaluationKey = payload.evaluationKey || generatedEvaluationKey;
     const evaluationId = payload.recordId || evaluationKey.replace(/[^a-zA-Z0-9_-]/g, "_");
 
+    let savedToEvaluationStore = false;
     try {
       await upsertStoredEvaluation({
         id: evaluationId,
@@ -2709,6 +2747,7 @@ export default function App() {
         evaluatorName: currentUser.displayName || currentUser.username || "",
         submittedAt: new Date().toISOString(),
       });
+      savedToEvaluationStore = true;
     } catch (error) {
       console.warn("Evaluation store save failed; usage log fallback will still be recorded.", error);
     }
@@ -2725,6 +2764,7 @@ export default function App() {
       },
     });
     await loadInboxTasks();
+    if (savedToEvaluationStore) notifyQaDataChanged();
   };
 
   const loadInboxTasks = async () => {
@@ -4403,6 +4443,7 @@ export default function App() {
               externalSelectedWeek={selectedWeekGlobal}
               externalCaseIdSearch={selectedDashboardCaseId}
               roleScopedAgentNames={roleScopedAgentNames}
+              dataRefreshKey={qaDataRefreshKey}
               onSelectedAgentChange={setSelectedAgentGlobal}
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}
@@ -4508,6 +4549,7 @@ export default function App() {
             externalSelectedMonth={selectedMonthGlobal}
             externalSelectedWeek={selectedWeekGlobal}
             roleScopedAgentNames={roleScopedAgentNames}
+            dataRefreshKey={qaDataRefreshKey}
             onSelectedAgentChange={setSelectedAgentGlobal}
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
