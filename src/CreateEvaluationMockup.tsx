@@ -730,7 +730,7 @@ export default function CreateEvaluationMockup({
       "Rubric Version": activeRubric.name,
       "Rubric Active Period": rubricPeriod,
       "Evaluator Name": "Songpon Phothong",
-      "Evaluation Started At": evaluationStartedAt || "-",
+      "Evaluation Started At": evaluationSubmittedAt || "-",
       "Evaluation Submitted At": evaluationSubmittedAt || "-",
       "Draft Saved At": draftSavedAt || "-",
       "Evaluation Status": evaluationStatus,
@@ -746,7 +746,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStartedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -782,7 +782,6 @@ export default function CreateEvaluationMockup({
   }
 
   function buildCurrentDraft(savedAt: string, savedAtMs: number): EvaluationDraft {
-    const startedAt = evaluationStartedAt || savedAt;
     const draftId = makeDraftId(caseId, auditDate);
     return {
       draftId,
@@ -797,7 +796,7 @@ export default function CreateEvaluationMockup({
       caseDescription,
       evidenceUrl,
       criticalError,
-      evaluationStartedAt: startedAt,
+      evaluationStartedAt: "",
       evaluationSubmittedAt,
       evaluationStatus: "Draft",
       topicState,
@@ -836,15 +835,6 @@ export default function CreateEvaluationMockup({
       setDraftSavedAt("");
     }
     setDraftMessage("Draft deleted. The current form stays open until you start another draft.");
-  }
-
-  function startEvaluation() {
-    const timestamp = formatTimestamp(new Date());
-    setEvaluationStartedAt(timestamp);
-    setEvaluationSubmittedAt("");
-    setEvaluationStatus("Draft");
-    setActiveSubmittedRecordId("");
-    setWorkspaceView("form");
   }
 
   function cancelSubmittedEdit() {
@@ -968,7 +958,7 @@ export default function CreateEvaluationMockup({
       improvements,
       topics: submittedTopicRows,
       rawDataPreview: previewColumns,
-      evaluationStartedAt: evaluationStartedAt || submittedAt,
+      evaluationStartedAt: submittedAt,
       submittedAt,
     };
     setSubmitPreview({ record: historyRecord, draftId });
@@ -1294,11 +1284,7 @@ export default function CreateEvaluationMockup({
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Started</div>
-                  <div className="mt-1 text-sm font-black text-slate-950">{formatDisplayTimestamp(evaluationStartedAt, "Not started")}</div>
-                </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Submitted</div>
                   <div className="mt-1 text-sm font-black text-slate-950">{formatDisplayTimestamp(evaluationSubmittedAt, "Not submitted")}</div>
@@ -1313,9 +1299,6 @@ export default function CreateEvaluationMockup({
             <div className="bg-slate-950 p-5 text-white">
               <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Quick Actions</div>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <button type="button" onClick={startEvaluation} className="rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 shadow-sm transition hover:bg-emerald-50">
-                  Start
-                </button>
                 <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
                   Draft List
                   <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
