@@ -1545,6 +1545,7 @@ function HeaderSelect({
   options: Array<{ value: string; label: string }>;
 }) {
   const selectedLabel = options.find((option) => option.value === value)?.label || label;
+  const sortedOptions = [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 
   return (
     <label className="group flex w-full min-w-0 flex-col gap-2 md:w-[205px] md:shrink-0 xl:w-[210px]">
@@ -1557,7 +1558,7 @@ function HeaderSelect({
           className="min-h-[54px] w-full appearance-none rounded-[18px] border border-violet-100 bg-white px-4 py-3 pr-10 text-[14px] font-black text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition hover:border-violet-200 hover:shadow-[0_14px_30px_rgba(88,28,135,0.08)] focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
         >
           <option value="">{label}</option>
-          {options.map((option) => (
+          {sortedOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

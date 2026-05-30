@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605291759",
-  "buildNumber": 2605291759,
-  "releaseLabel": "v1.0.0.2605291759",
-  "updatedAt": "29/05/2026 17:59:37",
+  "displayVersion": "1.0.0.2605300947",
+  "buildNumber": 2605300947,
+  "releaseLabel": "v1.0.0.2605300947",
+  "updatedAt": "30/05/2026 09:47:07",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f30c0c10953596aba437e23a5a4b25bb533d1960",
-  "commitMessage": "Keep embedded evidence out of edit fields",
+  "commitHash": "cca74bb8a60e610488e2148df95cb73348f014cf",
+  "commitMessage": "Use shared grade policy in evaluation form",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
