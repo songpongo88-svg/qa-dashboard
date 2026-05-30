@@ -1091,25 +1091,37 @@ async function getCentralPasswordOverride(username: string) {
   return record?.password || "";
 }
 
+async function getCentralPasswordRecordOnly(username: string): Promise<PasswordRecord | null> {
+  const normalized = username.trim().toLowerCase();
+  const logs = await fetchUsageLogs(2000);
+  const passwordEvent = logs.find((item) => {
+    const target = getResetRequestUsername(item).toLowerCase();
+    return (
+      target === normalized &&
+      (item.event_type === "password_reset_approved" || item.event_type === "password_changed") &&
+      typeof item.details?.password === "string"
+    );
+  });
+
+  return passwordEvent ? getPasswordRecordFromEvent(passwordEvent) : null;
+}
+
 async function getCentralPasswordRecord(username: string): Promise<PasswordRecord | null> {
   const localRecord = getLocalPasswordRecord(username);
   try {
-    const normalized = username.trim().toLowerCase();
-    const logs = await fetchUsageLogs(2000);
-    const passwordEvent = logs.find((item) => {
-      const target = getResetRequestUsername(item).toLowerCase();
-      return (
-        target === normalized &&
-        (item.event_type === "password_reset_approved" || item.event_type === "password_changed") &&
-        typeof item.details?.password === "string"
-      );
-    });
-
-    const centralRecord = passwordEvent ? getPasswordRecordFromEvent(passwordEvent) : null;
+    const centralRecord = await getCentralPasswordRecordOnly(username);
     return getLatestPasswordRecord(centralRecord, localRecord);
   } catch {
     return localRecord;
   }
+}
+
+function isPasswordRecordNewer(candidate: PasswordRecord | null, baseline: PasswordRecord | null) {
+  if (!candidate) return false;
+  if (!baseline) return true;
+  const candidateTime = new Date(candidate.issuedAt || "").getTime();
+  const baselineTime = new Date(baseline.issuedAt || "").getTime();
+  return Number.isFinite(candidateTime) && (!Number.isFinite(baselineTime) || candidateTime > baselineTime);
 }
 
 function buildResetRequests(logs: UsageLogEvent[]) {
@@ -3685,7 +3697,14 @@ export default function App() {
       return;
     }
 
-    const centralPasswordRecord = matchedAccount ? await getCentralPasswordRecord(matchedAccount.username) : null;
+    let centralPasswordRecordOnly: PasswordRecord | null = null;
+    const localPasswordRecord = matchedAccount ? getLocalPasswordRecord(matchedAccount.username) : null;
+    try {
+      centralPasswordRecordOnly = matchedAccount ? await getCentralPasswordRecordOnly(matchedAccount.username) : null;
+    } catch {
+      centralPasswordRecordOnly = null;
+    }
+    const centralPasswordRecord = getLatestPasswordRecord(centralPasswordRecordOnly, localPasswordRecord);
     const effectivePassword = centralPasswordRecord?.password || (matchedAccount ? getEffectivePassword(matchedAccount) : "");
     const matchedUser =
       matchedAccount && effectivePassword === normalizedPassword
@@ -3724,6 +3743,26 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
     if (!maintenanceState.enabled || canBypassMaintenance(nextUser)) {
       logUsageEvent(nextUser, "login", { tab: "dashboard" });
+    }
+
+    if (
+      localPasswordRecord &&
+      localPasswordRecord.kind === "permanent" &&
+      localPasswordRecord.password === normalizedPassword &&
+      isPasswordRecordNewer(localPasswordRecord, centralPasswordRecordOnly)
+    ) {
+      void logUsageEvent(nextUser, "password_changed", {
+        tab: "account",
+        target_agent: nextUser.username,
+        details: {
+          password: localPasswordRecord.password,
+          passwordKind: "permanent",
+          changedAt: localPasswordRecord.issuedAt,
+          issuedAt: localPasswordRecord.issuedAt,
+          expiresAt: localPasswordRecord.expiresAt,
+          migratedFromLocalBrowser: true,
+        },
+      });
     }
 
     setLoginError("");
@@ -3884,15 +3923,7 @@ export default function App() {
     const changedAt = new Date();
     const expiresAt = addMonths(changedAt, PERMANENT_PASSWORD_VALID_MONTHS);
 
-    savePasswordOverride(currentUser.username, newPasswordInput);
-    saveLocalPasswordRecord(currentUser.username, {
-      password: newPasswordInput,
-      kind: "permanent",
-      issuedAt: changedAt.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      eventType: "password_changed",
-    });
-    await logUsageEvent(currentUser, "password_changed", {
+    const savedCentrally = await logUsageEvent(currentUser, "password_changed", {
       tab: "account",
       target_agent: currentUser.username,
       details: {
@@ -3902,6 +3933,21 @@ export default function App() {
         issuedAt: changedAt.toISOString(),
         expiresAt: expiresAt.toISOString(),
       },
+    });
+
+    if (!savedCentrally) {
+      setChangePasswordError("Password could not be saved to the central system. Please check the connection and try again.");
+      setChangePasswordSuccess("");
+      return;
+    }
+
+    savePasswordOverride(currentUser.username, newPasswordInput);
+    saveLocalPasswordRecord(currentUser.username, {
+      password: newPasswordInput,
+      kind: "permanent",
+      issuedAt: changedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      eventType: "password_changed",
     });
 
     setChangePasswordError("");

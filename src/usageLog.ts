@@ -51,7 +51,7 @@ export async function logUsageEvent(
   eventType: string,
   payload: Partial<UsageLogEvent> = {}
 ) {
-  if (!isUsageLogConfigured() || !user) return;
+  if (!isUsageLogConfigured() || !user) return false;
 
   const body: UsageLogEvent = {
     event_type: eventType,
@@ -66,13 +66,19 @@ export async function logUsageEvent(
   };
 
   try {
-    await fetch(getUsageLogEndpoint(), {
+    const response = await fetch(getUsageLogEndpoint(), {
       method: "POST",
       headers: getUsageLogHeaders("return=minimal"),
       body: JSON.stringify(body),
     });
+    if (!response.ok) {
+      console.warn("Usage log failed", response.status, await response.text().catch(() => ""));
+      return false;
+    }
+    return true;
   } catch (error) {
     console.warn("Usage log failed", error);
+    return false;
   }
 }
 
