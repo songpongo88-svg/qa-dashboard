@@ -92,8 +92,8 @@ export default function CallHistoryMockup({
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50 to-white pb-10">
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
-          eyebrow="Call History"
-          title="Call History Center"
+          eyebrow="Call Center"
+          title="Call History"
           subtitle="Separate call log for incoming, outgoing, missed, declined, and ended calls."
           workspaceTitle="Voice Activity"
           workspaceSubtitle="This page is separate from chat rooms so call records are easier to track."

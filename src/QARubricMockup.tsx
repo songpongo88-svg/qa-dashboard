@@ -1449,8 +1449,8 @@ export default function QARubricMockup({
         {songkranTheme ? <SongkranBackdrop /> : null}
         <div className="mb-6 overflow-hidden rounded-3xl">
           <PageHero
-            eyebrow="Robinhood QA Rubric"
-            title="QA Rubric"
+            eyebrow="QA Policy Library"
+            title="QA Rubric Library"
             subtitle={`Logged in as ${currentUser?.displayName || "-"} (${currentUser?.role || "-"})`}
           />
         </div>

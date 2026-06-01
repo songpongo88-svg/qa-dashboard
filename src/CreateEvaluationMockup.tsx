@@ -1243,9 +1243,9 @@ export default function CreateEvaluationMockup({
   return (
     <div className="min-h-screen bg-[#eef5f1] text-slate-950" style={{ fontFamily: "Aptos, 'Noto Sans Thai', 'Segoe UI', sans-serif" }}>
       <PageHero
-        eyebrow="QA Evaluation"
-        title="Create QA Evaluation"
-        subtitle="Corporate QA evaluation form with live scoring, rubric version control, evidence preview, and RawData output preview."
+        eyebrow="QA Operations"
+        title="Evaluation Workspace"
+        subtitle="Create, review, draft, and export QA evaluations from one CRM-style workspace."
         workspaceTitle="QA Rubric Active Period"
         workspaceSubtitle={`${activeRubric.code} · ${rubricPeriod}`}
       />
@@ -1297,17 +1297,17 @@ export default function CreateEvaluationMockup({
             </div>
 
             <div className="bg-slate-950 p-5 text-white">
-              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Quick Actions</div>
+              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-200">Workspace Actions</div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setWorkspaceView("drafts")} className="relative rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
-                  Draft List
+                  Draft Queue
                   <span className="ml-2 inline-flex min-w-[22px] items-center justify-center rounded-full bg-indigo-500 px-2 py-0.5 text-xs text-white">{draftInbox.length}</span>
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
-                  History
+                  Evaluation History
                 </button>
                 <button type="button" onClick={() => setWorkspaceView("report")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
-                  Report
+                  Export Report
                 </button>
                 {activeSubmittedRecordId ? (
                   <button type="button" onClick={cancelSubmittedEdit} className="col-span-2 rounded-xl border border-rose-300/50 bg-rose-500/15 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-500/25">

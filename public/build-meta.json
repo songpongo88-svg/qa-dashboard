@@ -1,19 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605301449",
-  "buildNumber": 2605301449,
-  "releaseLabel": "v1.0.0.2605301449",
-  "updatedAt": "30/05/2026 14:49:07",
+  "displayVersion": "1.0.0.2605310909",
+  "buildNumber": 2605310909,
+  "releaseLabel": "v1.0.0.2605310909",
+  "updatedAt": "31/05/2026 09:09:42",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "388b6b54193d39304508f6b0753b5f8d385d2655",
-  "commitMessage": "Refresh dashboard data after evaluation submit",
+  "commitHash": "814e25a382044f325df6ddbfbf5b390b98513725",
+  "commitMessage": "Keep password changes synced centrally",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx"
+    "src/usageLog.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

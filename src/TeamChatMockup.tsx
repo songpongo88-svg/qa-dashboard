@@ -628,10 +628,10 @@ export default function TeamChatMockup({
 
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
-          eyebrow="Team Chat"
-          title="Online Team Chat"
-          subtitle="Chat with everyone, open private rooms, paste screenshots, send emoji, and create call invites."
-          workspaceTitle="Live Room"
+          eyebrow="Collaboration Hub"
+          title="Team Chat Center"
+          subtitle="Chat with team members, open private rooms, paste screenshots, send emoji, and create call invites."
+          workspaceTitle="Communication Room"
           workspaceSubtitle="Unread badge, edit/delete, date grouping, sound alerts, and call invites"
         />
 

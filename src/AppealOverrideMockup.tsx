@@ -210,8 +210,8 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
   return (
     <div className="min-h-screen bg-[#f7f3ff] text-slate-950">
       <PageHero
-        eyebrow="Review Control"
-        title="Appeal Override"
+        eyebrow="Appeal Management"
+        title="Appeal Exception Control"
         subtitle="Allow selected cases to submit an appeal after the monthly deadline. Existing one-time submission rules still apply."
       />
 

@@ -1549,11 +1549,13 @@ function AccountActionButton({
 
 function HeaderSelect({
   label,
+  helper,
   value,
   onChange,
   options,
 }: {
   label: string;
+  helper?: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
@@ -1562,14 +1564,15 @@ function HeaderSelect({
   const sortedOptions = [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
 
   return (
-    <label className="group flex w-full min-w-0 flex-col gap-2 md:w-[205px] md:shrink-0 xl:w-[210px]">
+    <label className="group flex w-full min-w-0 flex-col gap-2 md:w-[220px] md:shrink-0 xl:w-[230px]">
       <span className="pl-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 group-focus-within:text-violet-700">{label}</span>
-      <div className="relative">
+      <div className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_16px_34px_rgba(15,23,42,0.06)] transition group-focus-within:border-violet-300 group-focus-within:ring-4 group-focus-within:ring-violet-100/70 group-hover:border-violet-200">
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-violet-700 via-fuchsia-500 to-sky-400 opacity-80" />
         <select
           value={value}
           aria-label={`${label}: ${selectedLabel}`}
           onChange={(e) => onChange(e.target.value)}
-          className="min-h-[54px] w-full appearance-none rounded-[18px] border border-violet-100 bg-white px-4 py-3 pr-10 text-[14px] font-black text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.04)] outline-none transition hover:border-violet-200 hover:shadow-[0_14px_30px_rgba(88,28,135,0.08)] focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+          className="min-h-[62px] w-full appearance-none bg-transparent px-5 py-3 pr-11 text-[14px] font-black text-slate-950 outline-none"
         >
           <option value="">{label}</option>
           {sortedOptions.map((option) => (
@@ -1578,6 +1581,11 @@ function HeaderSelect({
             </option>
           ))}
         </select>
+        {helper ? (
+          <span className="pointer-events-none absolute bottom-2 left-5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            {helper}
+          </span>
+        ) : null}
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-violet-700">
           ▾
         </span>
@@ -2038,16 +2046,16 @@ function TaskInboxMockup({
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#f3e8ff] px-5 py-6 lg:px-8">
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
-          eyebrow="Task Inbox"
-          title="Inbox Center"
-          subtitle="Unread work items, QA updates, password alerts, and review requests are collected here like an internal mail inbox."
-          workspaceTitle="Work Mailbox"
-          workspaceSubtitle="Read a task to clear the badge, then open the related workflow"
+          eyebrow="Work Queue"
+          title="CRM Inbox"
+          subtitle="Unread work items, QA updates, password alerts, and review requests are collected here like an internal operations mailbox."
+          workspaceTitle="Operations Mailbox"
+          workspaceSubtitle="Read an item to clear the badge, then open the related workflow"
         />
 
         <div className="grid gap-4 border-b border-violet-100 bg-violet-50/60 px-5 py-5 md:grid-cols-3">
           <div className="rounded-3xl border border-violet-100 bg-white p-5">
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Unread Mail</div>
+            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Unread Items</div>
             <div className="mt-3 text-4xl font-black text-slate-950">{unreadTasks}</div>
           </div>
           <div className="rounded-3xl border border-slate-100 bg-white p-5 md:col-span-2">
@@ -2243,8 +2251,8 @@ function FloatingChatWidget({
           <div className="bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 py-4 text-white">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Team Chat</div>
-                <div className="mt-1 text-lg font-black">Online Chat</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Collaboration</div>
+                <div className="mt-1 text-lg font-black">Team Chat</div>
                 <div className="mt-1 text-xs font-semibold text-violet-100">
                   {onlineUsers.length} online user(s) · {totalUnread} unread message(s)
                 </div>
@@ -2407,7 +2415,7 @@ function FloatingChatWidget({
                 onClick={onOpenFullChat}
                 className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 transition hover:bg-violet-100"
               >
-                Open full Team Chat
+                Open Team Chat Center
               </button>
             </div>
           </div>
@@ -2602,15 +2610,15 @@ export default function App() {
   const missedCallHistoryCount = chatMessages.filter((message) => message.kind === "call" && message.callStatus === "missed").length;
   const accountOptions = canUseAdminAccountMenu
     ? [
-        ...(usageLogAllowed ? [{ value: "usage-log", label: "Usage Log" }] : []),
-        ...(roleAdminAllowed ? [{ value: "user-roles", label: "User Roles" }] : []),
-        { value: "change-password", label: "Change Password" },
-        ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Reset Password" }] : []),
-        { value: "logout", label: "Log Out" },
+        ...(roleAdminAllowed ? [{ value: "user-roles", label: "Access & User Management" }] : []),
+        ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Password Reset Center" }] : []),
+        ...(usageLogAllowed ? [{ value: "usage-log", label: "System Activity Log" }] : []),
+        { value: "change-password", label: "Change My Password" },
+        { value: "logout", label: "Sign Out" },
       ]
     : [
-        { value: "change-password", label: "Change Password" },
-        { value: "logout", label: "Log Out" },
+        { value: "change-password", label: "Change My Password" },
+        { value: "logout", label: "Sign Out" },
       ];
 
   function buildWorkspaceUrl(params: Record<string, string | undefined>) {
@@ -4093,16 +4101,16 @@ export default function App() {
                 <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">Robinhood Customer Service QA</div>
                 <div className="mt-3 text-[28px] font-bold tracking-tight sm:text-[34px]">QA Monitoring Workspace</div>
                 <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  Unified access for Dashboard, Case Detail, Appeal Review, Summary, Coaching, and QA Rubric with role-based visibility for supervisors and agents.
+                  A CRM-style quality workspace for performance tracking, case evaluation, appeal handling, user access, and team communication.
                 </div>
 
                 {songkranTheme ? <div className="mt-4"><SongkranBadge /></div> : null}
 
                 <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                  <LoginFeatureCard title="Performance" desc="Dashboard, KPI, grade, incentive, trend, and summary view" />
-                  <LoginFeatureCard title="Review" desc="Appeal result, case comparison, coaching, and QA rubric reference" />
-                  <LoginFeatureCard title="Security" desc="Password control, session timeout, and supervisor reset tools" />
-                  <LoginFeatureCard title="Workspace" desc="Responsive layout optimized for common laptop browser size" />
+                  <LoginFeatureCard title="Performance Center" desc="Dashboard, KPI, grade, incentive, trend, and summary view" />
+                  <LoginFeatureCard title="QA Operations" desc="Evaluation workspace, appeal review, case detail, and QA rubric reference" />
+                  <LoginFeatureCard title="Access Control" desc="User directory, role permissions, password reset, and system audit tools" />
+                  <LoginFeatureCard title="Collaboration Hub" desc="Inbox, team chat, call history, and operational notifications" />
                 </div>
 
                 {songkranTheme ? <FestiveIllustration /> : null}
@@ -4246,9 +4254,9 @@ export default function App() {
                   </div>
 
                   <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-sm">
-                    <div className="text-xs font-black">Robinhood QA Welcome</div>
-                    <div>User Login: {welcomeName}</div>
-                    <div>Position: {currentUser.role}</div>
+                    <div className="text-xs font-black">Robinhood QA Workspace</div>
+                    <div>User: {welcomeName}</div>
+                    <div>Role: {currentUser.role}</div>
                     <div className="whitespace-nowrap">
                       Version {buildMeta.displayVersion || buildMeta.version}
                       {shortBuildHash ? `:${shortBuildHash}` : ""}
@@ -4284,31 +4292,34 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-nowrap md:justify-end md:gap-x-5 md:gap-y-5 xl:max-w-[700px]">
+                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-nowrap md:justify-end md:gap-x-5 md:gap-y-5 xl:max-w-[760px]">
                   <HeaderSelect
-                    label="Performance"
+                    label="Performance Center"
+                    helper="Score, KPI, trend"
                     value={performanceMenuValue}
                     onChange={handlePerformanceMenuChange}
                     options={[
-                      { value: "dashboard", label: "Dashboard" },
-                      { value: "summary", label: "Summary" },
-                      ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
+                      { value: "dashboard", label: "Performance Dashboard" },
+                      { value: "summary", label: "Monthly Summary" },
+                      ...(coachingAllowed ? [{ value: "coaching", label: "Coaching Insights" }] : []),
                     ]}
                   />
                   <HeaderSelect
-                    label="Review"
+                    label="QA Operations"
+                    helper="Evaluate, appeal, rubric"
                     value={reviewMenuValue}
                     onChange={handleReviewMenuChange}
                     options={[
-                      { value: "appeal", label: "Appeal" },
-                      ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create Evaluation" }] : []),
-                      ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Requests" }] : []),
-                      ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
-                      ...(rubricAllowed ? [{ value: "rubric", label: "QA Rubric" }] : []),
+                      { value: "appeal", label: "Appeal Case Center" },
+                      ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Exception Control" }] : []),
+                      ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Review Queue" }] : []),
+                      ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create QA Evaluation" }] : []),
+                      ...(rubricAllowed ? [{ value: "rubric", label: "QA Rubric Library" }] : []),
                     ]}
                   />
                   <HeaderSelect
-                    label="Account"
+                    label="Administration"
+                    helper="User, security, system"
                     value={accountMenuDisplayValue}
                     onChange={handleAccountMenuChange}
                     options={accountOptions}
@@ -4323,15 +4334,15 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
-                        <div className="mt-1 text-sm font-extrabold">Inbox</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Work Queue</div>
+                        <div className="mt-1 text-sm font-extrabold">CRM Inbox</div>
                       </div>
                       <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
                         {unreadInboxTaskCount}
                       </span>
                     </div>
                     <div className="mt-1 text-xs font-semibold text-violet-100">
-                      {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread task(s)` : "No unread task"}
+                      {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread item(s)` : "Queue is clear"}
                     </div>
                   </button>
                   <button
@@ -4345,15 +4356,15 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Team Chat</div>
-                        <div className="mt-1 text-sm font-extrabold">Online Chat</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Collaboration</div>
+                        <div className="mt-1 text-sm font-extrabold">Team Chat</div>
                       </div>
                       <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
                         {totalChatUnreadCount || onlineUsers.length}
                       </span>
                     </div>
                     <div className="mt-1 text-xs font-semibold text-slate-500">
-                      {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                      {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No active user"}
                     </div>
                   </button>
                   <button
@@ -4366,8 +4377,8 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call History</div>
-                        <div className="mt-1 text-sm font-extrabold">Voice Records</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call Center</div>
+                        <div className="mt-1 text-sm font-extrabold">Call History</div>
                       </div>
                       <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-sm font-extrabold text-indigo-700">
                         {missedCallHistoryCount || totalCallHistoryCount}
@@ -4388,15 +4399,15 @@ export default function App() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Task Inbox</div>
-                    <div className="mt-1 text-sm font-extrabold">Inbox</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Work Queue</div>
+                    <div className="mt-1 text-sm font-extrabold">CRM Inbox</div>
                   </div>
                   <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
                     {unreadInboxTaskCount}
                   </span>
                 </div>
                 <div className="mt-1 text-xs font-semibold text-violet-100">
-                  {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread task(s)` : "No unread task"}
+                  {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread item(s)` : "Queue is clear"}
                 </div>
               </button>
               <button
@@ -4410,15 +4421,15 @@ export default function App() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Team Chat</div>
-                    <div className="mt-1 text-sm font-extrabold">Online Chat</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Collaboration</div>
+                    <div className="mt-1 text-sm font-extrabold">Team Chat</div>
                   </div>
                   <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
                     {totalChatUnreadCount || onlineUsers.length}
                   </span>
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No online user yet"}
+                  {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No active user"}
                 </div>
               </button>
               <button
@@ -4431,8 +4442,8 @@ export default function App() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call History</div>
-                    <div className="mt-1 text-sm font-extrabold">Voice Records</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call Center</div>
+                    <div className="mt-1 text-sm font-extrabold">Call History</div>
                   </div>
                   <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-sm font-extrabold text-indigo-700">
                     {missedCallHistoryCount || totalCallHistoryCount}
@@ -4450,7 +4461,7 @@ export default function App() {
           <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
             <div className="flex flex-col gap-3 rounded-[24px] border border-violet-200 bg-white px-4 py-3 shadow-[0_14px_36px_rgba(88,28,135,0.10)] sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from Task Inbox</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from CRM Inbox</div>
                 <div className="mt-1 text-sm font-bold text-slate-700">{inboxReturnTitle}</div>
               </div>
               <button
@@ -4458,7 +4469,7 @@ export default function App() {
                 onClick={openTaskInbox}
                 className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-800"
               >
-                Back to Inbox
+                Back to CRM Inbox
               </button>
             </div>
           </div>
@@ -4476,8 +4487,8 @@ export default function App() {
           <div>
             <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 sm:px-5 lg:px-6 2xl:px-8">
               <div className="flex flex-wrap gap-2">
-                <DashboardSubButton active={dashboardSubTab === "overview"} label="Overview" onClick={() => setDashboardSubTab("overview")} songkranTheme={songkranTheme} />
-                <DashboardSubButton active={dashboardSubTab === "case-detail"} label="Case Detail" onClick={() => setDashboardSubTab("case-detail")} songkranTheme={songkranTheme} />
+                <DashboardSubButton active={dashboardSubTab === "overview"} label="Performance Overview" onClick={() => setDashboardSubTab("overview")} songkranTheme={songkranTheme} />
+                <DashboardSubButton active={dashboardSubTab === "case-detail"} label="Case Detail Workspace" onClick={() => setDashboardSubTab("case-detail")} songkranTheme={songkranTheme} />
               </div>
             </div>
 

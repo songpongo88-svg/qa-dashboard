@@ -2088,8 +2088,8 @@ export default function AppealMockup({
       {songkranTheme ? <SongkranBackdrop /> : null}
 
       <PageHero
-        eyebrow="QA Appeal"
-        title="Appeal Result Workspace"
+        eyebrow="Appeal Management"
+        title="Appeal Case Center"
         subtitle="รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว"
       />
       {false ? (
