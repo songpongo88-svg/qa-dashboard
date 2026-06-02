@@ -1,23 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606022357",
-  "buildNumber": 2606022357,
-  "releaseLabel": "v1.0.0.2606022357",
-  "updatedAt": "02/06/2026 23:57:07",
+  "displayVersion": "1.0.0.2606030118",
+  "buildNumber": 2606030118,
+  "releaseLabel": "v1.0.0.2606030118",
+  "updatedAt": "03/06/2026 01:18:00",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2fbd124d9b997e6667f957b4a2e3e44593ab8892",
-  "commitMessage": "Format submitted times and rename case date labels",
+  "commitHash": "fb5c54e1e7c62ac9fababfc10d638a6176f75a1d",
+  "commitMessage": "Require agent selection before saving evaluations",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/AppealMockup.tsx",
-    "src/AppealRequestsMockup.tsx",
-    "src/CreateEvaluationMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/QARubricMockup.tsx",
-    "src/pages/EvaluationStudioPage.tsx"
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

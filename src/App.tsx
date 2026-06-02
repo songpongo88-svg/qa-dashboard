@@ -39,6 +39,9 @@ type RolePermissionKey =
   | "viewRubric"
   | "manageRubric"
   | "createEvaluation"
+  | "takePreTest"
+  | "managePreTest"
+  | "viewPreTestResults"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -296,6 +299,9 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewRubric",
   "manageRubric",
   "createEvaluation",
+  "takePreTest",
+  "managePreTest",
+  "viewPreTestResults",
   "viewUsageLog",
   "exportPdf",
   "exportAppealRawdata",
@@ -342,6 +348,9 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewRubric: true,
     manageRubric: false,
     createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -368,6 +377,9 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewRubric: true,
     manageRubric: false,
     createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -394,6 +406,9 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewRubric: true,
     manageRubric: false,
     createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
@@ -2610,6 +2625,10 @@ export default function App() {
   const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
   const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
   const createEvaluationAllowed = hasRolePermission(currentUser, rolePermissions, "createEvaluation");
+  const takePreTestAllowed = hasRolePermission(currentUser, rolePermissions, "takePreTest");
+  const managePreTestAllowed = hasRolePermission(currentUser, rolePermissions, "managePreTest");
+  const viewPreTestResultsAllowed = hasRolePermission(currentUser, rolePermissions, "viewPreTestResults");
+  const preTestAllowed = takePreTestAllowed || managePreTestAllowed || viewPreTestResultsAllowed;
   const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
   const appealOverrideAllowed = hasRolePermission(currentUser, rolePermissions, "appealOverride");
   const rubricAllowed = hasRolePermission(currentUser, rolePermissions, "viewRubric");
@@ -2632,7 +2651,7 @@ export default function App() {
       : "";
   const reviewMenuValue =
     activeTab === "appeal" ||
-    activeTab === "pre-test" ||
+    (activeTab === "pre-test" && preTestAllowed) ||
     (activeTab === "create-evaluation" && createEvaluationAllowed) ||
     activeTab === "appeal-requests" ||
     activeTab === "appeal-override" ||
@@ -2725,6 +2744,7 @@ export default function App() {
 
   const handleReviewMenuChange = (value: string) => {
     if (value === "create-evaluation" && !createEvaluationAllowed) return;
+    if (value === "pre-test" && !preTestAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "create-evaluation") {
@@ -3491,10 +3511,13 @@ export default function App() {
     if (activeTab === "create-evaluation" && !createEvaluationAllowed) {
       setActiveTab("dashboard");
     }
+    if (activeTab === "pre-test" && !preTestAllowed) {
+      setActiveTab("dashboard");
+    }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, appealOverrideAllowed, createEvaluationAllowed, roleAdminAllowed]);
+  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, appealOverrideAllowed, createEvaluationAllowed, preTestAllowed, roleAdminAllowed]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -4427,7 +4450,7 @@ export default function App() {
                       ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Exception Control" }] : []),
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Review Queue" }] : []),
                       ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create QA Evaluation" }] : []),
-                      { value: "pre-test", label: "Pre-Test" },
+                      ...(preTestAllowed ? [{ value: "pre-test", label: "Pre-Test Center" }] : []),
                       ...(rubricAllowed ? [{ value: "rubric", label: "QA Rubric Library" }] : []),
                     ]}
                   />
@@ -4675,8 +4698,13 @@ export default function App() {
             agentOptions={qaEvaluationAgentOptions}
             onSubmitEvaluation={handleEvaluationSubmitted}
           />
-        ) : activeTab === "pre-test" ? (
-          <PreTestMockup currentUser={currentUser} />
+        ) : activeTab === "pre-test" && preTestAllowed ? (
+          <PreTestMockup
+            currentUser={currentUser}
+            canTakePreTest={takePreTestAllowed}
+            canManagePreTest={managePreTestAllowed}
+            canViewPreTestResults={viewPreTestResultsAllowed}
+          />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (

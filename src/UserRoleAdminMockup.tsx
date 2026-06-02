@@ -26,6 +26,9 @@ type RolePermissionKey =
   | "viewRubric"
   | "manageRubric"
   | "createEvaluation"
+  | "takePreTest"
+  | "managePreTest"
+  | "viewPreTestResults"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -135,6 +138,9 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "viewRubric", label: "View QA Rubric", category: "Review", description: "Open QA scoring standard page." },
   { key: "manageRubric", label: "Manage QA Rubric", category: "Review", description: "Show rubric version control and allow End Rubric preview actions." },
   { key: "createEvaluation", label: "Create QA Evaluation", category: "Review", description: "Open Create QA Evaluation and submit new QA assessment records." },
+  { key: "takePreTest", label: "Take Pre-Test", category: "Review", description: "Open assigned Pre-Test sets and submit test attempts." },
+  { key: "managePreTest", label: "Manage Pre-Test", category: "Review", description: "Create, edit, disable, delete, and share Pre-Test question sets." },
+  { key: "viewPreTestResults", label: "View Pre-Test Results", category: "Review", description: "Open Pre-Test history and export attempt results." },
   { key: "viewUsageLog", label: "View Usage Log", category: "Account", description: "Open system usage log and export logs." },
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
   { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
@@ -165,6 +171,9 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewRubric: true,
     manageRubric: false,
     createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -191,6 +200,9 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewRubric: true,
     manageRubric: false,
     createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -217,6 +229,9 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewRubric: true,
     manageRubric: false,
     createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
