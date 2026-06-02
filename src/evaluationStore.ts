@@ -163,7 +163,10 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
     headers: headers("resolution=merge-duplicates,return=minimal"),
     body: JSON.stringify([fromEvaluation(record)]),
   });
-  if (!response.ok) throw new Error(`Supabase evaluation upsert failed: ${response.status}`);
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Supabase evaluation upsert failed: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
 }
 
 export async function deleteStoredEvaluation(id: string) {

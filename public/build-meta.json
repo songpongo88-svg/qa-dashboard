@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021535",
-  "buildNumber": 2606021535,
-  "releaseLabel": "v1.0.0.2606021535",
-  "updatedAt": "02/06/2026 15:35:40",
+  "displayVersion": "1.0.0.2606021553",
+  "buildNumber": 2606021553,
+  "releaseLabel": "v1.0.0.2606021553",
+  "updatedAt": "02/06/2026 15:53:59",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "76d44b888e8ad73484c06b9613c584cfb39e0bed",
-  "commitMessage": "Fix evaluation confirm submit",
+  "commitHash": "f5fe8f1fab2f2b28874561df77c82c16901ba7ff",
+  "commitMessage": "Update pre-test question set",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/CreateEvaluationMockup.tsx"
+    "src/PreTestMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -176,6 +176,56 @@ const DEFAULT_BUILD_META: BuildMeta = {
 };
 
 const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
+const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
+
+function compactCentralStoreText(value: unknown, fallback = "") {
+  const text = String(value ?? fallback ?? "");
+  if (text.length <= CENTRAL_EVALUATION_TEXT_LIMIT) return text;
+  return `${text.slice(0, CENTRAL_EVALUATION_TEXT_LIMIT)}... [truncated for central storage]`;
+}
+
+function compactCentralEvidenceUrl(value: unknown, index: number) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const label = `Attached evidence ${index + 1}`;
+
+  if (/^data:/i.test(text)) {
+    const mime = text.slice(5, text.indexOf(";") > 5 ? text.indexOf(";") : 40);
+    return `${label} (${mime || "local file"})`;
+  }
+
+  if (/^blob:/i.test(text)) return `${label} (browser local preview)`;
+  if (text.length > CENTRAL_EVALUATION_TEXT_LIMIT) return `${label} (${text.slice(0, 160)}...)`;
+  return text;
+}
+
+function compactCentralEvidenceUrls(values: unknown) {
+  if (!Array.isArray(values)) return [];
+  return values.map(compactCentralEvidenceUrl).filter(Boolean);
+}
+
+function compactCentralRawPreview(
+  value: Record<string, string | number> | undefined,
+  compactEvidenceUrls: string[]
+) {
+  const preview = value || {};
+  return Object.fromEntries(
+    Object.entries(preview).map(([key, rawValue]) => {
+      if (typeof rawValue === "number") return [key, rawValue];
+      const normalizedKey = key.toLowerCase();
+      if (
+        compactEvidenceUrls.length &&
+        (normalizedKey.includes("image") ||
+          normalizedKey.includes("evidence") ||
+          normalizedKey.includes("pdf") ||
+          normalizedKey.includes("url"))
+      ) {
+        return [key, compactEvidenceUrls.join("\n")];
+      }
+      return [key, compactCentralStoreText(rawValue)];
+    })
+  ) as Record<string, string | number>;
+}
 
 const DEFAULT_MAINTENANCE_STATE: MaintenanceState = {
   enabled: false,
@@ -2714,45 +2764,63 @@ export default function App() {
     ].join("|");
     const evaluationKey = payload.evaluationKey || generatedEvaluationKey;
     const evaluationId = payload.recordId || evaluationKey.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const compactEvidenceUrls = compactCentralEvidenceUrls(payload.evidenceUrls || []);
+    const compactRawDataPreview = compactCentralRawPreview(payload.rawDataPreview || {}, compactEvidenceUrls);
 
-    let savedToEvaluationStore = false;
     try {
       await upsertStoredEvaluation({
         id: evaluationId,
         evaluationKey,
-        caseId: payload.caseId,
-        agentName: payload.agentName,
-        targetUsername: payload.targetUsername,
-        targetDisplayName: payload.targetDisplayName,
-        targetEmail: payload.targetEmail || "",
-        targetRole: payload.targetRole,
-        auditDate: payload.auditDate,
-        auditTimestamp: payload.auditTimestamp,
-        waitingTime: payload.waitingTime,
-        serviceTime: payload.serviceTime,
-        caseUrl: payload.caseUrl,
-        inquiry: payload.inquiry,
-        caseDescription: payload.caseDescription,
-        evidenceUrls: payload.evidenceUrls || [],
+        caseId: compactCentralStoreText(payload.caseId),
+        agentName: compactCentralStoreText(payload.agentName),
+        targetUsername: compactCentralStoreText(payload.targetUsername),
+        targetDisplayName: compactCentralStoreText(payload.targetDisplayName),
+        targetEmail: compactCentralStoreText(payload.targetEmail || ""),
+        targetRole: compactCentralStoreText(payload.targetRole),
+        auditDate: compactCentralStoreText(payload.auditDate),
+        auditTimestamp: compactCentralStoreText(payload.auditTimestamp),
+        waitingTime: compactCentralStoreText(payload.waitingTime),
+        serviceTime: compactCentralStoreText(payload.serviceTime),
+        caseUrl: compactCentralStoreText(payload.caseUrl),
+        inquiry: compactCentralStoreText(payload.inquiry),
+        caseDescription: compactCentralStoreText(payload.caseDescription),
+        evidenceUrls: compactEvidenceUrls,
         criticalError: payload.criticalError,
         finalScore: payload.finalScore,
-        grade: payload.grade,
-        qaScheme: payload.qaScheme,
-        rubricName: payload.rubricName,
-        rubricPeriod: payload.rubricPeriod,
+        grade: compactCentralStoreText(payload.grade),
+        qaScheme: compactCentralStoreText(payload.qaScheme),
+        rubricName: compactCentralStoreText(payload.rubricName),
+        rubricPeriod: compactCentralStoreText(payload.rubricPeriod),
         completedTopics: payload.completedTopics,
         totalTopics: payload.totalTopics,
-        strengths: payload.strengths,
-        improvements: payload.improvements,
-        topics: payload.topics || [],
-        rawDataPreview: payload.rawDataPreview || {},
+        strengths: (payload.strengths || []).map((item) => compactCentralStoreText(item)),
+        improvements: (payload.improvements || []).map((item) => compactCentralStoreText(item)),
+        topics: (payload.topics || []).map((topic) => ({
+          ...topic,
+          title: compactCentralStoreText(topic.title),
+          comment: compactCentralStoreText(topic.comment),
+        })),
+        rawDataPreview: compactRawDataPreview,
         evaluatorUsername: currentUser.username || "",
         evaluatorName: currentUser.displayName || currentUser.username || "",
         submittedAt: new Date().toISOString(),
       });
-      savedToEvaluationStore = true;
     } catch (error) {
-      console.warn("Evaluation store save failed; usage log fallback will still be recorded.", error);
+      const errorMessage = error instanceof Error ? error.message : String(error || "Unknown error");
+      console.warn("Evaluation store save failed.", error);
+      await logUsageEvent(currentUser, "qa_evaluation_save_failed", {
+        tab: "create-evaluation",
+        case_id: payload.caseId,
+        target_agent: payload.targetUsername || payload.agentName,
+        details: {
+          caseId: payload.caseId,
+          agentName: payload.agentName,
+          error: compactCentralStoreText(errorMessage),
+          evidenceCount: payload.evidenceUrls?.length || 0,
+          attemptedAt: new Date().toISOString(),
+        },
+      });
+      throw new Error(`บันทึกเคสประเมินลงฐานกลางไม่สำเร็จ: ${errorMessage}`);
     }
 
     await logUsageEvent(currentUser, "qa_evaluation_submitted", {
@@ -2782,7 +2850,7 @@ export default function App() {
       },
     });
     await loadInboxTasks();
-    if (savedToEvaluationStore) notifyQaDataChanged();
+    notifyQaDataChanged();
   };
 
   const loadInboxTasks = async () => {
