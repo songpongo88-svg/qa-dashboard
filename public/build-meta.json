@@ -1,19 +1,20 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606022251",
-  "buildNumber": 2606022251,
-  "releaseLabel": "v1.0.0.2606022251",
-  "updatedAt": "02/06/2026 22:51:17",
+  "displayVersion": "1.0.0.2606022337",
+  "buildNumber": 2606022337,
+  "releaseLabel": "v1.0.0.2606022337",
+  "updatedAt": "02/06/2026 23:37:29",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f9e5e8638954565a98168600ebe6d1ff02b98ad4",
-  "commitMessage": "Stabilize central data loading and role scope",
+  "commitHash": "b5696cd538d93ccd317e985d12317a0ea735b3e2",
+  "commitMessage": "Speed up static data loading and sort submitted records",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/evaluationStore.ts",
-    "src/userRoleStore.ts"
+    "src/CreateEvaluationMockup.tsx",
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx",
+    "src/staticFileCache.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

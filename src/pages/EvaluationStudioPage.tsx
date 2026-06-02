@@ -694,7 +694,7 @@ export default function EvaluationStudioPage() {
     }
 
     if (!caseMaster.auditDate.trim()) {
-      errors.push("กรุณาระบุ Audit Date");
+      errors.push("กรุณาระบุ Case Date");
     }
 
     if (

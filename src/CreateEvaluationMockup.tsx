@@ -532,7 +532,8 @@ function scoreOptions(max: number) {
 }
 
 function formatTimestamp(date: Date) {
-  return date.toLocaleString("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -540,13 +541,19 @@ function formatTimestamp(date: Date) {
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  });
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  return `${getPart("day")}/${getPart("month")}/${getPart("year")} ${getPart("hour")}:${getPart("minute")}:${getPart("second")}`;
 }
 
 function formatDisplayTimestamp(value: string, fallback: string) {
   if (!value) return fallback;
   const parsed = parseDateTimeValue(value);
   return parsed ? formatTimestamp(parsed) : value;
+}
+
+function displayFieldLabel(label: string) {
+  return label === "Audit Date" ? "Case Date" : label;
 }
 
 function getSubmittedRecordTimeMs(record: EvaluationRecord) {
@@ -1492,7 +1499,7 @@ export default function CreateEvaluationMockup({
                   {evaluationHistory.slice(0, 20).map((item) => (
                     <div key={item.recordId} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <div className="text-sm font-black text-slate-950">{item.caseId} - {item.targetDisplayName || item.agentName || "-"}</div>
-                      <div className="mt-1 text-xs font-semibold text-slate-600">Submitted at {item.submittedAt} | Score {item.finalScore}/{activeRubric.totalScore} | Grade {item.grade}</div>
+                      <div className="mt-1 text-xs font-semibold text-slate-600">Submitted at {formatDisplayTimestamp(item.submittedAt, "-")} | Score {item.finalScore}/{activeRubric.totalScore} | Grade {item.grade}</div>
                     </div>
                   ))}
                 </div>
@@ -1539,10 +1546,10 @@ export default function CreateEvaluationMockup({
                 </div>
               </div>
               <div className="hidden">
-                Export จะรวม RawData เดิมจาก GitHub และเคสใหม่จาก QA Evaluation Form ตามช่วง Audit Date ที่เลือก ส่วนเคสจากฟอร์มสามารถค้นหาแล้วกด Edit เพื่อแก้ไขต่อได้
+                Export จะรวม RawData เดิมจาก GitHub และเคสใหม่จาก QA Evaluation Form ตามช่วง Case Date ที่เลือก ส่วนเคสจากฟอร์มสามารถค้นหาแล้วกด Edit เพื่อแก้ไขต่อได้
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
-                Export RowData uses the selected Audit Date range and includes GitHub RawData plus submitted QA Evaluation cases.
+                Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
               </div>
               {reportMessage ? (
                 <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
@@ -1597,10 +1604,10 @@ export default function CreateEvaluationMockup({
                             <div key={record.recordId} className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
                               <div>
                                 <div className="text-sm font-black text-slate-950">{record.caseId}</div>
-                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || record.targetDisplayName || "-"} | Audit {formatThaiDate(record.auditDate)}</div>
+                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || record.targetDisplayName || "-"} | Case Date {formatThaiDate(record.auditDate)}</div>
                               </div>
                               <div className="text-xs font-semibold text-slate-600">
-                                Submitted: <span className="font-black text-slate-900">{record.submittedAt || "-"}</span>
+                                Submitted: <span className="font-black text-slate-900">{formatDisplayTimestamp(record.submittedAt, "-")}</span>
                               </div>
                               <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-center text-sm font-black text-emerald-800">
                                 {record.finalScore}/100 {record.grade}
@@ -1651,7 +1658,7 @@ export default function CreateEvaluationMockup({
                             <div key={record.recordId} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
                               <div>
                                 <div className="text-sm font-black text-slate-950">{record.caseId}</div>
-                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || "-"} | Audit {formatThaiDate(record.auditDate)}</div>
+                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || "-"} | Case Date {formatThaiDate(record.auditDate)}</div>
                               </div>
                               <div className="text-xs font-semibold text-slate-600">
                                 Source: <span className="font-black text-slate-900">{record.sourceName}</span>
@@ -1705,7 +1712,7 @@ export default function CreateEvaluationMockup({
                     <input value={caseId} onChange={(event) => setCaseId(event.target.value)} placeholder="AAxxxxxx" className={inputClass} />
                   </label>
                   <label className="block">
-                    <span className={labelClass}>Audit Date</span>
+                    <span className={labelClass}>Case Date</span>
                     <input type="date" value={auditDate} onChange={(event) => setAuditDate(event.target.value)} className={inputClass} />
                   </label>
                 </div>
@@ -1968,7 +1975,7 @@ export default function CreateEvaluationMockup({
               <div className="mt-4 max-h-[360px] overflow-auto rounded-xl border border-slate-200">
                 {Object.entries(previewColumns).slice(0, 22).map(([key, value], index) => (
                   <div key={key} className={`grid grid-cols-[130px_1fr] border-b border-slate-200 last:border-b-0 ${index % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
-                    <div className="bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{key}</div>
+                    <div className="bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{displayFieldLabel(key)}</div>
                     <div className="break-words px-3 py-2 text-xs font-bold text-slate-800">{String(value)}</div>
                   </div>
                 ))}
@@ -2006,7 +2013,7 @@ export default function CreateEvaluationMockup({
                     <div className="mt-1 text-lg font-black text-slate-950">{submitPreview.record.agentName || "-"}</div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Month / Audit Date</div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Month / Case Date</div>
                     <div className="mt-1 text-lg font-black text-slate-950">{formatThaiDate(submitPreview.record.auditDate) || "-"}</div>
                   </div>
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">

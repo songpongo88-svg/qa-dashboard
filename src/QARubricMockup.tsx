@@ -1499,7 +1499,7 @@ export default function QARubricMockup({
               </div>
               <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
                 <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Usage</div>
-                <div className="mt-2 text-sm font-bold leading-6 text-slate-800">Create Evaluation will select this rubric when Audit Date is inside the active period.</div>
+                <div className="mt-2 text-sm font-bold leading-6 text-slate-800">Create Evaluation will select this rubric when Case Date is inside the active period.</div>
               </div>
             </div>
 

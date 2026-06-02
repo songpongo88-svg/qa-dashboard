@@ -56,7 +56,7 @@ function formatDateTime(value?: string) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Bangkok",
     day: "2-digit",
     month: "2-digit",
@@ -65,7 +65,9 @@ function formatDateTime(value?: string) {
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  }).format(date);
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  return `${getPart("day")}/${getPart("month")}/${getPart("year")} ${getPart("hour")}:${getPart("minute")}:${getPart("second")}`;
 }
 
 function toNumber(value: unknown, fallback = 0) {
@@ -491,7 +493,7 @@ export default function AppealRequestsMockup({
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">Review Case</div>
                       <div className="mt-2 text-2xl font-extrabold text-slate-950">{selectedRequest.caseId}</div>
-                      <div className="mt-1 text-sm text-slate-600">{selectedRequest.agent} / Audit Date {selectedRequest.auditDate || "-"}</div>
+                      <div className="mt-1 text-sm text-slate-600">{selectedRequest.agent} / Case Date {selectedRequest.auditDate || "-"}</div>
                       <div className="mt-1 text-xs text-slate-500">Submitted by {selectedRequest.submittedBy || "-"} at {formatDateTime(selectedRequest.submittedAt)}</div>
                       <button
                         type="button"

@@ -576,6 +576,23 @@ function formatInboxDate(value: unknown) {
   return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 }
 
+function formatInboxDateTime(value: unknown) {
+  const date = excelInboxDateToJSDate(value);
+  if (!date) return String(value || "").trim();
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || "";
+  return `${getPart("day")}/${getPart("month")}/${getPart("year")} ${getPart("hour")}:${getPart("minute")}:${getPart("second")}`;
+}
+
 function getInboxWeekLabel(row: unknown[], helper: ReturnType<typeof buildInboxHeaderHelper>) {
   const weekLabel = String(helper.getValue(row, "Week Label", "") || "").trim();
   if (weekLabel) return weekLabel;
@@ -687,7 +704,7 @@ async function buildV8CaseUploadInboxTasks(
             body: [
               `Case ID: ${item.caseId}`,
               `Week: ${latestWeekLabel}`,
-              `Audit Date: ${formatInboxDate(item.auditDate) || "-"}`,
+              `Case Date: ${formatInboxDate(item.auditDate) || "-"}`,
               `Score: ${scoreText}/100`,
               `Grade: ${item.grade}`,
             ],
@@ -2909,7 +2926,7 @@ export default function App() {
                   `Case ID: ${item.caseId}`,
                   `Agent: ${item.agent || "-"}`,
                   `Submitted by: ${item.submittedBy || "-"}`,
-                  `Submitted at: ${item.submittedAt ? new Date(item.submittedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }) : "-"}`,
+                  `Submitted at: ${formatInboxDateTime(item.submittedAt) || "-"}`,
                   `Current score: ${item.finalScore || "-"} / Grade ${item.grade || "-"}`,
                 ],
                 footer: "Open Case Detail from this task. Use Review > Appeal Requests when you are ready to approve or reject the appeal.",
@@ -3091,7 +3108,7 @@ export default function App() {
                 `You have been evaluated for case ${caseId}.`,
                 `Final Score: ${finalScore}/100`,
                 `Grade: ${grade}`,
-                `Audit Date: ${String(details.auditDate || "-")}`,
+                `Case Date: ${String(details.auditDate || "-")}`,
                 strengths.length ? `Strong points: ${strengths.join(" | ")}` : "Strong points: Please open Case Detail to review the topic summary.",
                 improvements.length ? `Improvement focus: ${improvements.join(" | ")}` : "Improvement focus: No major low-score topic captured in this evaluation.",
               ],

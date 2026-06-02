@@ -2015,7 +2015,7 @@ export default function AppealMockup({
     addSectionTitle("Case Overview");
     addKeyValue("Case ID", selectedCase.caseId || "-");
     addKeyValue("Agent", selectedCase.agent || "-");
-    addKeyValue("Audit Date", selectedCase.auditDate || "-");
+    addKeyValue("Case Date", selectedCase.auditDate || "-");
     addKeyValue("Week Label", selectedCase.weekLabel || "-");
     addKeyValue("Month", selectedCase.monthKey || "-");
     addKeyValue("Rewrite Round", `ครั้งที่ ${selectedRevision.appealRound}`);
@@ -2328,7 +2328,7 @@ export default function AppealMockup({
 
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Audit Date
+                          Case Date
                         </div>
                         <div className="mt-2 text-sm font-bold text-slate-900">
                           {selectedCase.auditDate || "-"}
