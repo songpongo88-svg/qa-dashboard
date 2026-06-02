@@ -1,20 +1,23 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606022337",
-  "buildNumber": 2606022337,
-  "releaseLabel": "v1.0.0.2606022337",
-  "updatedAt": "02/06/2026 23:37:29",
+  "displayVersion": "1.0.0.2606022357",
+  "buildNumber": 2606022357,
+  "releaseLabel": "v1.0.0.2606022357",
+  "updatedAt": "02/06/2026 23:57:07",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "b5696cd538d93ccd317e985d12317a0ea735b3e2",
-  "commitMessage": "Speed up static data loading and sort submitted records",
+  "commitHash": "2fbd124d9b997e6667f957b4a2e3e44593ab8892",
+  "commitMessage": "Format submitted times and rename case date labels",
   "changedFiles": [
     "public/build-meta.json",
+    "src/App.tsx",
+    "src/AppealMockup.tsx",
+    "src/AppealRequestsMockup.tsx",
     "src/CreateEvaluationMockup.tsx",
     "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx",
-    "src/staticFileCache.ts"
+    "src/QARubricMockup.tsx",
+    "src/pages/EvaluationStudioPage.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

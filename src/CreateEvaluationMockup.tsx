@@ -908,6 +908,14 @@ export default function CreateEvaluationMockup({
     setDraftMessage(`Edit cancelled for ${editingCaseId}. No changes were saved.`);
   }
 
+  function validateAgentSelected(actionLabel: string) {
+    if (agentName.trim()) return true;
+    const message = `Please select Agent Full Name before ${actionLabel}.`;
+    setDraftMessage(message);
+    window.alert(`${message}\n\nกรุณาเลือก Agent Full Name ก่อน${actionLabel}`);
+    return false;
+  }
+
   function resetEvaluationForm() {
     setAgentName("");
     setAuditDate(todayInputValue());
@@ -933,6 +941,8 @@ export default function CreateEvaluationMockup({
   }
 
   async function submitEvaluation() {
+    if (!validateAgentSelected("submitting the evaluation")) return;
+
     if (missingScoreTopics.length) {
       const message = `Please select score for every topic before submitting. Missing: ${missingScoreText}`;
       setDraftMessage(message);
@@ -1074,6 +1084,8 @@ export default function CreateEvaluationMockup({
   }
 
   function saveDraft() {
+    if (!validateAgentSelected("saving draft")) return;
+
     if (missingScoreTopics.length) {
       const message = `Please select score for every topic before saving draft. Missing: ${missingScoreText}`;
       setDraftMessage(message);
