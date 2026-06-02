@@ -10,6 +10,7 @@ import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
+import PreTestMockup from "./PreTestMockup";
 import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
@@ -2463,10 +2464,11 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "create-evaluation" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "call-history" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
+    "dashboard" | "appeal" | "create-evaluation" | "pre-test" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "call-history" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
   >(() => {
     try {
       const initialTab = new URL(window.location.href).searchParams.get("tab");
+      if (initialTab === "pre-test") return "pre-test";
       return initialTab === "create-evaluation" ? "create-evaluation" : "dashboard";
     } catch {
       return "dashboard";
@@ -2562,6 +2564,7 @@ export default function App() {
       : "";
   const reviewMenuValue =
     activeTab === "appeal" ||
+    activeTab === "pre-test" ||
     (activeTab === "create-evaluation" && createEvaluationAllowed) ||
     activeTab === "appeal-requests" ||
     activeTab === "appeal-override" ||
@@ -2662,7 +2665,7 @@ export default function App() {
       window.open(nextUrl.toString(), "_blank", "noopener,noreferrer");
       return;
     }
-    if (value === "appeal" || value === "create-evaluation" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
+    if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       setActiveTab(value);
     }
   };
@@ -4312,6 +4315,7 @@ export default function App() {
                       ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Exception Control" }] : []),
                       ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Review Queue" }] : []),
                       ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create QA Evaluation" }] : []),
+                      { value: "pre-test", label: "Pre-Test" },
                       ...(rubricAllowed ? [{ value: "rubric", label: "QA Rubric Library" }] : []),
                     ]}
                   />
@@ -4559,6 +4563,8 @@ export default function App() {
             agentOptions={qaEvaluationAgentOptions}
             onSubmitEvaluation={handleEvaluationSubmitted}
           />
+        ) : activeTab === "pre-test" ? (
+          <PreTestMockup currentUser={currentUser} />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
         ) : activeTab === "appeal-override" && appealOverrideAllowed ? (

@@ -2147,8 +2147,6 @@ function SlideOverCaseDetail({
     isOwnAppealCase &&
     (isAppealWindowOpen(caseItem.auditDateObj) || appealOverrideAllowed) &&
     !appealRequestExists;
-  const isQaEvaluationCase = normalizeText(caseItem.rawDataSourceName) === normalizeText("QA Evaluation Form");
-
   useEffect(() => {
     let cancelled = false;
 
@@ -2345,7 +2343,7 @@ function SlideOverCaseDetail({
   }, [caseItem.caseId, caseItem.caseImageUrl, resolvedPdfLinks.original, resolvedPdfLinks.revised]);
 
 
-  const handleGenerateCaseDetailPdf = async () => {
+  const handleGenerateCaseDetailPdf = async (pdfVariant: "original" | "appeal" = "original") => {
     try {
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       registerTHSarabunNew(doc as any);
@@ -2382,6 +2380,17 @@ function SlideOverCaseDetail({
       };
 
       const safeText = (value: unknown) => String(value ?? "-").trim() || "-";
+      const includeAppealDetail = pdfVariant === "appeal" && caseItem.reviewStatus === "Revised";
+      const originalFinalScore =
+        typeof caseItem.previousScore === "number"
+          ? caseItem.previousScore
+          : Math.round(
+              (caseItem.topics || []).reduce((sum, topic) => sum + Number(topic.score || 0), 0) * 100
+            ) / 100;
+      const reportFinalScore = includeAppealDetail ? Number(caseItem.finalScore || 0) : originalFinalScore;
+      const reportGrade = scoreToGrade(reportFinalScore, caseItem.monthKey);
+      const reportStatus = includeAppealDetail ? "Revised" : "Original";
+      const reportTitle = includeAppealDetail ? "Case Detail Appeal Report" : "Case Detail Report";
       const generatedByDisplay = currentUser?.displayName || currentUser?.username || "-";
       const generatedByRole = currentUser?.role ? ` (${currentUser.role})` : "";
       const generatedAtDisplay = new Intl.DateTimeFormat("en-GB", {
@@ -2426,7 +2435,7 @@ function SlideOverCaseDetail({
         setPdfFont("normal");
         doc.setFontSize(11.5);
         doc.setTextColor(color.subtext[0], color.subtext[1], color.subtext[2]);
-        doc.text(continued ? "Case Detail Report | Continued" : "Case Detail Report", margin + 18, 22.5);
+        doc.text(continued ? `${reportTitle} | Continued` : reportTitle, margin + 18, 22.5);
 
         setPdfFont("normal");
         doc.setFontSize(10.5);
@@ -2584,15 +2593,15 @@ function SlideOverCaseDetail({
       };
 
       const drawScoreBand = () => {
-        const hasPrevious = typeof caseItem.previousScore === "number";
+        const hasPrevious = includeAppealDetail && typeof caseItem.previousScore === "number";
         const cells = hasPrevious ? 3 : 2;
         const gap = 5;
         const cellWidth = (contentWidth - 4 - gap * (cells - 1)) / cells;
         const boxHeight = 19;
         ensureSpace(boxHeight + 3);
 
-        const gradeStyle = pdfGradeStyle(caseItem.grade);
-        const scoreStyle = pdfScoreStyle(caseItem.finalScore);
+        const gradeStyle = pdfGradeStyle(reportGrade);
+        const scoreStyle = pdfScoreStyle(reportFinalScore);
         const previousStyle = hasPrevious ? pdfScoreStyle(Number(caseItem.previousScore || 0)) : null;
 
         const drawCell = (
@@ -2616,8 +2625,8 @@ function SlideOverCaseDetail({
           doc.text(value, x + 4, y + 12.8);
         };
 
-        drawCell(margin + 2, "Grade", caseItem.grade || "-", gradeStyle);
-        drawCell(margin + 2 + cellWidth + gap, "Final Score", Number(caseItem.finalScore || 0).toFixed(2), scoreStyle);
+        drawCell(margin + 2, "Grade", reportGrade || "-", gradeStyle);
+        drawCell(margin + 2 + cellWidth + gap, "Final Score", Number(reportFinalScore || 0).toFixed(2), scoreStyle);
         if (hasPrevious && previousStyle) {
           drawCell(
             margin + 2 + (cellWidth + gap) * 2,
@@ -2801,7 +2810,7 @@ function SlideOverCaseDetail({
             label: "Waiting Time / Service Time",
             value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
           },
-          { label: "Review Status", value: caseItem.reviewStatus || "-" },
+          { label: "Review Status", value: reportStatus },
           { label: "Case URL", value: caseItem.caseUrl || "-" },
         ],
         2
@@ -2822,7 +2831,7 @@ function SlideOverCaseDetail({
       }
       drawSectionHeader(
         "Topic Detail",
-        caseItem.reviewStatus === "Revised"
+        includeAppealDetail
           ? "Continuous report layout with original and revised observations"
           : "Continuous report layout for topic-by-topic evaluation"
       );
@@ -2832,7 +2841,7 @@ function SlideOverCaseDetail({
       validTopics.forEach((topic) => {
         const revisedTopic = revisedMap.get(topic.code);
         const showRevised =
-          caseItem.reviewStatus === "Revised" &&
+          includeAppealDetail &&
           !!revisedTopic &&
           displayCodeSet.has(topic.code) &&
           isTopicChanged(topic, revisedTopic);
@@ -2841,8 +2850,9 @@ function SlideOverCaseDetail({
       });
 
       const safeCaseId = (caseItem.caseId || "case-detail").replace(/[^a-zA-Z0-9_-]+/g, "_");
-      doc.save(`${safeCaseId}_case_detail_report.pdf`);
-      onGeneratePdf?.(caseItem.caseId, caseItem.agent, "case_detail");
+      const fileSuffix = includeAppealDetail ? "case_detail_appeal" : "case_detail";
+      doc.save(`${safeCaseId}_${fileSuffix}_report.pdf`);
+      onGeneratePdf?.(caseItem.caseId, caseItem.agent, fileSuffix);
     } catch (error) {
       console.error("Generate Case Detail PDF failed:", error);
       alert("Generate PDF ไม่สำเร็จ กรุณาเปิด Console เพื่อตรวจสอบ error");
@@ -3227,24 +3237,24 @@ function SlideOverCaseDetail({
                         </div>
                       ) : null}
 
-                      {isQaEvaluationCase ? (
-                        <button
-                          type="button"
-                          onClick={handleGenerateCaseDetailPdf}
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                          title={`Generate ${caseItem.caseId} Original PDF from QA Evaluation Form`}
-                        >
-                          {caseItem.caseId} Original PDF
-                        </button>
-                      ) : null}
-
                       <button
                         type="button"
-                        onClick={handleGenerateCaseDetailPdf}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                        onClick={() => handleGenerateCaseDetailPdf("original")}
+                        className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                        title={`Generate ${caseItem.caseId} Original PDF`}
                       >
-                        Generate Case Detail PDF
+                        {caseItem.caseId} Original PDF
                       </button>
+                      {hasAppealCase ? (
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateCaseDetailPdf("appeal")}
+                          className="inline-flex w-full items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-semibold text-violet-700 transition hover:bg-violet-100"
+                          title={`Generate ${caseItem.caseId} Appeal PDF`}
+                        >
+                          {caseItem.caseId} Appeal PDF
+                        </button>
+                      ) : null}
                       {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
                         <button
                           type="button"

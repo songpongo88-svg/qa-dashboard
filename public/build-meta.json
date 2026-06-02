@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021212",
-  "buildNumber": 2606021212,
-  "releaseLabel": "v1.0.0.2606021212",
-  "updatedAt": "02/06/2026 12:12:43",
+  "displayVersion": "1.0.0.2606021505",
+  "buildNumber": 2606021505,
+  "releaseLabel": "v1.0.0.2606021505",
+  "updatedAt": "02/06/2026 15:05:00",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fa56804b371accba68f67f9de55e3a7eb23505c6",
-  "commitMessage": "Make evaluation workbook exports download reliably",
+  "commitHash": "7f9eefa5e630fdf83be47cfb1745ba5caa8218e7",
+  "commitMessage": "Remove V8 workbook export action",
   "changedFiles": [
     "public/build-meta.json",
     "src/CreateEvaluationMockup.tsx"
