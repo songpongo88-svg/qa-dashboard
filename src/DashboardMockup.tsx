@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
-import { fetchUsageLogs, logUsageEvent } from "./usageLog";
+import { fetchUsageLogs, fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
 import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
@@ -89,6 +89,74 @@ type AppealMergeItem = {
   revisedTopics: Topic[];
   displayRevisedTopicCodes: string[];
 };
+
+function isAppealTopicChanged(topic: { score?: number; revisedScore?: number | string; revisedComment?: string }) {
+  const revisedScore =
+    topic.revisedScore !== null &&
+    topic.revisedScore !== "" &&
+    !Number.isNaN(Number(topic.revisedScore))
+      ? Number(topic.revisedScore)
+      : undefined;
+  const originalScore = Number(topic.score ?? 0);
+  const scoreChanged = revisedScore !== undefined && Math.abs(revisedScore - originalScore) > 0.0001;
+  const commentChanged = String(topic.revisedComment || "").trim() !== "";
+  return scoreChanged || commentChanged;
+}
+
+function buildApprovedAppealMergeMap(
+  logs: UsageLogEvent[],
+  rawCaseMonthKeyMap: Map<string, string>
+) {
+  const approvedRequests = buildAppealRequests(logs)
+    .filter((item) => item.status === "Approved")
+    .sort(
+      (a, b) =>
+        new Date(a.reviewedAt || a.submittedAt || "").getTime() -
+        new Date(b.reviewedAt || b.submittedAt || "").getTime()
+    );
+  const map = new Map<string, AppealMergeItem>();
+
+  approvedRequests.forEach((request) => {
+    const caseId = String(request.caseId || "").trim();
+    if (!caseId) return;
+
+    const topicMaster = getTopicMasterByMonth(
+      rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
+    );
+    const revisedTopics = topicMaster
+      .map((master) => {
+        const matched = request.topics.find((topic) => topic.code === master.code);
+        if (!matched || !isAppealTopicChanged(matched)) return null;
+        const revisedScore =
+          matched.revisedScore !== null &&
+          matched.revisedScore !== "" &&
+          !Number.isNaN(Number(matched.revisedScore))
+            ? Number(matched.revisedScore)
+            : Number(matched.score || 0);
+        return {
+          code: master.code,
+          label: master.label,
+          score: revisedScore,
+          max: master.max,
+          pct: master.max > 0 ? Math.round((revisedScore / master.max) * 100) : 0,
+          comment: String(matched.revisedComment || matched.comment || "").trim(),
+        } as Topic;
+      })
+      .filter(Boolean) as Topic[];
+
+    if (!revisedTopics.length) return;
+
+    map.set(caseId, {
+      caseId,
+      previousScore: Number(request.finalScore || 0),
+      reviewStatus: "Revised",
+      revisedTopics,
+      displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
+    });
+  });
+
+  return map;
+}
 
 const CASE_TARGET = 10;
 const RAW_DATA_FILE_NAME = "QA_RawData1.xlsx";
@@ -2896,7 +2964,7 @@ function SlideOverCaseDetail({
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">Submit Appeal</div>
               <div className="mt-1 text-xl font-extrabold text-slate-950">{caseItem.caseId}</div>
               <div className="mt-1 text-sm text-slate-500">
-                Send selected topics to Songpon for review. Dashboard score will not change until Appeal ROWDATA is updated.
+                Send selected topics to Songpon for review. Dashboard score will update automatically after QA approves the appeal.
               </div>
               <div className="mt-2 text-xs font-semibold text-slate-500">
                 Deadline: {formatBangkokDateTime(appealDeadline)}
@@ -3339,14 +3407,13 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (
-      currentUser?.role !== "Agent" &&
       !roleScopedAgentList.length &&
       typeof externalSelectedAgent === "string" &&
       externalSelectedAgent !== selectedAgent
     ) {
       setSelectedAgent(externalSelectedAgent);
     }
-  }, [externalSelectedAgent, currentUser, selectedAgent, roleScopedAgentList.length]);
+  }, [externalSelectedAgent, selectedAgent, roleScopedAgentList.length]);
 
   useEffect(() => {
     if (
@@ -3708,6 +3775,19 @@ export default function DashboardMockup({
           });
         });
 
+        try {
+          const reviewedLogs = await fetchUsageLogsByEventTypes([
+            "appeal_request_submitted",
+            "appeal_request_reviewed",
+            "appeal_request_reset",
+          ], 10000);
+          buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
+            appealMap.set(caseId, item);
+          });
+        } catch (error) {
+          console.warn("Approved appeal review merge skipped", error);
+        }
+
         setAppealMergeCount(appealMap.size);
 
         const mapped: CaseItem[] = rawDataEntries
@@ -3993,12 +4073,8 @@ export default function DashboardMockup({
       return mergedAgents.filter((agent) => roleScopedAgentList.some((scopedAgent) => isSameAgent(agent, scopedAgent)));
     }
 
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
-    }
-
     return mergedAgents;
-  }, [allCases, currentUser, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
+  }, [allCases, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
 
   useEffect(() => {
     if (roleScopedAgentList.length) {
@@ -4007,15 +4083,6 @@ export default function DashboardMockup({
         setSelectedAgent(lockedAgent);
       }
       onSelectedAgentChange?.(lockedAgent || "");
-      return;
-    }
-
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
-      if (!isSameAgent(selectedAgent || "", lockedAgent)) {
-        setSelectedAgent(lockedAgent);
-      }
-      onSelectedAgentChange?.(lockedAgent);
       return;
     }
 
@@ -4029,13 +4096,11 @@ export default function DashboardMockup({
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length]);
+  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length]);
 
   const effectiveSelectedAgent =
     roleScopedAgentList.length
       ? roleScopedAgentList[0]
-      : currentUser?.role === "Agent" && currentUser.agentName
-      ? toTitleCaseName(String(currentUser.agentName).trim())
       : String(selectedAgent || "").trim();
 
   const agentCases = useMemo(() => {
@@ -4043,16 +4108,12 @@ export default function DashboardMockup({
       ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
       : allCases;
 
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return scopedCases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
-    }
-
     if (!effectiveSelectedAgent) {
       return scopedCases;
     }
 
     return scopedCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
-  }, [allCases, effectiveSelectedAgent, currentUser, roleScopedAgentList]);
+  }, [allCases, effectiveSelectedAgent, roleScopedAgentList]);
 
   const monthOptions = useMemo(() => {
     const sourceCases = agentCases;
@@ -4174,12 +4235,9 @@ export default function DashboardMockup({
   const metricCaseCount = dashboardCases.length;
   const isAllAgentsView = !effectiveSelectedAgent;
   const visibleTargetAgents = useMemo(() => {
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return [toTitleCaseName(String(currentUser.agentName).trim())];
-    }
     if (roleScopedAgentList.length) return roleScopedAgentList;
     return visibleAgentList;
-  }, [currentUser, roleScopedAgentList, visibleAgentList]);
+  }, [roleScopedAgentList, visibleAgentList]);
   const evaluatedAgentNames = useMemo(() => {
     return dedupeAgentNames(dashboardCases.map((item) => item.agent).filter(Boolean));
   }, [dashboardCases]);
@@ -4505,7 +4563,7 @@ export default function DashboardMockup({
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Agent
                   </div>
-                  {currentUser?.role === "Agent" || roleScopedAgentList.length ? (
+                  {roleScopedAgentList.length ? (
                     <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
                       {effectiveSelectedAgent || "-"}
                     </div>

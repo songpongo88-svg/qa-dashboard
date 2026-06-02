@@ -179,32 +179,6 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     manageMaintenance: false,
     useTeamChat: true,
   },
-  Agent: {
-    viewDashboard: true,
-    viewAllAgents: false,
-    viewSummary: true,
-    viewCoaching: false,
-    viewAppeal: true,
-    submitAppeal: true,
-    reviewAppeals: false,
-    appealOverride: false,
-    viewRubric: true,
-    manageRubric: false,
-    createEvaluation: true,
-    viewUsageLog: false,
-    exportPdf: false,
-    exportAppealRawdata: false,
-    viewUserDirectory: false,
-    viewAllTeams: false,
-    viewOwnTeam: true,
-    qaEvaluationTarget: true,
-    manageUsers: false,
-    manageTeams: false,
-    manageRoles: false,
-    resetPassword: false,
-    manageMaintenance: false,
-    useTeamChat: true,
-  },
   Senior: {
     viewDashboard: true,
     viewAllAgents: true,
@@ -264,10 +238,16 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
 };
 
 function getDefaultRolePermissions(role: UserRole): RolePermissions {
+  const normalizedRole = normalizeRoleName(role);
   return {
     ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
-    ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
+    ...(ROLE_PERMISSION_DEFAULTS[normalizedRole] || {}),
   };
+}
+
+function normalizeRoleName(value: unknown): UserRole {
+  const roleName = String(value || "").trim();
+  return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
 }
 
 function buildRoleDefinitions(logs: UsageLogEvent[]) {
@@ -292,7 +272,7 @@ function buildRoleDefinitions(logs: UsageLogEvent[]) {
     .sort((a, b) => new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime())
     .forEach((log) => {
       if (log.event_type !== "role_definition_saved" && log.event_type !== "role_definition_deleted") return;
-      const name = String(log.details?.name || "").trim();
+      const name = normalizeRoleName(log.details?.name);
       if (!name) return;
       if (log.event_type === "role_definition_deleted") {
         roleMap.delete(name.toLowerCase());
@@ -314,7 +294,7 @@ function buildRoleDefinitions(logs: UsageLogEvent[]) {
     if (log.event_type !== "user_profile_saved" && log.event_type !== "user_role_updated") return;
     const username = String(log.target_agent || log.details?.username || "").trim().toLowerCase();
     if (!username || seenProfiles.has(username)) return;
-    const role = String(log.details?.role || log.details?.newRole || "").trim();
+    const role = normalizeRoleName(log.details?.role || log.details?.newRole);
     if (!role) return;
     seenProfiles.add(username);
     latestProfileRoles.add(role);
@@ -362,14 +342,15 @@ function buildRoleDefinitionsFromStore(rows: Array<{
   });
 
   rows.forEach((row) => {
-    if (!row.name) return;
-    roleMap.set(row.name.toLowerCase(), {
-      name: row.name,
+    const name = normalizeRoleName(row.name);
+    if (!name) return;
+    roleMap.set(name.toLowerCase(), {
+      name,
       description: row.description || "",
       active: row.active,
       createdAt: row.updatedAt || "",
       createdBy: row.updatedBy || "System",
-      locked: row.name === "Quality Assurance" || row.locked,
+      locked: name === "Quality Assurance" || row.locked,
     });
   });
 
@@ -382,7 +363,7 @@ function editableToStoredProfile(user: EditableUser) {
     displayName: user.displayName,
     agentName: user.agentName || user.displayName,
     email: user.email,
-    role: user.role,
+    role: normalizeRoleName(user.role),
     teamLead: user.teamLead,
     teamName: user.teamName,
     status: user.status,
@@ -411,7 +392,7 @@ function userInitials(value: string) {
 }
 
 function getRowRole(row: { role?: UserRole; effectiveRole?: UserRole }) {
-  return String(row.effectiveRole || row.role || "").trim();
+  return normalizeRoleName(row.effectiveRole || row.role);
 }
 
 function buildTeamGroups<T extends { teamName?: string; teamLead?: string; status?: UserStatus; role?: UserRole; effectiveRole?: UserRole }>(rows: T[]) {
@@ -458,7 +439,7 @@ function toEditableUser(account: UserAccount): EditableUser {
     email: account.email || "",
     teamLead: account.teamLead || "",
     teamName: account.teamName || "",
-    role: account.role,
+    role: normalizeRoleName(account.role),
     status: account.status || "Active",
     suspendReason: account.suspendReason || "",
     temporaryPassword: "",
@@ -585,8 +566,9 @@ export default function UserRoleAdminMockup({
         const normalizedUsername = normalizeUsername(account.username);
         return {
           ...account,
+          role: normalizeRoleName(account.role),
           normalizedUsername,
-          effectiveRole: account.role,
+          effectiveRole: normalizeRoleName(account.role),
           teamLead: account.teamLead || "",
           teamName: account.teamName || "",
           status: account.status || "Active",
@@ -776,7 +758,7 @@ export default function UserRoleAdminMockup({
   };
 
   const saveRoleDefinition = async (role?: RoleDefinition) => {
-    const name = (role?.name || newRoleName).trim();
+    const name = normalizeRoleName(role?.name || newRoleName);
     const description = (role?.description || newRoleDescription).trim();
     if (!name) {
       setMessage("Role name is required.");
@@ -868,7 +850,7 @@ export default function UserRoleAdminMockup({
   };
 
   const saveRoleDetails = async (role: RoleDefinition, nextName: string, nextDescription: string) => {
-    const cleanedName = nextName.trim();
+    const cleanedName = normalizeRoleName(nextName);
     const cleanedDescription = nextDescription.trim();
     if (!cleanedName) {
       setMessage("Role name is required.");
@@ -934,15 +916,16 @@ export default function UserRoleAdminMockup({
   };
 
   const updateRolePermission = (roleName: string, key: RolePermissionKey, value: boolean) => {
-    if (roleName === "Quality Assurance" && (key === "viewUserDirectory" || key === "manageUsers" || key === "manageRoles" || key === "manageRubric" || key === "manageMaintenance")) {
+    const normalizedRoleName = normalizeRoleName(roleName);
+    if (normalizedRoleName === "Quality Assurance" && (key === "viewUserDirectory" || key === "manageUsers" || key === "manageRoles" || key === "manageRubric" || key === "manageMaintenance")) {
       setMessage("Quality Assurance admin permissions are locked for system safety.");
       return;
     }
     setPermissionDrafts((currentDrafts) => ({
       ...currentDrafts,
-      [roleName]: (() => {
+      [normalizedRoleName]: (() => {
         const nextPermissions = {
-          ...(currentDrafts[roleName] || getDefaultRolePermissions(roleName)),
+          ...(currentDrafts[normalizedRoleName] || getDefaultRolePermissions(normalizedRoleName)),
           [key]: value,
         };
         if (key === "manageUsers" && value) {
@@ -976,11 +959,13 @@ export default function UserRoleAdminMockup({
     const updatedBy = currentUser?.displayName || currentUser?.username || "";
 
     for (const role of roleDefinitions) {
+      const roleName = normalizeRoleName(role.name);
       const nextPermissions = {
-        ...getDefaultRolePermissions(role.name),
+        ...getDefaultRolePermissions(roleName),
         ...(permissionDrafts[role.name] || {}),
+        ...(permissionDrafts[roleName] || {}),
       };
-      if (role.name === "Quality Assurance") {
+      if (roleName === "Quality Assurance") {
         nextPermissions.viewUserDirectory = true;
         nextPermissions.viewAllTeams = true;
         nextPermissions.viewOwnTeam = true;
@@ -999,7 +984,7 @@ export default function UserRoleAdminMockup({
         nextPermissions.viewOwnTeam = true;
       }
       permissionRows.push({
-        roleName: role.name,
+        roleName,
         permissions: nextPermissions,
         updatedBy,
         updatedAt,
@@ -1007,7 +992,7 @@ export default function UserRoleAdminMockup({
       await logUsageEvent(currentUser, "role_permissions_saved", {
         tab: "user-roles",
         details: {
-          roleName: role.name,
+          roleName,
           permissions: nextPermissions,
           updatedBy,
           updatedAt,
@@ -1064,12 +1049,13 @@ export default function UserRoleAdminMockup({
   };
 
   const saveNewUser = async () => {
-    const cleanedUser = {
+  const cleanedUser = {
       ...newUserDraft,
       username: newUserDraft.username.trim(),
       displayName: newUserDraft.displayName.trim(),
       agentName: newUserDraft.agentName.trim() || newUserDraft.displayName.trim(),
       email: newUserDraft.email.trim(),
+      role: normalizeRoleName(newUserDraft.role),
       teamLead: newUserDraft.teamLead.trim(),
       teamName: newUserDraft.teamName.trim(),
       suspendReason: newUserDraft.suspendReason.trim(),
@@ -1140,6 +1126,7 @@ export default function UserRoleAdminMockup({
       displayName: item.displayName.trim(),
       agentName: item.agentName.trim() || item.displayName.trim(),
       email: item.email.trim(),
+      role: normalizeRoleName(item.role),
       teamLead: item.teamLead.trim(),
       teamName: item.teamName.trim(),
       suspendReason: item.suspendReason.trim(),
@@ -2270,7 +2257,7 @@ function RoleManagementPanel({
   const selectedRole = activeRoles.find((role) => role.name === selectedRoleName) || activeRoles[0];
   const selectedPermissions = selectedRole
     ? permissionDrafts[selectedRole.name] || getDefaultRolePermissions(selectedRole.name)
-    : getDefaultRolePermissions("Agent");
+    : getDefaultRolePermissions("Admin Live Chat");
   const enabledPermissionCount = PERMISSION_KEYS.filter((key) => selectedPermissions[key]).length;
   const permissionsByCategory = PERMISSION_DEFINITIONS.reduce((groups, permission) => {
     groups[permission.category] = [...(groups[permission.category] || []), permission];

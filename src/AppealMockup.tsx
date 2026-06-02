@@ -1199,12 +1199,14 @@ export default function AppealMockup({
   currentUser,
   externalSelectedAgent,
   externalSelectedCaseId,
+  roleScopedAgentNames,
   onSelectedAgentChange,
   onGeneratePdf,
 }: {
   currentUser: any;
   externalSelectedAgent?: string;
   externalSelectedCaseId?: string;
+  roleScopedAgentNames?: string[];
   onSelectedAgentChange?: (agentName: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
 }) {
@@ -1218,16 +1220,20 @@ export default function AppealMockup({
   const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const roleScopedAgentList = useMemo(
+    () => getUniqueNormalizedAgents((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
+    [roleScopedAgentNames]
+  );
 
   useEffect(() => {
     if (
-      currentUser?.role !== "Agent" &&
+      !roleScopedAgentList.length &&
       typeof externalSelectedAgent === "string" &&
       externalSelectedAgent !== selectedAgent
     ) {
       setSelectedAgent(externalSelectedAgent);
     }
-  }, [externalSelectedAgent, currentUser, selectedAgent]);
+  }, [externalSelectedAgent, selectedAgent, roleScopedAgentList.length]);
 
   useEffect(() => {
     if (!externalSelectedCaseId) return;
@@ -1584,32 +1590,31 @@ export default function AppealMockup({
   }, [monthOptions, selectedMonthKey]);
 
   const visibleAgentList = useMemo(() => {
-    const effectiveMonthForVisibility =
-      currentUser?.role === "Agent"
-        ? "all"
-        : selectedMonthKey === "all"
-          ? latestMonthKey
-          : selectedMonthKey;
+    const effectiveMonthForVisibility = roleScopedAgentList.length
+      ? "all"
+      : selectedMonthKey === "all"
+        ? latestMonthKey
+        : selectedMonthKey;
 
     const mergedAgents = getUniqueNormalizedAgents([
       ...AGENT_MASTER,
       ...allCases.map((item) => item.agent).filter(Boolean),
     ]).filter((agent) => !shouldHideAgentByMonth(agent, effectiveMonthForVisibility));
 
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
+    if (roleScopedAgentList.length) {
+      return mergedAgents.filter((agent) => roleScopedAgentList.some((scopedAgent) => isSameAgent(agent, scopedAgent)));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser, latestMonthKey, selectedMonthKey]);
+  }, [allCases, latestMonthKey, selectedMonthKey, roleScopedAgentList]);
 
   useEffect(() => {
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      const agentName = toTitleCaseName(currentUser.agentName);
-      if (!isSameAgent(selectedAgent || "", agentName)) {
-        setSelectedAgent(agentName);
+    if (roleScopedAgentList.length) {
+      const scopedAgent = roleScopedAgentList[0];
+      if (scopedAgent && !isSameAgent(selectedAgent || "", scopedAgent)) {
+        setSelectedAgent(scopedAgent);
       }
-      onSelectedAgentChange?.(agentName);
+      onSelectedAgentChange?.(scopedAgent || "");
       return;
     }
 
@@ -1617,11 +1622,11 @@ export default function AppealMockup({
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [currentUser, selectedAgent, visibleAgentList, onSelectedAgentChange]);
+  }, [roleScopedAgentList, selectedAgent, visibleAgentList, onSelectedAgentChange]);
 
   const effectiveSelectedAgent =
-    currentUser?.role === "Agent" && currentUser.agentName
-      ? toTitleCaseName(String(currentUser.agentName).trim())
+    roleScopedAgentList.length
+      ? roleScopedAgentList[0]
       : toTitleCaseName(String(selectedAgent || "").trim());
 
   const baseVisibleCases = useMemo(() => {
@@ -1631,13 +1636,13 @@ export default function AppealMockup({
       cases = cases.filter((item) => item.monthKey === selectedMonthKey);
     }
 
-    if (currentUser?.role === "Agent" && currentUser?.agentName) {
-      return cases.filter((item) => isSameAgent(item.agent, currentUser.agentName));
+    if (roleScopedAgentList.length) {
+      return cases.filter((item) => roleScopedAgentList.some((scopedAgent) => isSameAgent(item.agent, scopedAgent)));
     }
 
     if (!effectiveSelectedAgent) return cases;
     return cases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
-  }, [allCases, currentUser, effectiveSelectedAgent, selectedMonthKey]);
+  }, [allCases, effectiveSelectedAgent, selectedMonthKey, roleScopedAgentList]);
 
   const filteredCases = useMemo(() => {
     const keyword = searchCaseId.trim().toLowerCase();
@@ -2169,7 +2174,7 @@ export default function AppealMockup({
             subtitle="เลือกเลขเคสจากรายการด้านซ้ายเพื่อเปิดดูรายละเอียด"
           />
           <PanelBody className="space-y-4">
-            {currentUser?.role !== "Agent" ? (
+            {!roleScopedAgentList.length ? (
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                   Agent
@@ -2191,7 +2196,16 @@ export default function AppealMockup({
                   ))}
                 </select>
               </div>
-            ) : null}
+            ) : (
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Agent
+                </label>
+                <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
+                  {effectiveSelectedAgent || "-"}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">

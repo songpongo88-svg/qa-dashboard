@@ -60,6 +60,11 @@ function headers(prefer?: string) {
   return nextHeaders;
 }
 
+function normalizeRoleName(value: unknown) {
+  const roleName = String(value || "").trim();
+  return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
+}
+
 async function requestJson<T>(table: string, query = ""): Promise<T> {
   if (!isConfigured()) throw new Error("Supabase is not configured.");
   const response = await fetch(endpoint(table, query), {
@@ -95,7 +100,7 @@ function toUserProfile(row: any): StoredUserProfile {
     displayName: String(row.display_name || row.username || ""),
     agentName: String(row.agent_name || row.display_name || row.username || ""),
     email: String(row.email || ""),
-    role: String(row.role || "Admin Live Chat"),
+    role: normalizeRoleName(row.role || "Admin Live Chat"),
     teamLead: String(row.team_lead || ""),
     teamName: String(row.team_name || ""),
     status: row.status === "Suspended" ? "Suspended" : "Active",
@@ -109,7 +114,7 @@ function fromUserProfile(profile: StoredUserProfile) {
     display_name: profile.displayName,
     agent_name: profile.agentName,
     email: profile.email,
-    role: profile.role,
+    role: normalizeRoleName(profile.role),
     team_lead: profile.teamLead,
     team_name: profile.teamName,
     status: profile.status,
@@ -120,7 +125,7 @@ function fromUserProfile(profile: StoredUserProfile) {
 
 function toRoleDefinition(row: any): StoredRoleDefinition {
   return {
-    name: String(row.name || ""),
+    name: normalizeRoleName(row.name),
     description: String(row.description || ""),
     active: row.active === false ? false : true,
     locked: row.locked === true,
@@ -131,7 +136,7 @@ function toRoleDefinition(row: any): StoredRoleDefinition {
 
 function fromRoleDefinition(role: StoredRoleDefinition) {
   return {
-    name: role.name,
+    name: normalizeRoleName(role.name),
     description: role.description,
     active: role.active,
     locked: role.locked,
@@ -142,7 +147,7 @@ function fromRoleDefinition(role: StoredRoleDefinition) {
 
 function toRolePermission(row: any): StoredRolePermission {
   return {
-    roleName: String(row.role_name || ""),
+    roleName: normalizeRoleName(row.role_name),
     permissions: (row.permissions || {}) as Record<string, boolean>,
     updatedBy: String(row.updated_by || ""),
     updatedAt: String(row.updated_at || ""),
@@ -151,7 +156,7 @@ function toRolePermission(row: any): StoredRolePermission {
 
 function fromRolePermission(row: StoredRolePermission) {
   return {
-    role_name: row.roleName,
+    role_name: normalizeRoleName(row.roleName),
     permissions: row.permissions || {},
     updated_by: row.updatedBy,
     updated_at: row.updatedAt || new Date().toISOString(),

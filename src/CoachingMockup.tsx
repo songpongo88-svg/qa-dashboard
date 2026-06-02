@@ -1192,6 +1192,7 @@ type CoachingMockupProps = {
   externalSelectedAgent?: string;
   externalSelectedMonth?: string;
   externalSelectedWeek?: string;
+  roleScopedAgentNames?: string[];
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
   onSelectedWeekChange?: (week: string) => void;
@@ -1202,6 +1203,7 @@ export default function CoachingMockup({
   externalSelectedAgent,
   externalSelectedMonth,
   externalSelectedWeek,
+  roleScopedAgentNames,
   onSelectedAgentChange,
   onSelectedMonthChange,
   onSelectedWeekChange,
@@ -1214,16 +1216,20 @@ export default function CoachingMockup({
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const roleScopedAgentList = useMemo(
+    () => dedupeAgentNames((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
+    [roleScopedAgentNames]
+  );
 
   useEffect(() => {
     if (
-      currentUser?.role !== "Agent" &&
+      !roleScopedAgentList.length &&
       typeof externalSelectedAgent === "string" &&
       externalSelectedAgent !== selectedAgent
     ) {
       setSelectedAgent(externalSelectedAgent);
     }
-  }, [externalSelectedAgent, currentUser, selectedAgent]);
+  }, [externalSelectedAgent, selectedAgent, roleScopedAgentList.length]);
 
   useEffect(() => {
     if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
@@ -1493,18 +1499,20 @@ export default function CoachingMockup({
       .filter((name) => !shouldHideAgentByMonth(name, effectiveMonthForVisibility))
       .sort((a, b) => a.localeCompare(b));
 
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      return mergedAgents.filter((agent) => isSameAgent(agent, currentUser.agentName));
+    if (roleScopedAgentList.length) {
+      return mergedAgents.filter((agent) => roleScopedAgentList.some((scopedAgent) => isSameAgent(agent, scopedAgent)));
     }
 
     return mergedAgents;
-  }, [allCases, currentUser, selectedMonth, latestMonthKey]);
+  }, [allCases, selectedMonth, latestMonthKey, roleScopedAgentList]);
 
   useEffect(() => {
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      const normalizedAgent = toTitleCaseName(currentUser.agentName);
-      setSelectedAgent(normalizedAgent);
-      onSelectedAgentChange?.(normalizedAgent);
+    if (roleScopedAgentList.length) {
+      const scopedAgent = roleScopedAgentList[0];
+      if (scopedAgent && !isSameAgent(selectedAgent || "", scopedAgent)) {
+        setSelectedAgent(scopedAgent);
+      }
+      onSelectedAgentChange?.(scopedAgent || "");
       return;
     }
 
@@ -1513,11 +1521,10 @@ export default function CoachingMockup({
       setSelectedAgent(firstAgent);
       onSelectedAgentChange?.(firstAgent);
     }
-  }, [currentUser, visibleAgentList, selectedAgent, onSelectedAgentChange]);
+  }, [roleScopedAgentList, visibleAgentList, selectedAgent, onSelectedAgentChange]);
 
   useEffect(() => {
     if (
-      currentUser?.role !== "Agent" &&
       selectedAgent &&
       !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))
     ) {
@@ -1539,8 +1546,8 @@ export default function CoachingMockup({
   ]);
 
   const effectiveAgent =
-    currentUser?.role === "Agent" && currentUser.agentName
-      ? toTitleCaseName(currentUser.agentName)
+    roleScopedAgentList.length
+      ? roleScopedAgentList[0]
       : selectedAgent;
 
   const baseAgentCases = useMemo(() => {
@@ -1808,7 +1815,7 @@ export default function CoachingMockup({
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     รายชื่อ Agent
                   </div>
-                  {currentUser?.role === "Agent" ? (
+                  {roleScopedAgentList.length ? (
                     <div className="break-words rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-800">
                       {effectiveAgent || "-"}
                     </div>

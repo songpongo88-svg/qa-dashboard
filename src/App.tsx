@@ -114,20 +114,20 @@ type MaintenanceState = {
 
 const USER_ACCOUNTS: UserAccount[] = [
   { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin", email: "Anucha@robinhood.co.th" },
-  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Agent", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "ลาออกแล้ว" },
-  { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Agent", agentName: "Chatkonnaphat Bhusomya", email: "Chatkonnaphat@robinhood.co.th" },
-  { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Agent", agentName: "Jariyawadee Taboodda", email: "Jariyawadee@robinhood.co.th" },
-  { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Agent", agentName: "Jureeporn Piddum", email: "Jureeporn@robinhood.co.th" },
+  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Admin Live Chat", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "ลาออกแล้ว" },
+  { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Admin Live Chat", agentName: "Chatkonnaphat Bhusomya", email: "Chatkonnaphat@robinhood.co.th" },
+  { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Admin Live Chat", agentName: "Jariyawadee Taboodda", email: "Jariyawadee@robinhood.co.th" },
+  { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Admin Live Chat", agentName: "Jureeporn Piddum", email: "Jureeporn@robinhood.co.th" },
   { username: "Krivut", password: "Kv#9Ts4!Mb", displayName: "Krivut Vongkampan", role: "Supervisor", agentName: "Krivut Vongkampan", email: "Krivut@robinhood.co.th" },
-  { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Agent", agentName: "Natcha Chai-in", email: "Natcha@robinhood.co.th" },
-  { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Agent", agentName: "Nattapol Suprom", email: "Nattapol.s@robinhood.co.th" },
+  { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Admin Live Chat", agentName: "Natcha Chai-in", email: "Natcha@robinhood.co.th" },
+  { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Admin Live Chat", agentName: "Nattapol Suprom", email: "Nattapol.s@robinhood.co.th" },
   { username: "Phrommarin", password: "RBH1234", displayName: "Phrommarin Thaithorn", role: "Supervisor", agentName: "Phrommarin Thaithorn", email: "phrommarin@robinhood.co.th" },
   { username: "Songpon", password: "Boom@4421L2", displayName: "Songpon Phothong", role: "Quality Assurance", agentName: "Songpon Phothong", email: "Songpon@robinhood.co.th" },
-  { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritip", role: "Agent", agentName: "Sunijtra Siritip", email: "Sunijtra@robinhood.co.th" },
-  { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Agent", agentName: "Supakrit Promkhamnoi", email: "Supakrit@robinhood.co.th" },
+  { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritip", role: "Admin Live Chat", agentName: "Sunijtra Siritip", email: "Sunijtra@robinhood.co.th" },
+  { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Admin Live Chat", agentName: "Supakrit Promkhamnoi", email: "Supakrit@robinhood.co.th" },
   { username: "Suphitcha", password: "Sp@8Ld2#Vk", displayName: "Suphitcha Keawliam", role: "Supervisor", agentName: "Suphitcha Keawliam", email: "Suphitcha@robinhood.co.th" },
-  { username: "Wachiraporn", password: "wL7$cl2@", displayName: "Wachiraporn Chailittichai", role: "Agent", agentName: "Wachiraporn Chailittichai", email: "wachiraporn@robinhood.co.th" },
-  { username: "Wassana", password: "Ws!3Kr7@Pn", displayName: "Wassana Phothong", role: "Agent", agentName: "Wassana Phothong", email: "Wassana@robinhood.co.th" },
+  { username: "Wachiraporn", password: "wL7$cl2@", displayName: "Wachiraporn Chailittichai", role: "Admin Live Chat", agentName: "Wachiraporn Chailittichai", email: "wachiraporn@robinhood.co.th" },
+  { username: "Wassana", password: "Ws!3Kr7@Pn", displayName: "Wassana Phothong", role: "Admin Live Chat", agentName: "Wassana Phothong", email: "Wassana@robinhood.co.th" },
 ];
 
 const STORAGE_KEY = "qa_current_user";
@@ -305,32 +305,6 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     manageMaintenance: false,
     useTeamChat: true,
   },
-  Agent: {
-    viewDashboard: true,
-    viewAllAgents: false,
-    viewSummary: true,
-    viewCoaching: false,
-    viewAppeal: true,
-    submitAppeal: true,
-    reviewAppeals: false,
-    appealOverride: false,
-    viewRubric: true,
-    manageRubric: false,
-    createEvaluation: true,
-    viewUsageLog: false,
-    exportPdf: false,
-    exportAppealRawdata: false,
-    viewUserDirectory: false,
-    viewAllTeams: false,
-    viewOwnTeam: true,
-    qaEvaluationTarget: true,
-    manageUsers: false,
-    manageTeams: false,
-    manageRoles: false,
-    resetPassword: false,
-    manageMaintenance: false,
-    useTeamChat: true,
-  },
   Senior: {
     viewDashboard: true,
     viewAllAgents: true,
@@ -390,10 +364,16 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
 };
 
 function getDefaultRolePermissions(role: UserRole): RolePermissions {
+  const normalizedRole = normalizeRoleName(role);
   return {
     ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
-    ...(ROLE_PERMISSION_DEFAULTS[role] || {}),
+    ...(ROLE_PERMISSION_DEFAULTS[normalizedRole] || {}),
   };
+}
+
+function normalizeRoleName(value: unknown): UserRole {
+  const roleName = String(value || "").trim();
+  return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
 }
 
 function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
@@ -406,7 +386,7 @@ function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
 
   logs.forEach((item) => {
     if (item.event_type !== "role_permissions_saved") return;
-    const roleName = String(item.details?.roleName || "").trim();
+    const roleName = normalizeRoleName(item.details?.roleName);
     const permissions = item.details?.permissions;
     const normalizedRole = roleName.toLowerCase();
     if (savedRoles.has(normalizedRole)) return;
@@ -949,7 +929,7 @@ function buildUserRoleOverrides(logs: UsageLogEvent[]) {
   logs.forEach((item) => {
     if (item.event_type !== "user_role_updated") return;
     const normalizedUsername = getRoleUpdateUsername(item).toLowerCase();
-    const newRole = item.details?.newRole;
+    const newRole = normalizeRoleName(item.details?.newRole);
     if (!normalizedUsername || overrides[normalizedUsername] || !isUserRole(newRole)) return;
     overrides[normalizedUsername] = newRole;
   });
@@ -964,7 +944,7 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
     if (item.event_type !== "user_profile_saved") return;
     const username = getProfileUpdateUsername(item);
     const normalizedUsername = username.toLowerCase();
-    const role = item.details?.role;
+    const role = normalizeRoleName(item.details?.role);
     if (!username || profiles[normalizedUsername] || !isUserRole(role)) return;
 
     const status = item.details?.status === "Suspended" ? "Suspended" : "Active";
@@ -996,7 +976,7 @@ function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
       email: row.email || "",
       teamLead: row.teamLead || "",
       teamName: row.teamName || "",
-      role: row.role || "Admin Live Chat",
+      role: normalizeRoleName(row.role || "Admin Live Chat"),
       status: row.status === "Suspended" ? "Suspended" : "Active",
       suspendReason: row.suspendReason || "",
     };
@@ -2902,7 +2882,7 @@ export default function App() {
             title: `Appeal result: ${item.caseId}`,
             description:
               item.status === "Approved"
-                ? "Your appeal was approved. Open the case detail to review the decision. Dashboard score will update after Appeal ROWDATA is uploaded."
+                ? "Your appeal was approved. Dashboard and Summary scores were updated automatically."
                 : "Your appeal was rejected. Open the case detail to review the decision summary.",
             badge: item.status,
             count: 1,
@@ -2923,8 +2903,8 @@ export default function App() {
               ],
               footer:
                 item.status === "Approved"
-                  ? "หมายเหตุ: คะแนนใน Dashboard จะอัปเดตหลังจาก QA Export Appeal ROWDATA และอัปโหลดไฟล์กลับเข้าระบบ"
-                  : "หมายเหตุ: เคสนี้จะไม่ถูกปรับคะแนนใน Dashboard เว้นแต่ QA มีการพิจารณาและอัปเดต Appeal ROWDATA ใหม่",
+                  ? "หมายเหตุ: เคสที่อนุมัติแล้วจะถูกนำไปปรับคะแนนใน Dashboard และ Summary อัตโนมัติ"
+                  : "หมายเหตุ: เคสที่ไม่อนุมัติจะไม่ปรับคะแนนใน Dashboard และ Summary",
             },
           });
         });
@@ -3085,7 +3065,7 @@ export default function App() {
           type: "evaluation",
           title: "QA evaluation update",
           description:
-            currentUser.role === "Agent"
+            !hasRolePermission(currentUser, rolePermissions, "viewAllAgents")
               ? "New QA dashboard data has been published. Open your dashboard to review the latest evaluation result."
               : "New QA dashboard data has been published. Open Dashboard to review the latest team results.",
           badge: "QA Result",
@@ -3518,10 +3498,14 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser?.role === "Agent" && currentUser.agentName) {
-      setSelectedAgentGlobal(currentUser.agentName);
+    if (!currentUser) return;
+    if (hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return;
+
+    const scopedAgent = currentUser.agentName || currentUser.displayName || currentUser.username;
+    if (scopedAgent) {
+      setSelectedAgentGlobal(scopedAgent);
     }
-  }, [currentUser]);
+  }, [currentUser, rolePermissions]);
 
   const clearSessionTimers = () => {
     if (warningTimerRef.current) {
@@ -3611,8 +3595,8 @@ export default function App() {
 
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    if (currentUser?.role === "Agent") {
-      setSelectedAgentGlobal(currentUser.agentName);
+    if (currentUser && !hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) {
+      setSelectedAgentGlobal(currentUser.agentName || currentUser.displayName || currentUser.username);
     }
   };
 
@@ -3791,7 +3775,8 @@ export default function App() {
     setPassword("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
-    setSelectedAgentGlobal(matchedUser.role === "Agent" ? matchedUser.agentName : "");
+    const matchedPermissions = rolePermissions[matchedUser.role] || getDefaultRolePermissions(matchedUser.role);
+    setSelectedAgentGlobal(matchedPermissions.viewAllAgents ? "" : matchedUser.agentName);
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
     void loadRoleOverrides();
@@ -4558,6 +4543,7 @@ export default function App() {
             currentUser={currentUser}
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedCaseId={selectedAppealCaseId}
+            roleScopedAgentNames={roleScopedAgentNames}
             onSelectedAgentChange={setSelectedAgentGlobal}
             onGeneratePdf={(caseId, agentName, pdfType) => {
               logUsageEvent(currentUser, "pdf_generate", {
@@ -4630,6 +4616,7 @@ export default function App() {
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedMonth={selectedMonthGlobal}
             externalSelectedWeek={selectedWeekGlobal}
+            roleScopedAgentNames={roleScopedAgentNames}
             onSelectedAgentChange={setSelectedAgentGlobal}
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}

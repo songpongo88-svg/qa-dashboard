@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606020958",
-  "buildNumber": 2606020958,
-  "releaseLabel": "v1.0.0.2606020958",
-  "updatedAt": "02/06/2026 09:58:41",
+  "displayVersion": "1.0.0.2606021148",
+  "buildNumber": 2606021148,
+  "releaseLabel": "v1.0.0.2606021148",
+  "updatedAt": "02/06/2026 11:48:10",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "b17d73ea911df5fd70c9a82f9a4ca9544e90f4a0",
-  "commitMessage": "Prevent stale appeal queue logs",
+  "commitHash": "88b94d81c32fd3e59e4d05122b7a9b1f23b25be2",
+  "commitMessage": "Load appeal queue logs by event type",
   "changedFiles": [
     "public/build-meta.json",
+    "src/App.tsx",
     "src/AppealRequestsMockup.tsx",
     "src/usageLog.ts"
   ],

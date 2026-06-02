@@ -291,7 +291,9 @@ export default function AppealRequestsMockup({
         `Confirm ${decision} for appeal case ${selectedRequest.caseId}?`,
         "",
         "After saving, this task will move out of Pending and the case owner will receive an Inbox notification.",
-        "Dashboard score will not change until you export and upload Appeal ROWDATA.",
+        decision === "Approved"
+          ? "Approved revised scores will update Dashboard and Summary automatically. Export Appeal ROWDATA remains available for Excel backup."
+          : "Rejected appeals will not change Dashboard or Summary scores.",
       ].join("\n")
     );
     if (!confirmed) return;
@@ -313,11 +315,18 @@ export default function AppealRequestsMockup({
           notificationTarget: selectedRequest.submittedByUsername || selectedRequest.submittedBy || selectedRequest.agent,
           notificationTemplate: {
             subject: `Appeal result for case ${selectedRequest.caseId}`,
-            body: `Your appeal for case ${selectedRequest.caseId} has been ${decision}. Please open Task Inbox to review the result. Dashboard score will update after Appeal ROWDATA is uploaded.`,
+            body:
+              decision === "Approved"
+                ? `Your appeal for case ${selectedRequest.caseId} has been approved. Dashboard and Summary scores were updated automatically.`
+                : `Your appeal for case ${selectedRequest.caseId} has been rejected. Dashboard and Summary scores were not changed.`,
           },
         },
       });
-      setMessage(`Saved review for ${selectedRequest.caseId}. Result task was sent to the case owner. Dashboard score is not updated until Appeal ROWDATA is uploaded.`);
+      setMessage(
+        decision === "Approved"
+          ? `Approved appeal for ${selectedRequest.caseId}. Result task was sent to the case owner and Dashboard/Summary will use the revised score automatically.`
+          : `Rejected appeal for ${selectedRequest.caseId}. Result task was sent to the case owner and scores were not changed.`
+      );
       await loadRequests();
       onTasksChanged?.();
     } finally {

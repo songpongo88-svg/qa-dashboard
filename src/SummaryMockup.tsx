@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { fetchStoredEvaluations } from "./evaluationStore";
+import { buildAppealRequests } from "./AppealRequestsMockup";
+import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
 import { getIncentiveByScore, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 
 type ReviewStatus = "Original" | "Revised";
@@ -45,6 +47,79 @@ type AppealMergeItem = {
   revisedTopics: Topic[];
   displayRevisedTopicCodes: string[];
 };
+
+function isApprovedAppealTopicChanged(topic: {
+  score?: number;
+  revisedScore?: number | string;
+  revisedComment?: string;
+}) {
+  const revisedScore =
+    topic.revisedScore !== null &&
+    topic.revisedScore !== "" &&
+    !Number.isNaN(Number(topic.revisedScore))
+      ? Number(topic.revisedScore)
+      : undefined;
+  const originalScore = Number(topic.score ?? 0);
+  return (
+    (revisedScore !== undefined && Math.abs(revisedScore - originalScore) > 0.0001) ||
+    String(topic.revisedComment || "").trim() !== ""
+  );
+}
+
+function buildApprovedAppealMergeMap(
+  logs: UsageLogEvent[],
+  rawCaseMonthKeyMap: Map<string, string>
+) {
+  const approvedRequests = buildAppealRequests(logs)
+    .filter((item) => item.status === "Approved")
+    .sort(
+      (a, b) =>
+        new Date(a.reviewedAt || a.submittedAt || "").getTime() -
+        new Date(b.reviewedAt || b.submittedAt || "").getTime()
+    );
+  const map = new Map<string, AppealMergeItem>();
+
+  approvedRequests.forEach((request) => {
+    const caseId = String(request.caseId || "").trim();
+    if (!caseId) return;
+
+    const topicMaster = getTopicMasterByMonth(
+      rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
+    );
+    const revisedTopics = topicMaster
+      .map((master) => {
+        const matched = request.topics.find((topic) => topic.code === master.code);
+        if (!matched || !isApprovedAppealTopicChanged(matched)) return null;
+        const revisedScore =
+          matched.revisedScore !== null &&
+          matched.revisedScore !== "" &&
+          !Number.isNaN(Number(matched.revisedScore))
+            ? Number(matched.revisedScore)
+            : Number(matched.score || 0);
+        return {
+          code: master.code,
+          label: master.label,
+          score: revisedScore,
+          max: master.max,
+          pct: Number(((revisedScore / master.max) * 100).toFixed(2)),
+          comment: String(matched.revisedComment || matched.comment || "").trim(),
+        } as Topic;
+      })
+      .filter(Boolean) as Topic[];
+
+    if (!revisedTopics.length) return;
+
+    map.set(caseId, {
+      caseId,
+      previousScore: Number(request.finalScore || 0),
+      reviewStatus: "Revised",
+      revisedTopics,
+      displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
+    });
+  });
+
+  return map;
+}
 
 type TopicSummary = {
   code: string;
@@ -833,12 +908,11 @@ export default function SummaryMockup({
     if (
       typeof externalSelectedAgent === "string" &&
       externalSelectedAgent !== selectedAgent &&
-      currentUser?.role !== "Agent" &&
       !roleScopedAgentList.length
     ) {
       setSelectedAgent(externalSelectedAgent);
     }
-  }, [externalSelectedAgent, selectedAgent, currentUser, roleScopedAgentList.length]);
+  }, [externalSelectedAgent, selectedAgent, roleScopedAgentList.length]);
 
   useEffect(() => {
     if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
@@ -1008,6 +1082,20 @@ export default function SummaryMockup({
         const rawDataEntries = rawSources.flatMap((source) =>
           source.rawDataRows.map((row, rowIndex) => ({ row, rowIndex, source }))
         );
+        const rawCaseMonthKeyMap = new Map<string, string>();
+        rawDataEntries.forEach(({ row, source }) => {
+          const rawHelper = source.rawHelper;
+          const caseId = String(rawHelper.getValue(row, "Case ID") || "").trim();
+          if (!caseId) return;
+          const auditRaw = rawHelper.getValue(row, "Audit Date");
+          const auditDateObj = excelDateToJSDate(auditRaw);
+          const monthDate = getReportingMonthDate(
+            rawHelper.getValue(row, "Month Start"),
+            rawHelper.getValue(row, "Month Label"),
+            auditDateObj
+          );
+          rawCaseMonthKeyMap.set(caseId, getMonthKey(monthDate));
+        });
 
         const appealBuffer = await appealResponse.arrayBuffer();
         const appealWorkbook = XLSX.read(appealBuffer, { type: "array", cellDates: false });
@@ -1030,7 +1118,11 @@ export default function SummaryMockup({
             if (!caseId) return;
 
             const revisedTopics: Topic[] = [];
-            ALL_TOPIC_MASTER.forEach((master) => {
+            const appealAuditRaw = appealHelper.getValue(row, "Audit Date");
+            const topicMaster = getTopicMasterByMonth(
+              rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(appealAuditRaw))
+            );
+            topicMaster.forEach((master) => {
               const scoreRaw = appealHelper.getValue(row, `${master.code} Revised Score`) ?? appealHelper.getValue(row, `${master.code} score`) ?? appealHelper.getValue(row, master.code);
               if (scoreRaw === null || scoreRaw === "" || Number.isNaN(Number(scoreRaw))) return;
               const score = Number(scoreRaw);
@@ -1049,6 +1141,19 @@ export default function SummaryMockup({
               displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
             });
           });
+        }
+
+        try {
+          const reviewedLogs = await fetchUsageLogsByEventTypes([
+            "appeal_request_submitted",
+            "appeal_request_reviewed",
+            "appeal_request_reset",
+          ], 10000);
+          buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
+            appealMap.set(caseId, item);
+          });
+        } catch (error) {
+          console.warn("Approved appeal review merge skipped", error);
         }
 
         const mappedCases: CaseItem[] = rawDataEntries.map(({ row, rowIndex, source }) => {
@@ -1220,12 +1325,8 @@ export default function SummaryMockup({
       return names.filter((name) => roleScopedAgentList.some((scopedAgent) => isSameAgent(name, scopedAgent)));
     }
 
-    if (currentUser?.role === "Agent" && currentUser?.agentName) {
-      return names.filter((name) => isSameAgent(name, currentUser.agentName));
-    }
-
     return names;
-  }, [allCases, selectedMonth, currentUser, roleScopedAgentList]);
+  }, [allCases, selectedMonth, roleScopedAgentList]);
 
   useEffect(() => {
     if (roleScopedAgentList.length) {
@@ -1237,25 +1338,17 @@ export default function SummaryMockup({
       return;
     }
 
-    if (currentUser?.role === "Agent" && currentUser?.agentName) {
-      const lockedAgent = toTitleCaseName(String(currentUser.agentName).trim());
-      if (!isSameAgent(selectedAgent || "", lockedAgent)) {
-        setSelectedAgent(lockedAgent);
-      }
-      onSelectedAgentChange?.(lockedAgent);
-      return;
-    }
     if (roleScopedAgentList.length && selectedAgent !== "all" && !availableAgents.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("all");
       onSelectedAgentChange?.("all");
     }
-  }, [currentUser, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length, availableAgents]);
+  }, [selectedAgent, onSelectedAgentChange, roleScopedAgentList.length, availableAgents]);
 
   useEffect(() => {
-    if (currentUser?.role === "Agent" && viewMode === "weekly-qa-by-agent") {
+    if (roleScopedAgentList.length && viewMode === "weekly-qa-by-agent") {
       setViewMode("weekly-dashboard");
     }
-  }, [currentUser, viewMode]);
+  }, [roleScopedAgentList.length, viewMode]);
 
   const monthOptions = useMemo(() => {
     const keys = [...new Set(allCases.map((item) => item.monthKey).filter(Boolean))].sort();
@@ -1276,8 +1369,6 @@ export default function SummaryMockup({
   const effectiveSelectedAgent =
     roleScopedAgentList.length
       ? roleScopedAgentList[0]
-      : currentUser?.role === "Agent" && currentUser?.agentName
-      ? toTitleCaseName(String(currentUser.agentName).trim())
       : selectedAgent;
 
   const filteredCases = useMemo(() => {
@@ -1382,7 +1473,7 @@ export default function SummaryMockup({
               <PanelBody className="space-y-5">
                 <div className="space-y-2">
                   <ViewButton active={viewMode === "weekly-dashboard"} label="Weekly Dashboard" onClick={() => setViewMode("weekly-dashboard")} />
-                  {currentUser?.role !== "Agent" ? (
+                  {!roleScopedAgentList.length ? (
                     <ViewButton active={viewMode === "weekly-qa-by-agent"} label="Weekly QA by Agent" onClick={() => setViewMode("weekly-qa-by-agent")} />
                   ) : null}
                   <ViewButton active={viewMode === "monthly-dashboard"} label="Monthly Dashboard" onClick={() => setViewMode("monthly-dashboard")} />
@@ -1394,7 +1485,7 @@ export default function SummaryMockup({
                   <div>
                     <FilterLabel>Agent</FilterLabel>
                     <div className="mt-2">
-                      {currentUser?.role === "Agent" || roleScopedAgentList.length ? (
+                      {roleScopedAgentList.length ? (
                         <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
                           {effectiveSelectedAgent || "-"}
                         </div>
