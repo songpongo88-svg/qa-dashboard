@@ -5,6 +5,7 @@ import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
 import { getIncentiveByScore, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
+import { fetchCachedStaticResponse } from "./staticFileCache";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -932,7 +933,7 @@ export default function SummaryMockup({
         setIsLoading(true);
         setLoadError("");
 
-        const v8Response = await fetch(`/${V8_EFFECTIVE_FILE_NAME}`, { cache: "no-store" });
+        const v8Response = await fetchCachedStaticResponse(`/${V8_EFFECTIVE_FILE_NAME}`);
         if (v8Response.ok) {
           const v8Buffer = await v8Response.arrayBuffer();
           const v8Workbook = XLSX.read(v8Buffer, { type: "array", cellDates: false });
@@ -1046,10 +1047,10 @@ export default function SummaryMockup({
         const rawResponses = await Promise.all(
           RAW_DATA_FILE_NAMES.map(async (fileName) => ({
             fileName,
-            response: await fetch(`/${fileName}`, { cache: "no-store" }),
+            response: await fetchCachedStaticResponse(`/${fileName}`),
           }))
         );
-        const appealResponse = await fetch("/Appleal ROWDATA.xlsx", { cache: "no-store" });
+        const appealResponse = await fetchCachedStaticResponse("/Appleal ROWDATA.xlsx");
 
         const availableRawResponses = rawResponses.filter((item) => item.response.ok);
         if (!availableRawResponses.length) {

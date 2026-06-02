@@ -7,6 +7,7 @@ import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
+import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
   getIncentivePolicyKey,
   getIncentiveByGrade,
@@ -1750,7 +1751,7 @@ function LogoHeaderBox() {
 
 async function fetchFirstAvailable(urls: string[]) {
   for (const url of urls) {
-    const response = await fetch(url);
+    const response = await fetchCachedStaticResponse(url);
     if (response.ok) {
       return { response, matchedUrl: url };
     }
@@ -3594,7 +3595,7 @@ export default function DashboardMockup({
         const rawResponses = await Promise.all(
           RAW_DATA_FILE_NAMES.map(async (fileName) => ({
             fileName,
-            response: await fetch(`/${fileName}`, { cache: "no-store" }),
+            response: await fetchCachedStaticResponse(`/${fileName}`),
           }))
         );
         const { response: appealResponse, matchedUrl } = await fetchFirstAvailable([

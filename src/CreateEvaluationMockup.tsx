@@ -9,6 +9,7 @@ import {
   type RubricTopic,
 } from "./lib/rubricVersions";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
+import { fetchCachedStaticResponse } from "./staticFileCache";
 
 type TopicState = {
   score: number | null;
@@ -377,7 +378,7 @@ async function loadRawDataReportRecords(): Promise<RawReportRecord[]> {
   const responses = await Promise.all(
     RAW_DATA_FILE_NAMES.map(async (fileName) => ({
       fileName,
-      response: await fetch(`/${fileName}`, { cache: "no-store" }),
+      response: await fetchCachedStaticResponse(`/${fileName}`),
     }))
   );
   const availableResponses = responses.filter((item) => item.response.ok);
@@ -546,6 +547,29 @@ function formatDisplayTimestamp(value: string, fallback: string) {
   if (!value) return fallback;
   const parsed = parseDateTimeValue(value);
   return parsed ? formatTimestamp(parsed) : value;
+}
+
+function getSubmittedRecordTimeMs(record: EvaluationRecord) {
+  const preview = record.rawDataPreview || {};
+  const candidates = [
+    record.submittedAt,
+    preview["Evaluation Submitted At"],
+    preview["Timestamp"],
+    record.auditTimestamp,
+    (record as any).updatedAt,
+    (record as any).createdAt,
+    record.auditDate,
+  ];
+
+  for (const value of candidates) {
+    const parsed = parseDateTimeValue(value);
+    if (parsed) return parsed.getTime();
+  }
+  return 0;
+}
+
+function compareSubmittedRecordsNewestFirst(left: EvaluationRecord, right: EvaluationRecord) {
+  return getSubmittedRecordTimeMs(right) - getSubmittedRecordTimeMs(left);
 }
 
 function AutoGrowTextarea({ value, onChange, placeholder, className, minRows = 3 }: AutoGrowTextareaProps) {
@@ -1296,7 +1320,9 @@ export default function CreateEvaluationMockup({
     });
   }
 
-  const visibleSubmittedReportRecords = filterRecordsByReportDate(submittedRecords).filter(matchesReportSearch);
+  const visibleSubmittedReportRecords = filterRecordsByReportDate(submittedRecords)
+    .filter(matchesReportSearch)
+    .sort(compareSubmittedRecordsNewestFirst);
   const visibleRawReportRecords = filterRawRecordsByReportDate(rawReportRecords).filter(matchesRawReportSearch);
   const submittedTotalPages = Math.max(1, Math.ceil(visibleSubmittedReportRecords.length / REPORT_PAGE_SIZE));
   const rawTotalPages = Math.max(1, Math.ceil(visibleRawReportRecords.length / REPORT_PAGE_SIZE));

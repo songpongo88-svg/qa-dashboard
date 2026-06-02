@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021745",
-  "buildNumber": 2606021745,
-  "releaseLabel": "v1.0.0.2606021745",
-  "updatedAt": "02/06/2026 17:45:56",
+  "displayVersion": "1.0.0.2606022251",
+  "buildNumber": 2606022251,
+  "releaseLabel": "v1.0.0.2606022251",
+  "updatedAt": "02/06/2026 22:51:17",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8970bacaba20d837f4b0de3b4c0ae58dcc01e93d",
-  "commitMessage": "Deploy evaluation history safeguards",
+  "commitHash": "f9e5e8638954565a98168600ebe6d1ff02b98ad4",
+  "commitMessage": "Stabilize central data loading and role scope",
   "changedFiles": [
-    ".gitignore",
-    "public/build-meta.json"
+    "public/build-meta.json",
+    "src/App.tsx",
+    "src/evaluationStore.ts",
+    "src/userRoleStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
