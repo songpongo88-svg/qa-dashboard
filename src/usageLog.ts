@@ -94,6 +94,7 @@ export async function fetchUsageLogs(limit = 300) {
   const response = await fetch(getUsageLogEndpoint(`?${params.toString()}`), {
     method: "GET",
     headers: getUsageLogHeaders(),
+    cache: "no-store",
   });
 
   if (!response.ok) {

@@ -1,18 +1,25 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2605310909",
-  "buildNumber": 2605310909,
-  "releaseLabel": "v1.0.0.2605310909",
-  "updatedAt": "31/05/2026 09:09:42",
+  "displayVersion": "1.0.0.2606020946",
+  "buildNumber": 2606020946,
+  "releaseLabel": "v1.0.0.2606020946",
+  "updatedAt": "02/06/2026 09:46:48",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "814e25a382044f325df6ddbfbf5b390b98513725",
-  "commitMessage": "Keep password changes synced centrally",
+  "commitHash": "58f4074f824afe1fd8f693b98ae5b3aa33141b89",
+  "commitMessage": "Refine CRM navigation labels",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx",
-    "src/usageLog.ts"
+    "src/AppealMockup.tsx",
+    "src/AppealOverrideMockup.tsx",
+    "src/AppealRequestsMockup.tsx",
+    "src/CallHistoryMockup.tsx",
+    "src/CreateEvaluationMockup.tsx",
+    "src/QARubricMockup.tsx",
+    "src/TeamChatMockup.tsx",
+    "src/UsageLogMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

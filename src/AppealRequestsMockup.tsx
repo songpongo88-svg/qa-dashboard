@@ -251,7 +251,14 @@ export default function AppealRequestsMockup({
     listTab === "pending" ? pendingRequests : listTab === "reviewed" ? reviewedRequests : resetRequests;
 
   const loadRequests = async () => {
-    setLogs(await fetchUsageLogs(5000));
+    try {
+      setMessage("");
+      setLogs(await fetchUsageLogs(5000));
+    } catch (error) {
+      console.warn("Load appeal requests failed", error);
+      setLogs([]);
+      setMessage("Unable to load appeal requests from Supabase. Please refresh or check the Usage Log connection.");
+    }
   };
 
   useEffect(() => {
