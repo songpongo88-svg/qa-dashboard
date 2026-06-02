@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021505",
-  "buildNumber": 2606021505,
-  "releaseLabel": "v1.0.0.2606021505",
-  "updatedAt": "02/06/2026 15:05:00",
+  "displayVersion": "1.0.0.2606021522",
+  "buildNumber": 2606021522,
+  "releaseLabel": "v1.0.0.2606021522",
+  "updatedAt": "02/06/2026 15:22:27",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "7f9eefa5e630fdf83be47cfb1745ba5caa8218e7",
-  "commitMessage": "Remove V8 workbook export action",
+  "commitHash": "5e29ea2e275ae94ca64f3b273827c9554ef90f5e",
+  "commitMessage": "Add pre-test workspace",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx"
+    "src/App.tsx",
+    "src/DashboardMockup.tsx",
+    "src/PreTestMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

@@ -495,6 +495,10 @@ function splitEditableEvidence(urls: string[]) {
   return { manualUrls: manualUrls.join("\n"), attachedFiles };
 }
 
+function compactEvidenceForStorage(urls: string[]) {
+  return urls.map((url, index) => evidenceUrlDisplayLabel(String(url || ""), index)).filter(Boolean);
+}
+
 function buildInitialTopicState(topics: RubricTopic[]) {
   return topics.reduce<Record<string, TopicState>>((acc, topic) => {
     acc[topic.code] = { score: null, reason: "" };
@@ -617,6 +621,7 @@ export default function CreateEvaluationMockup({
   const [submittedRecords, setSubmittedRecords] = useState<EvaluationRecord[]>([]);
   const [submittedRecordsLoading, setSubmittedRecordsLoading] = useState(false);
   const [submitPreview, setSubmitPreview] = useState<SubmitPreviewState | null>(null);
+  const [submitInProgress, setSubmitInProgress] = useState(false);
   const [rawReportRecords, setRawReportRecords] = useState<RawReportRecord[]>([]);
   const [reportDateFrom, setReportDateFrom] = useState(currentYearStartInputValue());
   const [reportDateTo, setReportDateTo] = useState(todayInputValue());
@@ -985,21 +990,48 @@ export default function CreateEvaluationMockup({
   }
 
   async function confirmSubmitEvaluation() {
-    if (!submitPreview) return;
+    if (!submitPreview || submitInProgress) return;
     const { record, draftId } = submitPreview;
-    setEvaluationStartedAt(record.evaluationStartedAt || record.submittedAt);
-    setEvaluationSubmittedAt(record.submittedAt);
-    setEvaluationStatus("Submitted");
-    persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
-    setActiveDraftId("");
-    setDraftSavedAt("");
-    await onSubmitEvaluation?.(record);
-    persistHistory([record, ...evaluationHistory.filter((item) => item.recordId !== record.recordId)]);
-    setActiveSubmittedRecordId("");
-    setSubmitPreview(null);
-    resetEvaluationForm();
-    setWorkspaceView("form");
-    setDraftMessage(`Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`);
+    setSubmitInProgress(true);
+    setDraftMessage("Submitting evaluation. Please wait...");
+
+    try {
+      await onSubmitEvaluation?.(record);
+
+      setEvaluationStartedAt(record.evaluationStartedAt || record.submittedAt);
+      setEvaluationSubmittedAt(record.submittedAt);
+      setEvaluationStatus("Submitted");
+      persistDrafts(draftInbox.filter((draft) => (draft.draftId || makeDraftId(draft.caseId, draft.auditDate)) !== draftId));
+      setActiveDraftId("");
+      setDraftSavedAt("");
+
+      const compactHistoryRecord: EvaluationRecord = {
+        ...record,
+        evidenceUrls: compactEvidenceForStorage(record.evidenceUrls),
+        rawDataPreview: {
+          ...record.rawDataPreview,
+          "Case Image URL": compactEvidenceForStorage(record.evidenceUrls).join("\n") || "-",
+        },
+      };
+      try {
+        persistHistory([compactHistoryRecord, ...evaluationHistory.filter((item) => item.recordId !== record.recordId)]);
+      } catch (error) {
+        console.warn("Evaluation history save skipped", error);
+      }
+
+      setActiveSubmittedRecordId("");
+      setSubmitPreview(null);
+      resetEvaluationForm();
+      setWorkspaceView("form");
+      setDraftMessage(`Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Submit failed. Please try again.";
+      console.error("Confirm submit failed", error);
+      setDraftMessage(message);
+      window.alert(message);
+    } finally {
+      setSubmitInProgress(false);
+    }
   }
 
   function saveDraft() {
@@ -1974,8 +2006,13 @@ export default function CreateEvaluationMockup({
               <button type="button" onClick={() => { setSubmitPreview(null); setDraftMessage("Submit canceled. You can continue editing before final submit."); }} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
                 Back to Edit
               </button>
-              <button type="button" onClick={confirmSubmitEvaluation} className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800">
-                OK, Confirm Submit
+              <button
+                type="button"
+                onClick={confirmSubmitEvaluation}
+                disabled={submitInProgress}
+                className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(4,120,87,0.22)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              >
+                {submitInProgress ? "Submitting..." : "OK, Confirm Submit"}
               </button>
             </div>
           </div>
