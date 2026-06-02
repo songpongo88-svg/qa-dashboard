@@ -14,7 +14,7 @@ import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
-import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { fetchUsageLogs, fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
 import {
   fetchStoredMaintenanceState,
   fetchStoredRolePermissions,
@@ -2794,10 +2794,23 @@ export default function App() {
     }
 
     try {
-      const [logs, passwordRecord] = await Promise.all([
+      const [generalLogs, appealLogs, passwordRecord] = await Promise.all([
         fetchUsageLogs(5000),
+        fetchUsageLogsByEventTypes([
+          "appeal_request_submitted",
+          "appeal_request_reviewed",
+          "appeal_request_reset",
+          "appeal_case_override_added",
+          "appeal_case_override_removed",
+        ], 10000),
         getCentralPasswordRecord(currentUser.username),
       ]);
+      const logMap = new Map<string, UsageLogEvent>();
+      [...generalLogs, ...appealLogs].forEach((log, index) => {
+        const key = log.id || `${log.event_type}-${log.created_at}-${log.case_id || ""}-${index}`;
+        logMap.set(key, log);
+      });
+      const logs = Array.from(logMap.values());
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
       const appealRequests = buildAppealRequests(logs);

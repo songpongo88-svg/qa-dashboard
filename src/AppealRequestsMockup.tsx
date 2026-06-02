@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
 import PageHero from "./PageHero";
 
 type AppealTopic = {
@@ -253,7 +253,11 @@ export default function AppealRequestsMockup({
   const loadRequests = async () => {
     try {
       setMessage("");
-      setLogs(await fetchUsageLogs(5000));
+      setLogs(await fetchUsageLogsByEventTypes([
+        "appeal_request_submitted",
+        "appeal_request_reviewed",
+        "appeal_request_reset",
+      ], 10000));
     } catch (error) {
       console.warn("Load appeal requests failed", error);
       setLogs([]);

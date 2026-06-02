@@ -103,3 +103,28 @@ export async function fetchUsageLogs(limit = 300) {
 
   return (await response.json()) as UsageLogEvent[];
 }
+
+export async function fetchUsageLogsByEventTypes(eventTypes: string[], limit = 300) {
+  if (!isUsageLogConfigured()) return [];
+  const cleanEventTypes = eventTypes.map((item) => item.trim()).filter(Boolean);
+  if (!cleanEventTypes.length) return fetchUsageLogs(limit);
+
+  const params = new URLSearchParams({
+    select: "*",
+    order: "created_at.desc",
+    limit: String(limit),
+  });
+  params.set("event_type", `in.(${cleanEventTypes.join(",")})`);
+
+  const response = await fetch(getUsageLogEndpoint(`?${params.toString()}`), {
+    method: "GET",
+    headers: getUsageLogHeaders(),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Load usage logs failed: ${response.status}`);
+  }
+
+  return (await response.json()) as UsageLogEvent[];
+}
