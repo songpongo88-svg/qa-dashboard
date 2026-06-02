@@ -1,17 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021553",
-  "buildNumber": 2606021553,
-  "releaseLabel": "v1.0.0.2606021553",
-  "updatedAt": "02/06/2026 15:53:59",
+  "displayVersion": "1.0.0.2606021609",
+  "buildNumber": 2606021609,
+  "releaseLabel": "v1.0.0.2606021609",
+  "updatedAt": "02/06/2026 16:09:20",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "f5fe8f1fab2f2b28874561df77c82c16901ba7ff",
-  "commitMessage": "Update pre-test question set",
+  "commitHash": "00578a81ab10849ee56f49d5459b0b3ff0239617",
+  "commitMessage": "Require central save for QA evaluations",
   "changedFiles": [
     "public/build-meta.json",
-    "src/PreTestMockup.tsx"
+    "src/App.tsx",
+    "src/evaluationStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

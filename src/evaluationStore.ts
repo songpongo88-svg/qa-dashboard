@@ -2,6 +2,7 @@ const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const EVALUATION_TABLE = String(env.VITE_QA_EVALUATION_TABLE || "qa_evaluations");
+const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history";
 
 export type StoredEvaluationTopic = {
   code: string;
@@ -118,6 +119,96 @@ function toEvaluation(row: any): StoredEvaluation {
   };
 }
 
+function normalizeLocalString(value: unknown) {
+  return String(value || "").trim();
+}
+
+function toLocalEvaluation(row: any): StoredEvaluation {
+  const fallbackId = [
+    "local-eval",
+    normalizeLocalString(row?.caseId || "UNTITLED"),
+    normalizeLocalString(row?.agentName || row?.targetDisplayName || "UNKNOWN"),
+    normalizeLocalString(row?.auditDate || "no-date"),
+    normalizeLocalString(row?.submittedAt || row?.evaluationSubmittedAt || row?.recordId || Date.now()),
+  ].join("|").replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  const submittedAt = normalizeLocalString(
+    row?.submittedAt ||
+      row?.evaluationSubmittedAt ||
+      row?.rawDataPreview?.["Evaluation Submitted At"] ||
+      row?.rawDataPreview?.["Draft Saved At"] ||
+      row?.savedAt ||
+      ""
+  );
+
+  return {
+    id: normalizeLocalString(row?.recordId || row?.id || fallbackId),
+    evaluationKey: normalizeLocalString(row?.evaluationKey || row?.recordId || row?.id || fallbackId),
+    caseId: normalizeLocalString(row?.caseId),
+    agentName: normalizeLocalString(row?.agentName || row?.targetDisplayName),
+    targetUsername: normalizeLocalString(row?.targetUsername),
+    targetDisplayName: normalizeLocalString(row?.targetDisplayName || row?.agentName),
+    targetEmail: normalizeLocalString(row?.targetEmail),
+    targetRole: normalizeLocalString(row?.targetRole),
+    auditDate: normalizeLocalString(row?.auditDate),
+    auditTimestamp: normalizeLocalString(row?.auditTimestamp || submittedAt),
+    waitingTime: normalizeLocalString(row?.waitingTime),
+    serviceTime: normalizeLocalString(row?.serviceTime),
+    caseUrl: normalizeLocalString(row?.caseUrl),
+    inquiry: normalizeLocalString(row?.inquiry),
+    caseDescription: normalizeLocalString(row?.caseDescription),
+    evidenceUrls: toArray(row?.evidenceUrls),
+    criticalError: row?.criticalError === true,
+    finalScore: Number(row?.finalScore || 0),
+    grade: normalizeLocalString(row?.grade),
+    qaScheme: normalizeLocalString(row?.qaScheme),
+    rubricName: normalizeLocalString(row?.rubricName),
+    rubricPeriod: normalizeLocalString(row?.rubricPeriod),
+    completedTopics: Number(row?.completedTopics || 0),
+    totalTopics: Number(row?.totalTopics || 0),
+    strengths: toArray(row?.strengths),
+    improvements: toArray(row?.improvements),
+    topics: toTopics(row?.topics),
+    rawDataPreview: (row?.rawDataPreview || {}) as Record<string, string | number>,
+    evaluatorUsername: normalizeLocalString(row?.evaluatorUsername),
+    evaluatorName: normalizeLocalString(row?.evaluatorName || row?.rawDataPreview?.["Evaluator Name"]),
+    submittedAt,
+    createdAt: submittedAt,
+    updatedAt: submittedAt,
+  };
+}
+
+function readLocalEvaluationHistory() {
+  if (typeof window === "undefined") return [];
+  const rawHistory = window.localStorage.getItem(LOCAL_EVALUATION_HISTORY_KEY);
+  if (!rawHistory) return [];
+
+  try {
+    const parsed = JSON.parse(rawHistory);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(toLocalEvaluation).filter((item) => item.id && item.caseId && item.agentName);
+  } catch (error) {
+    console.warn("Load local evaluation history failed", error);
+    return [];
+  }
+}
+
+function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
+  const merged = new Map<string, StoredEvaluation>();
+  local.forEach((item) => {
+    merged.set(item.evaluationKey || item.id, item);
+  });
+  remote.forEach((item) => {
+    merged.set(item.evaluationKey || item.id, item);
+  });
+
+  return [...merged.values()].sort((a, b) => {
+    const left = new Date(a.submittedAt || a.updatedAt || a.createdAt || 0).getTime();
+    const right = new Date(b.submittedAt || b.updatedAt || b.createdAt || 0).getTime();
+    return right - left;
+  });
+}
+
 function fromEvaluation(record: StoredEvaluation) {
   const now = new Date().toISOString();
   return {
@@ -184,7 +275,9 @@ export async function deleteStoredEvaluation(id: string) {
 }
 
 export async function fetchStoredEvaluations(limit = 5000) {
-  if (!isEvaluationStoreConfigured()) return [];
+  const localEvaluations = readLocalEvaluationHistory();
+  if (!isEvaluationStoreConfigured()) return localEvaluations.slice(0, limit);
+
   const params = new URLSearchParams({
     select: "*",
     order: "submitted_at.desc",
@@ -196,7 +289,8 @@ export async function fetchStoredEvaluations(limit = 5000) {
   });
   if (!response.ok) {
     console.warn("Load stored evaluations failed", response.status);
-    return [];
+    return localEvaluations.slice(0, limit);
   }
-  return ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
+  const remoteEvaluations = ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
+  return mergeEvaluationSources(remoteEvaluations, localEvaluations).slice(0, limit);
 }
