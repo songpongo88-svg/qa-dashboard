@@ -7,6 +7,11 @@ const ROLE_DEFINITION_TABLE = String(env.VITE_ROLE_DEFINITION_TABLE || "qa_role_
 const ROLE_PERMISSION_TABLE = String(env.VITE_ROLE_PERMISSION_TABLE || "qa_role_permissions");
 const MAINTENANCE_TABLE = String(env.VITE_MAINTENANCE_TABLE || "qa_system_settings");
 
+const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
+const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
+const ROLE_PERMISSION_CACHE_KEY = "qa-dashboard:role-permissions-cache";
+const MAINTENANCE_CACHE_KEY = "qa-dashboard:maintenance-cache";
+
 export type StoredUserProfile = {
   username: string;
   displayName: string;
@@ -63,6 +68,47 @@ function headers(prefer?: string) {
 function normalizeRoleName(value: unknown) {
   const roleName = String(value || "").trim();
   return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
+}
+
+function readCache<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCache<T>(key: string, rows: T[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(rows));
+  } catch {
+    // Cache is only a safety net for reload/deploy timing.
+  }
+}
+
+function readSingleCache<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeSingleCache<T>(key: string, row: T | null) {
+  if (typeof window === "undefined" || !row) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(row));
+  } catch {
+    // Cache is only a safety net for reload/deploy timing.
+  }
 }
 
 async function requestJson<T>(table: string, query = ""): Promise<T> {
@@ -173,8 +219,16 @@ function toMaintenance(row: any): StoredMaintenanceState {
 }
 
 export async function fetchStoredUserProfiles() {
-  const rows = await requestJson<any[]>(USER_PROFILE_TABLE, "?select=*&order=username.asc");
-  return rows.map(toUserProfile).filter((row) => row.username);
+  try {
+    const rows = await requestJson<any[]>(USER_PROFILE_TABLE, "?select=*&order=username.asc");
+    const profiles = rows.map(toUserProfile).filter((row) => row.username);
+    writeCache(USER_PROFILE_CACHE_KEY, profiles);
+    return profiles;
+  } catch (error) {
+    const cached = readCache<StoredUserProfile>(USER_PROFILE_CACHE_KEY);
+    if (cached.length) return cached;
+    throw error;
+  }
 }
 
 export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
@@ -183,8 +237,16 @@ export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
 }
 
 export async function fetchStoredRoleDefinitions() {
-  const rows = await requestJson<any[]>(ROLE_DEFINITION_TABLE, "?select=*&order=name.asc");
-  return rows.map(toRoleDefinition).filter((row) => row.name);
+  try {
+    const rows = await requestJson<any[]>(ROLE_DEFINITION_TABLE, "?select=*&order=name.asc");
+    const roles = rows.map(toRoleDefinition).filter((row) => row.name);
+    writeCache(ROLE_DEFINITION_CACHE_KEY, roles);
+    return roles;
+  } catch (error) {
+    const cached = readCache<StoredRoleDefinition>(ROLE_DEFINITION_CACHE_KEY);
+    if (cached.length) return cached;
+    throw error;
+  }
 }
 
 export async function upsertStoredRoleDefinition(role: StoredRoleDefinition) {
@@ -196,8 +258,16 @@ export async function deleteStoredRoleDefinition(name: string) {
 }
 
 export async function fetchStoredRolePermissions() {
-  const rows = await requestJson<any[]>(ROLE_PERMISSION_TABLE, "?select=*&order=role_name.asc");
-  return rows.map(toRolePermission).filter((row) => row.roleName);
+  try {
+    const rows = await requestJson<any[]>(ROLE_PERMISSION_TABLE, "?select=*&order=role_name.asc");
+    const permissions = rows.map(toRolePermission).filter((row) => row.roleName);
+    writeCache(ROLE_PERMISSION_CACHE_KEY, permissions);
+    return permissions;
+  } catch (error) {
+    const cached = readCache<StoredRolePermission>(ROLE_PERMISSION_CACHE_KEY);
+    if (cached.length) return cached;
+    throw error;
+  }
 }
 
 export async function upsertStoredRolePermissions(rows: StoredRolePermission[]) {
@@ -206,8 +276,16 @@ export async function upsertStoredRolePermissions(rows: StoredRolePermission[]) 
 }
 
 export async function fetchStoredMaintenanceState() {
-  const rows = await requestJson<any[]>(MAINTENANCE_TABLE, "?select=*&id=eq.global&limit=1");
-  return rows[0] ? toMaintenance(rows[0]) : null;
+  try {
+    const rows = await requestJson<any[]>(MAINTENANCE_TABLE, "?select=*&id=eq.global&limit=1");
+    const state = rows[0] ? toMaintenance(rows[0]) : null;
+    writeSingleCache(MAINTENANCE_CACHE_KEY, state);
+    return state;
+  } catch (error) {
+    const cached = readSingleCache<StoredMaintenanceState>(MAINTENANCE_CACHE_KEY);
+    if (cached) return cached;
+    throw error;
+  }
 }
 
 export async function upsertStoredMaintenanceState(state: StoredMaintenanceState) {

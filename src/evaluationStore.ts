@@ -3,6 +3,7 @@ const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const EVALUATION_TABLE = String(env.VITE_QA_EVALUATION_TABLE || "qa_evaluations");
 const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history";
+const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache";
 
 export type StoredEvaluationTopic = {
   code: string;
@@ -193,6 +194,30 @@ function readLocalEvaluationHistory() {
   }
 }
 
+function readRemoteEvaluationCache() {
+  if (typeof window === "undefined") return [];
+  const rawCache = window.localStorage.getItem(REMOTE_EVALUATION_CACHE_KEY);
+  if (!rawCache) return [];
+
+  try {
+    const parsed = JSON.parse(rawCache);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(toLocalEvaluation).filter((item) => item.id && item.caseId && item.agentName);
+  } catch (error) {
+    console.warn("Load cached evaluation history failed", error);
+    return [];
+  }
+}
+
+function writeRemoteEvaluationCache(records: StoredEvaluation[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(REMOTE_EVALUATION_CACHE_KEY, JSON.stringify(records));
+  } catch (error) {
+    console.warn("Cache evaluation history skipped", error);
+  }
+}
+
 function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
   const merged = new Map<string, StoredEvaluation>();
   local.forEach((item) => {
@@ -276,7 +301,10 @@ export async function deleteStoredEvaluation(id: string) {
 
 export async function fetchStoredEvaluations(limit = 5000) {
   const localEvaluations = readLocalEvaluationHistory();
-  if (!isEvaluationStoreConfigured()) return localEvaluations.slice(0, limit);
+  const cachedEvaluations = readRemoteEvaluationCache();
+  if (!isEvaluationStoreConfigured()) {
+    return mergeEvaluationSources(cachedEvaluations, localEvaluations).slice(0, limit);
+  }
 
   const params = new URLSearchParams({
     select: "*",
@@ -289,8 +317,9 @@ export async function fetchStoredEvaluations(limit = 5000) {
   });
   if (!response.ok) {
     console.warn("Load stored evaluations failed", response.status);
-    return localEvaluations.slice(0, limit);
+    return mergeEvaluationSources(cachedEvaluations, localEvaluations).slice(0, limit);
   }
   const remoteEvaluations = ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
+  writeRemoteEvaluationCache(remoteEvaluations);
   return mergeEvaluationSources(remoteEvaluations, localEvaluations).slice(0, limit);
 }

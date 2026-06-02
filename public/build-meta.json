@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021704",
-  "buildNumber": 2606021704,
-  "releaseLabel": "v1.0.0.2606021704",
-  "updatedAt": "02/06/2026 17:04:14",
+  "displayVersion": "1.0.0.2606021745",
+  "buildNumber": 2606021745,
+  "releaseLabel": "v1.0.0.2606021745",
+  "updatedAt": "02/06/2026 17:45:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a268f752af730fb9eadf0255d9c36409acae3eef",
-  "commitMessage": "Paginate submitted evaluation report list",
+  "commitHash": "8970bacaba20d837f4b0de3b4c0ae58dcc01e93d",
+  "commitMessage": "Deploy evaluation history safeguards",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx"
+    ".gitignore",
+    "public/build-meta.json"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

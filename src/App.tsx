@@ -2538,6 +2538,7 @@ export default function App() {
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestIncomingChatRef = useRef("");
+  const loginAgentScopeSeededRef = useRef(false);
 
   const welcomeName = useMemo(() => {
     if (!currentUser) return "";
@@ -3585,13 +3586,21 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-    if (hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return;
 
     const scopedAgent = currentUser.agentName || currentUser.displayName || currentUser.username;
-    if (scopedAgent) {
+    if (hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) {
+      if (loginAgentScopeSeededRef.current) {
+        setSelectedAgentGlobal("");
+        loginAgentScopeSeededRef.current = false;
+      }
+      return;
+    }
+
+    loginAgentScopeSeededRef.current = false;
+    if (scopedAgent && selectedAgentGlobal !== scopedAgent) {
       setSelectedAgentGlobal(scopedAgent);
     }
-  }, [currentUser, rolePermissions]);
+  }, [currentUser, rolePermissions, selectedAgentGlobal]);
 
   const clearSessionTimers = () => {
     if (warningTimerRef.current) {
@@ -3704,6 +3713,7 @@ export default function App() {
     setLoginError("");
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
+    loginAgentScopeSeededRef.current = false;
     setSelectedAgentGlobal("");
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
@@ -3862,7 +3872,9 @@ export default function App() {
     setActiveTab("dashboard");
     setDashboardSubTab("overview");
     const matchedPermissions = rolePermissions[matchedUser.role] || getDefaultRolePermissions(matchedUser.role);
-    setSelectedAgentGlobal(matchedPermissions.viewAllAgents ? "" : matchedUser.agentName);
+    const initialAgentScope = matchedPermissions.viewAllAgents ? "" : matchedUser.agentName;
+    loginAgentScopeSeededRef.current = Boolean(initialAgentScope);
+    setSelectedAgentGlobal(initialAgentScope);
     setSelectedMonthGlobal("all");
     setSelectedWeekGlobal("all");
     void loadRoleOverrides();
