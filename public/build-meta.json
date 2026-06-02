@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021626",
-  "buildNumber": 2606021626,
-  "releaseLabel": "v1.0.0.2606021626",
-  "updatedAt": "02/06/2026 16:26:46",
+  "displayVersion": "1.0.0.2606021704",
+  "buildNumber": 2606021704,
+  "releaseLabel": "v1.0.0.2606021704",
+  "updatedAt": "02/06/2026 17:04:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "956d7cccfd81ceaf44d656883d85d333f25441c5",
-  "commitMessage": "Restore local QA evaluation history fallback",
+  "commitHash": "a268f752af730fb9eadf0255d9c36409acae3eef",
+  "commitMessage": "Paginate submitted evaluation report list",
   "changedFiles": [
     "public/build-meta.json",
-    "src/evaluationStore.ts"
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
