@@ -129,6 +129,7 @@ const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slat
 const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
+const REPORT_PAGE_SIZE = 12;
 const RAW_DATA_FILE_NAMES = [
   "QA_RawData1.xlsx",
   "QA_RawData11052026.xlsx",
@@ -627,6 +628,8 @@ export default function CreateEvaluationMockup({
   const [reportDateTo, setReportDateTo] = useState(todayInputValue());
   const [reportSearch, setReportSearch] = useState("");
   const [reportMessage, setReportMessage] = useState("");
+  const [submittedReportPage, setSubmittedReportPage] = useState(1);
+  const [rawReportPage, setRawReportPage] = useState(1);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "Service Standard": true,
     "Answer Quality": true,
@@ -708,6 +711,11 @@ export default function CreateEvaluationMockup({
       void loadSubmittedRecords();
     }
   }, [workspaceView]);
+
+  useEffect(() => {
+    setSubmittedReportPage(1);
+    setRawReportPage(1);
+  }, [reportDateFrom, reportDateTo, reportSearch]);
 
   const finalScore = useMemo(
     () => topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
@@ -1290,6 +1298,14 @@ export default function CreateEvaluationMockup({
 
   const visibleSubmittedReportRecords = filterRecordsByReportDate(submittedRecords).filter(matchesReportSearch);
   const visibleRawReportRecords = filterRawRecordsByReportDate(rawReportRecords).filter(matchesRawReportSearch);
+  const submittedTotalPages = Math.max(1, Math.ceil(visibleSubmittedReportRecords.length / REPORT_PAGE_SIZE));
+  const rawTotalPages = Math.max(1, Math.ceil(visibleRawReportRecords.length / REPORT_PAGE_SIZE));
+  const safeSubmittedReportPage = Math.min(submittedReportPage, submittedTotalPages);
+  const safeRawReportPage = Math.min(rawReportPage, rawTotalPages);
+  const submittedStartIndex = (safeSubmittedReportPage - 1) * REPORT_PAGE_SIZE;
+  const rawStartIndex = (safeRawReportPage - 1) * REPORT_PAGE_SIZE;
+  const pagedSubmittedReportRecords = visibleSubmittedReportRecords.slice(submittedStartIndex, submittedStartIndex + REPORT_PAGE_SIZE);
+  const pagedRawReportRecords = visibleRawReportRecords.slice(rawStartIndex, rawStartIndex + REPORT_PAGE_SIZE);
 
   return (
     <div className="min-h-screen bg-[#eef5f1] text-slate-950" style={{ fontFamily: "Aptos, 'Noto Sans Thai', 'Segoe UI', sans-serif" }}>
@@ -1525,7 +1541,33 @@ export default function CreateEvaluationMockup({
                       {visibleSubmittedReportRecords.length ? (
                         <div className="space-y-3">
                           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">QA Evaluation Form · Editable</div>
-                          {visibleSubmittedReportRecords.slice(0, 60).map((record) => (
+                          <div className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-xs font-bold text-slate-500">
+                              Showing {submittedStartIndex + 1}-{Math.min(submittedStartIndex + REPORT_PAGE_SIZE, visibleSubmittedReportRecords.length)} of {visibleSubmittedReportRecords.length} saved case(s)
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSubmittedReportPage((page) => Math.max(1, page - 1))}
+                                disabled={safeSubmittedReportPage <= 1}
+                                className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Previous
+                              </button>
+                              <span className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white">
+                                {safeSubmittedReportPage}/{submittedTotalPages}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSubmittedReportPage((page) => Math.min(submittedTotalPages, page + 1))}
+                                disabled={safeSubmittedReportPage >= submittedTotalPages}
+                                className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                          {pagedSubmittedReportRecords.map((record) => (
                             <div key={record.recordId} className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
                               <div>
                                 <div className="text-sm font-black text-slate-950">{record.caseId}</div>
@@ -1553,7 +1595,33 @@ export default function CreateEvaluationMockup({
                       {visibleRawReportRecords.length ? (
                         <div className="space-y-3">
                           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">GitHub RawData · Export only</div>
-                          {visibleRawReportRecords.slice(0, 80).map((record) => (
+                          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-xs font-bold text-slate-500">
+                              Showing {rawStartIndex + 1}-{Math.min(rawStartIndex + REPORT_PAGE_SIZE, visibleRawReportRecords.length)} of {visibleRawReportRecords.length} RawData row(s)
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setRawReportPage((page) => Math.max(1, page - 1))}
+                                disabled={safeRawReportPage <= 1}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Previous
+                              </button>
+                              <span className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white">
+                                {safeRawReportPage}/{rawTotalPages}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setRawReportPage((page) => Math.min(rawTotalPages, page + 1))}
+                                disabled={safeRawReportPage >= rawTotalPages}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          </div>
+                          {pagedRawReportRecords.map((record) => (
                             <div key={record.recordId} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
                               <div>
                                 <div className="text-sm font-black text-slate-950">{record.caseId}</div>
@@ -1573,11 +1641,6 @@ export default function CreateEvaluationMockup({
                         </div>
                       ) : null}
 
-                      {(visibleSubmittedReportRecords.length + visibleRawReportRecords.length) > 140 ? (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
-                          Showing first 140 matching records. Use search or date range to narrow results.
-                        </div>
-                      ) : null}
                     </div>
                   ) : (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
