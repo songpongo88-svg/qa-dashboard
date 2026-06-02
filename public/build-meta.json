@@ -1,19 +1,25 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021148",
-  "buildNumber": 2606021148,
-  "releaseLabel": "v1.0.0.2606021148",
-  "updatedAt": "02/06/2026 11:48:10",
+  "displayVersion": "1.0.0.2606021202",
+  "buildNumber": 2606021202,
+  "releaseLabel": "v1.0.0.2606021202",
+  "updatedAt": "02/06/2026 12:02:11",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "88b94d81c32fd3e59e4d05122b7a9b1f23b25be2",
-  "commitMessage": "Load appeal queue logs by event type",
+  "commitHash": "719f7ac4cb9d153a32ed986c261eb3d2d68db060",
+  "commitMessage": "Sync evaluation exports and role-scoped scoring",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx",
+    "src/AppealMockup.tsx",
     "src/AppealRequestsMockup.tsx",
-    "src/usageLog.ts"
+    "src/CoachingMockup.tsx",
+    "src/CreateEvaluationMockup.tsx",
+    "src/DashboardMockup.tsx",
+    "src/SummaryMockup.tsx",
+    "src/UserRoleAdminMockup.tsx",
+    "src/userRoleStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

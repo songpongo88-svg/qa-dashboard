@@ -393,6 +393,25 @@ function buildSafeTimestampForFileName() {
   return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
 }
 
+function downloadWorkbook(workbook: XLSX.WorkBook, fileName: string) {
+  const workbookBytes = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+  const blob = new Blob([workbookBytes], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 async function loadRawDataReportRecords(): Promise<RawReportRecord[]> {
   const responses = await Promise.all(
     RAW_DATA_FILE_NAMES.map(async (fileName) => ({
@@ -1265,7 +1284,7 @@ export default function CreateEvaluationMockup({
     const workbook = XLSX.utils.book_new();
     const worksheet = buildRawDataWorksheet(exportRows);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Raw_Data");
-    XLSX.writeFile(workbook, `QA_Evaluation_RowData_${reportDateFrom || "start"}_${reportDateTo || "end"}.xlsx`);
+    downloadWorkbook(workbook, `QA_Evaluation_RowData_${reportDateFrom || "start"}_${reportDateTo || "end"}.xlsx`);
     setReportMessage(`Exported ${filteredRaw.length} RawData row(s) and ${filteredSubmitted.length} submitted evaluation row(s).`);
   }
 
@@ -1304,7 +1323,7 @@ export default function CreateEvaluationMockup({
         },
       } as XLSX.WorkBook["Workbook"];
 
-      XLSX.writeFile(workbook, `QA_Score_Dashboard_byDao_V8_web_sync_${buildSafeTimestampForFileName()}.xlsx`);
+      downloadWorkbook(workbook, `QA_Score_Dashboard_byDao_V8_web_sync_${buildSafeTimestampForFileName()}.xlsx`);
       setReportMessage(
         `Exported V8 workbook with ${rawRecords.length} GitHub RawData row(s) and ${storedRecords.length} QA Evaluation row(s).`
       );
