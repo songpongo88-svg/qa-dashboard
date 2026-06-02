@@ -136,7 +136,6 @@ const RAW_DATA_FILE_NAMES = [
   "QA_RawData13052026.xlsx",
   "QA_RawData20052026.xlsx",
 ];
-const V8_WORKBOOK_TEMPLATE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
 
 type RawReportRecord = {
   recordId: string;
@@ -352,45 +351,6 @@ function buildRawDataWorksheet(rows: RawDataExportRow[]) {
     wch: Math.min(Math.max(header.length + 4, 14), 36),
   }));
   return worksheet;
-}
-
-function replaceWorkbookSheet(workbook: XLSX.WorkBook, sheetName: string, worksheet: XLSX.WorkSheet) {
-  workbook.Sheets[sheetName] = worksheet;
-  if (!workbook.SheetNames.includes(sheetName)) workbook.SheetNames.push(sheetName);
-}
-
-async function loadV8TemplateWorkbook() {
-  try {
-    const response = await fetch(`/${V8_WORKBOOK_TEMPLATE_NAME}`, { cache: "no-store" });
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
-    return XLSX.read(buffer, { type: "array", cellDates: true });
-  } catch {
-    return null;
-  }
-}
-
-function buildExportInfoWorksheet(rawCount: number, evaluationCount: number, totalRows: number) {
-  return XLSX.utils.aoa_to_sheet([
-    ["Export Type", "V8 Workbook Web Sync"],
-    ["Generated At", formatTimestamp(new Date())],
-    ["RawData Rows", rawCount],
-    ["QA Evaluation Rows", evaluationCount],
-    ["Total Effective Rows", totalRows],
-    ["Source", "GitHub RawData + QA Evaluation Form"],
-    ["Note", "Open this workbook in Excel to let dashboard formulas recalculate from Raw_Data / Effective_Data."],
-  ]);
-}
-
-function buildSafeTimestampForFileName() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mi = String(now.getMinutes()).padStart(2, "0");
-  const ss = String(now.getSeconds()).padStart(2, "0");
-  return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
 }
 
 function downloadWorkbook(workbook: XLSX.WorkBook, fileName: string) {
@@ -1288,50 +1248,6 @@ export default function CreateEvaluationMockup({
     setReportMessage(`Exported ${filteredRaw.length} RawData row(s) and ${filteredSubmitted.length} submitted evaluation row(s).`);
   }
 
-  async function exportV8Workbook() {
-    setReportMessage("Building V8 workbook from GitHub RawData and submitted QA evaluations...");
-    try {
-      const [stored, rawRecords] = await Promise.all([
-        fetchStoredEvaluations(),
-        loadRawDataReportRecords(),
-      ]);
-      const storedRecords: EvaluationRecord[] = stored.map(storedRecordToEvaluationRecord);
-      const exportRows = [
-        ...rawRecords.map((record) => record.rowData),
-        ...buildRowDataRows(storedRecords),
-      ];
-
-      if (!exportRows.length) {
-        setReportMessage("No RawData or submitted evaluations found for V8 workbook export.");
-        return;
-      }
-
-      const workbook = (await loadV8TemplateWorkbook()) || XLSX.utils.book_new();
-      const rawWorksheet = buildRawDataWorksheet(exportRows);
-      const effectiveWorksheet = buildRawDataWorksheet(exportRows);
-      const infoWorksheet = buildExportInfoWorksheet(rawRecords.length, storedRecords.length, exportRows.length);
-
-      replaceWorkbookSheet(workbook, "Raw_Data", rawWorksheet);
-      replaceWorkbookSheet(workbook, "Effective_Data", effectiveWorksheet);
-      replaceWorkbookSheet(workbook, "Export_Info", infoWorksheet);
-      workbook.Workbook = {
-        ...(workbook.Workbook || {}),
-        CalcPr: {
-          ...((workbook.Workbook as any)?.CalcPr || {}),
-          fullCalcOnLoad: "1",
-          forceFullCalc: "1",
-        },
-      } as XLSX.WorkBook["Workbook"];
-
-      downloadWorkbook(workbook, `QA_Score_Dashboard_byDao_V8_web_sync_${buildSafeTimestampForFileName()}.xlsx`);
-      setReportMessage(
-        `Exported V8 workbook with ${rawRecords.length} GitHub RawData row(s) and ${storedRecords.length} QA Evaluation row(s).`
-      );
-    } catch (error) {
-      setReportMessage(error instanceof Error ? error.message : "V8 workbook export failed.");
-    }
-  }
-
   function removeEvidenceFile(id: string) {
     setEvidenceFiles((current) => {
       const target = current.find((file) => file.id === id);
@@ -1538,7 +1454,7 @@ export default function CreateEvaluationMockup({
                     className={inputClass}
                   />
                 </label>
-                <div className="flex flex-col justify-end gap-2">
+                <div className="flex items-end">
                   <button
                     type="button"
                     onClick={exportEvaluationRowData}
@@ -1546,20 +1462,13 @@ export default function CreateEvaluationMockup({
                   >
                     Export RowData
                   </button>
-                  <button
-                    type="button"
-                    onClick={exportV8Workbook}
-                    className="w-full rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition hover:bg-slate-800"
-                  >
-                    Export V8 Workbook
-                  </button>
                 </div>
               </div>
               <div className="hidden">
                 Export จะรวม RawData เดิมจาก GitHub และเคสใหม่จาก QA Evaluation Form ตามช่วง Audit Date ที่เลือก ส่วนเคสจากฟอร์มสามารถค้นหาแล้วกด Edit เพื่อแก้ไขต่อได้
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
-                Export RowData uses the selected Audit Date range. Export V8 Workbook rebuilds the workbook from all GitHub RawData and submitted QA Evaluation cases, then updates Raw_Data and Effective_Data for Excel recalculation.
+                Export RowData uses the selected Audit Date range and includes GitHub RawData plus submitted QA Evaluation cases.
               </div>
               {reportMessage ? (
                 <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">

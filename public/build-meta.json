@@ -1,25 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606021202",
-  "buildNumber": 2606021202,
-  "releaseLabel": "v1.0.0.2606021202",
-  "updatedAt": "02/06/2026 12:02:11",
+  "displayVersion": "1.0.0.2606021212",
+  "buildNumber": 2606021212,
+  "releaseLabel": "v1.0.0.2606021212",
+  "updatedAt": "02/06/2026 12:12:43",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "719f7ac4cb9d153a32ed986c261eb3d2d68db060",
-  "commitMessage": "Sync evaluation exports and role-scoped scoring",
+  "commitHash": "fa56804b371accba68f67f9de55e3a7eb23505c6",
+  "commitMessage": "Make evaluation workbook exports download reliably",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/AppealMockup.tsx",
-    "src/AppealRequestsMockup.tsx",
-    "src/CoachingMockup.tsx",
-    "src/CreateEvaluationMockup.tsx",
-    "src/DashboardMockup.tsx",
-    "src/SummaryMockup.tsx",
-    "src/UserRoleAdminMockup.tsx",
-    "src/userRoleStore.ts"
+    "src/CreateEvaluationMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
