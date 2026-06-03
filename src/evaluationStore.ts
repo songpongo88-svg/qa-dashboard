@@ -161,59 +161,129 @@ function normalizeLocalString(value: unknown) {
   return String(value || "").trim();
 }
 
+function localField(row: any, camelKey: string, snakeKey?: string) {
+  return row?.[camelKey] ?? row?.[snakeKey || camelKey];
+}
+
+function localRawPreview(row: any) {
+  return (row?.rawDataPreview || row?.raw_data_preview || {}) as Record<string, string | number>;
+}
+
 function toLocalEvaluation(row: any): StoredEvaluation {
+  const rawDataPreview = localRawPreview(row);
+  const caseId = normalizeLocalString(localField(row, "caseId", "case_id"));
+  const agentName = normalizeLocalString(localField(row, "agentName", "agent_name") || localField(row, "targetDisplayName", "target_display_name"));
+  const auditDate = normalizeLocalString(localField(row, "auditDate", "audit_date"));
   const fallbackId = [
     "local-eval",
-    normalizeLocalString(row?.caseId || "UNTITLED"),
-    normalizeLocalString(row?.agentName || row?.targetDisplayName || "UNKNOWN"),
-    normalizeLocalString(row?.auditDate || "no-date"),
-    normalizeLocalString(row?.submittedAt || row?.evaluationSubmittedAt || row?.recordId || Date.now()),
+    caseId || "UNTITLED",
+    agentName || "UNKNOWN",
+    auditDate || "no-date",
+    normalizeLocalString(localField(row, "submittedAt", "submitted_at") || row?.evaluationSubmittedAt || row?.recordId || Date.now()),
   ].join("|").replace(/[^a-zA-Z0-9_-]/g, "_");
 
   const submittedAt = normalizeLocalString(
-    row?.submittedAt ||
+    localField(row, "submittedAt", "submitted_at") ||
       row?.evaluationSubmittedAt ||
-      row?.rawDataPreview?.["Evaluation Submitted At"] ||
-      row?.rawDataPreview?.["Draft Saved At"] ||
+      rawDataPreview?.["Evaluation Submitted At"] ||
+      rawDataPreview?.["Timestamp"] ||
       row?.savedAt ||
       ""
   );
 
   return {
     id: normalizeLocalString(row?.recordId || row?.id || fallbackId),
-    evaluationKey: normalizeLocalString(row?.evaluationKey || row?.recordId || row?.id || fallbackId),
-    caseId: normalizeLocalString(row?.caseId),
-    agentName: normalizeLocalString(row?.agentName || row?.targetDisplayName),
-    targetUsername: normalizeLocalString(row?.targetUsername),
-    targetDisplayName: normalizeLocalString(row?.targetDisplayName || row?.agentName),
-    targetEmail: normalizeLocalString(row?.targetEmail),
-    targetRole: normalizeLocalString(row?.targetRole),
-    auditDate: normalizeLocalString(row?.auditDate),
-    auditTimestamp: normalizeLocalString(row?.auditTimestamp || submittedAt),
-    waitingTime: normalizeLocalString(row?.waitingTime),
-    serviceTime: normalizeLocalString(row?.serviceTime),
-    caseUrl: normalizeLocalString(row?.caseUrl),
+    evaluationKey: normalizeLocalString(localField(row, "evaluationKey", "evaluation_key") || row?.recordId || row?.id || fallbackId),
+    caseId,
+    agentName,
+    targetUsername: normalizeLocalString(localField(row, "targetUsername", "target_username")),
+    targetDisplayName: normalizeLocalString(localField(row, "targetDisplayName", "target_display_name") || agentName),
+    targetEmail: normalizeLocalString(localField(row, "targetEmail", "target_email")),
+    targetRole: normalizeLocalString(localField(row, "targetRole", "target_role")),
+    auditDate,
+    auditTimestamp: normalizeLocalString(localField(row, "auditTimestamp", "audit_timestamp") || submittedAt),
+    waitingTime: normalizeLocalString(localField(row, "waitingTime", "waiting_time")),
+    serviceTime: normalizeLocalString(localField(row, "serviceTime", "service_time")),
+    caseUrl: normalizeLocalString(localField(row, "caseUrl", "case_url")),
     inquiry: normalizeLocalString(row?.inquiry),
-    caseDescription: normalizeLocalString(row?.caseDescription),
-    evidenceUrls: toArray(row?.evidenceUrls),
-    criticalError: row?.criticalError === true,
-    finalScore: Number(row?.finalScore || 0),
+    caseDescription: normalizeLocalString(localField(row, "caseDescription", "case_description")),
+    evidenceUrls: toArray(localField(row, "evidenceUrls", "evidence_urls")),
+    criticalError: localField(row, "criticalError", "critical_error") === true,
+    finalScore: Number(localField(row, "finalScore", "final_score") || rawDataPreview?.["Final Score"] || 0),
     grade: normalizeLocalString(row?.grade),
-    qaScheme: normalizeLocalString(row?.qaScheme),
-    rubricName: normalizeLocalString(row?.rubricName),
-    rubricPeriod: normalizeLocalString(row?.rubricPeriod),
-    completedTopics: Number(row?.completedTopics || 0),
-    totalTopics: Number(row?.totalTopics || 0),
+    qaScheme: normalizeLocalString(localField(row, "qaScheme", "qa_scheme")),
+    rubricName: normalizeLocalString(localField(row, "rubricName", "rubric_name")),
+    rubricPeriod: normalizeLocalString(localField(row, "rubricPeriod", "rubric_period")),
+    completedTopics: Number(localField(row, "completedTopics", "completed_topics") || 0),
+    totalTopics: Number(localField(row, "totalTopics", "total_topics") || 0),
     strengths: toArray(row?.strengths),
     improvements: toArray(row?.improvements),
     topics: toTopics(row?.topics),
-    rawDataPreview: (row?.rawDataPreview || {}) as Record<string, string | number>,
-    evaluatorUsername: normalizeLocalString(row?.evaluatorUsername),
-    evaluatorName: normalizeLocalString(row?.evaluatorName || row?.rawDataPreview?.["Evaluator Name"]),
+    rawDataPreview,
+    evaluatorUsername: normalizeLocalString(localField(row, "evaluatorUsername", "evaluator_username")),
+    evaluatorName: normalizeLocalString(localField(row, "evaluatorName", "evaluator_name") || rawDataPreview?.["Evaluator Name"]),
     submittedAt,
     createdAt: submittedAt,
     updatedAt: submittedAt,
   };
+}
+
+function looksLikeSubmittedEvaluation(row: any) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+  const rawDataPreview = localRawPreview(row);
+  const caseId = normalizeLocalString(localField(row, "caseId", "case_id"));
+  const agentName = normalizeLocalString(localField(row, "agentName", "agent_name") || localField(row, "targetDisplayName", "target_display_name"));
+  if (!caseId || !agentName) return false;
+
+  const status = normalizeLocalString(localField(row, "evaluationStatus", "evaluation_status") || rawDataPreview?.["Evaluation Status"]).toLowerCase();
+  if (status.includes("draft") || status.includes("not started")) return false;
+
+  const hasSubmittedAt = Boolean(
+    localField(row, "submittedAt", "submitted_at") ||
+      row?.evaluationSubmittedAt ||
+      rawDataPreview?.["Evaluation Submitted At"] ||
+      rawDataPreview?.["Timestamp"]
+  );
+  const hasScore = localField(row, "finalScore", "final_score") !== undefined || rawDataPreview?.["Final Score"] !== undefined;
+  const hasTopics = Array.isArray(row?.topics) && row.topics.length > 0;
+  return hasSubmittedAt && (hasScore || hasTopics);
+}
+
+function collectLocalEvaluations(value: unknown, records: StoredEvaluation[], depth = 0) {
+  if (depth > 5 || value === null || value === undefined) return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectLocalEvaluations(item, records, depth + 1));
+    return;
+  }
+  if (typeof value !== "object") return;
+
+  const row = value as Record<string, unknown>;
+  if (looksLikeSubmittedEvaluation(row)) {
+    const evaluation = toLocalEvaluation(row);
+    if (evaluation.id && evaluation.caseId && evaluation.agentName) records.push(evaluation);
+    return;
+  }
+
+  Object.values(row).forEach((item) => collectLocalEvaluations(item, records, depth + 1));
+}
+
+function readRecoveredLocalEvaluations() {
+  if (typeof window === "undefined") return [];
+  const records: StoredEvaluation[] = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key || key === DELETED_EVALUATION_IDS_KEY) continue;
+    const normalizedKey = key.toLowerCase();
+    if (!normalizedKey.includes("qa-dashboard") && !normalizedKey.includes("evaluation")) continue;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      collectLocalEvaluations(JSON.parse(raw), records);
+    } catch {
+      // Non-JSON keys are not evaluation stores.
+    }
+  }
+  return records;
 }
 
 function readLocalEvaluationHistory() {
@@ -440,7 +510,8 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
 export async function fetchStoredEvaluations(limit = 5000) {
   const localEvaluations = readLocalEvaluationHistory();
   const cachedEvaluations = readRemoteEvaluationCache();
-  const localSources = mergeEvaluationSources(cachedEvaluations, localEvaluations);
+  const recoveredLocalEvaluations = readRecoveredLocalEvaluations();
+  const localSources = mergeEvaluationSources([...cachedEvaluations, ...recoveredLocalEvaluations], localEvaluations);
   if (!isEvaluationStoreConfigured()) {
     return localSources.slice(0, limit);
   }
