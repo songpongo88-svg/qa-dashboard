@@ -332,7 +332,13 @@ function readDeletedEvaluationIds() {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return new Set<string>();
-    return new Set(parsed.map((item) => String(item || "").trim()).filter(Boolean));
+    const cleaned = parsed
+      .map((item) => String(item || "").trim())
+      .filter((item) => item && !item.toLowerCase().startsWith("case:"));
+    if (cleaned.length !== parsed.length) {
+      window.localStorage.setItem(DELETED_EVALUATION_IDS_KEY, JSON.stringify(cleaned));
+    }
+    return new Set(cleaned);
   } catch (error) {
     console.warn("Load deleted evaluation markers failed", error);
     return new Set<string>();
@@ -352,7 +358,6 @@ function evaluationIdentityValues(item: Pick<StoredEvaluation, "id" | "evaluatio
   return [
     item.id,
     item.evaluationKey,
-    item.caseId ? `case:${String(item.caseId).trim().toUpperCase()}` : "",
   ].map((value) => String(value || "").trim()).filter(Boolean);
 }
 
@@ -360,14 +365,12 @@ function isDeletedEvaluation(item: Pick<StoredEvaluation, "id" | "evaluationKey"
   return evaluationIdentityValues(item).some((value) => deletedIds.has(value));
 }
 
-function removeEvaluationFromStorage(id: string, caseId?: string) {
+function removeEvaluationFromStorage(id: string, _caseId?: string) {
   if (typeof window === "undefined") return;
   const normalizedId = String(id || "").trim();
   if (!normalizedId) return;
   rememberDeletedEvaluationId(normalizedId);
-  const normalizedCaseId = String(caseId || "").trim().toUpperCase();
-  if (normalizedCaseId) rememberDeletedEvaluationId(`case:${normalizedCaseId}`);
-  const deletedMarkers = [normalizedId, normalizedCaseId ? `case:${normalizedCaseId}` : ""].filter(Boolean);
+  const deletedMarkers = [normalizedId].filter(Boolean);
 
   const removeFromKey = (storageKey: string) => {
     const raw = window.localStorage.getItem(storageKey);
@@ -381,8 +384,6 @@ function removeEvaluationFromStorage(id: string, caseId?: string) {
           row?.recordId,
           row?.evaluationKey,
           row?.evaluation_key,
-          row?.caseId ? `case:${String(row.caseId).trim().toUpperCase()}` : "",
-          row?.case_id ? `case:${String(row.case_id).trim().toUpperCase()}` : "",
         ].map((value) => String(value || "").trim());
         return !deletedMarkers.some((marker) => candidateIds.includes(marker));
       });
