@@ -297,6 +297,7 @@ function removeEvaluationFromStorage(id: string, caseId?: string) {
   rememberDeletedEvaluationId(normalizedId);
   const normalizedCaseId = String(caseId || "").trim().toUpperCase();
   if (normalizedCaseId) rememberDeletedEvaluationId(`case:${normalizedCaseId}`);
+  const deletedMarkers = [normalizedId, normalizedCaseId ? `case:${normalizedCaseId}` : ""].filter(Boolean);
 
   const removeFromKey = (storageKey: string) => {
     const raw = window.localStorage.getItem(storageKey);
@@ -313,7 +314,7 @@ function removeEvaluationFromStorage(id: string, caseId?: string) {
           row?.caseId ? `case:${String(row.caseId).trim().toUpperCase()}` : "",
           row?.case_id ? `case:${String(row.case_id).trim().toUpperCase()}` : "",
         ].map((value) => String(value || "").trim());
-        return !candidateIds.includes(normalizedId);
+        return !deletedMarkers.some((marker) => candidateIds.includes(marker));
       });
       window.localStorage.setItem(storageKey, JSON.stringify(nextRows));
     } catch (error) {
@@ -413,7 +414,7 @@ export async function deleteStoredEvaluation(id: string, caseId?: string) {
   removeEvaluationFromStorage(normalizedId, caseId);
 }
 
-async function restoreLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[], localEvaluations: StoredEvaluation[]) {
+async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[], localEvaluations: StoredEvaluation[]) {
   if (!isEvaluationStoreConfigured()) return [];
   const deletedIds = readDeletedEvaluationIds();
   const remoteIdentities = new Set(remoteEvaluations.flatMap(evaluationIdentityValues));
@@ -429,7 +430,7 @@ async function restoreLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluati
       identities.forEach((identity) => remoteIdentities.add(identity));
       restored.push(restoredRecord);
     } catch (error) {
-      console.warn("Restore local evaluation to Supabase skipped", item.caseId, error);
+      console.warn("Sync local evaluation to Supabase skipped", item.caseId, error);
     }
   }
 
@@ -457,8 +458,8 @@ export async function fetchStoredEvaluations(limit = 5000) {
     return mergeEvaluationSources(cachedEvaluations, localEvaluations).slice(0, limit);
   }
   const remoteEvaluations = ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
-  const restoredLocalEvaluations = await restoreLocalEvaluationsToRemote(remoteEvaluations, localEvaluations);
-  const centralEvaluations = mergeEvaluationSources([...remoteEvaluations, ...restoredLocalEvaluations], []);
-  writeRemoteEvaluationCache(centralEvaluations);
-  return centralEvaluations.slice(0, limit);
+  const syncedLocalEvaluations = await syncLocalEvaluationsToRemote(remoteEvaluations, localEvaluations);
+  const availableEvaluations = mergeEvaluationSources([...remoteEvaluations, ...syncedLocalEvaluations], localEvaluations);
+  writeRemoteEvaluationCache(availableEvaluations);
+  return availableEvaluations.slice(0, limit);
 }
