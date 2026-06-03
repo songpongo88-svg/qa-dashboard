@@ -2699,6 +2699,15 @@ export default function App() {
     return `${window.location.origin}${window.location.pathname}?${nextParams.toString()}`;
   }
 
+  function replaceWorkspaceUrl(params: Record<string, string | undefined> = {}) {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.search = "";
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) nextUrl.searchParams.set(key, value);
+    });
+    window.history.replaceState({}, "", nextUrl.toString());
+  }
+
   async function copyShareLink(label: string, url: string) {
     try {
       if (navigator.clipboard?.writeText) {
@@ -2739,6 +2748,7 @@ export default function App() {
     if (value === "coaching" && !coachingAllowed) return;
     if (value === "dashboard" || value === "summary" || value === "coaching") {
       setActiveTab(value);
+      replaceWorkspaceUrl(value === "dashboard" ? {} : { tab: value });
     }
   };
 
@@ -2748,13 +2758,12 @@ export default function App() {
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "create-evaluation") {
-      const nextUrl = new URL(window.location.href);
-      nextUrl.searchParams.set("tab", "create-evaluation");
-      window.open(nextUrl.toString(), "_blank", "noopener,noreferrer");
+      window.open(buildWorkspaceUrl({ tab: "create-evaluation" }), "_blank", "noopener,noreferrer");
       return;
     }
     if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       setActiveTab(value);
+      replaceWorkspaceUrl({ tab: value });
     }
   };
 
@@ -2766,8 +2775,10 @@ export default function App() {
       setShowChangePasswordModal(true);
     } else if (value === "usage-log" && usageLogAllowed) {
       setActiveTab("usage-log");
+      replaceWorkspaceUrl({ tab: "usage-log" });
     } else if (value === "user-roles" && roleAdminAllowed) {
       setActiveTab("user-roles");
+      replaceWorkspaceUrl({ tab: "user-roles" });
     } else if (value === "reset-password" && passwordResetAdminAllowed) {
       resetPasswordModalState();
       setShowResetPasswordModal(true);

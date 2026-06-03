@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606032015",
-  "buildNumber": 2606032015,
-  "releaseLabel": "v1.0.0.2606032015",
-  "updatedAt": "03/06/2026 20:15:09",
+  "displayVersion": "1.0.0.2606032117",
+  "buildNumber": 2606032117,
+  "releaseLabel": "v1.0.0.2606032117",
+  "updatedAt": "03/06/2026 21:17:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "9bf07e4b72d06a8a4c6e4b43f9ea117556bfef9b",
-  "commitMessage": "Keep recreated evaluations visible after delete",
+  "commitHash": "37ed245912c95e6324074a8ff6a35bc5857d07f6",
+  "commitMessage": "Show zero-case agents in summary analytics",
   "changedFiles": [
     "public/build-meta.json",
-    "src/evaluationStore.ts"
+    "src/SummaryMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
