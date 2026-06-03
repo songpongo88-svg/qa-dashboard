@@ -396,6 +396,17 @@ function removeEvaluationFromStorage(id: string, caseId?: string) {
   removeFromKey(REMOTE_EVALUATION_CACHE_KEY);
 }
 
+function forgetDeletedEvaluationMarkers(record: Pick<StoredEvaluation, "id" | "evaluationKey" | "caseId">) {
+  if (typeof window === "undefined") return;
+  const deletedIds = readDeletedEvaluationIds();
+  let changed = false;
+  for (const marker of evaluationIdentityValues(record)) {
+    if (deletedIds.delete(marker)) changed = true;
+  }
+  if (!changed) return;
+  window.localStorage.setItem(DELETED_EVALUATION_IDS_KEY, JSON.stringify([...deletedIds]));
+}
+
 function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
   const merged = new Map<string, StoredEvaluation>();
   const deletedIds = readDeletedEvaluationIds();
@@ -464,6 +475,7 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
     const detail = await response.text().catch(() => "");
     throw new Error(`Supabase evaluation upsert failed: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
+  forgetDeletedEvaluationMarkers(record);
 }
 
 export async function deleteStoredEvaluation(id: string, caseId?: string) {
