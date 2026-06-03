@@ -685,6 +685,34 @@ function buildAgentRowsWithMaster(
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+function getLatestMonthKey(cases: CaseItem[]) {
+  const keys = [...new Set(cases.map((item) => item.monthKey).filter(Boolean))].sort();
+  return keys[keys.length - 1] || "unknown";
+}
+
+function shiftMonthKey(monthKey: string, monthOffset: number) {
+  const match = String(monthKey || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return monthKey;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1 + monthOffset, 1);
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
+}
+
+function buildRecentMonthKeys(baseMonthKey: string, count = 3) {
+  if (!String(baseMonthKey || "").match(/^\d{4}-\d{2}$/)) return [];
+  return Array.from({ length: count }, (_, index) => shiftMonthKey(baseMonthKey, index - (count - 1)));
+}
+
+function getMonthLabelForKey(monthKey: string, cases: CaseItem[]) {
+  const fromCase = cases.find((item) => item.monthKey === monthKey)?.monthLabel;
+  if (fromCase) return fromCase;
+  const match = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return monthKey || "-";
+  return new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function SongkranBackdrop() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -816,6 +844,79 @@ function SummaryTable({ rows, firstColLabel }: { rows: PeriodRow[]; firstColLabe
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function AgentMonthlyAnalyticsTable({
+  rows,
+  firstColLabel,
+}: {
+  rows: PeriodRow[];
+  firstColLabel: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/40">
+      <div className="grid gap-3 p-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-500">Visible Rows</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{rows.length}</div>
+        </div>
+        <div className="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-500">Total Cases</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{rows.reduce((sum, row) => sum + row.caseCount, 0)}</div>
+        </div>
+        <div className="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 shadow-sm">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-500">Zero Case Rows</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{rows.filter((row) => row.caseCount === 0).length}</div>
+        </div>
+      </div>
+      <div className="overflow-x-auto border-t border-violet-100 bg-white">
+        <table className="min-w-[920px] w-full text-sm">
+          <thead>
+            <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.16em] text-white">
+              <th className="px-4 py-3 text-left">{firstColLabel}</th>
+              <th className="px-4 py-3 text-center">Cases</th>
+              <th className="px-4 py-3 text-center">Average</th>
+              <th className="px-4 py-3 text-center">Grade</th>
+              <th className="px-4 py-3 text-left">Progress</th>
+              <th className="px-4 py-3 text-center">Incentive</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length ? (
+              rows.map((row) => {
+                const completion = Math.min(100, Math.round((row.caseCount / CASE_TARGET) * 100));
+                return (
+                  <tr key={`${firstColLabel}-${row.label}`} className={row.caseCount ? "bg-white" : "bg-rose-50/35"}>
+                    <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-950">{row.label}</td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.caseCount}</td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.avgScore.toFixed(2)}</td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-center">
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${getGradeTone(row.grade)}`}>{row.grade}</span>
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500" style={{ width: `${completion}%` }} />
+                        </div>
+                        <div className="w-14 text-right text-xs font-bold text-slate-500">{row.caseCount}/{CASE_TARGET}</div>
+                      </div>
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{formatCurrencyTHB(row.incentive)}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6} className="border-t border-slate-100 px-4 py-8 text-center text-sm text-slate-500">
+                  No monthly analytics data found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1386,6 +1487,61 @@ export default function SummaryMockup({
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
 
+  const analyticsMonthKey = useMemo(() => {
+    if (selectedMonth !== "all") return selectedMonth;
+    return getLatestMonthKey(filteredCases.length ? filteredCases : allCases);
+  }, [allCases, filteredCases, selectedMonth]);
+
+  const agentMonthlyAnalyticsRows = useMemo(() => {
+    if (!analyticsMonthKey || analyticsMonthKey === "unknown") return [];
+
+    if (effectiveSelectedAgent !== "all") {
+      return buildRecentMonthKeys(analyticsMonthKey, 3).map((monthKey) => {
+        const scopedCases = allCases.filter((item) => {
+          if (!isSameAgent(item.agent, effectiveSelectedAgent)) return false;
+          if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
+          return item.monthKey === monthKey;
+        });
+
+        if (!scopedCases.length) {
+          return {
+            label: getMonthLabelForKey(monthKey, allCases),
+            caseCount: 0,
+            avgScore: 0,
+            revisedCount: 0,
+            grade: scoreToGrade(0, monthKey),
+            incentive: 0,
+          };
+        }
+
+        const summary = summarizeCases(scopedCases);
+        return {
+          label: getMonthLabelForKey(monthKey, allCases),
+          caseCount: summary.caseCount,
+          avgScore: summary.avgScore,
+          revisedCount: summary.revisedCount,
+          grade: summary.grade,
+          incentive: summary.incentive,
+        };
+      });
+    }
+
+    const monthlyCases = allCases.filter((item) => {
+      if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
+      return item.monthKey === analyticsMonthKey;
+    });
+
+    return buildAgentRowsWithMaster(availableAgents, monthlyCases, analyticsMonthKey);
+  }, [allCases, analyticsMonthKey, availableAgents, effectiveSelectedAgent, roleScopedAgentList]);
+
+  const agentMonthlyAnalyticsTitle =
+    effectiveSelectedAgent === "all" ? "Agent Monthly Analytics" : `${effectiveSelectedAgent} Monthly Analytics`;
+  const agentMonthlyAnalyticsSubtitle =
+    effectiveSelectedAgent === "all"
+      ? `Agent coverage for ${getMonthLabelForKey(analyticsMonthKey, allCases)}. Agents with no cases remain visible as 0 cases / Grade F where the month policy applies.`
+      : `Last 3 months for ${effectiveSelectedAgent}. Months with no cases remain visible for tracking.`;
+  const agentMonthlyAnalyticsFirstCol = effectiveSelectedAgent === "all" ? "Agent" : "Month";
+
   const summaryRows = useMemo(() => {
     switch (viewMode) {
       case "weekly-dashboard":
@@ -1543,6 +1699,16 @@ export default function SummaryMockup({
             <Panel>
               <PanelHeader title="Summary Table" subtitle="Summary result based on current tab and filters" />
               <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} /></PanelBody>
+            </Panel>
+
+            <Panel>
+              <PanelHeader title={agentMonthlyAnalyticsTitle} subtitle={agentMonthlyAnalyticsSubtitle} />
+              <PanelBody>
+                <AgentMonthlyAnalyticsTable
+                  rows={agentMonthlyAnalyticsRows}
+                  firstColLabel={agentMonthlyAnalyticsFirstCol}
+                />
+              </PanelBody>
             </Panel>
 
             <Panel>
