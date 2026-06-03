@@ -218,6 +218,36 @@ function writeRemoteEvaluationCache(records: StoredEvaluation[]) {
   }
 }
 
+function removeEvaluationFromStorage(id: string) {
+  if (typeof window === "undefined") return;
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId) return;
+
+  const removeFromKey = (storageKey: string) => {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const nextRows = parsed.filter((row: any) => {
+        const candidateIds = [
+          row?.id,
+          row?.recordId,
+          row?.evaluationKey,
+          row?.evaluation_key,
+        ].map((value) => String(value || "").trim());
+        return !candidateIds.includes(normalizedId);
+      });
+      window.localStorage.setItem(storageKey, JSON.stringify(nextRows));
+    } catch (error) {
+      console.warn("Remove evaluation from local storage skipped", error);
+    }
+  };
+
+  removeFromKey(LOCAL_EVALUATION_HISTORY_KEY);
+  removeFromKey(REMOTE_EVALUATION_CACHE_KEY);
+}
+
 function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
   const merged = new Map<string, StoredEvaluation>();
   local.forEach((item) => {
@@ -286,9 +316,12 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
 }
 
 export async function deleteStoredEvaluation(id: string) {
-  if (!isEvaluationStoreConfigured()) throw new Error("Supabase is not configured.");
   const normalizedId = String(id || "").trim();
   if (!normalizedId) throw new Error("Evaluation id is required.");
+  if (!isEvaluationStoreConfigured()) {
+    removeEvaluationFromStorage(normalizedId);
+    return;
+  }
   const params = new URLSearchParams({
     id: `eq.${normalizedId}`,
   });
@@ -297,6 +330,7 @@ export async function deleteStoredEvaluation(id: string) {
     headers: headers("return=minimal"),
   });
   if (!response.ok) throw new Error(`Supabase evaluation delete failed: ${response.status}`);
+  removeEvaluationFromStorage(normalizedId);
 }
 
 export async function fetchStoredEvaluations(limit = 5000) {

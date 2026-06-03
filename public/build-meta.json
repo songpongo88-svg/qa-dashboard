@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606030959",
-  "buildNumber": 2606030959,
-  "releaseLabel": "v1.0.0.2606030959",
-  "updatedAt": "03/06/2026 09:59:39",
+  "displayVersion": "1.0.0.2606031016",
+  "buildNumber": 2606031016,
+  "releaseLabel": "v1.0.0.2606031016",
+  "updatedAt": "03/06/2026 10:16:36",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8f65230a499f1e520cd7902b9e080453e2fd051d",
-  "commitMessage": "Enhance pre-test history and retake flow",
+  "commitHash": "122dc0de524e53f89725aa111055ebab4b55e902",
+  "commitMessage": "Download pre-test result PDFs directly",
   "changedFiles": [
     "public/build-meta.json",
     "src/PreTestMockup.tsx"

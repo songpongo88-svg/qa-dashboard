@@ -1296,9 +1296,11 @@ export default function CreateEvaluationMockup({
     if (!ok) return;
     try {
       await deleteStoredEvaluation(record.recordId);
-      setSubmittedRecords((current) => current.filter((item) => item.recordId !== record.recordId));
-      setEvaluationHistory((current) => current.filter((item) => item.recordId !== record.recordId));
-      setReportMessage(`Deleted submitted evaluation ${record.caseId}. Refresh Dashboard/Summary to remove it from the score.`);
+      const matchesDeletedRecord = (item: EvaluationRecord) =>
+        item.recordId !== record.recordId && item.evaluationKey !== record.recordId;
+      setSubmittedRecords((current) => current.filter(matchesDeletedRecord));
+      persistHistory(evaluationHistory.filter(matchesDeletedRecord));
+      setReportMessage(`Deleted submitted evaluation ${record.caseId}. It has been removed from saved records and will no longer return after refresh.`);
       if (activeSubmittedRecordId === record.recordId) setActiveSubmittedRecordId("");
     } catch (error) {
       setReportMessage(error instanceof Error ? error.message : "Submitted evaluation could not be deleted.");
