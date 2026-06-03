@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606030118",
-  "buildNumber": 2606030118,
-  "releaseLabel": "v1.0.0.2606030118",
-  "updatedAt": "03/06/2026 01:18:00",
+  "displayVersion": "1.0.0.2606030842",
+  "buildNumber": 2606030842,
+  "releaseLabel": "v1.0.0.2606030842",
+  "updatedAt": "03/06/2026 08:42:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fb5c54e1e7c62ac9fababfc10d638a6176f75a1d",
-  "commitMessage": "Require agent selection before saving evaluations",
+  "commitHash": "18b3d3f69225c240d4df772c5adb5da4fe55dca3",
+  "commitMessage": "Build full pre-test management center",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx"
+    "src/App.tsx",
+    "src/PreTestMockup.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

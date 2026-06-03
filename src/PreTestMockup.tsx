@@ -74,112 +74,167 @@ const FORM_INPUT_CLASS = "h-[52px] w-full rounded-2xl border border-slate-200 bg
 const DEFAULT_QUESTIONS: PreTestQuestion[] = [
   {
     id: "q1",
-    prompt: 'ร้านค้าสอบถามว่า "ร้านบน Robinhood สามารถเข้าร่วมโครงการไทยช่วยไทย พลัส ได้หรือไม่"',
-    correctChoiceId: "C",
+    correctChoiceId: "B",
+    prompt: 'ร้านค้า Robinhood สอบถามว่าเคยเข้าร่วมคนละครึ่ง พลัส มาก่อน ต้องสมัครใหม่หรือไม่',
     choices: [
-      { id: "A", text: "ไม่สามารถเข้าร่วมได้" },
-      { id: "B", text: "สามารถเข้าร่วมได้เฉพาะหน้าร้าน" },
-      { id: "C", text: "สามารถเข้าร่วมได้ โดยสมัครตามเงื่อนไขโครงการ" },
-      { id: "D", text: "เฉพาะร้านค้าที่จด VAT เท่านั้น" },
+      { id: "A", text: "ต้องสมัครใหม่ทุกกรณี" },
+      { id: "B", text: 'หากพบปุ่ม "ไทยช่วยไทย พลัส (60/40)" ในแอปถุงเงิน สามารถกดเข้าร่วมได้เลย' },
+      { id: "C", text: "ต้องติดต่อ Robinhood ก่อน" },
+      { id: "D", text: "ต้องติดต่อธนาคารก่อน" },
     ],
   },
   {
     id: "q2",
-    prompt: 'ร้านค้า Robinhood สอบถามว่า "หากเป็นร้านใหม่ ต้องสมัครเข้าร่วมโครงการช่วงใด"',
-    correctChoiceId: "A",
+    correctChoiceId: "C",
+    prompt: 'ร้านค้า Robinhood แจ้งว่าไม่พบปุ่ม "ไทยช่วยไทย พลัส (60/40)" ในแอปถุงเงิน แอดมินควรแนะนำอย่างไร',
     choices: [
-      { id: "A", text: "25 พ.ค. 69 - 31 ก.ค. 69" },
-      { id: "B", text: "1 มิ.ย. 69 - 31 ก.ค. 69" },
-      { id: "C", text: "10 มิ.ย. 69 - 31 ก.ค. 69" },
-      { id: "D", text: "1 ก.ค. 69 - 31 ก.ค. 69" },
+      { id: "A", text: "รอระบบอัปเดต" },
+      { id: "B", text: "เปลี่ยนเบอร์โทรศัพท์" },
+      { id: "C", text: "สมัครเข้าร่วมโครงการใหม่" },
+      { id: "D", text: "ลบแอปและติดตั้งใหม่" },
     ],
   },
   {
     id: "q3",
-    prompt: "ร้านค้า Robinhood แจ้งว่าเคยเข้าร่วมคนละครึ่ง พลัส และพบแบนเนอร์ในแอปถุงเงิน แอดมินควรแนะนำอย่างไร",
     correctChoiceId: "B",
+    prompt: "ร้านค้าใหม่ที่ต้องการเข้าร่วมโครงการ สามารถสมัครได้ถึงวันใด",
     choices: [
-      { id: "A", text: "สมัครใหม่ทุกกรณี" },
-      { id: "B", text: "กดรับสิทธิ์ผ่านแบนเนอร์ได้เลย" },
-      { id: "C", text: "ติดต่อ Robinhood ก่อน" },
-      { id: "D", text: "รอ SMS ยืนยัน" },
+      { id: "A", text: "30 มิ.ย. 69" },
+      { id: "B", text: "31 ก.ค. 69" },
+      { id: "C", text: "31 ส.ค. 69" },
+      { id: "D", text: "30 ก.ย. 69" },
     ],
   },
   {
     id: "q4",
-    prompt: 'ร้านค้า Robinhood สอบถามว่า "ลูกค้าจะใช้สิทธิ์ผ่านแอปอะไร"',
     correctChoiceId: "C",
+    prompt: "ร้านค้าฟู้ดเดลิเวอรีแพลตฟอร์ม สามารถสมัครเข้าร่วมโครงการได้ตั้งแต่วันใด",
     choices: [
-      { id: "A", text: "ถุงเงิน" },
-      { id: "B", text: "Robinhood" },
-      { id: "C", text: "เป๋าตัง" },
-      { id: "D", text: "Krungthai NEXT" },
+      { id: "A", text: "25 พ.ค. 69" },
+      { id: "B", text: "1 มิ.ย. 69" },
+      { id: "C", text: "10 มิ.ย. 69" },
+      { id: "D", text: "15 มิ.ย. 69" },
     ],
   },
   {
     id: "q5",
-    prompt: 'ร้านค้า Robinhood สอบถามว่า "ร้านค้าต้องใช้แอปอะไรในการรับชำระเงิน"',
-    correctChoiceId: "D",
+    correctChoiceId: "C",
+    prompt: "ลูกค้าต้องการใช้สิทธิ์ไทยช่วยไทย พลัส ผ่าน Robinhood Food สิทธิ์จะเริ่มใช้งานได้ตั้งแต่วันใด",
     choices: [
-      { id: "A", text: "Robinhood Rider" },
-      { id: "B", text: "Robinhood Merchant" },
-      { id: "C", text: "เป๋าตัง" },
-      { id: "D", text: "ถุงเงิน" },
+      { id: "A", text: "1 มิ.ย. 69" },
+      { id: "B", text: "10 มิ.ย. 69" },
+      { id: "C", text: "15 มิ.ย. 69" },
+      { id: "D", text: "30 ก.ย. 69" },
     ],
   },
   {
     id: "q6",
-    prompt: "ลูกค้าสั่งอาหารผ่าน Robinhood เวลา 22.00 น. และต้องการใช้สิทธิ์ไทยช่วยไทย พลัส แอดมินควรตอบอย่างไร",
     correctChoiceId: "B",
+    prompt: "ลูกค้าต้องการใช้สิทธิ์ผ่าน Robinhood Food เวลา 22.00 น. สามารถใช้สิทธิ์ได้หรือไม่",
     choices: [
-      { id: "A", text: "สามารถใช้สิทธิ์ได้" },
-      { id: "B", text: "ไม่สามารถใช้สิทธิ์ได้ เนื่องจากสิทธิ์ Food Delivery ใช้ได้ถึง 21.00 น." },
-      { id: "C", text: "ใช้ได้เฉพาะวันหยุด" },
-      { id: "D", text: "ใช้ได้เฉพาะหน้าร้าน" },
+      { id: "A", text: "ได้" },
+      { id: "B", text: "ไม่ได้ เพราะสิทธิ์ Food Delivery ใช้ได้ถึง 21.00 น." },
+      { id: "C", text: "ได้เฉพาะวันหยุด" },
+      { id: "D", text: "ได้เฉพาะร้านอาหารบางประเภท" },
     ],
   },
   {
     id: "q7",
-    prompt: 'ร้านค้า Robinhood สอบถามว่า "สิทธิ์สแกนหน้าร้านใช้ได้ถึงกี่โมง"',
-    correctChoiceId: "C",
+    correctChoiceId: "B",
+    prompt: "ร้านค้า Robinhood ต้องการเข้าร่วมโครงการไทยช่วยไทย พลัส ผ่าน Food Delivery ขั้นตอนแรกที่ต้องทำบนหน้า Robinhood Shop คืออะไร",
     choices: [
-      { id: "A", text: "21.00 น." },
-      { id: "B", text: "22.00 น." },
-      { id: "C", text: "23.00 น." },
-      { id: "D", text: "24.00 น." },
+      { id: "A", text: "เปิดแอปถุงเงิน" },
+      { id: "B", text: "กดเข้าร่วมร้านค้าไทยช่วยไทยพลัสบนหน้า App Robinhood" },
+      { id: "C", text: "กรอก OTP" },
+      { id: "D", text: "เลือกแพลตฟอร์ม Robinhood" },
     ],
   },
   {
     id: "q8",
-    prompt: "ร้านค้า Robinhood ต้องการเข้าร่วมโครงการ จำเป็นต้องมีบัญชีกับธนาคารใด",
     correctChoiceId: "C",
+    prompt: "หลังจากกดเข้าร่วมร้านค้าไทยช่วยไทยพลัสบนหน้า Robinhood Shop แล้ว ขั้นตอนถัดไปคืออะไร",
     choices: [
-      { id: "A", text: "กรุงเทพ" },
-      { id: "B", text: "กสิกรไทย" },
-      { id: "C", text: "กรุงไทย" },
-      { id: "D", text: "ออมสิน" },
+      { id: "A", text: "กรอก OTP" },
+      { id: "B", text: "เปิดแอปเป๋าตัง" },
+      { id: "C", text: "คัดลอก Ref Code" },
+      { id: "D", text: "รอ SMS" },
     ],
   },
   {
     id: "q9",
-    prompt: 'ร้านค้า Robinhood สอบถามว่า "ร้านเดิมต้องสมัครใหม่ทุกครั้งหรือไม่"',
-    correctChoiceId: "B",
+    correctChoiceId: "C",
+    prompt: "ร้านค้า Robinhood ได้รับ Ref Code แล้ว ต้องนำ Ref Code ไปดำเนินการต่อที่ใด",
     choices: [
-      { id: "A", text: "ใช่ ต้องสมัครใหม่ทุกครั้ง" },
-      { id: "B", text: "ไม่จำเป็น หากพบแบนเนอร์ในแอปถุงเงินสามารถกดรับสิทธิ์ได้" },
-      { id: "C", text: "ต้องติดต่อ Robinhood ก่อนทุกครั้ง" },
-      { id: "D", text: "ต้องเปิดบัญชีใหม่ก่อน" },
+      { id: "A", text: "Robinhood Rider" },
+      { id: "B", text: "เป๋าตัง" },
+      { id: "C", text: "ถุงเงิน" },
+      { id: "D", text: "Krungthai NEXT" },
     ],
   },
   {
     id: "q10",
-    prompt: "ข้อใดเป็นประโยชน์ที่ร้านค้า Robinhood จะได้รับจากโครงการ",
-    correctChoiceId: "A",
+    correctChoiceId: "B",
+    prompt: "เมื่อเข้าสู่แอปถุงเงินแล้ว ร้านค้า Robinhood ต้องเลือกเมนูใดเพื่อดำเนินการสมัคร",
     choices: [
-      { id: "A", text: "เพิ่มช่องทางการขายผ่าน Food Delivery" },
-      { id: "B", text: "ลดค่าคอมมิชชัน Robinhood เป็น 0%" },
-      { id: "C", text: "ได้รับเงินสนับสนุนค่าขนส่ง" },
-      { id: "D", text: "ได้รับเงินกู้ดอกเบี้ย 0%" },
+      { id: "A", text: "ประวัติรายการ" },
+      { id: "B", text: "ฟู้ดเดลิเวอรีแพลตฟอร์ม" },
+      { id: "C", text: "ตั้งค่า" },
+      { id: "D", text: "โปรโมชัน" },
+    ],
+  },
+  {
+    id: "q11",
+    correctChoiceId: "D",
+    prompt: "ร้านค้า Robinhood ต้องเลือกแพลตฟอร์มใดในแอปถุงเงินเพื่อเชื่อมต่อการสมัคร",
+    choices: [
+      { id: "A", text: "Grab" },
+      { id: "B", text: "LINE MAN" },
+      { id: "C", text: "foodpanda" },
+      { id: "D", text: "Robinhood" },
+    ],
+  },
+  {
+    id: "q12",
+    correctChoiceId: "C",
+    prompt: "ข้อใดเป็นเงื่อนไขสำคัญในการเลือกฟู้ดเดลิเวอรีแพลตฟอร์มเข้าร่วมโครงการ",
+    choices: [
+      { id: "A", text: "เลือกได้หลายแพลตฟอร์มพร้อมกัน" },
+      { id: "B", text: "เลือกได้เฉพาะแพลตฟอร์มที่มี GP ต่ำสุด" },
+      { id: "C", text: "เลือกได้เพียง 1 ฟู้ดเดลิเวอรีแพลตฟอร์มตลอดโครงการ" },
+      { id: "D", text: "เลือกเปลี่ยนได้ทุก 7 วัน" },
+    ],
+  },
+  {
+    id: "q13",
+    correctChoiceId: "C",
+    prompt: "จากภาพประชาสัมพันธ์ Robinhood Shop ร้านค้าที่เข้าร่วมโครงการจะได้รับ GP เท่าใด",
+    choices: [
+      { id: "A", text: "8.5%" },
+      { id: "B", text: "9.5%" },
+      { id: "C", text: "10.5%" },
+      { id: "D", text: "12.5%" },
+    ],
+  },
+  {
+    id: "q14",
+    correctChoiceId: "B",
+    prompt: "หลังจากกรอก Ref Code เรียบร้อยแล้ว ระบบจะส่งรหัสใดเพื่อยืนยันการสมัคร",
+    choices: [
+      { id: "A", text: "GP Code" },
+      { id: "B", text: "OTP" },
+      { id: "C", text: "PIN" },
+      { id: "D", text: "Verification Code" },
+    ],
+  },
+  {
+    id: "q15",
+    correctChoiceId: "C",
+    prompt: "ร้านค้า Robinhood จะทราบได้อย่างไรว่าการสมัครเข้าร่วมโครงการสำเร็จ",
+    choices: [
+      { id: "A", text: "Robinhood โทรแจ้ง" },
+      { id: "B", text: "ได้รับ Email" },
+      { id: "C", text: "หน้าจอแสดงได้รับคำขอสมัครเข้าร่วมโครงการไทยช่วยไทยพลัส" },
+      { id: "D", text: "ได้รับ SMS จากธนาคาร" },
     ],
   },
 ];
@@ -189,11 +244,11 @@ const DEFAULT_SET: PreTestSet = {
   code: "PRE-THAI-HELP-PLUS-2026",
   title: "Scenario Based Pre-Test: ไทยช่วยไทย พลัส 60/40",
   description: "แบบทดสอบสถานการณ์สำหรับทีม Robinhood QA และ Admin Live Chat",
-  passScore: 6,
+  passScore: 11,
   timeLimitSeconds: 90,
   active: true,
   questions: DEFAULT_QUESTIONS,
-  updatedAt: "2026-06-03T00:00:00+07:00",
+  updatedAt: "2026-06-03T02:30:00+07:00",
   updatedBy: "System",
 };
 
@@ -342,13 +397,23 @@ function normalizeResult(raw: unknown): PreTestResult | null {
 
 function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
   const map = new Map<string, PreTestSet>();
-  map.set(DEFAULT_SET.id, DEFAULT_SET);
-  localSets.forEach((set) => map.set(set.id, set));
+  const setLatest = (set: PreTestSet) => {
+    if (set.id === DEFAULT_SET.id && set.questions.length < DEFAULT_SET.questions.length) {
+      return;
+    }
+    const current = map.get(set.id);
+    if (!current || new Date(set.updatedAt).getTime() >= new Date(current.updatedAt).getTime()) {
+      map.set(set.id, set);
+    }
+  };
+
+  setLatest(DEFAULT_SET);
+  localSets.forEach(setLatest);
 
   [...logs].reverse().forEach((log) => {
     if (log.event_type === "pretest_set_saved") {
       const set = normalizeSet(log.details?.set);
-      if (set) map.set(set.id, set);
+      if (set) setLatest(set);
     }
     if (log.event_type === "pretest_set_deleted") {
       const setId = String(log.details?.setId || "");
@@ -908,9 +973,10 @@ export default function PreTestMockup({
               <button
                 type="button"
                 onClick={startCreateSet}
-                className="w-full rounded-3xl bg-slate-950 px-5 py-4 text-left text-sm font-black text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-emerald-800"
+                className="w-full rounded-3xl bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-950 px-5 py-5 text-left text-sm font-black text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:scale-[1.01] hover:shadow-[0_22px_54px_rgba(15,118,110,0.24)]"
               >
-                Create New Question Set
+                <span className="block text-[10px] uppercase tracking-[0.24em] text-emerald-100">Question Bank</span>
+                <span className="mt-1 block text-lg">Add New Question Set</span>
               </button>
               {sets.map((set) => (
                 <div key={set.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
