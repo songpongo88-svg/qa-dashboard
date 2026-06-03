@@ -4,6 +4,7 @@ const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const EVALUATION_TABLE = String(env.VITE_QA_EVALUATION_TABLE || "qa_evaluations");
 const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history";
 const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache";
+const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids";
 
 export type StoredEvaluationTopic = {
   code: string;
@@ -69,6 +70,42 @@ function headers(prefer?: string) {
 
 function toArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((item) => String(item || "")).filter(Boolean) : [];
+}
+
+function compactStoredText(value: unknown, maxLength = 32000) {
+  const text = String(value ?? "");
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 28)}... [trimmed for central sync]`;
+}
+
+function compactStoredUrl(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (text.startsWith("data:")) return "[Local attachment preview only - reattach if needed]";
+  return compactStoredText(text, 32000);
+}
+
+function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
+  return {
+    ...record,
+    caseUrl: compactStoredUrl(record.caseUrl),
+    inquiry: compactStoredText(record.inquiry),
+    caseDescription: compactStoredText(record.caseDescription),
+    evidenceUrls: (record.evidenceUrls || []).map(compactStoredUrl).filter(Boolean),
+    strengths: (record.strengths || []).map((item) => compactStoredText(item, 2000)),
+    improvements: (record.improvements || []).map((item) => compactStoredText(item, 2000)),
+    topics: (record.topics || []).map((topic) => ({
+      ...topic,
+      title: compactStoredText(topic.title, 2000),
+      comment: compactStoredText(topic.comment),
+    })),
+    rawDataPreview: Object.fromEntries(
+      Object.entries(record.rawDataPreview || {}).map(([key, value]) => [
+        key,
+        typeof value === "number" ? value : compactStoredText(value),
+      ])
+    ),
+  };
 }
 
 function toTopics(value: unknown): StoredEvaluationTopic[] {
@@ -218,10 +255,48 @@ function writeRemoteEvaluationCache(records: StoredEvaluation[]) {
   }
 }
 
-function removeEvaluationFromStorage(id: string) {
+function readDeletedEvaluationIds() {
+  if (typeof window === "undefined") return new Set<string>();
+  const raw = window.localStorage.getItem(DELETED_EVALUATION_IDS_KEY);
+  if (!raw) return new Set<string>();
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set<string>();
+    return new Set(parsed.map((item) => String(item || "").trim()).filter(Boolean));
+  } catch (error) {
+    console.warn("Load deleted evaluation markers failed", error);
+    return new Set<string>();
+  }
+}
+
+function rememberDeletedEvaluationId(id: string) {
   if (typeof window === "undefined") return;
   const normalizedId = String(id || "").trim();
   if (!normalizedId) return;
+  const deletedIds = readDeletedEvaluationIds();
+  deletedIds.add(normalizedId);
+  window.localStorage.setItem(DELETED_EVALUATION_IDS_KEY, JSON.stringify([...deletedIds]));
+}
+
+function evaluationIdentityValues(item: Pick<StoredEvaluation, "id" | "evaluationKey" | "caseId">) {
+  return [
+    item.id,
+    item.evaluationKey,
+    item.caseId ? `case:${String(item.caseId).trim().toUpperCase()}` : "",
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+}
+
+function isDeletedEvaluation(item: Pick<StoredEvaluation, "id" | "evaluationKey" | "caseId">, deletedIds = readDeletedEvaluationIds()) {
+  return evaluationIdentityValues(item).some((value) => deletedIds.has(value));
+}
+
+function removeEvaluationFromStorage(id: string, caseId?: string) {
+  if (typeof window === "undefined") return;
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId) return;
+  rememberDeletedEvaluationId(normalizedId);
+  const normalizedCaseId = String(caseId || "").trim().toUpperCase();
+  if (normalizedCaseId) rememberDeletedEvaluationId(`case:${normalizedCaseId}`);
 
   const removeFromKey = (storageKey: string) => {
     const raw = window.localStorage.getItem(storageKey);
@@ -235,6 +310,8 @@ function removeEvaluationFromStorage(id: string) {
           row?.recordId,
           row?.evaluationKey,
           row?.evaluation_key,
+          row?.caseId ? `case:${String(row.caseId).trim().toUpperCase()}` : "",
+          row?.case_id ? `case:${String(row.case_id).trim().toUpperCase()}` : "",
         ].map((value) => String(value || "").trim());
         return !candidateIds.includes(normalizedId);
       });
@@ -250,10 +327,13 @@ function removeEvaluationFromStorage(id: string) {
 
 function mergeEvaluationSources(remote: StoredEvaluation[], local: StoredEvaluation[]) {
   const merged = new Map<string, StoredEvaluation>();
+  const deletedIds = readDeletedEvaluationIds();
   local.forEach((item) => {
+    if (isDeletedEvaluation(item, deletedIds)) return;
     merged.set(item.evaluationKey || item.id, item);
   });
   remote.forEach((item) => {
+    if (isDeletedEvaluation(item, deletedIds)) return;
     merged.set(item.evaluationKey || item.id, item);
   });
 
@@ -307,7 +387,7 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
   const response = await fetch(endpoint("?on_conflict=id"), {
     method: "POST",
     headers: headers("resolution=merge-duplicates,return=minimal"),
-    body: JSON.stringify([fromEvaluation(record)]),
+    body: JSON.stringify([fromEvaluation(compactStoredRecord(record))]),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -315,11 +395,11 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
   }
 }
 
-export async function deleteStoredEvaluation(id: string) {
+export async function deleteStoredEvaluation(id: string, caseId?: string) {
   const normalizedId = String(id || "").trim();
   if (!normalizedId) throw new Error("Evaluation id is required.");
   if (!isEvaluationStoreConfigured()) {
-    removeEvaluationFromStorage(normalizedId);
+    removeEvaluationFromStorage(normalizedId, caseId);
     return;
   }
   const params = new URLSearchParams({
@@ -330,7 +410,30 @@ export async function deleteStoredEvaluation(id: string) {
     headers: headers("return=minimal"),
   });
   if (!response.ok) throw new Error(`Supabase evaluation delete failed: ${response.status}`);
-  removeEvaluationFromStorage(normalizedId);
+  removeEvaluationFromStorage(normalizedId, caseId);
+}
+
+async function restoreLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[], localEvaluations: StoredEvaluation[]) {
+  if (!isEvaluationStoreConfigured()) return [];
+  const deletedIds = readDeletedEvaluationIds();
+  const remoteIdentities = new Set(remoteEvaluations.flatMap(evaluationIdentityValues));
+  const restored: StoredEvaluation[] = [];
+
+  for (const item of localEvaluations) {
+    if (isDeletedEvaluation(item, deletedIds)) continue;
+    const identities = evaluationIdentityValues(item);
+    if (identities.some((identity) => remoteIdentities.has(identity))) continue;
+    try {
+      const restoredRecord = compactStoredRecord(item);
+      await upsertStoredEvaluation(restoredRecord);
+      identities.forEach((identity) => remoteIdentities.add(identity));
+      restored.push(restoredRecord);
+    } catch (error) {
+      console.warn("Restore local evaluation to Supabase skipped", item.caseId, error);
+    }
+  }
+
+  return restored;
 }
 
 export async function fetchStoredEvaluations(limit = 5000) {
@@ -354,6 +457,8 @@ export async function fetchStoredEvaluations(limit = 5000) {
     return mergeEvaluationSources(cachedEvaluations, localEvaluations).slice(0, limit);
   }
   const remoteEvaluations = ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
-  writeRemoteEvaluationCache(remoteEvaluations);
-  return mergeEvaluationSources(remoteEvaluations, localEvaluations).slice(0, limit);
+  const restoredLocalEvaluations = await restoreLocalEvaluationsToRemote(remoteEvaluations, localEvaluations);
+  const centralEvaluations = mergeEvaluationSources([...remoteEvaluations, ...restoredLocalEvaluations], []);
+  writeRemoteEvaluationCache(centralEvaluations);
+  return centralEvaluations.slice(0, limit);
 }

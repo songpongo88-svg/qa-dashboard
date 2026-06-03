@@ -1295,7 +1295,7 @@ export default function CreateEvaluationMockup({
     const ok = window.confirm(`Delete submitted evaluation ${record.caseId}? This removes it from Dashboard/Summary after refresh.`);
     if (!ok) return;
     try {
-      await deleteStoredEvaluation(record.recordId);
+      await deleteStoredEvaluation(record.recordId, record.caseId);
       const matchesDeletedRecord = (item: EvaluationRecord) =>
         item.recordId !== record.recordId && item.evaluationKey !== record.recordId;
       setSubmittedRecords((current) => current.filter(matchesDeletedRecord));
