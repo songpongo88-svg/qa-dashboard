@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606030932",
-  "buildNumber": 2606030932,
-  "releaseLabel": "v1.0.0.2606030932",
-  "updatedAt": "03/06/2026 09:32:00",
+  "displayVersion": "1.0.0.2606030959",
+  "buildNumber": 2606030959,
+  "releaseLabel": "v1.0.0.2606030959",
+  "updatedAt": "03/06/2026 09:59:39",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "bd6ae755c991e8d79bf04ba15aa7c9190f42f291",
-  "commitMessage": "Update Thai help plus pre-test questions",
+  "commitHash": "8f65230a499f1e520cd7902b9e080453e2fd051d",
+  "commitMessage": "Enhance pre-test history and retake flow",
   "changedFiles": [
     "public/build-meta.json",
     "src/PreTestMockup.tsx"

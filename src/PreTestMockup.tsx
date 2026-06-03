@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
 
 type CurrentUserLike = {
@@ -358,15 +360,6 @@ function formatDateTime(value: string | Date) {
   const min = String(date.getMinutes()).padStart(2, "0");
   const ss = String(date.getSeconds()).padStart(2, "0");
   return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
-}
-
-function escapeHtml(value: string | number | undefined | null) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 function getChoiceText(question: PreTestQuestion, choiceId?: string) {
@@ -972,128 +965,201 @@ export default function PreTestMockup({
     XLSX.writeFile(workbook, `pretest_history_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  function generateResultsPdf() {
+  async function generateResultsPdf() {
     if (!historyRows.length) {
       showToast("No results selected for PDF.");
       return;
     }
-    const rowsHtml = historyRows.map((result, resultIndex) => {
-      const set = sets.find((item) => item.id === result.setId);
-      const questions = result.questions || set?.questions || [];
-      const questionRows = questions.map((question, questionIndex) => {
-        const selectedChoiceId = result.answers?.[question.id] || "";
-        const selectedText = getChoiceText(question, selectedChoiceId);
-        const correctText = getChoiceText(question, question.correctChoiceId);
-        const isCorrect = selectedChoiceId === question.correctChoiceId;
-        return `
-          <tr>
-            <td>${questionIndex + 1}</td>
-            <td>${escapeHtml(question.prompt)}</td>
-            <td class="${isCorrect ? "ok" : "bad"}">${escapeHtml(selectedText)}</td>
-            <td>${escapeHtml(correctText)}</td>
-            <td class="${isCorrect ? "ok" : "bad"}">${isCorrect ? "Correct" : "Incorrect"}</td>
-          </tr>
-        `;
-      }).join("");
 
-      return `
-        <section class="result-card">
-          <div class="result-head">
-            <div>
-              <div class="eyebrow">Pre-Test Result ${resultIndex + 1}</div>
-              <h2>${escapeHtml(result.setTitle)}</h2>
-              <p>${escapeHtml(result.setCode)}</p>
-            </div>
-            <div class="score ${result.result === "Pass" ? "pass" : "fail"}">
-              <strong>${result.score}/${result.total}</strong>
-              <span>${escapeHtml(result.result)}</span>
-            </div>
-          </div>
-          <div class="meta-grid">
-            <div><span>Participant</span><strong>${escapeHtml(result.displayName || result.username)}</strong></div>
-            <div><span>Role</span><strong>${escapeHtml(result.role || "-")}</strong></div>
-            <div><span>Started At</span><strong>${escapeHtml(formatDateTime(result.startedAt))}</strong></div>
-            <div><span>Submitted At</span><strong>${escapeHtml(formatDateTime(result.submittedAt))}</strong></div>
-            <div><span>Pass Criteria</span><strong>${result.passScore}/${result.total}</strong></div>
-            <div><span>Generated At</span><strong>${escapeHtml(formatDateTime(new Date()))}</strong></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>No.</th>
-                <th>Question</th>
-                <th>Selected Answer</th>
-                <th>Correct Answer</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>${questionRows || `<tr><td colspan="5">Question set details not found.</td></tr>`}</tbody>
-          </table>
-        </section>
-      `;
-    }).join("");
+    try {
+      showToast("Generating PDF download...");
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      registerTHSarabunNew(doc);
+      doc.setFont("THSarabunNew", "normal");
 
-    const popup = window.open("", "_blank", "width=1100,height=800");
-    if (!popup) {
-      showToast("Please allow popup to generate PDF.");
-      return;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const left = 12;
+      const right = pageWidth - 12;
+      const bottom = pageHeight - 12;
+      const contentWidth = right - left;
+      let y = 12;
+
+      const colors = {
+        ink: [15, 23, 42] as [number, number, number],
+        muted: [71, 85, 105] as [number, number, number],
+        line: [203, 213, 225] as [number, number, number],
+        deep: [5, 46, 43] as [number, number, number],
+        green: [4, 120, 87] as [number, number, number],
+        red: [190, 18, 60] as [number, number, number],
+        softGreen: [220, 252, 231] as [number, number, number],
+        softRed: [255, 228, 230] as [number, number, number],
+      };
+
+      const setText = (color: [number, number, number]) => doc.setTextColor(color[0], color[1], color[2]);
+      const setFill = (color: [number, number, number]) => doc.setFillColor(color[0], color[1], color[2]);
+      const setDraw = (color: [number, number, number]) => doc.setDrawColor(color[0], color[1], color[2]);
+
+      const addPageIfNeeded = (height = 10) => {
+        if (y + height <= bottom) return;
+        doc.addPage();
+        y = 12;
+      };
+
+      const writeWrapped = (text: string, x: number, width: number, options?: { bold?: boolean; size?: number; color?: [number, number, number]; lineHeight?: number }) => {
+        doc.setFont("THSarabunNew", options?.bold ? "bold" : "normal");
+        doc.setFontSize(options?.size ?? 11);
+        setText(options?.color ?? colors.ink);
+        const lines = doc.splitTextToSize(text || "-", width) as string[];
+        doc.text(lines, x, y, { baseline: "top" });
+        return lines.length * (options?.lineHeight ?? 5);
+      };
+
+      const drawReportHeader = () => {
+        setFill(colors.deep);
+        doc.roundedRect(left, y, contentWidth, 24, 3, 3, "F");
+        setText([255, 255, 255]);
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(20);
+        doc.text("Pre-Test Result Report", left + 6, y + 9, { baseline: "top" });
+        doc.setFont("THSarabunNew", "normal");
+        doc.setFontSize(11);
+        doc.text(`Generated from Results History filters. Total records: ${historyRows.length}`, left + 6, y + 17, { baseline: "top" });
+        doc.text(`Generated at: ${formatDateTime(new Date())}`, right - 58, y + 17, { baseline: "top" });
+        y += 32;
+      };
+
+      const drawMetaBox = (label: string, value: string, x: number, width: number) => {
+        setDraw(colors.line);
+        doc.roundedRect(x, y, width, 13, 2, 2, "S");
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(8);
+        setText(colors.muted);
+        doc.text(label.toUpperCase(), x + 3, y + 3, { baseline: "top" });
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(11);
+        setText(colors.ink);
+        doc.text(doc.splitTextToSize(value || "-", width - 6) as string[], x + 3, y + 8, { baseline: "top" });
+      };
+
+      drawReportHeader();
+
+      historyRows.forEach((result, resultIndex) => {
+        const set = sets.find((item) => item.id === result.setId);
+        const questions = result.questions || set?.questions || [];
+        const cardStartY = y;
+
+        addPageIfNeeded(48);
+        setDraw(colors.line);
+        doc.roundedRect(left, y, contentWidth, 30, 3, 3, "S");
+        y += 5;
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(8);
+        setText(colors.muted);
+        doc.text(`PRE-TEST RESULT ${resultIndex + 1}`, left + 5, y, { baseline: "top" });
+        doc.setFontSize(15);
+        setText(colors.ink);
+        doc.text(doc.splitTextToSize(result.setTitle || "-", 180) as string[], left + 5, y + 6, { baseline: "top" });
+        doc.setFont("THSarabunNew", "normal");
+        doc.setFontSize(10);
+        setText(colors.muted);
+        doc.text(result.setCode || "-", left + 5, y + 18, { baseline: "top" });
+
+        const scoreX = right - 42;
+        setFill(result.result === "Pass" ? colors.softGreen : colors.softRed);
+        setDraw(result.result === "Pass" ? [167, 243, 208] : [254, 205, 211]);
+        doc.roundedRect(scoreX, cardStartY + 5, 36, 20, 3, 3, "FD");
+        doc.setFont("THSarabunNew", "bold");
+        doc.setFontSize(16);
+        setText(result.result === "Pass" ? colors.green : colors.red);
+        doc.text(`${result.score}/${result.total}`, scoreX + 18, cardStartY + 9, { align: "center", baseline: "top" });
+        doc.setFontSize(10);
+        doc.text(result.result, scoreX + 18, cardStartY + 17, { align: "center", baseline: "top" });
+        y = cardStartY + 36;
+
+        const boxWidth = (contentWidth - 8) / 4;
+        drawMetaBox("Participant", result.displayName || result.username || "-", left, boxWidth);
+        drawMetaBox("Role", result.role || "-", left + boxWidth + 2.6, boxWidth);
+        drawMetaBox("Started At", formatDateTime(result.startedAt), left + (boxWidth + 2.6) * 2, boxWidth);
+        drawMetaBox("Submitted At", formatDateTime(result.submittedAt), left + (boxWidth + 2.6) * 3, boxWidth);
+        y += 19;
+
+        if (!questions.length) {
+          addPageIfNeeded(12);
+          writeWrapped("Question set details not found.", left, contentWidth, { color: colors.muted });
+          y += 8;
+          return;
+        }
+
+        questions.forEach((question, questionIndex) => {
+          const selectedChoiceId = result.answers?.[question.id] || "";
+          const selectedText = getChoiceText(question, selectedChoiceId);
+          const correctText = getChoiceText(question, question.correctChoiceId);
+          const isCorrect = selectedChoiceId === question.correctChoiceId;
+          const questionWidth = 116;
+          const selectedWidth = 52;
+          const correctWidth = 52;
+          const statusWidth = 28;
+          const promptLines = doc.splitTextToSize(question.prompt || "-", questionWidth) as string[];
+          const selectedLines = doc.splitTextToSize(selectedText || "-", selectedWidth) as string[];
+          const correctLines = doc.splitTextToSize(correctText || "-", correctWidth) as string[];
+          const rowHeight = Math.max(18, promptLines.length * 5 + 8, selectedLines.length * 5 + 8, correctLines.length * 5 + 8);
+
+          addPageIfNeeded(rowHeight + 8);
+          if (questionIndex === 0 || y < 18) {
+            setFill([15, 23, 42]);
+            doc.roundedRect(left, y, contentWidth, 9, 2, 2, "F");
+            setText([255, 255, 255]);
+            doc.setFont("THSarabunNew", "bold");
+            doc.setFontSize(9);
+            doc.text("No.", left + 3, y + 2.5, { baseline: "top" });
+            doc.text("Question", left + 17, y + 2.5, { baseline: "top" });
+            doc.text("Selected Answer", left + 136, y + 2.5, { baseline: "top" });
+            doc.text("Correct Answer", left + 190, y + 2.5, { baseline: "top" });
+            doc.text("Status", right - statusWidth, y + 2.5, { baseline: "top" });
+            y += 11;
+            addPageIfNeeded(rowHeight + 4);
+          }
+
+          setDraw(colors.line);
+          doc.line(left, y - 1.5, right, y - 1.5);
+          doc.setFont("THSarabunNew", "bold");
+          doc.setFontSize(10);
+          setText(colors.ink);
+          doc.text(String(questionIndex + 1), left + 3, y, { baseline: "top" });
+
+          doc.setFont("THSarabunNew", "normal");
+          doc.setFontSize(10);
+          setText(colors.ink);
+          doc.text(promptLines, left + 17, y, { baseline: "top" });
+          setText(isCorrect ? colors.green : colors.red);
+          doc.text(selectedLines, left + 136, y, { baseline: "top" });
+          setText(colors.ink);
+          doc.text(correctLines, left + 190, y, { baseline: "top" });
+          setText(isCorrect ? colors.green : colors.red);
+          doc.setFont("THSarabunNew", "bold");
+          doc.text(isCorrect ? "Correct" : "Incorrect", right - statusWidth, y, { baseline: "top" });
+          y += rowHeight;
+        });
+
+        y += 8;
+      });
+
+      const safeDate = new Date().toISOString().slice(0, 10);
+      doc.save(`pretest_result_report_${safeDate}.pdf`);
+      showToast("Pre-Test PDF downloaded.");
+      await logUsageEvent(currentUser || null, "pretest_result_pdf_downloaded", {
+        tab: "pre-test",
+        details: {
+          totalRecords: historyRows.length,
+          userFilter: historyUserFilter,
+          setFilter: historySetFilter,
+          downloadedAt: new Date().toISOString(),
+        },
+      });
+    } catch {
+      showToast("PDF download failed. Please try again.");
     }
-    popup.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Pre-Test Result Report</title>
-          <style>
-            @page { size: A4 landscape; margin: 14mm; }
-            * { box-sizing: border-box; }
-            body { margin: 0; background: #f8fafc; color: #0f172a; font-family: "Tahoma", "Segoe UI", sans-serif; }
-            .page { padding: 24px; }
-            .cover { border-radius: 28px; background: linear-gradient(135deg, #052e2b, #0f766e 52%, #a21caf); color: white; padding: 28px; margin-bottom: 18px; }
-            .eyebrow { font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 900; opacity: .75; }
-            h1, h2, p { margin: 0; }
-            h1 { margin-top: 8px; font-size: 30px; }
-            .cover p { margin-top: 8px; color: #dcfce7; font-weight: 700; }
-            .result-card { page-break-inside: avoid; border: 1px solid #dbeafe; border-radius: 24px; background: white; padding: 20px; margin: 18px 0; box-shadow: 0 14px 34px rgba(15,23,42,.08); }
-            .result-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; }
-            .result-head h2 { margin-top: 6px; font-size: 22px; }
-            .result-head p { margin-top: 4px; color: #64748b; font-weight: 800; }
-            .score { min-width: 130px; border-radius: 20px; padding: 14px; text-align: center; }
-            .score strong { display: block; font-size: 28px; }
-            .score span { display: block; margin-top: 4px; font-size: 13px; font-weight: 900; text-transform: uppercase; }
-            .score.pass { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-            .score.fail { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
-            .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
-            .meta-grid div { border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; padding: 10px 12px; }
-            .meta-grid span { display: block; color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
-            .meta-grid strong { display: block; margin-top: 4px; font-size: 13px; }
-            table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; font-size: 12px; }
-            th { background: #052e2b; color: white; padding: 10px; text-align: left; }
-            td { border-bottom: 1px solid #e2e8f0; padding: 10px; vertical-align: top; line-height: 1.55; }
-            td:first-child { width: 44px; font-weight: 900; }
-            .ok { color: #047857; font-weight: 900; }
-            .bad { color: #be123c; font-weight: 900; }
-            .actions { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; }
-            .actions button { border: 0; border-radius: 14px; background: #0f172a; color: white; padding: 10px 16px; font-weight: 900; cursor: pointer; }
-            @media print { body { background: white; } .actions { display: none; } .result-card { box-shadow: none; } }
-          </style>
-        </head>
-        <body>
-          <div class="page">
-            <div class="actions"><button onclick="window.print()">Print / Save PDF</button></div>
-            <header class="cover">
-              <div class="eyebrow">Robinhood QA Pre-Test</div>
-              <h1>Pre-Test Result Report</h1>
-              <p>Generated from selected Results History filters. Total records: ${historyRows.length}</p>
-            </header>
-            ${rowsHtml}
-          </div>
-        </body>
-      </html>
-    `);
-    popup.document.close();
-    popup.focus();
-    window.setTimeout(() => popup.print(), 350);
   }
 
   return (
