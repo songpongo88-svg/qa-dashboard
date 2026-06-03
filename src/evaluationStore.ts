@@ -440,8 +440,9 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
 export async function fetchStoredEvaluations(limit = 5000) {
   const localEvaluations = readLocalEvaluationHistory();
   const cachedEvaluations = readRemoteEvaluationCache();
+  const localSources = mergeEvaluationSources(cachedEvaluations, localEvaluations);
   if (!isEvaluationStoreConfigured()) {
-    return mergeEvaluationSources(cachedEvaluations, localEvaluations).slice(0, limit);
+    return localSources.slice(0, limit);
   }
 
   const params = new URLSearchParams({
@@ -455,11 +456,11 @@ export async function fetchStoredEvaluations(limit = 5000) {
   });
   if (!response.ok) {
     console.warn("Load stored evaluations failed", response.status);
-    return mergeEvaluationSources(cachedEvaluations, localEvaluations).slice(0, limit);
+    return localSources.slice(0, limit);
   }
   const remoteEvaluations = ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
-  const syncedLocalEvaluations = await syncLocalEvaluationsToRemote(remoteEvaluations, localEvaluations);
-  const availableEvaluations = mergeEvaluationSources([...remoteEvaluations, ...syncedLocalEvaluations], localEvaluations);
+  const syncedLocalEvaluations = await syncLocalEvaluationsToRemote(remoteEvaluations, localSources);
+  const availableEvaluations = mergeEvaluationSources([...remoteEvaluations, ...syncedLocalEvaluations], localSources);
   writeRemoteEvaluationCache(availableEvaluations);
   return availableEvaluations.slice(0, limit);
 }

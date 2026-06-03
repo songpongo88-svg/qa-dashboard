@@ -1,17 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606031136",
-  "buildNumber": 2606031136,
-  "releaseLabel": "v1.0.0.2606031136",
-  "updatedAt": "03/06/2026 11:36:06",
+  "displayVersion": "1.0.0.2606031150",
+  "buildNumber": 2606031150,
+  "releaseLabel": "v1.0.0.2606031150",
+  "updatedAt": "03/06/2026 11:50:42",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a71988b7b6c3766d9ae4f1e4557ca1dd698fcf03",
-  "commitMessage": "Restore local evaluations safely",
+  "commitHash": "bdc4399893208c722b79c586c946c0d563924446",
+  "commitMessage": "Show saved local evaluations in reports",
   "changedFiles": [
     "public/build-meta.json",
-    "src/CreateEvaluationMockup.tsx",
     "src/evaluationStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
