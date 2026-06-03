@@ -1,19 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606030842",
-  "buildNumber": 2606030842,
-  "releaseLabel": "v1.0.0.2606030842",
-  "updatedAt": "03/06/2026 08:42:56",
+  "displayVersion": "1.0.0.2606030932",
+  "buildNumber": 2606030932,
+  "releaseLabel": "v1.0.0.2606030932",
+  "updatedAt": "03/06/2026 09:32:00",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "18b3d3f69225c240d4df772c5adb5da4fe55dca3",
-  "commitMessage": "Build full pre-test management center",
+  "commitHash": "bd6ae755c991e8d79bf04ba15aa7c9190f42f291",
+  "commitMessage": "Update Thai help plus pre-test questions",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/PreTestMockup.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/PreTestMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

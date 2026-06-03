@@ -55,6 +55,17 @@ type PreTestResult = {
   passScore: number;
   result: "Pass" | "Fail";
   answers: Record<string, string>;
+  questions?: PreTestQuestion[];
+};
+
+type AttemptSession = {
+  attemptId: string;
+  setId: string;
+  username: string;
+  startedAt: string;
+  preparedQuestions: PreparedQuestion[];
+  currentQuestionIndex: number;
+  answers: Record<string, string>;
 };
 
 type PreTestMockupProps = {
@@ -68,7 +79,9 @@ type WorkspaceTab = "take" | "sets" | "history";
 
 const SETS_STORAGE_KEY = "qa-dashboard:pre-test-sets";
 const RESULTS_STORAGE_KEY = "qa-dashboard:pre-test-results";
+const ACTIVE_ATTEMPT_STORAGE_KEY = "qa-dashboard:pre-test-active-attempt";
 const DEFAULT_SET_ID = "thai-help-plus-robinhood-2026";
+const RESULTS_HISTORY_BASELINE_AT = "2026-06-03T09:03:00+07:00";
 const FORM_INPUT_CLASS = "h-[52px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-950 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50";
 
 const DEFAULT_QUESTIONS: PreTestQuestion[] = [
@@ -276,6 +289,29 @@ function writeLocal<T>(key: string, rows: T[]) {
   }
 }
 
+function readLocalObject<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalObject<T>(key: string, value: T | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (value) {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } else {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Local attempt cache is only used to keep timing honest after reloads.
+  }
+}
+
 function hashString(value: string) {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -322,6 +358,21 @@ function formatDateTime(value: string | Date) {
   const min = String(date.getMinutes()).padStart(2, "0");
   const ss = String(date.getSeconds()).padStart(2, "0");
   return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+}
+
+function escapeHtml(value: string | number | undefined | null) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function getChoiceText(question: PreTestQuestion, choiceId?: string) {
+  if (!choiceId) return "-";
+  const choice = question.choices.find((item) => item.id === choiceId);
+  return choice ? `${choice.id}. ${choice.text}` : choiceId;
 }
 
 function createBlankQuestion(index: number): PreTestQuestion {
@@ -392,6 +443,7 @@ function normalizeResult(raw: unknown): PreTestResult | null {
     passScore: Number(item.passScore || 0),
     result: item.result === "Pass" ? "Pass" : "Fail",
     answers: (item.answers || {}) as Record<string, string>,
+    questions: Array.isArray(item.questions) ? item.questions as PreTestQuestion[] : undefined,
   };
 }
 
@@ -426,10 +478,33 @@ function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
 
 function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[]) {
   const map = new Map<string, PreTestResult>();
-  localResults.forEach((result) => map.set(result.id, result));
-  logs.forEach((log) => {
-    const result = normalizeResult(log.details?.result);
-    if (result) map.set(result.id, result);
+  const baselineTime = new Date(RESULTS_HISTORY_BASELINE_AT).getTime();
+  const isVisibleResult = (result: PreTestResult) => {
+    const submittedTime = new Date(result.submittedAt).getTime();
+    return Number.isNaN(submittedTime) || submittedTime >= baselineTime;
+  };
+
+  localResults.filter(isVisibleResult).forEach((result) => map.set(result.id, result));
+  [...logs].reverse().forEach((log) => {
+    if (log.event_type === "pretest_attempt_submitted") {
+      const result = normalizeResult(log.details?.result);
+      if (result && isVisibleResult(result)) map.set(result.id, result);
+    }
+    if (log.event_type === "pretest_attempt_reset") {
+      const resultId = String(log.details?.resultId || "");
+      const setId = String(log.details?.setId || "");
+      const username = String(log.details?.username || "");
+      if (resultId) {
+        map.delete(resultId);
+      } else if (setId && username) {
+        [...map.values()].forEach((result) => {
+          if (result.setId === setId && result.username === username) map.delete(result.id);
+        });
+      }
+    }
+    if (log.event_type === "pretest_history_cleared") {
+      map.clear();
+    }
   });
   return [...map.values()].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 }
@@ -459,6 +534,10 @@ export default function PreTestMockup({
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState("");
   const [historySearch, setHistorySearch] = useState("");
+  const [historyUserFilter, setHistoryUserFilter] = useState("all");
+  const [historySetFilter, setHistorySetFilter] = useState("all");
+  const [previewSetId, setPreviewSetId] = useState(DEFAULT_SET_ID);
+  const [switchWarningCount, setSwitchWarningCount] = useState(0);
 
   const [attemptId, setAttemptId] = useState("");
   const [startedAt, setStartedAt] = useState("");
@@ -472,14 +551,31 @@ export default function PreTestMockup({
   const selectedSet = useMemo(() => {
     return sets.find((set) => set.id === selectedSetId) || activeSets[0] || sets[0] || DEFAULT_SET;
   }, [activeSets, selectedSetId, sets]);
+  const previewSet = useMemo(() => {
+    return sets.find((set) => set.id === previewSetId) || selectedSet;
+  }, [previewSetId, selectedSet, sets]);
   const currentQuestion = preparedQuestions[currentQuestionIndex];
   const answeredCount = Object.keys(answers).length;
   const inAttempt = Boolean(attemptId && preparedQuestions.length && !resultScreen);
   const progressPercent = preparedQuestions.length ? Math.round((answeredCount / preparedQuestions.length) * 100) : 0;
   const canSubmitAttempt = inAttempt && answeredCount === preparedQuestions.length;
+  const currentUsername = currentUser?.username || "guest";
+  const hasCompletedSelectedSet = results.some((item) => item.setId === selectedSet.id && item.username === currentUsername);
+  const historyUsers = useMemo(() => {
+    const map = new Map<string, string>();
+    results.forEach((item) => map.set(item.username, item.displayName || item.username));
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [results]);
+  const historySets = useMemo(() => {
+    const map = new Map<string, string>();
+    results.forEach((item) => map.set(item.setId, `${item.setCode} - ${item.setTitle}`));
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [results]);
   const historyRows = useMemo(() => {
     const search = historySearch.trim().toLowerCase();
     return results.filter((item) => {
+      if (historyUserFilter !== "all" && item.username !== historyUserFilter) return false;
+      if (historySetFilter !== "all" && item.setId !== historySetFilter) return false;
       if (!search) return true;
       return [
         item.setTitle,
@@ -491,7 +587,7 @@ export default function PreTestMockup({
         item.result,
       ].some((value) => String(value || "").toLowerCase().includes(search));
     });
-  }, [historySearch, results]);
+  }, [historySearch, historySetFilter, historyUserFilter, results]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -507,7 +603,13 @@ export default function PreTestMockup({
     async function loadCentralData() {
       setSyncing(true);
       try {
-        const logs = await fetchUsageLogsByEventTypes(["pretest_set_saved", "pretest_set_deleted", "pretest_attempt_submitted"], 1000);
+        const logs = await fetchUsageLogsByEventTypes([
+          "pretest_set_saved",
+          "pretest_set_deleted",
+          "pretest_attempt_submitted",
+          "pretest_attempt_reset",
+          "pretest_history_cleared",
+        ], 1500);
         if (!alive) return;
         const localSets = readLocal<PreTestSet>(SETS_STORAGE_KEY).map(normalizeSet).filter(Boolean) as PreTestSet[];
         const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[];
@@ -532,13 +634,84 @@ export default function PreTestMockup({
 
   useEffect(() => {
     if (!inAttempt) return;
-    if (remainingSeconds <= 0) {
+    const startedTime = new Date(startedAt).getTime();
+    const elapsedSeconds = Number.isNaN(startedTime) ? 0 : Math.floor((Date.now() - startedTime) / 1000);
+    const nextRemaining = Math.max(0, selectedSet.timeLimitSeconds - elapsedSeconds);
+    if (nextRemaining !== remainingSeconds) {
+      setRemainingSeconds(nextRemaining);
+    }
+    if (nextRemaining <= 0) {
       void finishAttempt("time-up");
       return;
     }
-    const timer = window.setTimeout(() => setRemainingSeconds((value) => Math.max(0, value - 1)), 1000);
+    const timer = window.setTimeout(() => {
+      const latestElapsed = Number.isNaN(startedTime) ? 0 : Math.floor((Date.now() - startedTime) / 1000);
+      setRemainingSeconds(Math.max(0, selectedSet.timeLimitSeconds - latestElapsed));
+    }, 1000);
     return () => window.clearTimeout(timer);
-  }, [inAttempt, remainingSeconds]);
+  }, [inAttempt, remainingSeconds, selectedSet.timeLimitSeconds, startedAt]);
+
+  useEffect(() => {
+    if (!attemptId) {
+      writeLocalObject(ACTIVE_ATTEMPT_STORAGE_KEY, null);
+      return;
+    }
+    writeLocalObject<AttemptSession>(ACTIVE_ATTEMPT_STORAGE_KEY, {
+      attemptId,
+      setId: selectedSet.id,
+      username: currentUsername,
+      startedAt,
+      preparedQuestions,
+      currentQuestionIndex,
+      answers,
+    });
+  }, [answers, attemptId, currentQuestionIndex, currentUsername, preparedQuestions, selectedSet.id, startedAt]);
+
+  useEffect(() => {
+    if (attemptId || resultScreen || !sets.length) return;
+    const session = readLocalObject<AttemptSession>(ACTIVE_ATTEMPT_STORAGE_KEY);
+    if (!session || session.username !== currentUsername) return;
+    const sessionSet = sets.find((set) => set.id === session.setId);
+    if (!sessionSet || !session.preparedQuestions?.length) {
+      writeLocalObject(ACTIVE_ATTEMPT_STORAGE_KEY, null);
+      return;
+    }
+    const startedTime = new Date(session.startedAt).getTime();
+    const elapsedSeconds = Number.isNaN(startedTime) ? 0 : Math.floor((Date.now() - startedTime) / 1000);
+    const nextRemaining = Math.max(0, sessionSet.timeLimitSeconds - elapsedSeconds);
+    setSelectedSetId(sessionSet.id);
+    setAttemptId(session.attemptId);
+    setStartedAt(session.startedAt);
+    setPreparedQuestions(session.preparedQuestions);
+    setCurrentQuestionIndex(Math.min(session.currentQuestionIndex || 0, session.preparedQuestions.length - 1));
+    setAnswers(session.answers || {});
+    setRemainingSeconds(nextRemaining);
+    if (nextRemaining <= 0) {
+      window.setTimeout(() => void finishAttempt("time-up"), 0);
+    } else {
+      showToast("Resumed active Pre-Test. Timer continued from the original start time.");
+    }
+  }, [attemptId, currentUsername, resultScreen, sets]);
+
+  useEffect(() => {
+    if (!inAttempt) return;
+    const restartQuestions = () => {
+      setAnswers({});
+      setCurrentQuestionIndex(0);
+      setSwitchWarningCount((count) => count + 1);
+      showToast("Screen switched. Answers were reset, but timer is still running.");
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") restartQuestions();
+    };
+    const handleBlur = () => restartQuestions();
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [inAttempt]);
 
   function showToast(message: string) {
     setToast(message);
@@ -568,6 +741,10 @@ export default function PreTestMockup({
 
   function startAttempt() {
     if (!canTakePreTest || !selectedSet.active) return;
+    if (hasCompletedSelectedSet) {
+      showToast("This user has already completed this Pre-Test. Please request Reset Retake before trying again.");
+      return;
+    }
     const now = new Date();
     const nextAttemptId = `pretest-${selectedSet.id}-${currentUser?.username || "guest"}-${now.getTime()}`;
     const seed = `${currentUser?.username || "guest"}|${selectedSet.id}|${now.getTime()}`;
@@ -582,6 +759,7 @@ export default function PreTestMockup({
     setCurrentQuestionIndex(0);
     setAnswers({});
     setResultScreen(null);
+    setSwitchWarningCount(0);
   }
 
   function chooseAnswer(questionId: string, choiceId: string) {
@@ -616,10 +794,12 @@ export default function PreTestMockup({
       passScore: selectedSet.passScore,
       result: score >= selectedSet.passScore ? "Pass" : "Fail",
       answers,
+      questions: selectedSet.questions,
     };
-    const nextResults = [result, ...results.filter((item) => item.id !== result.id)];
+    const nextResults = [result, ...results.filter((item) => item.id !== result.id && !(item.setId === result.setId && item.username === result.username))];
     setResults(nextResults);
     writeLocal(RESULTS_STORAGE_KEY, nextResults);
+    writeLocalObject(ACTIVE_ATTEMPT_STORAGE_KEY, null);
     setResultScreen(result);
     setAttemptId("");
     setPreparedQuestions([]);
@@ -632,6 +812,7 @@ export default function PreTestMockup({
   }
 
   function resetAttempt() {
+    writeLocalObject(ACTIVE_ATTEMPT_STORAGE_KEY, null);
     setAttemptId("");
     setStartedAt("");
     setRemainingSeconds(0);
@@ -643,6 +824,7 @@ export default function PreTestMockup({
 
   function startCreateSet() {
     const now = new Date().toISOString();
+    setPreviewSetId("");
     setEditorSet({
       id: `pretest-${Date.now()}`,
       code: `PRE-${new Date().getFullYear()}-${String(sets.length + 1).padStart(2, "0")}`,
@@ -659,6 +841,7 @@ export default function PreTestMockup({
   }
 
   function editSet(set: PreTestSet) {
+    setPreviewSetId(set.id);
     setEditorSet(JSON.parse(JSON.stringify(set)) as PreTestSet);
     setWorkspaceTab("sets");
   }
@@ -702,6 +885,7 @@ export default function PreTestMockup({
     setSets(nextSets);
     writeLocal(SETS_STORAGE_KEY, nextSets);
     setSelectedSetId(savedSet.id);
+    setPreviewSetId(savedSet.id);
     setEditorSet(null);
     showToast("Pre-Test set saved.");
     await logUsageEvent(currentUser || null, "pretest_set_saved", {
@@ -719,6 +903,8 @@ export default function PreTestMockup({
     setSets(nextSets);
     writeLocal(SETS_STORAGE_KEY, nextSets);
     if (selectedSetId === setId) setSelectedSetId(nextSets[0]?.id || DEFAULT_SET.id);
+    if (previewSetId === setId) setPreviewSetId(nextSets[0]?.id || DEFAULT_SET.id);
+    if (editorSet?.id === setId) setEditorSet(null);
     showToast("Pre-Test set deleted.");
     await logUsageEvent(currentUser || null, "pretest_set_deleted", {
       tab: "pre-test",
@@ -748,6 +934,23 @@ export default function PreTestMockup({
     });
   }
 
+  async function resetRetake(result: PreTestResult) {
+    const nextResults = results.filter((item) => item.id !== result.id && !(item.setId === result.setId && item.username === result.username));
+    setResults(nextResults);
+    writeLocal(RESULTS_STORAGE_KEY, nextResults);
+    showToast(`Retake opened for ${result.displayName || result.username}.`);
+    await logUsageEvent(currentUser || null, "pretest_attempt_reset", {
+      tab: "pre-test",
+      details: {
+        resultId: result.id,
+        setId: result.setId,
+        username: result.username,
+        resetBy: currentUser?.displayName || "System",
+        resetAt: new Date().toISOString(),
+      },
+    });
+  }
+
   function exportHistory() {
     const rows = historyRows.map((item) => ({
       "Submitted At": formatDateTime(item.submittedAt),
@@ -767,6 +970,130 @@ export default function PreTestMockup({
     const worksheet = XLSX.utils.json_to_sheet(rows);
     XLSX.utils.book_append_sheet(workbook, worksheet, "PreTest_History");
     XLSX.writeFile(workbook, `pretest_history_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  function generateResultsPdf() {
+    if (!historyRows.length) {
+      showToast("No results selected for PDF.");
+      return;
+    }
+    const rowsHtml = historyRows.map((result, resultIndex) => {
+      const set = sets.find((item) => item.id === result.setId);
+      const questions = result.questions || set?.questions || [];
+      const questionRows = questions.map((question, questionIndex) => {
+        const selectedChoiceId = result.answers?.[question.id] || "";
+        const selectedText = getChoiceText(question, selectedChoiceId);
+        const correctText = getChoiceText(question, question.correctChoiceId);
+        const isCorrect = selectedChoiceId === question.correctChoiceId;
+        return `
+          <tr>
+            <td>${questionIndex + 1}</td>
+            <td>${escapeHtml(question.prompt)}</td>
+            <td class="${isCorrect ? "ok" : "bad"}">${escapeHtml(selectedText)}</td>
+            <td>${escapeHtml(correctText)}</td>
+            <td class="${isCorrect ? "ok" : "bad"}">${isCorrect ? "Correct" : "Incorrect"}</td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <section class="result-card">
+          <div class="result-head">
+            <div>
+              <div class="eyebrow">Pre-Test Result ${resultIndex + 1}</div>
+              <h2>${escapeHtml(result.setTitle)}</h2>
+              <p>${escapeHtml(result.setCode)}</p>
+            </div>
+            <div class="score ${result.result === "Pass" ? "pass" : "fail"}">
+              <strong>${result.score}/${result.total}</strong>
+              <span>${escapeHtml(result.result)}</span>
+            </div>
+          </div>
+          <div class="meta-grid">
+            <div><span>Participant</span><strong>${escapeHtml(result.displayName || result.username)}</strong></div>
+            <div><span>Role</span><strong>${escapeHtml(result.role || "-")}</strong></div>
+            <div><span>Started At</span><strong>${escapeHtml(formatDateTime(result.startedAt))}</strong></div>
+            <div><span>Submitted At</span><strong>${escapeHtml(formatDateTime(result.submittedAt))}</strong></div>
+            <div><span>Pass Criteria</span><strong>${result.passScore}/${result.total}</strong></div>
+            <div><span>Generated At</span><strong>${escapeHtml(formatDateTime(new Date()))}</strong></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>No.</th>
+                <th>Question</th>
+                <th>Selected Answer</th>
+                <th>Correct Answer</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${questionRows || `<tr><td colspan="5">Question set details not found.</td></tr>`}</tbody>
+          </table>
+        </section>
+      `;
+    }).join("");
+
+    const popup = window.open("", "_blank", "width=1100,height=800");
+    if (!popup) {
+      showToast("Please allow popup to generate PDF.");
+      return;
+    }
+    popup.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Pre-Test Result Report</title>
+          <style>
+            @page { size: A4 landscape; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; background: #f8fafc; color: #0f172a; font-family: "Tahoma", "Segoe UI", sans-serif; }
+            .page { padding: 24px; }
+            .cover { border-radius: 28px; background: linear-gradient(135deg, #052e2b, #0f766e 52%, #a21caf); color: white; padding: 28px; margin-bottom: 18px; }
+            .eyebrow { font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 900; opacity: .75; }
+            h1, h2, p { margin: 0; }
+            h1 { margin-top: 8px; font-size: 30px; }
+            .cover p { margin-top: 8px; color: #dcfce7; font-weight: 700; }
+            .result-card { page-break-inside: avoid; border: 1px solid #dbeafe; border-radius: 24px; background: white; padding: 20px; margin: 18px 0; box-shadow: 0 14px 34px rgba(15,23,42,.08); }
+            .result-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; }
+            .result-head h2 { margin-top: 6px; font-size: 22px; }
+            .result-head p { margin-top: 4px; color: #64748b; font-weight: 800; }
+            .score { min-width: 130px; border-radius: 20px; padding: 14px; text-align: center; }
+            .score strong { display: block; font-size: 28px; }
+            .score span { display: block; margin-top: 4px; font-size: 13px; font-weight: 900; text-transform: uppercase; }
+            .score.pass { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+            .score.fail { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+            .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+            .meta-grid div { border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; padding: 10px 12px; }
+            .meta-grid span { display: block; color: #64748b; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+            .meta-grid strong { display: block; margin-top: 4px; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; font-size: 12px; }
+            th { background: #052e2b; color: white; padding: 10px; text-align: left; }
+            td { border-bottom: 1px solid #e2e8f0; padding: 10px; vertical-align: top; line-height: 1.55; }
+            td:first-child { width: 44px; font-weight: 900; }
+            .ok { color: #047857; font-weight: 900; }
+            .bad { color: #be123c; font-weight: 900; }
+            .actions { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 12px; }
+            .actions button { border: 0; border-radius: 14px; background: #0f172a; color: white; padding: 10px 16px; font-weight: 900; cursor: pointer; }
+            @media print { body { background: white; } .actions { display: none; } .result-card { box-shadow: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="page">
+            <div class="actions"><button onclick="window.print()">Print / Save PDF</button></div>
+            <header class="cover">
+              <div class="eyebrow">Robinhood QA Pre-Test</div>
+              <h1>Pre-Test Result Report</h1>
+              <p>Generated from selected Results History filters. Total records: ${historyRows.length}</p>
+            </header>
+            ${rowsHtml}
+          </div>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+    popup.focus();
+    window.setTimeout(() => popup.print(), 350);
   }
 
   return (
@@ -841,14 +1168,19 @@ export default function PreTestMockup({
                         <option key={set.id} value={set.id}>{set.code} - {set.title}</option>
                       ))}
                     </select>
-                    <button
-                      type="button"
-                      disabled={!canTakePreTest || !selectedSet.active}
-                      onClick={startAttempt}
-                      className="h-14 rounded-2xl bg-slate-950 px-8 text-sm font-black text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      Start Test
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        disabled={!canTakePreTest || !selectedSet.active || hasCompletedSelectedSet}
+                        onClick={startAttempt}
+                        className="h-14 rounded-2xl bg-slate-950 px-8 text-sm font-black text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {hasCompletedSelectedSet ? "Completed" : "Start Test"}
+                      </button>
+                      {hasCompletedSelectedSet ? (
+                        <div className="text-xs font-bold text-amber-700">This set was already completed. Reset Retake is required to test again.</div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -892,6 +1224,11 @@ export default function PreTestMockup({
                   </div>
 
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {switchWarningCount ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black text-amber-700">
+                        Screen switch detected {switchWarningCount} time(s). Answers were reset; timer continued.
+                      </div>
+                    ) : <div />}
                     <button
                       type="button"
                       disabled={currentQuestionIndex === 0}
@@ -979,7 +1316,16 @@ export default function PreTestMockup({
                 <span className="mt-1 block text-lg">Add New Question Set</span>
               </button>
               {sets.map((set) => (
-                <div key={set.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div
+                  key={set.id}
+                  onClick={() => {
+                    setEditorSet(null);
+                    setPreviewSetId(set.id);
+                  }}
+                  className={`cursor-pointer rounded-3xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.10)] ${
+                    previewSet.id === set.id && !editorSet ? "border-emerald-300 ring-4 ring-emerald-50" : "border-slate-200"
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">{set.code}</div>
@@ -991,9 +1337,9 @@ export default function PreTestMockup({
                     </span>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
-                    <button type="button" onClick={() => editSet(set)} className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700">Edit</button>
-                    <button type="button" onClick={() => void copyShareLink(set.id)} className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Share</button>
-                    <button type="button" onClick={() => void deleteSet(set.id)} className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Delete</button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); editSet(set); }} className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700">Edit</button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void copyShareLink(set.id); }} className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Share</button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void deleteSet(set.id); }} className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Delete</button>
                   </div>
                 </div>
               ))}
@@ -1096,11 +1442,60 @@ export default function PreTestMockup({
                     Add Question
                   </button>
                 </div>
+              ) : previewSet ? (
+                <div className="space-y-5">
+                  <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Question Set Preview</div>
+                      <h2 className="mt-2 text-2xl font-black text-slate-950">{previewSet.title}</h2>
+                      <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">{previewSet.description || "No description"}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => editSet(previewSet)} className="rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white">Edit Set</button>
+                      <button type="button" onClick={() => void copyShareLink(previewSet.id)} className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-700">Share</button>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <InfoRow label="Test Code" value={previewSet.code} />
+                    <InfoRow label="Questions" value={`${previewSet.questions.length}`} />
+                    <InfoRow label="Pass Criteria" value={`${previewSet.passScore}/${previewSet.questions.length}`} />
+                    <InfoRow label="Time Limit" value={formatDuration(previewSet.timeLimitSeconds)} />
+                  </div>
+                  <div className="space-y-4">
+                    {previewSet.questions.map((question, questionIndex) => (
+                      <div key={question.id} className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700">Question {questionIndex + 1}</div>
+                            <div className="mt-2 text-base font-black leading-7 text-slate-950">{question.prompt}</div>
+                          </div>
+                          <div className="shrink-0 rounded-full bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
+                            Correct: {question.correctChoiceId}
+                          </div>
+                        </div>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {question.choices.map((choice) => (
+                            <div
+                              key={choice.id}
+                              className={`rounded-2xl border px-4 py-3 text-sm font-bold leading-6 ${
+                                choice.id === question.correctChoiceId
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                                  : "border-slate-200 bg-white text-slate-700"
+                              }`}
+                            >
+                              <span className="mr-2 font-black">{choice.id}.</span>{choice.text}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-dashed border-slate-200 bg-slate-50 text-center">
                   <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">No Set Opened</div>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Select a set to edit</h2>
+                    <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">No Set Selected</div>
+                    <h2 className="mt-2 text-2xl font-black text-slate-950">Select a set to preview</h2>
                     <p className="mt-2 text-sm font-semibold text-slate-500">Choose a question set from the left, or create a new one.</p>
                   </div>
                 </div>
@@ -1112,26 +1507,55 @@ export default function PreTestMockup({
         {workspaceTab === "history" && canViewPreTestResults ? (
           <section className="p-5 lg:p-8">
             <div className="rounded-[32px] border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-950 p-5 text-white lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex flex-col gap-5 border-b border-slate-200 bg-slate-950 p-5 text-white">
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">Results History</div>
                   <h2 className="mt-2 text-2xl font-black">Pre-Test Attempts</h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-300">
+                    Filter by user or question set, then generate a PDF report with questions, selected answers, and pass/fail result.
+                  </p>
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="grid gap-3 lg:grid-cols-[1fr_260px_300px_auto_auto]">
                   <input
                     value={historySearch}
                     onChange={(event) => setHistorySearch(event.target.value)}
                     placeholder="Search user, set, result..."
-                    className="h-12 rounded-2xl border border-white/15 bg-white px-4 text-sm font-bold text-slate-950 outline-none sm:w-80"
+                    className="h-12 rounded-2xl border border-white/15 bg-white px-4 text-sm font-bold text-slate-950 outline-none"
                   />
-                  <button type="button" onClick={exportHistory} className="h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white">
-                    Export Results
+                  <select
+                    value={historyUserFilter}
+                    onChange={(event) => setHistoryUserFilter(event.target.value)}
+                    className="h-12 rounded-2xl border border-white/15 bg-white px-4 text-sm font-black text-slate-950 outline-none"
+                  >
+                    <option value="all">All Users</option>
+                    {historyUsers.map(([username, displayName]) => (
+                      <option key={username} value={username}>{displayName}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={historySetFilter}
+                    onChange={(event) => setHistorySetFilter(event.target.value)}
+                    className="h-12 rounded-2xl border border-white/15 bg-white px-4 text-sm font-black text-slate-950 outline-none"
+                  >
+                    <option value="all">All Question Sets</option>
+                    {historySets.map(([setId, title]) => (
+                      <option key={setId} value={setId}>{title}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={generateResultsPdf} className="h-12 rounded-2xl bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
+                    Generate PDF
+                  </button>
+                  <button type="button" onClick={exportHistory} className="h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-500">
+                    Export Excel
                   </button>
                 </div>
               </div>
+              <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-bold text-slate-500">
+                Showing {historyRows.length} result(s). Each user can complete each question set once; use Reset Retake when a retest is approved.
+              </div>
               <div className="divide-y divide-slate-100">
                 {historyRows.length ? historyRows.map((item) => (
-                  <div key={item.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[1.5fr_1fr_1fr_130px] lg:items-center">
+                  <div key={item.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[1.35fr_1fr_1fr_130px_150px] lg:items-center">
                     <div>
                       <div className="text-sm font-black text-slate-950">{item.setTitle}</div>
                       <div className="mt-1 text-xs font-bold text-slate-500">{item.setCode}</div>
@@ -1148,6 +1572,19 @@ export default function PreTestMockup({
                         {item.result}
                       </div>
                       <div className="mt-1 text-xs font-black text-slate-500">{item.score}/{item.total}</div>
+                    </div>
+                    <div className="flex justify-end">
+                      {canManagePreTest ? (
+                        <button
+                          type="button"
+                          onClick={() => void resetRetake(item)}
+                          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black text-amber-700 transition hover:border-amber-300 hover:bg-amber-100"
+                        >
+                          Reset Retake
+                        </button>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400">Locked</span>
+                      )}
                     </div>
                   </div>
                 )) : (
