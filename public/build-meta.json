@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606040811",
-  "buildNumber": 2606040811,
-  "releaseLabel": "v1.0.0.2606040811",
-  "updatedAt": "04/06/2026 08:11:02",
+  "displayVersion": "1.0.0.2606040834",
+  "buildNumber": 2606040834,
+  "releaseLabel": "v1.0.0.2606040834",
+  "updatedAt": "04/06/2026 08:34:35",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "bf899eba857339002d121cd3b88dee73b8deeea9",
-  "commitMessage": "Keep submitted evaluations visible after refresh",
+  "commitHash": "164dac90ffb4a1a5a457c086a97a58400473e603",
+  "commitMessage": "Stabilize active tab and evaluation cache",
   "changedFiles": [
     "public/build-meta.json",
+    "src/App.tsx",
     "src/evaluationStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
