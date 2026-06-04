@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606041047",
-  "buildNumber": 2606041047,
-  "releaseLabel": "v1.0.0.2606041047",
-  "updatedAt": "04/06/2026 10:47:45",
+  "displayVersion": "1.0.0.2606042045",
+  "buildNumber": 2606042045,
+  "releaseLabel": "v1.0.0.2606042045",
+  "updatedAt": "04/06/2026 20:45:55",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2b4cdd5dccb6acc542b623cabf7ed4860b0c73e4",
-  "commitMessage": "Restore evaluation visibility behavior from 9bf07e4",
+  "commitHash": "90128f7ad54ed46195c9da70e92d847f2b90781f",
+  "commitMessage": "Reset QA evaluation local cache namespace",
   "changedFiles": [
     "public/build-meta.json",
     "src/evaluationStore.ts"

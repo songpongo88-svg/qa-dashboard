@@ -153,7 +153,6 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "manageTeams", label: "Manage Teams", category: "System", description: "Create team names, assign team leads, and move users between teams." },
   { key: "manageRoles", label: "Manage Roles", category: "System", description: "Create roles and edit role permissions." },
   { key: "manageMaintenance", label: "Maintenance Mode", category: "System", description: "Turn system maintenance on/off and bypass it." },
-  { key: "useTeamChat", label: "Use Team Chat", category: "System", description: "Open Team Chat and send messages/files." },
 ];
 
 const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);

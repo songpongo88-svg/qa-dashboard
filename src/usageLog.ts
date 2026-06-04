@@ -27,6 +27,16 @@ const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const USAGE_LOG_TABLE = String(env.VITE_USAGE_LOG_TABLE || "usage_logs");
+const DISABLED_USAGE_EVENT_TYPES = new Set([
+  "user_presence",
+  "chat_message",
+  "chat_message_edited",
+  "chat_message_deleted",
+  "chat_call_invite",
+  "chat_call_response",
+  "chat_call_ended",
+  "chat_webrtc_signal",
+]);
 
 export function isUsageLogConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
@@ -51,6 +61,7 @@ export async function logUsageEvent(
   eventType: string,
   payload: Partial<UsageLogEvent> = {}
 ) {
+  if (DISABLED_USAGE_EVENT_TYPES.has(eventType)) return false;
   if (!isUsageLogConfigured() || !user) return false;
 
   const body: UsageLogEvent = {

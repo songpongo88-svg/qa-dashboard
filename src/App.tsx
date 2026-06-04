@@ -205,8 +205,6 @@ const VALID_APP_TABS = new Set<AppTab>([
   "appeal-requests",
   "appeal-override",
   "task-inbox",
-  "team-chat",
-  "call-history",
   "summary",
   "coaching",
   "rubric",
@@ -360,7 +358,6 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "manageRoles",
   "resetPassword",
   "manageMaintenance",
-  "useTeamChat",
 ];
 
 const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: string }> = {
@@ -4313,7 +4310,7 @@ export default function App() {
                 <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">Robinhood Customer Service QA</div>
                 <div className="mt-3 text-[28px] font-bold tracking-tight sm:text-[34px]">QA Monitoring Workspace</div>
                 <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  A CRM-style quality workspace for performance tracking, case evaluation, appeal handling, user access, and team communication.
+                  A CRM-style quality workspace for performance tracking, case evaluation, appeal handling, user access, and operational control.
                 </div>
 
                 {songkranTheme ? <div className="mt-4"><SongkranBadge /></div> : null}
@@ -4322,7 +4319,7 @@ export default function App() {
                   <LoginFeatureCard title="Performance Center" desc="Dashboard, KPI, grade, incentive, trend, and summary view" />
                   <LoginFeatureCard title="QA Operations" desc="Evaluation workspace, appeal review, case detail, and QA rubric reference" />
                   <LoginFeatureCard title="Access Control" desc="User directory, role permissions, password reset, and system audit tools" />
-                  <LoginFeatureCard title="Collaboration Hub" desc="Inbox, team chat, call history, and operational notifications" />
+                  <LoginFeatureCard title="Work Queue" desc="CRM inbox, task notifications, and operational follow-up" />
                 </div>
 
                 {songkranTheme ? <FestiveIllustration /> : null}
@@ -4558,49 +4555,6 @@ export default function App() {
                       {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread item(s)` : "Queue is clear"}
                     </div>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("team-chat");
-                      void sendPresence();
-                      void loadChatData();
-                    }}
-                    className="group relative overflow-hidden rounded-2xl border border-sky-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-sky-300 hover:shadow-md"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Collaboration</div>
-                        <div className="mt-1 text-sm font-extrabold">Team Chat</div>
-                      </div>
-                      <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
-                        {totalChatUnreadCount || onlineUsers.length}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">
-                      {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No active user"}
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("call-history");
-                      void loadChatData();
-                    }}
-                    className="group relative overflow-hidden rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call Center</div>
-                        <div className="mt-1 text-sm font-extrabold">Call History</div>
-                      </div>
-                      <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-sm font-extrabold text-indigo-700">
-                        {missedCallHistoryCount || totalCallHistoryCount}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">
-                      {missedCallHistoryCount ? `${missedCallHistoryCount} missed call(s)` : totalCallHistoryCount ? `${totalCallHistoryCount} call record(s)` : "No call record yet"}
-                    </div>
-                  </button>
                 </div>
               </div>
             </div>
@@ -4621,49 +4575,6 @@ export default function App() {
                 </div>
                 <div className="mt-1 text-xs font-semibold text-violet-100">
                   {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread item(s)` : "Queue is clear"}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("team-chat");
-                  void sendPresence();
-                  void loadChatData();
-                }}
-                className="group relative overflow-hidden rounded-2xl border border-sky-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-sky-300 hover:shadow-md"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-600">Collaboration</div>
-                    <div className="mt-1 text-sm font-extrabold">Team Chat</div>
-                  </div>
-                  <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-extrabold text-emerald-700">
-                    {totalChatUnreadCount || onlineUsers.length}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {totalChatUnreadCount ? `${totalChatUnreadCount} unread message(s)` : onlineUsers.length ? `${onlineUsers.length} online user(s)` : "No active user"}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("call-history");
-                  void loadChatData();
-                }}
-                className="group relative overflow-hidden rounded-2xl border border-indigo-200 bg-white px-4 py-3 text-left text-slate-950 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Call Center</div>
-                    <div className="mt-1 text-sm font-extrabold">Call History</div>
-                  </div>
-                  <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-sm font-extrabold text-indigo-700">
-                    {missedCallHistoryCount || totalCallHistoryCount}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {missedCallHistoryCount ? `${missedCallHistoryCount} missed call(s)` : totalCallHistoryCount ? `${totalCallHistoryCount} call record(s)` : "No call record yet"}
                 </div>
               </button>
             </div>
@@ -4862,36 +4773,6 @@ export default function App() {
         )}
       </div>
 
-      <FloatingChatWidget
-        open={floatingChatOpen}
-        currentUser={currentUser}
-        messages={chatMessages}
-        onlineUsers={onlineUsers}
-        unreadCounts={chatUnreadCounts}
-        totalUnread={totalChatUnreadCount}
-        onToggle={() => {
-          const nextOpen = !floatingChatOpen;
-          setFloatingChatOpen(nextOpen);
-          if (nextOpen) {
-            void sendPresence();
-            void loadChatData();
-          }
-        }}
-        onOpenFullChat={() => {
-          setActiveTab("team-chat");
-          setFloatingChatOpen(false);
-          void sendPresence();
-          void loadChatData();
-        }}
-        onSendMessage={async (message, toUser) => {
-          await sendChatMessage(message, toUser);
-          await loadChatData();
-        }}
-        onRefresh={() => {
-          void sendPresence();
-          void loadChatData();
-        }}
-      />
     </>
   );
 }
