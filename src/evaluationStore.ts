@@ -319,7 +319,9 @@ function readRemoteEvaluationCache() {
 function writeRemoteEvaluationCache(records: StoredEvaluation[]) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(REMOTE_EVALUATION_CACHE_KEY, JSON.stringify(records));
+    const existing = readRemoteEvaluationCache();
+    const mergedRecords = mergeEvaluationSources(records, existing);
+    window.localStorage.setItem(REMOTE_EVALUATION_CACHE_KEY, JSON.stringify(mergedRecords));
   } catch (error) {
     console.warn("Cache evaluation history skipped", error);
   }

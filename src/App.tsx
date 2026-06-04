@@ -109,6 +109,22 @@ type BuildMeta = {
   timezone?: string;
 };
 
+type AppTab =
+  | "dashboard"
+  | "appeal"
+  | "create-evaluation"
+  | "pre-test"
+  | "appeal-requests"
+  | "appeal-override"
+  | "task-inbox"
+  | "team-chat"
+  | "call-history"
+  | "summary"
+  | "coaching"
+  | "rubric"
+  | "usage-log"
+  | "user-roles";
+
 type MaintenanceState = {
   enabled: boolean;
   message: string;
@@ -179,7 +195,37 @@ const DEFAULT_BUILD_META: BuildMeta = {
 };
 
 const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
+const ACTIVE_TAB_STORAGE_KEY = "qa-dashboard:last-active-tab";
 const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
+const VALID_APP_TABS = new Set<AppTab>([
+  "dashboard",
+  "appeal",
+  "create-evaluation",
+  "pre-test",
+  "appeal-requests",
+  "appeal-override",
+  "task-inbox",
+  "team-chat",
+  "call-history",
+  "summary",
+  "coaching",
+  "rubric",
+  "usage-log",
+  "user-roles",
+]);
+
+function normalizeAppTab(value: string | null | undefined): AppTab | "" {
+  const normalized = String(value || "").trim();
+  return VALID_APP_TABS.has(normalized as AppTab) ? (normalized as AppTab) : "";
+}
+
+function getNavigationType() {
+  try {
+    return (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.type || "";
+  } catch {
+    return "";
+  }
+}
 
 function compactCentralStoreText(value: unknown, fallback = "") {
   const text = String(value ?? fallback ?? "");
@@ -2545,13 +2591,16 @@ export default function App() {
     return Number.isFinite(stored) ? stored : 0;
   });
 
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "appeal" | "create-evaluation" | "pre-test" | "appeal-requests" | "appeal-override" | "task-inbox" | "team-chat" | "call-history" | "summary" | "coaching" | "rubric" | "usage-log" | "user-roles"
-  >(() => {
+  const [activeTab, setActiveTab] = useState<AppTab>(() => {
     try {
-      const initialTab = new URL(window.location.href).searchParams.get("tab");
-      if (initialTab === "pre-test") return "pre-test";
-      return initialTab === "create-evaluation" ? "create-evaluation" : "dashboard";
+      const initialTab = normalizeAppTab(new URL(window.location.href).searchParams.get("tab"));
+      const storedTab = normalizeAppTab(window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY));
+
+      if (initialTab === "pre-test" && getNavigationType() === "reload") {
+        return storedTab && storedTab !== "pre-test" ? storedTab : "dashboard";
+      }
+
+      return initialTab || storedTab || "dashboard";
     } catch {
       return "dashboard";
     }
@@ -2707,6 +2756,22 @@ export default function App() {
     });
     window.history.replaceState({}, "", nextUrl.toString());
   }
+
+  useEffect(() => {
+    window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+
+    const currentUrl = new URL(window.location.href);
+    const urlTab = currentUrl.searchParams.get("tab");
+
+    if (activeTab === "dashboard") {
+      if (urlTab && urlTab !== "dashboard") replaceWorkspaceUrl({});
+      return;
+    }
+
+    if (urlTab !== activeTab) {
+      replaceWorkspaceUrl({ tab: activeTab });
+    }
+  }, [activeTab]);
 
   async function copyShareLink(label: string, url: string) {
     try {
