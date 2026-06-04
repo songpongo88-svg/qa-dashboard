@@ -2,9 +2,9 @@ const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const EVALUATION_TABLE = String(env.VITE_QA_EVALUATION_TABLE || "qa_evaluations");
-const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history";
-const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache";
-const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids";
+const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history:v2";
+const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache:v2";
+const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids:v2";
 
 export type StoredEvaluationTopic = {
   code: string;
