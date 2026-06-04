@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606042045",
-  "buildNumber": 2606042045,
-  "releaseLabel": "v1.0.0.2606042045",
-  "updatedAt": "04/06/2026 20:45:55",
+  "displayVersion": "1.0.0.2606042109",
+  "buildNumber": 2606042109,
+  "releaseLabel": "v1.0.0.2606042109",
+  "updatedAt": "04/06/2026 21:09:49",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "90128f7ad54ed46195c9da70e92d847f2b90781f",
-  "commitMessage": "Reset QA evaluation local cache namespace",
+  "commitHash": "9c3c2a80a5c309e689514ba325a8dd8bf7997b90",
+  "commitMessage": "Remove chat and call surfaces",
   "changedFiles": [
     "public/build-meta.json",
-    "src/evaluationStore.ts"
+    "src/App.tsx",
+    "src/UserRoleAdminMockup.tsx",
+    "src/usageLog.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

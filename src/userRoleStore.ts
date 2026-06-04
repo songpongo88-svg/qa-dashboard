@@ -6,6 +6,7 @@ const USER_PROFILE_TABLE = String(env.VITE_USER_PROFILE_TABLE || "qa_user_profil
 const ROLE_DEFINITION_TABLE = String(env.VITE_ROLE_DEFINITION_TABLE || "qa_role_definitions");
 const ROLE_PERMISSION_TABLE = String(env.VITE_ROLE_PERMISSION_TABLE || "qa_role_permissions");
 const MAINTENANCE_TABLE = String(env.VITE_MAINTENANCE_TABLE || "qa_system_settings");
+const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
 
 const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
 const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
@@ -65,6 +66,16 @@ function headers(prefer?: string) {
   return nextHeaders;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+}
+
 function normalizeRoleName(value: unknown) {
   const roleName = String(value || "").trim();
   return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
@@ -113,7 +124,7 @@ function writeSingleCache<T>(key: string, row: T | null) {
 
 async function requestJson<T>(table: string, query = ""): Promise<T> {
   if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetch(endpoint(table, query), {
+  const response = await fetchWithTimeout(endpoint(table, query), {
     method: "GET",
     headers: headers(),
   });
@@ -123,7 +134,7 @@ async function requestJson<T>(table: string, query = ""): Promise<T> {
 
 async function upsertRows(table: string, rows: unknown[], conflictColumn: string) {
   if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetch(endpoint(table, `?on_conflict=${encodeURIComponent(conflictColumn)}`), {
+  const response = await fetchWithTimeout(endpoint(table, `?on_conflict=${encodeURIComponent(conflictColumn)}`), {
     method: "POST",
     headers: headers("resolution=merge-duplicates,return=minimal"),
     body: JSON.stringify(rows),
@@ -133,7 +144,7 @@ async function upsertRows(table: string, rows: unknown[], conflictColumn: string
 
 async function deleteRows(table: string, column: string, value: string) {
   if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetch(endpoint(table, `?${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`), {
+  const response = await fetchWithTimeout(endpoint(table, `?${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`), {
     method: "DELETE",
     headers: headers("return=minimal"),
   });
@@ -281,10 +292,10 @@ export async function fetchStoredMaintenanceState() {
     const state = rows[0] ? toMaintenance(rows[0]) : null;
     writeSingleCache(MAINTENANCE_CACHE_KEY, state);
     return state;
-  } catch (error) {
-    const cached = readSingleCache<StoredMaintenanceState>(MAINTENANCE_CACHE_KEY);
-    if (cached) return cached;
-    throw error;
+  } catch {
+    // A stale local "maintenance on" cache can lock users out while Supabase is over quota.
+    // When the central store is unavailable, keep the app open instead.
+    return null;
   }
 }
 

@@ -27,6 +27,7 @@ const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const USAGE_LOG_TABLE = String(env.VITE_USAGE_LOG_TABLE || "usage_logs");
+const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
 const DISABLED_USAGE_EVENT_TYPES = new Set([
   "user_presence",
   "chat_message",
@@ -56,6 +57,16 @@ function getUsageLogHeaders(prefer?: string) {
   return headers;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+}
+
 export async function logUsageEvent(
   user: UsageLogUser,
   eventType: string,
@@ -77,7 +88,7 @@ export async function logUsageEvent(
   };
 
   try {
-    const response = await fetch(getUsageLogEndpoint(), {
+    const response = await fetchWithTimeout(getUsageLogEndpoint(), {
       method: "POST",
       headers: getUsageLogHeaders("return=minimal"),
       body: JSON.stringify(body),
@@ -102,7 +113,7 @@ export async function fetchUsageLogs(limit = 300) {
     limit: String(limit),
   });
 
-  const response = await fetch(getUsageLogEndpoint(`?${params.toString()}`), {
+  const response = await fetchWithTimeout(getUsageLogEndpoint(`?${params.toString()}`), {
     method: "GET",
     headers: getUsageLogHeaders(),
     cache: "no-store",
@@ -127,7 +138,7 @@ export async function fetchUsageLogsByEventTypes(eventTypes: string[], limit = 3
   });
   params.set("event_type", `in.(${cleanEventTypes.join(",")})`);
 
-  const response = await fetch(getUsageLogEndpoint(`?${params.toString()}`), {
+  const response = await fetchWithTimeout(getUsageLogEndpoint(`?${params.toString()}`), {
     method: "GET",
     headers: getUsageLogHeaders(),
     cache: "no-store",
