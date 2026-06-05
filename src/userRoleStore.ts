@@ -1,56 +1,15 @@
-const env = (import.meta as any).env || {};
-const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
-const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
-
-const USER_PROFILE_TABLE = String(env.VITE_USER_PROFILE_TABLE || "qa_user_profiles");
-const ROLE_DEFINITION_TABLE = String(env.VITE_ROLE_DEFINITION_TABLE || "qa_role_definitions");
-const ROLE_PERMISSION_TABLE = String(env.VITE_ROLE_PERMISSION_TABLE || "qa_role_permissions");
-const MAINTENANCE_TABLE = String(env.VITE_MAINTENANCE_TABLE || "qa_system_settings");
-const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
+﻿import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
+import { firebaseDb } from "./firebaseClient";
 
 const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
 const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
 const ROLE_PERMISSION_CACHE_KEY = "qa-dashboard:role-permissions-cache";
 const MAINTENANCE_CACHE_KEY = "qa-dashboard:maintenance-cache";
-const SUPABASE_READ_CACHE_TTL_MS = 2 * 60 * 1000;
-const USER_PROFILE_SELECT_COLUMNS = [
-  "username",
-  "display_name",
-  "agent_name",
-  "email",
-  "role",
-  "team_lead",
-  "team_name",
-  "status",
-  "suspend_reason",
-].join(",");
-const ROLE_DEFINITION_SELECT_COLUMNS = [
-  "name",
-  "description",
-  "active",
-  "locked",
-  "updated_by",
-  "updated_at",
-].join(",");
-const ROLE_PERMISSION_SELECT_COLUMNS = [
-  "role_name",
-  "permissions",
-  "updated_by",
-  "updated_at",
-].join(",");
-const MAINTENANCE_SELECT_COLUMNS = [
-  "enabled",
-  "message",
-  "updated_by",
-  "updated_at",
-].join(",");
 
-type CachedSupabaseRead = {
-  expiresAt: number;
-  promise: Promise<unknown>;
-};
-
-const supabaseReadCache = new Map<string, CachedSupabaseRead>();
+const USER_PROFILE_COLLECTION = "qa_user_profiles";
+const ROLE_DEFINITION_COLLECTION = "qa_role_definitions";
+const ROLE_PERMISSION_COLLECTION = "qa_role_permissions";
+const SYSTEM_SETTINGS_COLLECTION = "qa_system_settings";
 
 export type StoredUserProfile = {
   username: string;
@@ -87,41 +46,17 @@ export type StoredMaintenanceState = {
   updatedAt: string;
 };
 
-function isConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
-}
-
-function endpoint(table: string, query = "") {
-  return `${SUPABASE_URL}/rest/v1/${table}${query}`;
-}
-
-function headers(prefer?: string) {
-  const nextHeaders: Record<string, string> = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    "Content-Type": "application/json",
-  };
-  if (prefer) nextHeaders.Prefer = prefer;
-  return nextHeaders;
-}
-
-async function fetchWithTimeout(url: string, init: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeoutId = globalThis.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    globalThis.clearTimeout(timeoutId);
-  }
-}
-
-function clearSupabaseReadCache() {
-  supabaseReadCache.clear();
-}
-
 function normalizeRoleName(value: unknown) {
   const roleName = String(value || "").trim();
   return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
+}
+
+function safeDocId(value: unknown) {
+  return String(value || "")
+    .trim()
+    .replace(/\//g, "__")
+    .replace(/\s+/g, " ")
+    || "unknown";
 }
 
 function readCache<T>(key: string): T[] {
@@ -141,7 +76,7 @@ function writeCache<T>(key: string, rows: T[]) {
   try {
     window.localStorage.setItem(key, JSON.stringify(rows));
   } catch {
-    // Cache is only a safety net for reload/deploy timing.
+    // Local cache is only a fallback.
   }
 }
 
@@ -161,83 +96,37 @@ function writeSingleCache<T>(key: string, row: T | null) {
   try {
     window.localStorage.setItem(key, JSON.stringify(row));
   } catch {
-    // Cache is only a safety net for reload/deploy timing.
+    // Local cache is only a fallback.
   }
-}
-
-async function requestJson<T>(table: string, query = ""): Promise<T> {
-  if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const cacheKey = `${table}${query}`;
-  const now = Date.now();
-  const cached = supabaseReadCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) return cached.promise as Promise<T>;
-
-  const promise = fetchWithTimeout(endpoint(table, query), {
-    method: "GET",
-    headers: headers(),
-    cache: "default",
-  }).then(async (response) => {
-    if (!response.ok) throw new Error(`Supabase read failed: ${table} ${response.status}`);
-    return (await response.json()) as T;
-  }).catch((error) => {
-    supabaseReadCache.delete(cacheKey);
-    throw error;
-  });
-
-  supabaseReadCache.set(cacheKey, {
-    expiresAt: now + SUPABASE_READ_CACHE_TTL_MS,
-    promise,
-  });
-  return promise;
-}
-
-async function upsertRows(table: string, rows: unknown[], conflictColumn: string) {
-  if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetchWithTimeout(endpoint(table, `?on_conflict=${encodeURIComponent(conflictColumn)}`), {
-    method: "POST",
-    headers: headers("resolution=merge-duplicates,return=minimal"),
-    body: JSON.stringify(rows),
-  });
-  if (!response.ok) throw new Error(`Supabase upsert failed: ${table} ${response.status}`);
-  clearSupabaseReadCache();
-}
-
-async function deleteRows(table: string, column: string, value: string) {
-  if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetchWithTimeout(endpoint(table, `?${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`), {
-    method: "DELETE",
-    headers: headers("return=minimal"),
-  });
-  if (!response.ok) throw new Error(`Supabase delete failed: ${table} ${response.status}`);
-  clearSupabaseReadCache();
 }
 
 function toUserProfile(row: any): StoredUserProfile {
   return {
     username: String(row.username || ""),
-    displayName: String(row.display_name || row.username || ""),
-    agentName: String(row.agent_name || row.display_name || row.username || ""),
+    displayName: String(row.displayName || row.display_name || row.username || ""),
+    agentName: String(row.agentName || row.agent_name || row.displayName || row.display_name || row.username || ""),
     email: String(row.email || ""),
     role: normalizeRoleName(row.role || "Admin Live Chat"),
-    teamLead: String(row.team_lead || ""),
-    teamName: String(row.team_name || ""),
+    teamLead: String(row.teamLead || row.team_lead || ""),
+    teamName: String(row.teamName || row.team_name || ""),
     status: row.status === "Suspended" ? "Suspended" : "Active",
-    suspendReason: String(row.suspend_reason || ""),
+    suspendReason: String(row.suspendReason || row.suspend_reason || ""),
   };
 }
 
 function fromUserProfile(profile: StoredUserProfile) {
   return {
     username: profile.username,
-    display_name: profile.displayName,
-    agent_name: profile.agentName,
+    displayName: profile.displayName,
+    agentName: profile.agentName,
     email: profile.email,
     role: normalizeRoleName(profile.role),
-    team_lead: profile.teamLead,
-    team_name: profile.teamName,
+    teamLead: profile.teamLead,
+    teamName: profile.teamName,
     status: profile.status,
-    suspend_reason: profile.suspendReason,
-    updated_at: new Date().toISOString(),
+    suspendReason: profile.suspendReason,
+    updatedAt: new Date().toISOString(),
+    updatedAtServer: serverTimestamp(),
   };
 }
 
@@ -247,8 +136,8 @@ function toRoleDefinition(row: any): StoredRoleDefinition {
     description: String(row.description || ""),
     active: row.active === false ? false : true,
     locked: row.locked === true,
-    updatedBy: String(row.updated_by || ""),
-    updatedAt: String(row.updated_at || ""),
+    updatedBy: String(row.updatedBy || row.updated_by || ""),
+    updatedAt: String(row.updatedAt || row.updated_at || ""),
   };
 }
 
@@ -258,26 +147,28 @@ function fromRoleDefinition(role: StoredRoleDefinition) {
     description: role.description,
     active: role.active,
     locked: role.locked,
-    updated_by: role.updatedBy,
-    updated_at: role.updatedAt || new Date().toISOString(),
+    updatedBy: role.updatedBy,
+    updatedAt: role.updatedAt || new Date().toISOString(),
+    updatedAtServer: serverTimestamp(),
   };
 }
 
 function toRolePermission(row: any): StoredRolePermission {
   return {
-    roleName: normalizeRoleName(row.role_name),
+    roleName: normalizeRoleName(row.roleName || row.role_name),
     permissions: (row.permissions || {}) as Record<string, boolean>,
-    updatedBy: String(row.updated_by || ""),
-    updatedAt: String(row.updated_at || ""),
+    updatedBy: String(row.updatedBy || row.updated_by || ""),
+    updatedAt: String(row.updatedAt || row.updated_at || ""),
   };
 }
 
 function fromRolePermission(row: StoredRolePermission) {
   return {
-    role_name: normalizeRoleName(row.roleName),
+    roleName: normalizeRoleName(row.roleName),
     permissions: row.permissions || {},
-    updated_by: row.updatedBy,
-    updated_at: row.updatedAt || new Date().toISOString(),
+    updatedBy: row.updatedBy,
+    updatedAt: row.updatedAt || new Date().toISOString(),
+    updatedAtServer: serverTimestamp(),
   };
 }
 
@@ -285,15 +176,15 @@ function toMaintenance(row: any): StoredMaintenanceState {
   return {
     enabled: row.enabled === true,
     message: String(row.message || ""),
-    updatedBy: String(row.updated_by || ""),
-    updatedAt: String(row.updated_at || ""),
+    updatedBy: String(row.updatedBy || row.updated_by || ""),
+    updatedAt: String(row.updatedAt || row.updated_at || ""),
   };
 }
 
 export async function fetchStoredUserProfiles() {
   try {
-    const rows = await requestJson<any[]>(USER_PROFILE_TABLE, `?select=${USER_PROFILE_SELECT_COLUMNS}&order=username.asc`);
-    const profiles = rows.map(toUserProfile).filter((row) => row.username);
+    const snapshot = await getDocs(query(collection(firebaseDb, USER_PROFILE_COLLECTION), orderBy("username", "asc")));
+    const profiles = snapshot.docs.map((item) => toUserProfile(item.data())).filter((row) => row.username);
     writeCache(USER_PROFILE_CACHE_KEY, profiles);
     return profiles;
   } catch (error) {
@@ -305,13 +196,27 @@ export async function fetchStoredUserProfiles() {
 
 export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
   if (!profiles.length) return;
-  await upsertRows(USER_PROFILE_TABLE, profiles.map(fromUserProfile), "username");
+  await Promise.all(
+    profiles.map((profile) =>
+      setDoc(doc(firebaseDb, USER_PROFILE_COLLECTION, safeDocId(profile.username)), fromUserProfile(profile), { merge: true })
+    )
+  );
+  writeCache(USER_PROFILE_CACHE_KEY, profiles);
+}
+
+export async function deleteStoredUserProfile(username: string) {
+  if (!username) return;
+  await deleteDoc(doc(firebaseDb, USER_PROFILE_COLLECTION, safeDocId(username)));
+  const cached = readCache<StoredUserProfile>(USER_PROFILE_CACHE_KEY).filter(
+    (profile) => profile.username.toLowerCase() !== String(username).toLowerCase()
+  );
+  writeCache(USER_PROFILE_CACHE_KEY, cached);
 }
 
 export async function fetchStoredRoleDefinitions() {
   try {
-    const rows = await requestJson<any[]>(ROLE_DEFINITION_TABLE, `?select=${ROLE_DEFINITION_SELECT_COLUMNS}&order=name.asc`);
-    const roles = rows.map(toRoleDefinition).filter((row) => row.name);
+    const snapshot = await getDocs(query(collection(firebaseDb, ROLE_DEFINITION_COLLECTION), orderBy("name", "asc")));
+    const roles = snapshot.docs.map((item) => toRoleDefinition(item.data())).filter((row) => row.name);
     writeCache(ROLE_DEFINITION_CACHE_KEY, roles);
     return roles;
   } catch (error) {
@@ -322,17 +227,25 @@ export async function fetchStoredRoleDefinitions() {
 }
 
 export async function upsertStoredRoleDefinition(role: StoredRoleDefinition) {
-  await upsertRows(ROLE_DEFINITION_TABLE, [fromRoleDefinition(role)], "name");
+  await setDoc(doc(firebaseDb, ROLE_DEFINITION_COLLECTION, safeDocId(role.name)), fromRoleDefinition(role), { merge: true });
+  const cached = readCache<StoredRoleDefinition>(ROLE_DEFINITION_CACHE_KEY).filter(
+    (item) => item.name.toLowerCase() !== role.name.toLowerCase()
+  );
+  writeCache(ROLE_DEFINITION_CACHE_KEY, [...cached, role]);
 }
 
 export async function deleteStoredRoleDefinition(name: string) {
-  await deleteRows(ROLE_DEFINITION_TABLE, "name", name);
+  await deleteDoc(doc(firebaseDb, ROLE_DEFINITION_COLLECTION, safeDocId(name)));
+  const cached = readCache<StoredRoleDefinition>(ROLE_DEFINITION_CACHE_KEY).filter(
+    (item) => item.name.toLowerCase() !== String(name).toLowerCase()
+  );
+  writeCache(ROLE_DEFINITION_CACHE_KEY, cached);
 }
 
 export async function fetchStoredRolePermissions() {
   try {
-    const rows = await requestJson<any[]>(ROLE_PERMISSION_TABLE, `?select=${ROLE_PERMISSION_SELECT_COLUMNS}&order=role_name.asc`);
-    const permissions = rows.map(toRolePermission).filter((row) => row.roleName);
+    const snapshot = await getDocs(query(collection(firebaseDb, ROLE_PERMISSION_COLLECTION), orderBy("roleName", "asc")));
+    const permissions = snapshot.docs.map((item) => toRolePermission(item.data())).filter((row) => row.roleName);
     writeCache(ROLE_PERMISSION_CACHE_KEY, permissions);
     return permissions;
   } catch (error) {
@@ -344,32 +257,35 @@ export async function fetchStoredRolePermissions() {
 
 export async function upsertStoredRolePermissions(rows: StoredRolePermission[]) {
   if (!rows.length) return;
-  await upsertRows(ROLE_PERMISSION_TABLE, rows.map(fromRolePermission), "role_name");
+  await Promise.all(
+    rows.map((row) =>
+      setDoc(doc(firebaseDb, ROLE_PERMISSION_COLLECTION, safeDocId(row.roleName)), fromRolePermission(row), { merge: true })
+    )
+  );
+  writeCache(ROLE_PERMISSION_CACHE_KEY, rows);
 }
 
 export async function fetchStoredMaintenanceState() {
   try {
-    const rows = await requestJson<any[]>(MAINTENANCE_TABLE, `?select=${MAINTENANCE_SELECT_COLUMNS}&id=eq.global&limit=1`);
-    const state = rows[0] ? toMaintenance(rows[0]) : null;
+    const snapshot = await getDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"));
+    const state = snapshot.exists() ? toMaintenance(snapshot.data()) : null;
     writeSingleCache(MAINTENANCE_CACHE_KEY, state);
     return state;
   } catch {
-    // A stale local "maintenance on" cache can lock users out while Supabase is over quota.
-    // When the central store is unavailable, keep the app open instead.
+    const cached = readSingleCache<StoredMaintenanceState>(MAINTENANCE_CACHE_KEY);
+    if (cached) return cached;
     return null;
   }
 }
 
 export async function upsertStoredMaintenanceState(state: StoredMaintenanceState) {
-  await upsertRows(
-    MAINTENANCE_TABLE,
-    [{
-      id: "global",
-      enabled: state.enabled,
-      message: state.message,
-      updated_by: state.updatedBy,
-      updated_at: state.updatedAt || new Date().toISOString(),
-    }],
-    "id"
-  );
+  const nextState = {
+    enabled: state.enabled,
+    message: state.message,
+    updatedBy: state.updatedBy,
+    updatedAt: state.updatedAt || new Date().toISOString(),
+    updatedAtServer: serverTimestamp(),
+  };
+  await setDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"), nextState, { merge: true });
+  writeSingleCache(MAINTENANCE_CACHE_KEY, state);
 }
