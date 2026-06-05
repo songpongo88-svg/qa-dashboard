@@ -2185,7 +2185,7 @@ function TaskInboxMockup({
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
           eyebrow="Work Queue"
-          title="CRM Inbox"
+          title="Work Queue"
           subtitle="Unread work items, QA updates, password alerts, and review requests are collected here like an internal operations mailbox."
           workspaceTitle="Operations Mailbox"
           workspaceSubtitle="Read an item to clear the badge, then open the related workflow"
@@ -2758,14 +2758,14 @@ export default function App() {
   const missedCallHistoryCount = chatMessages.filter((message) => message.kind === "call" && message.callStatus === "missed").length;
   const accountOptions = canUseAdminAccountMenu
     ? [
-        ...(roleAdminAllowed ? [{ value: "user-roles", label: "Access & User Management" }] : []),
-        ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Password Reset Center" }] : []),
-        ...(usageLogAllowed ? [{ value: "usage-log", label: "System Activity Log" }] : []),
-        { value: "change-password", label: "Change My Password" },
+        ...(roleAdminAllowed ? [{ value: "user-roles", label: "User & Roles" }] : []),
+        ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Password Reset" }] : []),
+        ...(usageLogAllowed ? [{ value: "usage-log", label: "Activity Log" }] : []),
+        { value: "change-password", label: "Change Password" },
         { value: "logout", label: "Sign Out" },
       ]
     : [
-        { value: "change-password", label: "Change My Password" },
+        { value: "change-password", label: "Change Password" },
         { value: "logout", label: "Sign Out" },
       ];
 
@@ -4579,8 +4579,8 @@ export default function App() {
                 {songkranTheme ? <div className="mt-4"><SongkranBadge /></div> : null}
 
                 <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                  <LoginFeatureCard title="Performance Center" desc="Dashboard, KPI, grade, incentive, trend, and summary view" />
-                  <LoginFeatureCard title="QA Operations" desc="Evaluation workspace, appeal review, case detail, and QA rubric reference" />
+                  <LoginFeatureCard title="Performance" desc="Dashboard, KPI, grade, incentive, trend, and summary view" />
+                  <LoginFeatureCard title="QA Review" desc="Evaluation workspace, appeal review, case detail, and QA rubric reference" />
                   <LoginFeatureCard title="Access Control" desc="User directory, role permissions, password reset, and system audit tools" />
                   <LoginFeatureCard title="Work Queue" desc="CRM inbox, task notifications, and operational follow-up" />
                 </div>
@@ -4766,32 +4766,32 @@ export default function App() {
 
                 <div className="flex w-full flex-col gap-5 md:flex-row md:flex-nowrap md:justify-end md:gap-x-5 md:gap-y-5 xl:max-w-[760px]">
                   <HeaderSelect
-                    label="Performance Center"
+                    label="Performance"
                     helper="Score, KPI, trend"
                     value={performanceMenuValue}
                     onChange={handlePerformanceMenuChange}
                     options={[
-                      { value: "dashboard", label: "Performance Dashboard" },
-                      { value: "summary", label: "Monthly Summary" },
-                      ...(coachingAllowed ? [{ value: "coaching", label: "Coaching Insights" }] : []),
+                      { value: "dashboard", label: "Dashboard" },
+                      { value: "summary", label: "Summary" },
+                      ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
                     ]}
                   />
                   <HeaderSelect
-                    label="QA Operations"
+                    label="QA Review"
                     helper="Evaluate, appeal, rubric"
                     value={reviewMenuValue}
                     onChange={handleReviewMenuChange}
                     options={[
-                      { value: "appeal", label: "Appeal Case Center" },
-                      ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Exception Control" }] : []),
-                      ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Appeal Review Queue" }] : []),
-                      ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create QA Evaluation" }] : []),
-                      ...(preTestAllowed ? [{ value: "pre-test", label: "Pre-Test Center" }] : []),
-                      ...(rubricAllowed ? [{ value: "rubric", label: "QA Rubric Library" }] : []),
+                      { value: "appeal", label: "Appeals" },
+                      ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
+                      ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Review Queue" }] : []),
+                      ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create Evaluation" }] : []),
+                      ...(preTestAllowed ? [{ value: "pre-test", label: "Pre-Test" }] : []),
+                      ...(rubricAllowed ? [{ value: "rubric", label: "Rubric" }] : []),
                     ]}
                   />
                   <HeaderSelect
-                    label="Administration"
+                    label="User & Roles"
                     helper="User, security, system"
                     value={accountMenuDisplayValue}
                     onChange={handleAccountMenuChange}
@@ -4808,7 +4808,7 @@ export default function App() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Work Queue</div>
-                        <div className="mt-1 text-sm font-extrabold">CRM Inbox</div>
+                        <div className="mt-1 text-sm font-extrabold">Work Queue</div>
                       </div>
                       <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
                         {unreadInboxTaskCount}
@@ -4830,7 +4830,7 @@ export default function App() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Work Queue</div>
-                    <div className="mt-1 text-sm font-extrabold">CRM Inbox</div>
+                    <div className="mt-1 text-sm font-extrabold">Work Queue</div>
                   </div>
                   <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
                     {unreadInboxTaskCount}
@@ -4848,7 +4848,7 @@ export default function App() {
           <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
             <div className="flex flex-col gap-3 rounded-[24px] border border-violet-200 bg-white px-4 py-3 shadow-[0_14px_36px_rgba(88,28,135,0.10)] sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from CRM Inbox</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from Work Queue</div>
                 <div className="mt-1 text-sm font-bold text-slate-700">{inboxReturnTitle}</div>
               </div>
               <button
@@ -4856,7 +4856,7 @@ export default function App() {
                 onClick={openTaskInbox}
                 className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-800"
               >
-                Back to CRM Inbox
+                Back to Work Queue
               </button>
             </div>
           </div>
@@ -5039,6 +5039,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 
