@@ -1,16 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606060322",
-  "buildNumber": 2606060322,
-  "releaseLabel": "v1.0.0.2606060322",
-  "updatedAt": "06/06/2026 03:22:29",
+  "displayVersion": "1.0.0.2606060334",
+  "buildNumber": 2606060334,
+  "releaseLabel": "v1.0.0.2606060334",
+  "updatedAt": "06/06/2026 03:34:02",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "772dba08044261068c96749ea79ac858b5f47bb0",
-  "commitMessage": "feat: move usage logs to firebase access logs",
+  "commitHash": "8dd72f7cd9b24e2084430fe5cd7a6fcb42721c4f",
+  "commitMessage": "Move activity log to Firebase access events",
   "changedFiles": [
-    "src/usageLog.ts"
+    "public/build-meta.json",
+    "src/App.tsx",
+    "src/UsageLogMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

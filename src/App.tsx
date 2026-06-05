@@ -4039,6 +4039,7 @@ export default function App() {
 
       setCurrentUser(nextUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+      void logUsageEvent(nextUser, "login", { tab: "dashboard" });
       setLoginError("");
       setUsername("");
       setPassword("");
@@ -4118,6 +4119,7 @@ export default function App() {
 
         setCurrentUser(nextUser);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+        void logUsageEvent(nextUser, "login", { tab: "dashboard" });
         setLoginError("");
         setUsername("");
         setPassword("");
