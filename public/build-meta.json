@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051826",
-  "buildNumber": 2606051826,
-  "releaseLabel": "v1.0.0.2606051826",
-  "updatedAt": "05/06/2026 18:26:41",
+  "displayVersion": "1.0.0.2606051916",
+  "buildNumber": 2606051916,
+  "releaseLabel": "v1.0.0.2606051916",
+  "updatedAt": "05/06/2026 19:16:26",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "996ad276d56238ebfb9034d805de5ca7f1587b0e",
-  "commitMessage": "Restore Songpon emergency admin login",
+  "commitHash": "8fb654864d9ac7ba252833b4be123bcba2d7d292",
+  "commitMessage": "Point Firebase config to imported user project",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/firebaseClient.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

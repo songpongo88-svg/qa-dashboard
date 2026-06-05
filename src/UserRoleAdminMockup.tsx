@@ -2670,7 +2670,7 @@ function EditableDirectoryTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-xs">
+      <table className="w-full min-w-[1260px] table-fixed border-collapse text-left text-xs">
         <thead>
           <tr className="bg-slate-950 text-white">
             <th className="px-3 py-3 font-bold">Username</th>
@@ -3067,5 +3067,6 @@ function TextInput({
     />
   );
 }
+
 
 
