@@ -1817,6 +1817,7 @@ function PasswordVisibilityInput({
         type="button"
         onClick={() => setShowPassword((current) => !current)}
         aria-label={showPassword ? "Hide password" : "Show password"}
+        tabIndex={-1}
         className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200"
       >
         {showPassword ? (
@@ -4430,9 +4431,19 @@ export default function App() {
     }
 
     const centralPasswordRecord = await getCentralPasswordRecord(account.username);
-    const effectivePassword = centralPasswordRecord?.password || getEffectivePassword(account);
+    const localPasswordRecord = getLocalPasswordRecord(account.username);
+    const currentPasswordCandidates = [
+      centralPasswordRecord?.password,
+      localPasswordRecord?.password,
+      getEffectivePassword(account),
+      account.password,
+    ].filter((item): item is string => typeof item === "string" && item.length > 0);
+    const typedCurrentPasswords = Array.from(new Set([currentPasswordInput, currentPasswordInput.trim()]));
+    const currentPasswordMatches = typedCurrentPasswords.some((typedValue) =>
+      currentPasswordCandidates.includes(typedValue)
+    );
 
-    if (currentPasswordInput !== effectivePassword) {
+    if (!currentPasswordMatches) {
       setChangePasswordError("Current password is incorrect");
       setChangePasswordSuccess("");
       return;
