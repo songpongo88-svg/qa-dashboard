@@ -392,21 +392,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
 ];
 
 const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: string }> = {
-  anucha: { teamLead: "Phrommarin Thaithorn", teamName: "เธ—เธตเธก Senior" },
-  arisa: { teamLead: "-", teamName: "-" },
-  chatkonnaphat: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
-  jariyawadee: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (เธ—เนเธฒเธเธขเธฑเธเธเนเธเธเธกเธซเธงเธฒเธ)" },
-  jureeporn: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
-  krivut: { teamLead: "Phrommarin Thaithorn", teamName: "เธ—เธตเธก Senior" },
-  natcha: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
-  nattapol: { teamLead: "Suphitcha Keawliam", teamName: "Pink panther" },
-  phrommarin: { teamLead: "-", teamName: "เธ—เธตเธก Senior" },
-  songpon: { teamLead: "-", teamName: "เธ—เธตเธก Senior" },
-  sunijtra: { teamLead: "Suphitcha Keawliam", teamName: "Pink panther" },
-  supakrit: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
-  suphitcha: { teamLead: "Phrommarin Thaithorn", teamName: "เธ—เธตเธก Senior" },
-  wachiraporn: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (เธ—เนเธฒเธเธขเธฑเธเธเนเธเธเธกเธซเธงเธฒเธ)" },
-  wassana: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (เธ—เนเธฒเธเธขเธฑเธเธเนเธเธเธกเธซเธงเธฒเธ)" },
+  songpon: { teamLead: "-", teamName: "ทีม Senior" },
 };
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
@@ -4823,5 +4809,6 @@ export default function App() {
     </>
   );
 }
+
 
 

@@ -1,13 +1,13 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051409",
-  "buildNumber": 2606051409,
-  "releaseLabel": "v1.0.0.2606051409",
-  "updatedAt": "05/06/2026 14:09:57",
+  "displayVersion": "1.0.0.2606051417",
+  "buildNumber": 2606051417,
+  "releaseLabel": "v1.0.0.2606051417",
+  "updatedAt": "05/06/2026 14:17:17",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "efce45e89121c729161ce9e953d6426028ce1b2d",
+  "commitHash": "81f45bf738ebff0b3f7bc236599717090df8c04f",
   "commitMessage": "Keep only Songpon default user",
   "changedFiles": [
     "public/build-meta.json",
