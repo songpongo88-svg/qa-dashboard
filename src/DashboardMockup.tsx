@@ -4587,7 +4587,7 @@ export default function DashboardMockup({
                 Agent Performance Dashboard
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
+                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData_March-May2026 +
                 Appleal ROWDATA
               </div>
               {songkranTheme ? (

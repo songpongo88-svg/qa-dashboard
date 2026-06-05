@@ -1248,11 +1248,11 @@ export default function AppealMockup({
         setLoadError("");
 
         const [rawResponse, appealResponse] = await Promise.all([
-          fetch("/QA_RawData1.xlsx"),
+          fetch("/QA_RawData_March-May2026.xlsx"),
           fetch("/Appleal ROWDATA.xlsx"),
         ]);
 
-        if (!rawResponse.ok) throw new Error("ไม่พบไฟล์ QA_RawData1.xlsx ในโฟลเดอร์ public");
+        if (!rawResponse.ok) throw new Error("ไม่พบไฟล์ QA_RawData_March-May2026.xlsx ในโฟลเดอร์ public");
         if (!appealResponse.ok)
           throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
 
@@ -1274,7 +1274,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-        if (rawHeaderIndex === -1) throw new Error("ไม่พบ Header ใน QA_RawData1.xlsx");
+        if (rawHeaderIndex === -1) throw new Error("ไม่พบ Header ใน QA_RawData_March-May2026.xlsx");
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
