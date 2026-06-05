@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -1483,8 +1483,8 @@ export default function UserRoleAdminMockup({
         ) : null}
 
         {adminTab === "users" && canViewUserDirectory ? (
-          <div className="mt-5 overflow-hidden rounded-[32px] border border-violet-200 bg-white shadow-[0_24px_80px_rgba(88,28,135,0.12)]">
-            <div className="flex flex-col gap-4 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50 to-fuchsia-50 px-5 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+          <div className="mt-5 overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_18px_52px_rgba(88,28,135,0.10)]">
+            <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50 to-fuchsia-50 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-5">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">User Management</div>
                 <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">Corporate User Directory</div>
@@ -1507,14 +1507,14 @@ export default function UserRoleAdminMockup({
                         Create Team
                       </button>
                     ) : null}
-                    <button type="button" onClick={handleCancelEdit} className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(225,29,72,0.28)] transition hover:bg-rose-700">
+                    <button type="button" onClick={handleCancelEdit} className="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(225,29,72,0.28)] transition hover:bg-rose-700">
                       Cancel
                     </button>
                     <button
                       type="button"
                       onClick={handleSaveDirectory}
                       disabled={saving}
-                      className="rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-400"
+                      className="rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-400"
                     >
                       {saving ? "Saving..." : currentUserManagementSaveLabel}
                     </button>
@@ -1531,14 +1531,14 @@ export default function UserRoleAdminMockup({
                         Create Team
                       </button>
                     ) : null}
-                    <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+                    <button type="button" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                       Export PDF
                     </button>
                     {canEditCurrentUserManagementView ? (
                       <button
                         type="button"
                         onClick={() => startEditingUserManagementView(userManagementView)}
-                        className="rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-6 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(217,70,239,0.32)] transition hover:scale-[1.02]"
+                        className="rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_16px_34px_rgba(217,70,239,0.32)] transition hover:scale-[1.02]"
                       >
                         {currentUserManagementEditLabel}
                       </button>
@@ -1552,7 +1552,7 @@ export default function UserRoleAdminMockup({
               </div>
             </div>
 
-            <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-4">
+            <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-4 py-3">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
                   <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={scopedRows.length} onClick={() => switchUserManagementView("users")} />
@@ -1606,7 +1606,7 @@ export default function UserRoleAdminMockup({
                 <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Role & Permission Management</div>
                 <div className="mt-1 text-sm leading-6 text-slate-500">Create roles, update role descriptions, and control what each role can access.</div>
               </div>
-              <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+              <button type="button" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                 Export PDF
               </button>
             </div>
@@ -1638,7 +1638,7 @@ export default function UserRoleAdminMockup({
                 <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Maintenance Control Center</div>
                 <div className="mt-1 text-sm leading-6 text-slate-500">Temporarily restrict access while updating system configuration or QA data.</div>
               </div>
-              <button type="button" onClick={() => void handleExportPdf()} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+              <button type="button" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                 Export PDF
               </button>
             </div>
@@ -1853,7 +1853,7 @@ function DirectoryTabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-3 rounded-[18px] border px-5 py-3 text-sm font-bold transition ${
+      className={`inline-flex items-center gap-2 rounded-[16px] border px-4 py-2.5 text-xs font-bold transition ${
         active ? activeClass : "border-violet-200 bg-violet-100 text-violet-700 hover:bg-violet-200 hover:text-violet-900"
       }`}
     >
@@ -1895,8 +1895,8 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[1280px] space-y-3">
-          <div className="grid grid-cols-[minmax(280px,1.25fr)_minmax(220px,0.9fr)_minmax(250px,1fr)_minmax(220px,0.9fr)_170px_140px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+        <div className="min-w-[980px] space-y-3">
+          <div className="grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
             <div>User Profile</div>
             <div>Agent Name</div>
             <div>Registered Email</div>
@@ -1908,7 +1908,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
           {rows.map((row) => (
             <div
               key={row.username}
-              className={`grid grid-cols-[minmax(280px,1.25fr)_minmax(220px,0.9fr)_minmax(250px,1fr)_minmax(220px,0.9fr)_170px_140px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
+              className={`grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
                 row.status === "Active" ? "border-white bg-white" : "border-rose-100 bg-rose-50/70"
               }`}
             >
@@ -1917,24 +1917,24 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
                   {userInitials(row.displayName || row.username)}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-base font-black text-slate-950">{row.displayName}</div>
+                  <div className="min-w-0 truncate text-base font-black text-slate-950">{row.displayName}</div>
                   <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">@{row.username}</div>
                 </div>
               </div>
 
               <div className="min-w-0">
-                <div className="truncate font-bold text-slate-700">{row.agentName || "-"}</div>
+                <div className="min-w-0 truncate font-bold text-slate-700">{row.agentName || "-"}</div>
                 <div className="mt-1 text-xs font-semibold text-slate-400">QA profile owner</div>
               </div>
 
               <div className="min-w-0">
-                <div className="truncate rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 font-semibold text-slate-600">
+                <div className="min-w-0 truncate rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
                   {row.email || "No email assigned"}
                 </div>
               </div>
 
               <div className="min-w-0">
-                <div className="truncate font-black text-slate-800">{row.teamName || "Unassigned Team"}</div>
+                <div className="min-w-0 truncate font-black text-slate-800">{row.teamName || "Unassigned Team"}</div>
                 <div className="mt-1 truncate text-xs font-semibold text-slate-400">Lead: {row.teamLead || "-"}</div>
               </div>
 
@@ -1995,8 +1995,8 @@ function TeamOverviewPanel({
                       {userInitials(user.displayName || user.username)}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-black text-slate-950">{user.displayName}</div>
-                      <div className="truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
+                      <div className="min-w-0 truncate text-sm font-black text-slate-950">{user.displayName}</div>
+                      <div className="min-w-0 truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -2191,8 +2191,8 @@ function TeamManagementPanel({
                       {userInitials(user.displayName || user.username)}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
-                      <div className="truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
+                      <div className="min-w-0 truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
+                      <div className="min-w-0 truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
                       <div className="mt-1 text-[11px] font-bold text-slate-400">Lead: {user.teamLead || team.teamLead || "-"}</div>
                     </div>
                   </div>
@@ -2208,7 +2208,7 @@ function TeamManagementPanel({
                         value={user.teamName.trim() || "Unassigned Team"}
                         disabled={!editable}
                         onChange={(event) => onChange(index, "teamName", event.target.value === "Unassigned Team" ? "" : event.target.value)}
-                        className="w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-black text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        className="w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-black text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                       >
                         {teamOptions.map((option) => (
                           <option key={option} value={option}>{option}</option>
@@ -2346,7 +2346,7 @@ function RoleManagementPanel({
             disabled={saving}
             onChange={(event) => onNameChange(event.target.value)}
             placeholder="e.g. Trainer, QA Lead, Manager"
-            className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
           />
         </label>
         <label className="block">
@@ -2356,7 +2356,7 @@ function RoleManagementPanel({
             disabled={saving}
             onChange={(event) => onDescriptionChange(event.target.value)}
             placeholder="Short explanation for this role"
-            className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
           />
         </label>
         <button
@@ -2390,7 +2390,7 @@ function RoleManagementPanel({
                           value={editingRoleDraft.name}
                           disabled={!canRename || saving}
                           onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, name: event.target.value }))}
-                          className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400"
+                          className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400"
                         />
                       </label>
                       <label className="block">
@@ -2399,7 +2399,7 @@ function RoleManagementPanel({
                           value={editingRoleDraft.description}
                           disabled={saving}
                           onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, description: event.target.value }))}
-                          className="mt-2 min-h-[86px] w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                          className="mt-2 min-h-[86px] w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
                         />
                       </label>
                     </div>
@@ -2813,7 +2813,7 @@ function CreateUserModal({
               value={user.role}
               disabled={saving}
               onChange={(event) => onChange("role", event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
             >
               {roleOptions.map((role) => (
                 <option key={role} value={role}>
@@ -2829,7 +2829,7 @@ function CreateUserModal({
               value={user.status}
               disabled={saving}
               onChange={(event) => onChange("status", event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
             >
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
@@ -2848,7 +2848,7 @@ function CreateUserModal({
                   value={user.temporaryPassword}
                   disabled={saving}
                   onChange={(event) => onChange("temporaryPassword", event.target.value)}
-                  className="w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  className="w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                 />
                 <button
                   type="button"
@@ -2932,7 +2932,7 @@ function CreateTeamModal({
                 value={team.roleMode}
                 disabled={saving}
                 onChange={(event) => onChange("roleMode", event.target.value === "sync" ? "sync" : "keep")}
-                className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 <option value="keep">Keep individual roles</option>
                 <option value="sync">Sync one role to all members</option>
@@ -2947,7 +2947,7 @@ function CreateTeamModal({
                 value={team.assignedRole}
                 disabled={saving || team.roleMode === "keep"}
                 onChange={(event) => onChange("assignedRole", event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 {roleOptions.map((role) => (
                   <option key={role} value={role}>{role}</option>
@@ -2988,8 +2988,8 @@ function CreateTeamModal({
                         {userInitials(user.displayName || user.username)}
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
-                        <div className="truncate text-xs font-semibold text-slate-500">{user.teamName || "Unassigned Team"} • {user.role}</div>
+                        <div className="min-w-0 truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
+                        <div className="min-w-0 truncate text-xs font-semibold text-slate-500">{user.teamName || "Unassigned Team"} โ€ข {user.role}</div>
                       </div>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${isSelected ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"}`}>
@@ -3042,7 +3042,7 @@ function ModalField({
         disabled={disabled}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
       />
     </label>
   );
@@ -3067,3 +3067,4 @@ function TextInput({
     />
   );
 }
+

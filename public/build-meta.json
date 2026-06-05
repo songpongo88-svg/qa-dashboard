@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051417",
-  "buildNumber": 2606051417,
-  "releaseLabel": "v1.0.0.2606051417",
-  "updatedAt": "05/06/2026 14:17:17",
+  "displayVersion": "1.0.0.2606051423",
+  "buildNumber": 2606051423,
+  "releaseLabel": "v1.0.0.2606051423",
+  "updatedAt": "05/06/2026 14:23:45",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "81f45bf738ebff0b3f7bc236599717090df8c04f",
-  "commitMessage": "Keep only Songpon default user",
+  "commitHash": "ac8e3767c37145f5c2e552c52ecece577e35fda0",
+  "commitMessage": "Fix Thai default team text",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
