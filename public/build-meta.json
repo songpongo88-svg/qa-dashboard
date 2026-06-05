@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052231",
-  "buildNumber": 2606052231,
-  "releaseLabel": "v1.0.0.2606052231",
-  "updatedAt": "05/06/2026 22:31:20",
+  "displayVersion": "1.0.0.2606052311",
+  "buildNumber": 2606052311,
+  "releaseLabel": "v1.0.0.2606052311",
+  "updatedAt": "05/06/2026 23:11:49",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "08acc4db87873a1adeaf6eabfdaa8e3971df1325",
-  "commitMessage": "Remove legacy password fallback from PDF export",
+  "commitHash": "e85a73fd1c4a092942cab5ad71e4f8bea82b12f6",
+  "commitMessage": "Revert \"Improve user directory editing filters and team input focus\"\n\nThis reverts commit 19710c04d8b9803057768aabc36cb88bf5b6f1ff.",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

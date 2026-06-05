@@ -2018,7 +2018,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
                   </div>
                   <div className="min-w-0">
                     <div className="min-w-0 truncate text-base font-black text-slate-950">{row.displayName}</div>
-                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">@{row.username}</div>
+                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{row.username}</div>
                   </div>
                 </div>
 
@@ -3176,6 +3176,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
