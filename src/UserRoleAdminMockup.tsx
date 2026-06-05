@@ -1408,7 +1408,6 @@ export default function UserRoleAdminMockup({
           const exportPassword =
             passwordMap[row.username.trim().toLowerCase()] ||
             passwordMap[String(row.displayName || "").trim().toLowerCase()] ||
-            row.password ||
             "-";
 
           return [
@@ -3142,6 +3141,7 @@ function TextInput({
     />
   );
 }
+
 
 
 

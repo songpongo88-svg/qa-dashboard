@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052219",
-  "buildNumber": 2606052219,
-  "releaseLabel": "v1.0.0.2606052219",
-  "updatedAt": "05/06/2026 22:19:08",
+  "displayVersion": "1.0.0.2606052225",
+  "buildNumber": 2606052225,
+  "releaseLabel": "v1.0.0.2606052225",
+  "updatedAt": "05/06/2026 22:25:45",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "375da742ffd502ac6f8d7639838abf9bfa615336",
-  "commitMessage": "Add password values to user directory PDF rows",
+  "commitHash": "e22018016e1673efd127da0be58065a6b9af9eb9",
+  "commitMessage": "Fix password values in PDF export rows",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
