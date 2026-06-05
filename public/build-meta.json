@@ -1,20 +1,15 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606042109",
-  "buildNumber": 2606042109,
-  "releaseLabel": "v1.0.0.2606042109",
-  "updatedAt": "04/06/2026 21:09:49",
+  "displayVersion": "1.0.0.2606051111",
+  "buildNumber": 2606051111,
+  "releaseLabel": "v1.0.0.2606051111",
+  "updatedAt": "05/06/2026 11:11:42",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "9c3c2a80a5c309e689514ba325a8dd8bf7997b90",
-  "commitMessage": "Remove chat and call surfaces",
-  "changedFiles": [
-    "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx",
-    "src/usageLog.ts"
-  ],
+  "commitHash": "ab414d1657199e66e561ca686c77e9bef1ec0cde",
+  "commitMessage": "Merge pull request #1 from songpongo88-svg/codex-reduce-supabase-egress\n\nReduce Supabase egress",
+  "changedFiles": [],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
 }
