@@ -1,17 +1,16 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606060034",
-  "buildNumber": 2606060034,
-  "releaseLabel": "v1.0.0.2606060034",
-  "updatedAt": "06/06/2026 00:34:35",
+  "displayVersion": "1.0.0.2606060322",
+  "buildNumber": 2606060322,
+  "releaseLabel": "v1.0.0.2606060322",
+  "updatedAt": "06/06/2026 03:22:29",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "a7083df8ac78618b8d6ff62c502a0928b93242ac",
-  "commitMessage": "Fix team management input focus",
+  "commitHash": "772dba08044261068c96749ea79ac858b5f47bb0",
+  "commitMessage": "feat: move usage logs to firebase access logs",
   "changedFiles": [
-    "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "src/usageLog.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

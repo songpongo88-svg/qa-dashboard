@@ -3944,7 +3944,7 @@ export default function App() {
 
   const handleLogout = () => {
     if (currentUser && !maintenanceBlocked) {
-      logUsageEvent(currentUser, "logout", { tab: activeTab });
+      void logUsageEvent(currentUser, "logout", { tab: activeTab });
     }
     clearSessionTimers();
     setShowSessionWarning(false);
@@ -4201,7 +4201,7 @@ export default function App() {
     setCurrentUser(nextUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
     if (!maintenanceState.enabled || canBypassMaintenance(nextUser)) {
-      logUsageEvent(nextUser, "login", { tab: "dashboard" });
+      void logUsageEvent(nextUser, "login", { tab: "dashboard" });
     }
 
     if (

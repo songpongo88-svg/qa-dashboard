@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchUsageLogs, isUsageLogConfigured, UsageLogEvent } from "./usageLog";
+import { fetchUsageLogs, UsageLogEvent } from "./usageLog";
 import PageHero from "./PageHero";
 
 const PAGE_SIZE = 25;
+const ACCESS_EVENTS = new Set(["login", "logout"]);
 
 function formatLogDate(value?: string) {
   if (!value) return "-";
@@ -48,65 +49,20 @@ function csvCell(value: unknown) {
 }
 
 function eventLabel(type: string) {
-  const map: Record<string, string> = {
-    login: "เข้าสู่ระบบ",
-    logout: "ออกจากระบบ",
-    tab_view: "เปิดหน้า",
-    case_detail_open: "เปิดเคส",
-    appeal_case_open: "เปิดเคส Appeal",
-    pdf_generate: "สร้าง PDF",
-  };
-  return map[type] || type || "-";
-}
-
-function tabLabel(tab?: string) {
-  const map: Record<string, string> = {
-    dashboard: "Dashboard",
-    summary: "Summary",
-    coaching: "Coaching",
-    appeal: "Appeal",
-    "usage-log": "Usage Log",
-  };
-  return tab ? map[tab] || tab : "-";
-}
-
-function subTabLabel(value?: unknown) {
-  const map: Record<string, string> = {
-    overview: "ภาพรวม",
-    "case-detail": "รายละเอียดเคส",
-  };
-  return typeof value === "string" ? map[value] || value : "";
+  if (type === "login") return "Login";
+  if (type === "logout") return "Logout";
+  return type || "-";
 }
 
 function detailsLabel(item: UsageLogEvent) {
-  if (item.event_type === "login") return "ผู้ใช้เข้าสู่ระบบ";
-  if (item.event_type === "logout") return "ผู้ใช้ออกจากระบบ";
-  if (item.event_type === "pdf_generate") {
-    const pdfType = item.details?.pdfType === "appeal" ? "Appeal PDF" : "Case Detail PDF";
-    return item.case_id ? `สร้าง ${pdfType} ของเคส ${item.case_id}` : `สร้าง ${pdfType}`;
-  }
-  if (item.event_type === "case_detail_open") {
-    return item.case_id ? `เปิดดูรายละเอียดเคส ${item.case_id}` : "เปิดดูรายละเอียดเคส";
-  }
-  if (item.event_type === "appeal_case_open") {
-    return item.case_id ? `เปิดดูเคส Appeal ${item.case_id}` : "เปิดดูเคส Appeal";
-  }
-  if (item.event_type === "tab_view") {
-    const subTab = subTabLabel(item.details?.dashboardSubTab);
-    const tabText = tabLabel(item.tab);
-    return subTab ? `เปิดหน้า ${tabText} - ${subTab}` : `เปิดหน้า ${tabText}`;
-  }
-
-  const entries = Object.entries(item.details || {}).filter(([, value]) => value !== "" && value != null);
-  if (!entries.length) return "-";
-  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(", ");
+  if (item.event_type === "login") return "User signed in";
+  if (item.event_type === "logout") return "User signed out";
+  return "-";
 }
 
 function eventTone(type: string) {
   if (type === "login") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (type === "logout") return "border-slate-200 bg-slate-50 text-slate-700";
-  if (type === "pdf_generate") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (type.includes("case")) return "border-violet-200 bg-violet-50 text-violet-700";
   return "border-sky-200 bg-sky-50 text-sky-700";
 }
 
@@ -123,9 +79,10 @@ export default function UsageLogMockup() {
     try {
       setIsLoading(true);
       setError("");
-      setLogs(await fetchUsageLogs({ limit: 500, forceRefresh: true }));
+      const rows = await fetchUsageLogs({ limit: 500, forceRefresh: true });
+      setLogs(rows.filter((item) => ACCESS_EVENTS.has(item.event_type)));
     } catch (err: any) {
-      setError(err?.message || "โหลด Usage Log ไม่สำเร็จ");
+      setError(err?.message || "Load Activity Log failed");
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +97,9 @@ export default function UsageLogMockup() {
   }, [logs]);
 
   const eventTypes = useMemo(() => {
-    return Array.from(new Set(logs.map((item) => item.event_type || "-"))).sort();
+    return Array.from(new Set(logs.map((item) => item.event_type || "-")))
+      .filter((eventType) => ACCESS_EVENTS.has(eventType))
+      .sort();
   }, [logs]);
 
   const filteredLogs = logs.filter((item) => {
@@ -163,15 +122,13 @@ export default function UsageLogMockup() {
   }, [userFilter, eventFilter, selectedDate]);
 
   const handleGenerateLog = () => {
-    const headers = ["Time", "User", "Agent", "Role", "Event", "Page", "Case ID", "Details"];
+    const headers = ["Time", "User", "Agent", "Role", "Activity", "Details"];
     const rows = filteredLogs.map((item) => [
       formatLogDate(item.created_at),
       item.display_name || item.username || "-",
       item.agent_name || "-",
       item.role || "-",
       eventLabel(item.event_type),
-      tabLabel(item.tab),
-      item.case_id || "-",
       detailsLabel(item),
     ]);
     const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
@@ -179,7 +136,7 @@ export default function UsageLogMockup() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `usage-log_${selectedDate || "all"}.csv`;
+    link.download = `access-log_${selectedDate || "all"}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -193,7 +150,7 @@ export default function UsageLogMockup() {
           <PageHero
             eyebrow="Administration"
             title="System Activity Log"
-            subtitle="Audit user activity such as login, page access, case detail views, appeal activity, and PDF generation."
+            subtitle="Audit user access by login and logout time only."
           />
 
           <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_190px_190px_190px_140px_170px]">
@@ -256,12 +213,8 @@ export default function UsageLogMockup() {
             </button>
           </div>
 
-          {!isUsageLogConfigured() ? (
-            <div className="px-6 py-8 text-sm leading-7 text-amber-800">
-              ยังไม่ได้ตั้งค่า Supabase ให้เพิ่ม `VITE_SUPABASE_URL` และ `VITE_SUPABASE_ANON_KEY` ใน environment ก่อนใช้งานจริง
-            </div>
-          ) : isLoading ? (
-            <div className="px-6 py-10 text-center text-sm text-slate-500">กำลังโหลด Usage Log...</div>
+          {isLoading ? (
+            <div className="px-6 py-10 text-center text-sm text-slate-500">Loading Activity Log...</div>
           ) : error ? (
             <div className="px-6 py-8 text-sm text-rose-700">{error}</div>
           ) : (
@@ -294,48 +247,44 @@ export default function UsageLogMockup() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="min-w-[1180px] w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.12em] text-white">
-                    <th className="px-4 py-3 text-left">Time</th>
-                    <th className="px-4 py-3 text-left">User</th>
-                    <th className="px-4 py-3 text-left">Role</th>
-                    <th className="px-4 py-3 text-left">Activity</th>
-                    <th className="px-4 py-3 text-left">Page</th>
-                    <th className="px-4 py-3 text-left">Case ID</th>
-                    <th className="px-4 py-3 text-left">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedLogs.length ? (
-                    paginatedLogs.map((item, index) => (
-                      <tr key={item.id || `${item.created_at}-${index}`} className="border-t border-slate-200 bg-white">
-                        <td className="px-4 py-3 font-semibold text-slate-800">{formatLogDate(item.created_at)}</td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-slate-950">{item.display_name || item.username || "-"}</div>
-                          <div className="text-xs text-slate-500">{item.agent_name || "-"}</div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">{item.role || "-"}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${eventTone(item.event_type)}`}>
-                            {eventLabel(item.event_type)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">{tabLabel(item.tab)}</td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">{item.case_id || "-"}</td>
-                        <td className="max-w-[420px] px-4 py-3 text-sm leading-6 text-slate-700">
-                          {detailsLabel(item)}
+                <table className="min-w-[980px] w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.12em] text-white">
+                      <th className="px-4 py-3 text-left">Time</th>
+                      <th className="px-4 py-3 text-left">User</th>
+                      <th className="px-4 py-3 text-left">Role</th>
+                      <th className="px-4 py-3 text-left">Activity</th>
+                      <th className="px-4 py-3 text-left">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedLogs.length ? (
+                      paginatedLogs.map((item, index) => (
+                        <tr key={item.id || `${item.created_at}-${index}`} className="border-t border-slate-200 bg-white">
+                          <td className="px-4 py-3 font-semibold text-slate-800">{formatLogDate(item.created_at)}</td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-slate-950">{item.display_name || item.username || "-"}</div>
+                            <div className="text-xs text-slate-500">{item.agent_name || "-"}</div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">{item.role || "-"}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${eventTone(item.event_type)}`}>
+                              {eventLabel(item.event_type)}
+                            </span>
+                          </td>
+                          <td className="max-w-[420px] px-4 py-3 text-sm leading-6 text-slate-700">
+                            {detailsLabel(item)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-500">
+                          No login/logout logs match this filter.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500">
-                        ยังไม่มี log ตามตัวกรองนี้
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
+                    )}
+                  </tbody>
                 </table>
               </div>
             </div>
