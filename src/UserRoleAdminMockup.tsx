@@ -1401,8 +1401,8 @@ export default function UserRoleAdminMockup({
       });
     } else {
       drawTable(
-        ["User", "Email", "Team", "Role", "Status"],
-        [38, 52, 42, 30, 20],
+        ["User", "Email", "Team", "Role", "Status", "Password"],
+        [32, 42, 34, 28, 18, 34],
         visibleRows.map((row) => [
           row.displayName || row.username,
           row.email || "-",
@@ -1865,6 +1865,24 @@ function DirectoryTabButton({
   );
 }
 
+
+async function loadFirebasePasswordMapForExport() {
+  try {
+    const snapshot = await getDocs(collection(firebaseDb, "qa_user_profiles"));
+    const passwordMap: Record<string, string> = {};
+
+    snapshot.forEach((item) => {
+      const data = item.data() as any;
+      const username = String(data.username || item.id || "").trim().toLowerCase();
+      const password = String(data.password || "").trim();
+      if (username && password) passwordMap[username] = password;
+    });
+
+    return passwordMap;
+  } catch {
+    return {};
+  }
+}
 function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }> }) {
   const [firebasePasswords, setFirebasePasswords] = useState<Record<string, string>>({});
 
@@ -3114,6 +3132,7 @@ function TextInput({
     />
   );
 }
+
 
 
 

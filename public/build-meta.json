@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052140",
-  "buildNumber": 2606052140,
-  "releaseLabel": "v1.0.0.2606052140",
-  "updatedAt": "05/06/2026 21:40:31",
+  "displayVersion": "1.0.0.2606052158",
+  "buildNumber": 2606052158,
+  "releaseLabel": "v1.0.0.2606052158",
+  "updatedAt": "05/06/2026 21:58:05",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "693ba0d186ce9babec90f09d6e3b6aca19537bbd",
-  "commitMessage": "Read and show Firebase passwords directly in directory",
+  "commitHash": "ce5a5729b1f58b6c13a8483af3f6e7a76147977a",
+  "commitMessage": "Force show Firebase passwords in user directory",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
