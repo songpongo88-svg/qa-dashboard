@@ -138,23 +138,16 @@ type MaintenanceState = {
 };
 
 const USER_ACCOUNTS: UserAccount[] = [
-  { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin", email: "Anucha@robinhood.co.th" },
-  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Admin Live Chat", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "เธฅเธฒเธญเธญเธเนเธฅเนเธง" },
-  { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Admin Live Chat", agentName: "Chatkonnaphat Bhusomya", email: "Chatkonnaphat@robinhood.co.th" },
-  { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Admin Live Chat", agentName: "Jariyawadee Taboodda", email: "Jariyawadee@robinhood.co.th" },
-  { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Admin Live Chat", agentName: "Jureeporn Piddum", email: "Jureeporn@robinhood.co.th" },
-  { username: "Krivut", password: "Kv#9Ts4!Mb", displayName: "Krivut Vongkampan", role: "Supervisor", agentName: "Krivut Vongkampan", email: "Krivut@robinhood.co.th" },
-  { username: "Natcha", password: "Nc@7Pw3#Lf", displayName: "Natcha Chai-in", role: "Admin Live Chat", agentName: "Natcha Chai-in", email: "Natcha@robinhood.co.th" },
-  { username: "Nattapol", password: "Np!4Xz8@Hr", displayName: "Nattapol Suprom", role: "Admin Live Chat", agentName: "Nattapol Suprom", email: "Nattapol.s@robinhood.co.th" },
-  { username: "Phrommarin", password: "RBH1234", displayName: "Phrommarin Thaithorn", role: "Supervisor", agentName: "Phrommarin Thaithorn", email: "phrommarin@robinhood.co.th" },
-  { username: "Songpon", password: "Boom@4421L2", displayName: "Songpon Phothong", role: "Quality Assurance", agentName: "Songpon Phothong", email: "Songpon@robinhood.co.th" },
-  { username: "Sunijtra", password: "Sj#6Qm1!Ty", displayName: "Sunijtra Siritip", role: "Admin Live Chat", agentName: "Sunijtra Siritip", email: "Sunijtra@robinhood.co.th" },
-  { username: "Supakrit", password: "sP9#kM4!", displayName: "Supakrit Promkhamnoi", role: "Admin Live Chat", agentName: "Supakrit Promkhamnoi", email: "Supakrit@robinhood.co.th" },
-  { username: "Suphitcha", password: "Sp@8Ld2#Vk", displayName: "Suphitcha Keawliam", role: "Supervisor", agentName: "Suphitcha Keawliam", email: "Suphitcha@robinhood.co.th" },
-  { username: "Wachiraporn", password: "wL7$cl2@", displayName: "Wachiraporn Chailittichai", role: "Admin Live Chat", agentName: "Wachiraporn Chailittichai", email: "wachiraporn@robinhood.co.th" },
-  { username: "Wassana", password: "Ws!3Kr7@Pn", displayName: "Wassana Phothong", role: "Admin Live Chat", agentName: "Wassana Phothong", email: "Wassana@robinhood.co.th" },
+  {
+    username: "Songpon",
+    password: "Boom@4421L2",
+    displayName: "Songpon Phothong",
+    role: "Quality Assurance",
+    agentName: "Songpon Phothong",
+    email: "Songpon@robinhood.co.th",
+    status: "Active",
+  },
 ];
-
 const STORAGE_KEY = "qa_current_user";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
@@ -4830,4 +4823,5 @@ export default function App() {
     </>
   );
 }
+
 
