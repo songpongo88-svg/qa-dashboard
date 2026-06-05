@@ -1,19 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052113",
-  "buildNumber": 2606052113,
-  "releaseLabel": "v1.0.0.2606052113",
-  "updatedAt": "05/06/2026 21:13:37",
+  "displayVersion": "1.0.0.2606052140",
+  "buildNumber": 2606052140,
+  "releaseLabel": "v1.0.0.2606052140",
+  "updatedAt": "05/06/2026 21:40:31",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ec2ad77e33b9f326c85dd6259d420ea13345c478",
-  "commitMessage": "Show password in user directory blank column",
+  "commitHash": "693ba0d186ce9babec90f09d6e3b6aca19537bbd",
+  "commitMessage": "Read and show Firebase passwords directly in directory",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx",
-    "src/userRoleStore.ts"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
