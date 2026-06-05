@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -189,17 +189,17 @@ const LEGACY_TOPIC_MASTER = [
 ] as const;
 
 const APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "เธกเธฒเธ•เธฃเธเธฒเธเธเธฒเธฃเธ—เธฑเธเธ—เธฒเธขเนเธฅเธฐเธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
-  { code: "1.2", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธก PDPA / Policy / เธเนเธญเธเธณเธซเธเธ”", max: 10 },
-  { code: "1.3", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฃเธฐเธเธงเธเธเธฒเธฃเนเธฅเธฐ SLA", max: 10 },
-  { code: "2.1", label: "เธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
-  { code: "2.2", label: "เธเธงเธฒเธกเธเธฃเธเธ–เนเธงเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
-  { code: "2.3", label: "เธเธงเธฒเธกเธเธฑเธ”เน€เธเธเธเธญเธเธเธฑเนเธเธ•เธญเธเนเธฅเธฐเนเธซเธฅเนเธเธญเนเธฒเธเธญเธดเธ", max: 5 },
-  { code: "3.1", label: "เธเธฒเธฃเธงเธดเน€เธเธฃเธฒเธฐเธซเนเนเธฅเธฐเนเธเนเนเธเธเธฑเธเธซเธฒเนเธ”เนเธ•เธฃเธเธเธธเธ”", max: 15 },
-  { code: "3.2", label: "Ownership เนเธฅเธฐเธเธฒเธฃเนเธเนเธ Next Step", max: 10 },
-  { code: "4.1", label: "เนเธเธฃเธเธชเธฃเนเธฒเธเธเนเธญเธเธงเธฒเธกเนเธฅเธฐเธเธงเธฒเธกเธญเนเธฒเธเธเนเธฒเธข", max: 5 },
-  { code: "4.2", label: "เธเธงเธฒเธกเธเธฃเธฐเธเธฑเธเนเธฅเธฐเธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธ เธฒเธฉเธฒ", max: 5 },
-  { code: "4.3", label: "เธเนเธณเน€เธชเธตเธขเธเนเธฅเธฐเธเธงเธฒเธกเน€เธซเธกเธฒเธฐเธชเธกเธ•เธฒเธกเธชเธ–เธฒเธเธเธฒเธฃเธ“เน", max: 10 },
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
 ] as const;
 
 const JUNE_2026_TOPIC_MASTER = [
@@ -585,7 +585,7 @@ function formatWaitingServiceRange(waitingTime?: string, serviceTime?: string) {
   let diff = endMinutes - startMinutes;
   if (diff < 0) diff += 24 * 60;
 
-  return `${safeStart} - ${safeEnd} (${diff} เธเธฒเธ—เธต)`;
+  return `${safeStart} - ${safeEnd} (${diff} นาที)`;
 }
 
 
@@ -846,7 +846,7 @@ function getIncentiveResult(caseCount: number, avg: number, monthKey: string): I
       cash: 0,
       promo: 0,
       label: "0 THB",
-      remark: "เธขเธฑเธเธเธฃเธฐเน€เธกเธดเธเนเธกเนเธเธฃเธ 10 เน€เธเธช",
+      remark: "ยังประเมินไม่ครบ 10 เคส",
     };
   }
 
@@ -1166,7 +1166,7 @@ function CaseNavigatorCard({
         <span>{item.weekLabel}</span>
         {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
           <span className="font-semibold text-violet-700">
-            {item.previousScore.toFixed(0)} โ’ {item.finalScore.toFixed(0)}
+            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
           </span>
         ) : (
           <span>{item.reviewStatus}</span>
@@ -1188,7 +1188,7 @@ function ReviewStatusBadge({ item }: { item: CaseItem }) {
       </span>
       {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
         <span className="text-xs font-medium text-violet-700">
-          {Math.round(item.previousScore)} โ’ {Math.round(item.finalScore)}
+          {Math.round(item.previousScore)} → {Math.round(item.finalScore)}
         </span>
       ) : null}
     </div>
@@ -1243,10 +1243,10 @@ function isNoAppealReason(value: unknown) {
   if (!text) return false;
   const normalized = text.toLowerCase();
   return (
-    normalized === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ||
+    normalized === "ไม่อุทธรณ์หัวข้อนี้" ||
     normalized === "not appeal" ||
     normalized === "no appeal" ||
-    normalized.includes("เนเธกเนเธญเธธเธ—เธเธฃเธ“เน")
+    normalized.includes("ไม่อุทธรณ์")
   );
 }
 
@@ -1384,10 +1384,10 @@ function CaseDetailTopicTable({
                 {row.changed && row.revisedTopic ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2 lg:justify-end">
                     <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                      Original {row.originalTopic.score}/{row.originalTopic.max} ยท {Number(row.originalTopic.pct || 0).toFixed(1)}%
+                      Original {row.originalTopic.score}/{row.originalTopic.max} · {Number(row.originalTopic.pct || 0).toFixed(1)}%
                     </span>
                     <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-semibold text-violet-700">
-                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} ยท {Number(row.revisedTopic.pct || 0).toFixed(1)}%
+                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} · {Number(row.revisedTopic.pct || 0).toFixed(1)}%
                     </span>
                   </div>
                 ) : (
@@ -1428,14 +1428,14 @@ function CaseDetailTopicTable({
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                      {row.originalTopic.comment || "เธขเธฑเธเนเธกเนเธกเธต Evaluation Comment"}
+                      {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
                     </div>
                   </div>
 
                   <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-violet-700">
-                      {row.revisedTopic.comment || "เธขเธฑเธเนเธกเนเธกเธต Revised Comment"}
+                      {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
                     </div>
                   </div>
                 </>
@@ -1443,7 +1443,7 @@ function CaseDetailTopicTable({
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                   <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                    {row.shownTopic.comment || "เธขเธฑเธเนเธกเนเธกเธต Evaluation Comment"}
+                    {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
                   </div>
                 </div>
               )}
@@ -1810,7 +1810,7 @@ async function fetchFirstAvailable(urls: string[]) {
       console.warn(`Static file fetch skipped: ${url}`, error);
     }
   }
-  throw new Error(`เนเธกเนเธเธเนเธเธฅเนเนเธ public เธ•เธฒเธกเธเธทเนเธญเน€เธซเธฅเนเธฒเธเธตเน: ${urls.join(", ")}`);
+  throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
 
 function PremiumBarChart({
@@ -2107,7 +2107,7 @@ function QuickCaseSearchCard({
         <div>
           <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
           <div className="mt-1 text-[11px] text-slate-500">
-            {item.agent} ยท {item.auditDate}
+            {item.agent} · {item.auditDate}
           </div>
         </div>
         <span
@@ -2254,7 +2254,7 @@ function SlideOverCaseDetail({
         max: topic.max,
         comment: topic.comment,
         wantsAppeal: false,
-        appealReason: "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน",
+        appealReason: "ไม่อุทธรณ์หัวข้อนี้",
       }))
     );
     setAppealSubmitMessage("");
@@ -2273,7 +2273,7 @@ function SlideOverCaseDetail({
       return;
     }
 
-    const hasAppealedTopic = appealDraftTopics.some((topic) => topic.wantsAppeal && topic.appealReason.trim() && topic.appealReason.trim() !== "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน");
+    const hasAppealedTopic = appealDraftTopics.some((topic) => topic.wantsAppeal && topic.appealReason.trim() && topic.appealReason.trim() !== "ไม่อุทธรณ์หัวข้อนี้");
     if (!hasAppealedTopic) {
       setAppealSubmitMessage("Please enter an appeal reason for at least one topic.");
       return;
@@ -2281,7 +2281,7 @@ function SlideOverCaseDetail({
 
     const topicsForExport = appealDraftTopics.map((topic) => ({
       ...topic,
-      appealReason: topic.wantsAppeal ? topic.appealReason.trim() : "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน",
+      appealReason: topic.wantsAppeal ? topic.appealReason.trim() : "ไม่อุทธรณ์หัวข้อนี้",
     }));
 
     setAppealSubmitBusy(true);
@@ -2707,9 +2707,9 @@ function SlideOverCaseDetail({
       ) => {
         const hasRevised = !!(showRevised && revisedTopic && caseItem.reviewStatus === "Revised");
         const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 24);
-        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} ยท ${Number(topic.pct || 0).toFixed(1)}%`;
+        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} · ${Number(topic.pct || 0).toFixed(1)}%`;
         const revisedScoreText = hasRevised
-          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} ยท ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
+          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} · ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
         const originalLines = split(topic.comment || "-", contentWidth - 18);
         const revisedLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 18) : [];
@@ -2916,7 +2916,7 @@ function SlideOverCaseDetail({
       onGeneratePdf?.(caseItem.caseId, caseItem.agent, fileSuffix);
     } catch (error) {
       console.error("Generate Case Detail PDF failed:", error);
-      alert("Generate PDF เนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเน€เธเธดเธ” Console เน€เธเธทเนเธญเธ•เธฃเธงเธเธชเธญเธ error");
+      alert("Generate PDF ไม่สำเร็จ กรุณาเปิด Console เพื่อตรวจสอบ error");
     }
   };
 
@@ -2933,7 +2933,7 @@ function SlideOverCaseDetail({
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold text-slate-900">{previewAsset.title}</div>
                 <div className="mt-1 text-xs text-slate-500">
-                  Preview mode ยท {previewAsset.type === "pdf" ? "PDF" : "Image"}
+                  Preview mode · {previewAsset.type === "pdf" ? "PDF" : "Image"}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -2985,7 +2985,7 @@ function SlideOverCaseDetail({
                         }
                         className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
                       >
-                        โ€น
+                        ‹
                       </button>
                       <button
                         type="button"
@@ -3003,7 +3003,7 @@ function SlideOverCaseDetail({
                         }
                         className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
                       >
-                        โ€บ
+                        ›
                       </button>
                     </>
                   ) : null}
@@ -3071,7 +3071,7 @@ function SlideOverCaseDetail({
                             setAppealDraftTopics((current) =>
                               current.map((item) =>
                                 item.code === topic.code
-                                  ? { ...item, wantsAppeal: false, appealReason: "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" }
+                                  ? { ...item, wantsAppeal: false, appealReason: "ไม่อุทธรณ์หัวข้อนี้" }
                                   : item
                               )
                             )
@@ -3082,7 +3082,7 @@ function SlideOverCaseDetail({
                               : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                           }`}
                         >
-                          เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน
+                          ไม่อุทธรณ์หัวข้อนี้
                         </button>
                         <button
                           type="button"
@@ -3090,7 +3090,7 @@ function SlideOverCaseDetail({
                             setAppealDraftTopics((current) =>
                               current.map((item) =>
                                 item.code === topic.code
-                                  ? { ...item, wantsAppeal: true, appealReason: item.appealReason === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ? "" : item.appealReason }
+                                  ? { ...item, wantsAppeal: true, appealReason: item.appealReason === "ไม่อุทธรณ์หัวข้อนี้" ? "" : item.appealReason }
                                   : item
                               )
                             )
@@ -3101,13 +3101,13 @@ function SlideOverCaseDetail({
                               : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                           }`}
                         >
-                          เธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน
+                          ยื่นอุทธรณ์หัวข้อนี้
                         </button>
                       </div>
 
                       {!topic.wantsAppeal ? (
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-                          Export value: เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน
+                          Export value: ไม่อุทธรณ์หัวข้อนี้
                         </div>
                       ) : (
                         <textarea
@@ -3238,7 +3238,7 @@ function SlideOverCaseDetail({
                     {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
                       <div className="mt-3 rounded-[16px] border border-white/70 bg-white/80 px-3 py-2.5 text-[12px] text-slate-700 shadow-sm">
                         <span className="font-semibold text-slate-900">Score Change:</span>{" "}
-                        Original {caseItem.previousScore.toFixed(2)} โ’ Revised {caseItem.finalScore.toFixed(2)}
+                        Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
                       </div>
                     ) : null}
 
@@ -3378,10 +3378,10 @@ function SlideOverCaseDetail({
               <div className="mb-5 space-y-4">
                 <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">๐’ฌ</span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">💬</span>
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
-                      <div className="mt-1 text-xs text-slate-500">เธเนเธญเธเธงเธฒเธกเธซเธฃเธทเธญเธเธฃเธฐเน€เธ”เนเธเธ—เธตเนเธฅเธนเธเธเนเธฒเธ•เธดเธ”เธ•เนเธญเน€เธเนเธฒเธกเธฒเนเธเน€เธเธชเธเธตเน</div>
+                      <div className="mt-1 text-xs text-slate-500">ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้</div>
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -3391,10 +3391,10 @@ function SlideOverCaseDetail({
 
                 <div className="rounded-[22px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">๐“</span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">📝</span>
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
-                      <div className="mt-1 text-xs text-slate-500">เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เนเธฅเธฐเธเธฃเธดเธเธ—เน€เธเธดเนเธกเน€เธ•เธดเธกเธเธญเธเน€เธเธชเธเธตเน</div>
+                      <div className="mt-1 text-xs text-slate-500">รายละเอียดและบริบทเพิ่มเติมของเคสนี้</div>
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-fuchsia-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -3640,7 +3640,7 @@ export default function DashboardMockup({
                   serviceTime: formatTimeOnly(getFirstAvailableHeaderValue(v8Helper, row, ["Service Time", "ServiceTime"], "")),
                   inquiryTh: String(inquiry || "-").trim(),
                   inquiryEn: String(inquiry || "-").trim(),
-                  caseDescription: String(getFirstAvailableHeaderValue(v8Helper, row, ["Case Description", "Case Description / เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช"], "") || "").trim(),
+                  caseDescription: String(getFirstAvailableHeaderValue(v8Helper, row, ["Case Description", "Case Description / รายละเอียดเคส คำอธิบายเคส"], "") || "").trim(),
                   caseImageUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case Image URL", "Case Image"], "")),
                   casePdfUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF URL", "Case PDF"], caseId ? `/case-pdfs/${caseId}.pdf` : "")),
                   casePdfOriginalUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Original URL"], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")),
@@ -3686,14 +3686,14 @@ export default function DashboardMockup({
         let matchedUrl = "";
         try {
           const appealMatch = await fetchFirstAvailable([
-            "/QA_ApplealRawData.xlsx",
-            "/QA_ApplealRawData.xlsx",
-            "/QA_ApplealRawData.xlsx",
+            "/Appleal ROWDATA.xlsx",
+            "/Appeal ROWDATA.xlsx",
+            "/Appeal_ROWDATA.xlsx",
           ]);
           appealResponse = appealMatch.response;
           matchedUrl = appealMatch.matchedUrl;
         } catch (error) {
-          console.warn("QA_ApplealRawData is not available; continuing without appeal merge.", error);
+          console.warn("Appeal ROWDATA is not available; continuing without appeal merge.", error);
         }
 
         const availableRawResponses = rawResponses.filter((item) => item.response.ok);
@@ -3705,7 +3705,7 @@ export default function DashboardMockup({
             setIsLoading(false);
             return;
           }
-          throw new Error(`เนเธกเนเธเธเนเธเธฅเน RawData เนเธเนเธเธฅเน€เธ”เธญเธฃเน public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
+          throw new Error(`ไม่พบไฟล์ RawData ในโฟลเดอร์ public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
         }
 
         const rawSources = await Promise.all(
@@ -3731,7 +3731,7 @@ export default function DashboardMockup({
             })();
 
             if (rawHeaderIndex === -1) {
-              throw new Error(`เนเธกเนเธเธเนเธ–เธง Header เนเธเนเธเธฅเน ${fileName}`);
+              throw new Error(`ไม่พบแถว Header ในไฟล์ ${fileName}`);
             }
 
             const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
@@ -3795,7 +3795,7 @@ export default function DashboardMockup({
         })();
 
         if (appealRows.length && appealHeaderIndex === -1) {
-          throw new Error(`เนเธกเนเธเธเนเธ–เธง Header เนเธเนเธเธฅเน ${matchedUrl.replace("/", "")}`);
+          throw new Error(`ไม่พบแถว Header ในไฟล์ ${matchedUrl.replace("/", "")}`);
         }
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
@@ -3962,8 +3962,8 @@ export default function DashboardMockup({
                 "Customer Inquiry",
                 "Inquiry TH",
                 "Inquiry",
-                "เธซเธฑเธงเธเนเธญเธ—เธตเนเธฅเธนเธเธเนเธฒเธ•เธดเธ”เธ•เนเธญ",
-                "เธซเธฑเธงเธเนเธญเน€เธเธช",
+                "หัวข้อที่ลูกค้าติดต่อ",
+                "หัวข้อเคส",
               ]) ?? "-";
 
             const weekLabel = getFirstAvailableHeaderValue(rawHelper, row, [
@@ -3999,11 +3999,11 @@ export default function DashboardMockup({
             );
 
             const rawCaseDescription = getFirstAvailableHeaderValue(rawHelper, row, [
-              "Case Description / เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช",
-              "เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช",
+              "Case Description / รายละเอียดเคส คำอธิบายเคส",
+              "รายละเอียดเคส คำอธิบายเคส",
               "Case Description",
-              "เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช",
-              "เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช",
+              "รายละเอียดเคส",
+              "คำอธิบายเคส",
             ], "");
 
             const caseDescription = isNewPolicyMonth(monthKey)
@@ -4012,8 +4012,8 @@ export default function DashboardMockup({
 
             const caseImageUrl = normalizeAssetUrl(
               getFirstAvailableHeaderValue(rawHelper, row, [
-                "Case Image URL / เธ เธฒเธเธเธฃเธฐเธเธญเธเน€เธเธช",
-                "เธ เธฒเธเธเธฃเธฐเธเธญเธเน€เธเธช",
+                "Case Image URL / ภาพประกอบเคส",
+                "ภาพประกอบเคส",
                 "Case Image URL",
                 "Case Image",
                 "Image URL",
@@ -4022,9 +4022,9 @@ export default function DashboardMockup({
                 "Attachment",
                 "Case Image Link",
                 "Image Link",
-                "Link เธ เธฒเธเธเธฃเธฐเธเธญเธเน€เธเธช",
-                "เธ เธฒเธเน€เธเธช",
-                "เธฃเธนเธเธ เธฒเธเน€เธเธช",
+                "Link ภาพประกอบเคส",
+                "ภาพเคส",
+                "รูปภาพเคส",
               ], "")
             );
 
@@ -4119,7 +4119,7 @@ export default function DashboardMockup({
           setLoadError("");
           return;
         }
-        setLoadError(error?.message || "เนเธซเธฅเธ”เนเธเธฅเน Excel เนเธกเนเธชเธณเน€เธฃเนเธ");
+        setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
       } finally {
         setIsLoading(false);
       }
@@ -4537,7 +4537,7 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          เธเธณเธฅเธฑเธเนเธซเธฅเธ” QA_RawData_March-May2026.xlsx + QA_ApplealRawData...
+          กำลังโหลด QA_RawData_March-May2026.xlsx + Appeal ROWDATA...
         </div>
       </div>
     );
@@ -4547,11 +4547,11 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
-          <div className="text-lg font-semibold">เนเธซเธฅเธ”เนเธเธฅเนเนเธกเนเธชเธณเน€เธฃเนเธ</div>
+          <div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div>
           <div className="mt-2 text-sm">{loadError}</div>
           <div className="mt-3 text-sm text-slate-600">
-            เธ•เธฃเธงเธเธชเธญเธเธงเนเธฒเนเธเธฅเนเธญเธขเธนเนเธ—เธตเน public/QA_RawData_March-May2026.xlsx เนเธฅเธฐเนเธเธฅเน appeal เนเธเนเธเธทเนเธญเนเธ”เธเธทเนเธญเธซเธเธถเนเธเนเธ:
-            QA_ApplealRawData.xlsx / QA_ApplealRawData.xlsx / QA_ApplealRawData.xlsx
+            ตรวจสอบว่าไฟล์อยู่ที่ public/QA_RawData_March-May2026.xlsx และไฟล์ appeal ใช้ชื่อใดชื่อหนึ่งใน:
+            Appleal ROWDATA.xlsx / Appeal ROWDATA.xlsx / Appeal_ROWDATA.xlsx
           </div>
         </div>
       </div>
@@ -4571,7 +4571,7 @@ export default function DashboardMockup({
       <PageHero
         eyebrow="QA Dashboard"
         title="Agent Performance Dashboard"
-        subtitle="Dashboard / Case Detail เธเธฃเนเธญเธกเธเนเธญเธกเธนเธฅ Original เนเธฅเธฐ Revised เธเธฒเธ QA_RawData_March-May2026 + QA_ApplealRawData"
+        subtitle="Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData_March-May2026 + Appeal ROWDATA"
       />
       {false ? (
       <div>
@@ -4587,12 +4587,12 @@ export default function DashboardMockup({
                 Agent Performance Dashboard
               </div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-                Dashboard / Case Detail เธเธฃเนเธญเธกเธเนเธญเธกเธนเธฅ Original เนเธฅเธฐ Revised เธเธฒเธ QA_RawData_March-May2026 +
-                QA_ApplealRawData
+                Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData1 +
+                Appleal ROWDATA
               </div>
               {songkranTheme ? (
                 <div className="mt-4 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/95 backdrop-blur-sm">
-                  Songkran Festival Theme โ€ข Auto reset after 25 Apr 2026
+                  Songkran Festival Theme • Auto reset after 25 Apr 2026
                 </div>
               ) : null}
             </div>
@@ -4694,7 +4694,7 @@ export default function DashboardMockup({
                         setSelectedCaseKey("");
                         setSlideOverOpen(false);
                       }}
-                      placeholder="เธเนเธเธซเธฒเน€เธฅเธเน€เธเธชเนเธ”เนเธ—เธฑเธเธ—เธต เนเธ”เธขเนเธกเนเธ•เนเธญเธเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธ"
+                      placeholder="ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือกเดือน"
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
@@ -4796,7 +4796,7 @@ export default function DashboardMockup({
               <PanelBody className="space-y-3">
                 {!searchScopedCases.length ? (
                   <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
-                    เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธเนเธงเธเธ—เธตเนเน€เธฅเธทเธญเธ
+                    ไม่พบข้อมูลในช่วงที่เลือก
                   </div>
                 ) : (
                   <>
@@ -5396,7 +5396,7 @@ export default function DashboardMockup({
                               ))
                             ) : (
                               <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                เนเธกเนเธเธเน€เธฅเธเน€เธเธชเธ—เธตเนเธเนเธเธซเธฒ
+                                ไม่พบเลขเคสที่ค้นหา
                               </div>
                             )}
                           </div>
@@ -5530,8 +5530,8 @@ export default function DashboardMockup({
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                           {effectiveSelectedAgent === "Anucha Makundin"
-                            ? "เน€เธ”เธทเธญเธเธเธตเนเนเธกเนเธกเธตเน€เธเธชเธเธฃเธฐเน€เธกเธดเธเธเธญเธ Anucha โ€ข Score = 0.00 โ€ข Grade = F"
-                            : "เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธเนเธงเธเธ—เธตเนเน€เธฅเธทเธญเธ"}
+                            ? "เดือนนี้ไม่มีเคสประเมินของ Anucha • Score = 0.00 • Grade = F"
+                            : "ไม่พบข้อมูลในช่วงที่เลือก"}
                         </div>
                       ) : (
                         <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
@@ -5568,7 +5568,7 @@ export default function DashboardMockup({
                 <PanelHeader title="Dashboard" />
                 <PanelBody>
                   <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                    เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธ Agent เธซเธฃเธทเธญเธเนเธเธซเธฒ Case ID
+                    กรุณาเลือก Agent หรือค้นหา Case ID
                   </div>
                 </PanelBody>
               </Panel>
@@ -5579,5 +5579,3 @@ export default function DashboardMockup({
     </div>
   );
 }
-
-
