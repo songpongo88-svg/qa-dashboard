@@ -654,7 +654,7 @@ export default function UserRoleAdminMockup({
   const visibleRows = scopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
-    .filter(({ user }) => userManagementView === "users" ? (isEditingUsers ? true : (directoryTab === "active" ? user.status === "Active" : user.status === "Suspended")) : user.status === "Active")
+    .filter(({ user }) => userManagementView === "users" ? (directoryTab === "active" ? (isEditingUsers ? user.viewStatus || user.status : user.status) === "Active" : (isEditingUsers ? user.viewStatus || user.status : user.status) === "Suspended") : user.status === "Active")
     .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
   const resetDraftUsers = () => {
@@ -3176,6 +3176,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
