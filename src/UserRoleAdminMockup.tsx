@@ -69,6 +69,7 @@ type EditableUser = {
   teamName: string;
   role: UserRole;
   status: UserStatus;
+  viewStatus?: UserStatus;
   suspendReason: string;
   temporaryPassword: string;
 };
@@ -457,6 +458,7 @@ function toEditableUser(account: UserAccount): EditableUser {
     teamName: account.teamName || "",
     role: normalizeRoleName(account.role),
     status: account.status || "Active",
+    viewStatus: account.status || "Active",
     suspendReason: account.suspendReason || "",
     temporaryPassword: "",
   };
@@ -501,6 +503,7 @@ function createBlankUser(): EditableUser {
     teamName: "",
     role: "Admin Live Chat",
     status: "Active",
+    viewStatus: "Active",
     suspendReason: "",
     temporaryPassword: generateTemporaryPassword(),
   };
@@ -3176,6 +3179,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
