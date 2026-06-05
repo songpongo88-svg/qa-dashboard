@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051936",
-  "buildNumber": 2606051936,
-  "releaseLabel": "v1.0.0.2606051936",
-  "updatedAt": "05/06/2026 19:36:36",
+  "displayVersion": "1.0.0.2606051943",
+  "buildNumber": 2606051943,
+  "releaseLabel": "v1.0.0.2606051943",
+  "updatedAt": "05/06/2026 19:43:31",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "0890291befb6928d6dd8a1160e9a362cf162542c",
-  "commitMessage": "Remove display name from edit directory table and widen password action",
+  "commitHash": "8e7f19178b8fc6ffb1e8c3d8272456767a52e737",
+  "commitMessage": "Use Firebase profile passwords for generated user access",
   "changedFiles": [
     "public/build-meta.json",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx",
+    "src/UserRoleAdminMockup.tsx",
+    "src/userRoleStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
