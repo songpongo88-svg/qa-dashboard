@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
@@ -139,7 +139,7 @@ type MaintenanceState = {
 
 const USER_ACCOUNTS: UserAccount[] = [
   { username: "Anucha", password: "Mk!A7p9#L2", displayName: "Anucha Makundin", role: "Supervisor", agentName: "Anucha Makundin", email: "Anucha@robinhood.co.th" },
-  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Admin Live Chat", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "ลาออกแล้ว" },
+  { username: "Arisa", password: "Ri$4Kq2@Zm", displayName: "Arisa Aiemrit", role: "Admin Live Chat", agentName: "Arisa Aiemrit", status: "Suspended", suspendReason: "เธฅเธฒเธญเธญเธเนเธฅเนเธง" },
   { username: "Chatkonnaphat", password: "Ct#8Lm3!Qa", displayName: "Chatkonnaphat Bhusomya", role: "Admin Live Chat", agentName: "Chatkonnaphat Bhusomya", email: "Chatkonnaphat@robinhood.co.th" },
   { username: "Jariyawadee", password: "Jy@5Nx9#Wp", displayName: "Jariyawadee Taboodda", role: "Admin Live Chat", agentName: "Jariyawadee Taboodda", email: "Jariyawadee@robinhood.co.th" },
   { username: "Jureeporn", password: "Jp!6Vr2@Kd", displayName: "Jureeporn Piddum", role: "Admin Live Chat", agentName: "Jureeporn Piddum", email: "Jureeporn@robinhood.co.th" },
@@ -399,21 +399,21 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
 ];
 
 const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: string }> = {
-  anucha: { teamLead: "Phrommarin Thaithorn", teamName: "ทีม Senior" },
+  anucha: { teamLead: "Phrommarin Thaithorn", teamName: "เธ—เธตเธก Senior" },
   arisa: { teamLead: "-", teamName: "-" },
-  chatkonnaphat: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
-  jariyawadee: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (ท้าพยัคฆ์ขนมหวาน)" },
-  jureeporn: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
-  krivut: { teamLead: "Phrommarin Thaithorn", teamName: "ทีม Senior" },
-  natcha: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
+  chatkonnaphat: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
+  jariyawadee: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (เธ—เนเธฒเธเธขเธฑเธเธเนเธเธเธกเธซเธงเธฒเธ)" },
+  jureeporn: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
+  krivut: { teamLead: "Phrommarin Thaithorn", teamName: "เธ—เธตเธก Senior" },
+  natcha: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
   nattapol: { teamLead: "Suphitcha Keawliam", teamName: "Pink panther" },
-  phrommarin: { teamLead: "-", teamName: "ทีม Senior" },
-  songpon: { teamLead: "-", teamName: "ทีม Senior" },
+  phrommarin: { teamLead: "-", teamName: "เธ—เธตเธก Senior" },
+  songpon: { teamLead: "-", teamName: "เธ—เธตเธก Senior" },
   sunijtra: { teamLead: "Suphitcha Keawliam", teamName: "Pink panther" },
-  supakrit: { teamLead: "Anucha Makundin", teamName: "เซ็นเจ๋ย" },
-  suphitcha: { teamLead: "Phrommarin Thaithorn", teamName: "ทีม Senior" },
-  wachiraporn: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (ท้าพยัคฆ์ขนมหวาน)" },
-  wassana: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (ท้าพยัคฆ์ขนมหวาน)" },
+  supakrit: { teamLead: "Anucha Makundin", teamName: "เน€เธเนเธเน€เธเนเธข" },
+  suphitcha: { teamLead: "Phrommarin Thaithorn", teamName: "เธ—เธตเธก Senior" },
+  wachiraporn: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (เธ—เนเธฒเธเธขเธฑเธเธเนเธเธเธกเธซเธงเธฒเธ)" },
+  wassana: { teamLead: "Krivut Vongkampan", teamName: "Sweet Warriors (เธ—เนเธฒเธเธขเธฑเธเธเนเธเธเธกเธซเธงเธฒเธ)" },
 };
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
@@ -796,7 +796,7 @@ async function buildV8CaseUploadInboxTasks(
             subject: `New QA case uploaded: ${item.caseId}`,
             to: currentUser.displayName || currentUser.username,
             from: "QA Dashboard System",
-            status: `Score ${scoreText}/100 · Grade ${item.grade}`,
+            status: `Score ${scoreText}/100 ยท Grade ${item.grade}`,
             body: [
               `Case ID: ${item.caseId}`,
               `Week: ${latestWeekLabel}`,
@@ -844,7 +844,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
   const current = now.getTime();
 
   if (Number.isNaN(start) || current <= start) {
-    return "00 ชม. 00 นาที 00 วินาที";
+    return "00 เธเธก. 00 เธเธฒเธ—เธต 00 เธงเธดเธเธฒเธ—เธต";
   }
 
   const totalSeconds = Math.floor((current - start) / 1000);
@@ -852,7 +852,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  return `${String(hours).padStart(2, "0")} ชม. ${String(minutes).padStart(2, "0")} นาที ${String(seconds).padStart(2, "0")} วินาที`;
+  return `${String(hours).padStart(2, "0")} เธเธก. ${String(minutes).padStart(2, "0")} เธเธฒเธ—เธต ${String(seconds).padStart(2, "0")} เธงเธดเธเธฒเธ—เธต`;
 }
 
 function readStoredUser(): CurrentUser | null {
@@ -1566,7 +1566,7 @@ function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
             Songkran Festival
           </div>
           <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
-            Water splash theme · resets after 25 Apr 2026
+            Water splash theme ยท resets after 25 Apr 2026
           </div>
         </>
       ) : null}
@@ -1744,7 +1744,7 @@ function HeaderSelect({
           </span>
         ) : null}
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-violet-700">
-          ▾
+          โ–พ
         </span>
       </div>
     </label>
@@ -2080,7 +2080,7 @@ function VersionPill({
       </div>
       <div className="text-[11px] leading-4 text-slate-500">
         {meta.updatedAt}
-        {shortHash ? ` · ${shortHash}` : ""}
+        {shortHash ? ` ยท ${shortHash}` : ""}
       </div>
     </div>
   );
@@ -2411,7 +2411,7 @@ function FloatingChatWidget({
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Collaboration</div>
                 <div className="mt-1 text-lg font-black">Team Chat</div>
                 <div className="mt-1 text-xs font-semibold text-violet-100">
-                  {onlineUsers.length} online user(s) · {totalUnread} unread message(s)
+                  {onlineUsers.length} online user(s) ยท {totalUnread} unread message(s)
                 </div>
               </div>
               <button
@@ -2521,7 +2521,7 @@ function FloatingChatWidget({
                               ? "Call ended"
                               : "Ringing call"
                       : message.attachment
-                        ? `${message.message || "Attachment"} · ${message.attachment.name}`
+                        ? `${message.message || "Attachment"} ยท ${message.attachment.name}`
                         : message.message || "-"}
                   </div>
                   {isUnread ? (
@@ -2982,7 +2982,7 @@ export default function App() {
           attemptedAt: new Date().toISOString(),
         },
       });
-      throw new Error(`บันทึกเคสประเมินลงฐานกลางไม่สำเร็จ: ${errorMessage}`);
+      throw new Error(`เธเธฑเธเธ—เธถเธเน€เธเธชเธเธฃเธฐเน€เธกเธดเธเธฅเธเธเธฒเธเธเธฅเธฒเธเนเธกเนเธชเธณเน€เธฃเนเธ: ${errorMessage}`);
     }
 
     await logUsageEvent(currentUser, "qa_evaluation_submitted", {
@@ -3080,15 +3080,15 @@ export default function App() {
             unread: !readIds.includes(id),
             actionLabel: "Open review inbox",
             mailTemplate: {
-              subject: "มีรายการอุทธรณ์รอพิจารณา",
+              subject: "เธกเธตเธฃเธฒเธขเธเธฒเธฃเธญเธธเธ—เธเธฃเธ“เนเธฃเธญเธเธดเธเธฒเธฃเธ“เธฒ",
               to: currentUser.displayName || currentUser.username,
               from: "QA Dashboard System",
               status: "Pending Review",
               body: [
-                `มีคำขออุทธรณ์จำนวน ${pendingCount} รายการรอการพิจารณา`,
-                "กรุณาเปิด Appeal Requests เพื่อตรวจสอบรายละเอียด แก้ไขคะแนนหรือคอมเมนต์ และบันทึกผลเป็น Approve หรือ Reject",
+                `เธกเธตเธเธณเธเธญเธญเธธเธ—เธเธฃเธ“เนเธเธณเธเธงเธ ${pendingCount} เธฃเธฒเธขเธเธฒเธฃเธฃเธญเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ`,
+                "เธเธฃเธธเธ“เธฒเน€เธเธดเธ” Appeal Requests เน€เธเธทเนเธญเธ•เธฃเธงเธเธชเธญเธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ” เนเธเนเนเธเธเธฐเนเธเธเธซเธฃเธทเธญเธเธญเธกเน€เธกเธเธ•เน เนเธฅเธฐเธเธฑเธเธ—เธถเธเธเธฅเน€เธเนเธ Approve เธซเธฃเธทเธญ Reject",
               ],
-              footer: "หลัง Save Review ระบบจะแจ้งผลกลับไปยัง Inbox ของเจ้าของเคสโดยอัตโนมัติ",
+              footer: "เธซเธฅเธฑเธ Save Review เธฃเธฐเธเธเธเธฐเนเธเนเธเธเธฅเธเธฅเธฑเธเนเธเธขเธฑเธ Inbox เธเธญเธเน€เธเนเธฒเธเธญเธเน€เธเธชเนเธ”เธขเธญเธฑเธ•เนเธเธกเธฑเธ•เธด",
             },
           });
         }
@@ -3126,20 +3126,20 @@ export default function App() {
             caseId: item.caseId,
             agentName: item.agent,
             mailTemplate: {
-              subject: `ผลการพิจารณาอุทธรณ์เคส ${item.caseId}`,
+              subject: `เธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช ${item.caseId}`,
               to: item.submittedBy || item.agent || currentUser.displayName || currentUser.username,
               from: "Quality Assurance / Songpon Phothong",
               status: item.status,
               body: [
-                `ผลการพิจารณา: ${item.status === "Approved" ? "อนุมัติการปรับคะแนน" : "ไม่อนุมัติการปรับคะแนน"}`,
+                `เธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ: ${item.status === "Approved" ? "เธญเธเธธเธกเธฑเธ•เธดเธเธฒเธฃเธเธฃเธฑเธเธเธฐเนเธเธ" : "เนเธกเนเธญเธเธธเธกเธฑเธ•เธดเธเธฒเธฃเธเธฃเธฑเธเธเธฐเนเธเธ"}`,
                 `Case ID: ${item.caseId}`,
                 `Agent: ${item.agent || "-"}`,
-                item.reviewSummary ? `สรุปผลการพิจารณา: ${item.reviewSummary}` : "สรุปผลการพิจารณา: กรุณาเปิดรายละเอียดเคสเพื่อตรวจสอบข้อมูลเพิ่มเติม",
+                item.reviewSummary ? `เธชเธฃเธธเธเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ: ${item.reviewSummary}` : "เธชเธฃเธธเธเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ: เธเธฃเธธเธ“เธฒเน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธชเน€เธเธทเนเธญเธ•เธฃเธงเธเธชเธญเธเธเนเธญเธกเธนเธฅเน€เธเธดเนเธกเน€เธ•เธดเธก",
               ],
               footer:
                 item.status === "Approved"
-                  ? "หมายเหตุ: เคสที่อนุมัติแล้วจะถูกนำไปปรับคะแนนใน Dashboard และ Summary อัตโนมัติ"
-                  : "หมายเหตุ: เคสที่ไม่อนุมัติจะไม่ปรับคะแนนใน Dashboard และ Summary",
+                  ? "เธซเธกเธฒเธขเน€เธซเธ•เธธ: เน€เธเธชเธ—เธตเนเธญเธเธธเธกเธฑเธ•เธดเนเธฅเนเธงเธเธฐเธ–เธนเธเธเธณเนเธเธเธฃเธฑเธเธเธฐเนเธเธเนเธ Dashboard เนเธฅเธฐ Summary เธญเธฑเธ•เนเธเธกเธฑเธ•เธด"
+                  : "เธซเธกเธฒเธขเน€เธซเธ•เธธ: เน€เธเธชเธ—เธตเนเนเธกเนเธญเธเธธเธกเธฑเธ•เธดเธเธฐเนเธกเนเธเธฃเธฑเธเธเธฐเนเธเธเนเธ Dashboard เนเธฅเธฐ Summary",
             },
           });
         });
@@ -3176,15 +3176,15 @@ export default function App() {
           caseId: item.caseId,
           agentName: item.targetAgent,
           mailTemplate: {
-            subject: `เปิดสิทธิ์ยื่นอุทธรณ์เคส ${item.caseId}`,
+            subject: `เน€เธเธดเธ”เธชเธดเธ—เธเธดเนเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช ${item.caseId}`,
             to: item.targetAgent || currentUser.displayName || currentUser.username,
             from: "Quality Assurance / Songpon Phothong",
             status: "Appeal Override",
             body: [
-              `เคส ${item.caseId} ได้รับสิทธิ์ให้ยื่นอุทธรณ์ได้ แม้เลยกำหนดรอบปกติแล้ว`,
-              item.note ? `Reason / Note: ${item.note}` : "Reason / Note: เปิดสิทธิ์พิเศษโดย QA",
+              `เน€เธเธช ${item.caseId} เนเธ”เนเธฃเธฑเธเธชเธดเธ—เธเธดเนเนเธซเนเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเนเธ”เน เนเธกเนเน€เธฅเธขเธเธณเธซเธเธ”เธฃเธญเธเธเธเธ•เธดเนเธฅเนเธง`,
+              item.note ? `Reason / Note: ${item.note}` : "Reason / Note: เน€เธเธดเธ”เธชเธดเธ—เธเธดเนเธเธดเน€เธจเธฉเนเธ”เธข QA",
             ],
-            footer: "สิทธิ์นี้ยังคงยึดเงื่อนไขยื่นได้ 1 ครั้งต่อเคส และต้องเป็นเจ้าของเคสเท่านั้น",
+            footer: "เธชเธดเธ—เธเธดเนเธเธตเนเธขเธฑเธเธเธเธขเธถเธ”เน€เธเธทเนเธญเธเนเธเธขเธทเนเธเนเธ”เน 1 เธเธฃเธฑเนเธเธ•เนเธญเน€เธเธช เนเธฅเธฐเธ•เนเธญเธเน€เธเนเธเน€เธเนเธฒเธเธญเธเน€เธเธชเน€เธ—เนเธฒเธเธฑเนเธ",
           },
         });
       });
@@ -3222,7 +3222,7 @@ export default function App() {
           nextTasks.push({
             id,
             type: "evaluation",
-            title: `QA Evaluation Result · ${caseId}`,
+            title: `QA Evaluation Result ยท ${caseId}`,
             description: `You have a new QA evaluation result for case ${caseId}. Score ${finalScore}/100, Grade ${grade}.`,
             badge: "QA Result",
             count: 1,
@@ -3231,10 +3231,10 @@ export default function App() {
             caseId,
             agentName,
             mailTemplate: {
-              subject: `QA Evaluation Result · ${caseId}`,
+              subject: `QA Evaluation Result ยท ${caseId}`,
               to: String(details.targetDisplayName || agentName || currentUser.displayName || currentUser.username),
               from: String(details.evaluatorName || "Quality Assurance"),
-              status: `Score ${finalScore}/100 · Grade ${grade}`,
+              status: `Score ${finalScore}/100 ยท Grade ${grade}`,
               body: [
                 `You have been evaluated for case ${caseId}.`,
                 `Final Score: ${finalScore}/100`,
@@ -4527,12 +4527,12 @@ export default function App() {
                     <div className="whitespace-nowrap">Login running time: {formatHeaderDateTime(liveNow)}</div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
-                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-300">โ€ข</span>
                       <span className="truncate">{currentUser.agentName}</span>
                     </div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
-                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-300">โ€ข</span>
                       <span>{currentUser.agentName}</span>
                     </div>
                     <div className="hidden mt-1 text-sm text-slate-500">
@@ -4542,11 +4542,11 @@ export default function App() {
                       <span className="mx-2 text-slate-300">/</span>
                       <span className="font-bold text-slate-700">
                         Version {buildMeta.displayVersion || buildMeta.version}
-                        <span className="mx-1 text-slate-300">·</span>
+                        <span className="mx-1 text-slate-300">ยท</span>
                         {buildMeta.updatedAt}
                         {buildMeta.commitHash ? (
                           <>
-                            <span className="mx-1 text-slate-300">·</span>
+                            <span className="mx-1 text-slate-300">ยท</span>
                             {buildMeta.commitHash.slice(0, 7)}
                           </>
                         ) : null}
@@ -4830,3 +4830,4 @@ export default function App() {
     </>
   );
 }
+

@@ -1,19 +1,15 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051339",
-  "buildNumber": 2606051339,
-  "releaseLabel": "v1.0.0.2606051339",
-  "updatedAt": "05/06/2026 13:39:03",
+  "displayVersion": "1.0.0.2606051406",
+  "buildNumber": 2606051406,
+  "releaseLabel": "v1.0.0.2606051406",
+  "updatedAt": "05/06/2026 14:06:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "6fedb4ff1c5a76ec7a2ac007e3fb63e806c25354",
-  "commitMessage": "Add delete user button",
-  "changedFiles": [
-    "public/build-meta.json",
-    "src/deleteUserDirectoryPatch.ts",
-    "src/main.tsx"
-  ],
+  "commitHash": "df36177e8d4b03b825045a9c976ac1a45f4183bf",
+  "commitMessage": "Merge pull request #3 from songpongo88-svg/fix-delete-user-button\n\nMove user role store to Firebase",
+  "changedFiles": [],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
 }
