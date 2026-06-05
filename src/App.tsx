@@ -1,4 +1,5 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
 import AppealMockup from "./AppealMockup";
@@ -30,6 +31,7 @@ import {
   StoredUserProfile,
 } from "./userRoleStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
+import { firebaseDb } from "./firebaseClient";
 
 type UserRole = string;
 type RolePermissionKey =
@@ -4050,7 +4052,7 @@ export default function App() {
     setSelectedWeekGlobal("all");
     void loadRoleOverrides();
 
-    if (centralPasswordRecord?.kind === "temporary") {
+    if ((firebaseProfilePasswordRecord || centralPasswordRecord)?.kind === "temporary") {
       resetChangePasswordState();
       setCurrentPasswordInput(normalizedPassword);
       setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password. Temporary passwords are valid for 15 days.");
@@ -4859,6 +4861,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 
