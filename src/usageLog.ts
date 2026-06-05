@@ -1,3 +1,6 @@
+import { addDoc, collection, getDocs, limit as firestoreLimit, orderBy, query } from "firebase/firestore";
+import { firebaseDb } from "./firebaseClient";
+
 type UsageLogUser = {
   username?: string;
   displayName?: string;
@@ -23,41 +26,12 @@ export type UsageLogEvent = {
   session_login_at?: string;
 };
 
-const env = (import.meta as any).env || {};
-const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
-const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
-const USAGE_LOG_TABLE = String(env.VITE_USAGE_LOG_TABLE || "usage_logs");
-const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
-const USAGE_LOG_SELECT_COLUMNS = [
-  "id",
-  "created_at",
-  "event_type",
-  "username",
-  "display_name",
-  "role",
-  "agent_name",
-  "tab",
-  "case_id",
-  "target_agent",
-  "details",
-  "user_agent",
-  "page_url",
-  "session_login_at",
-].join(",");
+const ACCESS_LOG_COLLECTION = "qa_access_logs";
 const DEFAULT_USAGE_LOG_LIMIT = 300;
 const MAX_GENERAL_USAGE_LOG_LIMIT = 1000;
 const MAX_EVENT_USAGE_LOG_LIMIT = 2000;
 const USAGE_LOG_READ_CACHE_TTL_MS = 60 * 1000;
-const DISABLED_USAGE_EVENT_TYPES = new Set([
-  "user_presence",
-  "chat_message",
-  "chat_message_edited",
-  "chat_message_deleted",
-  "chat_call_invite",
-  "chat_call_response",
-  "chat_call_ended",
-  "chat_webrtc_signal",
-]);
+const ALLOWED_ACCESS_EVENT_TYPES = new Set(["login", "logout"]);
 
 type UsageLogFetchOptions = number | {
   limit?: number;
@@ -74,35 +48,11 @@ type CachedUsageLogRequest = {
 const usageLogReadCache = new Map<string, CachedUsageLogRequest>();
 
 export function isUsageLogConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  return true;
 }
 
 export function isUsageLogEventTypeDisabled(eventType: string) {
-  return DISABLED_USAGE_EVENT_TYPES.has(eventType);
-}
-
-function getUsageLogEndpoint(query = "") {
-  return `${SUPABASE_URL}/rest/v1/${USAGE_LOG_TABLE}${query}`;
-}
-
-function getUsageLogHeaders(prefer?: string) {
-  const headers: Record<string, string> = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    "Content-Type": "application/json",
-  };
-  if (prefer) headers.Prefer = prefer;
-  return headers;
-}
-
-async function fetchWithTimeout(url: string, init: RequestInit = {}) {
-  const controller = new AbortController();
-  const timeoutId = globalThis.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    globalThis.clearTimeout(timeoutId);
-  }
+  return !ALLOWED_ACCESS_EVENT_TYPES.has(eventType);
 }
 
 function normalizeFetchOptions(
@@ -151,68 +101,71 @@ async function cachedUsageLogRequest(
   return promise;
 }
 
+function toUsageLogEvent(id: string, row: any): UsageLogEvent {
+  return {
+    id,
+    created_at: String(row.created_at || row.createdAt || ""),
+    event_type: String(row.event_type || row.eventType || ""),
+    username: String(row.username || ""),
+    display_name: String(row.display_name || row.displayName || ""),
+    role: String(row.role || ""),
+    agent_name: String(row.agent_name || row.agentName || ""),
+    tab: "",
+    case_id: "",
+    target_agent: "",
+    details: row.details && typeof row.details === "object" ? row.details : {},
+    user_agent: "",
+    page_url: "",
+    session_login_at: String(row.session_login_at || row.sessionLoginAt || ""),
+  };
+}
+
 export async function logUsageEvent(
   user: UsageLogUser,
   eventType: string,
   payload: Partial<UsageLogEvent> = {}
 ) {
-  if (DISABLED_USAGE_EVENT_TYPES.has(eventType)) return false;
-  if (!isUsageLogConfigured() || !user) return false;
+  if (!ALLOWED_ACCESS_EVENT_TYPES.has(eventType)) return false;
+  if (!user) return false;
 
-  const body: UsageLogEvent = {
-    event_type: eventType,
-    username: user.username || "",
-    display_name: user.displayName || "",
-    role: user.role || "",
-    agent_name: user.agentName || "",
-    session_login_at: user.loginAt || "",
-    user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
-    page_url: typeof window !== "undefined" ? window.location.href : "",
-    ...payload,
-  };
+  const now = new Date().toISOString();
 
   try {
-    const response = await fetchWithTimeout(getUsageLogEndpoint(), {
-      method: "POST",
-      headers: getUsageLogHeaders("return=minimal"),
-      body: JSON.stringify(body),
+    await addDoc(collection(firebaseDb, ACCESS_LOG_COLLECTION), {
+      event_type: eventType,
+      username: user.username || "",
+      display_name: user.displayName || "",
+      role: user.role || "",
+      agent_name: user.agentName || "",
+      session_login_at: user.loginAt || "",
+      created_at: now,
+      login_at: eventType === "login" ? now : user.loginAt || "",
+      logout_at: eventType === "logout" ? now : "",
+      details: {
+        tab: payload.tab || "",
+      },
     });
-    if (!response.ok) {
-      console.warn("Usage log failed", response.status, await response.text().catch(() => ""));
-      return false;
-    }
+
     clearUsageLogReadCache();
     return true;
   } catch (error) {
-    console.warn("Usage log failed", error);
+    console.warn("Firebase access log failed", error);
     return false;
   }
 }
 
 export async function fetchUsageLogs(options: UsageLogFetchOptions = DEFAULT_USAGE_LOG_LIMIT) {
-  if (!isUsageLogConfigured()) return [];
   const { limit, offset, cacheTtlMs, forceRefresh } = normalizeFetchOptions(options, MAX_GENERAL_USAGE_LOG_LIMIT);
 
-  const params = new URLSearchParams({
-    select: USAGE_LOG_SELECT_COLUMNS,
-    order: "created_at.desc",
-    limit: String(limit),
-    offset: String(offset),
-  });
+  return cachedUsageLogRequest(`firebase-access:${limit}:${offset}`, cacheTtlMs, forceRefresh, async () => {
+    const snapshot = await getDocs(
+      query(collection(firebaseDb, ACCESS_LOG_COLLECTION), orderBy("created_at", "desc"), firestoreLimit(limit + offset))
+    );
 
-  const url = getUsageLogEndpoint(`?${params.toString()}`);
-  return cachedUsageLogRequest(`all:${limit}:${offset}`, cacheTtlMs, forceRefresh, async () => {
-    const response = await fetchWithTimeout(url, {
-      method: "GET",
-      headers: getUsageLogHeaders(),
-      cache: "default",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Load usage logs failed: ${response.status}`);
-    }
-
-    return (await response.json()) as UsageLogEvent[];
+    return snapshot.docs
+      .map((doc) => toUsageLogEvent(doc.id, doc.data()))
+      .filter((item) => ALLOWED_ACCESS_EVENT_TYPES.has(item.event_type))
+      .slice(offset, offset + limit);
   });
 }
 
@@ -220,33 +173,19 @@ export async function fetchUsageLogsByEventTypes(
   eventTypes: string[],
   options: UsageLogFetchOptions = DEFAULT_USAGE_LOG_LIMIT
 ) {
-  if (!isUsageLogConfigured()) return [];
   const cleanEventTypes = eventTypes.map((item) => item.trim()).filter(Boolean);
+  const allowedTypes = cleanEventTypes.filter((eventType) => ALLOWED_ACCESS_EVENT_TYPES.has(eventType));
+
   if (!cleanEventTypes.length) return fetchUsageLogs(options);
-  if (cleanEventTypes.every((eventType) => DISABLED_USAGE_EVENT_TYPES.has(eventType))) return [];
+  if (!allowedTypes.length) return [];
+
   const { limit, offset, cacheTtlMs, forceRefresh } = normalizeFetchOptions(options, MAX_EVENT_USAGE_LOG_LIMIT);
+  const sortedTypes = [...allowedTypes].sort().join(",");
 
-  const params = new URLSearchParams({
-    select: USAGE_LOG_SELECT_COLUMNS,
-    order: "created_at.desc",
-    limit: String(limit),
-    offset: String(offset),
-  });
-  params.set("event_type", `in.(${cleanEventTypes.join(",")})`);
-
-  const sortedTypes = [...cleanEventTypes].sort().join(",");
-  const url = getUsageLogEndpoint(`?${params.toString()}`);
-  return cachedUsageLogRequest(`events:${sortedTypes}:${limit}:${offset}`, cacheTtlMs, forceRefresh, async () => {
-    const response = await fetchWithTimeout(url, {
-      method: "GET",
-      headers: getUsageLogHeaders(),
-      cache: "default",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Load usage logs failed: ${response.status}`);
-    }
-
-    return (await response.json()) as UsageLogEvent[];
+  return cachedUsageLogRequest(`firebase-access-events:${sortedTypes}:${limit}:${offset}`, cacheTtlMs, forceRefresh, async () => {
+    const rows = await fetchUsageLogs({ limit: limit + offset, offset: 0, cacheTtlMs, forceRefresh });
+    return rows
+      .filter((item) => allowedTypes.includes(item.event_type))
+      .slice(offset, offset + limit);
   });
 }
