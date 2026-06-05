@@ -1,16 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051950",
-  "buildNumber": 2606051950,
-  "releaseLabel": "v1.0.0.2606051950",
-  "updatedAt": "05/06/2026 19:50:41",
+  "displayVersion": "1.0.0.2606052000",
+  "buildNumber": 2606052000,
+  "releaseLabel": "v1.0.0.2606052000",
+  "updatedAt": "05/06/2026 20:00:57",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2bfa68f040ad2e26f578a9458b0fe89e544c5364",
-  "commitMessage": "Prioritize Firebase profile password for login",
+  "commitHash": "3057ed00e41765d093ec0dd6e7ec4894c861094d",
+  "commitMessage": "Read generated user passwords directly from Firebase profiles",
   "changedFiles": [
-    "public/build-meta.json"
+    "public/build-meta.json",
+    "scripts/set-test-password.mjs",
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

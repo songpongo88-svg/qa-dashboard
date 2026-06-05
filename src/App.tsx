@@ -3979,7 +3979,7 @@ export default function App() {
       centralPasswordRecordOnly = null;
     }
     const centralPasswordRecord = getLatestPasswordRecord(centralPasswordRecordOnly, localPasswordRecord);
-    const effectivePassword = centralPasswordRecord?.password || (matchedAccount ? getEffectivePassword(matchedAccount) : "");
+    const effectivePassword = firebaseProfilePasswordRecord?.password || centralPasswordRecord?.password || (matchedAccount ? getEffectivePassword(matchedAccount) : "");
     const matchedUser =
       matchedAccount && effectivePassword === normalizedPassword
         ? matchedAccount
@@ -4861,6 +4861,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 
