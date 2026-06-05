@@ -157,13 +157,7 @@ type PeriodRow = {
 };
 
 const CASE_TARGET = 10;
-const RAW_DATA_FILE_NAMES = [
-  "QA_RawData1.xlsx",
-  "QA_RawData11052026.xlsx",
-  "QA_RawData12052026.xlsx",
-  "QA_RawData13052026.xlsx",
-  "QA_RawData20052026.xlsx",
-];
+const RAW_DATA_FILE_NAMES = ["QA_RawData1.xlsx"];
 const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -1250,7 +1244,7 @@ export default function SummaryMockup({
             "appeal_request_submitted",
             "appeal_request_reviewed",
             "appeal_request_reset",
-          ], 10000);
+          ], 2000);
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
             appealMap.set(caseId, item);
           });
@@ -1356,7 +1350,7 @@ export default function SummaryMockup({
           } as CaseItem;
         }).filter(Boolean) as CaseItem[];
 
-        const storedEvaluations = await fetchStoredEvaluations();
+        const storedEvaluations = await fetchStoredEvaluations(300);
         const evaluationCases: CaseItem[] = storedEvaluations
           .map((record) => {
             const auditDateObj = record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : null;

@@ -15,7 +15,12 @@ import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
 import CallHistoryMockup from "./CallHistoryMockup";
-import { fetchUsageLogs, fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
+import {
+  fetchUsageLogsByEventTypes,
+  isUsageLogEventTypeDisabled,
+  logUsageEvent,
+  UsageLogEvent,
+} from "./usageLog";
 import {
   fetchStoredMaintenanceState,
   fetchStoredRolePermissions,
@@ -280,6 +285,39 @@ const DEFAULT_MAINTENANCE_STATE: MaintenanceState = {
   updatedAt: "",
   updatedBy: "",
 };
+const MAINTENANCE_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const INBOX_POLL_INTERVAL_MS = 2 * 60 * 1000;
+const USER_ACCESS_EVENT_TYPES = [
+  "user_role_updated",
+  "user_profile_saved",
+  "role_permissions_saved",
+];
+const PASSWORD_EVENT_TYPES = [
+  "password_reset_request",
+  "password_reset_approved",
+  "password_reset_rejected",
+  "password_changed",
+];
+const INBOX_EVENT_TYPES = [
+  "appeal_request_submitted",
+  "appeal_request_reviewed",
+  "appeal_request_reset",
+  "appeal_case_override_added",
+  "appeal_case_override_removed",
+  "qa_evaluation_submitted",
+  ...PASSWORD_EVENT_TYPES,
+];
+const CHAT_EVENT_TYPES = [
+  "user_presence",
+  "chat_message",
+  "chat_message_edited",
+  "chat_message_deleted",
+  "chat_call_invite",
+  "chat_call_response",
+  "chat_call_ended",
+  "chat_webrtc_signal",
+];
+const CHAT_SUPABASE_POLLING_ENABLED = CHAT_EVENT_TYPES.some((eventType) => !isUsageLogEventTypeDisabled(eventType));
 
 type PasswordResetRequest = {
   requestId: string;
@@ -1181,7 +1219,20 @@ function buildEffectiveUserAccounts(
 
 async function getCentralEffectiveUserAccounts() {
   try {
-    const logs = await fetchUsageLogs(5000);
+    const storedProfiles = await fetchStoredUserProfiles();
+    if (storedProfiles.length) {
+      return buildEffectiveUserAccounts(
+        USER_ACCOUNTS,
+        buildUserProfileOverridesFromStore(storedProfiles),
+        {}
+      );
+    }
+  } catch {
+    // Fall through to the legacy event-log path for older deployments.
+  }
+
+  try {
+    const logs = await fetchUsageLogsByEventTypes(USER_ACCESS_EVENT_TYPES, 500);
     return buildEffectiveUserAccounts(
       USER_ACCOUNTS,
       buildUserProfileOverrides(logs),
@@ -1199,7 +1250,7 @@ async function getCentralPasswordOverride(username: string) {
 
 async function getCentralPasswordRecordOnly(username: string): Promise<PasswordRecord | null> {
   const normalized = username.trim().toLowerCase();
-  const logs = await fetchUsageLogs(2000);
+  const logs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, 500);
   const passwordEvent = logs.find((item) => {
     const target = getResetRequestUsername(item).toLowerCase();
     return (
@@ -2971,23 +3022,10 @@ export default function App() {
     }
 
     try {
-      const [generalLogs, appealLogs, passwordRecord] = await Promise.all([
-        fetchUsageLogs(5000),
-        fetchUsageLogsByEventTypes([
-          "appeal_request_submitted",
-          "appeal_request_reviewed",
-          "appeal_request_reset",
-          "appeal_case_override_added",
-          "appeal_case_override_removed",
-        ], 10000),
+      const [logs, passwordRecord] = await Promise.all([
+        fetchUsageLogsByEventTypes(INBOX_EVENT_TYPES, 1500),
         getCentralPasswordRecord(currentUser.username),
       ]);
-      const logMap = new Map<string, UsageLogEvent>();
-      [...generalLogs, ...appealLogs].forEach((log, index) => {
-        const key = log.id || `${log.event_type}-${log.created_at}-${log.case_id || ""}-${index}`;
-        logMap.set(key, log);
-      });
-      const logs = Array.from(logMap.values());
       const readIds = readInboxReadIds(currentUser);
       const nextTasks: InboxTaskItem[] = [];
       const appealRequests = buildAppealRequests(logs);
@@ -3290,7 +3328,7 @@ export default function App() {
     }
 
     try {
-      const logs = await fetchUsageLogs(5000);
+      const logs = await fetchUsageLogsByEventTypes(["system_maintenance_saved"], 50);
       setMaintenanceState(buildMaintenanceState(logs));
     } catch {
       setMaintenanceState(DEFAULT_MAINTENANCE_STATE);
@@ -3308,9 +3346,15 @@ export default function App() {
       setWebRtcSignals([]);
       return;
     }
+    if (!CHAT_SUPABASE_POLLING_ENABLED) {
+      setChatMessages([]);
+      setOnlineUsers([]);
+      setWebRtcSignals([]);
+      return;
+    }
 
     try {
-      const logs = await fetchUsageLogs(1000);
+      const logs = await fetchUsageLogsByEventTypes(CHAT_EVENT_TYPES, 300);
       const nextMessages = buildChatMessages(logs).filter((message) => canCurrentUserSeeChatMessage(message, currentUser));
       const nextSignals = buildWebRtcSignals(logs).filter((signal) => canCurrentUserSeeWebRtcSignal(signal, currentUser));
       const latestIncomingMessage = nextMessages
@@ -3337,6 +3381,7 @@ export default function App() {
 
   const sendPresence = async () => {
     if (!currentUser) return;
+    if (!CHAT_SUPABASE_POLLING_ENABLED) return;
     await logUsageEvent(currentUser, "user_presence", {
       tab: activeTab,
       details: { activeTab },
@@ -3460,10 +3505,10 @@ export default function App() {
 
   const loadRoleOverrides = async () => {
     try {
-      const logs = await fetchUsageLogs(5000).catch(() => [] as UsageLogEvent[]);
-      const nextOverrides = buildUserRoleOverrides(logs);
-      let nextProfiles = buildUserProfileOverrides(logs);
-      let nextPermissions = buildRolePermissionOverrides(logs);
+      let nextOverrides: Record<string, UserRole> = {};
+      let nextProfiles: Record<string, UserProfileSnapshot> = {};
+      let nextPermissions = buildRolePermissionOverrides([]);
+      let loadedPersistentStore = false;
 
       try {
         const [storedProfiles, storedPermissions] = await Promise.all([
@@ -3475,15 +3520,24 @@ export default function App() {
             ...nextProfiles,
             ...buildUserProfileOverridesFromStore(storedProfiles),
           };
+          loadedPersistentStore = true;
         }
         if (storedPermissions.length) {
           nextPermissions = {
             ...nextPermissions,
             ...buildRolePermissionOverridesFromStore(storedPermissions),
           };
+          loadedPersistentStore = true;
         }
       } catch {
         // The new persistent tables may not exist yet; legacy logs still keep the app usable.
+      }
+
+      if (!loadedPersistentStore) {
+        const logs = await fetchUsageLogsByEventTypes(USER_ACCESS_EVENT_TYPES, 500).catch(() => [] as UsageLogEvent[]);
+        nextOverrides = buildUserRoleOverrides(logs);
+        nextProfiles = buildUserProfileOverrides(logs);
+        nextPermissions = buildRolePermissionOverrides(logs);
       }
 
       setRoleOverrides(nextOverrides);
@@ -3555,7 +3609,7 @@ export default function App() {
     void loadMaintenanceState();
     const timer = window.setInterval(() => {
       void loadMaintenanceState();
-    }, 30000);
+    }, MAINTENANCE_POLL_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, []);
@@ -3620,13 +3674,13 @@ export default function App() {
     void loadInboxTasks();
     const timer = window.setInterval(() => {
       void loadInboxTasks();
-    }, 60000);
+    }, INBOX_POLL_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);
 
   useEffect(() => {
-    if (!currentUser || maintenanceBlocked) {
+    if (!currentUser || maintenanceBlocked || !CHAT_SUPABASE_POLLING_ENABLED) {
       setChatMessages([]);
       setOnlineUsers([]);
       setWebRtcSignals([]);
@@ -4214,7 +4268,7 @@ export default function App() {
   };
 
   const loadPasswordResetRequests = async () => {
-    const logs = await fetchUsageLogs(2000);
+    const logs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, 500);
     setPasswordResetRequests(buildResetRequests(logs));
   };
 
@@ -4224,7 +4278,7 @@ export default function App() {
       setResetResultMessage("You cannot approve your own password reset request.");
       return;
     }
-    const latestLogs = await fetchUsageLogs(2000);
+    const latestLogs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, { limit: 500, forceRefresh: true });
     const latestStatus = getResetRequestDecisionStatus(latestLogs, request.requestId);
     if (latestStatus !== "Pending") {
       setPasswordResetRequests(buildResetRequests(latestLogs));
@@ -4257,7 +4311,7 @@ export default function App() {
       setResetResultMessage("You cannot reject your own password reset request. Please ask another reset admin.");
       return;
     }
-    const latestLogs = await fetchUsageLogs(2000);
+    const latestLogs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, { limit: 500, forceRefresh: true });
     const latestStatus = getResetRequestDecisionStatus(latestLogs, request.requestId);
     if (latestStatus !== "Pending") {
       setPasswordResetRequests(buildResetRequests(latestLogs));

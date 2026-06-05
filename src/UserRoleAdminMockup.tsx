@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
-import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
 import {
   deleteStoredRoleDefinition,
   fetchStoredRoleDefinitions,
@@ -567,7 +567,10 @@ export default function UserRoleAdminMockup({
     }
 
     try {
-      const logs = await fetchUsageLogs(5000);
+      const logs = await fetchUsageLogsByEventTypes([
+        "role_definition_saved",
+        "role_definition_deleted",
+      ], 500);
       setRoleDefinitions(buildRoleDefinitions(logs));
     } catch {
       setRoleDefinitions(buildRoleDefinitions([]));
@@ -1339,7 +1342,7 @@ export default function UserRoleAdminMockup({
       y += 16;
       let maintenanceLogs: UsageLogEvent[] = [];
       try {
-        maintenanceLogs = (await fetchUsageLogs(300)).filter((log) => log.event_type === "system_maintenance_saved").slice(0, 20);
+        maintenanceLogs = (await fetchUsageLogsByEventTypes(["system_maintenance_saved"], 50)).slice(0, 20);
       } catch {
         maintenanceLogs = [];
       }

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
-import { fetchUsageLogs, fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
+import { fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
 import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
@@ -161,13 +161,7 @@ function buildApprovedAppealMergeMap(
 
 const CASE_TARGET = 10;
 const RAW_DATA_FILE_NAME = "QA_RawData1.xlsx";
-const RAW_DATA_FILE_NAMES = [
-  RAW_DATA_FILE_NAME,
-  "QA_RawData11052026.xlsx",
-  "QA_RawData12052026.xlsx",
-  "QA_RawData13052026.xlsx",
-  "QA_RawData20052026.xlsx",
-];
+const RAW_DATA_FILE_NAMES = [RAW_DATA_FILE_NAME];
 const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
@@ -2213,7 +2207,13 @@ function SlideOverCaseDetail({
 
     const checkAppealRequest = async () => {
       try {
-        const logs = await fetchUsageLogs(3000);
+        const logs = await fetchUsageLogsByEventTypes([
+          "appeal_request_submitted",
+          "appeal_request_reviewed",
+          "appeal_request_reset",
+          "appeal_case_override_added",
+          "appeal_case_override_removed",
+        ], 1000);
         if (cancelled) return;
         setAppealRequestExists(
           buildAppealRequests(logs).some(
@@ -3510,15 +3510,22 @@ export default function DashboardMockup({
   useEffect(() => {
     const loadWorkbook = async () => {
       let evaluationCases: CaseItem[] = [];
+      let evaluationCasesPromise: Promise<CaseItem[]> | null = null;
+      const loadEvaluationCases = () => {
+        if (!evaluationCasesPromise) {
+          evaluationCasesPromise = fetchStoredEvaluations(300)
+            .then(mapStoredEvaluationsToCaseItems)
+            .catch((error) => {
+              console.warn("Stored QA evaluations could not be loaded before RawData merge", error);
+              return [];
+            });
+        }
+        return evaluationCasesPromise;
+      };
+
       try {
         setIsLoading(true);
         setLoadError("");
-
-        try {
-          evaluationCases = mapStoredEvaluationsToCaseItems(await fetchStoredEvaluations());
-        } catch (error) {
-          console.warn("Stored QA evaluations could not be loaded before RawData merge", error);
-        }
 
         const v8Response = { ok: false } as Response;
         if (v8Response.ok) {
@@ -3650,6 +3657,7 @@ export default function DashboardMockup({
               .filter(Boolean) as CaseItem[];
 
             const validMappedCases = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
+            evaluationCases = await loadEvaluationCases();
             const latestByEvaluationKey = new Map<string, CaseItem>();
             [...validMappedCases, ...evaluationCases]
               .filter((item) => item.agent && item.caseId && item.auditDateObj)
@@ -3690,6 +3698,7 @@ export default function DashboardMockup({
 
         const availableRawResponses = rawResponses.filter((item) => item.response.ok);
         if (!availableRawResponses.length) {
+          evaluationCases = await loadEvaluationCases();
           if (evaluationCases.length) {
             setAllCases(evaluationCases);
             setAppealMergeCount(0);
@@ -3884,7 +3893,7 @@ export default function DashboardMockup({
             "appeal_request_submitted",
             "appeal_request_reviewed",
             "appeal_request_reset",
-          ], 10000);
+          ], 2000);
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
             appealMap.set(caseId, item);
           });
@@ -4092,6 +4101,7 @@ export default function DashboardMockup({
             };
           });
 
+        evaluationCases = await loadEvaluationCases();
         const latestByEvaluationKey = new Map<string, CaseItem>();
         [...mapped, ...evaluationCases]
           .filter((item) => item.agent && item.caseId && item.auditDateObj)
