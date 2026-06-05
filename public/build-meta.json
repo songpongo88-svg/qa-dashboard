@@ -1,19 +1,18 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052028",
-  "buildNumber": 2606052028,
-  "releaseLabel": "v1.0.0.2606052028",
-  "updatedAt": "05/06/2026 20:28:15",
+  "displayVersion": "1.0.0.2606052033",
+  "buildNumber": 2606052033,
+  "releaseLabel": "v1.0.0.2606052033",
+  "updatedAt": "05/06/2026 20:33:25",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d13d30f85d8242eb2a9422f36284a7e6bd98a654",
-  "commitMessage": "Show generated passwords in user directory and export",
+  "commitHash": "972e1582222886812059c8c5963c0a6b1aa83221",
+  "commitMessage": "Show temporary passwords under user status",
   "changedFiles": [
     "public/build-meta.json",
-    "scripts/generate-temp-passwords-for-access.mjs",
-    "src/UserRoleAdminMockup.tsx",
-    "src/userRoleStore.ts"
+    "src/App.tsx",
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []

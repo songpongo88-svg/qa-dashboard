@@ -111,6 +111,10 @@ function toUserProfile(row: any): StoredUserProfile {
     teamName: String(row.teamName || row.team_name || ""),
     status: row.status === "Suspended" ? "Suspended" : "Active",
     suspendReason: String(row.suspendReason || row.suspend_reason || ""),
+    password: String(row.password || ""),
+    passwordKind: String(row.passwordKind || row.password_kind || ""),
+    passwordIssuedAt: String(row.passwordIssuedAt || row.password_issued_at || ""),
+    passwordExpiresAt: String(row.passwordExpiresAt || row.password_expires_at || ""),
   };
 }
 
@@ -298,5 +302,6 @@ export async function upsertStoredMaintenanceState(state: StoredMaintenanceState
   await setDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"), nextState, { merge: true });
   writeSingleCache(MAINTENANCE_CACHE_KEY, state);
 }
+
 
 
