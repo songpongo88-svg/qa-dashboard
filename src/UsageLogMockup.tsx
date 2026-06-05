@@ -123,7 +123,7 @@ export default function UsageLogMockup() {
     try {
       setIsLoading(true);
       setError("");
-      setLogs(await fetchUsageLogs(5000));
+      setLogs(await fetchUsageLogs({ limit: 500, forceRefresh: true }));
     } catch (err: any) {
       setError(err?.message || "โหลด Usage Log ไม่สำเร็จ");
     } finally {

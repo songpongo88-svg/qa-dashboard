@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
-import { fetchUsageLogs, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { fetchCachedStaticResponse } from "./staticFileCache";
 
 type CurrentUser = {
   username: string;
@@ -20,13 +21,7 @@ export type AppealCaseOverride = {
   targetAgent: string;
 };
 
-const RAW_DATA_FILE_NAMES = [
-  "QA_RawData1.xlsx",
-  "QA_RawData11052026.xlsx",
-  "QA_RawData12052026.xlsx",
-  "QA_RawData13052026.xlsx",
-  "QA_RawData20052026.xlsx",
-];
+const RAW_DATA_FILE_NAMES = ["QA_RawData1.xlsx"];
 
 function normalizeCaseId(value: unknown) {
   return String(value || "").trim().toUpperCase();
@@ -46,7 +41,7 @@ async function loadCaseOwnerMap() {
   await Promise.all(
     RAW_DATA_FILE_NAMES.map(async (fileName) => {
       try {
-        const response = await fetch(`/${fileName}`, { cache: "no-store" });
+        const response = await fetchCachedStaticResponse(`/${fileName}`);
         if (!response.ok) return;
         const buffer = await response.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
@@ -137,7 +132,10 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
 
   const loadOverrides = async () => {
     try {
-      const nextLogs = await fetchUsageLogs(5000);
+      const nextLogs = await fetchUsageLogsByEventTypes([
+        "appeal_case_override_added",
+        "appeal_case_override_removed",
+      ], 1000);
       setLogs(nextLogs);
     } catch {
       setMessage("Unable to load appeal override list.");

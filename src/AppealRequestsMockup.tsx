@@ -259,7 +259,7 @@ export default function AppealRequestsMockup({
         "appeal_request_submitted",
         "appeal_request_reviewed",
         "appeal_request_reset",
-      ], 10000));
+      ], 2000));
     } catch (error) {
       console.warn("Load appeal requests failed", error);
       setLogs([]);

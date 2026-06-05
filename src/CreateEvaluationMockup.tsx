@@ -131,13 +131,7 @@ const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
 const REPORT_PAGE_SIZE = 12;
-const RAW_DATA_FILE_NAMES = [
-  "QA_RawData1.xlsx",
-  "QA_RawData11052026.xlsx",
-  "QA_RawData12052026.xlsx",
-  "QA_RawData13052026.xlsx",
-  "QA_RawData20052026.xlsx",
-];
+const RAW_DATA_FILE_NAMES = ["QA_RawData1.xlsx"];
 
 type RawReportRecord = {
   recordId: string;
@@ -957,7 +951,7 @@ export default function CreateEvaluationMockup({
     }
     try {
       const [stored, rawRecords] = await Promise.all([
-        fetchStoredEvaluations(),
+        fetchStoredEvaluations(500),
         loadRawDataReportRecords(),
       ]);
       const duplicateSubmitted = stored.find(
@@ -1248,7 +1242,7 @@ export default function CreateEvaluationMockup({
     setSubmittedRecordsLoading(true);
     try {
       const [stored, rawRecords] = await Promise.all([
-        fetchStoredEvaluations(),
+        fetchStoredEvaluations(500),
         loadRawDataReportRecords(),
       ]);
       setSubmittedRecords(stored.map(storedRecordToEvaluationRecord));
@@ -1310,7 +1304,7 @@ export default function CreateEvaluationMockup({
   async function exportEvaluationRowData() {
     setReportMessage("Loading RawData and submitted evaluations...");
     const [stored, rawRecords] = await Promise.all([
-      fetchStoredEvaluations(),
+      fetchStoredEvaluations(500),
       loadRawDataReportRecords(),
     ]);
     const storedRecords: EvaluationRecord[] = stored.map(storedRecordToEvaluationRecord);

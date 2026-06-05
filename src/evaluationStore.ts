@@ -5,6 +5,47 @@ const EVALUATION_TABLE = String(env.VITE_QA_EVALUATION_TABLE || "qa_evaluations"
 const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history:v2";
 const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache:v2";
 const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids:v2";
+const SUPABASE_REQUEST_TIMEOUT_MS = 2500;
+const DEFAULT_EVALUATION_LIMIT = 500;
+const MAX_EVALUATION_LIMIT = 1000;
+const REMOTE_EVALUATION_READ_CACHE_TTL_MS = 2 * 60 * 1000;
+const AUTO_SYNC_LOCAL_EVALUATIONS =
+  String(env.VITE_QA_AUTO_SYNC_LOCAL_EVALUATIONS || "").toLowerCase() === "true";
+const EVALUATION_SELECT_COLUMNS = [
+  "id",
+  "evaluation_key",
+  "case_id",
+  "agent_name",
+  "target_username",
+  "target_display_name",
+  "target_email",
+  "target_role",
+  "audit_date",
+  "audit_timestamp",
+  "waiting_time",
+  "service_time",
+  "case_url",
+  "inquiry",
+  "case_description",
+  "evidence_urls",
+  "critical_error",
+  "final_score",
+  "grade",
+  "qa_scheme",
+  "rubric_name",
+  "rubric_period",
+  "completed_topics",
+  "total_topics",
+  "strengths",
+  "improvements",
+  "topics",
+  "raw_data_preview",
+  "evaluator_username",
+  "evaluator_name",
+  "submitted_at",
+  "created_at",
+  "updated_at",
+].join(",");
 
 export type StoredEvaluationTopic = {
   code: string;
@@ -50,6 +91,13 @@ export type StoredEvaluation = {
   updatedAt?: string;
 };
 
+type CachedRemoteEvaluationRequest = {
+  expiresAt: number;
+  promise: Promise<StoredEvaluation[]>;
+};
+
+const remoteEvaluationReadCache = new Map<string, CachedRemoteEvaluationRequest>();
+
 export function isEvaluationStoreConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
@@ -66,6 +114,43 @@ function headers(prefer?: string) {
   };
   if (prefer) nextHeaders.Prefer = prefer;
   return nextHeaders;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+}
+
+function normalizeEvaluationLimit(limit: number) {
+  const parsed = Number(limit);
+  if (!Number.isFinite(parsed)) return DEFAULT_EVALUATION_LIMIT;
+  return Math.min(Math.max(Math.floor(parsed), 1), MAX_EVALUATION_LIMIT);
+}
+
+function clearRemoteEvaluationReadCache() {
+  remoteEvaluationReadCache.clear();
+}
+
+async function cachedRemoteEvaluations(limit: number, request: () => Promise<StoredEvaluation[]>) {
+  const now = Date.now();
+  const cacheKey = `submitted-at-desc:${limit}`;
+  const cached = remoteEvaluationReadCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.promise;
+
+  const promise = request().catch((error) => {
+    remoteEvaluationReadCache.delete(cacheKey);
+    throw error;
+  });
+  remoteEvaluationReadCache.set(cacheKey, {
+    expiresAt: now + REMOTE_EVALUATION_READ_CACHE_TTL_MS,
+    promise,
+  });
+  return promise;
 }
 
 function toArray(value: unknown): string[] {
@@ -466,7 +551,7 @@ function fromEvaluation(record: StoredEvaluation) {
 
 export async function upsertStoredEvaluation(record: StoredEvaluation) {
   if (!isEvaluationStoreConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetch(endpoint("?on_conflict=id"), {
+  const response = await fetchWithTimeout(endpoint("?on_conflict=id"), {
     method: "POST",
     headers: headers("resolution=merge-duplicates,return=minimal"),
     body: JSON.stringify([fromEvaluation(compactStoredRecord(record))]),
@@ -475,6 +560,7 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
     const detail = await response.text().catch(() => "");
     throw new Error(`Supabase evaluation upsert failed: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
+  clearRemoteEvaluationReadCache();
   forgetDeletedEvaluationMarkers(record);
 }
 
@@ -488,11 +574,12 @@ export async function deleteStoredEvaluation(id: string, caseId?: string) {
   const params = new URLSearchParams({
     id: `eq.${normalizedId}`,
   });
-  const response = await fetch(endpoint(`?${params.toString()}`), {
+  const response = await fetchWithTimeout(endpoint(`?${params.toString()}`), {
     method: "DELETE",
     headers: headers("return=minimal"),
   });
   if (!response.ok) throw new Error(`Supabase evaluation delete failed: ${response.status}`);
+  clearRemoteEvaluationReadCache();
   removeEvaluationFromStorage(normalizedId, caseId);
 }
 
@@ -519,31 +606,37 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
   return restored;
 }
 
-export async function fetchStoredEvaluations(limit = 5000) {
+export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
+  const safeLimit = normalizeEvaluationLimit(limit);
   const localEvaluations = readLocalEvaluationHistory();
   const cachedEvaluations = readRemoteEvaluationCache();
   const recoveredLocalEvaluations = readRecoveredLocalEvaluations();
   const localSources = mergeEvaluationSources([...cachedEvaluations, ...recoveredLocalEvaluations], localEvaluations);
   if (!isEvaluationStoreConfigured()) {
-    return localSources.slice(0, limit);
+    return localSources.slice(0, safeLimit);
   }
 
   const params = new URLSearchParams({
-    select: "*",
+    select: EVALUATION_SELECT_COLUMNS,
     order: "submitted_at.desc",
-    limit: String(limit),
+    limit: String(safeLimit),
   });
-  const response = await fetch(endpoint(`?${params.toString()}`), {
-    method: "GET",
-    headers: headers(),
-  });
-  if (!response.ok) {
-    console.warn("Load stored evaluations failed", response.status);
-    return localSources.slice(0, limit);
-  }
-  const remoteEvaluations = ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
-  const syncedLocalEvaluations = await syncLocalEvaluationsToRemote(remoteEvaluations, localSources);
+  const remoteEvaluations = await cachedRemoteEvaluations(safeLimit, async () => {
+    const response = await fetchWithTimeout(endpoint(`?${params.toString()}`), {
+      method: "GET",
+      headers: headers(),
+      cache: "default",
+    });
+    if (!response.ok) {
+      console.warn("Load stored evaluations failed", response.status);
+      return [];
+    }
+    return ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
+  }).catch(() => []);
+  const syncedLocalEvaluations = AUTO_SYNC_LOCAL_EVALUATIONS
+    ? await syncLocalEvaluationsToRemote(remoteEvaluations, localSources)
+    : [];
   const availableEvaluations = mergeEvaluationSources([...remoteEvaluations, ...syncedLocalEvaluations], localSources);
   writeRemoteEvaluationCache(availableEvaluations);
-  return availableEvaluations.slice(0, limit);
+  return availableEvaluations.slice(0, safeLimit);
 }

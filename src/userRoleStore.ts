@@ -12,6 +12,45 @@ const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
 const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
 const ROLE_PERMISSION_CACHE_KEY = "qa-dashboard:role-permissions-cache";
 const MAINTENANCE_CACHE_KEY = "qa-dashboard:maintenance-cache";
+const SUPABASE_READ_CACHE_TTL_MS = 2 * 60 * 1000;
+const USER_PROFILE_SELECT_COLUMNS = [
+  "username",
+  "display_name",
+  "agent_name",
+  "email",
+  "role",
+  "team_lead",
+  "team_name",
+  "status",
+  "suspend_reason",
+].join(",");
+const ROLE_DEFINITION_SELECT_COLUMNS = [
+  "name",
+  "description",
+  "active",
+  "locked",
+  "updated_by",
+  "updated_at",
+].join(",");
+const ROLE_PERMISSION_SELECT_COLUMNS = [
+  "role_name",
+  "permissions",
+  "updated_by",
+  "updated_at",
+].join(",");
+const MAINTENANCE_SELECT_COLUMNS = [
+  "enabled",
+  "message",
+  "updated_by",
+  "updated_at",
+].join(",");
+
+type CachedSupabaseRead = {
+  expiresAt: number;
+  promise: Promise<unknown>;
+};
+
+const supabaseReadCache = new Map<string, CachedSupabaseRead>();
 
 export type StoredUserProfile = {
   username: string;
@@ -76,6 +115,10 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}) {
   }
 }
 
+function clearSupabaseReadCache() {
+  supabaseReadCache.clear();
+}
+
 function normalizeRoleName(value: unknown) {
   const roleName = String(value || "").trim();
   return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
@@ -124,12 +167,28 @@ function writeSingleCache<T>(key: string, row: T | null) {
 
 async function requestJson<T>(table: string, query = ""): Promise<T> {
   if (!isConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetchWithTimeout(endpoint(table, query), {
+  const cacheKey = `${table}${query}`;
+  const now = Date.now();
+  const cached = supabaseReadCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.promise as Promise<T>;
+
+  const promise = fetchWithTimeout(endpoint(table, query), {
     method: "GET",
     headers: headers(),
+    cache: "default",
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Supabase read failed: ${table} ${response.status}`);
+    return (await response.json()) as T;
+  }).catch((error) => {
+    supabaseReadCache.delete(cacheKey);
+    throw error;
   });
-  if (!response.ok) throw new Error(`Supabase read failed: ${table} ${response.status}`);
-  return (await response.json()) as T;
+
+  supabaseReadCache.set(cacheKey, {
+    expiresAt: now + SUPABASE_READ_CACHE_TTL_MS,
+    promise,
+  });
+  return promise;
 }
 
 async function upsertRows(table: string, rows: unknown[], conflictColumn: string) {
@@ -140,6 +199,7 @@ async function upsertRows(table: string, rows: unknown[], conflictColumn: string
     body: JSON.stringify(rows),
   });
   if (!response.ok) throw new Error(`Supabase upsert failed: ${table} ${response.status}`);
+  clearSupabaseReadCache();
 }
 
 async function deleteRows(table: string, column: string, value: string) {
@@ -149,6 +209,7 @@ async function deleteRows(table: string, column: string, value: string) {
     headers: headers("return=minimal"),
   });
   if (!response.ok) throw new Error(`Supabase delete failed: ${table} ${response.status}`);
+  clearSupabaseReadCache();
 }
 
 function toUserProfile(row: any): StoredUserProfile {
@@ -231,7 +292,7 @@ function toMaintenance(row: any): StoredMaintenanceState {
 
 export async function fetchStoredUserProfiles() {
   try {
-    const rows = await requestJson<any[]>(USER_PROFILE_TABLE, "?select=*&order=username.asc");
+    const rows = await requestJson<any[]>(USER_PROFILE_TABLE, `?select=${USER_PROFILE_SELECT_COLUMNS}&order=username.asc`);
     const profiles = rows.map(toUserProfile).filter((row) => row.username);
     writeCache(USER_PROFILE_CACHE_KEY, profiles);
     return profiles;
@@ -249,7 +310,7 @@ export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
 
 export async function fetchStoredRoleDefinitions() {
   try {
-    const rows = await requestJson<any[]>(ROLE_DEFINITION_TABLE, "?select=*&order=name.asc");
+    const rows = await requestJson<any[]>(ROLE_DEFINITION_TABLE, `?select=${ROLE_DEFINITION_SELECT_COLUMNS}&order=name.asc`);
     const roles = rows.map(toRoleDefinition).filter((row) => row.name);
     writeCache(ROLE_DEFINITION_CACHE_KEY, roles);
     return roles;
@@ -270,7 +331,7 @@ export async function deleteStoredRoleDefinition(name: string) {
 
 export async function fetchStoredRolePermissions() {
   try {
-    const rows = await requestJson<any[]>(ROLE_PERMISSION_TABLE, "?select=*&order=role_name.asc");
+    const rows = await requestJson<any[]>(ROLE_PERMISSION_TABLE, `?select=${ROLE_PERMISSION_SELECT_COLUMNS}&order=role_name.asc`);
     const permissions = rows.map(toRolePermission).filter((row) => row.roleName);
     writeCache(ROLE_PERMISSION_CACHE_KEY, permissions);
     return permissions;
@@ -288,7 +349,7 @@ export async function upsertStoredRolePermissions(rows: StoredRolePermission[]) 
 
 export async function fetchStoredMaintenanceState() {
   try {
-    const rows = await requestJson<any[]>(MAINTENANCE_TABLE, "?select=*&id=eq.global&limit=1");
+    const rows = await requestJson<any[]>(MAINTENANCE_TABLE, `?select=${MAINTENANCE_SELECT_COLUMNS}&id=eq.global&limit=1`);
     const state = rows[0] ? toMaintenance(rows[0]) : null;
     writeSingleCache(MAINTENANCE_CACHE_KEY, state);
     return state;
