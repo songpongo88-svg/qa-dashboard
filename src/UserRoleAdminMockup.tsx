@@ -597,7 +597,13 @@ export default function UserRoleAdminMockup({
     () => roleDefinitions.filter((role) => role.active).map((role) => role.name),
     [roleDefinitions]
   );
-  const isQualityAssuranceAdmin = currentUser?.role === "Quality Assurance";
+  const currentUsername = String(currentUser?.username || "").trim().toLowerCase();
+  const currentDisplayName = String(currentUser?.displayName || "").trim().toLowerCase();
+  const isSongponSuperAdmin =
+    currentUsername === "songpon" ||
+    currentDisplayName === "songpon phothong" ||
+    currentDisplayName === "songpon";
+  const isQualityAssuranceAdmin = currentUser?.role === "Quality Assurance" || isSongponSuperAdmin;
   const currentPermissions = isQualityAssuranceAdmin
     ? {
         ...getDefaultRolePermissions("Quality Assurance"),
