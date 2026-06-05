@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052311",
-  "buildNumber": 2606052311,
-  "releaseLabel": "v1.0.0.2606052311",
-  "updatedAt": "05/06/2026 23:11:49",
+  "displayVersion": "1.0.0.2606052321",
+  "buildNumber": 2606052321,
+  "releaseLabel": "v1.0.0.2606052321",
+  "updatedAt": "05/06/2026 23:21:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "e85a73fd1c4a092942cab5ad71e4f8bea82b12f6",
-  "commitMessage": "Revert \"Improve user directory editing filters and team input focus\"\n\nThis reverts commit 19710c04d8b9803057768aabc36cb88bf5b6f1ff.",
+  "commitHash": "ff46116f7481bc446ff3891265ea3cbb5c0df4db",
+  "commitMessage": "Revert \"Keep users visible while editing status until save\"\n\nThis reverts commit 3767969ac6e220b497bdf13e2762615e3c1bda3e.",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
