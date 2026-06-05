@@ -2669,147 +2669,108 @@ function EditableDirectoryTable({
   onGeneratePassword: (index: number) => void;
 }) {
   return (
-    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] p-5">
-      <div className="mb-5 rounded-[24px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm font-bold leading-6 text-sky-900">
-        Edit users one card at a time. Changes are saved to Firebase when you press Save Changes.
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        {users.map(({ user, index }) => {
-          const isSongpon = normalizeUsername(user.username) === "songpon";
-          return (
-            <div
-              key={`${user.username || "new"}-${index}`}
-              className="overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-[0_18px_45px_rgba(88,28,135,0.08)]"
-            >
-              <div className="flex flex-col gap-3 bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-900 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">User Profile</div>
-                  <div className="mt-1 truncate text-xl font-black">{user.displayName || user.username || "New User"}</div>
-                  <div className="mt-1 truncate text-xs font-semibold text-white/70">@{user.username || "username"}</div>
-                </div>
-                <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-                  user.status === "Active"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-rose-200 bg-rose-50 text-rose-700"
-                }`}>
-                  {user.status}
-                </div>
-              </div>
-
-              <div className="grid gap-4 p-5 md:grid-cols-2">
-                <CompactEditField label="Username" value={user.username} disabled={saving || isSongpon} onChange={(value) => onChange(index, "username", value)} />
-                <CompactEditField label="Display Name" value={user.displayName} disabled={saving} onChange={(value) => onChange(index, "displayName", value)} />
-                <CompactEditField label="Agent Name" value={user.agentName} disabled={saving} onChange={(value) => onChange(index, "agentName", value)} />
-                <CompactEditField label="Email" value={user.email} disabled={saving} onChange={(value) => onChange(index, "email", value)} />
-                <CompactEditField label="Team Lead" value={user.teamLead} disabled={saving} onChange={(value) => onChange(index, "teamLead", value)} />
-                <CompactEditField label="Team Name" value={user.teamName} disabled={saving} onChange={(value) => onChange(index, "teamName", value)} />
-
-                <label className="block">
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Role</span>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-xs">
+        <thead>
+          <tr className="bg-slate-950 text-white">
+            <th className="px-3 py-3 font-bold">Username</th>
+            <th className="px-3 py-3 font-bold">Display Name</th>
+            <th className="px-3 py-3 font-bold">Agent Name</th>
+            <th className="px-3 py-3 font-bold">Email</th>
+            <th className="px-3 py-3 font-bold">Team Lead</th>
+            <th className="px-3 py-3 font-bold">Team Name</th>
+            <th className="px-3 py-3 font-bold">Role</th>
+            <th className="px-3 py-3 font-bold">Status</th>
+            <th className="px-3 py-3 font-bold">Suspend Reason</th>
+            <th className="px-3 py-3 font-bold">Access Password</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map(({ user, index }) => {
+            const isSongpon = normalizeUsername(user.username) === "songpon";
+            return (
+              <tr key={`${user.username || "new"}-${index}`} className="border-b border-slate-100 last:border-b-0">
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.username} disabled={saving || isSongpon} onChange={(value) => onChange(index, "username", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.displayName} disabled={saving} onChange={(value) => onChange(index, "displayName", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.agentName} disabled={saving} onChange={(value) => onChange(index, "agentName", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.email} disabled={saving} onChange={(value) => onChange(index, "email", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.teamLead} disabled={saving} onChange={(value) => onChange(index, "teamLead", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.teamName} disabled={saving} onChange={(value) => onChange(index, "teamName", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
                   <select
                     value={user.role}
                     disabled={saving || isSongpon}
                     onChange={(event) => onChange(index, "role", event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                    className="w-full rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                   >
                     {roleOptions.map((role) => (
-                      <option key={role} value={role}>{role}</option>
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
                     ))}
                   </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Status</span>
+                </td>
+                <td className="px-3 py-3 align-top">
                   <select
                     value={user.status}
                     disabled={saving || isSongpon}
                     onChange={(event) => onChange(index, "status", event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                    className="w-full rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                   >
                     {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>{status}</option>
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
                     ))}
                   </select>
-                </label>
-
-                <div className="md:col-span-2">
-                  <CompactEditField
-                    label="Suspend Reason"
-                    value={user.suspendReason}
-                    disabled={saving || user.status === "Active"}
-                    onChange={(value) => onChange(index, "suspendReason", value)}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Access Password</span>
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput value={user.suspendReason} disabled={saving || user.status === "Active"} onChange={(value) => onChange(index, "suspendReason", value)} />
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <input
                       type="text"
                       value={user.temporaryPassword}
                       disabled={saving}
                       onChange={(event) => onChange(index, "temporaryPassword", event.target.value)}
                       placeholder="Generate temporary password"
-                      className="min-w-0 flex-1 rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                      className="min-w-0 flex-1 rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     />
                     <button
                       type="button"
                       disabled={saving || !user.username}
                       onClick={() => onGeneratePassword(index)}
-                      className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Generate
                     </button>
                   </div>
-                  <div className="mt-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold leading-5 text-slate-500">
+                  <div className="mt-1 max-w-[220px] text-[10px] font-semibold leading-4 text-slate-500">
                     Temporary password expires in 15 days and forces password setup after login.
                   </div>
-                </div>
-              </div>
-
-              {isSongpon ? (
-                <div className="border-t border-amber-100 bg-amber-50 px-5 py-3 text-xs font-bold text-amber-700">
-                  Songpon is protected as the main admin account.
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-
-        {!users.length ? (
-          <div className="rounded-[24px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">
-            No users found in this view.
-          </div>
-        ) : null}
-      </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function CompactEditField({
-  label,
-  value,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  disabled?: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">{label}</span>
-      <input
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-      />
-    </label>
-  );
-}
 function CreateUserModal({
   user,
   saving,
@@ -3106,6 +3067,5 @@ function TextInput({
     />
   );
 }
-
 
 
