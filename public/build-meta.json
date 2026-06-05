@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052208",
-  "buildNumber": 2606052208,
-  "releaseLabel": "v1.0.0.2606052208",
-  "updatedAt": "05/06/2026 22:08:56",
+  "displayVersion": "1.0.0.2606052215",
+  "buildNumber": 2606052215,
+  "releaseLabel": "v1.0.0.2606052215",
+  "updatedAt": "05/06/2026 22:15:19",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "5a89ada1f4c0fd7ea9362f2fbb062988a072997b",
-  "commitMessage": "Include passwords in user directory PDF export",
+  "commitHash": "bbe7d40cdcc7c7b87b4f0f9a624123dec7c778d4",
+  "commitMessage": "Fill password values in user directory PDF export",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
