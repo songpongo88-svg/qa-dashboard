@@ -1171,71 +1171,106 @@ export default function UserRoleAdminMockup({
       return;
     }
 
+    const originalByUsername = new Map(rows.map((row) => [normalizeUsername(row.username), row]));
+    const existingUsernames = new Set(rows.map((row) => normalizeUsername(row.username)));
+
+    const changedUsers = cleanedUsers.filter((user) => {
+      const original = originalByUsername.get(normalizeUsername(user.username));
+
+      if (!original) return true;
+      if (user.temporaryPassword) return true;
+
+      return (
+        user.displayName !== (original.displayName || "") ||
+        user.agentName !== (original.agentName || original.displayName || "") ||
+        user.email !== (original.email || "") ||
+        user.role !== original.effectiveRole ||
+        user.teamLead !== (original.teamLead || "") ||
+        user.teamName !== (original.teamName || "") ||
+        user.status !== (original.status || "Active") ||
+        user.suspendReason !== (original.suspendReason || "")
+      );
+    });
+
+    if (!changedUsers.length) {
+      setMessage("No changes to save.");
+      setEditingUserManagementView(null);
+      return;
+    }
+
     setSaving(true);
     setMessage("");
     setAccessMessage("");
 
     try {
-      await upsertStoredUserProfiles(cleanedUsers.map(editableToStoredProfile));
-    } catch {
-      // Legacy log fallback keeps directory changes available before the new table exists.
-    }
+      await upsertStoredUserProfiles(changedUsers.map(editableToStoredProfile));
 
-    const existingUsernames = new Set(rows.map((row) => normalizeUsername(row.username)));
-    const accessUpdates = cleanedUsers.filter(
-      (user) => user.temporaryPassword || !existingUsernames.has(normalizeUsername(user.username))
-    );
-
-    for (const user of cleanedUsers) {
-      await logUsageEvent(currentUser, "user_profile_saved", {
-        tab: "user-roles",
-        target_agent: user.username,
-        details: {
-          ...user,
-          updatedBy: currentUser?.displayName || currentUser?.username || "",
-          updatedAt: new Date().toISOString(),
-        },
-      });
-
-      if (user.temporaryPassword) {
-        const issuedAt = new Date();
-        await logUsageEvent(currentUser, "password_reset_approved", {
-          tab: "user-roles",
-          target_agent: user.username,
-          details: {
-            requestId: `directory-access-${normalizeUsername(user.username)}-${Date.now()}`,
-            username: user.username,
-            displayName: user.displayName,
-            email: user.email,
-            password: user.temporaryPassword,
-            passwordKind: "temporary",
-            issuedAt: issuedAt.toISOString(),
-            expiresAt: addDays(issuedAt, 15).toISOString(),
-            resetMode: "directory-access",
-            approvedBy: currentUser?.displayName || currentUser?.username || "",
-            approvedAt: issuedAt.toISOString(),
-          },
-        });
-      }
-    }
-
-    await onRolesChanged();
-    setSaving(false);
-    setEditingUserManagementView(null);
-    setMessage(
-      editingUserManagementView === "team-management"
-        ? `Saved team structure for ${cleanedUsers.length} active profile(s).`
-        : `Saved ${cleanedUsers.length} user profile(s).`
-    );
-    if (accessUpdates.length) {
-      setAccessMessage(
-        accessUpdates
-          .map((user) => `${user.displayName || user.username}: ${user.temporaryPassword || "RBH1234"}`)
-          .join(" | ")
+      await Promise.all(
+        changedUsers.map((user) =>
+          logUsageEvent(currentUser, "user_profile_saved", {
+            tab: "user-roles",
+            target_agent: user.username,
+            details: {
+              ...user,
+              updatedBy: currentUser?.displayName || currentUser?.username || "",
+              updatedAt: new Date().toISOString(),
+            },
+          })
+        )
       );
+
+      const passwordUsers = changedUsers.filter((user) => user.temporaryPassword);
+
+      await Promise.all(
+        passwordUsers.map((user) => {
+          const issuedAt = new Date();
+
+          return logUsageEvent(currentUser, "password_reset_approved", {
+            tab: "user-roles",
+            target_agent: user.username,
+            details: {
+              requestId: `directory-access-${normalizeUsername(user.username)}-${Date.now()}`,
+              username: user.username,
+              displayName: user.displayName,
+              email: user.email,
+              password: user.temporaryPassword,
+              passwordKind: "temporary",
+              issuedAt: issuedAt.toISOString(),
+              expiresAt: addDays(issuedAt, 15).toISOString(),
+              resetMode: "directory-access",
+              approvedBy: currentUser?.displayName || currentUser?.username || "",
+              approvedAt: issuedAt.toISOString(),
+            },
+          });
+        })
+      );
+
+      await onRolesChanged();
+
+      setEditingUserManagementView(null);
+      setMessage(
+        editingUserManagementView === "team-management"
+          ? `Saved ${changedUsers.length} changed team/user profile(s).`
+          : `Saved ${changedUsers.length} changed user profile(s).`
+      );
+
+      const accessUpdates = changedUsers.filter(
+        (user) => user.temporaryPassword || !existingUsernames.has(normalizeUsername(user.username))
+      );
+
+      if (accessUpdates.length) {
+        setAccessMessage(
+          accessUpdates
+            .map((user) => `${user.displayName || user.username}: ${user.temporaryPassword || "-"}`)
+            .join(" | ")
+        );
+      }
+    } catch (error) {
+      setMessage(`Save failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSaving(false);
     }
   };
-
   const canEditCurrentUserManagementView =
     userManagementView === "users"
       ? canManageUsers
@@ -3141,6 +3176,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
