@@ -122,7 +122,7 @@ type UserRoleAdminMockupProps = {
   onRolesChanged: () => void | Promise<void>;
 };
 
-const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
+const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Virtual Rider", "Senior", "Supervisor", "Quality Assurance"];
 const STATUS_OPTIONS: UserStatus[] = ["Active", "Suspended"];
 const PERMISSION_DEFINITIONS: Array<{
   key: RolePermissionKey;
@@ -162,6 +162,36 @@ const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
+    viewDashboard: true,
+    viewAllAgents: false,
+    viewSummary: true,
+    viewCoaching: false,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    manageRubric: false,
+    createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
+    viewUsageLog: false,
+    exportPdf: false,
+    exportAppealRawdata: false,
+    viewUserDirectory: false,
+    viewAllTeams: false,
+    viewOwnTeam: true,
+    qaEvaluationTarget: true,
+    manageUsers: false,
+    manageTeams: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  "Virtual Rider": {
+    ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     viewDashboard: true,
     viewAllAgents: false,
     viewSummary: true,
@@ -732,7 +762,7 @@ export default function UserRoleAdminMockup({
   };
 
   const passwordRoleOptions = activeRoleOptions.filter((role) =>
-    ["Admin Live Chat", "Senior", "Supervisor"].includes(role)
+    ["Admin Live Chat", "Virtual Rider", "Senior", "Supervisor"].includes(role)
   );
 
   const generateDraftPasswordsForSelectedRole = () => {

@@ -368,7 +368,7 @@ const CHAT_HISTORY_RESET_AT = "2026-05-15T10:40:51+07:00";
 const V8_EFFECTIVE_FILE_NAME = "QA_Score_Dashboard_byDao_V8.xlsx";
 let v8EffectiveRowsCache: Promise<unknown[][] | null> | null = null;
 
-const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Senior", "Supervisor", "Quality Assurance"];
+const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Virtual Rider", "Senior", "Supervisor", "Quality Assurance"];
 
 const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewDashboard",
@@ -405,6 +405,36 @@ const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: str
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
+    viewDashboard: true,
+    viewAllAgents: false,
+    viewSummary: true,
+    viewCoaching: false,
+    viewAppeal: true,
+    submitAppeal: true,
+    reviewAppeals: false,
+    appealOverride: false,
+    viewRubric: true,
+    manageRubric: false,
+    createEvaluation: true,
+    takePreTest: true,
+    managePreTest: false,
+    viewPreTestResults: false,
+    viewUsageLog: false,
+    exportPdf: false,
+    exportAppealRawdata: false,
+    viewUserDirectory: false,
+    viewAllTeams: false,
+    viewOwnTeam: true,
+    qaEvaluationTarget: true,
+    manageUsers: false,
+    manageTeams: false,
+    manageRoles: false,
+    resetPassword: false,
+    manageMaintenance: false,
+    useTeamChat: true,
+  },
+  "Virtual Rider": {
+    ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     viewDashboard: true,
     viewAllAgents: false,
     viewSummary: true,
