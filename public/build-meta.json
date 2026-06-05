@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606060011",
-  "buildNumber": 2606060011,
-  "releaseLabel": "v1.0.0.2606060011",
-  "updatedAt": "06/06/2026 00:11:10",
+  "displayVersion": "1.0.0.2606060017",
+  "buildNumber": 2606060017,
+  "releaseLabel": "v1.0.0.2606060017",
+  "updatedAt": "06/06/2026 00:17:41",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8628b38b5c3060652745996ae39b279cfba0b52c",
-  "commitMessage": "Improve user directory PDF column layout",
+  "commitHash": "81d853355b4d7d4142b4d83642ada7456848b08d",
+  "commitMessage": "Save PDF before audit logging",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

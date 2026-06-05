@@ -1368,8 +1368,11 @@ export default function UserRoleAdminMockup({
     doc.text(`Generated at: ${formatDateTime()}`, 14, 34);
 
     let y = 46;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
     const ensurePage = (neededHeight = 8) => {
-      if (y + neededHeight <= 284) return;
+      if (y + neededHeight <= pageHeight - 12) return;
       doc.addPage();
       y = 18;
     };
@@ -3256,6 +3259,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
