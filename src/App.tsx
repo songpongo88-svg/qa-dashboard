@@ -2836,6 +2836,27 @@ export default function App() {
     void copyShareLink("QA Rubric", buildWorkspaceUrl({ tab: "rubric", rubricCode: rubricCode || "" }));
   }
 
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const normalizedCurrentUsername = currentUser.username.trim().toLowerCase();
+    const stillAllowed = effectiveUserAccounts.some((account) =>
+      account.username.trim().toLowerCase() === normalizedCurrentUsername &&
+      account.status !== "Suspended"
+    );
+
+    if (!stillAllowed) {
+      clearSessionTimers();
+      setShowSessionWarning(false);
+      setCurrentUser(null);
+      setUsername("");
+      setPassword("");
+      setLoginError("Your account is no longer active. Please contact Songpon to create access again.");
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [currentUser?.username, effectiveUserAccounts]);
+
   const handlePerformanceMenuChange = (value: string) => {
     if (value === "coaching" && !coachingAllowed) return;
     if (value === "dashboard" || value === "summary" || value === "coaching") {
@@ -3945,7 +3966,7 @@ export default function App() {
     }
 
     let centralPasswordRecordOnly: PasswordRecord | null = null;
-    const localPasswordRecord = matchedAccount ? getLocalPasswordRecord(matchedAccount.username) : null;
+    const localPasswordRecord: PasswordRecord | null = null;
     try {
       centralPasswordRecordOnly = matchedAccount ? await getCentralPasswordRecordOnly(matchedAccount.username) : null;
     } catch {
@@ -4809,6 +4830,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 

@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051433",
-  "buildNumber": 2606051433,
-  "releaseLabel": "v1.0.0.2606051433",
-  "updatedAt": "05/06/2026 14:33:14",
+  "displayVersion": "1.0.0.2606051444",
+  "buildNumber": 2606051444,
+  "releaseLabel": "v1.0.0.2606051444",
+  "updatedAt": "05/06/2026 14:44:47",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d76c95c0385e0d5b6662d12cd84ad61a5e042b70",
-  "commitMessage": "Improve user directory responsive layout",
+  "commitHash": "a957f22c49661edf58203808d489c49b60b4d7f1",
+  "commitMessage": "Compact edit directory table layout",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
