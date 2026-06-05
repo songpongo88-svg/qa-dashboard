@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052158",
-  "buildNumber": 2606052158,
-  "releaseLabel": "v1.0.0.2606052158",
-  "updatedAt": "05/06/2026 21:58:05",
+  "displayVersion": "1.0.0.2606052208",
+  "buildNumber": 2606052208,
+  "releaseLabel": "v1.0.0.2606052208",
+  "updatedAt": "05/06/2026 22:08:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ce5a5729b1f58b6c13a8483af3f6e7a76147977a",
-  "commitMessage": "Force show Firebase passwords in user directory",
+  "commitHash": "5a89ada1f4c0fd7ea9362f2fbb062988a072997b",
+  "commitMessage": "Include passwords in user directory PDF export",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
