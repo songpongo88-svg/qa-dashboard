@@ -26,6 +26,7 @@ import {
   fetchStoredMaintenanceState,
   fetchStoredRolePermissions,
   fetchStoredUserProfiles,
+  upsertStoredUserProfiles,
   StoredMaintenanceState,
   StoredRolePermission,
   StoredUserProfile,
@@ -4483,10 +4484,32 @@ export default function App() {
       },
     });
 
-    if (!savedCentrally) {
-      setChangePasswordError("Password could not be saved to the central system. Please check the connection and try again.");
-      setChangePasswordSuccess("");
-      return;
+    let savedToProfileStore = false;
+    try {
+      await upsertStoredUserProfiles([
+        {
+          username: account.username,
+          displayName: account.displayName,
+          agentName: account.agentName,
+          email: account.email || "",
+          role: account.role,
+          teamLead: account.teamLead || "",
+          teamName: account.teamName || "",
+          status: account.status === "Suspended" ? "Suspended" : "Active",
+          suspendReason: account.suspendReason || "",
+          password: newPasswordInput,
+          passwordKind: "permanent",
+          passwordIssuedAt: changedAt.toISOString(),
+          passwordExpiresAt: expiresAt.toISOString(),
+        } as any,
+      ]);
+      savedToProfileStore = true;
+    } catch (error) {
+      console.warn("Password profile sync failed", error);
+    }
+
+    if (!savedCentrally && !savedToProfileStore) {
+      console.warn("Password changed locally only because central/profile sync failed.");
     }
 
     savePasswordOverride(currentUser.username, newPasswordInput);
@@ -4499,7 +4522,11 @@ export default function App() {
     });
 
     setChangePasswordError("");
-    setChangePasswordSuccess("Password changed successfully");
+    setChangePasswordSuccess(
+      savedCentrally || savedToProfileStore
+        ? "Password changed successfully"
+        : "Password changed successfully on this browser only"
+    );
     setCurrentPasswordInput("");
     setNewPasswordInput("");
     setConfirmNewPasswordInput("");
