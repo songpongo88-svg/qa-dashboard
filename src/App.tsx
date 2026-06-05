@@ -1784,6 +1784,59 @@ function SessionWarningModal({
   );
 }
 
+
+function PasswordVisibilityInput({
+  value,
+  onChange,
+  onKeyDown,
+  placeholder = "",
+  className = "",
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  className?: string;
+  ariaLabel: string;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        type={showPassword ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        className={`${className} pr-12`}
+      />
+      <button
+        type="button"
+        onClick={() => setShowPassword((current) => !current)}
+        aria-label={showPassword ? "Hide password" : "Show password"}
+        className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200"
+      >
+        {showPassword ? (
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 3l18 18" />
+            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+            <path d="M9.9 4.3A9.8 9.8 0 0 1 12 4c6 0 9.75 8 9.75 8a17.6 17.6 0 0 1-2.6 3.6" />
+            <path d="M6.5 6.5C3.8 8.4 2.25 12 2.25 12S6 20 12 20a9.7 9.7 0 0 0 4.1-.9" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2.25 12S6 4 12 4s9.75 8 9.75 8S18 20 12 20 2.25 12 2.25 12Z" />
+            <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
 function ChangePasswordModal({
   open,
   onClose,
@@ -1820,20 +1873,26 @@ function ChangePasswordModal({
           {promptReason || "Update your password for this browser."}
         </div>
         <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-xs font-semibold leading-5 text-violet-800">
-          Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
+          <ul className="list-disc space-y-1 pl-4">
+            <li>&#3605;&#3657;&#3629;&#3591;&#3617;&#3637;&#3629;&#3618;&#3656;&#3634;&#3591;&#3609;&#3657;&#3629;&#3618; 8 &#3605;&#3633;&#3623;&#3629;&#3633;&#3585;&#3625;&#3619;</li>
+            <li>&#3605;&#3657;&#3629;&#3591;&#3617;&#3637; &#3605;&#3633;&#3623;&#3614;&#3636;&#3617;&#3614;&#3660;&#3651;&#3627;&#3597;&#3656; A-Z</li>
+            <li>&#3605;&#3657;&#3629;&#3591;&#3617;&#3637; &#3605;&#3633;&#3623;&#3614;&#3636;&#3617;&#3614;&#3660;&#3648;&#3621;&#3655;&#3585; a-z</li>
+            <li>&#3605;&#3657;&#3629;&#3591;&#3617;&#3637; &#3605;&#3633;&#3623;&#3648;&#3621;&#3586; 0-9</li>
+            <li>&#3605;&#3657;&#3629;&#3591;&#3617;&#3637; &#3629;&#3633;&#3585;&#3586;&#3619;&#3632;&#3614;&#3636;&#3648;&#3624;&#3625; &#3648;&#3594;&#3656;&#3609; @ # !</li>
+          </ul>
         </div>
         <div className="mt-6 space-y-4">
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-800">Current Password</label>
-            <input type="password" value={currentPasswordInput} onChange={(e) => setCurrentPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+            <PasswordVisibilityInput value={currentPasswordInput} onChange={setCurrentPasswordInput} ariaLabel="Current Password" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-800">New Password</label>
-            <input type="password" value={newPasswordInput} onChange={(e) => setNewPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+            <PasswordVisibilityInput value={newPasswordInput} onChange={setNewPasswordInput} ariaLabel="New Password" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-800">Confirm New Password</label>
-            <input type="password" value={confirmNewPasswordInput} onChange={(e) => setConfirmNewPasswordInput(e.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+            <PasswordVisibilityInput value={confirmNewPasswordInput} onChange={setConfirmNewPasswordInput} ariaLabel="Confirm New Password" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
           </div>
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
           {success ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{success}</div> : null}
@@ -4632,7 +4691,7 @@ export default function App() {
 
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-800">Password</label>
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} placeholder="Enter password" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
+                    <PasswordVisibilityInput value={password} onChange={setPassword} onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} placeholder="Enter password" ariaLabel="Password" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
                   </div>
 
                   {loginError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{loginError}</div> : null}
