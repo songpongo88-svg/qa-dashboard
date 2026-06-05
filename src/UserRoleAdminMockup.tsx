@@ -651,10 +651,37 @@ export default function UserRoleAdminMockup({
       : rows.filter((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username));
   const activeScopedRows = scopedRows.filter((row) => row.status === "Active");
   const teamGroups = buildTeamGroups(activeScopedRows);
-  const visibleRows = scopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
+  const originalStatusByUsername = new Map(rows.map((row) => [normalizeUsername(row.username), row.status]));
+  const originalRoleByUsername = new Map(rows.map((row) => [normalizeUsername(row.username), row.effectiveRole]));
+
+  const roleFilteredScopedRows =
+    directoryRoleFilter === "all"
+      ? scopedRows
+      : scopedRows.filter((row) => row.effectiveRole === directoryRoleFilter);
+
+  const visibleRows = roleFilteredScopedRows.filter((row) =>
+    directoryTab === "active" ? row.status === "Active" : row.status === "Suspended"
+  );
+
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
-    .filter(({ user }) => userManagementView === "users" ? (directoryTab === "active" ? user.status === "Active" : user.status === "Suspended") : user.status === "Active")
+    .filter(({ user }) => {
+      const normalized = normalizeUsername(user.username);
+      const statusForCurrentView = isEditingUsers
+        ? originalStatusByUsername.get(normalized) || user.status
+        : user.status;
+      const roleForCurrentView = isEditingUsers
+        ? originalRoleByUsername.get(normalized) || normalizeRoleName(user.role)
+        : normalizeRoleName(user.role);
+
+      if (userManagementView === "users") {
+        const statusMatches = directoryTab === "active" ? statusForCurrentView === "Active" : statusForCurrentView === "Suspended";
+        const roleMatches = directoryRoleFilter === "all" || roleForCurrentView === directoryRoleFilter;
+        return statusMatches && roleMatches;
+      }
+
+      return user.status === "Active";
+    })
     .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
   const resetDraftUsers = () => {
@@ -1246,6 +1273,13 @@ export default function UserRoleAdminMockup({
       );
 
       await onRolesChanged();
+
+      const nextVisibleInCurrentTab = changedUsers.some((user) =>
+        directoryTab === "active" ? user.status === "Active" : user.status === "Suspended"
+      );
+      if (!nextVisibleInCurrentTab && changedUsers.length === 1) {
+        setDirectoryTab(changedUsers[0].status === "Suspended" ? "suspended" : "active");
+      }
 
       setEditingUserManagementView(null);
       setMessage(
@@ -2018,7 +2052,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
                   </div>
                   <div className="min-w-0">
                     <div className="min-w-0 truncate text-base font-black text-slate-950">{row.displayName}</div>
-                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">@{row.username}</div>
+                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{row.username}</div>
                   </div>
                 </div>
 
@@ -3176,6 +3210,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
