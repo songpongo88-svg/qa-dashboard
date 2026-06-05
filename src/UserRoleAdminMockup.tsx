@@ -654,7 +654,23 @@ export default function UserRoleAdminMockup({
   const visibleRows = scopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
-    .filter(({ user }) => userManagementView === "users" ? (directoryTab === "active" ? user.status === "Active" : user.status === "Suspended") : user.status === "Active")
+    .filter(({ user }) => {
+      const normalized = normalizeUsername(user.username);
+      const statusForCurrentView = isEditingUsers
+        ? originalStatusByUsername.get(normalized) || user.status
+        : user.status;
+      const roleForCurrentView = isEditingUsers
+        ? originalRoleByUsername.get(normalized) || normalizeRoleName(user.role)
+        : normalizeRoleName(user.role);
+
+      if (userManagementView === "users") {
+        const statusMatches = directoryTab === "active" ? statusForCurrentView === "Active" : statusForCurrentView === "Suspended";
+        const roleMatches = directoryRoleFilter === "all" || roleForCurrentView === directoryRoleFilter;
+        return statusMatches && roleMatches;
+      }
+
+      return user.status === "Active";
+    })
     .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
   const resetDraftUsers = () => {
@@ -2018,7 +2034,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
                   </div>
                   <div className="min-w-0">
                     <div className="min-w-0 truncate text-base font-black text-slate-950">{row.displayName}</div>
-                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">@{row.username}</div>
+                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{row.username}</div>
                   </div>
                 </div>
 
@@ -2207,7 +2223,7 @@ function TeamManagementPanel({
 
       <div className="grid gap-5 xl:grid-cols-2">
         {teamGroups.map((team) => (
-          <div key={team.teamName} className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_50px_rgba(88,28,135,0.10)]">
+          <div key={team.members.map(({ user }) => user.username).sort().join("|") || team.teamName} className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_50px_rgba(88,28,135,0.10)]">
             <div className="bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-900 px-5 py-5 text-white">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
@@ -3176,6 +3192,7 @@ function TextInput({
     />
   );
 }
+
 
 
 

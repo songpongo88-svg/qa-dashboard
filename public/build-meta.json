@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052231",
-  "buildNumber": 2606052231,
-  "releaseLabel": "v1.0.0.2606052231",
-  "updatedAt": "05/06/2026 22:31:20",
+  "displayVersion": "1.0.0.2606052306",
+  "buildNumber": 2606052306,
+  "releaseLabel": "v1.0.0.2606052306",
+  "updatedAt": "05/06/2026 23:06:07",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "08acc4db87873a1adeaf6eabfdaa8e3971df1325",
-  "commitMessage": "Remove legacy password fallback from PDF export",
+  "commitHash": "beb8162f3ca748b5b1749bce7749a11fa30cbc83",
+  "commitMessage": "Revert \"Improve user filters status edit and team management inputs\"\n\nThis reverts commit 3ad7497b0deec1f6fd16ce114175bd0cfa85b8b4.",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
