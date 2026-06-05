@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { fetchStoredEvaluations } from "./evaluationStore";
@@ -157,7 +157,7 @@ type PeriodRow = {
 };
 
 const CASE_TARGET = 10;
-const RAW_DATA_FILE_NAMES = ["QA_RawData1.xlsx"];
+const RAW_DATA_FILE_NAMES = ["QA_RawData_March-May2026.xlsx"];
 const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
@@ -184,17 +184,17 @@ const LEGACY_TOPIC_MASTER = [
 ] as const;
 
 const APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
-  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
-  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
-  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
-  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
-  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
-  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
-  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
-  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
-  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
-  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+  { code: "1.1", label: "เธกเธฒเธ•เธฃเธเธฒเธเธเธฒเธฃเธ—เธฑเธเธ—เธฒเธขเนเธฅเธฐเธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
+  { code: "1.2", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธก PDPA / Policy / เธเนเธญเธเธณเธซเธเธ”", max: 10 },
+  { code: "1.3", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฃเธฐเธเธงเธเธเธฒเธฃเนเธฅเธฐ SLA", max: 10 },
+  { code: "2.1", label: "เธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
+  { code: "2.2", label: "เธเธงเธฒเธกเธเธฃเธเธ–เนเธงเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
+  { code: "2.3", label: "เธเธงเธฒเธกเธเธฑเธ”เน€เธเธเธเธญเธเธเธฑเนเธเธ•เธญเธเนเธฅเธฐเนเธซเธฅเนเธเธญเนเธฒเธเธญเธดเธ", max: 5 },
+  { code: "3.1", label: "เธเธฒเธฃเธงเธดเน€เธเธฃเธฒเธฐเธซเนเนเธฅเธฐเนเธเนเนเธเธเธฑเธเธซเธฒเนเธ”เนเธ•เธฃเธเธเธธเธ”", max: 15 },
+  { code: "3.2", label: "Ownership เนเธฅเธฐเธเธฒเธฃเนเธเนเธ Next Step", max: 10 },
+  { code: "4.1", label: "เนเธเธฃเธเธชเธฃเนเธฒเธเธเนเธญเธเธงเธฒเธกเนเธฅเธฐเธเธงเธฒเธกเธญเนเธฒเธเธเนเธฒเธข", max: 5 },
+  { code: "4.2", label: "เธเธงเธฒเธกเธเธฃเธฐเธเธฑเธเนเธฅเธฐเธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธ เธฒเธฉเธฒ", max: 5 },
+  { code: "4.3", label: "เธเนเธณเน€เธชเธตเธขเธเนเธฅเธฐเธเธงเธฒเธกเน€เธซเธกเธฒเธฐเธชเธกเธ•เธฒเธกเธชเธ–เธฒเธเธเธฒเธฃเธ“เน", max: 10 },
 ] as const;
 
 const JUNE_2026_TOPIC_MASTER = [
@@ -718,8 +718,8 @@ function SongkranBackdrop() {
       <div className="absolute left-[10%] top-[20%] h-3 w-3 rounded-full bg-white/80" />
       <div className="absolute left-[18%] top-[12%] h-4 w-4 rounded-full bg-cyan-300/60" />
       <div className="absolute right-[12%] top-[18%] h-3 w-3 rounded-full bg-pink-300/50" />
-      <div className="absolute left-5 bottom-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">🔫💦</div>
-      <div className="absolute right-5 top-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">🪣🌸</div>
+      <div className="absolute left-5 bottom-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">๐”ซ๐’ฆ</div>
+      <div className="absolute right-5 top-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">๐ชฃ๐ธ</div>
     </div>
   );
 }
@@ -1149,9 +1149,9 @@ export default function SummaryMockup({
 
         const availableRawResponses = rawResponses.filter((item) => item.response.ok);
         if (!availableRawResponses.length) {
-          throw new Error(`ไม่พบไฟล์ RawData ในโฟลเดอร์ public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
+          throw new Error(`เนเธกเนเธเธเนเธเธฅเน RawData เนเธเนเธเธฅเน€เธ”เธญเธฃเน public: ${RAW_DATA_FILE_NAMES.join(", ")}`);
         }
-        if (!appealResponse.ok) throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
+        if (!appealResponse.ok) throw new Error("เนเธกเนเธเธเนเธเธฅเน Appleal ROWDATA.xlsx เนเธเนเธเธฅเน€เธ”เธญเธฃเน public");
 
         const rawSources = await Promise.all(
           availableRawResponses.map(async ({ fileName, response }) => {
@@ -1164,7 +1164,7 @@ export default function SummaryMockup({
               const normalized = (row || []).map((v: any) => normalizeText(v));
               return normalized.includes("agent name") && normalized.includes("case id");
             });
-            if (rawHeaderIndex === -1) throw new Error(`ไม่พบแถว Header ในไฟล์ ${fileName}`);
+            if (rawHeaderIndex === -1) throw new Error(`เนเธกเนเธเธเนเธ–เธง Header เนเธเนเธเธฅเน ${fileName}`);
 
             const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
             return {
@@ -1403,7 +1403,7 @@ export default function SummaryMockup({
         setAllCases([...latestByEvaluationKey.values()]);
         setAppealMergeCount(appealMap.size);
       } catch (error: any) {
-        setLoadError(error?.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        setLoadError(error?.message || "เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ");
       } finally {
         setIsLoading(false);
       }
@@ -1577,11 +1577,11 @@ export default function SummaryMockup({
   }, [viewMode]);
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-100"><div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">กำลังโหลด Summary Dashboard...</div></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-slate-100"><div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">เธเธณเธฅเธฑเธเนเธซเธฅเธ” Summary Dashboard...</div></div>;
   }
 
   if (loadError) {
-    return <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6"><div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm"><div className="text-lg font-semibold">โหลดไฟล์ไม่สำเร็จ</div><div className="mt-2 text-sm">{loadError}</div></div></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6"><div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm"><div className="text-lg font-semibold">เนเธซเธฅเธ”เนเธเธฅเนเนเธกเนเธชเธณเน€เธฃเนเธ</div><div className="mt-2 text-sm">{loadError}</div></div></div>;
   }
 
   return (
@@ -1590,7 +1590,7 @@ export default function SummaryMockup({
       <PageHero
         eyebrow="QA Summary"
         title="Weekly / Monthly / Yearly Summary Workspace"
-        subtitle="รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว"
+        subtitle="เธฃเธงเธกเธซเธเนเธฒเธชเธฃเธธเธ Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary เนเธฅเธฐ Yearly by Agent เนเธเธซเธเนเธฒเน€เธ”เธตเธขเธง"
         workspaceTitle="Quality Monitoring Workspace"
         workspaceSubtitle="Corporate dashboard for audit tracking and case review"
       />
@@ -1601,7 +1601,7 @@ export default function SummaryMockup({
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">QA Summary</div>
               <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">Weekly / Monthly / Yearly Summary Workspace</div>
-              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว</div>
+              <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">เธฃเธงเธกเธซเธเนเธฒเธชเธฃเธธเธ Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary เนเธฅเธฐ Yearly by Agent เนเธเธซเธเนเธฒเน€เธ”เธตเธขเธง</div>
             </div>
             <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
               <LogoHeaderBox />
@@ -1715,3 +1715,4 @@ export default function SummaryMockup({
     </div>
   );
 }
+
