@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052353",
-  "buildNumber": 2606052353,
-  "releaseLabel": "v1.0.0.2606052353",
-  "updatedAt": "05/06/2026 23:53:02",
+  "displayVersion": "1.0.0.2606052358",
+  "buildNumber": 2606052358,
+  "releaseLabel": "v1.0.0.2606052358",
+  "updatedAt": "05/06/2026 23:58:50",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fb1a9dc9179480e605096deb5108210d14fd5b57",
-  "commitMessage": "Fix status edit visibility with view status snapshot",
+  "commitHash": "1186ea55a2f116dfdb5687ebb106a7745a8ea264",
+  "commitMessage": "Add role filter and password generation by role",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
