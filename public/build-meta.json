@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606060017",
-  "buildNumber": 2606060017,
-  "releaseLabel": "v1.0.0.2606060017",
-  "updatedAt": "06/06/2026 00:17:41",
+  "displayVersion": "1.0.0.2606060023",
+  "buildNumber": 2606060023,
+  "releaseLabel": "v1.0.0.2606060023",
+  "updatedAt": "06/06/2026 00:23:09",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "81d853355b4d7d4142b4d83642ada7456848b08d",
-  "commitMessage": "Save PDF before audit logging",
+  "commitHash": "2b496494ceb2869d275652bb8ac053da626eb407",
+  "commitMessage": "Fix PDF export page width crash",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"

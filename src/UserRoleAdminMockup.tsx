@@ -2290,7 +2290,7 @@ function TeamManagementPanel({
 
       <div className="grid gap-5 xl:grid-cols-2">
         {teamGroups.map((team) => (
-          <div key={team.teamName} className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_50px_rgba(88,28,135,0.10)]">
+          <div key={team.members.map(({ user }) => user.username).sort().join("|") || team.teamName} className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_50px_rgba(88,28,135,0.10)]">
             <div className="bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-900 px-5 py-5 text-white">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
@@ -2381,7 +2381,7 @@ function TeamManagementPanel({
                 <div>Assigned Team</div>
               </div>
               {team.members.map(({ user, index }) => (
-                <div key={`${team.teamName}-${user.username}-${index}`} className="grid grid-cols-[minmax(220px,1fr)_170px_minmax(180px,0.8fr)] items-center gap-3 rounded-[22px] border border-white bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
+                <div key={`${user.username}-${index}`} className="grid grid-cols-[minmax(220px,1fr)_170px_minmax(180px,0.8fr)] items-center gap-3 rounded-[22px] border border-white bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-black text-white ${roleAvatarClass(user.role)}`}>
                       {userInitials(user.displayName || user.username)}
@@ -3259,6 +3259,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
