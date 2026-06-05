@@ -3984,7 +3984,7 @@ export default function App() {
         : null;
 
     if (!matchedUser) {
-      if (centralPasswordRecord?.kind === "temporary" && isPastDate(centralPasswordRecord.expiresAt)) {
+      if ((centralPasswordRecord || firebaseProfilePasswordRecord)?.kind === "temporary" && isPastDate((centralPasswordRecord || firebaseProfilePasswordRecord)?.expiresAt || "")) {
         setLoginError("Temporary password has expired. Please use Forgot Password to request a new temporary password.");
         return;
       }
@@ -3992,7 +3992,7 @@ export default function App() {
       return;
     }
 
-    if (centralPasswordRecord?.kind === "temporary" && isPastDate(centralPasswordRecord.expiresAt)) {
+    if ((centralPasswordRecord || firebaseProfilePasswordRecord)?.kind === "temporary" && isPastDate((centralPasswordRecord || firebaseProfilePasswordRecord)?.expiresAt || "")) {
       setLoginError("Temporary password has expired. Please use Forgot Password to request a new temporary password.");
       return;
     }
@@ -4859,6 +4859,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 

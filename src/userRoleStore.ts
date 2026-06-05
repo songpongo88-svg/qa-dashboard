@@ -115,7 +115,7 @@ function toUserProfile(row: any): StoredUserProfile {
 }
 
 function fromUserProfile(profile: StoredUserProfile) {
-  return {
+  const row: any = {
     username: profile.username,
     displayName: profile.displayName,
     agentName: profile.agentName,
@@ -128,6 +128,15 @@ function fromUserProfile(profile: StoredUserProfile) {
     updatedAt: new Date().toISOString(),
     updatedAtServer: serverTimestamp(),
   };
+
+  if (profile.password) {
+    row.password = profile.password;
+    row.passwordKind = profile.passwordKind || "temporary";
+    row.passwordIssuedAt = profile.passwordIssuedAt || new Date().toISOString();
+    row.passwordExpiresAt = profile.passwordExpiresAt || "";
+  }
+
+  return row;
 }
 
 function toRoleDefinition(row: any): StoredRoleDefinition {
@@ -289,3 +298,4 @@ export async function upsertStoredMaintenanceState(state: StoredMaintenanceState
   await setDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"), nextState, { merge: true });
   writeSingleCache(MAINTENANCE_CACHE_KEY, state);
 }
+
