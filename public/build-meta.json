@@ -1,18 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051658",
-  "buildNumber": 2606051658,
-  "releaseLabel": "v1.0.0.2606051658",
-  "updatedAt": "05/06/2026 16:58:56",
+  "displayVersion": "1.0.0.2606051826",
+  "buildNumber": 2606051826,
+  "releaseLabel": "v1.0.0.2606051826",
+  "updatedAt": "05/06/2026 18:26:41",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "56d7c971f15b21136e64fe638cf334023b27fc61",
-  "commitMessage": "Revert \"Improve user edit cards and block deleted users\"\n\nThis reverts commit eef57acd48ce1e269b3350ce49d5e647f5fdc5f2.",
+  "commitHash": "996ad276d56238ebfb9034d805de5ca7f1587b0e",
+  "commitMessage": "Restore Songpon emergency admin login",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx",
-    "src/UserRoleAdminMockup.tsx"
+    "src/App.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
