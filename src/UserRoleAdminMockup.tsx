@@ -538,6 +538,7 @@ export default function UserRoleAdminMockup({
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [newTeamDraft, setNewTeamDraft] = useState<TeamDraft>(() => createBlankTeamDraft(ROLE_OPTIONS));
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
+  const [directoryRoleFilter, setDirectoryRoleFilter] = useState<UserRole | "all">("all");
   const [userManagementView, setUserManagementView] = useState<UserManagementView>("users");
   const [adminTab, setAdminTab] = useState<AdminTab>("users");
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>(() => buildRoleDefinitions([]));
@@ -654,10 +655,22 @@ export default function UserRoleAdminMockup({
       : rows.filter((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username));
   const activeScopedRows = scopedRows.filter((row) => row.status === "Active");
   const teamGroups = buildTeamGroups(activeScopedRows);
-  const visibleRows = scopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
+  const roleFilteredScopedRows =
+    directoryRoleFilter === "all"
+      ? scopedRows
+      : scopedRows.filter((row) => row.effectiveRole === directoryRoleFilter);
+  const visibleRows = roleFilteredScopedRows.filter((row) => directoryTab === "active" ? row.status === "Active" : row.status === "Suspended");
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
-    .filter(({ user }) => userManagementView === "users" ? (directoryTab === "active" ? (isEditingUsers ? user.viewStatus || user.status : user.status) === "Active" : (isEditingUsers ? user.viewStatus || user.status : user.status) === "Suspended") : user.status === "Active")
+    .filter(({ user }) => {
+      if (userManagementView !== "users") return user.status === "Active";
+
+      const statusForView = isEditingUsers ? user.viewStatus || user.status : user.status;
+      const statusMatches = directoryTab === "active" ? statusForView === "Active" : statusForView === "Suspended";
+      const roleMatches = directoryRoleFilter === "all" || normalizeRoleName(user.role) === directoryRoleFilter;
+
+      return statusMatches && roleMatches;
+    })
     .filter(({ user }) => canViewAllTeams ? true : !currentTeamName || user.teamName === currentTeamName || normalizeUsername(user.username) === normalizeUsername(currentUser.username));
 
   const resetDraftUsers = () => {
@@ -1604,7 +1617,30 @@ export default function UserRoleAdminMockup({
             <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-4 py-3">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
-                  <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={scopedRows.length} onClick={() => switchUserManagementView("users")} />
+                  <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={roleFilteredScopedRows.length} onClick={() => switchUserManagementView("users")} />
+                  {userManagementView === "users" ? (
+                    <>
+                      <select
+                        value={directoryRoleFilter}
+                        onChange={(event) => setDirectoryRoleFilter(event.target.value as UserRole | "all")}
+                        className="rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-xs font-black text-violet-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                      >
+                        <option value="all">All Roles</option>
+                        {activeRoleOptions.map((role) => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                      </select>
+                      {isEditingUsers ? (
+                        <button
+                          type="button"
+                          onClick={generateDraftPasswordsForSelectedRole}
+                          className="rounded-2xl border border-amber-300 bg-amber-100 px-4 py-2.5 text-xs font-black text-amber-800 transition hover:bg-amber-200"
+                        >
+                          Gen Password
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
                   <DirectoryTabButton active={userManagementView === "teams"} label="All Teams" count={teamGroups.length} onClick={() => switchUserManagementView("teams")} tone="slate" />
                   {canManageTeams ? (
                     <DirectoryTabButton
@@ -3179,6 +3215,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
