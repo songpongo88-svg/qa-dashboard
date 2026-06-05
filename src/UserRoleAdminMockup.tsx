@@ -2674,7 +2674,6 @@ function EditableDirectoryTable({
         <thead>
           <tr className="bg-slate-950 text-white">
             <th className="px-3 py-3 font-bold">Username</th>
-            <th className="px-3 py-3 font-bold">Display Name</th>
             <th className="px-3 py-3 font-bold">Agent Name</th>
             <th className="px-3 py-3 font-bold">Email</th>
             <th className="px-3 py-3 font-bold">Team Lead</th>
@@ -2692,9 +2691,6 @@ function EditableDirectoryTable({
               <tr key={`${user.username || "new"}-${index}`} className="border-b border-slate-100 last:border-b-0">
                 <td className="px-3 py-3 align-top">
                   <TextInput value={user.username} disabled={saving || isSongpon} onChange={(value) => onChange(index, "username", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.displayName} disabled={saving} onChange={(value) => onChange(index, "displayName", value)} />
                 </td>
                 <td className="px-3 py-3 align-top">
                   <TextInput value={user.agentName} disabled={saving} onChange={(value) => onChange(index, "agentName", value)} />
@@ -2740,20 +2736,20 @@ function EditableDirectoryTable({
                   <TextInput value={user.suspendReason} disabled={saving || user.status === "Active"} onChange={(value) => onChange(index, "suspendReason", value)} />
                 </td>
                 <td className="px-3 py-3 align-top">
-                  <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-[260px] items-center gap-2">
                     <input
                       type="text"
                       value={user.temporaryPassword}
                       disabled={saving}
                       onChange={(event) => onChange(index, "temporaryPassword", event.target.value)}
                       placeholder="Generate temporary password"
-                      className="min-w-0 flex-1 rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                      className="min-w-[150px] flex-1 rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     />
                     <button
                       type="button"
                       disabled={saving || !user.username}
                       onClick={() => onGeneratePassword(index)}
-                      className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="shrink-0 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-[11px] font-black text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Generate
                     </button>
@@ -3067,6 +3063,7 @@ function TextInput({
     />
   );
 }
+
 
 
 

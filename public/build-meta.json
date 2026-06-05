@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051916",
-  "buildNumber": 2606051916,
-  "releaseLabel": "v1.0.0.2606051916",
-  "updatedAt": "05/06/2026 19:16:26",
+  "displayVersion": "1.0.0.2606051921",
+  "buildNumber": 2606051921,
+  "releaseLabel": "v1.0.0.2606051921",
+  "updatedAt": "05/06/2026 19:21:51",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8fb654864d9ac7ba252833b4be123bcba2d7d292",
-  "commitMessage": "Point Firebase config to imported user project",
+  "commitHash": "2d09ae2ba02e18e08aa7afc95f7dd7d2cfddaff3",
+  "commitMessage": "Hide display name column in edit directory",
   "changedFiles": [
     "public/build-meta.json",
-    "src/firebaseClient.ts"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
