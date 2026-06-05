@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052258",
-  "buildNumber": 2606052258,
-  "releaseLabel": "v1.0.0.2606052258",
-  "updatedAt": "05/06/2026 22:58:41",
+  "displayVersion": "1.0.0.2606052231",
+  "buildNumber": 2606052231,
+  "releaseLabel": "v1.0.0.2606052231",
+  "updatedAt": "05/06/2026 22:31:20",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "8a09f44e9391231ae008df50893aa1d71f7dc7d5",
-  "commitMessage": "Speed up user directory save by saving changed rows only",
+  "commitHash": "08acc4db87873a1adeaf6eabfdaa8e3971df1325",
+  "commitMessage": "Remove legacy password fallback from PDF export",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
