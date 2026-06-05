@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052321",
-  "buildNumber": 2606052321,
-  "releaseLabel": "v1.0.0.2606052321",
-  "updatedAt": "05/06/2026 23:21:56",
+  "displayVersion": "1.0.0.2606052328",
+  "buildNumber": 2606052328,
+  "releaseLabel": "v1.0.0.2606052328",
+  "updatedAt": "05/06/2026 23:28:59",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ff46116f7481bc446ff3891265ea3cbb5c0df4db",
-  "commitMessage": "Revert \"Keep users visible while editing status until save\"\n\nThis reverts commit 3767969ac6e220b497bdf13e2762615e3c1bda3e.",
+  "commitHash": "8a1ee3765fe5e1c61d004b7b8e1191b49cca6740",
+  "commitMessage": "Keep edited users visible until status changes are saved",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
