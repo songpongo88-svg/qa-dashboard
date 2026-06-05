@@ -31,6 +31,11 @@ import {
   StoredRolePermission,
   StoredUserProfile,
 } from "./userRoleStore";
+import {
+  createStoredPasswordResetRequest,
+  fetchStoredPasswordResetRequests,
+  updateStoredPasswordResetRequest,
+} from "./passwordResetStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
 
@@ -4381,26 +4386,15 @@ export default function App() {
 
     const requestId = `${account.username.toLowerCase()}-${Date.now()}`;
     try {
-      await logUsageEvent(
-        {
-          username: account.username,
-          displayName: account.displayName,
-          role: account.role,
-          agentName: account.agentName,
-          loginAt: new Date().toISOString(),
-        },
-        "password_reset_request",
-        {
-          tab: "login",
-          target_agent: account.username,
-          details: {
-            requestId,
-            username: account.username,
-            displayName: account.displayName,
-            email: account.email,
-          },
-        }
-      );
+      await createStoredPasswordResetRequest({
+        requestId,
+        username: account.username,
+        displayName: account.displayName,
+        email: account.email,
+        requestedAt: new Date().toISOString(),
+        status: "Pending",
+        tempPassword: "",
+      });
     } catch {
       setForgotPasswordError("Submit request failed. Please try again.");
       setForgotPasswordSuccess("");
@@ -4553,33 +4547,42 @@ export default function App() {
       setResetResultMessage("You cannot reset your own password. Please ask another reset admin.");
       return;
     }
+
     removePasswordOverride(resetTargetUsername);
+
     const targetAccount = effectiveUserAccounts.find((item) => item.username === resetTargetUsername);
     const targetName = targetAccount?.displayName || resetTargetUsername;
-    if (currentUser && targetAccount) {
-      const issuedAt = new Date();
-      const expiresAt = addDays(issuedAt, TEMP_PASSWORD_VALID_DAYS);
-      await logUsageEvent(currentUser, "password_reset_approved", {
-        tab: "account",
-        target_agent: targetAccount.username,
-        details: {
-          requestId: `manual-default-${targetAccount.username.toLowerCase()}-${Date.now()}`,
-          password: targetAccount.password,
-          passwordKind: "temporary",
-          issuedAt: issuedAt.toISOString(),
-          expiresAt: expiresAt.toISOString(),
-          email: targetAccount.email || "",
-          displayName: targetAccount.displayName,
-          resetMode: "default",
-        },
-      });
+    if (!targetAccount) {
+      setResetResultMessage("User account not found.");
+      return;
     }
-    setResetResultMessage(`Password for ${targetName} has been reset to default.`);
+
+    const issuedAt = new Date();
+    const expiresAt = addDays(issuedAt, TEMP_PASSWORD_VALID_DAYS);
+    await upsertStoredUserProfiles([
+      {
+        username: targetAccount.username,
+        displayName: targetAccount.displayName,
+        agentName: targetAccount.agentName || targetAccount.displayName,
+        email: targetAccount.email || "",
+        role: targetAccount.role,
+        teamLead: targetAccount.teamLead || "",
+        teamName: targetAccount.teamName || "",
+        status: targetAccount.status === "Suspended" ? "Suspended" : "Active",
+        suspendReason: targetAccount.suspendReason || "",
+        password: targetAccount.password,
+        passwordKind: "temporary",
+        passwordIssuedAt: issuedAt.toISOString(),
+        passwordExpiresAt: expiresAt.toISOString(),
+      } as any,
+    ]);
+
+    setResetResultMessage(`Password for ${targetName} has been reset to default. Temporary password: ${targetAccount.password}`);
   };
 
   const loadPasswordResetRequests = async () => {
-    const logs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, 500);
-    setPasswordResetRequests(buildResetRequests(logs));
+    const requests = await fetchStoredPasswordResetRequests();
+    setPasswordResetRequests(requests);
   };
 
   const handleApproveResetRequest = async (request: PasswordResetRequest) => {
@@ -4588,29 +4591,48 @@ export default function App() {
       setResetResultMessage("You cannot approve your own password reset request.");
       return;
     }
-    const latestLogs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, { limit: 500, forceRefresh: true });
-    const latestStatus = getResetRequestDecisionStatus(latestLogs, request.requestId);
+
+    const latestRequests = await fetchStoredPasswordResetRequests();
+    const latestRequest = latestRequests.find((item) => item.requestId === request.requestId);
+    const latestStatus = latestRequest?.status || "Pending";
     if (latestStatus !== "Pending") {
-      setPasswordResetRequests(buildResetRequests(latestLogs));
+      setPasswordResetRequests(latestRequests);
       setResetResultMessage(`This request is already ${latestStatus.toLowerCase()} by another reset admin.`);
       return;
     }
+
     const tempPassword = generateTemporaryPassword();
     const issuedAt = new Date();
     const expiresAt = addDays(issuedAt, TEMP_PASSWORD_VALID_DAYS);
-    await logUsageEvent(currentUser, "password_reset_approved", {
-      tab: "account",
-      target_agent: request.username,
-      details: {
-        requestId: request.requestId,
+    const targetAccount = effectiveUserAccounts.find(
+      (item) => item.username.trim().toLowerCase() === request.username.trim().toLowerCase()
+    );
+
+    await updateStoredPasswordResetRequest(request.requestId, {
+      status: "Approved",
+      tempPassword,
+      reviewedAt: issuedAt.toISOString(),
+      reviewedBy: currentUser.username,
+    });
+
+    await upsertStoredUserProfiles([
+      {
+        username: targetAccount?.username || request.username,
+        displayName: targetAccount?.displayName || request.displayName || request.username,
+        agentName: targetAccount?.agentName || request.displayName || request.username,
+        email: targetAccount?.email || request.email || "",
+        role: targetAccount?.role || "Admin Live Chat",
+        teamLead: targetAccount?.teamLead || "",
+        teamName: targetAccount?.teamName || "",
+        status: targetAccount?.status === "Suspended" ? "Suspended" : "Active",
+        suspendReason: targetAccount?.suspendReason || "",
         password: tempPassword,
         passwordKind: "temporary",
-        issuedAt: issuedAt.toISOString(),
-        expiresAt: expiresAt.toISOString(),
-        email: request.email,
-        displayName: request.displayName,
-      },
-    });
+        passwordIssuedAt: issuedAt.toISOString(),
+        passwordExpiresAt: expiresAt.toISOString(),
+      } as any,
+    ]);
+
     setResetResultMessage(`Approved ${request.displayName || request.username}. Temporary password: ${tempPassword}`);
     await loadPasswordResetRequests();
   };
@@ -4621,22 +4643,22 @@ export default function App() {
       setResetResultMessage("You cannot reject your own password reset request. Please ask another reset admin.");
       return;
     }
-    const latestLogs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, { limit: 500, forceRefresh: true });
-    const latestStatus = getResetRequestDecisionStatus(latestLogs, request.requestId);
+
+    const latestRequests = await fetchStoredPasswordResetRequests();
+    const latestRequest = latestRequests.find((item) => item.requestId === request.requestId);
+    const latestStatus = latestRequest?.status || "Pending";
     if (latestStatus !== "Pending") {
-      setPasswordResetRequests(buildResetRequests(latestLogs));
+      setPasswordResetRequests(latestRequests);
       setResetResultMessage(`This request is already ${latestStatus.toLowerCase()} by another reset admin.`);
       return;
     }
-    await logUsageEvent(currentUser, "password_reset_rejected", {
-      tab: "account",
-      target_agent: request.username,
-      details: {
-        requestId: request.requestId,
-        email: request.email,
-        displayName: request.displayName,
-      },
+
+    await updateStoredPasswordResetRequest(request.requestId, {
+      status: "Rejected",
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: currentUser.username,
     });
+
     setResetResultMessage(`Rejected reset request for ${request.displayName || request.username}.`);
     await loadPasswordResetRequests();
   };
