@@ -519,6 +519,20 @@ function createBlankTeamDraft(roleOptions: UserRole[]): TeamDraft {
   };
 }
 
+
+async function logUsageEventBestEffort(
+  currentUser: CurrentUser,
+  eventType: Parameters<typeof logUsageEvent>[1],
+  payload: Parameters<typeof logUsageEvent>[2]
+) {
+  try {
+    return await logUsageEvent(currentUser, eventType, payload);
+  } catch (error) {
+    console.warn("Usage log skipped because Supabase is unavailable or over quota", error);
+    return false;
+  }
+}
+
 export default function UserRoleAdminMockup({
   accounts,
   currentUser,
@@ -857,7 +871,7 @@ export default function UserRoleAdminMockup({
     } catch {
       // Legacy log fallback keeps old deployments usable if the new tables are not installed yet.
     }
-    await logUsageEvent(currentUser, "role_definition_saved", {
+    await logUsageEventBestEffort(currentUser, "role_definition_saved", {
       tab: "user-roles",
       details: {
         name,
@@ -907,7 +921,7 @@ export default function UserRoleAdminMockup({
     } catch {
       // Legacy log fallback keeps delete tracked when the store table is not installed yet.
     }
-    await logUsageEvent(currentUser, "role_definition_deleted", {
+    await logUsageEventBestEffort(currentUser, "role_definition_deleted", {
       tab: "user-roles",
       details: {
         name: role.name,
@@ -948,7 +962,7 @@ export default function UserRoleAdminMockup({
       } catch {
         // Keep going; the legacy log below still records the delete.
       }
-      await logUsageEvent(currentUser, "role_definition_deleted", {
+      await logUsageEventBestEffort(currentUser, "role_definition_deleted", {
         tab: "user-roles",
         details: {
           name: role.name,
@@ -971,7 +985,7 @@ export default function UserRoleAdminMockup({
     } catch {
       // Legacy log fallback keeps role details available if the new table is not installed yet.
     }
-    await logUsageEvent(currentUser, "role_definition_saved", {
+    await logUsageEventBestEffort(currentUser, "role_definition_saved", {
       tab: "user-roles",
       details: {
         name: cleanedName,
@@ -1061,7 +1075,7 @@ export default function UserRoleAdminMockup({
         updatedBy,
         updatedAt,
       });
-      await logUsageEvent(currentUser, "role_permissions_saved", {
+      await logUsageEventBestEffort(currentUser, "role_permissions_saved", {
         tab: "user-roles",
         details: {
           roleName,
@@ -1099,7 +1113,7 @@ export default function UserRoleAdminMockup({
     } catch {
       // Legacy log fallback keeps maintenance mode usable before the new table exists.
     }
-    await logUsageEvent(currentUser, "system_maintenance_saved", {
+    await logUsageEventBestEffort(currentUser, "system_maintenance_saved", {
       tab: "user-roles",
       details: {
         enabled,
@@ -1154,7 +1168,7 @@ export default function UserRoleAdminMockup({
       // Legacy log fallback keeps created users available before the new table exists.
     }
 
-    await logUsageEvent(currentUser, "user_profile_saved", {
+    await logUsageEventBestEffort(currentUser, "user_profile_saved", {
       tab: "user-roles",
       target_agent: cleanedUser.username,
       details: {
@@ -1165,7 +1179,7 @@ export default function UserRoleAdminMockup({
     });
 
     const issuedAt = new Date();
-    await logUsageEvent(currentUser, "password_reset_approved", {
+    await logUsageEventBestEffort(currentUser, "password_reset_approved", {
       tab: "user-roles",
       target_agent: cleanedUser.username,
       details: {
@@ -1515,7 +1529,7 @@ export default function UserRoleAdminMockup({
     doc.save(fileName);
 
     try {
-      await logUsageEvent(currentUser, "pdf_generate", {
+      await logUsageEventBestEffort(currentUser, "pdf_generate", {
         tab: "user-roles",
         details: { pdfType: exportContext, fileName },
       });
