@@ -597,7 +597,39 @@ export default function UserRoleAdminMockup({
     () => roleDefinitions.filter((role) => role.active).map((role) => role.name),
     [roleDefinitions]
   );
-  const currentPermissions = rolePermissions[currentUser.role] || getDefaultRolePermissions(currentUser.role);
+  const isQualityAssuranceAdmin = currentUser?.role === "Quality Assurance";
+  const currentPermissions = isQualityAssuranceAdmin
+    ? {
+        ...getDefaultRolePermissions("Quality Assurance"),
+        viewDashboard: true,
+        viewAllAgents: true,
+        viewSummary: true,
+        viewCoaching: true,
+        viewAppeal: true,
+        submitAppeal: true,
+        reviewAppeals: true,
+        appealOverride: true,
+        viewRubric: true,
+        manageRubric: true,
+        createEvaluation: true,
+        takePreTest: true,
+        managePreTest: true,
+        viewPreTestResults: true,
+        viewUsageLog: true,
+        exportPdf: true,
+        exportAppealRawdata: true,
+        viewUserDirectory: true,
+        viewAllTeams: true,
+        viewOwnTeam: true,
+        qaEvaluationTarget: false,
+        manageUsers: true,
+        manageTeams: true,
+        manageRoles: true,
+        resetPassword: true,
+        manageMaintenance: true,
+        useTeamChat: true,
+      }
+    : rolePermissions[currentUser?.role || "Admin Live Chat"] || getDefaultRolePermissions(currentUser?.role || "Admin Live Chat");
   const canViewUserDirectory = Boolean(currentPermissions.viewUserDirectory || currentPermissions.manageUsers);
   const canViewAllTeams = Boolean(currentPermissions.viewAllTeams || currentPermissions.manageTeams || currentPermissions.manageUsers);
   const canViewOwnTeam = Boolean(currentPermissions.viewOwnTeam || canViewAllTeams);
