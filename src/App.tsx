@@ -434,7 +434,6 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     useTeamChat: true,
   },
   "Virtual Rider": {
-    ...ROLE_PERMISSION_DEFAULTS["Admin Live Chat"],
     viewDashboard: true,
     viewAllAgents: false,
     viewSummary: true,
