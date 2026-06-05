@@ -1508,13 +1508,17 @@ export default function UserRoleAdminMockup({
           ];
         })
       );
-    }
+    }    const fileName = `QA_${exportContext}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(fileName);
 
-    await logUsageEvent(currentUser, "pdf_generate", {
-      tab: "user-roles",
-      details: { pdfType: exportContext },
-    });
-    doc.save(`QA_${exportContext}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    try {
+      await logUsageEvent(currentUser, "pdf_generate", {
+        tab: "user-roles",
+        details: { pdfType: exportContext, fileName },
+      });
+    } catch {
+      // Do not block PDF download if audit logging fails.
+    }
   };
 
   return (
@@ -3252,6 +3256,7 @@ function TextInput({
     />
   );
 }
+
 
 
 

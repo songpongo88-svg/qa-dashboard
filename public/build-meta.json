@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606060005",
-  "buildNumber": 2606060005,
-  "releaseLabel": "v1.0.0.2606060005",
-  "updatedAt": "06/06/2026 00:05:46",
+  "displayVersion": "1.0.0.2606060011",
+  "buildNumber": 2606060011,
+  "releaseLabel": "v1.0.0.2606060011",
+  "updatedAt": "06/06/2026 00:11:10",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "2d81747fc22477b29808e4cf1b3642575456995c",
-  "commitMessage": "Fix edit directory blank screen for role password generation",
+  "commitHash": "8628b38b5c3060652745996ae39b279cfba0b52c",
+  "commitMessage": "Improve user directory PDF column layout",
   "changedFiles": [
     "public/build-meta.json",
     "src/UserRoleAdminMockup.tsx"
