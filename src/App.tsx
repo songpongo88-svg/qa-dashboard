@@ -4044,6 +4044,7 @@ export default function App() {
       if (firebaseProfileData) {
         const profileStatus = String(firebaseProfileData.status || "Active");
         const profilePassword = String(firebaseProfileData.password || "");
+        const profilePasswordKind = String(firebaseProfileData.passwordKind || firebaseProfileData.password_kind || "").toLowerCase();
         const profileExpiresAt = String(firebaseProfileData.passwordExpiresAt || firebaseProfileData.accessExpiresAt || "");
 
         if (profileStatus === "Suspended") {
@@ -4097,10 +4098,12 @@ export default function App() {
         setSelectedWeekGlobal("all");
         void loadRoleOverrides();
 
-        resetChangePasswordState();
-        setCurrentPasswordInput(typedPassword);
-        setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password.");
-        setShowChangePasswordModal(true);
+        if (profilePasswordKind === "temporary") {
+          resetChangePasswordState();
+          setCurrentPasswordInput(typedPassword);
+          setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password.");
+          setShowChangePasswordModal(true);
+        }
         return;
       }
     } catch (error) {
@@ -4282,6 +4285,7 @@ export default function App() {
       if (firebaseProfileData) {
         const profileStatus = String(firebaseProfileData.status || "Active");
         const profilePassword = String(firebaseProfileData.password || "");
+        const profilePasswordKind = String(firebaseProfileData.passwordKind || firebaseProfileData.password_kind || "").toLowerCase();
         const profileExpiresAt = String(firebaseProfileData.passwordExpiresAt || firebaseProfileData.accessExpiresAt || "");
 
         if (profileStatus === "Suspended") {
@@ -4335,10 +4339,12 @@ export default function App() {
         setSelectedWeekGlobal("all");
         void loadRoleOverrides();
 
-        resetChangePasswordState();
-        setCurrentPasswordInput(typedPassword);
-        setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password.");
-        setShowChangePasswordModal(true);
+        if (profilePasswordKind === "temporary") {
+          resetChangePasswordState();
+          setCurrentPasswordInput(typedPassword);
+          setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password.");
+          setShowChangePasswordModal(true);
+        }
         return;
       }
     } catch (error) {
