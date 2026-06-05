@@ -1,17 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052016",
-  "buildNumber": 2606052016,
-  "releaseLabel": "v1.0.0.2606052016",
-  "updatedAt": "05/06/2026 20:16:38",
+  "displayVersion": "1.0.0.2606052028",
+  "buildNumber": 2606052028,
+  "releaseLabel": "v1.0.0.2606052028",
+  "updatedAt": "05/06/2026 20:28:15",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "23a1616eb5c90f83b0d5c439a37a359ad4af74af",
-  "commitMessage": "Use direct Firebase profile login",
+  "commitHash": "d13d30f85d8242eb2a9422f36284a7e6bd98a654",
+  "commitMessage": "Show generated passwords in user directory and export",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "scripts/generate-temp-passwords-for-access.mjs",
+    "src/UserRoleAdminMockup.tsx",
+    "src/userRoleStore.ts"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
