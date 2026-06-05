@@ -1,17 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051423",
-  "buildNumber": 2606051423,
-  "releaseLabel": "v1.0.0.2606051423",
-  "updatedAt": "05/06/2026 14:23:45",
+  "displayVersion": "1.0.0.2606051433",
+  "buildNumber": 2606051433,
+  "releaseLabel": "v1.0.0.2606051433",
+  "updatedAt": "05/06/2026 14:33:14",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ac8e3767c37145f5c2e552c52ecece577e35fda0",
-  "commitMessage": "Fix Thai default team text",
+  "commitHash": "d76c95c0385e0d5b6662d12cd84ad61a5e042b70",
+  "commitMessage": "Improve user directory responsive layout",
   "changedFiles": [
     "public/build-meta.json",
-    "src/App.tsx"
+    "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
