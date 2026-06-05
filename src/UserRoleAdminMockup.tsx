@@ -1895,8 +1895,8 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[980px] space-y-3">
-          <div className="grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+        <div className="min-w-[1180px] space-y-3">
+          <div className="grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px_180px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
             <div>User Profile</div>
             <div>Agent Name</div>
             <div>Registered Email</div>
@@ -1908,7 +1908,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
           {rows.map((row) => (
             <div
               key={row.username}
-              className={`grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
+              className={`grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px_180px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
                 row.status === "Active" ? "border-white bg-white" : "border-rose-100 bg-rose-50/70"
               }`}
             >
@@ -3063,6 +3063,7 @@ function TextInput({
     />
   );
 }
+
 
 
 

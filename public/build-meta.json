@@ -1,14 +1,14 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606052004",
-  "buildNumber": 2606052004,
-  "releaseLabel": "v1.0.0.2606052004",
-  "updatedAt": "05/06/2026 20:04:07",
+  "displayVersion": "1.0.0.2606052016",
+  "buildNumber": 2606052016,
+  "releaseLabel": "v1.0.0.2606052016",
+  "updatedAt": "05/06/2026 20:16:38",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "fd3fd38c736d3c0408811d0d80823d037e171dc2",
-  "commitMessage": "Use Firebase generated password before legacy password",
+  "commitHash": "23a1616eb5c90f83b0d5c439a37a359ad4af74af",
+  "commitMessage": "Use direct Firebase profile login",
   "changedFiles": [
     "public/build-meta.json",
     "src/App.tsx"
