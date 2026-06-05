@@ -1334,7 +1334,7 @@ export default function UserRoleAdminMockup({
   const currentUserManagementSaveLabel = userManagementView === "team-management" ? "Save Team Changes" : "Save Changes";
 
   const handleExportPdf = async () => {
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
     registerTHSarabunNew(doc);
     const passwordMap = await loadFirebasePasswordMapForExport();
     const exportContext =
@@ -1383,7 +1383,7 @@ export default function UserRoleAdminMockup({
           doc.text(header, x, y);
           x += widths[index];
         });
-        doc.line(startX, y + 2, 196, y + 2);
+        doc.line(startX, y + 2, pageWidth - 14, y + 2);
         y += 9;
         doc.setFont("THSarabunNew", "normal");
       };
@@ -1491,7 +1491,7 @@ export default function UserRoleAdminMockup({
         } else {
       drawTable(
         ["User", "Email", "Team", "Role", "Status", "Password"],
-        [30, 40, 31, 27, 16, 36],
+        [44, 64, 50, 38, 22, 48],
         visibleRows.map((row) => {
           const exportPassword =
             passwordMap[row.username.trim().toLowerCase()] ||
@@ -3252,6 +3252,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
