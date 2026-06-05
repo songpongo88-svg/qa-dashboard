@@ -1248,6 +1248,7 @@ export default function UserRoleAdminMockup({
   const handleExportPdf = async () => {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     registerTHSarabunNew(doc);
+    const passwordMap = await loadFirebasePasswordMapForExport();
     const exportContext =
       adminTab === "roles"
         ? "access_control"
@@ -1399,17 +1400,26 @@ export default function UserRoleAdminMockup({
           ])
         );
       });
-    } else {
+        } else {
       drawTable(
         ["User", "Email", "Team", "Role", "Status", "Password"],
-        [32, 42, 34, 28, 18, 34],
-        visibleRows.map((row) => [
-          row.displayName || row.username,
-          row.email || "-",
-          row.teamName || "-",
-          row.effectiveRole,
-          row.status,
-        ])
+        [30, 40, 31, 27, 16, 36],
+        visibleRows.map((row) => {
+          const exportPassword =
+            passwordMap[row.username.trim().toLowerCase()] ||
+            passwordMap[String(row.displayName || "").trim().toLowerCase()] ||
+            row.password ||
+            "-";
+
+          return [
+            row.displayName || row.username,
+            row.email || "-",
+            row.teamName || "-",
+            row.effectiveRole,
+            row.status,
+            exportPassword,
+          ];
+        })
       );
     }
 
@@ -3132,6 +3142,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
