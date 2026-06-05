@@ -717,6 +717,43 @@ export default function UserRoleAdminMockup({
     updateDraftUser(index, "temporaryPassword", generateTemporaryPassword());
   };
 
+  const passwordRoleOptions = activeRoleOptions.filter((role) =>
+    ["Admin Live Chat", "Senior", "Supervisor"].includes(role)
+  );
+
+  const generateDraftPasswordsForSelectedRole = () => {
+    if (!isEditingUsers) {
+      setMessage("Press Edit Directory before generating passwords by role.");
+      return;
+    }
+
+    if (directoryRoleFilter === "all") {
+      setMessage("Please select a role before generating passwords.");
+      return;
+    }
+
+    if (!passwordRoleOptions.includes(directoryRoleFilter)) {
+      setMessage(`Password generation is not enabled for ${directoryRoleFilter}.`);
+      return;
+    }
+
+    const currentViewStatus = directoryTab === "active" ? "Active" : "Suspended";
+    let generatedCount = 0;
+
+    setDraftUsers((currentDrafts) =>
+      currentDrafts.map((user) => {
+        const statusForView = user.viewStatus || user.status;
+        if (statusForView !== currentViewStatus) return user;
+        if (normalizeRoleName(user.role) !== directoryRoleFilter) return user;
+
+        generatedCount += 1;
+        return { ...user, temporaryPassword: generateTemporaryPassword() };
+      })
+    );
+
+    setAccessMessage(`Generated temporary passwords for ${generatedCount} ${directoryRoleFilter} user(s). Press Save Changes to keep them.`);
+  };
+
   const updateNewUserDraft = (key: keyof EditableUser, value: string) => {
     setNewUserDraft((currentDraft) => ({ ...currentDraft, [key]: value }));
   };
@@ -3215,6 +3252,7 @@ function TextInput({
     />
   );
 }
+
 
 
 
