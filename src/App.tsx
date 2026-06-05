@@ -4239,123 +4239,13 @@ export default function App() {
 
     const normalizedUsername = forgotUsernameInput.trim().toLowerCase();
     const normalizedEmail = normalizeEmail(forgotEmailInput);
-    if (normalizedUsername === "songpon" && normalizedPassword === "Boom@4421L2") {
-      const nextUser: CurrentUser = {
-        username: "Songpon",
-        displayName: "Songpon Phothong",
-        role: "Quality Assurance",
-        agentName: "Songpon Phothong",
-        email: "Songpon@robinhood.co.th",
-        loginAt: new Date().toISOString(),
-      };
 
-      setCurrentUser(nextUser);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-      setLoginError("");
-      setUsername("");
-      setPassword("");
-      setActiveTab("dashboard");
-      setDashboardSubTab("overview");
-      loginAgentScopeSeededRef.current = false;
-      setSelectedAgentGlobal("");
-      setSelectedMonthGlobal("all");
-      setSelectedWeekGlobal("all");
-      void loadRoleOverrides();
+    if (!normalizedUsername || !normalizedEmail) {
+      setForgotPasswordError("Please enter username and registered email.");
+      setForgotPasswordSuccess("");
       return;
     }
 
-    // Direct Firebase profile login first.
-    // This makes generated password from qa_user_profiles the source of truth.
-    try {
-      const typedUsername = username.trim();
-      const typedPassword = password.trim();
-      const profileIds = Array.from(new Set([
-        typedUsername,
-        typedUsername.charAt(0).toUpperCase() + typedUsername.slice(1),
-        typedUsername.toLowerCase(),
-      ].filter(Boolean)));
-
-      let firebaseProfileData: any = null;
-      let firebaseProfileId = "";
-
-      for (const profileId of profileIds) {
-        const snap = await getDoc(doc(firebaseDb, "qa_user_profiles", profileId));
-        if (snap.exists()) {
-          firebaseProfileData = snap.data();
-          firebaseProfileId = profileId;
-          break;
-        }
-      }
-
-      if (firebaseProfileData) {
-        const profileStatus = String(firebaseProfileData.status || "Active");
-        const profilePassword = String(firebaseProfileData.password || "");
-        const profilePasswordKind = String(firebaseProfileData.passwordKind || firebaseProfileData.password_kind || "").toLowerCase();
-        const profileExpiresAt = String(firebaseProfileData.passwordExpiresAt || firebaseProfileData.accessExpiresAt || "");
-
-        if (profileStatus === "Suspended") {
-          const reason = String(firebaseProfileData.suspendReason || "");
-          setLoginError(`This account has been suspended${reason ? ` (${reason})` : ""}. Please contact Songpon.`);
-          return;
-        }
-
-        if (!profilePassword) {
-          setLoginError("This account has no generated password yet. Please contact Songpon.");
-          return;
-        }
-
-        if (profileExpiresAt && isPastDate(profileExpiresAt)) {
-          setLoginError("This account password/access has expired. Please contact Songpon.");
-          return;
-        }
-
-        if (profilePassword !== typedPassword) {
-          setLoginError("Invalid username or password");
-          return;
-        }
-
-        const nextUser: CurrentUser = {
-          username: String(firebaseProfileData.username || firebaseProfileId),
-          displayName: String(firebaseProfileData.displayName || firebaseProfileData.agentName || firebaseProfileId),
-          role: normalizeRoleName(firebaseProfileData.role || "Admin Live Chat"),
-          agentName: String(firebaseProfileData.agentName || firebaseProfileData.displayName || firebaseProfileId),
-          email: String(firebaseProfileData.email || ""),
-          loginAt: new Date().toISOString(),
-        };
-
-        if (maintenanceState.enabled && !canBypassMaintenance(nextUser)) {
-          setLoginError(maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message);
-          return;
-        }
-
-        setCurrentUser(nextUser);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-        setLoginError("");
-        setUsername("");
-        setPassword("");
-        setActiveTab("dashboard");
-        setDashboardSubTab("overview");
-
-        const matchedPermissions = rolePermissions[nextUser.role] || getDefaultRolePermissions(nextUser.role);
-        const initialAgentScope = matchedPermissions.viewAllAgents ? "" : nextUser.agentName;
-        loginAgentScopeSeededRef.current = Boolean(initialAgentScope);
-        setSelectedAgentGlobal(initialAgentScope);
-        setSelectedMonthGlobal("all");
-        setSelectedWeekGlobal("all");
-        void loadRoleOverrides();
-
-        if (profilePasswordKind === "temporary") {
-          resetChangePasswordState();
-          setCurrentPasswordInput(typedPassword);
-          setChangePasswordPromptReason("You signed in with a temporary password. Please create a new password.");
-          setShowChangePasswordModal(true);
-        }
-        return;
-      }
-    } catch (error) {
-      setLoginError(`Login check failed: ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
     const centralUserAccounts = await getCentralEffectiveUserAccounts();
     const account = centralUserAccounts.find((item) => item.username.trim().toLowerCase() === normalizedUsername);
 
@@ -4385,6 +4275,7 @@ export default function App() {
     }
 
     const requestId = `${account.username.toLowerCase()}-${Date.now()}`;
+
     try {
       await createStoredPasswordResetRequest({
         requestId,
