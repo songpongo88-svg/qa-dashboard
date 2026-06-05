@@ -1,15 +1,19 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051111",
-  "buildNumber": 2606051111,
-  "releaseLabel": "v1.0.0.2606051111",
-  "updatedAt": "05/06/2026 11:11:42",
+  "displayVersion": "1.0.0.2606051339",
+  "buildNumber": 2606051339,
+  "releaseLabel": "v1.0.0.2606051339",
+  "updatedAt": "05/06/2026 13:39:03",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "ab414d1657199e66e561ca686c77e9bef1ec0cde",
-  "commitMessage": "Merge pull request #1 from songpongo88-svg/codex-reduce-supabase-egress\n\nReduce Supabase egress",
-  "changedFiles": [],
+  "commitHash": "6fedb4ff1c5a76ec7a2ac007e3fb63e806c25354",
+  "commitMessage": "Add delete user button",
+  "changedFiles": [
+    "public/build-meta.json",
+    "src/deleteUserDirectoryPatch.ts",
+    "src/main.tsx"
+  ],
   "releaseNotesTitle": "Latest Updates",
   "releaseNotes": []
 }
