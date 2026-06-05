@@ -1,16 +1,17 @@
 {
   "appName": "qa-dashboard",
   "version": "1.0.0",
-  "displayVersion": "1.0.0.2606051433",
-  "buildNumber": 2606051433,
-  "releaseLabel": "v1.0.0.2606051433",
-  "updatedAt": "05/06/2026 14:33:14",
+  "displayVersion": "1.0.0.2606051658",
+  "buildNumber": 2606051658,
+  "releaseLabel": "v1.0.0.2606051658",
+  "updatedAt": "05/06/2026 16:58:56",
   "timezone": "Asia/Bangkok",
   "author": "Songpon Phothong",
-  "commitHash": "d76c95c0385e0d5b6662d12cd84ad61a5e042b70",
-  "commitMessage": "Improve user directory responsive layout",
+  "commitHash": "56d7c971f15b21136e64fe638cf334023b27fc61",
+  "commitMessage": "Revert \"Improve user edit cards and block deleted users\"\n\nThis reverts commit eef57acd48ce1e269b3350ce49d5e647f5fdc5f2.",
   "changedFiles": [
     "public/build-meta.json",
+    "src/App.tsx",
     "src/UserRoleAdminMockup.tsx"
   ],
   "releaseNotesTitle": "Latest Updates",
