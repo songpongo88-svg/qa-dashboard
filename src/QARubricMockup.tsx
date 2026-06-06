@@ -1497,13 +1497,34 @@ export default function QARubricMockup({
     (sum, section) => sum + section.topics.length,
     0
   );
-  const managedRubric = RUBRIC_VERSIONS[0];
+  const selectedRubricCode = RUBRIC_SHARE_CODES[selectedKey];
+  const managedRubric = useMemo(() => {
+    const versionMatch = RUBRIC_VERSIONS.find((item) => item.code === selectedRubricCode);
+    if (versionMatch) return versionMatch;
+
+    return {
+      code: selectedRubricCode,
+      name: activeRubric.label,
+      status: activeRubric.effectiveTo ? "Ended" : "Active",
+      startDate: activeRubric.effectiveFrom,
+      endDate: activeRubric.effectiveTo,
+      totalScore: activeRubric.totalScore,
+      topics: activeRubric.sections.flatMap((section) =>
+        section.topics.map((topic) => ({
+          code: topic.code,
+          title: topic.title,
+          max: topic.score,
+          group: "Service Standard" as const,
+        }))
+      ),
+    };
+  }, [activeRubric, selectedRubricCode]);
+
   const managedEndDate = previewEndedDate || managedRubric.endDate;
   const managedPeriod = `${formatRubricDate(managedRubric.startDate)} - ${formatRubricDate(managedEndDate)}`;
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
   const isCurrentDefault = selectedKey === getAutoRubricKey();
-  const selectedRubricCode = RUBRIC_SHARE_CODES[selectedKey];
 
   useEffect(() => {
     const linkedKey = getRubricKeyFromShareCode(initialRubricCode);
