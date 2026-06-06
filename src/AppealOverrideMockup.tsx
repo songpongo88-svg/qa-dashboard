@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
-import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { type UsageLogEvent } from "./usageLog";
+import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 
 type CurrentUser = {
@@ -132,10 +133,10 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
 
   const loadOverrides = async () => {
     try {
-      const nextLogs = await fetchUsageLogsByEventTypes([
+      const nextLogs = await fetchAppealEvents([
         "appeal_case_override_added",
         "appeal_case_override_removed",
-      ], 1000);
+      ], { limit: 1000, forceRefresh: true }) as UsageLogEvent[];
       setLogs(nextLogs);
     } catch {
       setMessage("Unable to load appeal override list.");
@@ -167,7 +168,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
     setBusy(true);
     setMessage("");
     const addedAt = new Date().toISOString();
-    await logUsageEvent(currentUser, "appeal_case_override_added", {
+    await writeAppealEvent(currentUser, "appeal_case_override_added", {
       tab: "appeal-override",
       case_id: caseId,
       target_agent: targetAgent,
@@ -191,7 +192,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
     if (!currentUser || busy) return;
     setBusy(true);
     setMessage("");
-    await logUsageEvent(currentUser, "appeal_case_override_removed", {
+    await writeAppealEvent(currentUser, "appeal_case_override_removed", {
       tab: "appeal-override",
       case_id: caseId,
       details: {

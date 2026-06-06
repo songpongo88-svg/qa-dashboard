@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { logUsageEvent, UsageLogEvent } from "./usageLog";
-import { fetchAppealEvents } from "./appealStore";
+import { type UsageLogEvent } from "./usageLog";
+import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import PageHero from "./PageHero";
 
 type AppealTopic = {
@@ -256,11 +256,11 @@ export default function AppealRequestsMockup({
   const loadRequests = async () => {
     try {
       setMessage("");
-      setLogs(await fetchUsageLogsByEventTypes([
+      setLogs(await fetchAppealEvents([
         "appeal_request_submitted",
         "appeal_request_reviewed",
         "appeal_request_reset",
-      ], 2000));
+      ], { limit: 2000, forceRefresh: true }) as UsageLogEvent[]);
     } catch (error) {
       console.warn("Load appeal requests failed", error);
       setLogs([]);
@@ -303,7 +303,7 @@ export default function AppealRequestsMockup({
 
     setBusy(true);
     try {
-      await logUsageEvent(currentUser, "appeal_request_reviewed", {
+      const reviewSaved = await writeAppealEvent(currentUser, "appeal_request_reviewed", {
         tab: "appeal-requests",
         case_id: selectedRequest.caseId,
         target_agent: selectedRequest.agent,
@@ -325,6 +325,11 @@ export default function AppealRequestsMockup({
           },
         },
       });
+      if (!reviewSaved) {
+        setMessage("Save review ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+
       setMessage(
         decision === "Approved"
           ? `Approved appeal for ${selectedRequest.caseId}. Result task was saved and can be exported to Appeal ROWDATA.`
@@ -344,7 +349,7 @@ export default function AppealRequestsMockup({
 
     setBusy(true);
     try {
-      await logUsageEvent(currentUser, "appeal_request_reset", {
+      const resetSaved = await writeAppealEvent(currentUser, "appeal_request_reset", {
         tab: "appeal-requests",
         case_id: selectedRequest.caseId,
         target_agent: selectedRequest.agent,
@@ -356,6 +361,11 @@ export default function AppealRequestsMockup({
           reason: "Reset by Songpon to allow the case owner to submit again.",
         },
       });
+      if (!resetSaved) {
+        setMessage("Reset request ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+
       setSelectedRequestId("");
       setDraftTopics([]);
       setReviewSummary("");

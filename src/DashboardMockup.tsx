@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
-import { fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
+import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
+import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
@@ -2207,13 +2208,18 @@ function SlideOverCaseDetail({
 
     const checkAppealRequest = async () => {
       try {
-        const logs = await fetchUsageLogsByEventTypes([
+        const appealLogs = await fetchAppealEvents([
           "appeal_request_submitted",
           "appeal_request_reviewed",
           "appeal_request_reset",
+        ], { limit: 1000, forceRefresh: true });
+
+        const overrideLogs = await fetchAppealEvents([
           "appeal_case_override_added",
           "appeal_case_override_removed",
-        ], 1000);
+        ], { limit: 1000, forceRefresh: true });
+
+        const logs = [...appealLogs, ...overrideLogs] as UsageLogEvent[];
         if (cancelled) return;
         setAppealRequestExists(
           buildAppealRequests(logs).some(
@@ -2286,7 +2292,7 @@ function SlideOverCaseDetail({
 
     setAppealSubmitBusy(true);
     try {
-      await logUsageEvent(currentUser, "appeal_request_submitted", {
+      const appealSaved = await writeAppealEvent(currentUser, "appeal_request_submitted", {
         tab: "dashboard",
         case_id: caseItem.caseId,
         target_agent: caseItem.agent,
@@ -2312,6 +2318,11 @@ function SlideOverCaseDetail({
           topics: topicsForExport,
         },
       });
+      if (!appealSaved) {
+        setAppealSubmitMessage("Submit Appeal ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+
       setAppealRequestExists(true);
       setAppealSubmitOpen(false);
       setAppealSubmitMessage("Appeal request submitted to Songpon for review.");
@@ -3035,7 +3046,7 @@ function SlideOverCaseDetail({
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">Submit Appeal</div>
               <div className="mt-1 text-xl font-extrabold text-slate-950">{caseItem.caseId}</div>
               <div className="mt-1 text-sm text-slate-500">
-                Send selected topics to Songpon for review. Dashboard score will update automatically after QA approves the appeal.
+                Send selected topics to Songpon for review. Dashboard score remains based on RawData / Appeal ROWDATA Excel.
               </div>
               <div className="mt-2 text-xs font-semibold text-slate-500">
                 Deadline: {formatBangkokDateTime(appealDeadline)}

@@ -1,6 +1,5 @@
 import { addDoc, collection, getDocs, limit as firestoreLimit, orderBy, query } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
-import { isAppealEventType, writeAppealEvent } from "./appealStore";
 
 type UsageLogUser = {
   username?: string;

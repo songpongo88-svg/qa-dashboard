@@ -50,6 +50,8 @@ export const APPEAL_EVENT_TYPES = new Set([
   "appeal_request_submitted",
   "appeal_request_reviewed",
   "appeal_request_reset",
+  "appeal_case_override_added",
+  "appeal_case_override_removed",
 ]);
 
 type CachedAppealEventRequest = {
