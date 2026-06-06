@@ -4185,7 +4185,9 @@ export default function DashboardMockup({
   }, [allCases, effectiveSelectedAgent, roleScopedAgentList]);
 
   const monthOptions = useMemo(() => {
-    const sourceCases = agentCases;
+    const sourceCases = roleScopedAgentList.length
+      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+      : allCases;
 
     return Array.from(
       new Map(
@@ -4196,7 +4198,7 @@ export default function DashboardMockup({
     )
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => b.value.localeCompare(a.value));
-  }, [agentCases]);
+  }, [allCases, roleScopedAgentList]);
 
   useEffect(() => {
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
@@ -4443,7 +4445,9 @@ export default function DashboardMockup({
   }, [searchScopedCases]);
 
   const recentMonthlyAnalytics = useMemo(() => {
-    const monthKeys = Array.from(new Set(agentCases.map((item) => item.monthKey).filter((key) => key && key !== "unknown")))
+    const monthKeys = monthOptions
+      .map((item) => item.value)
+      .filter((key) => key && key !== "unknown")
       .sort((a, b) => b.localeCompare(a))
       .slice(0, 3)
       .sort((a, b) => a.localeCompare(b));
