@@ -21,6 +21,10 @@ export type StoredUserProfile = {
   teamName: string;
   status: "Active" | "Suspended";
   suspendReason: string;
+  password?: string;
+  passwordKind?: string;
+  passwordIssuedAt?: string;
+  passwordExpiresAt?: string;
 };
 
 export type StoredRoleDefinition = {

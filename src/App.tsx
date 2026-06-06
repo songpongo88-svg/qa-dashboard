@@ -1095,6 +1095,44 @@ function getPasswordRecordFromEvent(item: UsageLogEvent): PasswordRecord | null 
   };
 }
 
+function getPasswordRecordFromStoredProfile(profile: StoredUserProfile | null | undefined): PasswordRecord | null {
+  const rawProfile = (profile || {}) as any;
+  const password = String(rawProfile.password || "");
+  if (!password) return null;
+
+  const rawKind = String(rawProfile.passwordKind || rawProfile.password_kind || "").trim().toLowerCase();
+  const kind: PasswordRecord["kind"] =
+    rawKind === "temporary"
+      ? "temporary"
+      : rawKind === "permanent"
+        ? "permanent"
+        : "legacy";
+
+  const rawIssuedAt = String(
+    rawProfile.passwordIssuedAt ||
+      rawProfile.password_issued_at ||
+      rawProfile.updatedAt ||
+      rawProfile.updated_at ||
+      new Date().toISOString()
+  );
+
+  const issuedDate = new Date(rawIssuedAt);
+  const issuedAt = Number.isNaN(issuedDate.getTime()) ? new Date().toISOString() : issuedDate.toISOString();
+  const fallbackExpiry =
+    kind === "temporary"
+      ? addDays(new Date(issuedAt), TEMP_PASSWORD_VALID_DAYS).toISOString()
+      : addMonths(new Date(issuedAt), PERMANENT_PASSWORD_VALID_MONTHS).toISOString();
+
+  return {
+    password,
+    kind,
+    issuedAt,
+    expiresAt: String(rawProfile.passwordExpiresAt || rawProfile.password_expires_at || fallbackExpiry),
+    eventType: "qa_user_profiles",
+  };
+}
+
+
 function getRoleUpdateUsername(log: UsageLogEvent) {
   return String(log.target_agent || log.details?.username || "").trim();
 }
@@ -1266,6 +1304,16 @@ async function getCentralPasswordOverride(username: string) {
 
 async function getCentralPasswordRecordOnly(username: string): Promise<PasswordRecord | null> {
   const normalized = username.trim().toLowerCase();
+
+  try {
+    const storedProfiles = await fetchStoredUserProfiles();
+    const profile = storedProfiles.find((row) => row.username.trim().toLowerCase() === normalized);
+    const profileRecord = getPasswordRecordFromStoredProfile(profile);
+    if (profileRecord) return profileRecord;
+  } catch {
+    // Fallback to legacy password events/local records.
+  }
+
   const logs = await fetchUsageLogsByEventTypes(PASSWORD_EVENT_TYPES, 500);
   const passwordEvent = logs.find((item) => {
     const target = getResetRequestUsername(item).toLowerCase();
@@ -3884,7 +3932,7 @@ export default function App() {
     );
   };
 
-  const handleOpenInboxTask = (task: InboxTaskItem) => {
+  const handleOpenInboxTask = async (task: InboxTaskItem) => {
     markInboxTaskRead(task.id);
     setInboxReturnTitle(task.title);
 
@@ -3914,6 +3962,20 @@ export default function App() {
     }
 
     if (task.type === "password") {
+      const latestPasswordRecord = currentUser
+        ? await getCentralPasswordRecord(currentUser.username).catch(() => null)
+        : null;
+      const latestDaysLeft = daysUntilDate(latestPasswordRecord?.expiresAt);
+
+      if (
+        latestPasswordRecord?.kind === "permanent" &&
+        (latestDaysLeft === null || latestDaysLeft > PASSWORD_EXPIRY_WARNING_DAYS)
+      ) {
+        setInboxTasks((previousTasks) => previousTasks.filter((item) => item.id !== task.id && item.type !== "password"));
+        void loadInboxTasks();
+        return;
+      }
+
       resetChangePasswordState();
       setChangePasswordPromptReason(task.description);
       setShowChangePasswordModal(true);
@@ -4452,6 +4514,7 @@ export default function App() {
     setCurrentPasswordInput("");
     setNewPasswordInput("");
     setConfirmNewPasswordInput("");
+    await loadInboxTasks();
 
     setTimeout(() => {
       setShowChangePasswordModal(false);
