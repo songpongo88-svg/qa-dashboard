@@ -454,9 +454,21 @@ function buildHeaderHelpers(headerRow: any[]) {
   const getLastValue = (row: any[], name: string) => {
     const indexes = findIndexes(name);
     if (!indexes.length) return null;
-    return row[indexes[indexes.length - 1]];
+    return row[indexes.length ? indexes[indexes.length - 1] : -1];
   };
   return { getValue, getLastValue };
+}
+
+function getCaseDateRawValue(helper: ReturnType<typeof buildHeaderHelpers>, row: any[]) {
+  return (
+    helper.getValue(row, "Case Date") ??
+    helper.getValue(row, "Case date") ??
+    helper.getValue(row, "Case_Date") ??
+    helper.getValue(row, "Audit Date") ??
+    helper.getValue(row, "AuditDate") ??
+    helper.getValue(row, "Case Timestamp") ??
+    helper.getValue(row, "Timestamp")
+  );
 }
 
 function getAppealVersionRank(value: any) {
@@ -1053,7 +1065,7 @@ export default function SummaryMockup({
                 const agent = toTitleCaseName(String(v8Helper.getValue(row, "Agent Name") || "").trim());
                 if (!agent) return null;
 
-                const auditRaw = v8Helper.getValue(row, "Audit Date");
+                const auditRaw = getCaseDateRawValue(v8Helper, row);
                 const auditDateObj = excelDateToJSDate(auditRaw);
                 const monthDate = getReportingMonthDate(
                   v8Helper.getValue(row, "Month Start"),
@@ -1183,7 +1195,7 @@ export default function SummaryMockup({
           const rawHelper = source.rawHelper;
           const caseId = String(rawHelper.getValue(row, "Case ID") || "").trim();
           if (!caseId) return;
-          const auditRaw = rawHelper.getValue(row, "Audit Date");
+          const auditRaw = getCaseDateRawValue(rawHelper, row);
           const auditDateObj = excelDateToJSDate(auditRaw);
           const monthDate = getReportingMonthDate(
             rawHelper.getValue(row, "Month Start"),
@@ -1214,7 +1226,7 @@ export default function SummaryMockup({
             if (!caseId) return;
 
             const revisedTopics: Topic[] = [];
-            const appealAuditRaw = appealHelper.getValue(row, "Audit Date");
+            const appealAuditRaw = getCaseDateRawValue(appealHelper, row);
             const topicMaster = getTopicMasterByMonth(
               rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(appealAuditRaw))
             );
@@ -1257,7 +1269,7 @@ export default function SummaryMockup({
           const caseId = String(rawHelper.getValue(row, "Case ID") || "").trim();
           if (!caseId) return null as any;
 
-          const auditRaw = rawHelper.getValue(row, "Audit Date");
+          const auditRaw = getCaseDateRawValue(rawHelper, row);
           const auditDateObj = excelDateToJSDate(auditRaw);
           const monthDate = getReportingMonthDate(
             rawHelper.getValue(row, "Month Start"),
