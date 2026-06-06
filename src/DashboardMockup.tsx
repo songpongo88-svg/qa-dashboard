@@ -162,7 +162,8 @@ function buildApprovedAppealMergeMap(
 
 const CASE_TARGET = 10;
 const RAW_DATA_FILE_NAME = "QA_RawData_March-May2026.xlsx";
-const RAW_DATA_FILE_NAMES = [RAW_DATA_FILE_NAME];
+const RAW_DATA_JAN_FEB_FILE_NAME = "QA_RawData_January-February2026.xlsx";
+const RAW_DATA_FILE_NAMES = [RAW_DATA_JAN_FEB_FILE_NAME, RAW_DATA_FILE_NAME];
 const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);

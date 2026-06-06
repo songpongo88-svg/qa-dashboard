@@ -157,7 +157,10 @@ type PeriodRow = {
 };
 
 const CASE_TARGET = 10;
-const RAW_DATA_FILE_NAMES = ["QA_RawData_March-May2026.xlsx"];
+const RAW_DATA_FILE_NAMES = [
+  "QA_RawData_January-February2026.xlsx",
+  "QA_RawData_March-May2026.xlsx",
+];
 const V8_EFFECTIVE_FILE_NAME = "__disabled_QA_Score_Dashboard_byDao_V8.xlsx";
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
