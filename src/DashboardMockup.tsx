@@ -718,12 +718,12 @@ function parseMonthLabelDate(value: any): Date | null {
 }
 
 function getReportingMonthDate(monthStartRaw: any, monthLabelRaw: any, fallbackDate: Date | null) {
-  return parseMonthLabelDate(monthLabelRaw) || excelDateToJSDate(monthStartRaw) || fallbackDate;
+  return fallbackDate || parseMonthLabelDate(monthLabelRaw) || excelDateToJSDate(monthStartRaw);
 }
 
 function getReportingMonthLabel(monthLabelRaw: any, monthDate: Date | null) {
   const label = String(monthLabelRaw ?? "").trim();
-  return label || getMonthLabel(monthDate);
+  return monthDate ? getMonthLabel(monthDate) : label || "Unknown";
 }
 
 function formatAuditDateExact(value: any): string {
