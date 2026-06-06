@@ -4154,9 +4154,26 @@ export default function DashboardMockup({
   }, [dataRefreshKey]);
 
   const visibleAgentList = useMemo(() => {
-    const agentsFromCases = allCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
+    const scopedCases = roleScopedAgentList.length
+      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+      : allCases;
 
-    const mergedAgents = dedupeAgentNames([...AGENT_MASTER, ...agentsFromCases]).filter(
+    const monthScopedCases = (() => {
+      if (selectedMonthKey && selectedMonthKey !== "all") {
+        return scopedCases.filter((item) => item.monthKey === selectedMonthKey);
+      }
+
+      const rangeMonthKey = getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
+      if (rangeMonthKey && rangeMonthKey !== "unknown") {
+        return scopedCases.filter((item) => item.monthKey === rangeMonthKey || isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
+      }
+
+      return scopedCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
+    })();
+
+    const agentsFromCases = monthScopedCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
+
+    const mergedAgents = dedupeAgentNames(agentsFromCases).filter(
       (name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility)
     );
 
@@ -4165,7 +4182,7 @@ export default function DashboardMockup({
     }
 
     return mergedAgents;
-  }, [allCases, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
+  }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
 
   useEffect(() => {
     if (roleScopedAgentList.length) {
