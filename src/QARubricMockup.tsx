@@ -1485,8 +1485,6 @@ export default function QARubricMockup({
   const [selectedKey, setSelectedKey] = useState<RubricVersion["key"]>(
     () => getRubricKeyFromShareCode(initialRubricCode) || getAutoRubricKey()
   );
-  const [rubricEndDateDraft, setRubricEndDateDraft] = useState("");
-  const [previewEndedDate, setPreviewEndedDate] = useState("");
 
   const activeRubric = useMemo(
     () => RUBRICS.find((item) => item.key === selectedKey) || JUNE_2026_RUBRIC,
@@ -1520,7 +1518,7 @@ export default function QARubricMockup({
     };
   }, [activeRubric, selectedRubricCode]);
 
-  const managedEndDate = previewEndedDate || managedRubric.endDate;
+  const managedEndDate = managedRubric.endDate;
   const managedPeriod = `${formatRubricDate(managedRubric.startDate)} - ${formatRubricDate(managedEndDate)}`;
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
 
