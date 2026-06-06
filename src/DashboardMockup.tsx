@@ -3309,14 +3309,6 @@ function SlideOverCaseDetail({
                         </div>
                       ) : null}
 
-                      <button
-                        type="button"
-                        onClick={() => handleGenerateCaseDetailPdf("original")}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                        title={`Generate ${caseItem.caseId} Original PDF`}
-                      >
-                        {caseItem.caseId} Original PDF
-                      </button>
                       {hasAppealCase ? (
                         <button
                           type="button"
