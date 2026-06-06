@@ -4236,7 +4236,7 @@ export default function DashboardMockup({
       ).entries()
     )
       .map(([value, label]) => ({ value, label }))
-      .sort((a, b) => b.value.localeCompare(a.value));
+      .sort((a, b) => a.value.localeCompare(b.value));
   }, [allCases, roleScopedAgentList]);
 
   useEffect(() => {
