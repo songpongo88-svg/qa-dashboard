@@ -26,7 +26,7 @@ type Section = {
 };
 
 type RubricVersion = {
-  key: "MARCH_2026" | "APR_2026" | "JUNE_2026";
+  key: "JAN_FEB_2026" | "MARCH_2026" | "APR_2026" | "JUNE_2026";
   label: string;
   subtitle: string;
   effectiveFrom: string;
@@ -37,6 +37,7 @@ type RubricVersion = {
 };
 
 const RUBRIC_SHARE_CODES: Record<RubricVersion["key"], string> = {
+  JAN_FEB_2026: "QA-2026-01-02",
   MARCH_2026: "QA-2026-03",
   APR_2026: "QA-2026-04",
   JUNE_2026: "QA-2026-06",
@@ -51,6 +52,73 @@ function getRubricKeyFromShareCode(rubricCode?: string): RubricVersion["key"] | 
   );
   return (matchedEntry?.[0] as RubricVersion["key"] | undefined) || null;
 }
+
+const JAN_FEB_2026_RUBRIC: RubricVersion = {
+  key: "JAN_FEB_2026",
+  label: "January–February 2026 – Rubric",
+  subtitle: "Effective 01 January – 28 February 2026",
+  effectiveFrom: "2026-01-01",
+  effectiveTo: "2026-02-28",
+  sourceLabel: "January–February QA Criteria",
+  totalScore: 100,
+  sections: [
+    {
+      id: "JF1",
+      title: "January–February 2026 Rubric",
+      score: 100,
+      topics: [
+        {
+          code: "1",
+          title: "เปิด-ปิดการสนทนา",
+          score: 10,
+          focus: "ตรวจความครบถ้วนของการเปิดและปิดการสนทนาตามมาตรฐาน",
+          reviewGuide: "ดูว่าแอดมินเริ่มแชทถูกต้อง ระบุตัวตน/ชื่อแอดมินตามที่กำหนด และปิดบทสนทนาเหมาะสม",
+          improveTip: "เพิ่มข้อความเปิด-ปิดให้ครบตาม script และจบเคสด้วยข้อความของแอดมิน",
+        },
+        {
+          code: "2",
+          title: "วิเคราะห์/แก้ไข",
+          score: 30,
+          focus: "วิเคราะห์ปัญหาและให้แนวทางแก้ไขได้ตรงประเด็น",
+          reviewGuide: "ดูว่าสาเหตุที่วิเคราะห์ตรงกับเคสจริงหรือไม่ และคำตอบช่วยแก้ปัญหาได้จริงหรือไม่",
+          improveTip: "ตรวจข้อมูลจากระบบก่อนสรุป และอธิบายสาเหตุพร้อมแนวทางแก้ไขให้ชัด",
+        },
+        {
+          code: "3",
+          title: "ปฏิบัติตามขั้นตอน",
+          score: 20,
+          focus: "ทำตามขั้นตอนการทำงานและเงื่อนไขที่กำหนด",
+          reviewGuide: "ดูว่าแอดมินดำเนินการตาม process ถูกต้อง ไม่ข้ามขั้นตอน และส่งต่อ/บันทึกข้อมูลครบ",
+          improveTip: "อ้างอิง process ก่อนตอบ และบันทึก action/result ให้ครบถ้วน",
+        },
+        {
+          code: "4",
+          title: "ความสุภาพ",
+          score: 10,
+          focus: "ใช้ถ้อยคำสุภาพ เหมาะสมกับผู้ติดต่อและสถานการณ์",
+          reviewGuide: "ดูน้ำเสียง คำเรียกผู้ติดต่อ และความเหมาะสมของการตอบในเคสปกติ/เคสร้องเรียน",
+          improveTip: "เพิ่มคำรับทราบ ขอบคุณ/ขออภัยตามบริบท และหลีกเลี่ยงคำแข็งหรือห้วน",
+        },
+        {
+          code: "5",
+          title: "ภาษา",
+          score: 20,
+          focus: "ใช้ภาษาเข้าใจง่าย สะกดถูก และสื่อสารเป็นลำดับ",
+          reviewGuide: "ดูคำผิด ประโยคกำกวม ความอ่านง่าย และการเรียงลำดับข้อมูล",
+          improveTip: "จัดข้อความเป็นย่อหน้า/ข้อ และตรวจคำสะกดก่อนส่ง",
+        },
+        {
+          code: "6",
+          title: "ระยะเวลา",
+          score: 10,
+          focus: "ตอบกลับและดำเนินการภายในเวลาที่กำหนด",
+          reviewGuide: "ตรวจเวลารับเคส เวลาตอบกลับ และการแจ้งคั่นระหว่างรอตรวจสอบ",
+          improveTip: "ส่งข้อความแจ้งระหว่างรอ และควบคุมเวลา follow-up ไม่ให้เกิน SLA",
+        },
+      ],
+    },
+  ],
+};
 
 const MARCH_2026_RUBRIC: RubricVersion = {
   key: "MARCH_2026",
@@ -281,9 +349,10 @@ const MARCH_2026_RUBRIC: RubricVersion = {
 
 const APR_2026_RUBRIC: RubricVersion = {
   key: "APR_2026",
-  label: "April 2026 – Current Rubric",
-  subtitle: "Effective from 03 April 2026 to present",
+  label: "April 2026 – Rubric",
+  subtitle: "Effective 03 April – 31 May 2026",
   effectiveFrom: "2026-04-03",
+  effectiveTo: "2026-05-31",
   sourceLabel: "02_Detailed_Guide",
   totalScore: 100,
   sections: [
@@ -555,7 +624,7 @@ const JUNE_2026_RUBRIC: RubricVersion = {
   label: "June 2026 - Admin Live Chat Criteria",
   subtitle: "Effective 01 June 2026 onward",
   effectiveFrom: "2026-06-01",
-  sourceLabel: "QA_Admin_LiveChat_Criteria_01June2026_scoring_adjusted.xlsx",
+  sourceLabel: "QA_Admin_LiveChat_Criteria",
   totalScore: JUNE_2026_RUBRIC_SOURCE.totalScore,
   sections: RUBRIC_GROUP_LABELS.map((group, index) => {
     const topics = JUNE_2026_RUBRIC_SOURCE.topics.filter((topic) => topic.group === group.key);
@@ -1318,7 +1387,7 @@ function JuneRubricWorkbook() {
   );
 }
 
-const RUBRICS: RubricVersion[] = [MARCH_2026_RUBRIC, APR_2026_RUBRIC, JUNE_2026_RUBRIC];
+const RUBRICS: RubricVersion[] = [JAN_FEB_2026_RUBRIC, MARCH_2026_RUBRIC, APR_2026_RUBRIC, JUNE_2026_RUBRIC];
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 function isSongkranThemeActive() {
@@ -1503,23 +1572,7 @@ export default function QARubricMockup({
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <label className="block">
-                <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Set End Date</span>
-                <input type="date" value={rubricEndDateDraft} onChange={(event) => setRubricEndDateDraft(event.target.value)} className="mt-2 w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
-              </label>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setPreviewEndedDate(rubricEndDateDraft || todayInputValue())} className="rounded-2xl bg-violet-700 px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(109,40,217,0.22)] transition hover:bg-violet-800">
-                  End Rubric
-                </button>
-                <button type="button" onClick={() => { setPreviewEndedDate(""); setRubricEndDateDraft(""); }} className="rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50">
-                  Clear
-                </button>
-              </div>
-              <div className="mt-3 text-xs font-semibold leading-5 text-slate-500">
-                Phase 1 นี้เป็น preview ในหน้าเว็บก่อน ยังไม่บันทึกถาวรลงฐานข้อมูล Rubric.
-              </div>
-            </div>
+            
           </div>
         </div>
         ) : null}

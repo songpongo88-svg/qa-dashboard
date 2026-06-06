@@ -29,6 +29,22 @@ export const RUBRIC_GROUP_LABELS: Array<{ key: RubricTopicGroup; title: string; 
 
 export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
   {
+    code: "QA-2026-01-02",
+    name: "January–February 2026 - Rubric",
+    status: "Ended",
+    startDate: "2026-01-01",
+    endDate: "2026-02-28",
+    totalScore: 100,
+    topics: [
+      { code: "1", title: "เปิด-ปิดการสนทนา", max: 10, group: "Service Standard" },
+      { code: "2", title: "วิเคราะห์/แก้ไข", max: 30, group: "Answer Quality" },
+      { code: "3", title: "ปฏิบัติตามขั้นตอน", max: 20, group: "Resolution" },
+      { code: "4", title: "ความสุภาพ", max: 10, group: "Communication" },
+      { code: "5", title: "ภาษา", max: 20, group: "Communication" },
+      { code: "6", title: "ระยะเวลา", max: 10, group: "Service Standard" },
+    ],
+  },
+  {
     code: "QA-2026-06",
     name: "June 2026 - Admin Live Chat Criteria",
     status: "Active",
@@ -100,7 +116,7 @@ export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
   },
   {
     code: "QA-2026-04",
-    name: "April 2026 - Current Rubric",
+    name: "April 2026 - Rubric",
     status: "Ended",
     startDate: "2026-04-03",
     endDate: "2026-05-31",

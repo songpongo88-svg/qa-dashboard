@@ -163,6 +163,15 @@ const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 const JUNE_2026_POLICY_START_MONTH_KEY = "2026-06";
 
+const JAN_FEB_2026_TOPIC_MASTER = [
+  { code: "1", label: "เปิด-ปิดการสนทนา", max: 10 },
+  { code: "2", label: "วิเคราะห์/แก้ไข", max: 30 },
+  { code: "3", label: "ปฏิบัติตามขั้นตอน", max: 20 },
+  { code: "4", label: "ความสุภาพ", max: 10 },
+  { code: "5", label: "ภาษา", max: 20 },
+  { code: "6", label: "ระยะเวลา", max: 10 },
+] as const;
+
 const LEGACY_TOPIC_MASTER = [
   { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
   { code: "1.2", label: "Accuracy of Information", max: 5 },
@@ -210,12 +219,17 @@ function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
   if (monthKey !== "unknown" && monthKey >= JUNE_2026_POLICY_START_MONTH_KEY) {
     return JUNE_2026_TOPIC_MASTER;
   }
+
+  if (monthKey === "2026-01" || monthKey === "2026-02") {
+    return JAN_FEB_2026_TOPIC_MASTER;
+  }
+
   return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
 }
 
 const ALL_TOPIC_MASTER = Array.from(
   new Map(
-    [...LEGACY_TOPIC_MASTER, ...APRIL_2026_TOPIC_MASTER, ...JUNE_2026_TOPIC_MASTER].map((item) => [item.code, item])
+    [...JAN_FEB_2026_TOPIC_MASTER, ...LEGACY_TOPIC_MASTER, ...APRIL_2026_TOPIC_MASTER, ...JUNE_2026_TOPIC_MASTER].map((item) => [item.code, item])
   ).values()
 );
 
@@ -253,6 +267,12 @@ function normalizeText(value: unknown) {
 
 function compactText(value: unknown) {
   return normalizeText(value).replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeHeaderComparable(value: unknown) {
+  return normalizeText(value)
+    .replace(/\s*\(\s*\d+\s*(?:คะแนน|point|points)\s*\)\s*$/i, "")
+    .trim();
 }
 
 function toTitleCaseName(value: string) {
@@ -442,9 +462,10 @@ function getPolicyMonthKeyForCases(cases: CaseItem[]) {
 
 function buildHeaderHelpers(headerRow: any[]) {
   const normalizedHeaders = headerRow.map((h) => normalizeText(h));
+  const normalizedHeaderBases = headerRow.map((h) => normalizeHeaderComparable(h));
   const findIndexes = (name: string) => {
     const target = normalizeText(name);
-    return normalizedHeaders.map((h, idx) => (h === target ? idx : -1)).filter((idx) => idx >= 0);
+    return normalizedHeaders.map((h, idx) => ((h === target || normalizedHeaderBases[idx] === target) ? idx : -1)).filter((idx) => idx >= 0);
   };
   const getValue = (row: any[], name: string, occurrence = 0) => {
     const indexes = findIndexes(name);
