@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
+import { logUsageEvent, UsageLogEvent } from "./usageLog";
+import { fetchAppealEvents } from "./appealStore";
 import PageHero from "./PageHero";
 
 type AppealTopic = {
@@ -263,7 +264,7 @@ export default function AppealRequestsMockup({
     } catch (error) {
       console.warn("Load appeal requests failed", error);
       setLogs([]);
-      setMessage("Unable to load appeal requests from Supabase. Please refresh or check the Usage Log connection.");
+      setMessage("Unable to load appeal requests from Firebase. Please refresh and try again.");
     }
   };
 
@@ -294,7 +295,7 @@ export default function AppealRequestsMockup({
         "",
         "After saving, this task will move out of Pending and the case owner will receive an Inbox notification.",
         decision === "Approved"
-          ? "Approved revised scores will update Dashboard and Summary automatically. Export Appeal ROWDATA remains available for Excel backup."
+          ? "Approved revised scores will be included in Export Appeal ROWDATA. Dashboard and Summary remain based on RawData / Appeal ROWDATA Excel."
           : "Rejected appeals will not change Dashboard or Summary scores.",
       ].join("\n")
     );
@@ -319,14 +320,14 @@ export default function AppealRequestsMockup({
             subject: `Appeal result for case ${selectedRequest.caseId}`,
             body:
               decision === "Approved"
-                ? `Your appeal for case ${selectedRequest.caseId} has been approved. Dashboard and Summary scores were updated automatically.`
+                ? `Your appeal for case ${selectedRequest.caseId} has been approved. The result will be included in Export Appeal ROWDATA.`
                 : `Your appeal for case ${selectedRequest.caseId} has been rejected. Dashboard and Summary scores were not changed.`,
           },
         },
       });
       setMessage(
         decision === "Approved"
-          ? `Approved appeal for ${selectedRequest.caseId}. Result task was sent to the case owner and Dashboard/Summary will use the revised score automatically.`
+          ? `Approved appeal for ${selectedRequest.caseId}. Result task was saved and can be exported to Appeal ROWDATA.`
           : `Rejected appeal for ${selectedRequest.caseId}. Result task was sent to the case owner and scores were not changed.`
       );
       await loadRequests();
