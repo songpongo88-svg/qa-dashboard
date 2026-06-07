@@ -5019,12 +5019,12 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_270px] xl:items-start">
+          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(520px,580px)_minmax(420px,500px)] xl:items-center xl:justify-start">
-                <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[500px]">
+              <div className="grid gap-5 xl:grid-cols-[max-content_460px] xl:items-center xl:justify-start">
+                <div className="flex min-w-0 items-stretch gap-4">
                   <div className="flex w-[166px] shrink-0 items-stretch">
                     <input
                       ref={profilePhotoInputRef}
@@ -5054,12 +5054,12 @@ export default function App() {
                         <span className="text-4xl font-black tracking-tight">{workspaceInitials}</span>
                       )}
 
-                      <div className="absolute inset-x-2 bottom-2 z-20 grid grid-cols-2 gap-2 rounded-2xl bg-black/20 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100">
+                      <div className="absolute inset-x-3 bottom-3 z-20 grid grid-cols-2 gap-2.5 rounded-2xl bg-black/25 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100">
                         <button
                           type="button"
                           onClick={() => profilePhotoInputRef.current?.click()}
                           disabled={workspaceProfilePhotoUploading}
-                          className="w-full min-w-0 whitespace-nowrap rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="w-full min-w-0 rounded-full bg-white/95 px-1.5 py-1.5 text-[9px] font-black uppercase tracking-[0.04em] text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Change
                         </button>
@@ -5069,7 +5069,7 @@ export default function App() {
                             type="button"
                             onClick={handleWorkspaceProfilePhotoDefault}
                             disabled={workspaceProfilePhotoUploading}
-                            className="w-full min-w-0 whitespace-nowrap rounded-full bg-violet-700/95 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full min-w-0 rounded-full bg-violet-700/95 px-1.5 py-1.5 text-[9px] font-black uppercase tracking-[0.04em] text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Default
                           </button>
@@ -5143,7 +5143,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[480px] gap-3 md:grid-cols-2 xl:justify-self-center">
+                <div className="grid w-full max-w-[450px] gap-3 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
