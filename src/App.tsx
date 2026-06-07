@@ -2828,6 +2828,32 @@ export default function App() {
     return String(matchedAccount?.teamName || "-").trim() || "-";
   }, [currentUser, effectiveUserAccounts]);
 
+  const workspaceTeamLeadName = useMemo(() => {
+    if (!currentUser) return "-";
+
+    const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
+    const currentUsername = normalize(currentUser.username);
+    const currentDisplayName = normalize(currentUser.displayName);
+    const currentAgentName = normalize(currentUser.agentName);
+
+    const matchedAccount = effectiveUserAccounts.find((account) => {
+      const accountValues = [
+        normalize(account.username),
+        normalize(account.displayName),
+        normalize(account.agentName),
+        normalize(account.email),
+      ].filter(Boolean);
+
+      return (
+        accountValues.includes(currentUsername) ||
+        accountValues.includes(currentDisplayName) ||
+        accountValues.includes(currentAgentName)
+      );
+    });
+
+    return String(matchedAccount?.teamLead || "-").trim() || "-";
+  }, [currentUser, effectiveUserAccounts]);
+
   useEffect(() => {
     const syncRefreshKey = (value: unknown) => {
       const nextKey = Number(value || 0);
@@ -4862,22 +4888,25 @@ export default function App() {
                   <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-sm">
                     <div className="text-xs font-black">Robinhood QA Workspace</div>
                     <div>
-                      Team: <span className="font-black text-violet-950">{workspaceTeamName}</span>
+                      User: <span className="font-black text-violet-700">{welcomeName}</span>
                     </div>
                     <div>
-                      User: <span className="font-black text-violet-950">{welcomeName}</span>
+                      Team Lead: <span className="font-black text-violet-700">{workspaceTeamLeadName}</span>
                     </div>
                     <div>
-                      Role: <span className="font-black text-violet-950">{currentUser.role}</span>
+                      Team: <span className="font-black text-violet-700">{workspaceTeamName}</span>
+                    </div>
+                    <div>
+                      Role: <span className="font-black text-violet-700">{currentUser.role}</span>
                     </div>
                     <div className="whitespace-nowrap">
-                      Version: <span className="font-black text-violet-950">
+                      Version: <span className="font-black text-violet-700">
                         {buildMeta.displayVersion || buildMeta.version}
                         {shortBuildHash ? `:${shortBuildHash}` : ""}
                       </span>
                     </div>
                     <div className="whitespace-nowrap">
-                      Login running time: <span className="font-black text-violet-950">{formatHeaderDateTime(liveNow)}</span>
+                      Login running time: <span className="font-black text-violet-700">{formatHeaderDateTime(liveNow)}</span>
                     </div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
