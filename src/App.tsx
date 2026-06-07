@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
@@ -401,7 +401,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
 ];
 
 const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: string }> = {
-  songpon: { teamLead: "-", teamName: "ทีม Senior" },
+  songpon: { teamLead: "-", teamName: "เธ—เธตเธก Senior" },
 };
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
@@ -813,7 +813,7 @@ async function buildV8CaseUploadInboxTasks(
             subject: `New QA case uploaded: ${item.caseId}`,
             to: currentUser.displayName || currentUser.username,
             from: "QA Dashboard System",
-            status: `Score ${scoreText}/100 ยท Grade ${item.grade}`,
+            status: `Score ${scoreText}/100 เธขเธ— Grade ${item.grade}`,
             body: [
               `Case ID: ${item.caseId}`,
               `Week: ${latestWeekLabel}`,
@@ -861,7 +861,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
   const current = now.getTime();
 
   if (Number.isNaN(start) || current <= start) {
-    return "00 เธเธก. 00 เธเธฒเธ—เธต 00 เธงเธดเธเธฒเธ—เธต";
+    return "00 เน€เธยเน€เธเธ. 00 เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ• 00 เน€เธเธเน€เธเธ”เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ•";
   }
 
   const totalSeconds = Math.floor((current - start) / 1000);
@@ -869,7 +869,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  return `${String(hours).padStart(2, "0")} เธเธก. ${String(minutes).padStart(2, "0")} เธเธฒเธ—เธต ${String(seconds).padStart(2, "0")} เธงเธดเธเธฒเธ—เธต`;
+  return `${String(hours).padStart(2, "0")} เน€เธยเน€เธเธ. ${String(minutes).padStart(2, "0")} เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ• ${String(seconds).padStart(2, "0")} เน€เธเธเน€เธเธ”เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ•`;
 }
 
 function readStoredUser(): CurrentUser | null {
@@ -1631,7 +1631,7 @@ function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
             Songkran Festival
           </div>
           <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
-            Water splash theme ยท resets after 25 Apr 2026
+            Water splash theme เธขเธ— resets after 25 Apr 2026
           </div>
         </>
       ) : null}
@@ -2203,7 +2203,7 @@ function VersionPill({
       </div>
       <div className="text-[11px] leading-4 text-slate-500">
         {meta.updatedAt}
-        {shortHash ? ` ยท ${shortHash}` : ""}
+        {shortHash ? ` เธขเธ— ${shortHash}` : ""}
       </div>
     </div>
   );
@@ -2534,7 +2534,7 @@ function FloatingChatWidget({
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Collaboration</div>
                 <div className="mt-1 text-lg font-black">Team Chat</div>
                 <div className="mt-1 text-xs font-semibold text-violet-100">
-                  {onlineUsers.length} online user(s) ยท {totalUnread} unread message(s)
+                  {onlineUsers.length} online user(s) เธขเธ— {totalUnread} unread message(s)
                 </div>
               </div>
               <button
@@ -2644,7 +2644,7 @@ function FloatingChatWidget({
                               ? "Call ended"
                               : "Ringing call"
                       : message.attachment
-                        ? `${message.message || "Attachment"} ยท ${message.attachment.name}`
+                        ? `${message.message || "Attachment"} เธขเธ— ${message.attachment.name}`
                         : message.message || "-"}
                   </div>
                   {isUnread ? (
@@ -3200,7 +3200,7 @@ export default function App() {
           attemptedAt: new Date().toISOString(),
         },
       });
-      throw new Error(`เธเธฑเธเธ—เธถเธเน€เธเธชเธเธฃเธฐเน€เธกเธดเธเธฅเธเธเธฒเธเธเธฅเธฒเธเนเธกเนเธชเธณเน€เธฃเนเธ: ${errorMessage}`);
+      throw new Error(`เน€เธยเน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ–เน€เธยเน€เธโฌเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธโฌเน€เธเธเน€เธเธ”เน€เธยเน€เธเธ…เน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธยเน€เธเธ…เน€เธเธ’เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ“เน€เธโฌเน€เธเธเน€เธยเน€เธย: ${errorMessage}`);
     }
 
     await logUsageEvent(currentUser, "qa_evaluation_submitted", {
@@ -3298,15 +3298,15 @@ export default function App() {
             unread: !readIds.includes(id),
             actionLabel: "Open review inbox",
             mailTemplate: {
-              subject: "เธกเธตเธฃเธฒเธขเธเธฒเธฃเธญเธธเธ—เธเธฃเธ“เนเธฃเธญเธเธดเธเธฒเธฃเธ“เธฒ",
+              subject: "เน€เธเธเน€เธเธ•เน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธเน€เธโ€”เน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’",
               to: currentUser.displayName || currentUser.username,
               from: "QA Dashboard System",
               status: "Pending Review",
               body: [
-                `เธกเธตเธเธณเธเธญเธญเธธเธ—เธเธฃเธ“เนเธเธณเธเธงเธ ${pendingCount} เธฃเธฒเธขเธเธฒเธฃเธฃเธญเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ`,
-                "เธเธฃเธธเธ“เธฒเน€เธเธดเธ” Appeal Requests เน€เธเธทเนเธญเธ•เธฃเธงเธเธชเธญเธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ” เนเธเนเนเธเธเธฐเนเธเธเธซเธฃเธทเธญเธเธญเธกเน€เธกเธเธ•เน เนเธฅเธฐเธเธฑเธเธ—เธถเธเธเธฅเน€เธเนเธ Approve เธซเธฃเธทเธญ Reject",
+                `เน€เธเธเน€เธเธ•เน€เธยเน€เธเธ“เน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธโ€”เน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธยเน€เธเธ“เน€เธยเน€เธเธเน€เธย ${pendingCount} เน€เธเธเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’`,
+                "เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธ’เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€ Appeal Requests เน€เธโฌเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธโ€ขเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธ’เน€เธเธเน€เธเธ…เน€เธเธเน€เธโฌเน€เธเธเน€เธเธ•เน€เธเธเน€เธโ€ เน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธเธ—เน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธโฌเน€เธเธเน€เธยเน€เธโ€ขเน€เธย เน€เธยเน€เธเธ…เน€เธเธเน€เธยเน€เธเธ‘เน€เธยเน€เธโ€”เน€เธเธ–เน€เธยเน€เธยเน€เธเธ…เน€เธโฌเน€เธยเน€เธยเน€เธย Approve เน€เธเธเน€เธเธเน€เธเธ—เน€เธเธ Reject",
               ],
-              footer: "เธซเธฅเธฑเธ Save Review เธฃเธฐเธเธเธเธฐเนเธเนเธเธเธฅเธเธฅเธฑเธเนเธเธขเธฑเธ Inbox เธเธญเธเน€เธเนเธฒเธเธญเธเน€เธเธชเนเธ”เธขเธญเธฑเธ•เนเธเธกเธฑเธ•เธด",
+              footer: "เน€เธเธเน€เธเธ…เน€เธเธ‘เน€เธย Save Review เน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธยเน€เธเธ…เน€เธยเน€เธเธ…เน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธย Inbox เน€เธยเน€เธเธเน€เธยเน€เธโฌเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธโฌเน€เธยเน€เธเธเน€เธยเน€เธโ€เน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”",
             },
           });
         }
@@ -3344,20 +3344,20 @@ export default function App() {
             caseId: item.caseId,
             agentName: item.agent,
             mailTemplate: {
-              subject: `เธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช ${item.caseId}`,
+              subject: `เน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’เน€เธเธเน€เธเธเน€เธโ€”เน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธโฌเน€เธยเน€เธเธ ${item.caseId}`,
               to: item.submittedBy || item.agent || currentUser.displayName || currentUser.username,
               from: "Quality Assurance / Songpon Phothong",
               status: item.status,
               body: [
-                `เธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ: ${item.status === "Approved" ? "เธญเธเธธเธกเธฑเธ•เธดเธเธฒเธฃเธเธฃเธฑเธเธเธฐเนเธเธ" : "เนเธกเนเธญเธเธธเธกเธฑเธ•เธดเธเธฒเธฃเธเธฃเธฑเธเธเธฐเนเธเธ"}`,
+                `เน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’: ${item.status === "Approved" ? "เน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธย" : "เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธย"}`,
                 `Case ID: ${item.caseId}`,
                 `Agent: ${item.agent || "-"}`,
-                item.reviewSummary ? `เธชเธฃเธธเธเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ: ${item.reviewSummary}` : "เธชเธฃเธธเธเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒ: เธเธฃเธธเธ“เธฒเน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธชเน€เธเธทเนเธญเธ•เธฃเธงเธเธชเธญเธเธเนเธญเธกเธนเธฅเน€เธเธดเนเธกเน€เธ•เธดเธก",
+                item.reviewSummary ? `เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’: ${item.reviewSummary}` : "เน€เธเธเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธเธ…เน€เธยเน€เธเธ’เน€เธเธเน€เธยเน€เธเธ”เน€เธยเน€เธเธ’เน€เธเธเน€เธโ€เน€เธเธ’: เน€เธยเน€เธเธเน€เธเธเน€เธโ€เน€เธเธ’เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธเธเน€เธเธ’เน€เธเธเน€เธเธ…เน€เธเธเน€เธโฌเน€เธเธเน€เธเธ•เน€เธเธเน€เธโ€เน€เธโฌเน€เธยเน€เธเธเน€เธโฌเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธโ€ขเน€เธเธเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธเธเน€เธเธ…เน€เธโฌเน€เธยเน€เธเธ”เน€เธยเน€เธเธเน€เธโฌเน€เธโ€ขเน€เธเธ”เน€เธเธ",
               ],
               footer:
                 item.status === "Approved"
-                  ? "เธซเธกเธฒเธขเน€เธซเธ•เธธ: เน€เธเธชเธ—เธตเนเธญเธเธธเธกเธฑเธ•เธดเนเธฅเนเธงเธเธฐเธ–เธนเธเธเธณเนเธเธเธฃเธฑเธเธเธฐเนเธเธเนเธ Dashboard เนเธฅเธฐ Summary เธญเธฑเธ•เนเธเธกเธฑเธ•เธด"
-                  : "เธซเธกเธฒเธขเน€เธซเธ•เธธ: เน€เธเธชเธ—เธตเนเนเธกเนเธญเธเธธเธกเธฑเธ•เธดเธเธฐเนเธกเนเธเธฃเธฑเธเธเธฐเนเธเธเนเธ Dashboard เนเธฅเธฐ Summary",
+                  ? "เน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโฌเน€เธเธเน€เธโ€ขเน€เธเธ: เน€เธโฌเน€เธยเน€เธเธเน€เธโ€”เน€เธเธ•เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ…เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธโ€“เน€เธเธเน€เธยเน€เธยเน€เธเธ“เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธย Dashboard เน€เธยเน€เธเธ…เน€เธเธ Summary เน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”"
+                  : "เน€เธเธเน€เธเธเน€เธเธ’เน€เธเธเน€เธโฌเน€เธเธเน€เธโ€ขเน€เธเธ: เน€เธโฌเน€เธยเน€เธเธเน€เธโ€”เน€เธเธ•เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธเน€เธเธ‘เน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธยเน€เธย Dashboard เน€เธยเน€เธเธ…เน€เธเธ Summary",
             },
           });
         });
@@ -3394,15 +3394,15 @@ export default function App() {
           caseId: item.caseId,
           agentName: item.targetAgent,
           mailTemplate: {
-            subject: `เน€เธเธดเธ”เธชเธดเธ—เธเธดเนเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช ${item.caseId}`,
+            subject: `เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธเธเน€เธเธ”เน€เธโ€”เน€เธยเน€เธเธ”เน€เธยเน€เธเธเน€เธเธ—เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธโ€”เน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธโฌเน€เธยเน€เธเธ ${item.caseId}`,
             to: item.targetAgent || currentUser.displayName || currentUser.username,
             from: "Quality Assurance / Songpon Phothong",
             status: "Appeal Override",
             body: [
-              `เน€เธเธช ${item.caseId} เนเธ”เนเธฃเธฑเธเธชเธดเธ—เธเธดเนเนเธซเนเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเนเธ”เน เนเธกเนเน€เธฅเธขเธเธณเธซเธเธ”เธฃเธญเธเธเธเธ•เธดเนเธฅเนเธง`,
-              item.note ? `Reason / Note: ${item.note}` : "Reason / Note: เน€เธเธดเธ”เธชเธดเธ—เธเธดเนเธเธดเน€เธจเธฉเนเธ”เธข QA",
+              `เน€เธโฌเน€เธยเน€เธเธ ${item.caseId} เน€เธยเน€เธโ€เน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธเธเน€เธเธ”เน€เธโ€”เน€เธยเน€เธเธ”เน€เธยเน€เธยเน€เธเธเน€เธยเน€เธเธเน€เธเธ—เน€เธยเน€เธยเน€เธเธเน€เธเธเน€เธโ€”เน€เธยเน€เธเธเน€เธโ€เน€เธยเน€เธยเน€เธโ€เน€เธย เน€เธยเน€เธเธเน€เธยเน€เธโฌเน€เธเธ…เน€เธเธเน€เธยเน€เธเธ“เน€เธเธเน€เธยเน€เธโ€เน€เธเธเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธโ€ขเน€เธเธ”เน€เธยเน€เธเธ…เน€เธยเน€เธเธ`,
+              item.note ? `Reason / Note: ${item.note}` : "Reason / Note: เน€เธโฌเน€เธยเน€เธเธ”เน€เธโ€เน€เธเธเน€เธเธ”เน€เธโ€”เน€เธยเน€เธเธ”เน€เธยเน€เธยเน€เธเธ”เน€เธโฌเน€เธเธเน€เธเธเน€เธยเน€เธโ€เน€เธเธ QA",
             ],
-            footer: "เธชเธดเธ—เธเธดเนเธเธตเนเธขเธฑเธเธเธเธขเธถเธ”เน€เธเธทเนเธญเธเนเธเธขเธทเนเธเนเธ”เน 1 เธเธฃเธฑเนเธเธ•เนเธญเน€เธเธช เนเธฅเธฐเธ•เนเธญเธเน€เธเนเธเน€เธเนเธฒเธเธญเธเน€เธเธชเน€เธ—เนเธฒเธเธฑเนเธ",
+            footer: "เน€เธเธเน€เธเธ”เน€เธโ€”เน€เธยเน€เธเธ”เน€เธยเน€เธยเน€เธเธ•เน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ–เน€เธโ€เน€เธโฌเน€เธยเน€เธเธ—เน€เธยเน€เธเธเน€เธยเน€เธยเน€เธยเน€เธเธเน€เธเธ—เน€เธยเน€เธยเน€เธยเน€เธโ€เน€เธย 1 เน€เธยเน€เธเธเน€เธเธ‘เน€เธยเน€เธยเน€เธโ€ขเน€เธยเน€เธเธเน€เธโฌเน€เธยเน€เธเธ เน€เธยเน€เธเธ…เน€เธเธเน€เธโ€ขเน€เธยเน€เธเธเน€เธยเน€เธโฌเน€เธยเน€เธยเน€เธยเน€เธโฌเน€เธยเน€เธยเน€เธเธ’เน€เธยเน€เธเธเน€เธยเน€เธโฌเน€เธยเน€เธเธเน€เธโฌเน€เธโ€”เน€เธยเน€เธเธ’เน€เธยเน€เธเธ‘เน€เธยเน€เธย",
           },
         });
       });
@@ -3440,7 +3440,7 @@ export default function App() {
           nextTasks.push({
             id,
             type: "evaluation",
-            title: `QA Evaluation Result ยท ${caseId}`,
+            title: `QA Evaluation Result เธขเธ— ${caseId}`,
             description: `You have a new QA evaluation result for case ${caseId}. Score ${finalScore}/100, Grade ${grade}.`,
             badge: "QA Result",
             count: 1,
@@ -3449,10 +3449,10 @@ export default function App() {
             caseId,
             agentName,
             mailTemplate: {
-              subject: `QA Evaluation Result ยท ${caseId}`,
+              subject: `QA Evaluation Result เธขเธ— ${caseId}`,
               to: String(details.targetDisplayName || agentName || currentUser.displayName || currentUser.username),
               from: String(details.evaluatorName || "Quality Assurance"),
-              status: `Score ${finalScore}/100 ยท Grade ${grade}`,
+              status: `Score ${finalScore}/100 เธขเธ— Grade ${grade}`,
               body: [
                 `You have been evaluated for case ${caseId}.`,
                 `Final Score: ${finalScore}/100`,
@@ -5004,7 +5004,7 @@ export default function App() {
         onReset={handleResetPasswordToDefault}
         resultMessage={resetResultMessage}
         resetRequests={passwordResetRequests}
-        currentUsername={currentUser.username}
+        currentUsername={currentUser?.username || ""}
         accounts={effectiveUserAccounts}
         onRefreshRequests={loadPasswordResetRequests}
         onApproveRequest={(request) => {
@@ -5115,12 +5115,12 @@ export default function App() {
                     </div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
-                      <span className="text-slate-300">โ€ข</span>
+                      <span className="text-slate-300">เนโฌเธ</span>
                       <span className="truncate">{currentUser.agentName}</span>
                     </div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
-                      <span className="text-slate-300">โ€ข</span>
+                      <span className="text-slate-300">เนโฌเธ</span>
                       <span>{currentUser.agentName}</span>
                     </div>
                     <div className="hidden mt-1 text-sm text-slate-500">
@@ -5130,11 +5130,11 @@ export default function App() {
                       <span className="mx-2 text-slate-300">/</span>
                       <span className="font-bold text-slate-700">
                         Version {buildMeta.displayVersion || buildMeta.version}
-                        <span className="mx-1 text-slate-300">ยท</span>
+                        <span className="mx-1 text-slate-300">เธขเธ—</span>
                         {buildMeta.updatedAt}
                         {buildMeta.commitHash ? (
                           <>
-                            <span className="mx-1 text-slate-300">ยท</span>
+                            <span className="mx-1 text-slate-300">เธขเธ—</span>
                             {buildMeta.commitHash.slice(0, 7)}
                           </>
                         ) : null}
@@ -5242,7 +5242,7 @@ export default function App() {
                         : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                     }`}
                   >
-                    <span className="text-[18px] leading-none">▣</span>
+                    <span className="text-[18px] leading-none">โ–ฃ</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Users</span>
                   </button>
                 ) : null}
@@ -5258,7 +5258,7 @@ export default function App() {
                         : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                     }`}
                   >
-                    <span className="text-[18px] leading-none">◷</span>
+                    <span className="text-[18px] leading-none">โ—ท</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Log</span>
                   </button>
                 ) : null}
@@ -5273,7 +5273,7 @@ export default function App() {
                   }}
                   className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
                 >
-                  <span className="text-[18px] leading-none">◆</span>
+                  <span className="text-[18px] leading-none">โ—</span>
                   <span className="mt-1 text-[9.5px] font-black leading-tight">Password</span>
                 </button>
 
@@ -5293,7 +5293,7 @@ export default function App() {
                         {pendingPasswordResetRequestCount > 99 ? "99+" : pendingPasswordResetRequestCount}
                       </span>
                     ) : null}
-                    <span className="text-[18px] leading-none">↻</span>
+                    <span className="text-[18px] leading-none">โป</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Reset</span>
                   </button>
                 ) : null}
@@ -5304,7 +5304,7 @@ export default function App() {
                   onClick={handleLogout}
                   className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white px-1.5 py-2 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
                 >
-                  <span className="text-[18px] leading-none">⎋</span>
+                  <span className="text-[18px] leading-none">โ</span>
                   <span className="mt-1 text-[9.5px] font-black leading-tight">Sign Out</span>
                 </button>
               </div>
@@ -5507,6 +5507,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 
