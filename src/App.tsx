@@ -5007,9 +5007,9 @@ export default function App() {
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(440px,500px)_minmax(520px,600px)] xl:items-center xl:justify-start">
-                <div className="flex min-w-0 items-start gap-4 xl:min-w-[440px]">
-                  <div className="flex w-[74px] shrink-0 flex-col items-center gap-1.5">
+              <div className="grid gap-5 xl:grid-cols-[minmax(610px,680px)_minmax(500px,580px)] xl:items-center xl:justify-start">
+                <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[610px]">
+                  <div className="flex w-[150px] shrink-0 flex-col items-center">
                     <input
                       ref={profilePhotoInputRef}
                       type="file"
@@ -5021,7 +5021,7 @@ export default function App() {
                       type="button"
                       onClick={() => profilePhotoInputRef.current?.click()}
                       title={workspaceProfilePhotoError || "Change profile photo"}
-                      className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-violet-200 bg-gradient-to-br from-violet-100 via-white to-fuchsia-100 text-violet-700 shadow-[0_12px_30px_rgba(88,28,135,0.12)] transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_16px_38px_rgba(88,28,135,0.18)]"
+                      className="group relative flex h-[154px] w-[136px] items-center justify-center overflow-hidden rounded-[26px] border border-violet-200 bg-gradient-to-br from-violet-100 via-white to-fuchsia-100 text-violet-700 shadow-[0_16px_38px_rgba(88,28,135,0.14)] transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_22px_48px_rgba(88,28,135,0.20)]"
                     >
                       {workspaceProfilePhoto ? (
                         <img
@@ -5030,25 +5030,18 @@ export default function App() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <span className="text-lg font-black tracking-tight">{workspaceInitials}</span>
+                        <span className="text-3xl font-black tracking-tight">{workspaceInitials}</span>
                       )}
 
-                      <span className="absolute inset-0 flex items-center justify-center bg-violet-950/0 text-[9px] font-black uppercase tracking-[0.08em] text-white opacity-0 transition group-hover:bg-violet-950/45 group-hover:opacity-100">
-                        Change
+                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-violet-950/75 via-violet-950/45 to-transparent px-2 pb-3 pt-8 text-[10px] font-black uppercase tracking-[0.08em] text-white opacity-0 transition group-hover:opacity-100">
+                        Change Photo
                       </span>
 
                       {workspaceProfilePhotoUploading ? (
-                        <span className="absolute inset-0 flex items-center justify-center bg-white/75 text-[10px] font-black text-violet-700">
+                        <span className="absolute inset-0 flex items-center justify-center bg-white/80 text-[11px] font-black text-violet-700">
                           Saving...
                         </span>
                       ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => profilePhotoInputRef.current?.click()}
-                      className="text-[10px] font-black leading-none text-violet-700 transition hover:text-violet-900"
-                    >
-                      Change Photo
                     </button>
                   </div>
 
@@ -5111,7 +5104,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[600px] gap-4 md:grid-cols-2 xl:justify-self-start">
+                <div className="grid w-full max-w-[560px] gap-4 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
