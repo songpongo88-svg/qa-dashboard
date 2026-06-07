@@ -117,3 +117,37 @@ export default function LoadingMascot({
   );
 }
 
+
+
+export function LoadingMascotPanel({
+  message = "กำลังโหลดข้อมูล",
+  subMessage = "กรุณารอสักครู่...",
+}: LoadingMascotProps) {
+  return (
+    <div className="flex min-h-[360px] w-full items-center justify-center px-6 py-10">
+      <div className="flex flex-col items-center justify-center text-center">
+        <div className="relative h-40 w-40 animate-bounce">
+          <img
+            src="/loader-owl-open.png"
+            alt="QA Loading Owl"
+            className="h-full w-full object-contain drop-shadow-[0_18px_22px_rgba(76,29,149,0.18)]"
+          />
+        </div>
+
+        <div className="mt-3 text-xl font-extrabold tracking-tight text-violet-950">
+          {message}
+        </div>
+
+        <div className="mt-1.5 text-sm font-medium text-slate-500">
+          {subMessage}
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-violet-500" />
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-fuchsia-500" />
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-sky-500" />
+        </div>
+      </div>
+    </div>
+  );
+}

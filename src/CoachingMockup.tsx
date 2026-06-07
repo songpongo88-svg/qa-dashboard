@@ -1,3 +1,4 @@
+import { LoadingMascotPanel } from "./LoadingMascot";
 import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
@@ -1727,9 +1728,8 @@ export default function CoachingMockup({
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          กำลังโหลด Coaching Dashboard...
-        </div>
+        <LoadingMascotPanel message="กำลังโหลด Coaching Dashboard...
+        " subMessage="กรุณารอสักครู่..." />
       </div>
     );
   }
