@@ -2386,7 +2386,7 @@ function TaskInboxMockup({
                   <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
                     <div>
                       <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Internal Inbox Notice</div>
-                      <div className="mt-1 text-base font-black text-slate-950">{task.mailTemplate.subject}</div>
+                      <div className="mt-1 text-[17px] font-black text-slate-950">{task.mailTemplate.subject}</div>
                     </div>
                     <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black text-violet-700">
                       {task.mailTemplate.status}
@@ -4899,8 +4899,8 @@ export default function App() {
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(380px,430px)_minmax(460px,560px)] xl:items-center">
-                <div className="flex min-w-0 items-start gap-3 xl:min-w-[380px]">
+              <div className="grid gap-5 xl:grid-cols-[minmax(390px,440px)_minmax(560px,640px)] xl:items-center xl:justify-center">
+                <div className="flex min-w-0 items-start gap-3 xl:min-w-[390px]">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
                   </div>
@@ -4964,7 +4964,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full gap-4 md:grid-cols-2 xl:max-w-[560px] xl:justify-self-start">
+                <div className="mx-auto grid w-full max-w-[620px] gap-4 md:grid-cols-2 xl:justify-self-center">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
