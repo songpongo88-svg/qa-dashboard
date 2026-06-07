@@ -3304,6 +3304,14 @@ function SlideOverCaseDetail({
                       >
                         Share Case Detail Link
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateCaseDetailPdf("original")}
+                        className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                        title={`Generate ${caseItem.caseId} Original PDF`}
+                      >
+                        {caseItem.caseId} Original PDF
+                      </button>
 
                       {canSubmitAppeal ? (
                         <div className="space-y-2">
@@ -3338,7 +3346,7 @@ function SlideOverCaseDetail({
                           {caseItem.caseId} Appeal PDF
                         </button>
                       ) : null}
-                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length) ? (
+                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length || imageAssetCandidates.length) ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -3359,6 +3367,37 @@ function SlideOverCaseDetail({
                                 items: verifiedImageUrls,
                                 index: 0,
                                 downloadUrl: verifiedImageUrls[0],
+                              });
+                              return;
+                            }
+
+                            const fallbackImageCandidates = imageAssetCandidates.filter((item) => item?.previewUrl || item?.url);
+                            const firstFallback = fallbackImageCandidates[0];
+
+                            if (firstFallback?.isPdf) {
+                              const pdfTarget = firstFallback.rawUrl || firstFallback.url;
+                              setPreviewAsset({
+                                type: "pdf",
+                                url: getGoogleDrivePdfViewerUrl(pdfTarget) || pdfTarget,
+                                title: `${caseItem.caseId} Image Attachment PDF`,
+                                downloadUrl: normalizeAssetUrl(pdfTarget) || pdfTarget,
+                              });
+                              return;
+                            }
+
+                            const fallbackUrls = fallbackImageCandidates
+                              .map((item) => item.previewUrl || item.url)
+                              .filter((url): url is string => Boolean(url))
+                              .filter((url, index, arr) => arr.indexOf(url) === index);
+
+                            if (fallbackUrls.length) {
+                              setPreviewAsset({
+                                type: "image",
+                                url: fallbackUrls[0],
+                                title: `${caseItem.caseId} Case Image`,
+                                items: fallbackUrls,
+                                index: 0,
+                                downloadUrl: fallbackUrls[0],
                               });
                             }
                           }}
