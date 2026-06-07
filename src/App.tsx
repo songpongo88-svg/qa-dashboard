@@ -2802,6 +2802,32 @@ export default function App() {
     [profileOverrides, roleOverrides]
   );
 
+  const workspaceTeamName = useMemo(() => {
+    if (!currentUser) return "-";
+
+    const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
+    const currentUsername = normalize(currentUser.username);
+    const currentDisplayName = normalize(currentUser.displayName);
+    const currentAgentName = normalize(currentUser.agentName);
+
+    const matchedAccount = effectiveUserAccounts.find((account) => {
+      const accountValues = [
+        normalize(account.username),
+        normalize(account.displayName),
+        normalize(account.agentName),
+        normalize(account.email),
+      ].filter(Boolean);
+
+      return (
+        accountValues.includes(currentUsername) ||
+        accountValues.includes(currentDisplayName) ||
+        accountValues.includes(currentAgentName)
+      );
+    });
+
+    return String(matchedAccount?.teamName || "-").trim() || "-";
+  }, [currentUser, effectiveUserAccounts]);
+
   useEffect(() => {
     const syncRefreshKey = (value: unknown) => {
       const nextKey = Number(value || 0);
@@ -4835,13 +4861,24 @@ export default function App() {
 
                   <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-sm">
                     <div className="text-xs font-black">Robinhood QA Workspace</div>
-                    <div>User: {welcomeName}</div>
-                    <div>Role: {currentUser.role}</div>
-                    <div className="whitespace-nowrap">
-                      Version {buildMeta.displayVersion || buildMeta.version}
-                      {shortBuildHash ? `:${shortBuildHash}` : ""}
+                    <div>
+                      Team: <span className="font-black text-violet-950">{workspaceTeamName}</span>
                     </div>
-                    <div className="whitespace-nowrap">Login running time: {formatHeaderDateTime(liveNow)}</div>
+                    <div>
+                      User: <span className="font-black text-violet-950">{welcomeName}</span>
+                    </div>
+                    <div>
+                      Role: <span className="font-black text-violet-950">{currentUser.role}</span>
+                    </div>
+                    <div className="whitespace-nowrap">
+                      Version: <span className="font-black text-violet-950">
+                        {buildMeta.displayVersion || buildMeta.version}
+                        {shortBuildHash ? `:${shortBuildHash}` : ""}
+                      </span>
+                    </div>
+                    <div className="whitespace-nowrap">
+                      Login running time: <span className="font-black text-violet-950">{formatHeaderDateTime(liveNow)}</span>
+                    </div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
                       <span className="text-slate-300">โ€ข</span>
