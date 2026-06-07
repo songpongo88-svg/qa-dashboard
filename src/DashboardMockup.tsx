@@ -3018,7 +3018,7 @@ function SlideOverCaseDetail({
                         }
                         className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
                       >
-                        โ€น
+                        ‹
                       </button>
                       <button
                         type="button"
@@ -3036,7 +3036,7 @@ function SlideOverCaseDetail({
                         }
                         className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow hover:bg-white"
                       >
-                        โ€บ
+                        ›
                       </button>
                     </>
                   ) : null}
@@ -4843,9 +4843,7 @@ export default function DashboardMockup({
               <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
               <PanelBody className="space-y-3">
                 {!searchScopedCases.length ? (
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">
-                    เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธเนเธงเธเธ—เธตเนเน€เธฅเธทเธญเธ
-                  </div>
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">{"\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E43\u0E19\u0E0A\u0E48\u0E27\u0E07\u0E17\u0E35\u0E48\u0E40\u0E25\u0E37\u0E2D\u0E01"}</div>
                 ) : (
                   <>
                     <WeeklySnapshotCard
