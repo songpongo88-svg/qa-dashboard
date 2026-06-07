@@ -4875,7 +4875,7 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
+          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[20px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
@@ -4944,7 +4944,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-nowrap md:justify-end md:gap-x-5 md:gap-y-5 xl:max-w-[760px]">
+                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-nowrap md:justify-end md:gap-x-5 md:gap-y-5 xl:max-w-[560px]">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
@@ -4970,13 +4970,6 @@ export default function App() {
                       ...(rubricAllowed ? [{ value: "rubric", label: "Rubric" }] : []),
                     ]}
                   />
-                  <HeaderSelect
-                    label="User & Roles"
-                    helper="User, security, system"
-                    value={accountMenuDisplayValue}
-                    onChange={handleAccountMenuChange}
-                    options={accountOptions}
-                  />
                 </div>
 
                 <div className="hidden flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
@@ -5001,7 +4994,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <button
                 type="button"
                 onClick={openTaskInbox}
@@ -5020,6 +5013,77 @@ export default function App() {
                   {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread item(s)` : "Queue is clear"}
                 </div>
               </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                {roleAdminAllowed ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("user-roles")}
+                    className={`group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border px-3 py-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                      activeTab === "user-roles"
+                        ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
+                        : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                    }`}
+                  >
+                    <span className="text-2xl leading-none">👥</span>
+                    <span className="mt-2 text-[12px] font-black leading-tight">User & Roles</span>
+                  </button>
+                ) : null}
+
+                {usageLogAllowed ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("usage-log")}
+                    className={`group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border px-3 py-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                      activeTab === "usage-log"
+                        ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
+                        : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
+                    }`}
+                  >
+                    <span className="text-2xl leading-none">🕘</span>
+                    <span className="mt-2 text-[12px] font-black leading-tight">Activity Log</span>
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetChangePasswordState();
+                    setChangePasswordPromptReason("");
+                    setShowChangePasswordModal(true);
+                  }}
+                  className="group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border border-violet-200 bg-white px-3 py-3 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
+                >
+                  <span className="text-2xl leading-none">🔑</span>
+                  <span className="mt-2 text-[12px] font-black leading-tight">Change Password</span>
+                </button>
+
+                {hasRolePermission(currentUser, rolePermissions, "resetPassword") ||
+                PASSWORD_RESET_ADMIN_USERNAMES.has(currentUser.username.trim().toLowerCase()) ||
+                PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentUser.displayName.trim().toLowerCase()) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetPasswordModalState();
+                      setShowResetPasswordModal(true);
+                      void loadPasswordResetRequests();
+                    }}
+                    className="group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border border-violet-200 bg-white px-3 py-3 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
+                  >
+                    <span className="text-2xl leading-none">♻️</span>
+                    <span className="mt-2 text-[12px] font-black leading-tight">Password Reset</span>
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="group col-span-2 flex min-h-[58px] items-center justify-center gap-2 rounded-[22px] border border-rose-200 bg-white px-3 py-3 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
+                >
+                  <span className="text-xl leading-none">🚪</span>
+                  <span className="text-[12px] font-black leading-tight">Sign Out</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
