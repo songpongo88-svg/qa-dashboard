@@ -1753,6 +1753,36 @@ function getFirstAvailableHeaderValue(
   return fallback;
 }
 
+function getFuzzyHeaderValue(headerRow: any[], row: any[], keywords: string[], fallback: any = "") {
+  const normalizedKeywords = keywords
+    .map((keyword) => normalizeText(keyword).toLowerCase())
+    .filter(Boolean);
+
+  for (let index = 0; index < headerRow.length; index += 1) {
+    const headerText = String(headerRow[index] ?? "");
+    const normalized = normalizeText(headerText).toLowerCase();
+    const comparable = normalizeHeaderComparable(headerText).toLowerCase();
+
+    const hasKeyword = normalizedKeywords.some(
+      (keyword) => normalized.includes(keyword) || comparable.includes(keyword)
+    );
+
+    const hasThaiHint =
+      headerText.includes("\u0E20\u0E32\u0E1E") ||
+      headerText.includes("\u0E23\u0E39\u0E1B") ||
+      headerText.includes("\u0E41\u0E19\u0E1A");
+
+    if (!hasKeyword && !hasThaiHint) continue;
+
+    const value = row[index];
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
 function calcMergedFinalScore(baseTopics: Topic[], revisedTopics: Topic[]) {
   const revisedMap = new Map(revisedTopics.map((t) => [t.code, t]));
   const total = baseTopics.reduce((sum, base) => {
@@ -3308,9 +3338,9 @@ function SlideOverCaseDetail({
                         type="button"
                         onClick={() => handleGenerateCaseDetailPdf("original")}
                         className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                        title={`Generate ${caseItem.caseId} Original PDF`}
+                        title={`Generate $Generate Original PDF`}
                       >
-                        {caseItem.caseId} Original PDF
+                        Generate Original PDF
                       </button>
 
                       {canSubmitAppeal ? (
@@ -3346,7 +3376,7 @@ function SlideOverCaseDetail({
                           {caseItem.caseId} Appeal PDF
                         </button>
                       ) : null}
-                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length || imageAssetCandidates.length) ? (
+                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length || imageAssetCandidates.length || String(caseItem.caseImageUrl || '').trim()) ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -3702,7 +3732,41 @@ export default function DashboardMockup({
                   inquiryTh: String(inquiry || "-").trim(),
                   inquiryEn: String(inquiry || "-").trim(),
                   caseDescription: String(getFirstAvailableHeaderValue(v8Helper, row, ["Case Description", "Case Description / เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช"], "") || "").trim(),
-                  caseImageUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case Image URL", "Case Image"], "")),
+                  caseImageUrl: normalizeAssetUrl(
+                    getFirstAvailableHeaderValue(v8Helper, row, [
+                      "Case Image URL / ภาพประกอบเคส",
+                      "ภาพประกอบเคส",
+                      "รูปภาพเคส",
+                      "รูปเคส",
+                      "ลิงก์ภาพประกอบเคส",
+                      "ลิงก์รูปภาพ",
+                      "ไฟล์แนบ",
+                      "เอกสารแนบ",
+                      "แนบรูปภาพ",
+                      "Case Image URL",
+                      "Case Image",
+                      "Image URL",
+                      "Image Link",
+                      "Attachment URL",
+                      "Case Attachment",
+                      "Attachment",
+                      "Evidence URL",
+                      "Evidence",
+                      "Screenshot",
+                      "Photo",
+                      "Picture",
+                    ], "") ||
+                    getFuzzyHeaderValue(v8HeaderRow, row, [
+                      "case image",
+                      "image url",
+                      "image link",
+                      "attachment",
+                      "evidence",
+                      "screenshot",
+                      "photo",
+                      "picture",
+                    ], "")
+                  ),
                   casePdfUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF URL", "Case PDF"], caseId ? `/case-pdfs/${caseId}.pdf` : "")),
                   casePdfOriginalUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Original URL"], caseId ? `/case-pdfs/${caseId}-original.pdf` : "")),
                   casePdfRevisedUrl: normalizeAssetUrl(getFirstAvailableHeaderValue(v8Helper, row, ["Case PDF Revised URL"], caseId ? `/case-pdfs/${caseId}-revised.pdf` : "")),
@@ -4073,23 +4137,42 @@ export default function DashboardMockup({
 
             const caseDescription = String(rawCaseDescription || "").trim();
 
-            const caseImageUrl = normalizeAssetUrl(
+            const rawCaseImageUrl =
               getFirstAvailableHeaderValue(rawHelper, row, [
-                "Case Image URL / เธ เธฒเธเธเธฃเธฐเธเธญเธเน€เธเธช",
-                "เธ เธฒเธเธเธฃเธฐเธเธญเธเน€เธเธช",
+                "Case Image URL / ภาพประกอบเคส",
+                "ภาพประกอบเคส",
+                "รูปภาพเคส",
+                "รูปเคส",
+                "ลิงก์ภาพประกอบเคส",
+                "ลิงก์รูปภาพ",
+                "ไฟล์แนบ",
+                "เอกสารแนบ",
+                "แนบรูปภาพ",
                 "Case Image URL",
                 "Case Image",
                 "Image URL",
+                "Image Link",
                 "Attachment URL",
                 "Case Attachment",
                 "Attachment",
-                "Case Image Link",
-                "Image Link",
-                "Link เธ เธฒเธเธเธฃเธฐเธเธญเธเน€เธเธช",
-                "เธ เธฒเธเน€เธเธช",
-                "เธฃเธนเธเธ เธฒเธเน€เธเธช",
-              ], "")
-            );
+                "Evidence URL",
+                "Evidence",
+                "Screenshot",
+                "Photo",
+                "Picture",
+              ], "") ||
+              getFuzzyHeaderValue(rawHeaderRow, row, [
+                "case image",
+                "image url",
+                "image link",
+                "attachment",
+                "evidence",
+                "screenshot",
+                "photo",
+                "picture",
+              ], "");
+
+            const caseImageUrl = normalizeAssetUrl(rawCaseImageUrl);
 
             const casePdfOriginalUrl = normalizeAssetUrl(
               getFirstAvailableHeaderValue(rawHelper, row, [
