@@ -655,6 +655,41 @@ function summarizeCases(cases: CaseItem[]): SummaryCards {
   };
 }
 
+function getPeriodRowSortRank(label: string, groupBy: "week" | "month" | "year" | "agent") {
+  const value = String(label || "").trim();
+
+  if (groupBy === "week") {
+    const dates = value.match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
+    const lastDate = dates?.[dates.length - 1];
+    const parsed = excelDateToJSDate(lastDate);
+    return parsed?.getTime() ?? 0;
+  }
+
+  if (groupBy === "month") {
+    const parsed = parseMonthLabelDate(value);
+    return parsed?.getTime() ?? 0;
+  }
+
+  if (groupBy === "year") {
+    const year = Number(value);
+    return Number.isFinite(year) ? year : 0;
+  }
+
+  return 0;
+}
+
+function sortPeriodRows(rows: PeriodRow[], groupBy: "week" | "month" | "year" | "agent") {
+  if (groupBy === "agent") {
+    return rows.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  return rows.sort((a, b) => {
+    const rankDiff = getPeriodRowSortRank(b.label, groupBy) - getPeriodRowSortRank(a.label, groupBy);
+    if (rankDiff !== 0) return rankDiff;
+    return b.label.localeCompare(a.label);
+  });
+}
+
 function groupCases(cases: CaseItem[], groupBy: "week" | "month" | "year" | "agent"): PeriodRow[] {
   const map = new Map<string, CaseItem[]>();
   cases.forEach((item) => {
@@ -679,7 +714,11 @@ function groupCases(cases: CaseItem[], groupBy: "week" | "month" | "year" | "age
         incentive: summary.incentive,
       };
     })
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => {
+      const rankDiff = getPeriodRowSortRank(b.label, groupBy) - getPeriodRowSortRank(a.label, groupBy);
+      if (rankDiff !== 0) return rankDiff;
+      return groupBy === "agent" ? a.label.localeCompare(b.label) : b.label.localeCompare(a.label);
+    });
 }
 
 function buildAgentRowsWithMaster(
@@ -1483,18 +1522,19 @@ export default function SummaryMockup({
   }, [roleScopedAgentList.length, viewMode]);
 
   const monthOptions = useMemo(() => {
-    const keys = [...new Set(allCases.map((item) => item.monthKey).filter(Boolean))].sort();
+    const keys = [...new Set(allCases.map((item) => item.monthKey).filter(Boolean))].sort((a, b) => b.localeCompare(a));
     return [{ value: "all", label: "All Months" }].concat(keys.map((key) => ({ value: key, label: allCases.find((item) => item.monthKey === key)?.monthLabel || key })));
   }, [allCases]);
 
   const weekOptions = useMemo(() => {
     const filtered = selectedMonth === "all" ? allCases : allCases.filter((item) => item.monthKey === selectedMonth);
-    const labels = [...new Set(filtered.map((item) => item.weekLabel).filter(Boolean))].sort();
+    const labels = [...new Set(filtered.map((item) => item.weekLabel).filter(Boolean))]
+      .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
     return [{ value: "all", label: "All Weeks" }].concat(labels.map((label) => ({ value: label, label })));
   }, [allCases, selectedMonth]);
 
   const yearOptions = useMemo(() => {
-    const keys = [...new Set(allCases.map((item) => item.yearKey).filter(Boolean))].sort();
+    const keys = [...new Set(allCases.map((item) => item.yearKey).filter(Boolean))].sort((a, b) => b.localeCompare(a));
     return [{ value: "all", label: "All Years" }].concat(keys.map((key) => ({ value: key, label: key })));
   }, [allCases]);
 
@@ -1526,7 +1566,7 @@ export default function SummaryMockup({
     if (!analyticsMonthKey || analyticsMonthKey === "unknown") return [];
 
     if (effectiveSelectedAgent !== "all") {
-      return buildRecentMonthKeys(analyticsMonthKey, 3).map((monthKey) => {
+      return buildRecentMonthKeys(analyticsMonthKey, 3).reverse().map((monthKey) => {
         const scopedCases = allCases.filter((item) => {
           if (!isSameAgent(item.agent, effectiveSelectedAgent)) return false;
           if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
