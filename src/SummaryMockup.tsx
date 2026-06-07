@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
+import LoadingMascot from "./LoadingMascot";
 import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
@@ -1663,7 +1664,7 @@ export default function SummaryMockup({
   }, [viewMode]);
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-100"><div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">กำลังโหลด Summary Dashboard...</div></div>;
+    return <LoadingMascot message="กำลังโหลดข้อมูลสรุป" subMessage="กรุณารอสักครู่..." />;
   }
 
   if (loadError) {

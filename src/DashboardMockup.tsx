@@ -8,6 +8,7 @@ import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
+import LoadingMascot from "./LoadingMascot";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import {
   getIncentivePolicyKey,
@@ -4578,13 +4579,7 @@ export default function DashboardMockup({
       : monthOptions.find((m) => m.value === selectedMonthKey)?.label || "-";
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          {"กำลังโหลด QA_RawData_January-February2026.xlsx + QA_RawData_March-May2026.xlsx + Appeal ROWDATA..."}
-        </div>
-      </div>
-    );
+    return <LoadingMascot message="กำลังโหลดข้อมูล" subMessage="กรุณารอสักครู่..." />;
   }
 
   if (loadError) {
