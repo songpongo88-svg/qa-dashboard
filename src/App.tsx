@@ -5310,7 +5310,13 @@ export default function App() {
                   onClick={handleLogout}
                   className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white px-1.5 py-2 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
                 >
-                  <span className="text-[18px] leading-none">&#9211;</span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 17l5-5-5-5" />
+                        <path d="M15 12H3" />
+                        <path d="M12 3h6a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-6" />
+                      </svg>
+                    </span>
                   <span className="mt-1 text-[9.5px] font-black leading-tight">Sign Out</span>
                 </button>
               </div>
@@ -5513,6 +5519,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 
