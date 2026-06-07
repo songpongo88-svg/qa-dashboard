@@ -3859,9 +3859,9 @@ export default function DashboardMockup({
               throw new Error(`เนเธกเนเธเธเนเธ–เธง Header เนเธเนเธเธฅเน ${fileName}`);
             }
 
-            const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
-            const rawHelper = buildHeaderHelpers(rawHeaderRow);
-            const auditDateColumnIndex = rawHeaderRow.findIndex(
+            const headerRow = (rawRows[rawHeaderIndex] || []) as any[];
+            const rawHelper = buildHeaderHelpers(headerRow);
+            const auditDateColumnIndex = headerRow.findIndex(
               (header) => normalizeText(header) === "audit date"
             );
 
@@ -3869,7 +3869,7 @@ export default function DashboardMockup({
               fileName,
               rawRows,
               rawHeaderIndex,
-              rawHeaderRow,
+              headerRow,
               rawDataRows: rawRows.slice(rawHeaderIndex + 1),
               rawHelper,
               auditDateColumnIndex,
@@ -4161,7 +4161,7 @@ export default function DashboardMockup({
                 "Photo",
                 "Picture",
               ], "") ||
-              getFuzzyHeaderValue(rawHeaderRow, row, [
+              getFuzzyHeaderValue(headerRow, row, [
                 "case image",
                 "image url",
                 "image link",
@@ -5735,4 +5735,5 @@ export default function DashboardMockup({
     </div>
   );
 }
+
 
