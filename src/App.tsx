@@ -5023,7 +5023,7 @@ export default function App() {
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(470px,530px)_minmax(390px,460px)] xl:items-center xl:justify-start">
+              <div className="grid gap-5 xl:grid-cols-[minmax(520px,580px)_minmax(420px,500px)] xl:items-center xl:justify-start">
                 <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[500px]">
                   <div className="flex w-[166px] shrink-0 items-stretch">
                     <input
@@ -5054,12 +5054,12 @@ export default function App() {
                         <span className="text-4xl font-black tracking-tight">{workspaceInitials}</span>
                       )}
 
-                      <div className="absolute inset-x-2 bottom-2 z-20 flex translate-y-2 gap-1.5 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
+                      <div className="absolute inset-x-2 bottom-2 z-20 grid grid-cols-2 gap-2 rounded-2xl bg-black/20 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100">
                         <button
                           type="button"
                           onClick={() => profilePhotoInputRef.current?.click()}
                           disabled={workspaceProfilePhotoUploading}
-                          className="flex-1 rounded-full bg-white/95 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="w-full min-w-0 whitespace-nowrap rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Change
                         </button>
@@ -5069,7 +5069,7 @@ export default function App() {
                             type="button"
                             onClick={handleWorkspaceProfilePhotoDefault}
                             disabled={workspaceProfilePhotoUploading}
-                            className="flex-1 rounded-full bg-violet-700/95 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full min-w-0 whitespace-nowrap rounded-full bg-violet-700/95 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             Default
                           </button>
@@ -5143,7 +5143,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[420px] gap-3 md:grid-cols-2 xl:justify-self-start">
+                <div className="grid w-full max-w-[480px] gap-3 md:grid-cols-2 xl:justify-self-center">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
