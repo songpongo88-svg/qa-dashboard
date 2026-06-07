@@ -23,9 +23,13 @@ export default function LoadingMascot({
           }
 
           @keyframes qaOwlBlink {
-            0%, 88%, 100% {
+            0%, 72%, 100% {
               opacity: 0;
             }
+            78%, 90% {
+              opacity: 1;
+            }
+          }
             91%, 95% {
               opacity: 1;
             }
@@ -58,7 +62,7 @@ export default function LoadingMascot({
           }
 
           .qa-owl-blink {
-            animation: qaOwlBlink 3.2s ease-in-out infinite;
+            animation: qaOwlBlink 2.4s ease-in-out infinite;
           }
 
           .qa-loading-dot {
@@ -112,3 +116,4 @@ export default function LoadingMascot({
     </div>
   );
 }
+
