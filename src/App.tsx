@@ -38,6 +38,7 @@ import {
 } from "./passwordResetStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
+import { fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
 
 type UserRole = string;
 type RolePermissionKey =
@@ -2756,6 +2757,9 @@ export default function App() {
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [liveNow, setLiveNow] = useState(() => new Date());
+  const [workspaceProfilePhoto, setWorkspaceProfilePhoto] = useState("");
+  const [workspaceProfilePhotoUploading, setWorkspaceProfilePhotoUploading] = useState(false);
+  const [workspaceProfilePhotoError, setWorkspaceProfilePhotoError] = useState("");
   const [qaDataRefreshKey, setQaDataRefreshKey] = useState(() => {
     const stored = Number(window.localStorage.getItem(QA_DATA_REFRESH_STORAGE_KEY) || 0);
     return Number.isFinite(stored) ? stored : 0;
@@ -2789,6 +2793,7 @@ export default function App() {
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestIncomingChatRef = useRef("");
+  const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const loginAgentScopeSeededRef = useRef(false);
 
   const welcomeName = useMemo(() => {
@@ -2853,6 +2858,40 @@ export default function App() {
 
     return String(matchedAccount?.teamLead || "-").trim() || "-";
   }, [currentUser, effectiveUserAccounts]);
+
+  const workspaceInitials = useMemo(() => {
+    const source = welcomeName || currentUser?.username || "";
+    const parts = source.trim().split(/\s+/).filter(Boolean);
+    const initials = parts.length >= 2
+      ? `${parts[0][0] || ""}${parts[1][0] || ""}`
+      : source.slice(0, 2);
+    return initials.toUpperCase() || "QA";
+  }, [currentUser, welcomeName]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspaceProfilePhoto() {
+      if (!currentUser?.username) {
+        setWorkspaceProfilePhoto("");
+        setWorkspaceProfilePhotoError("");
+        return;
+      }
+
+      setWorkspaceProfilePhotoError("");
+      const storedPhoto = await fetchStoredProfilePhoto(currentUser.username);
+      if (!cancelled) {
+        setWorkspaceProfilePhoto(storedPhoto?.photoDataUrl || "");
+      }
+    }
+
+    void loadWorkspaceProfilePhoto();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.username]);
+
 
   useEffect(() => {
     const syncRefreshKey = (value: unknown) => {
@@ -4076,6 +4115,75 @@ export default function App() {
     void loadInboxTasks();
   };
 
+  function resizeProfilePhotoFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        reject(new Error("Please select an image file."));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Cannot read selected image."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Cannot load selected image."));
+        img.onload = () => {
+          const size = 480;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+
+          if (!ctx) {
+            reject(new Error("Cannot prepare image canvas."));
+            return;
+          }
+
+          const scale = Math.max(size / img.width, size / img.height);
+          const drawWidth = img.width * scale;
+          const drawHeight = img.height * scale;
+          const drawX = (size - drawWidth) / 2;
+          const drawY = (size - drawHeight) / 2;
+
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, size, size);
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+          resolve(canvas.toDataURL("image/jpeg", 0.86));
+        };
+        img.src = String(reader.result || "");
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const handleWorkspaceProfilePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file || !currentUser) return;
+
+    setWorkspaceProfilePhotoUploading(true);
+    setWorkspaceProfilePhotoError("");
+
+    try {
+      const photoDataUrl = await resizeProfilePhotoFile(file);
+
+      await upsertStoredProfilePhoto({
+        username: currentUser.username,
+        photoDataUrl,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser.displayName || currentUser.username,
+      });
+
+      setWorkspaceProfilePhoto(photoDataUrl);
+    } catch (error) {
+      setWorkspaceProfilePhotoError(error instanceof Error ? error.message : "Cannot update profile photo.");
+    } finally {
+      setWorkspaceProfilePhotoUploading(false);
+    }
+  };
+
   const handleLogout = () => {
     if (currentUser && !maintenanceBlocked) {
       void logUsageEvent(currentUser, "logout", { tab: activeTab });
@@ -4899,10 +5007,49 @@ export default function App() {
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(390px,440px)_minmax(560px,640px)] xl:items-center xl:justify-center">
-                <div className="flex min-w-0 items-start gap-3 xl:min-w-[390px]">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
+              <div className="grid gap-5 xl:grid-cols-[minmax(440px,500px)_minmax(520px,600px)] xl:items-center xl:justify-start">
+                <div className="flex min-w-0 items-start gap-4 xl:min-w-[440px]">
+                  <div className="flex w-[74px] shrink-0 flex-col items-center gap-1.5">
+                    <input
+                      ref={profilePhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleWorkspaceProfilePhotoChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => profilePhotoInputRef.current?.click()}
+                      title={workspaceProfilePhotoError || "Change profile photo"}
+                      className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-violet-200 bg-gradient-to-br from-violet-100 via-white to-fuchsia-100 text-violet-700 shadow-[0_12px_30px_rgba(88,28,135,0.12)] transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_16px_38px_rgba(88,28,135,0.18)]"
+                    >
+                      {workspaceProfilePhoto ? (
+                        <img
+                          src={workspaceProfilePhoto}
+                          alt={welcomeName ? `${welcomeName} profile photo` : "Profile photo"}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-lg font-black tracking-tight">{workspaceInitials}</span>
+                      )}
+
+                      <span className="absolute inset-0 flex items-center justify-center bg-violet-950/0 text-[9px] font-black uppercase tracking-[0.08em] text-white opacity-0 transition group-hover:bg-violet-950/45 group-hover:opacity-100">
+                        Change
+                      </span>
+
+                      {workspaceProfilePhotoUploading ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-white/75 text-[10px] font-black text-violet-700">
+                          Saving...
+                        </span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => profilePhotoInputRef.current?.click()}
+                      className="text-[10px] font-black leading-none text-violet-700 transition hover:text-violet-900"
+                    >
+                      Change Photo
+                    </button>
                   </div>
 
                   <div className="min-w-0 rounded-[22px] border border-violet-100 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-[0_10px_26px_rgba(88,28,135,0.08)]">
@@ -4964,7 +5111,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="mx-auto grid w-full max-w-[620px] gap-4 md:grid-cols-2 xl:justify-self-center">
+                <div className="grid w-full max-w-[600px] gap-4 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
