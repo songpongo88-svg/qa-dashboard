@@ -4888,25 +4888,31 @@ export default function App() {
                   <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-sm">
                     <div className="text-xs font-black">Robinhood QA Workspace</div>
                     <div>
-                      User: <span className="font-black text-violet-700">{welcomeName}</span>
+                      <span className="font-black text-slate-950">User:</span>{" "}
+                      <span className="font-black text-violet-700">{welcomeName}</span>
                     </div>
                     <div>
-                      Team Lead: <span className="font-black text-violet-700">{workspaceTeamLeadName}</span>
+                      <span className="font-black text-slate-950">Team Lead:</span>{" "}
+                      <span className="font-black text-violet-700">{workspaceTeamLeadName}</span>
                     </div>
                     <div>
-                      Team: <span className="font-black text-violet-700">{workspaceTeamName}</span>
+                      <span className="font-black text-slate-950">Team:</span>{" "}
+                      <span className="font-black text-violet-700">{workspaceTeamName}</span>
                     </div>
                     <div>
-                      Role: <span className="font-black text-violet-700">{currentUser.role}</span>
+                      <span className="font-black text-slate-950">Role:</span>{" "}
+                      <span className="font-black text-violet-700">{currentUser.role}</span>
                     </div>
                     <div className="whitespace-nowrap">
-                      Version: <span className="font-black text-violet-700">
+                      <span className="font-black text-slate-950">Version:</span>{" "}
+                      <span className="font-black text-violet-700">
                         {buildMeta.displayVersion || buildMeta.version}
                         {shortBuildHash ? `:${shortBuildHash}` : ""}
                       </span>
                     </div>
                     <div className="whitespace-nowrap">
-                      Login running time: <span className="font-black text-violet-700">{formatHeaderDateTime(liveNow)}</span>
+                      <span className="font-black text-slate-950">Login running time:</span>{" "}
+                      <span className="font-black text-violet-700">{formatHeaderDateTime(liveNow)}</span>
                     </div>
                     <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span>{currentUser.role}</span>
