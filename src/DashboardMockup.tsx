@@ -272,7 +272,7 @@ function compactText(value: unknown) {
 
 function normalizeHeaderComparable(value: unknown) {
   return normalizeText(value)
-    .replace(/\s*\(\s*\d+\s*(?:เธเธฐเนเธเธ|point|points)\s*\)\s*$/i, "")
+    .replace(/\s*\(\s*\d+\s*(?:คะแนน|point|points)\s*\)\s*$/i, "")
     .trim();
 }
 
@@ -1465,7 +1465,7 @@ function CaseDetailTopicTable({
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                   <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                    {row.shownTopic.comment || "เธขเธฑเธเนเธกเนเธกเธต Evaluation Comment"}
+                    {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
                   </div>
                 </div>
               )}
@@ -3402,7 +3402,7 @@ function SlideOverCaseDetail({
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">{"\u{1F4AC}"}</span>
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
-                      <div className="mt-1 text-xs text-slate-500">{"\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E23\u0E30\u0E40\u0E14\u0E47\u0E19\u0E17\u0E35\u0E48\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E40\u0E02\u0E49\u0E32\u0E21\u0E32\u0E43\u0E19\u0E40\u0E04\u0E2A\u0E19\u0E35\u0E49"}</div>
+                      <div className="mt-1 text-xs text-slate-500">{"ข้อความหรือประเด็นที่ลูกค้าติดต่อเข้ามาในเคสนี้"}</div>
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -3415,7 +3415,7 @@ function SlideOverCaseDetail({
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">{"\u{1F4DD}"}</span>
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
-                      <div className="mt-1 text-xs text-slate-500">{"\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E41\u0E25\u0E30\u0E1A\u0E23\u0E34\u0E1A\u0E17\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E15\u0E34\u0E21\u0E02\u0E2D\u0E07\u0E40\u0E04\u0E2A\u0E19\u0E35\u0E49"}</div>
+                      <div className="mt-1 text-xs text-slate-500">{"รายละเอียดและบริบทเพิ่มเติมของเคสนี้"}</div>
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-fuchsia-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -4581,7 +4581,7 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-violet-200 bg-white px-6 py-5 text-slate-700 shadow-sm">
-          เธเธณเธฅเธฑเธเนเธซเธฅเธ” QA_RawData_March-May2026.xlsx + Appeal ROWDATA...
+          {"กำลังโหลด QA_RawData_January-February2026.xlsx + QA_RawData_March-May2026.xlsx + Appeal ROWDATA..."}
         </div>
       </div>
     );
@@ -4591,11 +4591,10 @@ export default function DashboardMockup({
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff] p-6">
         <div className="max-w-xl rounded-3xl border border-rose-200 bg-white px-6 py-5 text-rose-700 shadow-sm">
-          <div className="text-lg font-semibold">เนเธซเธฅเธ”เนเธเธฅเนเนเธกเนเธชเธณเน€เธฃเนเธ</div>
+          <div className="text-lg font-semibold">{"โหลดไฟล์ไม่สำเร็จ"}</div>
           <div className="mt-2 text-sm">{loadError}</div>
           <div className="mt-3 text-sm text-slate-600">
-            เธ•เธฃเธงเธเธชเธญเธเธงเนเธฒเนเธเธฅเนเธญเธขเธนเนเธ—เธตเน public/QA_RawData_March-May2026.xlsx เนเธฅเธฐเนเธเธฅเน appeal เนเธเนเธเธทเนเธญเนเธ”เธเธทเนเธญเธซเธเธถเนเธเนเธ:
-            Appleal ROWDATA.xlsx / Appeal ROWDATA.xlsx / Appeal_ROWDATA.xlsx
+            {"ตรวจสอบว่าไฟล์อยู่ใน public ครบตามชื่อที่กำหนด: QA_RawData_January-February2026.xlsx / QA_RawData_March-May2026.xlsx / Appeal ROWDATA.xlsx"}
           </div>
         </div>
       </div>
@@ -4615,7 +4614,7 @@ export default function DashboardMockup({
       <PageHero
         eyebrow="QA Dashboard"
         title="Agent Performance Dashboard"
-        subtitle="Dashboard / Case Detail เธเธฃเนเธญเธกเธเนเธญเธกเธนเธฅ Original เนเธฅเธฐ Revised เธเธฒเธ QA_RawData_March-May2026 + Appeal ROWDATA"
+        subtitle={"Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData_January-February2026 + QA_RawData_March-May2026 + Appeal ROWDATA"}
       />
       {false ? (
       <div>
