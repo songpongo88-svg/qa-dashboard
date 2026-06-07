@@ -18,9 +18,9 @@ export default function PageHero({
 }: PageHeroProps) {
   return (
     <div className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 ${className}`}>
-      <div className="mx-auto max-w-[1720px] px-6 py-9 lg:px-8 lg:py-10">
-        <div className="flex flex-col gap-6 lg:min-h-[150px] lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-h-[118px] max-w-4xl flex-col justify-center">
+      <div className="mx-auto max-w-[1720px] px-6 py-7 lg:px-8 lg:py-8">
+        <div className="flex flex-col gap-6 lg:min-h-[132px] lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-h-[112px] max-w-4xl flex-col justify-center lg:order-2 lg:items-end lg:text-right">
             <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
               {eyebrow}
             </div>
@@ -29,7 +29,7 @@ export default function PageHero({
             </div>
           </div>
 
-          <div className="flex min-w-[320px] max-w-[680px] items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm lg:self-center">
+          <div className="flex min-w-[320px] max-w-[620px] items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm lg:order-1 lg:self-center">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-[28px] border border-white/20 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
               <img
                 src="/robinhood-logo.png"
