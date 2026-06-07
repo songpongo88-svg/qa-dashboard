@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { fetchStoredEvaluations } from "./evaluationStore";
@@ -1643,7 +1643,7 @@ export default function SummaryMockup({
     }
   }, [filteredCases, viewMode, availableAgents, selectedMonth]);
 
-  const summaryTableShowIncentive = viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary";
+  const summaryTableShowIncentive = viewMode === "monthly-team-summary";
 
   const firstColLabel = useMemo(() => {
     switch (viewMode) {
@@ -1800,3 +1800,4 @@ export default function SummaryMockup({
     </div>
   );
 }
+
