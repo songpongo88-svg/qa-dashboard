@@ -4875,7 +4875,7 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[20px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
@@ -4994,7 +4994,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={openTaskInbox}
@@ -5014,48 +5014,51 @@ export default function App() {
                 </div>
               </button>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {roleAdminAllowed ? (
                   <button
                     type="button"
+                    title="User & Roles"
                     onClick={() => setActiveTab("user-roles")}
-                    className={`group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border px-3 py-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    className={`group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       activeTab === "user-roles"
                         ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
                         : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                     }`}
                   >
-                    <span className="text-2xl leading-none">👥</span>
-                    <span className="mt-2 text-[12px] font-black leading-tight">User & Roles</span>
+                    <span className="text-[18px] leading-none">▣</span>
+                    <span className="mt-1 text-[9.5px] font-black leading-tight">Users</span>
                   </button>
                 ) : null}
 
                 {usageLogAllowed ? (
                   <button
                     type="button"
+                    title="Activity Log"
                     onClick={() => setActiveTab("usage-log")}
-                    className={`group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border px-3 py-3 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    className={`group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       activeTab === "usage-log"
                         ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
                         : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                     }`}
                   >
-                    <span className="text-2xl leading-none">🕘</span>
-                    <span className="mt-2 text-[12px] font-black leading-tight">Activity Log</span>
+                    <span className="text-[18px] leading-none">◷</span>
+                    <span className="mt-1 text-[9.5px] font-black leading-tight">Log</span>
                   </button>
                 ) : null}
 
                 <button
                   type="button"
+                  title="Change Password"
                   onClick={() => {
                     resetChangePasswordState();
                     setChangePasswordPromptReason("");
                     setShowChangePasswordModal(true);
                   }}
-                  className="group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border border-violet-200 bg-white px-3 py-3 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
+                  className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
                 >
-                  <span className="text-2xl leading-none">🔑</span>
-                  <span className="mt-2 text-[12px] font-black leading-tight">Change Password</span>
+                  <span className="text-[18px] leading-none">◆</span>
+                  <span className="mt-1 text-[9.5px] font-black leading-tight">Password</span>
                 </button>
 
                 {hasRolePermission(currentUser, rolePermissions, "resetPassword") ||
@@ -5063,25 +5066,27 @@ export default function App() {
                 PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentUser.displayName.trim().toLowerCase()) ? (
                   <button
                     type="button"
+                    title="Password Reset"
                     onClick={() => {
                       resetPasswordModalState();
                       setShowResetPasswordModal(true);
                       void loadPasswordResetRequests();
                     }}
-                    className="group flex min-h-[82px] flex-col items-center justify-center rounded-[22px] border border-violet-200 bg-white px-3 py-3 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
+                    className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
                   >
-                    <span className="text-2xl leading-none">♻️</span>
-                    <span className="mt-2 text-[12px] font-black leading-tight">Password Reset</span>
+                    <span className="text-[18px] leading-none">↻</span>
+                    <span className="mt-1 text-[9.5px] font-black leading-tight">Reset</span>
                   </button>
                 ) : null}
 
                 <button
                   type="button"
+                  title="Sign Out"
                   onClick={handleLogout}
-                  className="group col-span-2 flex min-h-[58px] items-center justify-center gap-2 rounded-[22px] border border-rose-200 bg-white px-3 py-3 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
+                  className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white px-1.5 py-2 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
                 >
-                  <span className="text-xl leading-none">🚪</span>
-                  <span className="text-[12px] font-black leading-tight">Sign Out</span>
+                  <span className="text-[18px] leading-none">⎋</span>
+                  <span className="mt-1 text-[9.5px] font-black leading-tight">Sign Out</span>
                 </button>
               </div>
             </div>
