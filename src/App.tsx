@@ -5023,9 +5023,9 @@ export default function App() {
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(500px,560px)_minmax(390px,460px)] xl:items-center xl:justify-start">
+              <div className="grid gap-5 xl:grid-cols-[minmax(470px,530px)_minmax(390px,460px)] xl:items-center xl:justify-start">
                 <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[500px]">
-                  <div className="flex w-[150px] shrink-0 flex-col items-center">
+                  <div className="flex w-[166px] shrink-0 items-stretch">
                     <input
                       ref={profilePhotoInputRef}
                       type="file"
@@ -5033,43 +5033,55 @@ export default function App() {
                       onChange={handleWorkspaceProfilePhotoChange}
                       className="hidden"
                     />
-                    <button
-                      type="button"
-                      onClick={() => profilePhotoInputRef.current?.click()}
+                    <div
                       title={workspaceProfilePhotoError || "Change profile photo"}
-                      className="group relative flex h-[154px] w-[136px] items-center justify-center overflow-hidden rounded-[26px] border border-violet-200 bg-gradient-to-br from-violet-100 via-white to-fuchsia-100 text-violet-700 shadow-[0_16px_38px_rgba(88,28,135,0.14)] transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_22px_48px_rgba(88,28,135,0.20)]"
+                      className="group relative flex h-[172px] w-[160px] items-center justify-center overflow-hidden rounded-[26px] border border-violet-200 bg-gradient-to-br from-violet-100 via-white to-fuchsia-100 text-violet-700 shadow-[0_16px_38px_rgba(88,28,135,0.14)] transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_22px_48px_rgba(88,28,135,0.20)]"
                     >
+                      <button
+                        type="button"
+                        onClick={() => profilePhotoInputRef.current?.click()}
+                        className="absolute inset-0 z-10"
+                        aria-label="Change profile photo"
+                      />
+
                       {workspaceProfilePhoto ? (
                         <img
                           src={workspaceProfilePhoto}
-                          alt={welcomeName ? `${welcomeName} profile photo` : "Profile photo"}
+                          alt={welcomeName ? welcomeName + " profile photo" : "Profile photo"}
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <span className="text-3xl font-black tracking-tight">{workspaceInitials}</span>
+                        <span className="text-4xl font-black tracking-tight">{workspaceInitials}</span>
                       )}
 
-                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-violet-950/75 via-violet-950/45 to-transparent px-2 pb-3 pt-8 text-[10px] font-black uppercase tracking-[0.08em] text-white opacity-0 transition group-hover:opacity-100">
-                        Change Photo
-                      </span>
+                      <div className="absolute inset-x-2 bottom-2 z-20 flex translate-y-2 gap-1.5 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => profilePhotoInputRef.current?.click()}
+                          disabled={workspaceProfilePhotoUploading}
+                          className="flex-1 rounded-full bg-white/95 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Change
+                        </button>
+
+                        {workspaceProfilePhoto ? (
+                          <button
+                            type="button"
+                            onClick={handleWorkspaceProfilePhotoDefault}
+                            disabled={workspaceProfilePhotoUploading}
+                            className="flex-1 rounded-full bg-violet-700/95 px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.06em] text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Default
+                          </button>
+                        ) : null}
+                      </div>
 
                       {workspaceProfilePhotoUploading ? (
-                        <span className="absolute inset-0 flex items-center justify-center bg-white/80 text-[11px] font-black text-violet-700">
+                        <span className="absolute inset-0 z-30 flex items-center justify-center bg-white/80 text-[11px] font-black text-violet-700">
                           Saving...
                         </span>
                       ) : null}
-                    </button>
-                    {workspaceProfilePhoto ? (
-                      <button
-                        type="button"
-                        onClick={handleWorkspaceProfilePhotoDefault}
-                        disabled={workspaceProfilePhotoUploading}
-                        className="mt-1.5 rounded-full border border-violet-200 bg-white/90 px-3 py-1 text-[10px] font-black text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        title="Default Photo"
-                      >
-                        Default
-                      </button>
-                    ) : null}
+                    </div>
                   </div>
 
                   <div className="min-w-0 rounded-[22px] border border-violet-100 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-[0_10px_26px_rgba(88,28,135,0.08)]">
@@ -5131,7 +5143,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[430px] gap-3 md:grid-cols-2 xl:justify-self-start">
+                <div className="grid w-full max-w-[420px] gap-3 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
