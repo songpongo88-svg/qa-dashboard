@@ -171,12 +171,12 @@ const NEW_POLICY_START_MONTH_KEY = "2026-04";
 const JUNE_2026_POLICY_START_MONTH_KEY = "2026-06";
 
 const JAN_FEB_2026_TOPIC_MASTER = [
-  { code: "1", label: "เน€เธเธดเธ”-เธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
-  { code: "2", label: "เธงเธดเน€เธเธฃเธฒเธฐเธซเน/เนเธเนเนเธ", max: 30 },
-  { code: "3", label: "เธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฑเนเธเธ•เธญเธ", max: 20 },
-  { code: "4", label: "เธเธงเธฒเธกเธชเธธเธ เธฒเธ", max: 10 },
-  { code: "5", label: "เธ เธฒเธฉเธฒ", max: 20 },
-  { code: "6", label: "เธฃเธฐเธขเธฐเน€เธงเธฅเธฒ", max: 10 },
+  { code: "1", label: "\u0E40\u0E1B\u0E34\u0E14-\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E2A\u0E19\u0E17\u0E19\u0E32", max: 10 },
+  { code: "2", label: "\u0E27\u0E34\u0E40\u0E04\u0E23\u0E32\u0E30\u0E2B\u0E4C/\u0E41\u0E01\u0E49\u0E44\u0E02", max: 30 },
+  { code: "3", label: "\u0E1B\u0E0F\u0E34\u0E1A\u0E31\u0E15\u0E34\u0E15\u0E32\u0E21\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19", max: 20 },
+  { code: "4", label: "\u0E04\u0E27\u0E32\u0E21\u0E2A\u0E38\u0E20\u0E32\u0E1E", max: 10 },
+  { code: "5", label: "\u0E20\u0E32\u0E29\u0E32", max: 20 },
+  { code: "6", label: "\u0E23\u0E30\u0E22\u0E30\u0E40\u0E27\u0E25\u0E32", max: 10 },
 ] as const;
 
 const LEGACY_TOPIC_MASTER = [
@@ -200,17 +200,17 @@ const LEGACY_TOPIC_MASTER = [
 ] as const;
 
 const APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "เธกเธฒเธ•เธฃเธเธฒเธเธเธฒเธฃเธ—เธฑเธเธ—เธฒเธขเนเธฅเธฐเธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
-  { code: "1.2", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธก PDPA / Policy / เธเนเธญเธเธณเธซเธเธ”", max: 10 },
-  { code: "1.3", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฃเธฐเธเธงเธเธเธฒเธฃเนเธฅเธฐ SLA", max: 10 },
-  { code: "2.1", label: "เธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
-  { code: "2.2", label: "เธเธงเธฒเธกเธเธฃเธเธ–เนเธงเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
-  { code: "2.3", label: "เธเธงเธฒเธกเธเธฑเธ”เน€เธเธเธเธญเธเธเธฑเนเธเธ•เธญเธเนเธฅเธฐเนเธซเธฅเนเธเธญเนเธฒเธเธญเธดเธ", max: 5 },
-  { code: "3.1", label: "เธเธฒเธฃเธงเธดเน€เธเธฃเธฒเธฐเธซเนเนเธฅเธฐเนเธเนเนเธเธเธฑเธเธซเธฒเนเธ”เนเธ•เธฃเธเธเธธเธ”", max: 15 },
-  { code: "3.2", label: "Ownership เนเธฅเธฐเธเธฒเธฃเนเธเนเธ Next Step", max: 10 },
-  { code: "4.1", label: "เนเธเธฃเธเธชเธฃเนเธฒเธเธเนเธญเธเธงเธฒเธกเนเธฅเธฐเธเธงเธฒเธกเธญเนเธฒเธเธเนเธฒเธข", max: 5 },
-  { code: "4.2", label: "เธเธงเธฒเธกเธเธฃเธฐเธเธฑเธเนเธฅเธฐเธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธ เธฒเธฉเธฒ", max: 5 },
-  { code: "4.3", label: "เธเนเธณเน€เธชเธตเธขเธเนเธฅเธฐเธเธงเธฒเธกเน€เธซเธกเธฒเธฐเธชเธกเธ•เธฒเธกเธชเธ–เธฒเธเธเธฒเธฃเธ“เน", max: 10 },
+  { code: "1.1", label: "\u0E21\u0E32\u0E15\u0E23\u0E10\u0E32\u0E19\u0E01\u0E32\u0E23\u0E17\u0E31\u0E01\u0E17\u0E32\u0E22\u0E41\u0E25\u0E30\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E2A\u0E19\u0E17\u0E19\u0E32", max: 10 },
+  { code: "1.2", label: "\u0E01\u0E32\u0E23\u0E1B\u0E0F\u0E34\u0E1A\u0E31\u0E15\u0E34\u0E15\u0E32\u0E21 PDPA / Policy / \u0E02\u0E49\u0E2D\u0E01\u0E33\u0E2B\u0E19\u0E14", max: 10 },
+  { code: "1.3", label: "\u0E01\u0E32\u0E23\u0E1B\u0E0F\u0E34\u0E1A\u0E31\u0E15\u0E34\u0E15\u0E32\u0E21\u0E01\u0E23\u0E30\u0E1A\u0E27\u0E19\u0E01\u0E32\u0E23\u0E41\u0E25\u0E30 SLA", max: 10 },
+  { code: "2.1", label: "\u0E04\u0E27\u0E32\u0E21\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E02\u0E2D\u0E07\u0E04\u0E33\u0E15\u0E2D\u0E1A", max: 10 },
+  { code: "2.2", label: "\u0E04\u0E27\u0E32\u0E21\u0E04\u0E23\u0E1A\u0E16\u0E49\u0E27\u0E19\u0E02\u0E2D\u0E07\u0E04\u0E33\u0E15\u0E2D\u0E1A", max: 10 },
+  { code: "2.3", label: "\u0E04\u0E27\u0E32\u0E21\u0E0A\u0E31\u0E14\u0E40\u0E08\u0E19\u0E02\u0E2D\u0E07\u0E02\u0E31\u0E49\u0E19\u0E15\u0E2D\u0E19\u0E41\u0E25\u0E30\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E2D\u0E49\u0E32\u0E07\u0E2D\u0E34\u0E07", max: 5 },
+  { code: "3.1", label: "\u0E01\u0E32\u0E23\u0E27\u0E34\u0E40\u0E04\u0E23\u0E32\u0E30\u0E2B\u0E4C\u0E41\u0E25\u0E30\u0E41\u0E01\u0E49\u0E44\u0E02\u0E1B\u0E31\u0E0D\u0E2B\u0E32\u0E44\u0E14\u0E49\u0E15\u0E23\u0E07\u0E08\u0E38\u0E14", max: 15 },
+  { code: "3.2", label: "Ownership \u0E41\u0E25\u0E30\u0E01\u0E32\u0E23\u0E41\u0E08\u0E49\u0E07 Next Step", max: 10 },
+  { code: "4.1", label: "\u0E42\u0E04\u0E23\u0E07\u0E2A\u0E23\u0E49\u0E32\u0E07\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E41\u0E25\u0E30\u0E04\u0E27\u0E32\u0E21\u0E2D\u0E48\u0E32\u0E19\u0E07\u0E48\u0E32\u0E22", max: 5 },
+  { code: "4.2", label: "\u0E04\u0E27\u0E32\u0E21\u0E01\u0E23\u0E30\u0E0A\u0E31\u0E1A\u0E41\u0E25\u0E30\u0E04\u0E27\u0E32\u0E21\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E02\u0E2D\u0E07\u0E20\u0E32\u0E29\u0E32", max: 5 },
+  { code: "4.3", label: "\u0E19\u0E49\u0E33\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E41\u0E25\u0E30\u0E04\u0E27\u0E32\u0E21\u0E40\u0E2B\u0E21\u0E32\u0E30\u0E2A\u0E21\u0E15\u0E32\u0E21\u0E2A\u0E16\u0E32\u0E19\u0E01\u0E32\u0E23\u0E13\u0E4C", max: 10 },
 ] as const;
 
 const JUNE_2026_TOPIC_MASTER = [
@@ -1188,7 +1188,7 @@ function CaseNavigatorCard({
         <span>{item.weekLabel}</span>
         {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
           <span className="font-semibold text-violet-700">
-            {item.previousScore.toFixed(0)} โ’ {item.finalScore.toFixed(0)}
+            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
           </span>
         ) : (
           <span>{item.reviewStatus}</span>
@@ -1210,7 +1210,7 @@ function ReviewStatusBadge({ item }: { item: CaseItem }) {
       </span>
       {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
         <span className="text-xs font-medium text-violet-700">
-          {Math.round(item.previousScore)} โ’ {Math.round(item.finalScore)}
+          {Math.round(item.previousScore)} → {Math.round(item.finalScore)}
         </span>
       ) : null}
     </div>
@@ -1265,10 +1265,10 @@ function isNoAppealReason(value: unknown) {
   if (!text) return false;
   const normalized = text.toLowerCase();
   return (
-    normalized === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ||
+    normalized === "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49" ||
     normalized === "not appeal" ||
     normalized === "no appeal" ||
-    normalized.includes("เนเธกเนเธญเธธเธ—เธเธฃเธ“เน")
+    normalized.includes("\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C")
   );
 }
 
@@ -1406,10 +1406,10 @@ function CaseDetailTopicTable({
                 {row.changed && row.revisedTopic ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2 lg:justify-end">
                     <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-semibold text-slate-700">
-                      Original {row.originalTopic.score}/{row.originalTopic.max} ยท {Number(row.originalTopic.pct || 0).toFixed(1)}%
+                      Original {row.originalTopic.score}/{row.originalTopic.max} • {Number(row.originalTopic.pct || 0).toFixed(1)}%
                     </span>
                     <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[12px] font-semibold text-violet-700">
-                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} ยท {Number(row.revisedTopic.pct || 0).toFixed(1)}%
+                      Revised {row.revisedTopic.score}/{row.revisedTopic.max} • {Number(row.revisedTopic.pct || 0).toFixed(1)}%
                     </span>
                   </div>
                 ) : (
@@ -1450,14 +1450,14 @@ function CaseDetailTopicTable({
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                      {row.originalTopic.comment || "เธขเธฑเธเนเธกเนเธกเธต Evaluation Comment"}
+                      {row.originalTopic.comment || "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35 Evaluation Comment"}
                     </div>
                   </div>
 
                   <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-violet-700">
-                      {row.revisedTopic.comment || "เธขเธฑเธเนเธกเนเธกเธต Revised Comment"}
+                      {row.revisedTopic.comment || "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35 Revised Comment"}
                     </div>
                   </div>
                 </>
@@ -2130,7 +2130,7 @@ function QuickCaseSearchCard({
         <div>
           <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
           <div className="mt-1 text-[11px] text-slate-500">
-            {item.agent} ยท {item.auditDate}
+            {item.agent} • {item.auditDate}
           </div>
         </div>
         <span
@@ -2282,7 +2282,7 @@ function SlideOverCaseDetail({
         max: topic.max,
         comment: topic.comment,
         wantsAppeal: false,
-        appealReason: "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน",
+        appealReason: "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49",
       }))
     );
     setAppealSubmitMessage("");
@@ -2301,7 +2301,7 @@ function SlideOverCaseDetail({
       return;
     }
 
-    const hasAppealedTopic = appealDraftTopics.some((topic) => topic.wantsAppeal && topic.appealReason.trim() && topic.appealReason.trim() !== "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน");
+    const hasAppealedTopic = appealDraftTopics.some((topic) => topic.wantsAppeal && topic.appealReason.trim() && topic.appealReason.trim() !== "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49");
     if (!hasAppealedTopic) {
       setAppealSubmitMessage("Please enter an appeal reason for at least one topic.");
       return;
@@ -2309,7 +2309,7 @@ function SlideOverCaseDetail({
 
     const topicsForExport = appealDraftTopics.map((topic) => ({
       ...topic,
-      appealReason: topic.wantsAppeal ? topic.appealReason.trim() : "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน",
+      appealReason: topic.wantsAppeal ? topic.appealReason.trim() : "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49",
     }));
 
     setAppealSubmitBusy(true);
@@ -2740,9 +2740,9 @@ function SlideOverCaseDetail({
       ) => {
         const hasRevised = !!(showRevised && revisedTopic && caseItem.reviewStatus === "Revised");
         const titleLines = split(`${topic.code} ${topic.label}`, contentWidth - 24);
-        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} ยท ${Number(topic.pct || 0).toFixed(1)}%`;
+        const scoreText = `${Number(topic.score || 0).toFixed(2)} / ${Number(topic.max || 0).toFixed(2)} • ${Number(topic.pct || 0).toFixed(1)}%`;
         const revisedScoreText = hasRevised
-          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} ยท ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
+          ? `${Number(revisedTopic!.score || 0).toFixed(2)} / ${Number(revisedTopic!.max || 0).toFixed(2)} • ${Number(revisedTopic!.pct || 0).toFixed(1)}%`
           : "";
         const originalLines = split(topic.comment || "-", contentWidth - 18);
         const revisedLines = hasRevised ? split(revisedTopic!.comment || "-", contentWidth - 18) : [];
@@ -2966,7 +2966,7 @@ function SlideOverCaseDetail({
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold text-slate-900">{previewAsset.title}</div>
                 <div className="mt-1 text-xs text-slate-500">
-                  Preview mode ยท {previewAsset.type === "pdf" ? "PDF" : "Image"}
+                  Preview mode • {previewAsset.type === "pdf" ? "PDF" : "Image"}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -3104,7 +3104,7 @@ function SlideOverCaseDetail({
                             setAppealDraftTopics((current) =>
                               current.map((item) =>
                                 item.code === topic.code
-                                  ? { ...item, wantsAppeal: false, appealReason: "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" }
+                                  ? { ...item, wantsAppeal: false, appealReason: "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49" }
                                   : item
                               )
                             )
@@ -3115,7 +3115,7 @@ function SlideOverCaseDetail({
                               : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                           }`}
                         >
-                          เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน
+                          \u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49
                         </button>
                         <button
                           type="button"
@@ -3123,7 +3123,7 @@ function SlideOverCaseDetail({
                             setAppealDraftTopics((current) =>
                               current.map((item) =>
                                 item.code === topic.code
-                                  ? { ...item, wantsAppeal: true, appealReason: item.appealReason === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ? "" : item.appealReason }
+                                  ? { ...item, wantsAppeal: true, appealReason: item.appealReason === "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49" ? "" : item.appealReason }
                                   : item
                               )
                             )
@@ -3140,7 +3140,7 @@ function SlideOverCaseDetail({
 
                       {!topic.wantsAppeal ? (
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-                          Export value: เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน
+                          Export value: \u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49
                         </div>
                       ) : (
                         <textarea
@@ -3271,7 +3271,7 @@ function SlideOverCaseDetail({
                     {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
                       <div className="mt-3 rounded-[16px] border border-white/70 bg-white/80 px-3 py-2.5 text-[12px] text-slate-700 shadow-sm">
                         <span className="font-semibold text-slate-900">Score Change:</span>{" "}
-                        Original {caseItem.previousScore.toFixed(2)} โ’ Revised {caseItem.finalScore.toFixed(2)}
+                        Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
                       </div>
                     ) : null}
 
@@ -3403,10 +3403,10 @@ function SlideOverCaseDetail({
               <div className="mb-5 space-y-4">
                 <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">๐’ฌ</span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">{"\u{1F4AC}"}</span>
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Customer Inquiry</div>
-                      <div className="mt-1 text-xs text-slate-500">เธเนเธญเธเธงเธฒเธกเธซเธฃเธทเธญเธเธฃเธฐเน€เธ”เนเธเธ—เธตเนเธฅเธนเธเธเนเธฒเธ•เธดเธ”เธ•เนเธญเน€เธเนเธฒเธกเธฒเนเธเน€เธเธชเธเธตเน</div>
+                      <div className="mt-1 text-xs text-slate-500">{"\u0E02\u0E49\u0E2D\u0E04\u0E27\u0E32\u0E21\u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E23\u0E30\u0E40\u0E14\u0E47\u0E19\u0E17\u0E35\u0E48\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E15\u0E34\u0E14\u0E15\u0E48\u0E2D\u0E40\u0E02\u0E49\u0E32\u0E21\u0E32\u0E43\u0E19\u0E40\u0E04\u0E2A\u0E19\u0E35\u0E49"}</div>
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -3416,10 +3416,10 @@ function SlideOverCaseDetail({
 
                 <div className="rounded-[22px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">๐“</span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">{"\u{1F4DD}"}</span>
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">Case Description</div>
-                      <div className="mt-1 text-xs text-slate-500">เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เนเธฅเธฐเธเธฃเธดเธเธ—เน€เธเธดเนเธกเน€เธ•เธดเธกเธเธญเธเน€เธเธชเธเธตเน</div>
+                      <div className="mt-1 text-xs text-slate-500">{"\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E41\u0E25\u0E30\u0E1A\u0E23\u0E34\u0E1A\u0E17\u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E15\u0E34\u0E21\u0E02\u0E2D\u0E07\u0E40\u0E04\u0E2A\u0E19\u0E35\u0E49"}</div>
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-fuchsia-100 bg-white/95 px-4 py-3 shadow-sm">
@@ -5616,7 +5616,7 @@ export default function DashboardMockup({
                 <PanelHeader title="Dashboard" />
                 <PanelBody>
                   <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                    เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธ Agent เธซเธฃเธทเธญเธเนเธเธซเธฒ Case ID
+                    \u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E25\u0E37\u0E2D\u0E01 Agent \u0E2B\u0E23\u0E37\u0E2D\u0E04\u0E49\u0E19\u0E2B\u0E32 Case ID
                   </div>
                 </PanelBody>
               </Panel>
