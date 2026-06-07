@@ -82,3 +82,27 @@ export async function upsertStoredProfilePhoto(profile: StoredProfilePhoto) {
   await setDoc(doc(firebaseDb, PROFILE_PHOTO_COLLECTION, safeDocId(normalizedUsername)), row, { merge: true });
   writeCache({ ...profile, username: normalizedUsername, updatedAt: row.updatedAt });
 }
+
+
+export async function clearStoredProfilePhoto(username: string, updatedBy = "") {
+  const normalizedUsername = String(username || "").trim();
+  if (!normalizedUsername) return;
+
+  const row = {
+    username: normalizedUsername,
+    photoDataUrl: "",
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+    updatedAtServer: serverTimestamp(),
+  };
+
+  await setDoc(doc(firebaseDb, PROFILE_PHOTO_COLLECTION, safeDocId(normalizedUsername)), row, { merge: true });
+
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(cacheKey(normalizedUsername));
+    } catch {
+      // Cache is fallback only.
+    }
+  }
+}

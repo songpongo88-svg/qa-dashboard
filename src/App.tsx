@@ -38,7 +38,7 @@ import {
 } from "./passwordResetStore";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
-import { fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
+import { clearStoredProfilePhoto, fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
 
 type UserRole = string;
 type RolePermissionKey =
@@ -4184,6 +4184,22 @@ export default function App() {
     }
   };
 
+  const handleWorkspaceProfilePhotoDefault = async () => {
+    if (!currentUser) return;
+
+    setWorkspaceProfilePhotoUploading(true);
+    setWorkspaceProfilePhotoError("");
+
+    try {
+      await clearStoredProfilePhoto(currentUser.username, currentUser.displayName || currentUser.username);
+      setWorkspaceProfilePhoto("");
+    } catch (error) {
+      setWorkspaceProfilePhotoError(error instanceof Error ? error.message : "Cannot reset profile photo.");
+    } finally {
+      setWorkspaceProfilePhotoUploading(false);
+    }
+  };
+
   const handleLogout = () => {
     if (currentUser && !maintenanceBlocked) {
       void logUsageEvent(currentUser, "logout", { tab: activeTab });
@@ -5003,11 +5019,11 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_270px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(500px,560px)_minmax(430px,500px)] xl:items-center xl:justify-start">
+              <div className="grid gap-5 xl:grid-cols-[minmax(500px,560px)_minmax(390px,460px)] xl:items-center xl:justify-start">
                 <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[500px]">
                   <div className="flex w-[150px] shrink-0 flex-col items-center">
                     <input
@@ -5043,6 +5059,17 @@ export default function App() {
                         </span>
                       ) : null}
                     </button>
+                    {workspaceProfilePhoto ? (
+                      <button
+                        type="button"
+                        onClick={handleWorkspaceProfilePhotoDefault}
+                        disabled={workspaceProfilePhotoUploading}
+                        className="mt-1.5 rounded-full border border-violet-200 bg-white/90 px-3 py-1 text-[10px] font-black text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        title="Default Photo"
+                      >
+                        Default
+                      </button>
+                    ) : null}
                   </div>
 
                   <div className="min-w-0 rounded-[22px] border border-violet-100 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-[0_10px_26px_rgba(88,28,135,0.08)]">
@@ -5104,7 +5131,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[470px] gap-3 md:grid-cols-2 xl:justify-self-start">
+                <div className="grid w-full max-w-[430px] gap-3 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
