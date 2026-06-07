@@ -884,10 +884,18 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
   );
 }
 
-function SummaryTable({ rows, firstColLabel }: { rows: PeriodRow[]; firstColLabel: string }) {
+function SummaryTable({
+  rows,
+  firstColLabel,
+  showIncentive = false,
+}: {
+  rows: PeriodRow[];
+  firstColLabel: string;
+  showIncentive?: boolean;
+}) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[880px] w-full text-sm">
+      <table className={`${showIncentive ? "min-w-[880px]" : "min-w-[760px]"} w-full text-sm`}>
         <thead>
           <tr className="bg-violet-950 text-[11px] text-white">
             <th className="px-4 py-3 text-left">{firstColLabel}</th>
@@ -895,7 +903,7 @@ function SummaryTable({ rows, firstColLabel }: { rows: PeriodRow[]; firstColLabe
             <th className="px-4 py-3 text-center">Average Score</th>
             <th className="px-4 py-3 text-center">Grade</th>
             <th className="px-4 py-3 text-center">Revised</th>
-            <th className="px-4 py-3 text-center">Incentive</th>
+            {showIncentive ? <th className="px-4 py-3 text-center">Incentive</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -906,10 +914,10 @@ function SummaryTable({ rows, firstColLabel }: { rows: PeriodRow[]; firstColLabe
               <td className="border-t border-slate-200 px-4 py-3 text-center">{row.avgScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-4 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span></td>
               <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
-              <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td>
+              {showIncentive ? <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td> : null}
             </tr>
           )) : (
-            <tr><td colSpan={6} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No data found</td></tr>
+            <tr><td colSpan={showIncentive ? 6 : 5} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No data found</td></tr>
           )}
         </tbody>
       </table>
@@ -1635,6 +1643,8 @@ export default function SummaryMockup({
     }
   }, [filteredCases, viewMode, availableAgents, selectedMonth]);
 
+  const summaryTableShowIncentive = viewMode === "monthly-dashboard" || viewMode === "monthly-team-summary";
+
   const firstColLabel = useMemo(() => {
     switch (viewMode) {
       case "weekly-dashboard":
@@ -1759,16 +1769,15 @@ export default function SummaryMockup({
               </PanelBody>
             </Panel>
 
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               <MetricCard title="Cases" value={`${summaryCards.caseCount}`} sub="Case(s) in current view" />
               <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub="Average final score in current view" valueClassName="text-violet-700" />
               <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from current average score" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
-              <MetricCard title="Estimated Incentive" value={formatCurrencyTHB(summaryCards.incentive)} sub={summaryCards.caseCount >= CASE_TARGET ? "Monthly estimate" : "Need at least 10 cases"} valueClassName="text-fuchsia-700" accent="from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200" />
             </div>
 
             <Panel>
               <PanelHeader title="Summary Table" subtitle="Summary result based on current tab and filters" />
-              <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} /></PanelBody>
+              <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} showIncentive={summaryTableShowIncentive} /></PanelBody>
             </Panel>
 
             <Panel>
