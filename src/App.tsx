@@ -2932,31 +2932,37 @@ export default function App() {
         email: account.email,
       }));
   }, [effectiveUserAccounts, rolePermissions]);
-  const coachingAllowed = hasRolePermission(currentUser, rolePermissions, "viewCoaching");
-  const usageLogAllowed = hasRolePermission(currentUser, rolePermissions, "viewUsageLog");
-  const createEvaluationAllowed = hasRolePermission(currentUser, rolePermissions, "createEvaluation");
-  const takePreTestAllowed = hasRolePermission(currentUser, rolePermissions, "takePreTest");
-  const managePreTestAllowed = hasRolePermission(currentUser, rolePermissions, "managePreTest");
-  const viewPreTestResultsAllowed = hasRolePermission(currentUser, rolePermissions, "viewPreTestResults");
+  const currentUsernameKey = currentUser?.username?.trim().toLowerCase() || "";
+  const currentDisplayNameKey = currentUser?.displayName?.trim().toLowerCase() || "";
+
+  const coachingAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewCoaching") : false;
+  const usageLogAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewUsageLog") : false;
+  const createEvaluationAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "createEvaluation") : false;
+  const takePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "takePreTest") : false;
+  const managePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "managePreTest") : false;
+  const viewPreTestResultsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewPreTestResults") : false;
   const preTestAllowed = takePreTestAllowed || managePreTestAllowed || viewPreTestResultsAllowed;
-  const appealRequestsAllowed = hasRolePermission(currentUser, rolePermissions, "reviewAppeals");
-  const appealOverrideAllowed = hasRolePermission(currentUser, rolePermissions, "appealOverride");
-  const rubricAllowed = hasRolePermission(currentUser, rolePermissions, "viewRubric");
-  const rubricManageAllowed = hasRolePermission(currentUser, rolePermissions, "manageRubric");
-  const passwordResetAdminAllowed = hasRolePermission(currentUser, rolePermissions, "resetPassword");
-  const passwordResetShortcutAllowed =
+  const appealRequestsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
+  const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
+  const rubricAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewRubric") : false;
+  const rubricManageAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manageRubric") : false;
+  const passwordResetAdminAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "resetPassword") : false;
+  const passwordResetShortcutAllowed = Boolean(currentUser) && (
     passwordResetAdminAllowed ||
-    PASSWORD_RESET_ADMIN_USERNAMES.has(currentUser.username.trim().toLowerCase()) ||
-    PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentUser.displayName.trim().toLowerCase());
+    PASSWORD_RESET_ADMIN_USERNAMES.has(currentUsernameKey) ||
+    PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentDisplayNameKey)
+  );
   const pendingPasswordResetRequestCount = passwordResetRequests.filter((request) => request.status === "Pending").length;
-  const userDirectoryAllowed =
+  const userDirectoryAllowed = Boolean(currentUser) && (
     hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
-    hasRolePermission(currentUser, rolePermissions, "manageUsers");
-  const roleAdminAllowed =
+    hasRolePermission(currentUser, rolePermissions, "manageUsers")
+  );
+  const roleAdminAllowed = Boolean(currentUser) && (
     userDirectoryAllowed ||
     hasRolePermission(currentUser, rolePermissions, "manageRoles") ||
-    hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
-  const maintenanceBlocked = maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
+    hasRolePermission(currentUser, rolePermissions, "manageMaintenance")
+  );
+  const maintenanceBlocked = Boolean(currentUser) && maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const canUseAdminAccountMenu = Boolean(currentUser) && (
     usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
   );
@@ -2977,7 +2983,7 @@ export default function App() {
   const unreadInboxTaskCount = inboxTasks.filter((item) => item.unread).length;
   const shortBuildHash = buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "";
   const chatUnreadCounts = useMemo(() => {
-    const readMap = readChatReadMap(currentUser);
+    const readMap = currentUser ? readChatReadMap(currentUser) : {};
     const counts: Record<string, number> = {};
     chatMessages.forEach((message) => {
       if (!currentUser || message.username.toLowerCase() === currentUser.username.toLowerCase()) return;
