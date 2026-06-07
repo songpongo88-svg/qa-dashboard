@@ -2905,6 +2905,11 @@ export default function App() {
   const rubricAllowed = hasRolePermission(currentUser, rolePermissions, "viewRubric");
   const rubricManageAllowed = hasRolePermission(currentUser, rolePermissions, "manageRubric");
   const passwordResetAdminAllowed = hasRolePermission(currentUser, rolePermissions, "resetPassword");
+  const passwordResetShortcutAllowed =
+    passwordResetAdminAllowed ||
+    PASSWORD_RESET_ADMIN_USERNAMES.has(currentUser.username.trim().toLowerCase()) ||
+    PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentUser.displayName.trim().toLowerCase());
+  const pendingPasswordResetRequestCount = passwordResetRequests.filter((request) => request.status === "Pending").length;
   const userDirectoryAllowed =
     hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
     hasRolePermission(currentUser, rolePermissions, "manageUsers");
@@ -2914,7 +2919,7 @@ export default function App() {
     hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const maintenanceBlocked = maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const canUseAdminAccountMenu = Boolean(currentUser) && (
-    usageLogAllowed || roleAdminAllowed || passwordResetAdminAllowed
+    usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
   );
   const performanceMenuValue =
     activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
@@ -2952,7 +2957,7 @@ export default function App() {
   const accountOptions = canUseAdminAccountMenu
     ? [
         ...(roleAdminAllowed ? [{ value: "user-roles", label: "User & Roles" }] : []),
-        ...(passwordResetAdminAllowed ? [{ value: "reset-password", label: "Password Reset" }] : []),
+        ...(passwordResetShortcutAllowed ? [{ value: "reset-password", label: "Password Reset" }] : []),
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Activity Log" }] : []),
         { value: "change-password", label: "Change Password" },
         { value: "logout", label: "Sign Out" },
@@ -3066,7 +3071,7 @@ export default function App() {
     } else if (value === "user-roles" && roleAdminAllowed) {
       setActiveTab("user-roles");
       replaceWorkspaceUrl({ tab: "user-roles" });
-    } else if (value === "reset-password" && passwordResetAdminAllowed) {
+    } else if (value === "reset-password" && passwordResetShortcutAllowed) {
       resetPasswordModalState();
       setShowResetPasswordModal(true);
       void loadPasswordResetRequests();
@@ -3852,6 +3857,21 @@ export default function App() {
 
     return () => window.clearInterval(timer);
   }, [currentUser, appealRequestsAllowed, activeTab, buildMeta.buildNumber, maintenanceBlocked, effectiveUserAccounts]);
+
+  // password reset shortcut badge polling
+  useEffect(() => {
+    if (!currentUser || maintenanceBlocked || !passwordResetShortcutAllowed) {
+      setPasswordResetRequests([]);
+      return;
+    }
+
+    void loadPasswordResetRequests();
+    const timer = window.setInterval(() => {
+      void loadPasswordResetRequests();
+    }, INBOX_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [currentUser, maintenanceBlocked, passwordResetShortcutAllowed]);
 
   useEffect(() => {
     if (!currentUser || maintenanceBlocked || !CHAT_SUPABASE_POLLING_ENABLED) {
@@ -5061,19 +5081,22 @@ export default function App() {
                   <span className="mt-1 text-[9.5px] font-black leading-tight">Password</span>
                 </button>
 
-                {hasRolePermission(currentUser, rolePermissions, "resetPassword") ||
-                PASSWORD_RESET_ADMIN_USERNAMES.has(currentUser.username.trim().toLowerCase()) ||
-                PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentUser.displayName.trim().toLowerCase()) ? (
+                {passwordResetShortcutAllowed ? (
                   <button
                     type="button"
-                    title="Password Reset"
+                    title={pendingPasswordResetRequestCount ? `Password Reset: ${pendingPasswordResetRequestCount} pending request(s)` : "Password Reset"}
                     onClick={() => {
                       resetPasswordModalState();
                       setShowResetPasswordModal(true);
                       void loadPasswordResetRequests();
                     }}
-                    className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
+                    className="group relative flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
                   >
+                    {pendingPasswordResetRequestCount > 0 ? (
+                      <span className="absolute -right-1.5 -top-1.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-rose-600 px-1.5 text-[10px] font-black leading-none text-white shadow-md">
+                        {pendingPasswordResetRequestCount > 99 ? "99+" : pendingPasswordResetRequestCount}
+                      </span>
+                    ) : null}
                     <span className="text-[18px] leading-none">↻</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Reset</span>
                   </button>
