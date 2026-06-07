@@ -4161,7 +4161,7 @@ export default function DashboardMockup({
                 "Photo",
                 "Picture",
               ], "") ||
-              getFuzzyHeaderValue(headerRow, row, [
+              getFuzzyHeaderValue(source.headerRow, row, [
                 "case image",
                 "image url",
                 "image link",
@@ -5735,5 +5735,6 @@ export default function DashboardMockup({
     </div>
   );
 }
+
 
 
