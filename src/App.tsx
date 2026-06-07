@@ -2444,7 +2444,7 @@ function MaintenanceScreen({
           <div className="mx-auto mt-4 max-w-2xl text-base leading-7 text-violet-100">
             {state.message || DEFAULT_MAINTENANCE_STATE.message}
           </div>
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 px-5 py-4 text-sm font-semibold text-violet-100">
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm font-semibold text-violet-100">
             Usage log is paused for non-admin users while maintenance mode is active.
             {state.updatedBy ? ` Last updated by ${state.updatedBy}.` : ""}
           </div>
@@ -5003,12 +5003,12 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
+          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
             <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="grid gap-5 xl:grid-cols-[minmax(610px,680px)_minmax(500px,580px)] xl:items-center xl:justify-start">
-                <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[610px]">
+              <div className="grid gap-5 xl:grid-cols-[minmax(500px,560px)_minmax(430px,500px)] xl:items-center xl:justify-start">
+                <div className="flex min-w-0 items-stretch gap-4 xl:min-w-[500px]">
                   <div className="flex w-[150px] shrink-0 flex-col items-center">
                     <input
                       ref={profilePhotoInputRef}
@@ -5104,7 +5104,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[560px] gap-4 md:grid-cols-2 xl:justify-self-start">
+                <div className="grid w-full max-w-[470px] gap-3 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
