@@ -28,11 +28,6 @@ export default function LoadingMascot({
             40% { transform: translateY(-7px); opacity: 1; }
           }
 
-          @keyframes qaSparkle {
-            0%, 100% { transform: scale(.85) rotate(0deg); opacity: .45; }
-            50% { transform: scale(1.15) rotate(12deg); opacity: 1; }
-          }
-
           .qa-owl-float {
             animation: qaOwlFloat 2.4s ease-in-out infinite;
           }
@@ -44,17 +39,10 @@ export default function LoadingMascot({
           .qa-loading-dot {
             animation: qaLoadingDot 1.2s ease-in-out infinite;
           }
-
-          .qa-sparkle {
-            animation: qaSparkle 1.8s ease-in-out infinite;
-          }
         `}
       </style>
 
       <div className="relative w-full max-w-[420px] rounded-[32px] border border-violet-200/80 bg-white/85 px-7 py-8 text-center shadow-[0_24px_70px_rgba(109,40,217,0.16)] backdrop-blur-xl">
-        <div className="pointer-events-none absolute -top-5 left-8 text-2xl qa-sparkle">✨</div>
-        <div className="pointer-events-none absolute right-9 top-8 text-xl qa-sparkle" style={{ animationDelay: "0.35s" }}>💜</div>
-
         <div className="relative mx-auto h-40 w-40 sm:h-48 sm:w-48">
           <div className="qa-owl-glow absolute inset-x-5 bottom-1 h-8 rounded-full bg-violet-400/25 blur-xl" />
           <img
