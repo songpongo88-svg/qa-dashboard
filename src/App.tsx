@@ -5248,7 +5248,7 @@ export default function App() {
                         : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                     }`}
                   >
-                    <span className="text-[18px] leading-none">โ–ฃ</span>
+                    <span className="text-[18px] leading-none">{"\\u{1F465}"}</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Users</span>
                   </button>
                 ) : null}
@@ -5264,7 +5264,7 @@ export default function App() {
                         : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
                     }`}
                   >
-                    <span className="text-[18px] leading-none">โ—ท</span>
+                    <span className="text-[18px] leading-none">{"\\u{1F552}"}</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Log</span>
                   </button>
                 ) : null}
@@ -5279,7 +5279,7 @@ export default function App() {
                   }}
                   className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
                 >
-                  <span className="text-[18px] leading-none">โ—</span>
+                  <span className="text-[18px] leading-none">{"\\u{1F510}"}</span>
                   <span className="mt-1 text-[9.5px] font-black leading-tight">Password</span>
                 </button>
 
@@ -5299,7 +5299,7 @@ export default function App() {
                         {pendingPasswordResetRequestCount > 99 ? "99+" : pendingPasswordResetRequestCount}
                       </span>
                     ) : null}
-                    <span className="text-[18px] leading-none">โป</span>
+                    <span className="text-[18px] leading-none">{"\\u{21BB}"}</span>
                     <span className="mt-1 text-[9.5px] font-black leading-tight">Reset</span>
                   </button>
                 ) : null}
@@ -5310,7 +5310,7 @@ export default function App() {
                   onClick={handleLogout}
                   className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white px-1.5 py-2 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
                 >
-                  <span className="text-[18px] leading-none">โ</span>
+                  <span className="text-[18px] leading-none">{"\\u{23FB}"}</span>
                   <span className="mt-1 text-[9.5px] font-black leading-tight">Sign Out</span>
                 </button>
               </div>

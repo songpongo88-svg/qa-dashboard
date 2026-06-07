@@ -3407,7 +3407,7 @@ function SlideOverCaseDetail({
                         </button>
                       ) : null}
 
-                      {availablePdfUrls.map((item) => (
+                      {availablePdfUrls.filter((item) => !String(item.label || '').toLowerCase().includes('original pdf')).map((item) => (
                         <button
                           key={item.label}
                           type="button"
