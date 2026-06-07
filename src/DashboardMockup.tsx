@@ -1833,7 +1833,7 @@ async function fetchFirstAvailable(urls: string[]) {
       console.warn(`Static file fetch skipped: ${url}`, error);
     }
   }
-  throw new Error(`เนเธกเนเธเธเนเธเธฅเนเนเธ public เธ•เธฒเธกเธเธทเนเธญเน€เธซเธฅเนเธฒเธเธตเน: ${urls.join(", ")}`);
+  throw new Error(`ไม่พบไฟล์ใน public ตามชื่อเหล่านี้: ${urls.join(", ")}`);
 }
 
 function PremiumBarChart({
@@ -3114,7 +3114,7 @@ function SlideOverCaseDetail({
                               ? "border-slate-400 bg-slate-900 text-white"
                               : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                           }`}
-                        >{"\\u0E44\\u0E21\\u0E48\\u0E2D\\u0E38\\u0E17\\u0E18\\u0E23\\u0E13\\u0E4C\\u0E2B\\u0E31\\u0E27\\u0E02\\u0E49\\u0E2D\\u0E19\\u0E35\\u0E49"}</button>
+                        >{"\\ไ\\ม\\่\\อ\\ุ\\ท\\ธ\\ร\\ณ\\์\\ห\\ั\\ว\\ข\\้\\อ\\น\\ี\\้"}</button>
                         <button
                           type="button"
                           onClick={() =>
@@ -5437,7 +5437,7 @@ export default function DashboardMockup({
                               ))
                             ) : (
                               <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                เนเธกเนเธเธเน€เธฅเธเน€เธเธชเธ—เธตเนเธเนเธเธซเธฒ
+                                {"ไม่พบเลขเคสที่ค้นหา"}
                               </div>
                             )}
                           </div>
@@ -5608,9 +5608,7 @@ export default function DashboardMockup({
               <Panel>
                 <PanelHeader title="Dashboard" />
                 <PanelBody>
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                    \u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E25\u0E37\u0E2D\u0E01 Agent \u0E2B\u0E23\u0E37\u0E2D\u0E04\u0E49\u0E19\u0E2B\u0E32 Case ID
-                  </div>
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">{"กรุณาเลือก Agent หรือค้นหา Case ID\n                  "}</div>
                 </PanelBody>
               </Panel>
             )}
