@@ -4875,17 +4875,17 @@ export default function App() {
         <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
           {songkranTheme ? <SongkranBackdrop compact /> : null}
 
-          <div className="mx-auto grid w-full max-w-[1480px] gap-4 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
-            <div className={`relative overflow-hidden rounded-[20px] border bg-white/95 px-5 py-4 shadow-sm ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
+          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
+            <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
               {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
 
-              <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                <div className="flex min-w-[250px] shrink-0 items-start gap-3">
+              <div className="grid gap-4 xl:grid-cols-[minmax(380px,430px)_minmax(460px,560px)] xl:items-center">
+                <div className="flex min-w-0 items-start gap-3 xl:min-w-[380px]">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
                   </div>
 
-                  <div className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-sm">
+                  <div className="min-w-0 rounded-[22px] border border-violet-100 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-[0_10px_26px_rgba(88,28,135,0.08)]">
                     <div className="text-xs font-black">Robinhood QA Workspace</div>
                     <div>
                       <span className="font-black text-slate-950">User:</span>{" "}
@@ -4944,7 +4944,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex w-full flex-col gap-5 md:flex-row md:flex-nowrap md:justify-end md:gap-x-5 md:gap-y-5 xl:max-w-[560px]">
+                <div className="grid w-full gap-4 md:grid-cols-2 xl:max-w-[560px] xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
@@ -4972,7 +4972,7 @@ export default function App() {
                   />
                 </div>
 
-                <div className="hidden flex-col gap-2 xl:min-w-[230px] xl:max-w-[240px]">
+                <div className="hidden">
                   <button
                     type="button"
                     onClick={openTaskInbox}
