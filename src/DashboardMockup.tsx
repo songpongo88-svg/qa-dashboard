@@ -607,7 +607,7 @@ function formatWaitingServiceRange(waitingTime?: string, serviceTime?: string) {
   let diff = endMinutes - startMinutes;
   if (diff < 0) diff += 24 * 60;
 
-  return `${safeStart} - ${safeEnd} (${diff} เธเธฒเธ—เธต)`;
+  return `${safeStart} - ${safeEnd} (${diff} นาที)`;
 }
 
 
@@ -868,7 +868,7 @@ function getIncentiveResult(caseCount: number, avg: number, monthKey: string): I
       cash: 0,
       promo: 0,
       label: "0 THB",
-      remark: "เธขเธฑเธเธเธฃเธฐเน€เธกเธดเธเนเธกเนเธเธฃเธ 10 เน€เธเธช",
+      remark: "ยังประเมินไม่ครบ 10 เคส",
     };
   }
 
@@ -1450,14 +1450,14 @@ function CaseDetailTopicTable({
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                      {row.originalTopic.comment || "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35 Evaluation Comment"}
+                      {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
                     </div>
                   </div>
 
                   <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-violet-700">
-                      {row.revisedTopic.comment || "\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35 Revised Comment"}
+                      {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
                     </div>
                   </div>
                 </>
@@ -3114,9 +3114,7 @@ function SlideOverCaseDetail({
                               ? "border-slate-400 bg-slate-900 text-white"
                               : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                           }`}
-                        >
-                          \u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49
-                        </button>
+                        >{"\\u0E44\\u0E21\\u0E48\\u0E2D\\u0E38\\u0E17\\u0E18\\u0E23\\u0E13\\u0E4C\\u0E2B\\u0E31\\u0E27\\u0E02\\u0E49\\u0E2D\\u0E19\\u0E35\\u0E49"}</button>
                         <button
                           type="button"
                           onClick={() =>
@@ -3133,14 +3131,12 @@ function SlideOverCaseDetail({
                               ? "border-emerald-500 bg-emerald-600 text-white"
                               : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                           }`}
-                        >
-                          เธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน
-                        </button>
+                        >{"ยื่นอุทธรณ์หัวข้อนี้"}</button>
                       </div>
 
                       {!topic.wantsAppeal ? (
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-                          Export value: \u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49
+                          Export value: {"ไม่อุทธรณ์หัวข้อนี้"}
                         </div>
                       ) : (
                         <textarea
@@ -4742,7 +4738,7 @@ export default function DashboardMockup({
                         setSelectedCaseKey("");
                         setSlideOverOpen(false);
                       }}
-                      placeholder="เธเนเธเธซเธฒเน€เธฅเธเน€เธเธชเนเธ”เนเธ—เธฑเธเธ—เธต เนเธ”เธขเนเธกเนเธ•เนเธญเธเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธ"
+                      placeholder={"ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือกเดือน"}
                       className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
@@ -4843,7 +4839,7 @@ export default function DashboardMockup({
               <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
               <PanelBody className="space-y-3">
                 {!searchScopedCases.length ? (
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">{"\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E43\u0E19\u0E0A\u0E48\u0E27\u0E07\u0E17\u0E35\u0E48\u0E40\u0E25\u0E37\u0E2D\u0E01"}</div>
+                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">{"ไม่พบข้อมูลในช่วงที่เลือก"}</div>
                 ) : (
                   <>
                     <WeeklySnapshotCard
@@ -5577,7 +5573,7 @@ export default function DashboardMockup({
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                           {effectiveSelectedAgent === "Anucha Makundin"
                             ? "เน€เธ”เธทเธญเธเธเธตเนเนเธกเนเธกเธตเน€เธเธชเธเธฃเธฐเน€เธกเธดเธเธเธญเธ Anucha โ€ข Score = 0.00 โ€ข Grade = F"
-                            : "เนเธกเนเธเธเธเนเธญเธกเธนเธฅเนเธเธเนเธงเธเธ—เธตเนเน€เธฅเธทเธญเธ"}
+                            : "กรุณาเลือก Agent หรือค้นหา Case ID"}
                         </div>
                       ) : (
                         <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
