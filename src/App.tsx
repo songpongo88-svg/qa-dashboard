@@ -5143,7 +5143,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid w-full max-w-[450px] gap-3 md:grid-cols-2 xl:justify-self-start">
+                <div className="grid w-full max-w-[480px] gap-3 md:grid-cols-2 xl:justify-self-start">
                   <HeaderSelect
                     label="Performance"
                     helper="Score, KPI, trend"
@@ -5155,20 +5155,37 @@ export default function App() {
                       ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
                     ]}
                   />
-                  <HeaderSelect
-                    label="QA Review"
-                    helper="Evaluate, appeal, rubric"
-                    value={reviewMenuValue}
-                    onChange={handleReviewMenuChange}
-                    options={[
-                      { value: "appeal", label: "Appeals" },
-                      ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
-                      ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Review Queue" }] : []),
-                      ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create Evaluation" }] : []),
-                      ...(preTestAllowed ? [{ value: "pre-test", label: "Pre-Test" }] : []),
-                      ...(rubricAllowed ? [{ value: "rubric", label: "Rubric" }] : []),
-                    ]}
-                  />
+                  <div className="qa-review-header-nudge transform transition-transform md:translate-x-5 xl:translate-x-6">
+
+                    <HeaderSelect
+
+                                        label="QA Review"
+
+                                        helper="Evaluate, appeal, rubric"
+
+                                        value={reviewMenuValue}
+
+                                        onChange={handleReviewMenuChange}
+
+                                        options={[
+
+                                          { value: "appeal", label: "Appeals" },
+
+                                          ...(appealOverrideAllowed ? [{ value: "appeal-override", label: "Appeal Override" }] : []),
+
+                                          ...(appealRequestsAllowed ? [{ value: "appeal-requests", label: "Review Queue" }] : []),
+
+                                          ...(createEvaluationAllowed ? [{ value: "create-evaluation", label: "Create Evaluation" }] : []),
+
+                                          ...(preTestAllowed ? [{ value: "pre-test", label: "Pre-Test" }] : []),
+
+                                          ...(rubricAllowed ? [{ value: "rubric", label: "Rubric" }] : []),
+
+                                        ]}
+
+                                      />
+
+                  </div>
                 </div>
 
                 <div className="hidden">
