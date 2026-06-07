@@ -3,7 +3,7 @@ import React from "react";
 type PageHeroProps = {
   eyebrow: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   workspaceTitle?: string;
   workspaceSubtitle?: string;
   className?: string;
@@ -12,28 +12,24 @@ type PageHeroProps = {
 export default function PageHero({
   eyebrow,
   title,
-  subtitle,
   workspaceTitle = "Quality Monitoring Workspace",
   workspaceSubtitle = "Corporate dashboard for audit tracking and case review",
   className = "",
 }: PageHeroProps) {
   return (
     <div className={`relative text-white shadow-[0_16px_40px_rgba(76,29,149,0.22)] bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-700 ${className}`}>
-      <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-4xl">
+      <div className="mx-auto max-w-[1720px] px-6 py-9 lg:px-8 lg:py-10">
+        <div className="flex flex-col gap-6 lg:min-h-[150px] lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-h-[118px] max-w-4xl flex-col justify-center">
             <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">
               {eyebrow}
             </div>
-            <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">
+            <div className="mt-3 text-3xl font-bold tracking-tight lg:text-4xl">
               {title}
-            </div>
-            <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">
-              {subtitle}
             </div>
           </div>
 
-          <div className="flex min-w-[320px] max-w-[680px] items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
+          <div className="flex min-w-[320px] max-w-[680px] items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm lg:self-center">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-[28px] border border-white/20 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
               <img
                 src="/robinhood-logo.png"
