@@ -2890,7 +2890,7 @@ function SlideOverCaseDetail({
                           {caseItem.caseId} Appeal PDF
                         </button>
                       ) : null}
-                      {(verifiedImagePdfUrls.length || verifiedImageUrls.length || imageAssetCandidates.length || String(caseItem.caseImageUrl || '').trim()) ? (
+                      {String(caseItem.caseImageUrl || '').trim() ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -5249,6 +5249,7 @@ export default function DashboardMockup({
     </div>
   );
 }
+
 
 
 
