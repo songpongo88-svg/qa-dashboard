@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import LoadingMascot from "./LoadingMascot";
 import { fetchStoredEvaluations } from "./evaluationStore";
@@ -1075,6 +1076,8 @@ export default function SummaryMockup({
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
+  const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
+  const [reportPdfView, setReportPdfView] = useState<SummaryView>("weekly-dashboard");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -1661,6 +1664,219 @@ export default function SummaryMockup({
     }
   }, [viewMode]);
 
+
+  const reportPdfOptions: { value: SummaryView; label: string }[] = useMemo(() => {
+    const options: { value: SummaryView; label: string }[] = [
+      { value: "weekly-dashboard", label: "Weekly Dashboard" },
+      { value: "weekly-qa-by-agent", label: "Weekly QA by Agent" },
+      { value: "monthly-dashboard", label: "Monthly Dashboard" },
+      { value: "monthly-team-summary", label: "Monthly Team Summary" },
+      { value: "yearly-team-summary", label: "Yearly Team Summary" },
+      { value: "yearly-by-agent", label: "Yearly by Agent" },
+    ];
+
+    return roleScopedAgentList.length
+      ? options.filter((item) => item.value !== "weekly-qa-by-agent")
+      : options;
+  }, [roleScopedAgentList.length]);
+
+  const getSummaryRowsForReport = (targetView: SummaryView) => {
+    switch (targetView) {
+      case "weekly-dashboard":
+      case "weekly-qa-by-agent":
+        return {
+          title: getViewLabel(targetView),
+          firstColLabel: "Week",
+          rows: groupCases(filteredCases, "week"),
+        };
+      case "monthly-dashboard":
+        return {
+          title: getViewLabel(targetView),
+          firstColLabel: "Month",
+          rows: groupCases(filteredCases, "month"),
+        };
+      case "monthly-team-summary": {
+        const fallbackMonthKey =
+          selectedMonth !== "all"
+            ? selectedMonth
+            : getPolicyMonthKeyForCases(filteredCases);
+
+        return {
+          title: getViewLabel(targetView),
+          firstColLabel: "Agent",
+          rows: buildAgentRowsWithMaster(availableAgents, filteredCases, fallbackMonthKey),
+        };
+      }
+      case "yearly-team-summary":
+        return {
+          title: getViewLabel(targetView),
+          firstColLabel: "Year",
+          rows: groupCases(filteredCases, "year"),
+        };
+      case "yearly-by-agent":
+        return {
+          title: getViewLabel(targetView),
+          firstColLabel: "Agent",
+          rows: groupCases(filteredCases, "agent"),
+        };
+      default:
+        return {
+          title: "Summary Report",
+          firstColLabel: "Group",
+          rows: [],
+        };
+    }
+  };
+
+  function generateSummaryReportPdf() {
+    const report = getSummaryRowsForReport(reportPdfView);
+    const reportSummary = summarizeCases(filteredCases);
+
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const safe = (value: unknown) =>
+      String(value ?? "-")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 12;
+    const tableWidth = pageWidth - margin * 2;
+    const colWidths = [tableWidth - 130, 28, 38, 28, 36];
+    const columns = [report.firstColLabel, "Cases", "Average Score", "Grade", "Revised"];
+
+    const monthLabel = monthOptions.find((item) => item.value === selectedMonth)?.label || "All Months";
+    const agentLabel = effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent;
+    const weekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
+    const yearLabel = selectedYear === "all" ? "All Years" : selectedYear;
+
+    const drawHeader = () => {
+      doc.setFillColor(49, 16, 101);
+      doc.rect(margin, 10, tableWidth, 24, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(17);
+      doc.text(report.title, margin + 6, 20);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text("Robinhood QA - Quality Monitoring Workspace", margin + 6, 28);
+    };
+
+    drawHeader();
+
+    let y = 44;
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Current Scope", margin, y);
+
+    y += 7;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text("Agent: " + safe(agentLabel), margin, y);
+    doc.text("Month: " + safe(monthLabel), margin + 70, y);
+    doc.text("Week: " + safe(weekLabel), margin + 140, y);
+    doc.text("Year: " + safe(yearLabel), margin + 220, y);
+
+    y += 9;
+
+    doc.setFillColor(246, 242, 255);
+    doc.setDrawColor(221, 214, 254);
+    doc.rect(margin, y, tableWidth, 14, "FD");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(49, 16, 101);
+    doc.text("Cases: " + reportSummary.caseCount, margin + 6, y + 9);
+    doc.text("Average Score: " + reportSummary.avgScore.toFixed(2), margin + 58, y + 9);
+    doc.text("Grade: " + reportSummary.grade, margin + 132, y + 9);
+    doc.text("Revised: " + reportSummary.revisedCount, margin + 178, y + 9);
+    doc.text("Generated: " + new Date().toLocaleString("en-GB"), margin + 220, y + 9);
+
+    y += 23;
+
+    const drawTableHeader = () => {
+      doc.setFillColor(49, 16, 101);
+      doc.setDrawColor(49, 16, 101);
+      doc.rect(margin, y, tableWidth, 10, "FD");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+
+      let x = margin;
+      columns.forEach((column, index) => {
+        doc.text(column, x + 2, y + 6.5);
+        x += colWidths[index];
+      });
+
+      y += 10;
+    };
+
+    drawTableHeader();
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.2);
+
+    if (!report.rows.length) {
+      doc.setTextColor(100, 116, 139);
+      doc.text("No data found", margin + 2, y + 7);
+    }
+
+    report.rows.forEach((row, index) => {
+      if (y > 190) {
+        doc.addPage();
+        drawHeader();
+        y = 44;
+        drawTableHeader();
+      }
+
+      const rowHeight = 9;
+      if (index % 2 === 0) {
+        doc.setFillColor(255, 255, 255);
+      } else {
+        doc.setFillColor(248, 250, 252);
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, tableWidth, rowHeight, "FD");
+
+      doc.setTextColor(15, 23, 42);
+
+      const values = [
+        safe(row.label).slice(0, 72),
+        String(row.caseCount),
+        row.avgScore.toFixed(2),
+        String(row.grade),
+        String(row.revisedCount),
+      ];
+
+      let x = margin;
+      values.forEach((value, colIndex) => {
+        doc.text(value, x + 2, y + 6);
+        x += colWidths[colIndex];
+      });
+
+      y += rowHeight;
+    });
+
+    const fileName =
+      (report.title.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "summary_report") +
+      ".pdf";
+
+    doc.save(fileName);
+    setReportPdfDialogOpen(false);
+  }
+
+
   if (isLoading) {
     return <LoadingMascot message="กำลังโหลดข้อมูลสรุป" subMessage="กรุณารอสักครู่..." />;
   }
@@ -1671,6 +1887,56 @@ export default function SummaryMockup({
 
   return (
     <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"}`}>
+      {reportPdfDialogOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
+            <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-5 py-4 text-white">
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-100">Export PDF</div>
+              <div className="mt-1 text-xl font-extrabold">Choose Report PDF</div>
+              <div className="mt-1 text-xs text-violet-100">Select report type before generating PDF</div>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div>
+                <div className="mb-2 text-xs font-bold uppercase tracking-wide text-violet-700">Report Type</div>
+                <select
+                  value={reportPdfView}
+                  onChange={(event) => setReportPdfView(event.target.value as SummaryView)}
+                  className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                >
+                  {reportPdfOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+                PDF will use the current filters. This does not affect Case Detail PDF.
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReportPdfDialogOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={generateSummaryReportPdf}
+                  className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800"
+                >
+                  Generate PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {songkranTheme ? <SongkranBackdrop /> : null}
       <PageHero
         eyebrow="QA Summary"
@@ -1717,6 +1983,17 @@ export default function SummaryMockup({
                   <ViewButton active={viewMode === "yearly-team-summary"} label="Yearly Team Summary" onClick={() => setViewMode("yearly-team-summary")} />
                   <ViewButton active={viewMode === "yearly-by-agent"} label="Yearly by Agent" onClick={() => setViewMode("yearly-by-agent")} />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportPdfView(viewMode);
+                    setReportPdfDialogOpen(true);
+                  }}
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-violet-300 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(109,40,217,0.18)] transition hover:from-violet-800 hover:to-fuchsia-700"
+                >
+                  Export Report PDF
+                </button>
+
                 <div className="space-y-4">
                   <div>
                     <FilterLabel>Agent</FilterLabel>
