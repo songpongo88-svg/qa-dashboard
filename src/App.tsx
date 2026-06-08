@@ -401,7 +401,7 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
 ];
 
 const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: string }> = {
-  songpon: { teamLead: "-", teamName: "เธ—เธตเธก Senior" },
+  songpon: { teamLead: "Preeyapat Rujum", teamName: "Preeyapat Team" },
 };
 
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
@@ -5519,6 +5519,7 @@ export default function App() {
     </>
   );
 }
+
 
 
 
