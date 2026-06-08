@@ -950,7 +950,7 @@ function AgentMonthlyAnalyticsTable({
         </div>
       </div>
       <div className="overflow-x-auto border-t border-violet-100 bg-white">
-        <table className="min-w-[920px] w-full text-sm">
+        <table className="min-w-[780px] w-full text-sm">
           <thead>
             <tr className="bg-slate-950 text-[11px] uppercase tracking-[0.16em] text-white">
               <th className="px-4 py-3 text-left">{firstColLabel}</th>
@@ -958,7 +958,6 @@ function AgentMonthlyAnalyticsTable({
               <th className="px-4 py-3 text-center">Average</th>
               <th className="px-4 py-3 text-center">Grade</th>
               <th className="px-4 py-3 text-left">Progress</th>
-              <th className="px-4 py-3 text-center">Incentive</th>
             </tr>
           </thead>
           <tbody>
@@ -981,13 +980,12 @@ function AgentMonthlyAnalyticsTable({
                         <div className="w-14 text-right text-xs font-bold text-slate-500">{row.caseCount}/{CASE_TARGET}</div>
                       </div>
                     </td>
-                    <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{formatCurrencyTHB(row.incentive)}</td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={6} className="border-t border-slate-100 px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={5} className="border-t border-slate-100 px-4 py-8 text-center text-sm text-slate-500">
                   No monthly analytics data found
                 </td>
               </tr>
@@ -1801,4 +1799,5 @@ export default function SummaryMockup({
     </div>
   );
 }
+
 
