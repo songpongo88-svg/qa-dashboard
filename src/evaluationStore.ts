@@ -619,37 +619,56 @@ function toFirebaseEvaluation(record: StoredEvaluation) {
 }
 
 export async function upsertStoredEvaluation(record: StoredEvaluation) {
-  if (!isEvaluationStoreConfigured()) throw new Error("Supabase is not configured.");
-  const response = await fetchWithTimeout(endpoint("?on_conflict=id"), {
-    method: "POST",
-    headers: headers("resolution=merge-duplicates,return=minimal"),
-    body: JSON.stringify([fromEvaluation(compactStoredRecord(record))]),
+  const localRecord = compactStoredRecord({
+    ...record,
+    submittedAt: record.submittedAt || new Date().toISOString(),
   });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Firebase save is not available. Saved locally: ${response.status}${detail ? ` - ${detail}` : ""}`);
+
+  saveEvaluationLocally(localRecord);
+
+  if (!isFirebaseEvaluationConfigured()) {
+    console.warn("Firebase evaluation store is not configured. Saved locally on this browser.");
+    return;
   }
-  clearRemoteEvaluationReadCache();
-  forgetDeletedEvaluationMarkers(record);
+
+  try {
+    const db = getFirebaseEvaluationDb();
+    if (!db) return;
+
+    const documentId = String(localRecord.id || localRecord.evaluationKey || localRecord.caseId || Date.now())
+      .replace(/[\\/#?\[\]]/g, "_");
+
+    await setDoc(
+      doc(db, FIREBASE_EVALUATION_COLLECTION, documentId),
+      toFirebaseEvaluation({ ...localRecord, id: documentId }),
+      { merge: true }
+    );
+
+    clearRemoteEvaluationReadCache();
+    forgetDeletedEvaluationMarkers({ ...localRecord, id: documentId });
+  } catch (error) {
+    console.warn("Firebase evaluation save failed. Saved locally on this browser.", error);
+  }
 }
 
 export async function deleteStoredEvaluation(id: string, caseId?: string) {
   const normalizedId = String(id || "").trim();
   if (!normalizedId) throw new Error("Evaluation id is required.");
-  if (!isEvaluationStoreConfigured()) {
-    removeEvaluationFromStorage(normalizedId, caseId);
-    return;
-  }
-  const params = new URLSearchParams({
-    id: `eq.${normalizedId}`,
-  });
-  const response = await fetchWithTimeout(endpoint(`?${params.toString()}`), {
-    method: "DELETE",
-    headers: headers("return=minimal"),
-  });
-  if (!response.ok) throw new Error(`Supabase evaluation delete failed: ${response.status}`);
-  clearRemoteEvaluationReadCache();
+
   removeEvaluationFromStorage(normalizedId, caseId);
+
+  if (!isFirebaseEvaluationConfigured()) return;
+
+  try {
+    const db = getFirebaseEvaluationDb();
+    if (!db) return;
+
+    const documentId = normalizedId.replace(/[\\/#?\[\]]/g, "_");
+    await deleteDoc(doc(db, FIREBASE_EVALUATION_COLLECTION, documentId));
+    clearRemoteEvaluationReadCache();
+  } catch (error) {
+    console.warn("Firebase evaluation delete skipped", error);
+  }
 }
 
 async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[], localEvaluations: StoredEvaluation[]) {
