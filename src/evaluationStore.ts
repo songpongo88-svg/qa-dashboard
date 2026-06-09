@@ -121,7 +121,7 @@ export function isSupabaseEvaluationConfigured() {
 }
 
 export function isEvaluationStoreConfigured() {
-  return isFirebaseEvaluationConfigured() || isSupabaseEvaluationConfigured();
+  return isFirebaseEvaluationConfigured();
 }
 
 function endpoint(query = "") {
@@ -627,7 +627,7 @@ export async function upsertStoredEvaluation(record: StoredEvaluation) {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`Supabase evaluation upsert failed: ${response.status}${detail ? ` - ${detail}` : ""}`);
+    throw new Error(`Firebase save is not available. Saved locally: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
   clearRemoteEvaluationReadCache();
   forgetDeletedEvaluationMarkers(record);
@@ -711,32 +711,5 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
     return availableEvaluations.slice(0, safeLimit);
   }
 
-  if (!isSupabaseEvaluationConfigured()) {
-    return localSources.slice(0, safeLimit);
-  }
-
-  const params = new URLSearchParams({
-    select: EVALUATION_SELECT_COLUMNS,
-    order: "submitted_at.desc",
-    limit: String(safeLimit),
-  });
-  const remoteEvaluations = await cachedRemoteEvaluations(safeLimit, async () => {
-    const response = await fetchWithTimeout(endpoint(`?${params.toString()}`), {
-      method: "GET",
-      headers: headers(),
-      cache: "default",
-    });
-    if (!response.ok) {
-      console.warn("Load stored evaluations failed", response.status);
-      return [];
-    }
-    return ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
-  }).catch(() => []);
-
-  const syncedLocalEvaluations = AUTO_SYNC_LOCAL_EVALUATIONS
-    ? await syncLocalEvaluationsToRemote(remoteEvaluations, localSources)
-    : [];
-  const availableEvaluations = mergeEvaluationSources([...remoteEvaluations, ...syncedLocalEvaluations], localSources);
-  writeRemoteEvaluationCache(availableEvaluations);
-  return availableEvaluations.slice(0, safeLimit);
+  return localSources.slice(0, safeLimit);
 }
