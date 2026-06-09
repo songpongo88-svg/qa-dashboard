@@ -230,9 +230,17 @@ export async function generateOfficialCaseDetailPdf({
   };
 
   const normalizeUrlForPdf = (value: unknown) => {
-    const raw = safeText(value, "-");
+    const raw = safeText(value, "-").replace(/\s+/g, "");
     if (raw === "-") return raw;
-    return raw.replace(/([\\/\\?&=._-])/g, "$1 ");
+
+    const compact =
+      raw.length > 135 ? `${raw.slice(0, 82)} ... ${raw.slice(-38)}` : raw;
+
+    return compact
+      .replace(/([?&=._#%-])/g, "$1 ")
+      .replace(/\//g, "/ ")
+      .replace(/\s+/g, " ")
+      .trim();
   };
 
   const addPageIfNeeded = (neededHeight: number) => {
@@ -249,57 +257,78 @@ export async function generateOfficialCaseDetailPdf({
   const title = includeAppeal ? `${caseItem.caseId} Appeal PDF` : `${caseItem.caseId} Original PDF`;
 
   const drawOriginalTop = () => {
-    setWidths([18, 45, 18, 27, 18, 20, 18, 31]);
-    purpleRow(y, 6, "Case Detail");
-    y += 6;
-    purpleRow(y, 6, "Select Case ID directly in Control_Panel. This page now shows the original evaluated case by Selected Case ID.", 5.8);
-    y += 9;
-    purpleRow(y, 5, "Current Selection");
-    y += 6.5;
+    setWidths(topWidths);
 
-    const selectionH = 10.5;
-    label(0, y, 1, selectionH, "Agent");
-    value(1, y, 1, selectionH, caseItem.agent, LIGHT_PURPLE, { align: "center", maxLines: 2 });
-    label(2, y, 1, selectionH, "Month");
-    value(3, y, 1, selectionH, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", maxLines: 2 });
-    label(4, y, 1, selectionH, "Case ID");
-    value(5, y, 3, selectionH, caseItem.caseId, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 8 });
-    y += selectionH;
+    const drawBox = (
+      x: number,
+      yy: number,
+      w: number,
+      h: number,
+      text: unknown,
+      bg: [number, number, number],
+      opts: TextOptions = {}
+    ) => {
+      rect(x, yy, w, h, bg);
+      writeText(text, x, yy, w, h, opts);
+    };
 
-    label(0, y, 1, selectionH, "Audit Date");
-    value(1, y, 1, selectionH, caseItem.auditTimestamp || caseItem.auditDate, LIGHT_PURPLE, { align: "center", maxLines: 2, size: 6.8 });
-    label(2, y, 1, selectionH, "Final Score");
-    value(3, y, 1, selectionH, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", size: 8.6, maxLines: 1 });
-    label(4, y, 1, selectionH, "Grade");
-    value(5, y, 3, selectionH, grade, LIGHT_PURPLE, { align: "center", size: 8.6, maxLines: 1 });
-    y += selectionH;
+    const drawLabelBox = (x: number, yy: number, w: number, h: number, text: string) => {
+      drawBox(x, yy, w, h, text, PURPLE, {
+        bold: true,
+        size: 6.5,
+        color: WHITE,
+        align: "center",
+        valign: "middle",
+        maxLines: 2,
+      });
+    };
 
-    const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
-    const inquiryRowH = Math.max(14, Math.min(24, measureTextHeight(inquiryText, wOf(3, 5), 6.8, 0.34, 6)));
-    addPageIfNeeded(inquiryRowH);
-    label(0, y, 1, inquiryRowH, "Critical Error");
-    value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", maxLines: 1 });
-    label(2, y, 1, inquiryRowH, "Customer\nInquiry");
-    value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
-      align: "left",
-      size: 6.8,
-      valign: "top",
-      maxLines: fitLinesForHeight(inquiryRowH, 6.8, 0.34, 5),
-      leading: 0.34,
-      bold: false,
-    });
-    y += inquiryRowH;
+    const drawValueBox = (
+      x: number,
+      yy: number,
+      w: number,
+      h: number,
+      text: unknown,
+      opts: TextOptions = {}
+    ) => {
+      drawBox(x, yy, w, h, text, LIGHT_PURPLE, {
+        bold: opts.bold ?? true,
+        size: opts.size ?? 7,
+        color: BLACK,
+        align: opts.align ?? "center",
+        valign: opts.valign ?? "middle",
+        maxLines: opts.maxLines ?? 2,
+        leading: opts.leading ?? 0.32,
+      });
+    };
 
-    const drawOriginalLongBox = (
+    const drawPair = (
+      x: number,
+      yy: number,
+      labelW: number,
+      valueW: number,
+      h: number,
       labelText: string,
-      rawText: unknown,
+      valueText: unknown,
+      opts: TextOptions = {}
+    ) => {
+      drawLabelBox(x, yy, labelW, h, labelText);
+      drawValueBox(x + labelW, yy, valueW, h, valueText, opts);
+      return x + labelW + valueW;
+    };
+
+    const drawWideRow = (
+      labelText: string,
+      valueText: unknown,
       minH: number,
       maxH: number,
       size: number,
       leading = 0.34
     ) => {
-      const preparedText = labelText.includes("URL") ? normalizeUrlForPdf(rawText || "-") : safeMultiline(rawText || "-");
-      const measuredH = measureTextHeight(preparedText, wOf(1, 7), size, leading, 6);
+      const labelW = 18;
+      const valueW = fullW - labelW;
+      const text = labelText.includes("URL") ? normalizeUrlForPdf(valueText || "-") : safeMultiline(valueText || "-");
+      const measuredH = measureTextHeight(text, valueW, size, leading, 6);
       let rowH = Math.max(minH, Math.min(maxH, measuredH));
 
       if (y + rowH > bottom) {
@@ -307,22 +336,78 @@ export async function generateOfficialCaseDetailPdf({
         y = top;
       }
 
-      if (y + rowH > bottom) rowH = Math.max(minH, bottom - y);
-
-      label(0, y, 1, rowH, labelText);
-      value(1, y, 7, rowH, preparedText, LIGHT_PURPLE, {
-        size,
-        valign: "top",
-        maxLines: fitLinesForHeight(rowH, size, leading, 5.8),
-        leading,
+      drawLabelBox(left, y, labelW, rowH, labelText);
+      drawValueBox(left + labelW, y, valueW, rowH, text, {
         bold: false,
+        size,
+        align: "left",
+        valign: "middle",
+        maxLines: fitLinesForHeight(rowH, size, leading, 5.5),
+        leading,
       });
       y += rowH;
     };
 
-    drawOriginalLongBox("Case URL", caseItem.caseUrl || "-", 8, 16, 5.3, 0.33);
-    drawOriginalLongBox("Case\nDescription", caseItem.caseDescription || "-", 22, 54, 6.7, 0.34);
-    drawOriginalLongBox("Case Image\nURL", caseItem.caseImageUrl || "-", 8, 15, 5.5, 0.33);
+    purpleRow(y, 6, "Case Detail");
+    y += 6;
+
+    purpleRow(y, 6, "Select Case ID directly in Control_Panel. This page now shows the original evaluated case by Selected Case ID.", 5.8);
+    y += 9;
+
+    purpleRow(y, 5, "Current Selection");
+    y += 6;
+
+    const rowH = 10;
+    const labelW = 18;
+    const valueW1 = 45;
+    const valueW2 = 34;
+    const valueW3 = fullW - labelW * 3 - valueW1 - valueW2;
+
+    let x = left;
+    x = drawPair(x, y, labelW, valueW1, rowH, "Agent", caseItem.agent, { maxLines: 2, size: 6.8 });
+    x = drawPair(x, y, labelW, valueW2, rowH, "Month", caseItem.monthLabel || caseItem.monthKey, { maxLines: 1, size: 7 });
+    drawPair(x, y, labelW, valueW3, rowH, "Case ID", caseItem.caseId, { maxLines: 1, size: 8 });
+    y += rowH;
+
+    x = left;
+    x = drawPair(x, y, labelW, valueW1, rowH, "Audit Date", caseItem.auditTimestamp || caseItem.auditDate, { maxLines: 1, size: 6.6 });
+    x = drawPair(x, y, labelW, valueW2, rowH, "Final Score", reportScore.toFixed(2), { maxLines: 1, size: 8.4 });
+    drawPair(x, y, labelW, valueW3, rowH, "Grade", grade, { maxLines: 1, size: 8.4 });
+    y += rowH;
+
+    const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
+    const criticalLabelW = 18;
+    const criticalValueW = 28;
+    const inquiryLabelW = 22;
+    const inquiryValueW = fullW - criticalLabelW - criticalValueW - inquiryLabelW;
+    const inquiryH = Math.max(10, Math.min(18, measureTextHeight(inquiryText, inquiryValueW, 6.6, 0.34, 6)));
+
+    if (y + inquiryH > bottom) {
+      doc.addPage();
+      y = top;
+    }
+
+    x = left;
+    drawLabelBox(x, y, criticalLabelW, inquiryH, "Critical\nError");
+    x += criticalLabelW;
+    drawValueBox(x, y, criticalValueW, inquiryH, "NO", { maxLines: 1, size: 6.8 });
+    x += criticalValueW;
+    drawLabelBox(x, y, inquiryLabelW, inquiryH, "Customer\nInquiry");
+    x += inquiryLabelW;
+    drawValueBox(x, y, inquiryValueW, inquiryH, inquiryText, {
+      bold: false,
+      size: 6.6,
+      align: "left",
+      valign: "middle",
+      maxLines: fitLinesForHeight(inquiryH, 6.6, 0.34, 5.5),
+      leading: 0.34,
+    });
+    y += inquiryH;
+
+    drawWideRow("Case URL", caseItem.caseUrl || "-", 8, 13, 5.1, 0.33);
+    drawWideRow("Case\nDescription", caseItem.caseDescription || "-", 18, 36, 6.4, 0.34);
+    drawWideRow("Case Image\nURL", caseItem.caseImageUrl || "-", 8, 13, 5.1, 0.33);
+
     y += 3;
   };
 
@@ -480,7 +565,7 @@ export async function generateOfficialCaseDetailPdf({
     const comment = safeMultiline(active.comment || topic.comment || "-");
     const appealReason = topicAppealReason(topic, revised, isRevised);
 
-    const commentW = includeAppeal ? wOf(6) - 2.4 : wOf(6) - 2.4;
+    const commentW = wOf(6) - 2.4;
     const appealW = includeAppeal ? wOf(7) - 2.4 : 0;
     const descriptionLines = doc.splitTextToSize(description, Math.max(2, wOf(1) - 2.4));
     const commentLines = doc.splitTextToSize(comment, Math.max(2, commentW));
@@ -489,8 +574,8 @@ export async function generateOfficialCaseDetailPdf({
     const neededH = Math.max(
       baseRowH,
       8 + descriptionLines.length * 2.25,
-      8 + commentLines.length * 2.22,
-      includeAppeal ? 8 + appealLines.length * 2.22 : 0
+      8 + commentLines.length * 2.18,
+      includeAppeal ? 8 + appealLines.length * 2.18 : 0
     );
     let rowH = Math.min(neededH, bottom - top - 22);
 
@@ -524,7 +609,7 @@ export async function generateOfficialCaseDetailPdf({
       cell(6, y, 1, rowH, comment, WHITE, {
         size: commentLines.length > 18 ? 5.3 : 5.8,
         align: "left",
-        valign: shortComment ? "middle" : "top",
+        valign: "middle",
         maxLines: maxBodyLines,
         leading: 0.34,
       });
@@ -539,7 +624,7 @@ export async function generateOfficialCaseDetailPdf({
       cell(6, y, 1, rowH, comment, WHITE, {
         size: commentLines.length > 18 ? 5.4 : 6.05,
         align: "left",
-        valign: "top",
+        valign: "middle",
         maxLines: maxBodyLines,
         leading: 0.34,
       });
