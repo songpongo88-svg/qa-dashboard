@@ -1,3 +1,6 @@
+import { initializeApp, getApps } from "firebase/app";
+import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc } from "firebase/firestore";
+
 const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
@@ -98,8 +101,16 @@ type CachedRemoteEvaluationRequest = {
 
 const remoteEvaluationReadCache = new Map<string, CachedRemoteEvaluationRequest>();
 
-export function isEvaluationStoreConfigured() {
+export function isFirebaseEvaluationConfigured() {
+  return Boolean(FIREBASE_API_KEY && FIREBASE_PROJECT_ID && FIREBASE_APP_ID);
+}
+
+export function isSupabaseEvaluationConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+}
+
+export function isEvaluationStoreConfigured() {
+  return isFirebaseEvaluationConfigured() || isSupabaseEvaluationConfigured();
 }
 
 function endpoint(query = "") {
@@ -549,6 +560,53 @@ function fromEvaluation(record: StoredEvaluation) {
   };
 }
 
+let firebaseEvaluationDb: ReturnType<typeof getFirestore> | null = null;
+
+function getFirebaseEvaluationDb() {
+  if (!isFirebaseEvaluationConfigured()) return null;
+  if (firebaseEvaluationDb) return firebaseEvaluationDb;
+
+  const app =
+    getApps().length > 0
+      ? getApps()[0]
+      : initializeApp({
+          apiKey: FIREBASE_API_KEY,
+          authDomain: FIREBASE_AUTH_DOMAIN,
+          projectId: FIREBASE_PROJECT_ID,
+          storageBucket: FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+          appId: FIREBASE_APP_ID,
+        });
+
+  firebaseEvaluationDb = getFirestore(app);
+  return firebaseEvaluationDb;
+}
+
+function saveEvaluationLocally(record: StoredEvaluation) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const localRecord = compactStoredRecord({
+      ...record,
+      submittedAt: record.submittedAt || new Date().toISOString(),
+    });
+    const recordIdentities = new Set(evaluationIdentityValues(localRecord));
+    const currentLocal = readLocalEvaluationHistory().filter(
+      (item) => !evaluationIdentityValues(item).some((identity) => recordIdentities.has(identity))
+    );
+    const nextLocal = [localRecord, ...currentLocal].slice(0, MAX_EVALUATION_LIMIT);
+    window.localStorage.setItem(LOCAL_EVALUATION_HISTORY_KEY, JSON.stringify(nextLocal));
+    forgetDeletedEvaluationMarkers(localRecord);
+    clearRemoteEvaluationReadCache();
+  } catch (error) {
+    console.warn("Save evaluation locally failed", error);
+  }
+}
+
+function toFirebaseEvaluation(record: StoredEvaluation) {
+  return fromEvaluation(compactStoredRecord(record));
+}
+
 export async function upsertStoredEvaluation(record: StoredEvaluation) {
   if (!isEvaluationStoreConfigured()) throw new Error("Supabase is not configured.");
   const response = await fetchWithTimeout(endpoint("?on_conflict=id"), {
@@ -599,7 +657,7 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
       identities.forEach((identity) => remoteIdentities.add(identity));
       restored.push(restoredRecord);
     } catch (error) {
-      console.warn("Sync local evaluation to Supabase skipped", item.caseId, error);
+      console.warn("Sync local evaluation to remote store skipped", item.caseId, error);
     }
   }
 
@@ -612,7 +670,37 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
   const cachedEvaluations = readRemoteEvaluationCache();
   const recoveredLocalEvaluations = readRecoveredLocalEvaluations();
   const localSources = mergeEvaluationSources([...cachedEvaluations, ...recoveredLocalEvaluations], localEvaluations);
-  if (!isEvaluationStoreConfigured()) {
+
+  if (isFirebaseEvaluationConfigured()) {
+    const firebaseEvaluations = await cachedRemoteEvaluations(safeLimit, async () => {
+      try {
+        const db = getFirebaseEvaluationDb();
+        if (!db) return [];
+        const snapshot = await getDocs(
+          query(
+            collection(db, FIREBASE_EVALUATION_COLLECTION),
+            orderBy("submitted_at", "desc"),
+            firestoreLimit(safeLimit)
+          )
+        );
+        return snapshot.docs
+          .map((item) => toEvaluation({ id: item.id, ...item.data() }))
+          .filter((item) => item.id && item.caseId);
+      } catch (error) {
+        console.warn("Load Firebase evaluations failed", error);
+        return [];
+      }
+    }).catch(() => []);
+
+    const syncedLocalEvaluations = AUTO_SYNC_LOCAL_EVALUATIONS
+      ? await syncLocalEvaluationsToRemote(firebaseEvaluations, localSources)
+      : [];
+    const availableEvaluations = mergeEvaluationSources([...firebaseEvaluations, ...syncedLocalEvaluations], localSources);
+    writeRemoteEvaluationCache(availableEvaluations);
+    return availableEvaluations.slice(0, safeLimit);
+  }
+
+  if (!isSupabaseEvaluationConfigured()) {
     return localSources.slice(0, safeLimit);
   }
 
@@ -633,6 +721,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
     }
     return ((await response.json()) as any[]).map(toEvaluation).filter((item) => item.id && item.caseId);
   }).catch(() => []);
+
   const syncedLocalEvaluations = AUTO_SYNC_LOCAL_EVALUATIONS
     ? await syncLocalEvaluationsToRemote(remoteEvaluations, localSources)
     : [];
