@@ -99,10 +99,11 @@ function downloadGeneratedPdfFile(result: { blob: Blob; fileName: string }) {
   const link = document.createElement("a");
   link.href = url;
   link.download = result.fileName || "Original_QA_Report.pdf";
+  link.style.display = "none";
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 function isAppealTopicChanged(topic: { score?: number; revisedScore?: number | string; revisedComment?: string }) {
@@ -2258,6 +2259,7 @@ function SlideOverCaseDetail({
     url: string;
     title: string;
     downloadUrl?: string;
+    downloadName?: string;
     items?: string[];
     index?: number;
   } | null>(null);
@@ -2488,6 +2490,8 @@ function SlideOverCaseDetail({
         pdfVariant,
       });
 
+      downloadGeneratedPdfFile(officialPdf);
+
       const pdfUrl = URL.createObjectURL(officialPdf.blob);
 
       setPreviewAsset((current) => {
@@ -2499,6 +2503,7 @@ function SlideOverCaseDetail({
           type: "pdf",
           url: pdfUrl,
           downloadUrl: pdfUrl,
+          downloadName: officialPdf.fileName,
           title: officialPdf.title,
         };
       });
@@ -2528,10 +2533,8 @@ function SlideOverCaseDetail({
               <div className="flex items-center gap-2">
                 <a
                   href={previewAsset.downloadUrl || previewAsset.url}
-                  target="_blank"
-                  rel="noreferrer"
                   className="inline-flex rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-                download
+                  download={previewAsset.downloadName || previewAsset.title || true}
                 >
                   Download File
                 </a>

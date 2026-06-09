@@ -2187,12 +2187,16 @@ function HeaderInfoChip({
 }
 
 function VersionPill({ meta, className = "" }: { meta: BuildMeta; className?: string }) {
-  const versionText = meta.displayVersion || meta.releaseLabel?.replace(/^v/, "") || meta.version || "1.0.0";
+  const baseVersion = meta.displayVersion || meta.releaseLabel?.replace(/^v/, "") || meta.version || "1.0.0";
+  const commitShort = String(meta.commitHash || "").trim().slice(0, 7);
+  const versionText = commitShort && !baseVersion.includes(commitShort)
+    ? `${baseVersion}:${commitShort}`
+    : baseVersion;
   const updatedText = meta.updatedAt || "Asia/Bangkok";
 
   return (
     <div className={`rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left ${className}`}>
-      <div className="text-sm font-black text-slate-950">Version {versionText}</div>
+      <div className="text-sm font-black text-slate-950">Version: {versionText}</div>
       <div className="mt-1 text-xs font-semibold text-slate-500">{updatedText}</div>
     </div>
   );

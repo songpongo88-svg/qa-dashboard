@@ -230,16 +230,10 @@ export async function generateOfficialCaseDetailPdf({
   };
 
   const normalizeUrlForPdf = (value: unknown) => {
-    const raw = safeText(value, "-").replace(/\s+/g, "");
+    const raw = safeText(value, "-");
     if (raw === "-") return raw;
-
-    const compact = raw.length > 150 ? `${raw.slice(0, 92)} ... ${raw.slice(-42)}` : raw;
-
-    return compact
-      .replace(/([?&=._#%-])/g, "$1 ")
-      .replace(/\//g, "/ ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const compact = raw.length > 170 ? `${raw.slice(0, 112)} ... ${raw.slice(-42)}` : raw;
+    return compact.replace(/([/?&=._#%-])/g, "$1 ").replace(/\s+/g, " ").trim();
   };
 
   const addPageIfNeeded = (neededHeight: number) => {
@@ -257,157 +251,85 @@ export async function generateOfficialCaseDetailPdf({
 
   const drawOriginalTop = () => {
     setWidths(topWidths);
-
-    const box = (
-      x: number,
-      yy: number,
-      w: number,
-      h: number,
-      text: unknown,
-      bg: [number, number, number],
-      opts: TextOptions = {}
-    ) => {
-      rect(x, yy, w, h, bg);
-      writeText(text, x, yy, w, h, opts);
-    };
-
-    const labelBox = (x: number, yy: number, w: number, h: number, text: string) => {
-      box(x, yy, w, h, text, PURPLE, {
-        bold: true,
-        size: 6.3,
-        color: WHITE,
-        align: "center",
-        valign: "middle",
-        maxLines: 2,
-      });
-    };
-
-    const valueBox = (
-      x: number,
-      yy: number,
-      w: number,
-      h: number,
-      text: unknown,
-      opts: TextOptions = {}
-    ) => {
-      box(x, yy, w, h, text, LIGHT_PURPLE, {
-        bold: opts.bold ?? true,
-        size: opts.size ?? 6.8,
-        color: BLACK,
-        align: opts.align ?? "center",
-        valign: opts.valign ?? "middle",
-        maxLines: opts.maxLines ?? 2,
-        leading: opts.leading ?? 0.32,
-      });
-    };
-
-    const pair = (
-      x: number,
-      yy: number,
-      labelW: number,
-      valueW: number,
-      h: number,
-      labelText: string,
-      valueText: unknown,
-      opts: TextOptions = {}
-    ) => {
-      labelBox(x, yy, labelW, h, labelText);
-      valueBox(x + labelW, yy, valueW, h, valueText, opts);
-      return x + labelW + valueW;
-    };
-
-    const fitRow = (
-      labelText: string,
-      valueText: unknown,
-      minH: number,
-      maxH: number,
-      size: number,
-      leading = 0.34
-    ) => {
-      const labelW = 18;
-      const valueW = fullW - labelW;
-      const text = labelText.includes("URL") ? normalizeUrlForPdf(valueText || "-") : safeMultiline(valueText || "-");
-      const measuredH = measureTextHeight(text, valueW, size, leading, 6);
-      let rowH = Math.max(minH, Math.min(maxH, measuredH));
-
-      if (y + rowH > bottom) {
-        doc.addPage();
-        y = top;
-      }
-
-      labelBox(left, y, labelW, rowH, labelText);
-      valueBox(left + labelW, y, valueW, rowH, text, {
-        bold: false,
-        size,
-        align: "left",
-        valign: "middle",
-        maxLines: fitLinesForHeight(rowH, size, leading, 5.5),
-        leading,
-      });
-      y += rowH;
-    };
-
     purpleRow(y, 6, "Case Detail");
     y += 6;
-
     purpleRow(y, 6, "Select Case ID directly in Control_Panel. This page now shows the original evaluated case by Selected Case ID.", 5.8);
+    y += 10;
+    purpleRow(y, 5, "Current Selection");
     y += 8;
 
-    purpleRow(y, 5, "Current Selection");
-    y += 5.5;
+    label(0, y, 1, 12, "Agent");
+    value(1, y, 2, 12, caseItem.agent, LIGHT_PURPLE, { align: "center", maxLines: 2, size: 6.8 });
+    label(3, y, 1, 12, "Month");
+    value(4, y, 1, 12, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 6.8 });
+    label(5, y, 1, 12, "Case ID");
+    value(6, y, 2, 12, caseItem.caseId, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 7.4 });
+    y += 12;
 
-    const rowH = 9.5;
-    const labelW = 16;
-    const agentW = Math.min(42, Math.max(30, safeText(caseItem.agent).length * 1.7));
-    const monthW = 27;
-    const caseW = 34;
-
-    let x = left;
-    x = pair(x, y, labelW, agentW, rowH, "Agent", caseItem.agent, { maxLines: 1, size: 6.6 });
-    x = pair(x, y, labelW, monthW, rowH, "Month", caseItem.monthLabel || caseItem.monthKey, { maxLines: 1, size: 6.8 });
-    pair(x, y, labelW, caseW, rowH, "Case ID", caseItem.caseId, { maxLines: 1, size: 7.4 });
-    y += rowH;
-
-    x = left;
-    x = pair(x, y, labelW, 42, rowH, "Audit Date", caseItem.auditTimestamp || caseItem.auditDate, { maxLines: 1, size: 6.4 });
-    x = pair(x, y, labelW + 2, 24, rowH, "Final Score", reportScore.toFixed(2), { maxLines: 1, size: 7.8 });
-    pair(x, y, labelW, 22, rowH, "Grade", grade, { maxLines: 1, size: 7.8 });
-    y += rowH;
+    label(0, y, 1, 14, "Audit Date");
+    value(1, y, 1, 14, caseItem.auditTimestamp || caseItem.auditDate, LIGHT_PURPLE, { align: "center", maxLines: 2, size: 6.4 });
+    label(2, y, 1, 14, "Case ID");
+    value(3, y, 1, 14, caseItem.caseId, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 7.2 });
+    label(4, y, 1, 14, "Final Score");
+    value(5, y, 1, 14, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", size: 8.2, maxLines: 1 });
+    label(6, y, 1, 14, "Case Grade");
+    value(7, y, 1, 14, grade, LIGHT_PURPLE, { align: "center", size: 8.2, maxLines: 1 });
+    y += 14;
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
-    const criticalLabelW = 18;
-    const criticalValueW = 23;
-    const inquiryLabelW = 21;
-    const inquiryValueW = Math.min(104, fullW - criticalLabelW - criticalValueW - inquiryLabelW);
-    const inquiryH = Math.max(9.5, Math.min(15, measureTextHeight(inquiryText, inquiryValueW, 6.3, 0.34, 5)));
-
-    if (y + inquiryH > bottom) {
-      doc.addPage();
-      y = top;
-    }
-
-    x = left;
-    labelBox(x, y, criticalLabelW, inquiryH, "Critical\nError");
-    x += criticalLabelW;
-    valueBox(x, y, criticalValueW, inquiryH, "NO", { maxLines: 1, size: 6.5 });
-    x += criticalValueW;
-    labelBox(x, y, inquiryLabelW, inquiryH, "Customer\nInquiry");
-    x += inquiryLabelW;
-    valueBox(x, y, inquiryValueW, inquiryH, inquiryText, {
-      bold: false,
-      size: 6.3,
+    const inquiryRowH = Math.max(16, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), 6.5, 0.34, 6)));
+    addPageIfNeeded(inquiryRowH);
+    label(0, y, 1, inquiryRowH, "Critical Error");
+    value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", maxLines: 1, size: 6.6 });
+    label(2, y, 1, inquiryRowH, "Customer\nInquiry");
+    value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
       align: "left",
+      size: 6.5,
       valign: "middle",
-      maxLines: fitLinesForHeight(inquiryH, 6.3, 0.34, 5),
+      maxLines: fitLinesForHeight(inquiryRowH, 6.5, 0.34, 5),
       leading: 0.34,
+      bold: false,
     });
-    y += inquiryH;
+    y += inquiryRowH;
 
-    fitRow("Case URL", caseItem.caseUrl || "-", 7.5, 11, 4.9, 0.33);
-    fitRow("Case\nDescription", caseItem.caseDescription || "-", 16, 30, 6.15, 0.34);
-    fitRow("Case Image\nURL", caseItem.caseImageUrl || "-", 7.5, 11, 4.9, 0.33);
+    const caseUrlText = normalizeUrlForPdf(caseItem.caseUrl || "-");
+    const caseUrlRowH = Math.max(9, Math.min(16, measureTextHeight(caseUrlText, wOf(1, 7), 5.1, 0.33, 5)));
+    addPageIfNeeded(caseUrlRowH);
+    label(0, y, 1, caseUrlRowH, "Case URL");
+    value(1, y, 7, caseUrlRowH, caseUrlText, LIGHT_PURPLE, {
+      size: 5.1,
+      valign: "middle",
+      maxLines: fitLinesForHeight(caseUrlRowH, 5.1, 0.33, 5),
+      leading: 0.33,
+      bold: false,
+    });
+    y += caseUrlRowH;
 
-    y += 3;
+    const descriptionText = caseItem.caseDescription || "-";
+    const descriptionRowH = Math.max(24, Math.min(52, measureTextHeight(descriptionText, wOf(1, 7), 6.6, 0.34, 7)));
+    addPageIfNeeded(descriptionRowH);
+    label(0, y, 1, descriptionRowH, "Case\nDescription");
+    value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
+      size: 6.6,
+      valign: "middle",
+      maxLines: fitLinesForHeight(descriptionRowH, 6.6, 0.34, 6),
+      leading: 0.34,
+      bold: false,
+    });
+    y += descriptionRowH;
+
+    const imageUrlText = normalizeUrlForPdf(caseItem.caseImageUrl || "-");
+    const imageUrlRowH = Math.max(9, Math.min(15, measureTextHeight(imageUrlText, wOf(1, 7), 5.1, 0.33, 5)));
+    addPageIfNeeded(imageUrlRowH);
+    label(0, y, 1, imageUrlRowH, "Case Image\nURL");
+    value(1, y, 7, imageUrlRowH, imageUrlText, LIGHT_PURPLE, {
+      size: 5.1,
+      valign: "middle",
+      maxLines: fitLinesForHeight(imageUrlRowH, 5.1, 0.33, 5),
+      leading: 0.33,
+      bold: false,
+    });
+    y += imageUrlRowH + 3;
   };
 
   const drawAppealTop = () => {
