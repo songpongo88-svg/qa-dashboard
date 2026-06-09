@@ -813,7 +813,7 @@ async function buildV8CaseUploadInboxTasks(
             subject: `New QA case uploaded: ${item.caseId}`,
             to: currentUser.displayName || currentUser.username,
             from: "QA Dashboard System",
-            status: `Score ${scoreText}/100 เธขเธ— Grade ${item.grade}`,
+            status: `Score ${scoreText}/100 — Grade ${item.grade}`,
             body: [
               `Case ID: ${item.caseId}`,
               `Week: ${latestWeekLabel}`,
@@ -861,7 +861,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
   const current = now.getTime();
 
   if (Number.isNaN(start) || current <= start) {
-    return "00 เน€เธยเน€เธเธ. 00 เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ• 00 เน€เธเธเน€เธเธ”เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ•";
+    return "00 hrs. 00 mins. 00 เน€เธเธเน€เธเธ”mins.";
   }
 
   const totalSeconds = Math.floor((current - start) / 1000);
@@ -869,7 +869,7 @@ function formatSessionDuration(startedAt: string, now: Date) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  return `${String(hours).padStart(2, "0")} เน€เธยเน€เธเธ. ${String(minutes).padStart(2, "0")} เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ• ${String(seconds).padStart(2, "0")} เน€เธเธเน€เธเธ”เน€เธยเน€เธเธ’เน€เธโ€”เน€เธเธ•`;
+  return `${String(hours).padStart(2, "0")} hrs. ${String(minutes).padStart(2, "0")} mins. ${String(seconds).padStart(2, "0")} เน€เธเธเน€เธเธ”mins.`;
 }
 
 function readStoredUser(): CurrentUser | null {
@@ -1631,7 +1631,7 @@ function SongkranBackdrop({ compact = false }: { compact?: boolean }) {
             Songkran Festival
           </div>
           <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
-            Water splash theme เธขเธ— resets after 25 Apr 2026
+            Water splash theme — resets after 25 Apr 2026
           </div>
         </>
       ) : null}
@@ -2186,25 +2186,14 @@ function HeaderInfoChip({
   );
 }
 
-function VersionPill({
-  meta,
-  className = "",
-}: {
-  meta: BuildMeta;
-  className?: string;
-}) {
-  const shortHash = meta.commitHash ? meta.commitHash.slice(0, 7) : "";
-  const shownVersion = meta.displayVersion || meta.version;
+function VersionPill({ meta, className = "" }: { meta: BuildMeta; className?: string }) {
+  const versionText = meta.displayVersion || meta.releaseLabel?.replace(/^v/, "") || meta.version || "1.0.0";
+  const updatedText = meta.updatedAt || "Asia/Bangkok";
 
   return (
-    <div className={`inline-flex flex-col gap-0.5 rounded-[16px] border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-slate-700 ${className}`}>
-      <div className="text-sm font-bold text-slate-900">
-        Version {shownVersion}
-      </div>
-      <div className="text-[11px] leading-4 text-slate-500">
-        {meta.updatedAt}
-        {shortHash ? ` เธขเธ— ${shortHash}` : ""}
-      </div>
+    <div className={`rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left ${className}`}>
+      <div className="text-sm font-black text-slate-950">Version {versionText}</div>
+      <div className="mt-1 text-xs font-semibold text-slate-500">{updatedText}</div>
     </div>
   );
 }
@@ -2534,7 +2523,7 @@ function FloatingChatWidget({
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Collaboration</div>
                 <div className="mt-1 text-lg font-black">Team Chat</div>
                 <div className="mt-1 text-xs font-semibold text-violet-100">
-                  {onlineUsers.length} online user(s) เธขเธ— {totalUnread} unread message(s)
+                  {onlineUsers.length} online user(s) — {totalUnread} unread message(s)
                 </div>
               </div>
               <button
@@ -2644,7 +2633,7 @@ function FloatingChatWidget({
                               ? "Call ended"
                               : "Ringing call"
                       : message.attachment
-                        ? `${message.message || "Attachment"} เธขเธ— ${message.attachment.name}`
+                        ? `${message.message || "Attachment"} — ${message.attachment.name}`
                         : message.message || "-"}
                   </div>
                   {isUnread ? (
@@ -3446,7 +3435,7 @@ export default function App() {
           nextTasks.push({
             id,
             type: "evaluation",
-            title: `QA Evaluation Result เธขเธ— ${caseId}`,
+            title: `QA Evaluation Result — ${caseId}`,
             description: `You have a new QA evaluation result for case ${caseId}. Score ${finalScore}/100, Grade ${grade}.`,
             badge: "QA Result",
             count: 1,
@@ -3455,10 +3444,10 @@ export default function App() {
             caseId,
             agentName,
             mailTemplate: {
-              subject: `QA Evaluation Result เธขเธ— ${caseId}`,
+              subject: `QA Evaluation Result — ${caseId}`,
               to: String(details.targetDisplayName || agentName || currentUser.displayName || currentUser.username),
               from: String(details.evaluatorName || "Quality Assurance"),
-              status: `Score ${finalScore}/100 เธขเธ— Grade ${grade}`,
+              status: `Score ${finalScore}/100 — Grade ${grade}`,
               body: [
                 `You have been evaluated for case ${caseId}.`,
                 `Final Score: ${finalScore}/100`,
@@ -5136,11 +5125,11 @@ export default function App() {
                       <span className="mx-2 text-slate-300">/</span>
                       <span className="font-bold text-slate-700">
                         Version {buildMeta.displayVersion || buildMeta.version}
-                        <span className="mx-1 text-slate-300">เธขเธ—</span>
+                        <span className="mx-1 text-slate-300">—</span>
                         {buildMeta.updatedAt}
                         {buildMeta.commitHash ? (
                           <>
-                            <span className="mx-1 text-slate-300">เธขเธ—</span>
+                            <span className="mx-1 text-slate-300">—</span>
                             {buildMeta.commitHash.slice(0, 7)}
                           </>
                         ) : null}

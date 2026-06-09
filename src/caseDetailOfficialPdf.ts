@@ -233,8 +233,7 @@ export async function generateOfficialCaseDetailPdf({
     const raw = safeText(value, "-").replace(/\s+/g, "");
     if (raw === "-") return raw;
 
-    const compact =
-      raw.length > 135 ? `${raw.slice(0, 82)} ... ${raw.slice(-38)}` : raw;
+    const compact = raw.length > 150 ? `${raw.slice(0, 92)} ... ${raw.slice(-42)}` : raw;
 
     return compact
       .replace(/([?&=._#%-])/g, "$1 ")
@@ -259,7 +258,7 @@ export async function generateOfficialCaseDetailPdf({
   const drawOriginalTop = () => {
     setWidths(topWidths);
 
-    const drawBox = (
+    const box = (
       x: number,
       yy: number,
       w: number,
@@ -272,10 +271,10 @@ export async function generateOfficialCaseDetailPdf({
       writeText(text, x, yy, w, h, opts);
     };
 
-    const drawLabelBox = (x: number, yy: number, w: number, h: number, text: string) => {
-      drawBox(x, yy, w, h, text, PURPLE, {
+    const labelBox = (x: number, yy: number, w: number, h: number, text: string) => {
+      box(x, yy, w, h, text, PURPLE, {
         bold: true,
-        size: 6.5,
+        size: 6.3,
         color: WHITE,
         align: "center",
         valign: "middle",
@@ -283,7 +282,7 @@ export async function generateOfficialCaseDetailPdf({
       });
     };
 
-    const drawValueBox = (
+    const valueBox = (
       x: number,
       yy: number,
       w: number,
@@ -291,9 +290,9 @@ export async function generateOfficialCaseDetailPdf({
       text: unknown,
       opts: TextOptions = {}
     ) => {
-      drawBox(x, yy, w, h, text, LIGHT_PURPLE, {
+      box(x, yy, w, h, text, LIGHT_PURPLE, {
         bold: opts.bold ?? true,
-        size: opts.size ?? 7,
+        size: opts.size ?? 6.8,
         color: BLACK,
         align: opts.align ?? "center",
         valign: opts.valign ?? "middle",
@@ -302,7 +301,7 @@ export async function generateOfficialCaseDetailPdf({
       });
     };
 
-    const drawPair = (
+    const pair = (
       x: number,
       yy: number,
       labelW: number,
@@ -312,12 +311,12 @@ export async function generateOfficialCaseDetailPdf({
       valueText: unknown,
       opts: TextOptions = {}
     ) => {
-      drawLabelBox(x, yy, labelW, h, labelText);
-      drawValueBox(x + labelW, yy, valueW, h, valueText, opts);
+      labelBox(x, yy, labelW, h, labelText);
+      valueBox(x + labelW, yy, valueW, h, valueText, opts);
       return x + labelW + valueW;
     };
 
-    const drawWideRow = (
+    const fitRow = (
       labelText: string,
       valueText: unknown,
       minH: number,
@@ -336,8 +335,8 @@ export async function generateOfficialCaseDetailPdf({
         y = top;
       }
 
-      drawLabelBox(left, y, labelW, rowH, labelText);
-      drawValueBox(left + labelW, y, valueW, rowH, text, {
+      labelBox(left, y, labelW, rowH, labelText);
+      valueBox(left + labelW, y, valueW, rowH, text, {
         bold: false,
         size,
         align: "left",
@@ -352,35 +351,35 @@ export async function generateOfficialCaseDetailPdf({
     y += 6;
 
     purpleRow(y, 6, "Select Case ID directly in Control_Panel. This page now shows the original evaluated case by Selected Case ID.", 5.8);
-    y += 9;
+    y += 8;
 
     purpleRow(y, 5, "Current Selection");
-    y += 6;
+    y += 5.5;
 
-    const rowH = 10;
-    const labelW = 18;
-    const valueW1 = 45;
-    const valueW2 = 34;
-    const valueW3 = fullW - labelW * 3 - valueW1 - valueW2;
+    const rowH = 9.5;
+    const labelW = 16;
+    const agentW = Math.min(42, Math.max(30, safeText(caseItem.agent).length * 1.7));
+    const monthW = 27;
+    const caseW = 34;
 
     let x = left;
-    x = drawPair(x, y, labelW, valueW1, rowH, "Agent", caseItem.agent, { maxLines: 2, size: 6.8 });
-    x = drawPair(x, y, labelW, valueW2, rowH, "Month", caseItem.monthLabel || caseItem.monthKey, { maxLines: 1, size: 7 });
-    drawPair(x, y, labelW, valueW3, rowH, "Case ID", caseItem.caseId, { maxLines: 1, size: 8 });
+    x = pair(x, y, labelW, agentW, rowH, "Agent", caseItem.agent, { maxLines: 1, size: 6.6 });
+    x = pair(x, y, labelW, monthW, rowH, "Month", caseItem.monthLabel || caseItem.monthKey, { maxLines: 1, size: 6.8 });
+    pair(x, y, labelW, caseW, rowH, "Case ID", caseItem.caseId, { maxLines: 1, size: 7.4 });
     y += rowH;
 
     x = left;
-    x = drawPair(x, y, labelW, valueW1, rowH, "Audit Date", caseItem.auditTimestamp || caseItem.auditDate, { maxLines: 1, size: 6.6 });
-    x = drawPair(x, y, labelW, valueW2, rowH, "Final Score", reportScore.toFixed(2), { maxLines: 1, size: 8.4 });
-    drawPair(x, y, labelW, valueW3, rowH, "Grade", grade, { maxLines: 1, size: 8.4 });
+    x = pair(x, y, labelW, 42, rowH, "Audit Date", caseItem.auditTimestamp || caseItem.auditDate, { maxLines: 1, size: 6.4 });
+    x = pair(x, y, labelW + 2, 24, rowH, "Final Score", reportScore.toFixed(2), { maxLines: 1, size: 7.8 });
+    pair(x, y, labelW, 22, rowH, "Grade", grade, { maxLines: 1, size: 7.8 });
     y += rowH;
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
     const criticalLabelW = 18;
-    const criticalValueW = 28;
-    const inquiryLabelW = 22;
-    const inquiryValueW = fullW - criticalLabelW - criticalValueW - inquiryLabelW;
-    const inquiryH = Math.max(10, Math.min(18, measureTextHeight(inquiryText, inquiryValueW, 6.6, 0.34, 6)));
+    const criticalValueW = 23;
+    const inquiryLabelW = 21;
+    const inquiryValueW = Math.min(104, fullW - criticalLabelW - criticalValueW - inquiryLabelW);
+    const inquiryH = Math.max(9.5, Math.min(15, measureTextHeight(inquiryText, inquiryValueW, 6.3, 0.34, 5)));
 
     if (y + inquiryH > bottom) {
       doc.addPage();
@@ -388,25 +387,25 @@ export async function generateOfficialCaseDetailPdf({
     }
 
     x = left;
-    drawLabelBox(x, y, criticalLabelW, inquiryH, "Critical\nError");
+    labelBox(x, y, criticalLabelW, inquiryH, "Critical\nError");
     x += criticalLabelW;
-    drawValueBox(x, y, criticalValueW, inquiryH, "NO", { maxLines: 1, size: 6.8 });
+    valueBox(x, y, criticalValueW, inquiryH, "NO", { maxLines: 1, size: 6.5 });
     x += criticalValueW;
-    drawLabelBox(x, y, inquiryLabelW, inquiryH, "Customer\nInquiry");
+    labelBox(x, y, inquiryLabelW, inquiryH, "Customer\nInquiry");
     x += inquiryLabelW;
-    drawValueBox(x, y, inquiryValueW, inquiryH, inquiryText, {
+    valueBox(x, y, inquiryValueW, inquiryH, inquiryText, {
       bold: false,
-      size: 6.6,
+      size: 6.3,
       align: "left",
       valign: "middle",
-      maxLines: fitLinesForHeight(inquiryH, 6.6, 0.34, 5.5),
+      maxLines: fitLinesForHeight(inquiryH, 6.3, 0.34, 5),
       leading: 0.34,
     });
     y += inquiryH;
 
-    drawWideRow("Case URL", caseItem.caseUrl || "-", 8, 13, 5.1, 0.33);
-    drawWideRow("Case\nDescription", caseItem.caseDescription || "-", 18, 36, 6.4, 0.34);
-    drawWideRow("Case Image\nURL", caseItem.caseImageUrl || "-", 8, 13, 5.1, 0.33);
+    fitRow("Case URL", caseItem.caseUrl || "-", 7.5, 11, 4.9, 0.33);
+    fitRow("Case\nDescription", caseItem.caseDescription || "-", 16, 30, 6.15, 0.34);
+    fitRow("Case Image\nURL", caseItem.caseImageUrl || "-", 7.5, 11, 4.9, 0.33);
 
     y += 3;
   };

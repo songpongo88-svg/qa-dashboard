@@ -94,6 +94,17 @@ type AppealMergeItem = {
   displayRevisedTopicCodes: string[];
 };
 
+function downloadGeneratedPdfFile(result: { blob: Blob; fileName: string }) {
+  const url = URL.createObjectURL(result.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = result.fileName || "Original_QA_Report.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function isAppealTopicChanged(topic: { score?: number; revisedScore?: number | string; revisedComment?: string }) {
   const revisedScore =
     topic.revisedScore !== null &&

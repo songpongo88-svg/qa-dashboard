@@ -125,10 +125,10 @@ function main() {
     timezone: "Asia/Bangkok",
     author: "Songpon Phothong",
     commitHash: fullCommitHash,
-    commitMessage,
-    changedFiles,
+    commitMessage: "",
+    changedFiles: [],
     releaseNotesTitle: "Latest Updates",
-    releaseNotes: [],
+    releaseNotes: ["Latest build is ready."],
   };
 
   fs.mkdirSync(path.dirname(buildMetaPath), { recursive: true });
