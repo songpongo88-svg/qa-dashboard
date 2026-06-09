@@ -2193,6 +2193,103 @@ function QuickCaseSearchCard({
   );
 }
 
+
+function getSafeCaseImagePreviewUrl(rawUrl: string) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw) return "";
+
+  const driveId =
+    raw.match(/\/file\/d\/([^/?#]+)/i)?.[1] ||
+    raw.match(/[?&]id=([^&#]+)/i)?.[1] ||
+    raw.match(/\/open\?[^#]*id=([^&#]+)/i)?.[1] ||
+    raw.match(/\/uc\?[^#]*id=([^&#]+)/i)?.[1] ||
+    "";
+
+  if (driveId) {
+    return `https://drive.google.com/file/d/${decodeURIComponent(driveId)}/preview`;
+  }
+
+  return raw;
+}
+
+function SafeCaseImagePreview({
+  url,
+  title,
+}: {
+  url: string;
+  title: string;
+}) {
+  const safeUrl = getSafeCaseImagePreviewUrl(url);
+  const lowerUrl = String(url || "").toLowerCase();
+  const isDriveUrl = lowerUrl.includes("drive.google.com") || lowerUrl.includes("googleusercontent.com");
+  const isDirectImage =
+    safeUrl.startsWith("data:image/") ||
+    /\.(png|jpg|jpeg|webp|gif|bmp|svg|avif)(?:$|[?#])/i.test(safeUrl);
+
+  if (!safeUrl) {
+    return (
+      <div className="flex max-w-xl flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center shadow-sm">
+        <div className="text-sm font-black text-slate-800">ไม่พบลิงก์รูปภาพ</div>
+        <div className="mt-2 text-xs font-semibold text-slate-500">
+          เคสนี้ยังไม่มี Case Image URL หรือ Evidence URL
+        </div>
+      </div>
+    );
+  }
+
+  if (isDriveUrl) {
+    return (
+      <div className="flex h-full w-full flex-col gap-3">
+        <iframe
+          key={safeUrl}
+          src={safeUrl}
+          title={title}
+          className="h-full min-h-[70vh] w-full rounded-2xl border border-slate-200 bg-white shadow-lg"
+          allow="autoplay"
+        />
+        <div className="flex justify-center">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 hover:bg-violet-100"
+          >
+            Open original link
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDirectImage) {
+    return (
+      <img
+        src={safeUrl}
+        alt={title}
+        className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+
+  return (
+    <div className="flex max-w-xl flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center shadow-sm">
+      <div className="text-sm font-black text-slate-800">Preview image ไม่สำเร็จ</div>
+      <div className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+        ลิงก์นี้ไม่ใช่ direct image URL ให้เปิดจากลิงก์ต้นทางแทน
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 hover:bg-violet-100"
+      >
+        Open original link
+      </a>
+    </div>
+  );
+}
+
 function SlideOverCaseDetail({
   open,
   caseItem,
@@ -5259,6 +5356,7 @@ export default function DashboardMockup({
     </div>
   );
 }
+
 
 
 
