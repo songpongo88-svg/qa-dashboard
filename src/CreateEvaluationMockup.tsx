@@ -1554,7 +1554,7 @@ export default function CreateEvaluationMockup({
                 </div>
               </div>
               <div className="hidden">
-                Export เธเธฐเธฃเธงเธก RawData เน€เธ”เธดเธกเธเธฒเธ GitHub เนเธฅเธฐเน€เธเธชเนเธซเธกเนเธเธฒเธ QA Evaluation Form เธ•เธฒเธกเธเนเธงเธ Case Date เธ—เธตเนเน€เธฅเธทเธญเธ เธชเนเธงเธเน€เธเธชเธเธฒเธเธเธญเธฃเนเธกเธชเธฒเธกเธฒเธฃเธ–เธเนเธเธซเธฒเนเธฅเนเธงเธเธ” Edit เน€เธเธทเนเธญเนเธเนเนเธเธ•เนเธญเนเธ”เน
+                Export RowData รวมข้อมูล RawData จาก GitHub และเคสใหม่จาก QA Evaluation Form ตามช่วง Case Date ที่เลือก สามารถค้นหาเคสจากฟอร์มแล้วกด Edit เพื่อแก้ไขต่อได้
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
                 Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
@@ -1815,7 +1815,7 @@ export default function CreateEvaluationMockup({
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      เธขเธฑเธเนเธกเนเธกเธตเนเธเธฅเนเนเธเธ เธฃเธญเธเธเธตเนเน€เธเนเธ Preview เนเธเน€เธเธฃเธทเนเธญเธเธเนเธญเธ เธ•เนเธญ Supabase Storage เนเธฅเนเธง URL เธเธฐเธ–เธนเธเธชเธฃเนเธฒเธเธญเธฑเธ•เนเธเธกเธฑเธ•เธด
+                      ยังไม่มีไฟล์แนบ ระบบจะแสดงไฟล์ที่แนบไว้เป็น Preview ภายในเครื่องก่อน เมื่อเชื่อมต่อ Supabase Storage แล้ว ระบบจะสร้าง URL ให้อัตโนมัติ
                     </div>
                   )}
                 </div>
@@ -1828,7 +1828,7 @@ export default function CreateEvaluationMockup({
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600">
-                  เธเธฃเธญเธเธเธฐเนเธเธเธเธฒเธ dropdown เนเธฅเธฐเธฃเธฐเธเธธเน€เธซเธ•เธธเธเธฅเธเธฒเธฃเธเธฃเธฐเน€เธกเธดเธเน€เธเนเธเธฃเธฒเธขเธซเธฑเธงเธเนเธญ เธฃเธนเธเนเธเธเธเธตเนเธเธฑเธ”เน€เธฃเธตเธขเธเน€เธซเธกเธทเธญเธ worksheet เน€เธเธทเนเธญเนเธซเนเธญเนเธฒเธเธเนเธฒเธขเนเธฅเธฐเธ•เธฃเธงเธเธ—เธฒเธเธเนเธฒเธข
+                  เลือกคะแนนจาก dropdown และระบุเหตุผลการประเมินแยกตามแต่ละหัวข้อ คะแนนรวมและ Grade จะรันอัตโนมัติจากคะแนนที่เลือกไว้ในฟอร์มนี้
                 </div>
               </div>
 
@@ -1900,7 +1900,7 @@ export default function CreateEvaluationMockup({
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="เธฃเธฐเธเธธเน€เธซเธ•เธธเธเธฅเธเธฒเธฃเธเธฃเธฐเน€เธกเธดเธเธซเธฑเธงเธเนเธญเธเธตเน..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );
@@ -1938,7 +1938,7 @@ export default function CreateEvaluationMockup({
                   <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
                     <div className="h-full rounded-full bg-emerald-600" style={{ width: `${completionPct}%` }} />
                   </div>
-                  <div className="mt-2 text-xs font-semibold text-slate-500">{completedTopics}/{topics.length} topic reason(s) completed</div>
+                  <div className="mt-2 text-xs font-semibold text-slate-500">{completedTopics}/{topics.length} topic score(s) selected</div>
                 </div>
 
                 {missingScoreTopics.length ? (
