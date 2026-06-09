@@ -697,8 +697,8 @@ async function syncLocalEvaluationsToRemote(remoteEvaluations: StoredEvaluation[
 export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
   const safeLimit = normalizeEvaluationLimit(limit);
   const localEvaluations = readLocalEvaluationHistory();
-  const cachedEvaluations = readRemoteEvaluationCache();
-  const recoveredLocalEvaluations = readRecoveredLocalEvaluations();
+  const cachedEvaluations = isFirebaseEvaluationConfigured() ? [] : readRemoteEvaluationCache();
+  const recoveredLocalEvaluations = isFirebaseEvaluationConfigured() ? [] : readRecoveredLocalEvaluations();
   const localSources = mergeEvaluationSources([...cachedEvaluations, ...recoveredLocalEvaluations], localEvaluations);
 
   if (isFirebaseEvaluationConfigured()) {

@@ -1288,14 +1288,59 @@ export default function CreateEvaluationMockup({
   async function deleteSubmittedRecord(record: EvaluationRecord) {
     const ok = window.confirm(`Delete submitted evaluation ${record.caseId}? This removes it from Dashboard/Summary after refresh.`);
     if (!ok) return;
+
+    const deletedCaseId = normalizeCaseId(record.caseId);
+    const deletedIds = new Set(
+      [
+        record.recordId,
+        record.evaluationKey,
+        (record as any).id,
+        record.caseId ? `case:${normalizeCaseId(record.caseId)}` : "",
+      ]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    );
+
+    const keepRecord = (item: EvaluationRecord) => {
+      const itemCaseId = normalizeCaseId(item.caseId);
+      const itemIds = [
+        item.recordId,
+        item.evaluationKey,
+        (item as any).id,
+        item.caseId ? `case:${itemCaseId}` : "",
+      ]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean);
+
+      if (deletedCaseId && itemCaseId === deletedCaseId) return false;
+      return !itemIds.some((id) => deletedIds.has(id));
+    };
+
     try {
-      await deleteStoredEvaluation(record.recordId, record.caseId);
-      const matchesDeletedRecord = (item: EvaluationRecord) =>
-        item.recordId !== record.recordId && item.evaluationKey !== record.recordId;
-      setSubmittedRecords((current) => current.filter(matchesDeletedRecord));
-      persistHistory(evaluationHistory.filter(matchesDeletedRecord));
-      setReportMessage(`Deleted submitted evaluation ${record.caseId}. It has been removed from saved records and will no longer return after refresh.`);
+      await deleteStoredEvaluation(record.recordId || record.evaluationKey || record.caseId, record.caseId);
+
+      setSubmittedRecords((current) => current.filter(keepRecord));
+      setEvaluationHistory((current) => {
+        const next = current.filter(keepRecord);
+        persistHistory(next);
+        return next;
+      });
+
       if (activeSubmittedRecordId === record.recordId) setActiveSubmittedRecordId("");
+
+      setReportMessage(`Deleted submitted evaluation ${record.caseId}. It has been removed from saved records and will no longer return after refresh.`);
+
+      window.dispatchEvent(
+        new CustomEvent("qa-dashboard:evaluation-deleted", {
+          detail: {
+            caseId: record.caseId,
+            recordId: record.recordId,
+            evaluationKey: record.evaluationKey,
+          },
+        })
+      );
+
+      await loadSubmittedRecords();
     } catch (error) {
       setReportMessage(error instanceof Error ? error.message : "Submitted evaluation could not be deleted.");
     }
