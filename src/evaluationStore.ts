@@ -5,6 +5,17 @@ const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(env.VITE_SUPABASE_ANON_KEY || "");
 const EVALUATION_TABLE = String(env.VITE_QA_EVALUATION_TABLE || "qa_evaluations");
+
+const FIREBASE_API_KEY = String(env.VITE_FIREBASE_API_KEY || "");
+const FIREBASE_AUTH_DOMAIN = String(env.VITE_FIREBASE_AUTH_DOMAIN || "");
+const FIREBASE_PROJECT_ID = String(env.VITE_FIREBASE_PROJECT_ID || "");
+const FIREBASE_STORAGE_BUCKET = String(env.VITE_FIREBASE_STORAGE_BUCKET || "");
+const FIREBASE_MESSAGING_SENDER_ID = String(env.VITE_FIREBASE_MESSAGING_SENDER_ID || "");
+const FIREBASE_APP_ID = String(env.VITE_FIREBASE_APP_ID || "");
+const FIREBASE_EVALUATION_COLLECTION = String(
+  env.VITE_FIREBASE_QA_EVALUATION_COLLECTION || env.VITE_QA_EVALUATION_TABLE || "qa_evaluations"
+);
+
 const LOCAL_EVALUATION_HISTORY_KEY = "qa-dashboard:create-evaluation:history:v2";
 const REMOTE_EVALUATION_CACHE_KEY = "qa-dashboard:create-evaluation:remote-cache:v2";
 const DELETED_EVALUATION_IDS_KEY = "qa-dashboard:create-evaluation:deleted-ids:v2";
