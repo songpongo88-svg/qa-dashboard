@@ -820,7 +820,7 @@ export default function CreateEvaluationMockup({
     return {
       ...draft,
       draftId,
-      title: draft.title || `${draft.caseId || "Untitled Case"} ยท ${draft.agentName || "No agent selected"}`,
+      title: draft.title || `${draft.caseId || "Untitled Case"} - ${draft.agentName || "No agent selected"}`,
       savedAtMs: draft.savedAtMs || Date.now(),
       evaluationStatus: draft.evaluationStatus || "Draft",
       topicState: draft.topicState || {},
@@ -842,7 +842,7 @@ export default function CreateEvaluationMockup({
     const draftId = makeDraftId(caseId, auditDate);
     return {
       draftId,
-      title: `${caseId || "Untitled Case"} ยท ${agentName || "No agent selected"}`,
+      title: `${caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
       agentName,
       auditDate,
       waitingTime,
@@ -906,7 +906,7 @@ export default function CreateEvaluationMockup({
     if (agentName.trim()) return true;
     const message = `Please select Agent Full Name before ${actionLabel}.`;
     setDraftMessage(message);
-    window.alert(`${message}\n\nเธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธ Agent Full Name เธเนเธญเธ${actionLabel}`);
+    window.alert(`${message}\n\nกรุณาเลือก Agent Full Name ก่อนดำเนินการ`);
     return false;
   }
 
@@ -963,7 +963,7 @@ export default function CreateEvaluationMockup({
       if (duplicateSubmitted || duplicateRaw) {
         const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
         setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
-        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\nเธฃเธฐเธเธเนเธกเนเนเธซเน Submit เน€เธฅเธเน€เธเธชเธเนเธณ เธ–เนเธฒเธ•เนเธญเธเนเธเนเน€เธเธชเธ—เธตเนเน€เธเธขเธเธฃเธฐเน€เธกเธดเธเนเธฅเนเธง เนเธซเนเนเธเธ—เธตเน Report เนเธฅเนเธงเธเธ” Edit เน€เธเธชเธเธฑเนเธเธเธฃเธฑเธ`);
+        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\nระบบไม่อนุญาตให้ Submit เลขเคสซ้ำ หากต้องการแก้เคสที่เคยประเมินแล้ว ให้ไปที่ Report แล้วกด Edit เคสนั้น`);
         return;
       }
     } catch (error) {
@@ -1355,7 +1355,7 @@ export default function CreateEvaluationMockup({
         title="Evaluation Workspace"
         subtitle="Create, review, draft, and export QA evaluations from one CRM-style workspace."
         workspaceTitle="QA Rubric Active Period"
-        workspaceSubtitle={`${activeRubric.code} ยท ${rubricPeriod}`}
+        workspaceSubtitle={`${activeRubric.code} - ${rubricPeriod}`}
       />
 
       <div className="mx-auto max-w-[1760px] space-y-6 px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
@@ -1581,7 +1581,7 @@ export default function CreateEvaluationMockup({
                     <div className="space-y-5">
                       {visibleSubmittedReportRecords.length ? (
                         <div className="space-y-3">
-                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">QA Evaluation Form ยท Editable</div>
+                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">QA Evaluation Form - Editable</div>
                           <div className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="text-xs font-bold text-slate-500">
                               Showing {submittedStartIndex + 1}-{Math.min(submittedStartIndex + REPORT_PAGE_SIZE, visibleSubmittedReportRecords.length)} of {visibleSubmittedReportRecords.length} saved case(s)
@@ -1635,7 +1635,7 @@ export default function CreateEvaluationMockup({
 
                       {visibleRawReportRecords.length ? (
                         <div className="space-y-3">
-                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">GitHub RawData ยท Export only</div>
+                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">GitHub RawData - Export only</div>
                           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="text-xs font-bold text-slate-500">
                               Showing {rawStartIndex + 1}-{Math.min(rawStartIndex + REPORT_PAGE_SIZE, visibleRawReportRecords.length)} of {visibleRawReportRecords.length} RawData row(s)
@@ -1705,12 +1705,12 @@ export default function CreateEvaluationMockup({
                     <option value="">Select agent</option>
                     {availableAgentOptions.map((agent) => (
                       <option key={`${agent.username}-${agent.agentName}`} value={agent.agentName || agent.displayName}>
-                        {agent.agentName || agent.displayName}{agent.role ? ` ยท ${agent.role}` : ""}
+                        {agent.agentName || agent.displayName}{agent.role ? ` - ${agent.role}` : ""}
                       </option>
                     ))}
                   </select>
                   <span className="mt-2 block text-xs font-semibold text-slate-500">
-                    เนเธชเธ”เธเน€เธเธเธฒเธฐ user เธ—เธตเน Role เธ–เธนเธเน€เธเธดเธ”เธชเธดเธ—เธเธดเน QA Evaluation Target
+                    แสดงเฉพาะ user ที่ Role ถูกเปิดสิทธิ์ QA Evaluation Target
                   </span>
                 </label>
 
@@ -1728,7 +1728,7 @@ export default function CreateEvaluationMockup({
                 <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-sky-50 px-4 py-3">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Rubric Selected</div>
                   <div className="mt-1 text-sm font-black text-slate-950">{activeRubric.name}</div>
-                  <div className="text-xs font-semibold text-slate-600">{activeRubric.code} ยท {rubricPeriod}</div>
+                  <div className="text-xs font-semibold text-slate-600">{activeRubric.code} - {rubricPeriod}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1763,12 +1763,12 @@ export default function CreateEvaluationMockup({
 
                 <label className="block">
                   <span className={labelClass}>Customer Inquiry</span>
-                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="เธชเธฃเธธเธเธเธณเธ–เธฒเธกเธซเธฃเธทเธญเธเธฃเธฐเน€เธ”เนเธเธ—เธตเนเธฅเธนเธเธเนเธฒเธ•เธดเธ”เธ•เนเธญเน€เธเนเธฒเธกเธฒ..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="สรุปคำถามหรือประเด็นที่ลูกค้า/ไรเดอร์/ร้านค้าติดต่อเข้ามา..." className={`${inputClass} leading-6`} />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="เธชเธฃเธธเธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธชเนเธฅเธฐเธชเธดเนเธเธ—เธตเน Agent เธ”เธณเน€เธเธดเธเธเธฒเธฃ..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
                 </label>
               </div>
             </SectionCard>
@@ -1794,7 +1794,7 @@ export default function CreateEvaluationMockup({
                       Attach Files
                       <input type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFiles(event.target.files); event.currentTarget.value = ""; }} />
                     </label>
-                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF ยท multiple files</span>
+                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF - multiple files</span>
                   </div>
 
                   {evidenceFiles.length ? (
