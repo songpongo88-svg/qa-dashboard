@@ -2601,7 +2601,7 @@ function SlideOverCaseDetail({
                   ) : null}
 
                   <div className="flex h-full w-full items-center justify-center overflow-auto">
-                    <CaseImagePreview url={previewAsset.url} title={previewAsset.title} />
+                    <SafeCaseImagePreview url={previewAsset.url} title={previewAsset.title} />
                   </div>
 
                   {previewAsset.items && previewAsset.items.length > 1 ? (
@@ -5259,6 +5259,7 @@ export default function DashboardMockup({
     </div>
   );
 }
+
 
 
 
