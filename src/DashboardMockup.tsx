@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
-import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
+import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
@@ -139,35 +139,48 @@ function buildApprovedAppealMergeMap(
     const topicMaster = getTopicMasterByMonth(
       rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
     );
-    const revisedTopics = topicMaster
-      .map((master) => {
-        const matched = request.topics.find((topic) => topic.code === master.code);
-        if (!matched || !isAppealTopicChanged(matched)) return null;
-        const revisedScore =
-          matched.revisedScore !== null &&
-          matched.revisedScore !== "" &&
-          !Number.isNaN(Number(matched.revisedScore))
-            ? Number(matched.revisedScore)
-            : Number(matched.score || 0);
-        return {
-          code: master.code,
-          label: master.label,
-          score: revisedScore,
-          max: master.max,
-          pct: master.max > 0 ? Math.round((revisedScore / master.max) * 100) : 0,
-          comment: String(matched.revisedComment || matched.comment || "").trim(),
-        } as Topic;
-      })
-      .filter(Boolean) as Topic[];
+    const requestTopicMap = new Map(request.topics.map((topic) => [topic.code, topic]));
+    const revisedTopics: Topic[] = [];
+    const displayRevisedTopicCodes: string[] = [];
+    let revisedFinalScore = 0;
+
+    topicMaster.forEach((master) => {
+      const matched = requestTopicMap.get(master.code);
+      const originalScore = Number(matched?.score ?? 0);
+      const hasRevisedScore =
+        matched?.revisedScore !== null &&
+        matched?.revisedScore !== undefined &&
+        matched?.revisedScore !== "" &&
+        !Number.isNaN(Number(matched.revisedScore));
+      const revisedScore = hasRevisedScore ? Number(matched?.revisedScore) : originalScore;
+
+      revisedFinalScore += Number.isFinite(revisedScore) ? revisedScore : 0;
+
+      if (!matched) return;
+
+      revisedTopics.push({
+        code: master.code,
+        label: master.label,
+        score: Number.isFinite(revisedScore) ? revisedScore : 0,
+        max: master.max,
+        pct: master.max > 0 ? Math.round(((Number.isFinite(revisedScore) ? revisedScore : 0) / master.max) * 100) : 0,
+        comment: String(matched.revisedComment || matched.comment || "").trim(),
+      });
+
+      if (isAppealTopicChanged(matched)) {
+        displayRevisedTopicCodes.push(master.code);
+      }
+    });
 
     if (!revisedTopics.length) return;
 
     map.set(caseId, {
       caseId,
+      finalScore: roundTo(revisedFinalScore, 2),
       previousScore: Number(request.finalScore || 0),
       reviewStatus: "Revised",
       revisedTopics,
-      displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
+      displayRevisedTopicCodes,
     });
   });
 
@@ -3635,11 +3648,14 @@ export default function DashboardMockup({
         });
 
         try {
-          const reviewedLogs = await fetchUsageLogsByEventTypes([
-            "appeal_request_submitted",
-            "appeal_request_reviewed",
-            "appeal_request_reset",
-          ], 2000);
+          const reviewedLogs = await fetchAppealEvents(
+            [
+              "appeal_request_submitted",
+              "appeal_request_reviewed",
+              "appeal_request_reset",
+            ],
+            { limit: 2000, forceRefresh: true }
+          ) as UsageLogEvent[];
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
             appealMap.set(caseId, item);
           });
@@ -5356,6 +5372,7 @@ export default function DashboardMockup({
     </div>
   );
 }
+
 
 
 

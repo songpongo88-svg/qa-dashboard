@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
@@ -16,7 +16,7 @@ type AppealTopic = {
   revisedComment?: string;
 };
 
-const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
+const NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
 
 type AppealRequest = {
   requestId: string;
@@ -76,6 +76,22 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+
+function appealFinalScoreFromTopics(topics: AppealTopic[]) {
+  return topics.reduce((sum, topic) => {
+    const revisedScore = toNumber(topic.revisedScore, Number.NaN);
+    const activeScore = Number.isNaN(revisedScore) ? toNumber(topic.score) : revisedScore;
+    return sum + activeScore;
+  }, 0);
+}
+
+function appealGradeFromScore(score: number) {
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  return "F";
+}
 function scoreOptions(max: number) {
   const safeMax = Math.max(0, Math.floor(Number(max) || 0));
   return Array.from({ length: safeMax + 1 }, (_, index) => index);
@@ -184,12 +200,13 @@ function exportAppealRows(requests: AppealRequest[]) {
 
   const rows = reviewed.map((item) => {
     const topicMap = new Map(item.topics.map((topic) => [topic.code, topic]));
+    const approvedFinalScore = item.status === "Approved" ? appealFinalScoreFromTopics(item.topics) : item.finalScore;
     const row: Record<string, unknown> = {
       "Case ID": item.caseId,
       "Agent Name": item.agent,
       "Audit Date": item.auditDate,
-      "Final Score": item.finalScore,
-      Grade: item.grade,
+      "Final Score": approvedFinalScore,
+      Grade: item.status === "Approved" ? appealGradeFromScore(approvedFinalScore) : item.grade,
       "Appeal Version": "Revised 1",
       "Appeal Submit Date & Time": formatDateTime(item.submittedAt),
       "Appeal Result Date & Time": formatDateTime(item.reviewedAt),
@@ -295,7 +312,7 @@ export default function AppealRequestsMockup({
         "",
         "After saving, this task will move out of Pending and the case owner will receive an Inbox notification.",
         decision === "Approved"
-          ? "Approved revised scores will be included in Export Appeal ROWDATA. Dashboard and Summary remain based on RawData / Appeal ROWDATA Excel."
+          ? "Approved revised scores will update Dashboard / Case Detail from Firebase appeal events after refresh."
           : "Rejected appeals will not change Dashboard or Summary scores.",
       ].join("\n")
     );
@@ -320,19 +337,19 @@ export default function AppealRequestsMockup({
             subject: `Appeal result for case ${selectedRequest.caseId}`,
             body:
               decision === "Approved"
-                ? `Your appeal for case ${selectedRequest.caseId} has been approved. The result will be included in Export Appeal ROWDATA.`
+                ? `Your appeal for case ${selectedRequest.caseId} has been approved. Dashboard / Case Detail will show the revised score after refresh.`
                 : `Your appeal for case ${selectedRequest.caseId} has been rejected. Dashboard and Summary scores were not changed.`,
           },
         },
       });
       if (!reviewSaved) {
-        setMessage("Save review ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        setMessage("Save review เนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
         return;
       }
 
       setMessage(
         decision === "Approved"
-          ? `Approved appeal for ${selectedRequest.caseId}. Result task was saved and can be exported to Appeal ROWDATA.`
+          ? `Approved appeal for ${selectedRequest.caseId}. Revised score was saved and will show on Dashboard / Case Detail after refresh.`
           : `Rejected appeal for ${selectedRequest.caseId}. Result task was sent to the case owner and scores were not changed.`
       );
       await loadRequests();
@@ -362,7 +379,7 @@ export default function AppealRequestsMockup({
         },
       });
       if (!resetSaved) {
-        setMessage("Reset request ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        setMessage("Reset request เนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
         return;
       }
 
@@ -622,3 +639,4 @@ export default function AppealRequestsMockup({
     </div>
   );
 }
+
