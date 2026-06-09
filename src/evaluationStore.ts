@@ -1,5 +1,6 @@
-import { initializeApp, getApps } from "firebase/app";
+﻿import { initializeApp, getApps } from "firebase/app";
 import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc } from "firebase/firestore";
+import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
 
 const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
@@ -593,6 +594,319 @@ function getFirebaseEvaluationDb() {
   return firebaseEvaluationDb;
 }
 
+
+type PendingEvidenceUpload = {
+  id: string;
+  caseId: string;
+  url: string;
+  name: string;
+  type: string;
+  uploadedAt: string;
+};
+
+const PENDING_EVIDENCE_UPLOADS_KEY = "qa-dashboard:pending-evidence-uploads:v1";
+const PENDING_EVIDENCE_MAX_AGE_MS = 60 * 60 * 1000;
+let firebaseEvaluationStorage: ReturnType<typeof getStorage> | null = null;
+let pendingEvidenceUploadTasks: Promise<PendingEvidenceUpload | null>[] = [];
+let evidenceAttachmentListenerInstalled = false;
+
+function getFirebaseEvaluationStorage() {
+  if (!isFirebaseEvaluationConfigured() || !FIREBASE_STORAGE_BUCKET) return null;
+  if (firebaseEvaluationStorage) return firebaseEvaluationStorage;
+
+  const app =
+    getApps().length > 0
+      ? getApps()[0]
+      : initializeApp({
+          apiKey: FIREBASE_API_KEY,
+          authDomain: FIREBASE_AUTH_DOMAIN,
+          projectId: FIREBASE_PROJECT_ID,
+          storageBucket: FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+          appId: FIREBASE_APP_ID,
+        });
+
+  firebaseEvaluationStorage = getStorage(app);
+  return firebaseEvaluationStorage;
+}
+
+function sanitizeStoragePathPart(value: unknown, fallback = "file") {
+  const text = String(value || "").trim();
+  const safe = text
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 120);
+  return safe || fallback;
+}
+
+function normalizeEvidenceCaseId(value: unknown) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function getCurrentCaseIdFromPage() {
+  if (typeof document === "undefined") return "";
+
+  const values = Array.from(document.querySelectorAll("input, textarea, select"))
+    .map((node: any) => String(node?.value || "").trim())
+    .filter(Boolean);
+
+  const exact = values.find((value) => /^AA[A-Z0-9_-]{3,}$/i.test(value));
+  if (exact) return normalizeEvidenceCaseId(exact);
+
+  const anyMatch = values.join(" ").match(/\bAA[A-Z0-9_-]{3,}\b/i);
+  return normalizeEvidenceCaseId(anyMatch?.[0] || "");
+}
+
+function readPendingEvidenceUploads(): PendingEvidenceUpload[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PENDING_EVIDENCE_UPLOADS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    const now = Date.now();
+    return parsed.filter((item: any) => {
+      const uploadedAt = new Date(item?.uploadedAt || 0).getTime();
+      return item?.url && now - uploadedAt <= PENDING_EVIDENCE_MAX_AGE_MS;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writePendingEvidenceUploads(items: PendingEvidenceUpload[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(PENDING_EVIDENCE_UPLOADS_KEY, JSON.stringify(items.slice(-80)));
+}
+
+function rememberPendingEvidenceUpload(item: PendingEvidenceUpload) {
+  const current = readPendingEvidenceUploads();
+  writePendingEvidenceUploads([...current, item]);
+}
+
+function isUploadableEvidenceValue(value: unknown) {
+  const text = String(value || "").trim();
+  return text.startsWith("data:") || text.startsWith("blob:");
+}
+
+function isEvidencePlaceholder(value: unknown) {
+  const text = String(value || "").trim().toLowerCase();
+  return (
+    text.startsWith("attached evidence") ||
+    text.startsWith("attachment:") ||
+    text.includes("local attachment preview only") ||
+    text.includes("preview only") ||
+    text.includes("(image/") ||
+    text.includes("(application/pdf")
+  );
+}
+
+function isRemoteEvidenceUrl(value: unknown) {
+  const text = String(value || "").trim();
+  return text.startsWith("http://") || text.startsWith("https://");
+}
+
+function extensionFromMimeType(contentType: string) {
+  const type = String(contentType || "").toLowerCase();
+  if (type.includes("png")) return "png";
+  if (type.includes("jpeg") || type.includes("jpg")) return "jpg";
+  if (type.includes("webp")) return "webp";
+  if (type.includes("gif")) return "gif";
+  if (type.includes("pdf")) return "pdf";
+  return "bin";
+}
+
+async function uploadEvidenceBlobToFirebase(
+  blob: Blob,
+  fileName: string,
+  contentType: string,
+  caseId: string
+) {
+  const storage = getFirebaseEvaluationStorage();
+  if (!storage) throw new Error("Firebase Storage is not configured.");
+
+  const safeCaseId = sanitizeStoragePathPart(caseId || "uncategorized", "uncategorized");
+  const safeName = sanitizeStoragePathPart(fileName || "evidence", "evidence");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const random = Math.random().toString(36).slice(2, 8);
+  const path = `qa-evaluation-evidence/${safeCaseId}/${timestamp}-${random}-${safeName}`;
+
+  const objectRef = storageRef(storage, path);
+  await uploadBytes(objectRef, blob, {
+    contentType: contentType || blob.type || "application/octet-stream",
+  });
+  return getDownloadURL(objectRef);
+}
+
+async function uploadEvidenceFileToFirebase(file: File, caseId: string): Promise<PendingEvidenceUpload | null> {
+  try {
+    const url = await uploadEvidenceBlobToFirebase(
+      file,
+      file.name || `evidence.${extensionFromMimeType(file.type)}`,
+      file.type || "application/octet-stream",
+      caseId
+    );
+
+    const item: PendingEvidenceUpload = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      caseId: normalizeEvidenceCaseId(caseId),
+      url,
+      name: file.name || "Attached Evidence",
+      type: file.type || "application/octet-stream",
+      uploadedAt: new Date().toISOString(),
+    };
+
+    rememberPendingEvidenceUpload(item);
+    return item;
+  } catch (error) {
+    console.warn("Upload evidence file to Firebase Storage failed", error);
+    return null;
+  }
+}
+
+async function uploadEvidenceValueToFirebase(
+  value: unknown,
+  record: StoredEvaluation,
+  index: number
+) {
+  const text = String(value || "").trim();
+  if (!isUploadableEvidenceValue(text)) return text;
+
+  const response = await fetch(text);
+  const blob = await response.blob();
+  const ext = extensionFromMimeType(blob.type);
+  const caseId = normalizeEvidenceCaseId(record.caseId || record.id || record.evaluationKey || "uncategorized");
+
+  return uploadEvidenceBlobToFirebase(
+    blob,
+    `attached-evidence-${index + 1}.${ext}`,
+    blob.type || "application/octet-stream",
+    caseId
+  );
+}
+
+async function waitForPendingEvidenceUploadTasks() {
+  if (!pendingEvidenceUploadTasks.length) return;
+
+  const tasks = pendingEvidenceUploadTasks.slice();
+  pendingEvidenceUploadTasks = [];
+
+  await Promise.allSettled(tasks);
+}
+
+async function takePendingEvidenceUploadsForRecord(record: StoredEvaluation) {
+  await waitForPendingEvidenceUploadTasks();
+
+  const current = readPendingEvidenceUploads();
+  const caseId = normalizeEvidenceCaseId(record.caseId);
+  const now = Date.now();
+
+  const matched: PendingEvidenceUpload[] = [];
+  const remaining: PendingEvidenceUpload[] = [];
+
+  current.forEach((item) => {
+    const itemCaseId = normalizeEvidenceCaseId(item.caseId);
+    const uploadedAt = new Date(item.uploadedAt || 0).getTime();
+    const isFresh = now - uploadedAt <= PENDING_EVIDENCE_MAX_AGE_MS;
+    const caseMatched = caseId && itemCaseId && itemCaseId === caseId;
+    const recentWithoutCase = !itemCaseId && isFresh;
+
+    if (isFresh && (caseMatched || recentWithoutCase)) {
+      matched.push(item);
+    } else {
+      remaining.push(item);
+    }
+  });
+
+  writePendingEvidenceUploads(remaining);
+  return matched;
+}
+
+function updateRawPreviewEvidenceUrls(
+  rawDataPreview: Record<string, string | number>,
+  evidenceUrls: string[]
+) {
+  const joined = evidenceUrls.filter(isRemoteEvidenceUrl).join("\n");
+  if (!joined) return rawDataPreview;
+
+  return {
+    ...rawDataPreview,
+    "Evidence URL / PDF / IMAGE": joined,
+    "Evidence URL": joined,
+    "Case Image URL": joined,
+    "Case Image URL / ภาพประกอบเคส": joined,
+  };
+}
+
+async function uploadEvaluationEvidenceAttachments(record: StoredEvaluation): Promise<StoredEvaluation> {
+  const pendingUploads = await takePendingEvidenceUploadsForRecord(record);
+  const pendingUrls = pendingUploads.map((item) => item.url).filter(Boolean);
+
+  const currentEvidenceUrls = Array.isArray(record.evidenceUrls) ? record.evidenceUrls : [];
+  const nextEvidenceUrls: string[] = [];
+
+  for (let index = 0; index < currentEvidenceUrls.length; index += 1) {
+    const value = currentEvidenceUrls[index];
+
+    if (isUploadableEvidenceValue(value)) {
+      try {
+        const uploadedUrl = await uploadEvidenceValueToFirebase(value, record, index);
+        if (uploadedUrl) nextEvidenceUrls.push(uploadedUrl);
+      } catch (error) {
+        console.warn("Upload inline evidence skipped", error);
+      }
+      continue;
+    }
+
+    if (isEvidencePlaceholder(value) && pendingUrls.length) {
+      continue;
+    }
+
+    if (String(value || "").trim()) {
+      nextEvidenceUrls.push(String(value).trim());
+    }
+  }
+
+  pendingUrls.forEach((url) => {
+    if (!nextEvidenceUrls.includes(url)) nextEvidenceUrls.push(url);
+  });
+
+  if (!nextEvidenceUrls.length) return record;
+
+  return {
+    ...record,
+    evidenceUrls: nextEvidenceUrls,
+    rawDataPreview: updateRawPreviewEvidenceUrls(record.rawDataPreview || {}, nextEvidenceUrls),
+  };
+}
+
+function installEvidenceAttachmentUploadListener() {
+  if (typeof document === "undefined") return;
+  if (evidenceAttachmentListenerInstalled) return;
+
+  evidenceAttachmentListenerInstalled = true;
+
+  document.addEventListener(
+    "change",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.type !== "file") return;
+      if (!target.files || !target.files.length) return;
+
+      const caseId = getCurrentCaseIdFromPage();
+      const files = Array.from(target.files);
+
+      files.forEach((file) => {
+        const task = uploadEvidenceFileToFirebase(file, caseId);
+        pendingEvidenceUploadTasks.push(task);
+      });
+    },
+    true
+  );
+}
+
+installEvidenceAttachmentUploadListener();
+
 function saveEvaluationLocally(record: StoredEvaluation) {
   if (typeof window === "undefined") return;
 
@@ -619,8 +933,10 @@ function toFirebaseEvaluation(record: StoredEvaluation) {
 }
 
 export async function upsertStoredEvaluation(record: StoredEvaluation) {
+  const recordWithUploadedEvidence = await uploadEvaluationEvidenceAttachments(record);
+
   const localRecord = compactStoredRecord({
-    ...record,
+    ...recordWithUploadedEvidence,
     submittedAt: record.submittedAt || new Date().toISOString(),
   });
 
@@ -732,3 +1048,4 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
 
   return localSources.slice(0, safeLimit);
 }
+
