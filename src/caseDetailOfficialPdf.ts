@@ -259,17 +259,17 @@ export async function generateOfficialCaseDetailPdf({
     y += 8;
 
     label(0, y, 1, 12, "Agent");
-    value(1, y, 2, 12, caseItem.agent, LIGHT_PURPLE, { align: "center", maxLines: 2, size: 6.8 });
+    value(1, y, 2, 12, caseItem.agent, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.8 });
     label(3, y, 1, 12, "Month");
-    value(4, y, 1, 12, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 6.8 });
+    value(4, y, 1, 12, caseItem.monthLabel || caseItem.monthKey, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 6.8 });
     label(5, y, 1, 12, "Case ID");
-    value(6, y, 2, 12, caseItem.caseId, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 7.4 });
+    value(6, y, 2, 12, caseItem.caseId, LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 7.4 });
     y += 12;
 
     label(0, y, 1, 14, "Audit Date");
     value(1, y, 1, 14, caseItem.auditTimestamp || caseItem.auditDate, LIGHT_PURPLE, { align: "center", maxLines: 2, size: 6.4 });
-    label(2, y, 1, 14, "Case ID");
-    value(3, y, 1, 14, caseItem.caseId, LIGHT_PURPLE, { align: "center", maxLines: 1, size: 7.2 });
+    label(2, y, 1, 14, "Case Date");
+    value(3, y, 1, 14, caseItem.caseDate || caseItem.createdAt || caseItem.caseCreatedAt || caseItem.auditDate || caseItem.auditTimestamp || "-", LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2, size: 6.4 });
     label(4, y, 1, 14, "Final Score");
     value(5, y, 1, 14, reportScore.toFixed(2), LIGHT_PURPLE, { align: "center", size: 8.2, maxLines: 1 });
     label(6, y, 1, 14, "Case Grade");
