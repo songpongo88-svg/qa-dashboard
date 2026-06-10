@@ -655,7 +655,7 @@ function generatePaymentExcelFile(
       getSignedEntry(entries, "Supervisor")?.signerName || "-",
       getSignedEntry(entries, "Senior")?.signerName || "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
-      doc.documentHash,
+      doc.documentHash.slice(0, 10),
       "Completed",
     ]);
   });
@@ -873,16 +873,20 @@ function generatePaymentPdfFile(
   });
 
   y += 6;
+  if (y > 145) {
+    pdf.addPage("a4", "landscape");
+    y = 14;
+  }
   section("Signature Validation");
   const sigHeaders = [
     ["Seq", 10],
-    ["Agent", 58],
-    ["QA", 45],
-    ["Supervisor", 45],
-    ["Senior / Team Lead", 55],
-    ["Agent Signature", 45],
-    ["Hash", 40],
-    ["Status", 40],
+    ["Agent", 46],
+    ["QA", 34],
+    ["Supervisor", 35],
+    ["Senior / Lead", 45],
+    ["Agent Sign", 40],
+    ["Hash", 24],
+    ["Status", 32],
   ];
 
   const sigX: number[] = [];
@@ -922,7 +926,7 @@ function generatePaymentPdfFile(
     row.forEach((value, colIndex) => {
       const maxWidth = Number(sigHeaders[colIndex][1]) - 3;
       const lines = pdf.splitTextToSize(String(value), maxWidth);
-      drawText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex] + 2, y + 5.5, 8.5, colIndex === 1);
+      drawText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex] + 2, y + 5.5, 7.6, colIndex === 1);
     });
     y += 8;
   });
