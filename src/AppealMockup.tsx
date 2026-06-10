@@ -8,62 +8,6 @@ import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchAppealEvents } from "./appealStore";
 import { type UsageLogEvent } from "./usageLog";
 
-function repairThaiMojibake(value: unknown) {
-  const text = String(value ?? "");
-  if (!text) return text;
-
-  const hasThai = /[\u0E01-\u0E5B]/.test(text);
-  const looksMojibake =
-    /[เธเนโ][\u0080-\u009F]/.test(text) ||
-    (/เธ|เน|โ/.test(text) && /[\u0080-\u009F]/.test(text)) ||
-    (/เธ|เน|โ/.test(text) && !hasThai);
-
-  if (!looksMojibake) return text;
-
-  const bytes: number[] = [];
-
-  for (const ch of text) {
-    const code = ch.charCodeAt(0);
-
-    if (code >= 0x00 && code <= 0xff) {
-      bytes.push(code);
-      continue;
-    }
-
-    // TIS-620 / Windows-874 Thai block: U+0E01 -> A1 ... U+0E5B -> FB
-    if (code >= 0x0e01 && code <= 0x0e5b) {
-      bytes.push(code - 0x0d60);
-      continue;
-    }
-
-    // If there are unknown characters, keep original text.
-    return text;
-  }
-
-  try {
-    const decoded = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(bytes));
-
-    if (!decoded || decoded.includes("\uFFFD")) return text;
-
-    const decodedHasThai = /[\u0E01-\u0E5B]/.test(decoded);
-    const decodedStillBroken = /[เธเนโ][\u0080-\u009F]/.test(decoded);
-
-    if (decodedHasThai && !decodedStillBroken) {
-      return decoded;
-    }
-
-    return text;
-  } catch {
-    return text;
-  }
-}
-
-function cleanThaiDisplay(value: unknown, fallback = "-") {
-  const text = repairThaiMojibake(value).trim();
-  return text || fallback;
-}
-
-
 type ReviewStatus = "Original" | "Revised";
 
 type Topic = {
@@ -925,7 +869,7 @@ function AppealedTopicsCaseDetailTable({
                       {topic.code}
                     </span>
                     <div className="text-base font-extrabold text-slate-950">
-                      {repairThaiMojibake(topic.label)}
+                      {topic.label}
                     </div>
                   </div>
 
@@ -1206,7 +1150,7 @@ function AppealedTopicsCorporateTable({ topics }: { topics: Topic[] }) {
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-extrabold text-slate-700">
                         {topic.code}
                       </span>
-                      <h4 className="text-base font-extrabold text-slate-950">{repairThaiMojibake(topic.label)}</h4>
+                      <h4 className="text-base font-extrabold text-slate-950">{topic.label}</h4>
                     </div>
                   </div>
                 </div>
@@ -1304,7 +1248,7 @@ export default function AppealMockup({
     const loadWorkbook = async () => {
       try {
         setIsLoading(true);
-        setLoadError("โหลดไฟล์ Excel ไม่สำเร็จ");
+        setLoadError("");
 
         const [rawResponse, appealResponse] = await Promise.all([
           fetch("/QA_RawData_March-May2026.xlsx"),
@@ -1563,7 +1507,7 @@ export default function AppealMockup({
 
               return {
                 code: master.code,
-                label: repairThaiMojibake(master.label),
+                label: master.label,
                 score: revisedScore,
                 max: master.max,
                 pct: master.max > 0 ? Math.round((revisedScore / master.max) * 100) : 0,
@@ -1753,7 +1697,7 @@ export default function AppealMockup({
 
               return {
                 code: master.code,
-                label: repairThaiMojibake(master.label),
+                label: master.label,
                 score: revisedScore,
                 max: master.max,
                 pct: master.max > 0 ? Math.round((revisedScore / master.max) * 100) : 0,
@@ -2130,7 +2074,7 @@ export default function AppealMockup({
       const topicRight = right - 4;
       const topicWidth = topicRight - topicLeft;
 
-      const titleLines = doc.splitTextToSize(`${topic.code} ${repairThaiMojibake(topic.label)}`, topicWidth);
+      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, topicWidth);
       const topicMetaLines = doc.splitTextToSize("Appealed Topic Detail", topicWidth);
       const scoreLines = doc.splitTextToSize(
         `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
@@ -2167,7 +2111,7 @@ export default function AppealMockup({
       const topicRight = right - 4;
       const topicWidth = topicRight - topicLeft;
 
-      const titleLines = doc.splitTextToSize(`${topic.code} ${repairThaiMojibake(topic.label)}`, topicWidth);
+      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, topicWidth);
       const topicMetaLines = doc.splitTextToSize("Appealed Topic Detail", topicWidth);
       const scoreLines = doc.splitTextToSize(
         `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
@@ -2812,6 +2756,4 @@ export default function AppealMockup({
     </div>
   );
 }
-
-
 
