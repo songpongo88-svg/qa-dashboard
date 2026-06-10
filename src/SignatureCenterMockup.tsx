@@ -88,6 +88,7 @@ const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v4";
 const SIGNATURE_CONFIRM_KEY = "qa-monthly-signature-confirmed-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
+const CASE_TARGET = 10;
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -460,7 +461,7 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
     current.teamName = current.teamName === "-" ? teamName : current.teamName;
 
-    if (score > 0) current.scores.push(score);
+    if (Number.isFinite(finalScore)) current.scores.push(score);
     if (caseId && caseId !== "-" && !current.caseIds.has(caseId)) {
       current.caseIds.add(caseId);
       current.cases.push({
@@ -481,6 +482,7 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
       const averageScore = item.scores.length
         ? item.scores.reduce((sum, score) => sum + score, 0) / item.scores.length
         : 0;
+      const caseCount = item.caseIds.size || item.scores.length;
       const base = {
         id: `${item.monthKey}::${item.agentName}`,
         monthKey: item.monthKey,
@@ -490,10 +492,10 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
         supervisorName: item.supervisorName,
         qaName: item.qaName,
         teamName: item.teamName,
-        caseCount: item.caseIds.size || item.scores.length,
+        caseCount,
         averageScore,
         grade: scoreToGrade(averageScore, item.monthKey),
-        eligibleByScore: averageScore >= 80,
+        eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
         cases: item.cases.slice(0, 10),
       };
       return { ...base, documentHash: createDocumentHash(base) };
@@ -638,6 +640,15 @@ function makePaymentFileName(monthKey: string) {
 }
 
 function getDocumentIncentive(doc: SignatureDocument) {
+  if ((Number(doc.caseCount) || 0) < CASE_TARGET) {
+    return {
+      total: 0,
+      cash: 0,
+      promo: 0,
+      label: "0 THB / No Incentive",
+      remark: "ยังประเมินไม่ครบ 10 เคส",
+    };
+  }
   return getIncentiveByGrade(doc.grade as any, doc.monthKey);
 }
 
