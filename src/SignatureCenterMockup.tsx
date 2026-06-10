@@ -656,6 +656,238 @@ function generatePaymentExcelFile(
   XLSX.writeFile(workbook, makePaymentFileName(monthKey));
 }
 
+function makePaymentPdfFileName(monthKey: string) {
+  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
+  return `Incentive_QA_Monthly_${label || monthKey}.pdf`;
+}
+
+function generatePaymentPdfFile(
+  monthKey: string,
+  readyDocs: SignatureDocument[],
+  signatures: Record<string, SignatureEntry[]>
+) {
+  const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
+  const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
+  const avgScore = sortedDocs.length
+    ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
+    : 0;
+  const year = /^\d{4}-\d{2}$/.test(monthKey) ? monthKey.slice(0, 4) : "";
+  const paymentCutoff = formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString());
+
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+
+  try {
+    registerTHSarabunNew(pdf);
+    pdf.setFont("THSarabunNew", "normal");
+  } catch {}
+
+  const pageW = 297;
+  const left = 12;
+  const right = 285;
+  let y = 12;
+
+  const setFont = (size: number, bold = false, color: [number, number, number] = [31, 41, 55]) => {
+    try {
+      pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
+    } catch {}
+    pdf.setFontSize(size);
+    pdf.setTextColor(color[0], color[1], color[2]);
+  };
+
+  const drawText = (value: string, x: number, yy: number, size = 11, bold = false, color: [number, number, number] = [31, 41, 55]) => {
+    setFont(size, bold, color);
+    pdf.text(value, x, yy);
+  };
+
+  const section = (title: string) => {
+    pdf.setFillColor(109, 40, 217);
+    pdf.roundedRect(left, y, right - left, 8, 2, 2, "F");
+    drawText(title, left + 4, y + 5.6, 12, true, [255, 255, 255]);
+    y += 12;
+  };
+
+  const smallCell = (label: string, value: string | number, x: number, yy: number, w = 62) => {
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(x, yy, w, 12, 2, 2, "FD");
+    drawText(label, x + 3, yy + 4.5, 8.5, true, [100, 116, 139]);
+    drawText(String(value), x + 3, yy + 9.5, 11, true, [31, 41, 55]);
+  };
+
+  pdf.setFillColor(95, 39, 159);
+  pdf.rect(0, 0, pageW, 24, "F");
+  drawText("Monthly Team Summary", left, 10, 18, true, [255, 255, 255]);
+  drawText("Incentive QA Monthly Payment Export", left, 17, 11, false, [255, 255, 255]);
+
+  y = 32;
+  section("Current View");
+  smallCell("Month", getMonthLabel(monthKey), left, y, 66);
+  smallCell("Year", year, left + 70, y, 40);
+  smallCell("Team Cases", totalCases, left + 114, y, 44);
+  smallCell("Avg Score", avgScore.toFixed(2), left + 162, y, 42);
+  smallCell("Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold", left + 208, y, 64);
+  y += 17;
+  smallCell("Critical Cases", "0", left, y, 48);
+  smallCell("Payment Cutoff", paymentCutoff, left + 52, y, 72);
+  smallCell("Export Rule", "Pay only signed complete by day 15", left + 128, y, 144);
+  y += 20;
+
+  section("Agent Monthly Ranking");
+  const headers = [
+    ["Seq", 10],
+    ["Agent", 58],
+    ["Cases", 25],
+    ["Avg Score", 32],
+    ["Grade", 22],
+    ["Incentive", 42],
+    ["Critical", 28],
+    ["Status", 82],
+  ];
+
+  const colX: number[] = [];
+  let x = left;
+  headers.forEach(([, width]) => {
+    colX.push(x);
+    x += Number(width);
+  });
+
+  const drawHeader = () => {
+    pdf.setFillColor(237, 233, 254);
+    pdf.setDrawColor(221, 214, 254);
+    pdf.rect(left, y, right - left, 9, "FD");
+    headers.forEach(([label], index) => drawText(String(label), colX[index] + 2, y + 6, 9.5, true, [88, 28, 135]));
+    y += 9;
+  };
+
+  drawHeader();
+
+  sortedDocs.forEach((doc, index) => {
+    if (y > 185) {
+      pdf.addPage("a4", "landscape");
+      y = 14;
+      section("Agent Monthly Ranking (continued)");
+      drawHeader();
+    }
+
+    const entries = effectiveEntriesForDoc(doc, signatures);
+    const lastSignedAt =
+      SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
+        .filter(Boolean)
+        .sort()
+        .pop() || "";
+
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
+    pdf.rect(left, y, right - left, 8, "FD");
+    const row = [
+      String(index + 1),
+      doc.agentName,
+      String(doc.caseCount),
+      doc.averageScore.toFixed(2),
+      doc.grade,
+      "Ready to Pay",
+      "No",
+      `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+    ];
+    row.forEach((value, colIndex) => {
+      const maxWidth = Number(headers[colIndex][1]) - 3;
+      const lines = pdf.splitTextToSize(String(value), maxWidth);
+      drawText(Array.isArray(lines) ? lines[0] : String(lines), colX[colIndex] + 2, y + 5.5, 9, colIndex === 1 || colIndex === 5);
+    });
+    y += 8;
+  });
+
+  if (!sortedDocs.length) {
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(left, y, right - left, 12, "FD");
+    drawText("ยังไม่มี Agent ที่เข้าเงื่อนไขจ่ายในรอบนี้", left + 4, y + 7.5, 11, true, [180, 83, 9]);
+    y += 14;
+  }
+
+  y += 6;
+  if (y > 165) {
+    pdf.addPage("a4", "landscape");
+    y = 14;
+  }
+
+  section("Payment Export Summary");
+  const summaryRows = [
+    ["Total Paid Agents In This Cycle", String(sortedDocs.length)],
+    ["Payment Cutoff", paymentCutoff],
+    ["Generated At", new Date().toLocaleString("th-TH")],
+    ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
+  ];
+
+  summaryRows.forEach((row, index) => {
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
+    pdf.rect(left, y, right - left, 8, "FD");
+    drawText(row[0], left + 3, y + 5.5, 9.5, true, [71, 85, 105]);
+    drawText(row[1], left + 75, y + 5.5, 9.5, false, [31, 41, 55]);
+    y += 8;
+  });
+
+  y += 6;
+  section("Signature Validation");
+  const sigHeaders = [
+    ["Seq", 10],
+    ["Agent", 58],
+    ["QA", 45],
+    ["Supervisor", 45],
+    ["Senior / Team Lead", 55],
+    ["Agent Signature", 45],
+    ["Hash", 40],
+    ["Status", 40],
+  ];
+
+  const sigX: number[] = [];
+  x = left;
+  sigHeaders.forEach(([, width]) => {
+    sigX.push(x);
+    x += Number(width);
+  });
+
+  pdf.setFillColor(237, 233, 254);
+  pdf.setDrawColor(221, 214, 254);
+  pdf.rect(left, y, right - left, 9, "FD");
+  sigHeaders.forEach(([label], index) => drawText(String(label), sigX[index] + 2, y + 6, 9, true, [88, 28, 135]));
+  y += 9;
+
+  sortedDocs.forEach((doc, index) => {
+    if (y > 185) {
+      pdf.addPage("a4", "landscape");
+      y = 14;
+    }
+
+    const entries = effectiveEntriesForDoc(doc, signatures);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
+    pdf.rect(left, y, right - left, 8, "FD");
+
+    const row = [
+      String(index + 1),
+      doc.agentName,
+      getSignedEntry(entries, "QA")?.signerName || "-",
+      getSignedEntry(entries, "Supervisor")?.signerName || "-",
+      getSignedEntry(entries, "Senior")?.signerName || "-",
+      getSignedEntry(entries, "Agent")?.signerName || "-",
+      doc.documentHash,
+      "Completed",
+    ];
+    row.forEach((value, colIndex) => {
+      const maxWidth = Number(sigHeaders[colIndex][1]) - 3;
+      const lines = pdf.splitTextToSize(String(value), maxWidth);
+      drawText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex] + 2, y + 5.5, 8.5, colIndex === 1);
+    });
+    y += 8;
+  });
+
+  const fileName = makePaymentPdfFileName(monthKey);
+  downloadBlob(pdf.output("blob"), fileName);
+  return fileName;
+}
+
 function SignaturePill({ status }: { status: SignatureStepStatus }) {
   const tone =
     status === "Signed"
@@ -1085,6 +1317,13 @@ export default function SignatureCenterMockup({
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
 
+  const generatePaymentPdf = () => {
+    if (!canGeneratePaymentExcel || selectedMonth === "all") return;
+    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentDocs, signatures);
+    setPaymentMessage(`Generated ${fileName}`);
+    window.setTimeout(() => setPaymentMessage(""), 3500);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[45vh] items-center justify-center">
@@ -1152,7 +1391,7 @@ export default function SignatureCenterMockup({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Monthly Incentive Payment Export</div>
-            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน</div>
+            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน (PDF ตาม Template)</div>
             <div className="mt-1 text-sm leading-6 text-slate-500">
               หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role ภายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
             </div>
@@ -1168,14 +1407,24 @@ export default function SignatureCenterMockup({
                 : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน`}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={generatePaymentExcel}
-            disabled={!canGeneratePaymentExcel}
-            className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Generate Payment Excel
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={generatePaymentPdf}
+              disabled={!canGeneratePaymentExcel}
+              className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Generate Payment PDF
+            </button>
+            <button
+              type="button"
+              onClick={generatePaymentExcel}
+              disabled={!canGeneratePaymentExcel}
+              className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              Generate Excel
+            </button>
+          </div>
         </div>
         {paymentMessage ? (
           <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{paymentMessage}</div>
