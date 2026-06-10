@@ -574,7 +574,7 @@ function generatePaymentExcelFile(
   readyDocs: SignatureDocument[],
   signatures: Record<string, SignatureEntry[]>
 ) {
-  const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
+  const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
   const avgScore = sortedDocs.length
     ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
@@ -643,7 +643,7 @@ function generatePaymentExcelFile(
     ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
     [],
     ["Signature Validation"],
-    ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "Document Hash", "Status"],
+    ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "เลขอ้างอิง", "Status"],
   );
 
   sortedDocs.forEach((doc, index) => {
@@ -700,7 +700,7 @@ function generatePaymentPdfFile(
   readyDocs: SignatureDocument[],
   signatures: Record<string, SignatureEntry[]>
 ) {
-  const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
+  const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
   const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
@@ -885,7 +885,7 @@ function generatePaymentPdfFile(
     ["Supervisor", 35],
     ["Senior / Lead", 45],
     ["Agent Sign", 40],
-    ["Hash", 24],
+    ["เลขอ้างอิง", 28],
     ["Status", 32],
   ];
 
@@ -1269,7 +1269,7 @@ export default function SignatureCenterMockup({
       ["Reviewed Cases", `${selectedDocument.caseCount}`, "Critical Cases", "-"],
       ["Average Score", selectedDocument.averageScore.toFixed(2), "Monthly Grade", selectedDocument.grade],
       ["Incentive Status", readyForIncentive ? "Ready to Pay" : "Hold / Not Ready to Pay", "Document Status", isComplete ? "Completed" : "Incomplete Signature"],
-      ["Timeline", timeline, "Document Hash", selectedDocument.documentHash],
+      ["Timeline", timeline, "เลขอ้างอิง", selectedDocument.documentHash],
     ];
 
     infoRows.forEach((row) => {
