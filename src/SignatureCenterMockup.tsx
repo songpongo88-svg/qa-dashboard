@@ -361,6 +361,40 @@ function createDocumentHash(doc: Omit<SignatureDocument, "documentHash">) {
   ).slice(0, 18);
 }
 
+function getEvaluationAgentNameFromAccount(account: UserAccountSnapshot) {
+  return safeName(account.agentName || account.displayName || account.username, "");
+}
+
+function isEvaluationAccount(account: UserAccountSnapshot) {
+  const name = getEvaluationAgentNameFromAccount(account);
+  if (!name) return false;
+  const role = normalizeText(account.role).toLowerCase();
+  if (role.includes("quality assurance") || role === "qa") return false;
+  if (role.includes("supervisor")) return false;
+  if (role.includes("senior") || role.includes("team lead")) return false;
+  return true;
+}
+
+function createZeroCaseDocument(monthKey: string, account: UserAccountSnapshot): SignatureDocument {
+  const agentName = getEvaluationAgentNameFromAccount(account);
+  const base = {
+    id: `${monthKey}::${agentName}`,
+    monthKey,
+    monthLabel: getMonthLabel(monthKey),
+    agentName,
+    seniorName: resolveSeniorNameForAgent(account, account.teamLead || ""),
+    supervisorName: resolveSupervisorName(""),
+    qaName: getQaSignerNameByMonth(monthKey),
+    teamName: safeName(account.teamName, "-"),
+    caseCount: 0,
+    averageScore: 0,
+    grade: scoreToGrade(0, monthKey),
+    eligibleByScore: false,
+    cases: [],
+  };
+  return { ...base, documentHash: createDocumentHash(base) };
+}
+
 function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
   const headerIndex = rows.findIndex((row) => {
     const keys = row.map((item) => normalizeKey(item));
@@ -635,7 +669,7 @@ function generatePaymentExcelFile(
     [],
     ["Agent Monthly Ranking"],
     [],
-    ["Seq", "Agent", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "QA Signer", "Supervisor Signer", "Senior / Team Lead Signer", "Agent Signer", "Sign Complete At", "Critical", "Status"],
+    ["Seq", "Name", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "QA Signer", "Supervisor Signer", "Senior / Team Lead Signer", "Agent Signer", "Sign Complete At", "Critical", "Status"],
   ];
 
   sortedDocs.forEach((doc, index) => {
@@ -810,7 +844,7 @@ function generatePaymentPdfFile(
   section("Agent Monthly Ranking");
   const headers = [
     ["Seq", 10],
-    ["Agent", 54],
+    ["Name", 54],
     ["Cases", 18],
     ["Avg Score", 24],
     ["Grade", 16],
@@ -918,7 +952,7 @@ function generatePaymentPdfFile(
   section("Signature Validation");
   const sigHeaders = [
     ["Seq", 10],
-    ["Agent", 46],
+    ["Name", 46],
     ["QA", 34],
     ["Supervisor", 35],
     ["Senior / Lead", 45],
@@ -934,16 +968,21 @@ function generatePaymentPdfFile(
     x += Number(width);
   });
 
-  pdf.setFillColor(237, 233, 254);
-  pdf.setDrawColor(221, 214, 254);
-  pdf.rect(left, y, right - left, 9, "FD");
-  sigHeaders.forEach(([label], index) => drawText(String(label), sigX[index] + 2, y + 6, 9, true, [88, 28, 135]));
-  y += 9;
+  const drawSigHeader = () => {
+    pdf.setFillColor(237, 233, 254);
+    pdf.setDrawColor(221, 214, 254);
+    pdf.rect(left, y, right - left, 9, "FD");
+    sigHeaders.forEach(([label], index) => drawText(String(label), sigX[index] + 2, y + 6, 9, true, [88, 28, 135]));
+    y += 9;
+  };
+
+  drawSigHeader();
 
   sortedDocs.forEach((doc, index) => {
     if (y > 185) {
       pdf.addPage("a4", "landscape");
       y = 14;
+      drawSigHeader();
     }
 
     const entries = effectiveEntriesForDoc(doc, signatures);
@@ -1044,8 +1083,22 @@ export default function SignatureCenterMockup({
         if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
         const docMap = new Map<string, SignatureDocument>();
         loadedDocs.forEach((doc) => docMap.set(doc.id, doc));
+
+        const zeroCaseMonthKeys = Array.from(new Set(loadedDocs.map((doc) => doc.monthKey)))
+          .filter((monthKey) => isDashboardReportingMonth(monthKey));
+        zeroCaseMonthKeys.forEach((monthKey) => {
+          accounts.filter(isEvaluationAccount).forEach((account) => {
+            const agentName = getEvaluationAgentNameFromAccount(account);
+            if (!agentName) return;
+            const key = `${monthKey}::${agentName}`;
+            if (!docMap.has(key)) {
+              docMap.set(key, createZeroCaseDocument(monthKey, account));
+            }
+          });
+        });
+
         const nextDocs = Array.from(docMap.values()).sort(
-          (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName)
+          (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th")
         );
         if (!alive) return;
         setDocuments(nextDocs);
