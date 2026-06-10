@@ -514,8 +514,46 @@ function formatDateTimeOrRaw(value: any): string {
   return formatted && formatted.trim() !== "" ? formatted : raw || "-";
 }
 
+
+function repairMojibakeText(value: unknown) {
+  const text = String(value ?? "");
+  if (!text) return text;
+
+  const looksBroken = /[\u0080-\u009F]/.test(text) && /เธ|เน|โ/.test(text);
+  if (!looksBroken) return text;
+
+  const bytes: number[] = [];
+
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+
+    if (code >= 0x00 && code <= 0xff) {
+      bytes.push(code);
+      continue;
+    }
+
+    if (code >= 0x0e01 && code <= 0x0e5b) {
+      bytes.push(code - 0x0d60);
+      continue;
+    }
+
+    return text;
+  }
+
+  try {
+    const decoded = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(bytes));
+    if (!decoded || decoded.includes("\uFFFD")) return text;
+    if (/[\u0E01-\u0E5B]/.test(decoded) && !/[\u0080-\u009F]/.test(decoded)) {
+      return decoded;
+    }
+    return text;
+  } catch {
+    return text;
+  }
+}
+
 function sanitizeDisplayText(value: unknown, fallback = "-") {
-  const cleaned = stripInvisibleChars(String(value ?? "")).trim();
+  const cleaned = stripInvisibleChars(repairMojibakeText(value)).trim();
   return cleaned || fallback;
 }
 
@@ -673,7 +711,7 @@ function PanelHeader({
       }`}
     >
       <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
-      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+      {subtitle ? <div className="mt-1 text-xs text-slate-500">{sanitizeDisplayText(subtitle)}</div> : null}
     </div>
   );
 }
@@ -790,7 +828,7 @@ function QuickCaseCard({
       </div>
 
       <div className="mt-3 line-clamp-2 text-[12px] leading-5 text-slate-700">
-        {item.inquiry || "-"}
+        {sanitizeDisplayText(item.inquiry, "-")}
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
