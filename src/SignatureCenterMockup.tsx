@@ -1473,6 +1473,8 @@ export default function SignatureCenterMockup({
   const generatePdf = () => {
     if (!selectedDocument) return;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    const individualIncentive = getDocumentIncentive(selectedDocument);
+    const needMoreToTarget = Math.max(CASE_TARGET - selectedDocument.caseCount, 0);
     const pdf = new jsPDF({ unit: "mm", format: "a4" });
 
     try {
@@ -1536,9 +1538,9 @@ export default function SignatureCenterMockup({
     const infoRows = [
       ["Agent", selectedDocument.agentName, "Month", selectedDocument.monthLabel],
       ["Reviewed Cases", `${selectedDocument.caseCount}`, "Critical Cases", "-"],
+      ["Cases Reviewed", `${selectedDocument.caseCount}/${CASE_TARGET}`, "Need More to 10", `${needMoreToTarget}`],
       ["Average Score", selectedDocument.averageScore.toFixed(2), "Monthly Grade", selectedDocument.grade],
-      ["Incentive Status", readyForIncentive ? "Ready to Pay" : "Hold / Not Ready to Pay", "Document Status", isComplete ? "Completed" : "Incomplete Signature"],
-      ["Timeline", timeline, "Document Ref.", selectedDocument.documentHash],
+      ["Document Status", isComplete ? "Completed" : "Incomplete Signature", "Document Ref.", selectedDocument.documentHash],
     ];
 
     infoRows.forEach((row) => {
@@ -1552,8 +1554,25 @@ export default function SignatureCenterMockup({
       y += 9;
     });
 
+    y += 2;
+    drawSectionTitle("Incentive Summary");
+    const incentiveRows = [
+      ["Incentive", individualIncentive.label || "No Incentive", "Cash (THB)", formatBahtAmount(individualIncentive.cash || 0)],
+      ["RBH Promo (THB)", formatBahtAmount(individualIncentive.promo || 0), "Remark", individualIncentive.remark || "-"],
+    ];
+    incentiveRows.forEach((row) => {
+      const yy = y;
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(left, yy - 5, right - left, 8, "F");
+      text(row[0], left + 3, yy, 10, true, [100, 116, 139]);
+      text(row[1], left + 34, yy, 11, true, [31, 41, 55]);
+      text(row[2], left + 98, yy, 10, true, [100, 116, 139]);
+      text(row[3], left + 132, yy, 11, true, [31, 41, 55]);
+      y += 9;
+    });
+
     if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
-      line("หมายเหตุ: เดือน Jan-Apr เป็นรอบที่ผ่านระบบจ่ายเงินแล้ว ระบบสร้างเอกสารเป็น Historical Paid / Completed อัตโนมัติ", 10);
+      line("หมายเหตุ: เดือน Jan-Apr เป็นรอบประวัติของเอกสาร ระบบแสดงสถานะ Completed อัตโนมัติ", 10);
     }
     if (hasPendingAppeal) {
       line(`หมายเหตุ: มี ${selectedPendingAppeals.length} เคสที่ยื่น Appeal และรอ Approved จึงยังไม่สามารถยืนยันรับทราบหรือเซ็นได้`, 10);
@@ -1591,7 +1610,8 @@ export default function SignatureCenterMockup({
       y += 10;
     }
 
-    y += 5;
+    pdf.addPage();
+    y = 18;
     drawSectionTitle("Acknowledgement / Signature");
     line("รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", 11);
 
