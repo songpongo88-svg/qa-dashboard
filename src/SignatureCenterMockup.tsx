@@ -161,16 +161,55 @@ function getMonthKeyFromRow(
   row: unknown[],
   helper: ReturnType<typeof buildHeaderMap>
 ) {
-  const monthStartRaw = helper.get(row, ["Month Start", "Month Start Date", "MonthStart"], "");
-  const monthLabelRaw = helper.get(row, ["Month Label", "Month", "Reporting Month", "Selected Month"], "");
-  const auditDateRaw = helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], "");
+  const explicitMonthKey = normalizeText(
+    helper.get(row, [
+      "Month Key",
+      "MonthKey",
+      "Month_Key",
+      "Reporting Month Key",
+      "Selected Month Key",
+      "Selected MonthKey",
+    ], "")
+  );
+
+  const monthKeyMatch = explicitMonthKey.match(/(20\d{2})[-/](\d{1,2})/);
+  if (monthKeyMatch) {
+    return `${monthKeyMatch[1]}-${String(Number(monthKeyMatch[2])).padStart(2, "0")}`;
+  }
+
+  const monthLabelRaw = helper.get(row, [
+    "Month Label",
+    "Month",
+    "Reporting Month",
+    "Selected Month",
+    "Report Month",
+  ], "");
+
+  const monthStartRaw = helper.get(row, [
+    "Month Start",
+    "Month Start Date",
+    "MonthStart",
+  ], "");
+
+  const auditDateRaw = helper.get(row, [
+    "Audit Date",
+    "Case Date",
+    "Timestamp",
+    "Date",
+  ], "");
 
   const monthDate =
-    parseMonthValueToDate(monthStartRaw) ||
     parseMonthValueToDate(monthLabelRaw) ||
+    parseMonthValueToDate(monthStartRaw) ||
     parseMonthValueToDate(auditDateRaw);
 
   return getMonthKey(monthDate);
+}
+
+function isDashboardReportingMonth(monthKey: string) {
+  // QA Dashboard currently uses 2026 reporting months.
+  // This prevents old audit dates such as December 2025 from appearing in Signature Center.
+  return /^2026-(0[1-9]|1[0-2])$/.test(monthKey);
 }
 
 function buildHeaderMap(headerRow: unknown[]) {
@@ -455,11 +494,11 @@ export default function SignatureCenterMockup({
 
         const docMap = new Map<string, SignatureDocument>();
         loadedDocs.forEach((doc) => docMap.set(doc.id, doc));
-        const nextDocs = Array.from(docMap.values()).sort(
-          (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName)
-        );
+        const nextDocs = Array.from(docMap.values())
+          .filter((doc) => isDashboardReportingMonth(doc.monthKey))
+          .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName));
         if (!alive) return;
-        console.log("Signature Center loaded months", Array.from(new Set(nextDocs.map((item) => item.monthKey))).sort());
+        console.log("Signature Center reporting months", Array.from(new Set(nextDocs.map((item) => item.monthKey))).sort());
         setDocuments(nextDocs);
         setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
       } catch (error) {
