@@ -49,7 +49,10 @@ type SignatureDocument = {
   documentHash: string;
 };
 
-const RAW_DATA_FILE = "/QA_RawData_March-May2026.xlsx";
+const RAW_DATA_FILES = [
+  "/QA_RawData_January-February2026.xlsx",
+  "/QA_RawData_March-May2026.xlsx",
+];
 const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v2";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 
@@ -110,6 +113,64 @@ function getMonthLabel(monthKey: string) {
   if (!/^\d{4}-\d{2}$/.test(monthKey)) return monthKey || "-";
   const date = new Date(`${monthKey}-01T00:00:00`);
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+}
+
+function parseMonthValueToDate(value: unknown): Date | null {
+  const directDate = parseExcelDate(value);
+  if (directDate) return new Date(directDate.getFullYear(), directDate.getMonth(), 1);
+
+  const text = normalizeText(value);
+  if (!text) return null;
+
+  const monthNameMatch = text.match(/(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{4})/i);
+  if (monthNameMatch) {
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const monthIndex = monthNames.findIndex((name) => monthNameMatch[1].toLowerCase().startsWith(name));
+    return new Date(Number(monthNameMatch[2]), Math.max(monthIndex, 0), 1);
+  }
+
+  const yearMonthMatch = text.match(/^(\d{4})[-/](\d{1,2})$/);
+  if (yearMonthMatch) return new Date(Number(yearMonthMatch[1]), Number(yearMonthMatch[2]) - 1, 1);
+
+  const thaiMonthMatch = text.match(/(ม\.ค\.|มกราคม|ก\.พ\.|กุมภาพันธ์|มี\.ค\.|มีนาคม|เม\.ย\.|เมษายน|พ\.ค\.|พฤษภาคม|มิ\.ย\.|มิถุนายน|ก\.ค\.|กรกฎาคม|ส\.ค\.|สิงหาคม|ก\.ย\.|กันยายน|ต\.ค\.|ตุลาคม|พ\.ย\.|พฤศจิกายน|ธ\.ค\.|ธันวาคม)\s*(\d{2,4})/);
+  if (thaiMonthMatch) {
+    const map: Record<string, number> = {
+      "ม.ค.": 0, "มกราคม": 0,
+      "ก.พ.": 1, "กุมภาพันธ์": 1,
+      "มี.ค.": 2, "มีนาคม": 2,
+      "เม.ย.": 3, "เมษายน": 3,
+      "พ.ค.": 4, "พฤษภาคม": 4,
+      "มิ.ย.": 5, "มิถุนายน": 5,
+      "ก.ค.": 6, "กรกฎาคม": 6,
+      "ส.ค.": 7, "สิงหาคม": 7,
+      "ก.ย.": 8, "กันยายน": 8,
+      "ต.ค.": 9, "ตุลาคม": 9,
+      "พ.ย.": 10, "พฤศจิกายน": 10,
+      "ธ.ค.": 11, "ธันวาคม": 11,
+    };
+    let year = Number(thaiMonthMatch[2]);
+    if (year < 100) year += 2500;
+    if (year > 2400) year -= 543;
+    return new Date(year, map[thaiMonthMatch[1]] ?? 0, 1);
+  }
+
+  return null;
+}
+
+function getMonthKeyFromRow(
+  row: unknown[],
+  helper: ReturnType<typeof buildHeaderMap>
+) {
+  const monthStartRaw = helper.get(row, ["Month Start", "Month Start Date", "MonthStart"], "");
+  const monthLabelRaw = helper.get(row, ["Month Label", "Month", "Reporting Month", "Selected Month"], "");
+  const auditDateRaw = helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], "");
+
+  const monthDate =
+    parseMonthValueToDate(monthStartRaw) ||
+    parseMonthValueToDate(monthLabelRaw) ||
+    parseMonthValueToDate(auditDateRaw);
+
+  return getMonthKey(monthDate);
 }
 
 function buildHeaderMap(headerRow: unknown[]) {
@@ -205,9 +266,7 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
 
     const account = findAccountForAgent(accounts, agentName);
     const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
-    const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
-    const monthStart = parseExcelDate(helper.get(row, ["Month Start", "Month"], ""));
-    const monthKey = getMonthKey(monthStart || auditDate);
+    const monthKey = getMonthKeyFromRow(row, helper);
     if (monthKey === "unknown") return;
 
     const finalScoreValue = helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], "");
@@ -376,14 +435,31 @@ export default function SignatureCenterMockup({
       try {
         setLoading(true);
         setLoadMessage("");
-        const response = await fetch(RAW_DATA_FILE, { cache: "no-store" });
-        if (!response.ok) throw new Error(`ไม่พบไฟล์ ${RAW_DATA_FILE}`);
-        const buffer = await response.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-        const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
-        const nextDocs = buildDocuments(rows, accounts);
+        const loadedDocs: SignatureDocument[] = [];
+
+        for (const fileName of RAW_DATA_FILES) {
+          const response = await fetch(fileName, { cache: "no-store" });
+          if (!response.ok) {
+            console.warn("Signature Center skipped missing file", fileName);
+            continue;
+          }
+
+          const buffer = await response.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+          const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+          loadedDocs.push(...buildDocuments(rows, accounts));
+        }
+
+        if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
+
+        const docMap = new Map<string, SignatureDocument>();
+        loadedDocs.forEach((doc) => docMap.set(doc.id, doc));
+        const nextDocs = Array.from(docMap.values()).sort(
+          (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName)
+        );
         if (!alive) return;
+        console.log("Signature Center loaded months", Array.from(new Set(nextDocs.map((item) => item.monthKey))).sort());
         setDocuments(nextDocs);
         setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
       } catch (error) {
