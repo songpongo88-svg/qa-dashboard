@@ -1,6 +1,8 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
+import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 
 type CurrentUser = {
@@ -24,6 +26,7 @@ type UserAccountSnapshot = {
 
 type SignRole = "QA" | "Supervisor" | "Senior" | "Agent";
 type SignStatus = "Signed" | "Pending";
+type SignatureStepStatus = "Signed" | "Pending" | "Waiting" | "Locked" | "Expired";
 
 type SignatureEntry = {
   role: SignRole;
@@ -31,6 +34,16 @@ type SignatureEntry = {
   signedBy: string;
   signedAt: string;
   status: SignStatus;
+  note?: string;
+};
+
+type SignatureCaseDetail = {
+  caseId: string;
+  auditDate: string;
+  inquiry: string;
+  finalScore: number;
+  grade: string;
+  comment: string;
 };
 
 type SignatureDocument = {
@@ -47,14 +60,24 @@ type SignatureDocument = {
   grade: string;
   eligibleByScore: boolean;
   documentHash: string;
+  cases: SignatureCaseDetail[];
+};
+
+type SignatureWindow = {
+  openAt: Date;
+  dueAt: Date;
+  appealCloseAt: Date;
 };
 
 const RAW_DATA_FILES = [
   "/QA_RawData_January-February2026.xlsx",
   "/QA_RawData_March-May2026.xlsx",
 ];
-const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v2";
+
+const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v4";
+const SIGNATURE_CONFIRM_KEY = "qa-monthly-signature-confirmed-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
+const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -104,17 +127,6 @@ function parseExcelDate(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function getMonthKey(date: Date | null) {
-  if (!date) return "unknown";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getMonthLabel(monthKey: string) {
-  if (!/^\d{4}-\d{2}$/.test(monthKey)) return monthKey || "-";
-  const date = new Date(`${monthKey}-01T00:00:00`);
-  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
-}
-
 function parseMonthValueToDate(value: unknown): Date | null {
   const directDate = parseExcelDate(value);
   if (directDate) return new Date(directDate.getFullYear(), directDate.getMonth(), 1);
@@ -129,7 +141,7 @@ function parseMonthValueToDate(value: unknown): Date | null {
     return new Date(Number(monthNameMatch[2]), Math.max(monthIndex, 0), 1);
   }
 
-  const yearMonthMatch = text.match(/^(\d{4})[-/](\d{1,2})$/);
+  const yearMonthMatch = text.match(/^(20\d{2})[-/](\d{1,2})$/);
   if (yearMonthMatch) return new Date(Number(yearMonthMatch[1]), Number(yearMonthMatch[2]) - 1, 1);
 
   const thaiMonthMatch = text.match(/(ม\.ค\.|มกราคม|ก\.พ\.|กุมภาพันธ์|มี\.ค\.|มีนาคม|เม\.ย\.|เมษายน|พ\.ค\.|พฤษภาคม|มิ\.ย\.|มิถุนายน|ก\.ค\.|กรกฎาคม|ส\.ค\.|สิงหาคม|ก\.ย\.|กันยายน|ต\.ค\.|ตุลาคม|พ\.ย\.|พฤศจิกายน|ธ\.ค\.|ธันวาคม)\s*(\d{2,4})/);
@@ -157,59 +169,15 @@ function parseMonthValueToDate(value: unknown): Date | null {
   return null;
 }
 
-function getMonthKeyFromRow(
-  row: unknown[],
-  helper: ReturnType<typeof buildHeaderMap>
-) {
-  const explicitMonthKey = normalizeText(
-    helper.get(row, [
-      "Month Key",
-      "MonthKey",
-      "Month_Key",
-      "Reporting Month Key",
-      "Selected Month Key",
-      "Selected MonthKey",
-    ], "")
-  );
-
-  const monthKeyMatch = explicitMonthKey.match(/(20\d{2})[-/](\d{1,2})/);
-  if (monthKeyMatch) {
-    return `${monthKeyMatch[1]}-${String(Number(monthKeyMatch[2])).padStart(2, "0")}`;
-  }
-
-  const monthLabelRaw = helper.get(row, [
-    "Month Label",
-    "Month",
-    "Reporting Month",
-    "Selected Month",
-    "Report Month",
-  ], "");
-
-  const monthStartRaw = helper.get(row, [
-    "Month Start",
-    "Month Start Date",
-    "MonthStart",
-  ], "");
-
-  const auditDateRaw = helper.get(row, [
-    "Audit Date",
-    "Case Date",
-    "Timestamp",
-    "Date",
-  ], "");
-
-  const monthDate =
-    parseMonthValueToDate(monthLabelRaw) ||
-    parseMonthValueToDate(monthStartRaw) ||
-    parseMonthValueToDate(auditDateRaw);
-
-  return getMonthKey(monthDate);
+function getMonthKey(date: Date | null) {
+  if (!date) return "unknown";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function isDashboardReportingMonth(monthKey: string) {
-  // QA Dashboard currently uses 2026 reporting months.
-  // This prevents old audit dates such as December 2025 from appearing in Signature Center.
-  return /^2026-(0[1-9]|1[0-2])$/.test(monthKey);
+function getMonthLabel(monthKey: string) {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) return monthKey || "-";
+  const date = new Date(`${monthKey}-01T00:00:00`);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
 }
 
 function buildHeaderMap(headerRow: unknown[]) {
@@ -237,6 +205,55 @@ function buildHeaderMap(headerRow: unknown[]) {
   return { get };
 }
 
+function getMonthKeyFromRow(row: unknown[], helper: ReturnType<typeof buildHeaderMap>) {
+  const explicitMonthKey = normalizeText(
+    helper.get(row, ["Month Key", "MonthKey", "Month_Key", "Reporting Month Key", "Selected Month Key"], "")
+  );
+  const monthKeyMatch = explicitMonthKey.match(/(20\d{2})[-/](\d{1,2})/);
+  if (monthKeyMatch) return `${monthKeyMatch[1]}-${String(Number(monthKeyMatch[2])).padStart(2, "0")}`;
+
+  const monthDate =
+    parseMonthValueToDate(helper.get(row, ["Month Label", "Month", "Reporting Month", "Selected Month", "Report Month"], "")) ||
+    parseMonthValueToDate(helper.get(row, ["Month Start", "Month Start Date", "MonthStart"], "")) ||
+    parseMonthValueToDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
+
+  return getMonthKey(monthDate);
+}
+
+function isDashboardReportingMonth(monthKey: string) {
+  return /^2026-(0[1-9]|1[0-2])$/.test(monthKey);
+}
+
+function isHistoricalPaidPeriod(monthKey: string) {
+  return isDashboardReportingMonth(monthKey) && monthKey <= HISTORICAL_PAID_LAST_MONTH;
+}
+
+function getSignatureWindow(monthKey: string): SignatureWindow {
+  const [yearText, monthText] = monthKey.split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  return {
+    appealCloseAt: new Date(year, monthIndex + 1, 10, 23, 59, 59),
+    openAt: new Date(year, monthIndex + 1, 11, 0, 0, 0),
+    dueAt: new Date(year, monthIndex + 1, 15, 23, 59, 59),
+  };
+}
+
+function getTimelineStatus(monthKey: string, now = new Date()) {
+  if (isHistoricalPaidPeriod(monthKey)) return "Historical Paid";
+  const window = getSignatureWindow(monthKey);
+  if (now <= window.appealCloseAt) return "Appeal Period Open";
+  if (now >= window.openAt && now <= window.dueAt) return "Signature Open";
+  if (now > window.dueAt) return "Signature Deadline Passed";
+  return "Waiting Signature Window";
+}
+
+function isSigningAllowedByDate(monthKey: string, now = new Date()) {
+  if (isHistoricalPaidPeriod(monthKey)) return false;
+  const window = getSignatureWindow(monthKey);
+  return now >= window.openAt && now <= window.dueAt;
+}
+
 function safeName(value: unknown, fallback = "-") {
   const text = normalizeText(value);
   return text || fallback;
@@ -260,19 +277,23 @@ function writeSignatureStore(value: Record<string, SignatureEntry[]>) {
   window.localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(value));
 }
 
+function readConfirmedStore(): Record<string, string> {
+  try {
+    return JSON.parse(window.localStorage.getItem(SIGNATURE_CONFIRM_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeConfirmedStore(value: Record<string, string>) {
+  window.localStorage.setItem(SIGNATURE_CONFIRM_KEY, JSON.stringify(value));
+}
+
 function createDocumentHash(doc: Omit<SignatureDocument, "documentHash">) {
   return btoa(
     unescape(
       encodeURIComponent(
-        [
-          doc.monthKey,
-          doc.agentName,
-          doc.seniorName,
-          doc.supervisorName,
-          doc.caseCount,
-          doc.averageScore.toFixed(2),
-          doc.grade,
-        ].join("|")
+        [doc.monthKey, doc.agentName, doc.caseCount, doc.averageScore.toFixed(2), doc.grade].join("|")
       )
     )
   ).slice(0, 18);
@@ -283,11 +304,9 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     const keys = row.map((item) => normalizeKey(item));
     return keys.includes("agent name") && (keys.includes("case id") || keys.includes("final score"));
   });
-
   if (headerIndex < 0) return [];
 
   const helper = buildHeaderMap(rows[headerIndex] || []);
-  const dataRows = rows.slice(headerIndex + 1);
   const grouped = new Map<string, {
     monthKey: string;
     agentName: string;
@@ -296,30 +315,29 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     qaName: string;
     teamName: string;
     scores: number[];
-    cases: Set<string>;
+    cases: SignatureCaseDetail[];
+    caseIds: Set<string>;
   }>();
 
-  dataRows.forEach((row) => {
+  rows.slice(headerIndex + 1).forEach((row) => {
     const agentName = safeName(helper.get(row, ["Agent Name", "Agent", "Employee Name", "User"], ""));
     if (!agentName || agentName === "-") return;
 
+    const monthKey = getMonthKeyFromRow(row, helper);
+    if (!isDashboardReportingMonth(monthKey)) return;
+
     const account = findAccountForAgent(accounts, agentName);
     const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
-    const monthKey = getMonthKeyFromRow(row, helper);
-    if (monthKey === "unknown") return;
-
-    const finalScoreValue = helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], "");
-    const finalScore = Number(finalScoreValue);
+    const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
+    const finalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
     const score = Number.isFinite(finalScore) ? finalScore : 0;
 
-    const seniorName = safeName(
-      account?.teamLead ||
-        helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader", "หัวหน้าทีม"], ""),
-      "Senior / Team Lead"
-    );
-    const supervisorName = safeName(helper.get(row, ["Supervisor", "Sup", "หัวหน้าแผนก"], ""), "Supervisor");
+    const seniorName = safeName(account?.teamLead || helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader"], ""), "Senior / Team Lead");
+    const supervisorName = safeName(helper.get(row, ["Supervisor", "Sup"], ""), "Supervisor");
     const qaName = safeName(helper.get(row, ["QA", "QA Name", "Auditor", "Evaluator", "Audit By"], ""), "Quality Assurance");
-    const teamName = safeName(account?.teamName || helper.get(row, ["Team", "Team Name", "ทีม"], ""), "-");
+    const teamName = safeName(account?.teamName || helper.get(row, ["Team", "Team Name"], ""), "-");
+    const inquiry = safeName(helper.get(row, ["Customer Inquiry", "Intent", "Inquiry", "หัวข้อ"], ""), "-");
+    const comment = safeName(helper.get(row, ["Final Comment", "Comment", "QA Comment", "Case Description"], ""), "-");
 
     const key = `${monthKey}::${agentName}`;
     const current = grouped.get(key) || {
@@ -330,15 +348,28 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
       qaName,
       teamName,
       scores: [],
-      cases: new Set<string>(),
+      cases: [],
+      caseIds: new Set<string>(),
     };
 
     current.seniorName = current.seniorName === "Senior / Team Lead" ? seniorName : current.seniorName;
     current.supervisorName = current.supervisorName === "Supervisor" ? supervisorName : current.supervisorName;
     current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
     current.teamName = current.teamName === "-" ? teamName : current.teamName;
-    if (caseId && caseId !== "-") current.cases.add(caseId);
+
     if (score > 0) current.scores.push(score);
+    if (caseId && caseId !== "-" && !current.caseIds.has(caseId)) {
+      current.caseIds.add(caseId);
+      current.cases.push({
+        caseId,
+        auditDate: auditDate ? auditDate.toLocaleDateString("th-TH") : "-",
+        inquiry,
+        finalScore: score,
+        grade: scoreToGrade(score, monthKey),
+        comment,
+      });
+    }
+
     grouped.set(key, current);
   });
 
@@ -356,10 +387,11 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
         supervisorName: item.supervisorName,
         qaName: item.qaName,
         teamName: item.teamName,
-        caseCount: item.cases.size || item.scores.length,
+        caseCount: item.caseIds.size || item.scores.length,
         averageScore,
         grade: scoreToGrade(averageScore, item.monthKey),
         eligibleByScore: averageScore >= 80,
+        cases: item.cases.slice(0, 10),
       };
       return { ...base, documentHash: createDocumentHash(base) };
     })
@@ -389,67 +421,92 @@ function getPreviousStep(role: SignRole) {
 function roleThaiLabel(role: SignRole) {
   if (role === "QA") return "QA ผู้ตรวจสอบ";
   if (role === "Supervisor") return "Supervisor";
-  if (role === "Senior") return "Senior / หัวหน้าทีม";
+  if (role === "Senior") return "Senior / Team Lead";
   return "Agent ผู้ถูกประเมิน";
-}
-
-function roleBadgeText(role: SignRole) {
-  if (role === "QA") return "1";
-  if (role === "Supervisor") return "2";
-  if (role === "Senior") return "3";
-  return "4";
 }
 
 function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
   const signerName = getRoleSigner(doc, role);
   if (role === "QA") return currentUser.role === "Quality Assurance" || isSamePerson(currentUser.displayName, signerName);
-  if (role === "Supervisor") {
-    return currentUser.role === "Supervisor" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
-  }
-  if (role === "Senior") {
-    return currentUser.role === "Senior" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
-  }
+  if (role === "Supervisor") return currentUser.role === "Supervisor" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
+  if (role === "Senior") return currentUser.role === "Senior" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
   return isSamePerson(currentUser.agentName, doc.agentName) || isSamePerson(currentUser.displayName, doc.agentName);
+}
+
+function autoHistoricalEntries(doc: SignatureDocument): SignatureEntry[] {
+  if (!isHistoricalPaidPeriod(doc.monthKey)) return [];
+  const window = getSignatureWindow(doc.monthKey);
+  const paidAt = window.dueAt.toISOString();
+  return SIGNATURE_FLOW.map((role) => ({
+    role,
+    signerName: getRoleSigner(doc, role),
+    status: "Signed",
+    signedBy: "System Historical Paid",
+    signedAt: paidAt,
+    note: "Historical paid period Jan-Apr 2026",
+  }));
+}
+
+function effectiveEntriesForDoc(doc: SignatureDocument, signatures: Record<string, SignatureEntry[]>) {
+  if (isHistoricalPaidPeriod(doc.monthKey)) return autoHistoricalEntries(doc);
+  return signatures[doc.id] || [];
 }
 
 function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entries: SignatureEntry[]) {
   if (currentUser.role === "Quality Assurance") return true;
-
+  if (isHistoricalPaidPeriod(doc.monthKey)) {
+    return [doc.agentName, doc.seniorName, doc.supervisorName].some((name) => isSamePerson(currentUser.displayName, name) || isSamePerson(currentUser.agentName, name));
+  }
   const qaSigned = Boolean(getSignedEntry(entries, "QA"));
   const supervisorSigned = Boolean(getSignedEntry(entries, "Supervisor"));
   const seniorSigned = Boolean(getSignedEntry(entries, "Senior"));
-
-  if (currentUser.role === "Supervisor") {
-    return qaSigned && (doc.supervisorName === "Supervisor" || canSignIdentity(currentUser, doc, "Supervisor"));
-  }
-
-  if (currentUser.role === "Senior") {
-    return supervisorSigned && (doc.seniorName === "Senior / Team Lead" || canSignIdentity(currentUser, doc, "Senior"));
-  }
-
+  if (currentUser.role === "Supervisor") return qaSigned && canSignIdentity(currentUser, doc, "Supervisor");
+  if (currentUser.role === "Senior") return supervisorSigned && canSignIdentity(currentUser, doc, "Senior");
   return seniorSigned && canSignIdentity(currentUser, doc, "Agent");
 }
 
-function statusForRole(entries: SignatureEntry[], role: SignRole) {
+function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string): SignatureStepStatus {
   if (getSignedEntry(entries, role)) return "Signed";
+  if (isHistoricalPaidPeriod(monthKey)) return "Signed";
+  const timeline = getTimelineStatus(monthKey);
   const currentStep = getCurrentStep(entries);
+  if (timeline === "Appeal Period Open" || timeline === "Waiting Signature Window") return "Locked";
+  if (timeline === "Signature Deadline Passed") return currentStep === role ? "Expired" : "Waiting";
   if (currentStep === role) return "Pending";
   return "Waiting";
 }
 
-function SignaturePill({ status }: { status: "Signed" | "Pending" | "Waiting" }) {
+function formatDateTime(value: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function SignaturePill({ status }: { status: SignatureStepStatus }) {
   const tone =
     status === "Signed"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : status === "Pending"
         ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-slate-200 bg-slate-50 text-slate-500";
-
-  return (
-    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${tone}`}>
-      {status}
-    </span>
-  );
+        : status === "Expired"
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : status === "Locked"
+            ? "border-slate-200 bg-slate-100 text-slate-500"
+            : "border-slate-200 bg-slate-50 text-slate-500";
+  return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${tone}`}>{status}</span>;
 }
 
 export default function SignatureCenterMockup({
@@ -461,12 +518,14 @@ export default function SignatureCenterMockup({
 }) {
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
+  const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadMessage, setLoadMessage] = useState("");
+  const [pdfMessage, setPdfMessage] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -475,30 +534,22 @@ export default function SignatureCenterMockup({
         setLoading(true);
         setLoadMessage("");
         const loadedDocs: SignatureDocument[] = [];
-
         for (const fileName of RAW_DATA_FILES) {
           const response = await fetch(fileName, { cache: "no-store" });
-          if (!response.ok) {
-            console.warn("Signature Center skipped missing file", fileName);
-            continue;
-          }
-
+          if (!response.ok) continue;
           const buffer = await response.arrayBuffer();
           const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
           const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
           loadedDocs.push(...buildDocuments(rows, accounts));
         }
-
         if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
-
         const docMap = new Map<string, SignatureDocument>();
         loadedDocs.forEach((doc) => docMap.set(doc.id, doc));
-        const nextDocs = Array.from(docMap.values())
-          .filter((doc) => isDashboardReportingMonth(doc.monthKey))
-          .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName));
+        const nextDocs = Array.from(docMap.values()).sort(
+          (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName)
+        );
         if (!alive) return;
-        console.log("Signature Center reporting months", Array.from(new Set(nextDocs.map((item) => item.monthKey))).sort());
         setDocuments(nextDocs);
         setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
       } catch (error) {
@@ -508,7 +559,6 @@ export default function SignatureCenterMockup({
         if (alive) setLoading(false);
       }
     };
-
     void load();
     return () => {
       alive = false;
@@ -519,27 +569,31 @@ export default function SignatureCenterMockup({
     writeSignatureStore(signatures);
   }, [signatures]);
 
-  const monthOptions = useMemo(() => {
-    return Array.from(new Set(documents.map((item) => item.monthKey))).sort().reverse();
-  }, [documents]);
+  useEffect(() => {
+    writeConfirmedStore(confirmedDocs);
+  }, [confirmedDocs]);
+
+  const monthOptions = useMemo(() => Array.from(new Set(documents.map((item) => item.monthKey))).sort().reverse(), [documents]);
 
   const visibleDocuments = useMemo(() => {
-    return documents.filter((doc) => canViewDocument(currentUser, doc, signatures[doc.id] || []));
+    return documents.filter((doc) => canViewDocument(currentUser, doc, effectiveEntriesForDoc(doc, signatures)));
   }, [currentUser, documents, signatures]);
 
   const filteredDocuments = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return visibleDocuments.filter((doc) => {
-      const entries = signatures[doc.id] || [];
+      const entries = effectiveEntriesForDoc(doc, signatures);
       const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
-      const isComplete = signedCount === SIGNATURE_FLOW.length;
       const currentStep = getCurrentStep(entries);
+      const isComplete = signedCount === SIGNATURE_FLOW.length;
+      const timeline = getTimelineStatus(doc.monthKey);
       const statusMatch =
         statusFilter === "all" ||
-        (statusFilter === "my-turn" && currentStep && canSignIdentity(currentUser, doc, currentStep)) ||
+        (statusFilter === "my-turn" && currentStep && canSignIdentity(currentUser, doc, currentStep) && isSigningAllowedByDate(doc.monthKey)) ||
+        (statusFilter === "preview" && !confirmedDocs[doc.id] && !isHistoricalPaidPeriod(doc.monthKey)) ||
         (statusFilter === "ready" && isComplete && doc.eligibleByScore) ||
         (statusFilter === "pending" && !isComplete) ||
-        (statusFilter === "not-eligible" && !doc.eligibleByScore);
+        (statusFilter === "expired" && timeline === "Signature Deadline Passed" && !isComplete);
       const monthMatch = selectedMonth === "all" || doc.monthKey === selectedMonth;
       const keywordMatch =
         !keyword ||
@@ -548,68 +602,155 @@ export default function SignatureCenterMockup({
         doc.supervisorName.toLowerCase().includes(keyword);
       return statusMatch && monthMatch && keywordMatch;
     });
-  }, [currentUser, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
+  }, [confirmedDocs, currentUser, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
   const selectedDocument = filteredDocuments.find((item) => item.id === selectedDocumentId) || filteredDocuments[0] || visibleDocuments[0] || null;
-  const selectedEntries = selectedDocument ? signatures[selectedDocument.id] || [] : [];
+  const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
   const currentStep = getCurrentStep(selectedEntries);
   const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(selectedEntries, role))).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
+  const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
+  const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
 
   const summary = useMemo(() => {
     let complete = 0;
     let pending = 0;
     let ready = 0;
     let myTurn = 0;
-
     visibleDocuments.forEach((doc) => {
-      const entries = signatures[doc.id] || [];
+      const entries = effectiveEntriesForDoc(doc, signatures);
       const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
-      const nextStep = getCurrentStep(entries);
+      const step = getCurrentStep(entries);
       if (count === SIGNATURE_FLOW.length) complete += 1;
       else pending += 1;
       if (count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
-      if (nextStep && canSignIdentity(currentUser, doc, nextStep)) myTurn += 1;
+      if (step && canSignIdentity(currentUser, doc, step) && isSigningAllowedByDate(doc.monthKey)) myTurn += 1;
     });
-
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
   }, [currentUser, signatures, visibleDocuments]);
 
+  const confirmPreview = () => {
+    if (!selectedDocument) return;
+    setConfirmedDocs((previous) => ({
+      ...previous,
+      [selectedDocument.id]: new Date().toISOString(),
+    }));
+  };
+
   const signRole = (role: SignRole) => {
     if (!selectedDocument) return;
+    if (!previewConfirmed) return;
     if (role !== currentStep) return;
+    if (!isSigningAllowedByDate(selectedDocument.monthKey)) return;
     if (!canSignIdentity(currentUser, selectedDocument, role)) return;
 
     const signerName = getRoleSigner(selectedDocument, role);
-    const signedAt = new Date().toISOString();
     const nextEntry: SignatureEntry = {
       role,
       signerName,
       status: "Signed",
       signedBy: currentUser.displayName || currentUser.username,
-      signedAt,
+      signedAt: new Date().toISOString(),
     };
 
     setSignatures((previous) => {
       const current = previous[selectedDocument.id] || [];
       return {
         ...previous,
-        [selectedDocument.id]: [
-          ...current.filter((entry) => entry.role !== role),
-          nextEntry,
-        ],
+        [selectedDocument.id]: [...current.filter((entry) => entry.role !== role), nextEntry],
       };
     });
   };
 
   const resetDocument = () => {
-    if (!selectedDocument) return;
+    if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
     setSignatures((previous) => {
       const next = { ...previous };
       delete next[selectedDocument.id];
       return next;
     });
+    setConfirmedDocs((previous) => {
+      const next = { ...previous };
+      delete next[selectedDocument.id];
+      return next;
+    });
+  };
+
+  const generatePdf = () => {
+    if (!selectedDocument) return;
+    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+    try {
+      registerTHSarabunNew(doc);
+      doc.setFont("THSarabunNew", "normal");
+    } catch {}
+
+    const left = 14;
+    let y = 16;
+    const line = (text: string, size = 12, bold = false) => {
+      try {
+        doc.setFont("THSarabunNew", bold ? "bold" : "normal");
+      } catch {}
+      doc.setFontSize(size);
+      doc.text(text, left, y);
+      y += size * 0.45 + 3;
+    };
+
+    doc.setFillColor(110, 46, 166);
+    doc.rect(0, 0, 210, 28, "F");
+    doc.setTextColor(255, 255, 255);
+    y = 12;
+    line("Monthly QA Evaluation Acknowledgement", 17, true);
+    line("เอกสารรับทราบผลประเมิน QA และ Incentive", 13);
+    doc.setTextColor(31, 41, 55);
+    y = 38;
+
+    line(`Month: ${selectedDocument.monthLabel}`, 13, true);
+    line(`Agent: ${selectedDocument.agentName}`);
+    line(`Team: ${selectedDocument.teamName}`);
+    line(`Team Lead: ${selectedDocument.seniorName}`);
+    line(`Average Score: ${selectedDocument.averageScore.toFixed(2)} | Grade: ${selectedDocument.grade} | Cases: ${selectedDocument.caseCount}`);
+    line(`Document Status: ${isComplete ? "Completed" : "Incomplete Signature"} | Incentive Status: ${readyForIncentive ? "Ready to Pay" : "Hold / Not Ready to Pay"}`);
+    line(`Timeline: ${timeline} | Hash: ${selectedDocument.documentHash}`);
+    if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
+      line("Historical Paid Period: This document was auto-completed because incentive was already paid.", 10);
+    }
+
+    y += 3;
+    line("Case Detail Preview (10 cases)", 14, true);
+    selectedDocument.cases.slice(0, 10).forEach((item, index) => {
+      const text = `${index + 1}. ${item.caseId} | ${item.auditDate} | Score ${item.finalScore.toFixed(2)} | ${item.inquiry}`;
+      const wrapped = doc.splitTextToSize(text, 178);
+      doc.text(wrapped, left, y);
+      y += wrapped.length * 5 + 2;
+      if (y > 250) {
+        doc.addPage();
+        y = 18;
+      }
+    });
+
+    if (y > 215) {
+      doc.addPage();
+      y = 18;
+    } else {
+      y += 6;
+    }
+
+    line("Signature Status", 14, true);
+    SIGNATURE_FLOW.forEach((role) => {
+      const signed = getSignedEntry(entries, role);
+      const status = signed ? "Signed" : statusForRole(entries, role, selectedDocument.monthKey);
+      const nameForPdf = signed ? signed.signerName || signed.signedBy : "-";
+      const signedDate = signed ? formatDateTime(signed.signedAt) : "-";
+      line(`${roleThaiLabel(role)} | ${nameForPdf} | ${status} | ${signedDate}`, 11);
+    });
+
+    const fileName = `Signature_${selectedDocument.monthKey}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
+    downloadBlob(doc.output("blob"), fileName);
+    setPdfMessage(`Generated ${fileName}`);
+    window.setTimeout(() => setPdfMessage(""), 3500);
   };
 
   if (loading) {
@@ -638,7 +779,7 @@ export default function SignatureCenterMockup({
       <PageHero
         eyebrow="Monthly Acknowledgement"
         title="Signature Center"
-        subtitle="ระบบเซ็นรับทราบผลประเมินตามลำดับ QA > Supervisor > Team Lead > Agent ก่อนปล่อย Incentive"
+        subtitle="Preview คะแนนรายเดือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้นตอนเซ็นรับทราบ"
       />
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -658,17 +799,20 @@ export default function SignatureCenterMockup({
 
       <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
         <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
-          {SIGNATURE_FLOW.map((role, index) => (
-            <React.Fragment key={role}>
-              <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">
-                {roleBadgeText(role)}. {roleThaiLabel(role)}
-              </span>
-              {index < SIGNATURE_FLOW.length - 1 ? <span className="text-slate-300">→</span> : null}
-            </React.Fragment>
-          ))}
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">1. Preview Score + 10 Cases</span>
+          <span className="text-slate-300">→</span>
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">2. Confirm</span>
+          <span className="text-slate-300">→</span>
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">3. QA</span>
+          <span className="text-slate-300">→</span>
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">4. Supervisor</span>
+          <span className="text-slate-300">→</span>
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">5. Team Lead</span>
+          <span className="text-slate-300">→</span>
+          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
-          เอกสารจะเปิดให้เซ็นตามลำดับเท่านั้น: QA เซ็นก่อน → Supervisor → Team Lead ของ Agent → Agent ผู้ถูกประเมิน
+          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงกดเซ็นไม่ได้ / วันที่ 11-15 เปิดให้เซ็น / Generate PDF ได้ทุกสถานะ แต่ PDF จะแสดงชื่อเฉพาะคนที่เซ็นแล้วเท่านั้น
         </div>
       </div>
 
@@ -700,18 +844,18 @@ export default function SignatureCenterMockup({
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
               <option value="all">ทุกสถานะ</option>
+              <option value="preview">รอ Confirm Preview</option>
               <option value="my-turn">ถึงคิวฉัน</option>
               <option value="pending">รอเซ็น</option>
               <option value="ready">พร้อมจ่าย Incentive</option>
-              <option value="not-eligible">คะแนนไม่ผ่าน Incentive</option>
+              <option value="expired">เกินวันที่ 15 / ไม่ครบ</option>
             </select>
           </div>
 
           <div className="mt-5 max-h-[620px] space-y-3 overflow-y-auto pr-1">
             {filteredDocuments.map((doc) => {
-              const entries = signatures[doc.id] || [];
+              const entries = effectiveEntriesForDoc(doc, signatures);
               const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
-              const nextStep = getCurrentStep(entries);
               const selected = selectedDocument?.id === doc.id;
               return (
                 <button
@@ -733,8 +877,8 @@ export default function SignatureCenterMockup({
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{count}/4 signed</span>
-                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Next: {nextStep ? roleThaiLabel(nextStep) : "Complete"}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">Score {doc.averageScore.toFixed(2)}</span>
+                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Score {doc.averageScore.toFixed(2)}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{getTimelineStatus(doc.monthKey)}</span>
                   </div>
                 </button>
               );
@@ -742,7 +886,7 @@ export default function SignatureCenterMockup({
 
             {!filteredDocuments.length ? (
               <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                ยังไม่มีรายการที่ถึงคิว หรือเกี่ยวข้องกับ Role นี้
+                ยังไม่มีรายการตามเงื่อนไขที่เลือก
               </div>
             ) : null}
           </div>
@@ -753,31 +897,22 @@ export default function SignatureCenterMockup({
             <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Monthly Document</div>
+                  <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Preview Before Signature</div>
                   <div className="mt-1 text-2xl font-black text-slate-950">{selectedDocument.agentName}</div>
                   <div className="mt-1 text-sm font-semibold text-slate-500">
-                    {selectedDocument.monthLabel} • Team: {selectedDocument.teamName} • {selectedDocument.caseCount} case(s) • Hash {selectedDocument.documentHash}
+                    {selectedDocument.monthLabel} • Team: {selectedDocument.teamName} • Team Lead: {selectedDocument.seniorName}
                   </div>
                 </div>
-                <div
-                  className={`rounded-[22px] border px-5 py-3 text-center ${
-                    readyForIncentive
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : isComplete
-                        ? "border-amber-200 bg-amber-50 text-amber-700"
-                        : "border-slate-200 bg-slate-50 text-slate-600"
-                  }`}
+                <button
+                  type="button"
+                  onClick={generatePdf}
+                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
                 >
-                  <div className="text-xs font-black uppercase tracking-[0.14em]">Incentive Status</div>
-                  <div className="mt-1 text-lg font-black">
-                    {readyForIncentive
-                      ? "Ready to Pay"
-                      : isComplete
-                        ? "Signed / Not Eligible"
-                        : "Hold / Pending Signature"}
-                  </div>
-                </div>
+                  Generate Final PDF
+                </button>
               </div>
+
+              {pdfMessage ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{pdfMessage}</div> : null}
 
               <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -789,95 +924,149 @@ export default function SignatureCenterMockup({
                   <div className="mt-1 text-2xl font-black text-slate-950">{selectedDocument.grade}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Current Step</div>
-                  <div className="mt-1 text-base font-black text-slate-950">{currentStep ? roleThaiLabel(currentStep) : "Complete"}</div>
+                  <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Timeline</div>
+                  <div className="mt-1 text-base font-black text-slate-950">{timeline}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Signature Progress</div>
-                  <div className="mt-1 text-2xl font-black text-slate-950">{signedCount}/4</div>
+                  <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Incentive</div>
+                  <div className={`mt-1 text-base font-black ${readyForIncentive ? "text-emerald-700" : "text-amber-700"}`}>
+                    {readyForIncentive ? "Ready to Pay" : "Hold / Not Ready"}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Required Signatures</div>
-                  <div className="mt-1 text-xl font-black text-slate-950">เซ็นตามลำดับก่อนจ่าย Incentive</div>
+                  <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Case Detail Preview</div>
+                  <div className="mt-1 text-xl font-black text-slate-950">Preview 10 เคสก่อนเซ็น</div>
                 </div>
-                {currentUser.role === "Quality Assurance" ? (
+                {!previewConfirmed ? (
                   <button
                     type="button"
-                    onClick={resetDocument}
-                    className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                    onClick={confirmPreview}
+                    className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
                   >
-                    Reset เอกสารนี้
+                    ยืนยันรับทราบข้อมูล
                   </button>
-                ) : null}
+                ) : (
+                  <span className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-700">Preview Confirmed</span>
+                )}
               </div>
 
               <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200">
-                <div className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
-                  <div>Step</div>
-                  <div>Role</div>
-                  <div>Signer</div>
-                  <div>Status</div>
-                  <div>Action</div>
+                <div className="grid grid-cols-[58px_120px_90px_90px_minmax(0,1fr)] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
+                  <div>#</div>
+                  <div>Case ID</div>
+                  <div>Date</div>
+                  <div>Score</div>
+                  <div>Intent / Comment</div>
                 </div>
-
-                {SIGNATURE_FLOW.map((role) => {
-                  const signed = getSignedEntry(selectedEntries, role);
-                  const status = statusForRole(selectedEntries, role) as "Signed" | "Pending" | "Waiting";
-                  const signerName = getRoleSigner(selectedDocument, role);
-                  const isCurrent = currentStep === role;
-                  const allowSign = isCurrent && canSignIdentity(currentUser, selectedDocument, role);
-                  const previous = getPreviousStep(role);
-                  return (
-                    <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
-                      <div>
-                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
-                          signed ? "bg-emerald-100 text-emerald-700" : isCurrent ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
-                        }`}>
-                          {roleBadgeText(role)}
-                        </span>
-                      </div>
-                      <div className="font-black text-slate-950">{roleThaiLabel(role)}</div>
-                      <div>
-                        <div className="font-bold text-slate-900">{signerName}</div>
-                        {signed ? (
-                          <div className="mt-1 text-xs font-semibold text-slate-400">
-                            Signed by {signed.signedBy} • {new Date(signed.signedAt).toLocaleString("th-TH")}
-                          </div>
-                        ) : status === "Waiting" && previous ? (
-                          <div className="mt-1 text-xs font-semibold text-slate-400">รอ {roleThaiLabel(previous)} เซ็นก่อน</div>
-                        ) : null}
-                      </div>
-                      <div><SignaturePill status={status} /></div>
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => signRole(role)}
-                          disabled={Boolean(signed) || !allowSign}
-                          className="w-full rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                        >
-                          {signed
-                            ? "เซ็นแล้ว"
-                            : allowSign
-                              ? "รับทราบและลงนาม"
-                              : status === "Waiting"
-                                ? "ยังไม่ถึงคิว"
-                                : "รอผู้เกี่ยวข้อง"}
-                        </button>
-                      </div>
+                {selectedDocument.cases.slice(0, 10).map((item, index) => (
+                  <div key={`${item.caseId}-${index}`} className="grid grid-cols-[58px_120px_90px_90px_minmax(0,1fr)] gap-3 border-t border-slate-200 px-4 py-3 text-sm">
+                    <div className="font-black text-slate-400">{index + 1}</div>
+                    <div className="font-black text-slate-950">{item.caseId}</div>
+                    <div className="font-semibold text-slate-500">{item.auditDate}</div>
+                    <div className="font-black text-violet-700">{item.finalScore.toFixed(2)}</div>
+                    <div>
+                      <div className="font-bold text-slate-900">{item.inquiry}</div>
+                      <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.comment}</div>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                ทุกคนที่เกี่ยวข้องจะเห็นสถานะว่าใครเซ็นแล้ว / ใครยังไม่เซ็น แต่ปุ่มเซ็นจะเปิดเฉพาะคนที่ถึงคิวเท่านั้น
+                  </div>
+                ))}
               </div>
             </div>
+
+            {previewConfirmed ? (
+              <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
+                    <div className="mt-1 text-xl font-black text-slate-950">เซ็นตามลำดับ QA &gt; Supervisor &gt; Team Lead &gt; Agent</div>
+                  </div>
+                  {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
+                    <button
+                      type="button"
+                      onClick={resetDocument}
+                      className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Reset เอกสารนี้
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200">
+                  <div className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
+                    <div>Step</div>
+                    <div>Role</div>
+                    <div>Signer</div>
+                    <div>Status</div>
+                    <div>Action</div>
+                  </div>
+
+                  {SIGNATURE_FLOW.map((role, index) => {
+                    const signed = getSignedEntry(selectedEntries, role);
+                    const status = statusForRole(selectedEntries, role, selectedDocument.monthKey);
+                    const signerName = getRoleSigner(selectedDocument, role);
+                    const allowSign =
+                      currentStep === role &&
+                      canSignIdentity(currentUser, selectedDocument, role) &&
+                      isSigningAllowedByDate(selectedDocument.monthKey);
+                    const previous = getPreviousStep(role);
+                    return (
+                      <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
+                        <div>
+                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
+                            signed ? "bg-emerald-100 text-emerald-700" : currentStep === role ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
+                          }`}>
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div className="font-black text-slate-950">{roleThaiLabel(role)}</div>
+                        <div>
+                          <div className="font-bold text-slate-900">{signed ? signed.signerName : signerName}</div>
+                          {signed ? (
+                            <div className="mt-1 text-xs font-semibold text-slate-400">
+                              Signed by {signed.signedBy} • {formatDateTime(signed.signedAt)}
+                            </div>
+                          ) : status === "Waiting" && previous ? (
+                            <div className="mt-1 text-xs font-semibold text-slate-400">รอ {roleThaiLabel(previous)} เซ็นก่อน</div>
+                          ) : status === "Locked" ? (
+                            <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
+                          ) : null}
+                        </div>
+                        <div><SignaturePill status={status} /></div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => signRole(role)}
+                            disabled={Boolean(signed) || !allowSign}
+                            className="w-full rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            {signed
+                              ? "เซ็นแล้ว"
+                              : allowSign
+                                ? "รับทราบและลงนาม"
+                                : status === "Locked"
+                                  ? "ยังไม่เปิดให้เซ็น"
+                                  : status === "Expired"
+                                    ? "เกินกำหนด"
+                                    : status === "Waiting"
+                                      ? "ยังไม่ถึงคิว"
+                                      : "รอผู้เกี่ยวข้อง"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  PDF ออกได้ทุกสถานะ แต่จะแสดงชื่อเฉพาะคนที่เซ็นแล้วเท่านั้น คนที่ยังไม่เซ็นจะเป็น “- / Pending / Waiting”
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
