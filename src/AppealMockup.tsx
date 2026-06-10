@@ -2305,30 +2305,25 @@ export default function AppealMockup({
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="relative w-[330px] overflow-hidden rounded-[34px] border border-violet-200 bg-white/95 px-8 py-8 text-center shadow-[0_24px_70px_rgba(109,40,217,0.16)]">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.12),transparent_32%)]" />
-          <div className="pointer-events-none absolute left-8 top-7 h-2 w-2 animate-ping rounded-full bg-violet-300" />
-          <div className="pointer-events-none absolute right-10 top-12 h-2.5 w-2.5 rounded-full bg-fuchsia-200" />
-          <div className="pointer-events-none absolute right-8 bottom-8 h-2 w-2 animate-pulse rounded-full bg-violet-300" />
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center">
+          <img
+            src="/loader-owl-open.png"
+            alt="QA loading owl"
+            className="h-36 w-36 object-contain drop-shadow-[0_18px_34px_rgba(109,40,217,0.18)]"
+          />
 
-          <div className="relative z-10">
-            <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 shadow-inner">
-              <span className="animate-bounce text-6xl leading-none">🦉</span>
-            </div>
+          <div className="mt-4 text-lg font-extrabold text-violet-800">
+            กำลังโหลดข้อมูลอุทธรณ์
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            กรุณารอสักครู่...
+          </div>
 
-            <div className="mt-5 text-lg font-extrabold text-violet-700">
-              กำลังโหลดข้อมูลอุทธรณ์...
-            </div>
-            <div className="mt-2 text-sm leading-6 text-slate-500">
-              นกฮูกกำลังตรวจข้อมูลล่าสุด กรุณารอสักครู่
-            </div>
-
-            <div className="mt-5 flex items-center justify-center gap-2">
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-500 [animation-delay:-0.25s]" />
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.12s]" />
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-300" />
-            </div>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <span className="h-2 w-2 animate-bounce rounded-full bg-violet-500 [animation-delay:-0.25s]" />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.12s]" />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-sky-400" />
           </div>
         </div>
       </div>
