@@ -2963,7 +2963,7 @@ export default function App() {
     usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
   );
   const performanceMenuValue =
-    activeTab === "dashboard" || activeTab === "summary" || (activeTab === "coaching" && coachingAllowed)
+    activeTab === "dashboard" || activeTab === "summary" || activeTab === "signature-center" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
       : "";
   const reviewMenuValue =
@@ -3079,7 +3079,7 @@ export default function App() {
 
   const handlePerformanceMenuChange = (value: string) => {
     if (value === "coaching" && !coachingAllowed) return;
-    if (value === "dashboard" || value === "summary" || value === "coaching") {
+    if (value === "dashboard" || value === "summary" || value === "signature-center" || value === "coaching") {
       setActiveTab(value);
       replaceWorkspaceUrl(value === "dashboard" ? {} : { tab: value });
     }
