@@ -289,6 +289,13 @@ function safeName(value: unknown, fallback = "-") {
   return text || fallback;
 }
 
+function canonicalAgentName(value: unknown) {
+  const name = safeName(value, "");
+  if (isSamePerson(name, "Arisa Aiemrit")) return "Arisa Aiemrit";
+  if (isSamePerson(name, "Anucha Makundin")) return "Anucha Makundin";
+  return name;
+}
+
 function findAccountForAgent(accounts: UserAccountSnapshot[], agentName: string) {
   return accounts.find((account) =>
     [account.agentName, account.displayName, account.username].some((identity) => isSamePerson(identity, agentName))
@@ -362,7 +369,7 @@ function createDocumentHash(doc: Omit<SignatureDocument, "documentHash">) {
 }
 
 function getEvaluationAgentNameFromAccount(account: UserAccountSnapshot) {
-  return safeName(account.agentName || account.displayName || account.username, "");
+  return canonicalAgentName(account.agentName || account.displayName || account.username);
 }
 
 function isEvaluationAccount(account: UserAccountSnapshot) {
@@ -416,7 +423,7 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
   }>();
 
   rows.slice(headerIndex + 1).forEach((row) => {
-    const agentName = safeName(helper.get(row, ["Agent Name", "Agent", "Employee Name", "User"], ""));
+    const agentName = canonicalAgentName(helper.get(row, ["Agent Name", "Agent", "Employee Name", "User"], ""));
     if (!agentName || agentName === "-") return;
 
     const monthKey = getMonthKeyFromRow(row, helper);
@@ -1084,20 +1091,50 @@ export default function SignatureCenterMockup({
         const docMap = new Map<string, SignatureDocument>();
         loadedDocs.forEach((doc) => docMap.set(doc.id, doc));
 
-        const zeroCaseMonthKeys = Array.from(new Set(loadedDocs.map((doc) => doc.monthKey)))
-          .filter((monthKey) => isDashboardReportingMonth(monthKey));
-        zeroCaseMonthKeys.forEach((monthKey) => {
-          accounts.filter(isEvaluationAccount).forEach((account) => {
-            const agentName = getEvaluationAgentNameFromAccount(account);
-            if (!agentName) return;
-            const key = `${monthKey}::${agentName}`;
-            if (!docMap.has(key)) {
-              docMap.set(key, createZeroCaseDocument(monthKey, account));
-            }
+        // Do not add every All Team user into monthly payment export.
+        // Payment PDF / Excel must follow the names already shown in the monthly Dashboard.
+        // Special Dashboard exception: March 2026 includes Anucha Makundin even with 0 evaluated cases.
+        const marchAnuchaKey = "2026-03::Anucha Makundin";
+        if (!docMap.has(marchAnuchaKey)) {
+          const anuchaAccount = accounts.find((account) =>
+            isSamePerson(account.agentName, "Anucha Makundin") ||
+            isSamePerson(account.displayName, "Anucha Makundin") ||
+            isSamePerson(account.username, "Anucha Makundin")
+          );
+          docMap.set(marchAnuchaKey, createZeroCaseDocument("2026-03", anuchaAccount || {
+            username: "anucha",
+            displayName: "Anucha Makundin",
+            agentName: "Anucha Makundin",
+            role: "Admin Live Chat",
+            teamName: "-",
+            teamLead: "",
+            status: "Historical",
+          }));
+        }
+
+        const canonicalDocMap = new Map<string, SignatureDocument>();
+        Array.from(docMap.values()).forEach((doc) => {
+          const canonicalName = canonicalAgentName(doc.agentName);
+          const canonicalId = `${doc.monthKey}::${canonicalName}`;
+          const normalizedDoc = { ...doc, id: canonicalId, agentName: canonicalName };
+          const existing = canonicalDocMap.get(canonicalId);
+          if (!existing) {
+            canonicalDocMap.set(canonicalId, normalizedDoc);
+            return;
+          }
+          const keep = existing.caseCount >= normalizedDoc.caseCount ? existing : normalizedDoc;
+          const other = existing.caseCount >= normalizedDoc.caseCount ? normalizedDoc : existing;
+          canonicalDocMap.set(canonicalId, {
+            ...keep,
+            cases: keep.cases.length ? keep.cases : other.cases,
+            averageScore: keep.caseCount > 0 ? keep.averageScore : other.averageScore,
+            grade: keep.caseCount > 0 ? keep.grade : other.grade,
+            eligibleByScore: keep.caseCount > 0 ? keep.eligibleByScore : other.eligibleByScore,
+            caseCount: Math.max(keep.caseCount, other.caseCount),
           });
         });
 
-        const nextDocs = Array.from(docMap.values()).sort(
+        const nextDocs = Array.from(canonicalDocMap.values()).sort(
           (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th")
         );
         if (!alive) return;
