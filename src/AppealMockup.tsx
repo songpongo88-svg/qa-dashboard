@@ -10,51 +10,59 @@ import { type UsageLogEvent } from "./usageLog";
 
 function repairThaiMojibake(value: unknown) {
   const text = String(value ?? "");
-  if (!text) return repairThaiMojibake(text);
+  if (!text) return text;
 
-  // Common mojibake markers when Thai UTF-8 bytes were decoded as Windows-874/TIS-620.
-  if (!/[เธเนโ][\u0080-\u009F\u0E01-\u0E5B]/.test(text)) return repairThaiMojibake(text);
+  const hasThai = /[\u0E01-\u0E5B]/.test(text);
+  const looksMojibake =
+    /[เธเนโ][\u0080-\u009F]/.test(text) ||
+    (/เธ|เน|โ/.test(text) && /[\u0080-\u009F]/.test(text)) ||
+    (/เธ|เน|โ/.test(text) && !hasThai);
+
+  if (!looksMojibake) return text;
 
   const bytes: number[] = [];
 
   for (const ch of text) {
     const code = ch.charCodeAt(0);
 
-    // ASCII / control bytes that survived as U+0000-U+00FF.
     if (code >= 0x00 && code <= 0xff) {
       bytes.push(code);
       continue;
     }
 
-    // TIS-620 / Windows-874 Thai block: U+0E01 -> A1 ... U+0E5B -> FB.
+    // TIS-620 / Windows-874 Thai block: U+0E01 -> A1 ... U+0E5B -> FB
     if (code >= 0x0e01 && code <= 0x0e5b) {
       bytes.push(code - 0x0d60);
       continue;
     }
 
-    // Unknown char means this is probably already-correct Thai. Do not touch it.
-    return repairThaiMojibake(text);
+    // If there are unknown characters, keep original text.
+    return text;
   }
 
   try {
     const decoded = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(bytes));
-    if (!decoded || decoded.includes("\uFFFD")) return repairThaiMojibake(text);
 
-    // Only accept if result has real Thai and no obvious mojibake markers remain.
-    if (/[\u0E01-\u0E5B]/.test(decoded) && !/[เธเนโ][\u0080-\u009F]/.test(decoded)) {
+    if (!decoded || decoded.includes("\uFFFD")) return text;
+
+    const decodedHasThai = /[\u0E01-\u0E5B]/.test(decoded);
+    const decodedStillBroken = /[เธเนโ][\u0080-\u009F]/.test(decoded);
+
+    if (decodedHasThai && !decodedStillBroken) {
       return decoded;
     }
 
-    return repairThaiMojibake(text);
+    return text;
   } catch {
-    return repairThaiMojibake(text);
+    return text;
   }
 }
 
 function cleanThaiDisplay(value: unknown, fallback = "-") {
   const text = repairThaiMojibake(value).trim();
-  return cleanThaiDisplay(text, fallback);
+  return text || fallback;
 }
+
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -2804,5 +2812,6 @@ export default function AppealMockup({
     </div>
   );
 }
+
 
 
