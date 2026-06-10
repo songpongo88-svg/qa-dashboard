@@ -1316,28 +1316,6 @@ function SignaturePadModal({
           </button>
         </div>
       </div>
-
-      {signingRole && selectedDocument ? (
-        <SignaturePadModal
-          roleLabel={roleThaiLabel(signingRole)}
-          signerName={getRoleSigner(selectedDocument, signingRole)}
-          onCancel={() => setSigningRole(null)}
-          onSave={(dataUrl) => {
-            if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
-              setSigningRole(null);
-              return;
-            }
-            const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
-            if (existingSigned) {
-              saveDrawnSignature(signingRole, dataUrl);
-            } else {
-              signRole(signingRole, dataUrl);
-            }
-            setSigningRole(null);
-          }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -2281,6 +2259,28 @@ export default function SignatureCenterMockup({
           </div>
         ) : null}
       </div>
+
+      {signingRole && selectedDocument ? (
+        <SignaturePadModal
+          roleLabel={roleThaiLabel(signingRole)}
+          signerName={getRoleSigner(selectedDocument, signingRole)}
+          onCancel={() => setSigningRole(null)}
+          onSave={(dataUrl) => {
+            if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
+              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+              setSigningRole(null);
+              return;
+            }
+            const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
+            if (existingSigned) {
+              saveDrawnSignature(signingRole, dataUrl);
+            } else {
+              signRole(signingRole, dataUrl);
+            }
+            setSigningRole(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
