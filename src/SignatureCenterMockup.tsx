@@ -648,16 +648,49 @@ function formatBahtAmount(value: number) {
   }).format(Number.isFinite(value) ? value : 0);
 }
 
+function getDashboardMonthSummaryForExport(
+  allMonthDocs: SignatureDocument[],
+  fallbackDocs: SignatureDocument[]
+) {
+  const sourceDocs = allMonthDocs.length ? allMonthDocs : fallbackDocs;
+  const caseScores = sourceDocs.flatMap((doc) =>
+    doc.cases
+      .map((item) => Number(item.finalScore))
+      .filter((score) => Number.isFinite(score))
+  );
+
+  const totalCases = caseScores.length
+    ? caseScores.length
+    : sourceDocs.reduce((sum, doc) => sum + Math.max(Number(doc.caseCount) || 0, 0), 0);
+
+  let avgScore = 0;
+  if (caseScores.length) {
+    avgScore = caseScores.reduce((sum, score) => sum + score, 0) / caseScores.length;
+  } else {
+    const weightedScore = sourceDocs.reduce(
+      (sum, doc) => sum + (Number(doc.averageScore) || 0) * Math.max(Number(doc.caseCount) || 0, 0),
+      0
+    );
+    const weightedCases = sourceDocs.reduce((sum, doc) => sum + Math.max(Number(doc.caseCount) || 0, 0), 0);
+    avgScore = weightedCases > 0 ? weightedScore / weightedCases : 0;
+  }
+
+  return {
+    totalCases,
+    avgScore: Number(avgScore.toFixed(2)),
+  };
+}
+
 function generatePaymentExcelFile(
   monthKey: string,
   readyDocs: SignatureDocument[],
-  signatures: Record<string, SignatureEntry[]>
+  signatures: Record<string, SignatureEntry[]>,
+  allMonthDocs: SignatureDocument[] = readyDocs
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
-  const avgScore = sortedDocs.length
-    ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
-    : 0;
+  const dashboardSummary = getDashboardMonthSummaryForExport(allMonthDocs, sortedDocs);
+  const totalCases = dashboardSummary.totalCases;
+  const avgScore = dashboardSummary.avgScore;
   const criticalCases = 0;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
   const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
@@ -797,15 +830,15 @@ function makePaymentPdfFileName(monthKey: string) {
 function generatePaymentPdfFile(
   monthKey: string,
   readyDocs: SignatureDocument[],
-  signatures: Record<string, SignatureEntry[]>
+  signatures: Record<string, SignatureEntry[]>,
+  allMonthDocs: SignatureDocument[] = readyDocs
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
+  const dashboardSummary = getDashboardMonthSummaryForExport(allMonthDocs, sortedDocs);
+  const totalCases = dashboardSummary.totalCases;
+  const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
   const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
-  const avgScore = sortedDocs.length
-    ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
-    : 0;
   const year = /^\d{4}-\d{2}$/.test(monthKey) ? monthKey.slice(0, 4) : "";
   const paymentCutoff = formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString());
 
@@ -1294,6 +1327,11 @@ export default function SignatureCenterMockup({
     });
   }, [confirmedDocs, currentUser, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
+  const selectedMonthAllDocs = useMemo(() => {
+    if (selectedMonth === "all") return [];
+    return documents.filter((doc) => doc.monthKey === selectedMonth);
+  }, [documents, selectedMonth]);
+
   const selectedMonthPaymentDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
     return documents
@@ -1308,10 +1346,7 @@ export default function SignatureCenterMockup({
       .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
   }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
-  const selectedMonthTotalDocs = useMemo(() => {
-    if (selectedMonth === "all") return 0;
-    return documents.filter((doc) => doc.monthKey === selectedMonth).length;
-  }, [documents, selectedMonth]);
+  const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
   const canGeneratePaymentExcel =
     currentUser.role === "Quality Assurance" &&
@@ -1572,14 +1607,14 @@ export default function SignatureCenterMockup({
 
   const generatePaymentExcel = () => {
     if (!canGeneratePaymentExcel || selectedMonth === "all") return;
-    generatePaymentExcelFile(selectedMonth, selectedMonthPaymentDocs, signatures);
+    generatePaymentExcelFile(selectedMonth, selectedMonthPaymentDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
 
   const generatePaymentPdf = () => {
     if (!canGeneratePaymentExcel || selectedMonth === "all") return;
-    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentDocs, signatures);
+    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
