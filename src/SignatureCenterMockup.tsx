@@ -1323,6 +1323,11 @@ function SignaturePadModal({
           signerName={getRoleSigner(selectedDocument, signingRole)}
           onCancel={() => setSigningRole(null)}
           onSave={(dataUrl) => {
+            if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
+              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+              setSigningRole(null);
+              return;
+            }
             const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
             if (existingSigned) {
               saveDrawnSignature(signingRole, dataUrl);
@@ -1597,6 +1602,10 @@ export default function SignatureCenterMockup({
 
   const saveDrawnSignature = (role: SignRole, signatureDataUrl: string) => {
     if (!selectedDocument) return;
+    if (!canSignIdentity(currentUser, selectedDocument, role)) {
+      window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+      return;
+    }
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const existingSigned = getSignedEntry(entries, role);
     const nextEntry: SignatureEntry = {
@@ -2203,7 +2212,8 @@ export default function SignatureCenterMockup({
                       isSigningAllowedByDate(selectedDocument.monthKey);
                     const canEditDrawnSignature =
                       Boolean(signed) &&
-                      (currentUser.role === "Quality Assurance" || canSignIdentity(currentUser, selectedDocument, role));
+                      canSignIdentity(currentUser, selectedDocument, role);
+                    const canOpenSignaturePad = (!signed && allowSign) || canEditDrawnSignature;
                     const previous = getPreviousStep(role);
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
@@ -2232,13 +2242,19 @@ export default function SignatureCenterMockup({
                           <button
                             type="button"
                             onClick={() => setSigningRole(role)}
-                            disabled={(!signed && !allowSign) || (Boolean(signed) && !canEditDrawnSignature)}
-                            className="w-full rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            disabled={!canOpenSignaturePad}
+                            className={`w-full rounded-2xl px-4 py-2 text-xs font-black transition ${
+                              canOpenSignaturePad
+                                ? "bg-violet-700 text-white hover:bg-violet-800"
+                                : "cursor-not-allowed bg-slate-200 text-slate-500"
+                            }`}
                           >
                             {signed
-                              ? signed.signatureDataUrl
-                                ? "แก้ลายเซ็นจริง"
-                                : "เพิ่มลายเซ็นจริง"
+                              ? canEditDrawnSignature
+                                ? signed.signatureDataUrl
+                                  ? "แก้ลายเซ็นจริง"
+                                  : "เพิ่มลายเซ็นจริง"
+                                : "เฉพาะเจ้าของลายเซ็น"
                               : allowSign
                                 ? timeline === "Signature Deadline Passed"
                                   ? "วาดและลงนามล่าช้า"
@@ -2258,7 +2274,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                  PDF ออกได้ทุกสถานะ แต่จะแสดงชื่อเฉพาะคนที่เซ็นแล้วเท่านั้น คนที่ยังไม่เซ็นจะเป็น “- / Pending / Waiting”
+                  PDF ออกได้ทุกสถานะ แต่ลายเซ็นจริงต้องให้เจ้าของ Role เซ็นเองเท่านั้น ระบบไม่อนุญาตให้เซ็นแทนกัน
                 </div>
               </div>
             ) : null}
