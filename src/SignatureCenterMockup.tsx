@@ -428,8 +428,14 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName));
 }
 
+function getQaSignerNameByMonth(monthKey: string, fallback = "Quality Assurance") {
+  if (monthKey >= "2026-03") return "Songpon Phothong";
+  if (monthKey === "2026-01" || monthKey === "2026-02") return "Phommarin Thaithom";
+  return fallback || "Quality Assurance";
+}
+
 function getRoleSigner(doc: SignatureDocument, role: SignRole) {
-  if (role === "QA") return doc.qaName;
+  if (role === "QA") return getQaSignerNameByMonth(doc.monthKey, doc.qaName);
   if (role === "Supervisor") return doc.supervisorName;
   if (role === "Senior") return doc.seniorName;
   return doc.agentName;
@@ -603,7 +609,7 @@ function generatePaymentExcelFile(
   sortedDocs.forEach((doc, index) => {
     const entries = effectiveEntriesForDoc(doc, signatures);
     const incentive = getDocumentIncentive(doc);
-    const qaSigner = getSignedEntry(entries, "QA")?.signerName || "-";
+    const qaSigner = getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-";
     const supervisorSigner = getSignedEntry(entries, "Supervisor")?.signerName || "-";
     const seniorSigner = getSignedEntry(entries, "Senior")?.signerName || "-";
     const agentSigner = getSignedEntry(entries, "Agent")?.signerName || "-";
@@ -643,7 +649,7 @@ function generatePaymentExcelFile(
     ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
     [],
     ["Signature Validation"],
-    ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "เลขอ้างอิง", "Status"],
+    ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "Document Ref.", "Status"],
   );
 
   sortedDocs.forEach((doc, index) => {
@@ -651,7 +657,7 @@ function generatePaymentExcelFile(
     aoa.push([
       index + 1,
       doc.agentName,
-      getSignedEntry(entries, "QA")?.signerName || "-",
+      getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-",
       getSignedEntry(entries, "Supervisor")?.signerName || "-",
       getSignedEntry(entries, "Senior")?.signerName || "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
@@ -885,7 +891,7 @@ function generatePaymentPdfFile(
     ["Supervisor", 35],
     ["Senior / Lead", 45],
     ["Agent Sign", 40],
-    ["เลขอ้างอิง", 28],
+    ["Document Ref.", 28],
     ["Status", 32],
   ];
 
@@ -916,7 +922,7 @@ function generatePaymentPdfFile(
     const row = [
       String(index + 1),
       doc.agentName,
-      getSignedEntry(entries, "QA")?.signerName || "-",
+      getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-",
       getSignedEntry(entries, "Supervisor")?.signerName || "-",
       getSignedEntry(entries, "Senior")?.signerName || "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
@@ -1243,7 +1249,7 @@ export default function SignatureCenterMockup({
 
     const safePdfName = (role: SignRole) => {
       const signed = getSignedEntry(entries, role);
-      return signed ? signed.signerName || signed.signedBy || "-" : "-";
+      return signed ? role === "QA" ? getRoleSigner(selectedDocument, role) : signed.signerName || signed.signedBy || "-" : "-";
     };
 
     const safePdfDate = (role: SignRole) => {
@@ -1269,7 +1275,7 @@ export default function SignatureCenterMockup({
       ["Reviewed Cases", `${selectedDocument.caseCount}`, "Critical Cases", "-"],
       ["Average Score", selectedDocument.averageScore.toFixed(2), "Monthly Grade", selectedDocument.grade],
       ["Incentive Status", readyForIncentive ? "Ready to Pay" : "Hold / Not Ready to Pay", "Document Status", isComplete ? "Completed" : "Incomplete Signature"],
-      ["Timeline", timeline, "เลขอ้างอิง", selectedDocument.documentHash],
+      ["Timeline", timeline, "Document Ref.", selectedDocument.documentHash],
     ];
 
     infoRows.forEach((row) => {
