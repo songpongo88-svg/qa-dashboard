@@ -254,6 +254,12 @@ function isSigningAllowedByDate(monthKey: string, now = new Date()) {
   return now >= window.openAt && now <= window.dueAt;
 }
 
+function isAfterAppealPeriod(monthKey: string, now = new Date()) {
+  if (isHistoricalPaidPeriod(monthKey)) return true;
+  const window = getSignatureWindow(monthKey);
+  return now > window.appealCloseAt;
+}
+
 function safeName(value: unknown, fallback = "-") {
   const text = normalizeText(value);
   return text || fallback;
@@ -611,6 +617,19 @@ export default function SignatureCenterMockup({
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
   const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
+  const confirmAvailable = Boolean(
+    selectedDocument &&
+    !previewConfirmed &&
+    isAfterAppealPeriod(selectedDocument.monthKey) &&
+    canSignIdentity(currentUser, selectedDocument, "Agent")
+  );
+  const confirmBlockedReason = selectedDocument && !previewConfirmed
+    ? !isAfterAppealPeriod(selectedDocument.monthKey)
+      ? "เปิดให้ยืนยันรับทราบหลังวันที่ 10 ของเดือนถัดไป"
+      : !canSignIdentity(currentUser, selectedDocument, "Agent")
+        ? "เฉพาะ Agent ผู้ถูกประเมินเท่านั้นที่กดยืนยันรับทราบได้"
+        : ""
+    : "";
   const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
 
   const summary = useMemo(() => {
@@ -631,7 +650,7 @@ export default function SignatureCenterMockup({
   }, [currentUser, signatures, visibleDocuments]);
 
   const confirmPreview = () => {
-    if (!selectedDocument) return;
+    if (!selectedDocument || !confirmAvailable) return;
     setConfirmedDocs((previous) => ({
       ...previous,
       [selectedDocument.id]: new Date().toISOString(),
@@ -680,75 +699,153 @@ export default function SignatureCenterMockup({
   const generatePdf = () => {
     if (!selectedDocument) return;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pdf = new jsPDF({ unit: "mm", format: "a4" });
 
     try {
-      registerTHSarabunNew(doc);
-      doc.setFont("THSarabunNew", "normal");
+      registerTHSarabunNew(pdf);
+      pdf.setFont("THSarabunNew", "normal");
     } catch {}
 
-    const left = 14;
-    let y = 16;
-    const line = (text: string, size = 12, bold = false) => {
+    const pageWidth = 210;
+    const left = 12;
+    const right = 198;
+    let y = 12;
+
+    const setFont = (size: number, bold = false, color: [number, number, number] = [31, 41, 55]) => {
       try {
-        doc.setFont("THSarabunNew", bold ? "bold" : "normal");
+        pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
       } catch {}
-      doc.setFontSize(size);
-      doc.text(text, left, y);
-      y += size * 0.45 + 3;
+      pdf.setFontSize(size);
+      pdf.setTextColor(color[0], color[1], color[2]);
     };
 
-    doc.setFillColor(110, 46, 166);
-    doc.rect(0, 0, 210, 28, "F");
-    doc.setTextColor(255, 255, 255);
-    y = 12;
-    line("Monthly QA Evaluation Acknowledgement", 17, true);
-    line("เอกสารรับทราบผลประเมิน QA และ Incentive", 13);
-    doc.setTextColor(31, 41, 55);
-    y = 38;
+    const text = (value: string, x: number, yy: number, size = 12, bold = false, color: [number, number, number] = [31, 41, 55]) => {
+      setFont(size, bold, color);
+      pdf.text(value, x, yy);
+    };
 
-    line(`Month: ${selectedDocument.monthLabel}`, 13, true);
-    line(`Agent: ${selectedDocument.agentName}`);
-    line(`Team: ${selectedDocument.teamName}`);
-    line(`Team Lead: ${selectedDocument.seniorName}`);
-    line(`Average Score: ${selectedDocument.averageScore.toFixed(2)} | Grade: ${selectedDocument.grade} | Cases: ${selectedDocument.caseCount}`);
-    line(`Document Status: ${isComplete ? "Completed" : "Incomplete Signature"} | Incentive Status: ${readyForIncentive ? "Ready to Pay" : "Hold / Not Ready to Pay"}`);
-    line(`Timeline: ${timeline} | Hash: ${selectedDocument.documentHash}`);
+    const line = (value: string, size = 12, bold = false) => {
+      text(value, left, y, size, bold);
+      y += size * 0.42 + 2.5;
+    };
+
+    const drawSectionTitle = (title: string) => {
+      pdf.setFillColor(109, 40, 217);
+      pdf.roundedRect(left, y, right - left, 8, 2, 2, "F");
+      text(title, left + 4, y + 5.7, 12, true, [255, 255, 255]);
+      y += 12;
+    };
+
+    const safePdfName = (role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      return signed ? signed.signerName || signed.signedBy || "-" : "-";
+    };
+
+    const safePdfDate = (role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      return signed ? formatDateTime(signed.signedAt) : "-";
+    };
+
+    const safePdfStatus = (role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      return signed ? "Signed" : statusForRole(entries, role, selectedDocument.monthKey);
+    };
+
+    pdf.setFillColor(95, 39, 159);
+    pdf.rect(0, 0, pageWidth, 24, "F");
+    text("Monthly QA Dashboard", left, 10, 17, true, [255, 255, 255]);
+    text("Monthly dashboard for selected Agent and Month", left, 17, 11, false, [255, 255, 255]);
+
+    y = 33;
+    drawSectionTitle("Current View");
+
+    const infoRows = [
+      ["Agent", selectedDocument.agentName, "Month", selectedDocument.monthLabel],
+      ["Reviewed Cases", `${selectedDocument.caseCount}`, "Critical Cases", "-"],
+      ["Average Score", selectedDocument.averageScore.toFixed(2), "Monthly Grade", selectedDocument.grade],
+      ["Incentive Status", readyForIncentive ? "Ready to Pay" : "Hold / Not Ready to Pay", "Document Status", isComplete ? "Completed" : "Incomplete Signature"],
+      ["Timeline", timeline, "Document Hash", selectedDocument.documentHash],
+    ];
+
+    infoRows.forEach((row) => {
+      const yy = y;
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(left, yy - 5, right - left, 8, "F");
+      text(row[0], left + 3, yy, 10, true, [100, 116, 139]);
+      text(row[1], left + 34, yy, 11, true, [31, 41, 55]);
+      text(row[2], left + 98, yy, 10, true, [100, 116, 139]);
+      text(row[3], left + 132, yy, 11, true, [31, 41, 55]);
+      y += 9;
+    });
+
     if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
-      line("Historical Paid Period: This document was auto-completed because incentive was already paid.", 10);
+      line("หมายเหตุ: เดือน Jan-Apr เป็นรอบที่ผ่านระบบจ่ายเงินแล้ว ระบบสร้างเอกสารเป็น Historical Paid / Completed อัตโนมัติ", 10);
     }
 
     y += 3;
-    line("Case Detail Preview (10 cases)", 14, true);
-    selectedDocument.cases.slice(0, 10).forEach((item, index) => {
-      const text = `${index + 1}. ${item.caseId} | ${item.auditDate} | Score ${item.finalScore.toFixed(2)} | ${item.inquiry}`;
-      const wrapped = doc.splitTextToSize(text, 178);
-      doc.text(wrapped, left, y);
-      y += wrapped.length * 5 + 2;
-      if (y > 250) {
-        doc.addPage();
-        y = 18;
-      }
-    });
+    drawSectionTitle("Monthly Case List");
 
-    if (y > 215) {
-      doc.addPage();
-      y = 18;
-    } else {
-      y += 6;
+    const headerY = y;
+    pdf.setFillColor(237, 233, 254);
+    pdf.rect(left, headerY - 5, right - left, 8, "F");
+    text("Seq", left + 2, headerY, 10, true, [88, 28, 135]);
+    text("Case Date", left + 15, headerY, 10, true, [88, 28, 135]);
+    text("Case ID", left + 43, headerY, 10, true, [88, 28, 135]);
+    text("Inquiry", left + 72, headerY, 10, true, [88, 28, 135]);
+    text("Final Score", left + 142, headerY, 10, true, [88, 28, 135]);
+    text("Grade", left + 172, headerY, 10, true, [88, 28, 135]);
+    y += 8;
+
+    const caseRows = selectedDocument.cases.slice(0, 10);
+    for (let i = 0; i < 10; i += 1) {
+      const item = caseRows[i];
+      const rowY = y;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setFillColor(i % 2 === 0 ? 255 : 248, i % 2 === 0 ? 255 : 250, i % 2 === 0 ? 255 : 252);
+      pdf.rect(left, rowY - 5, right - left, 10, "FD");
+
+      text(String(i + 1), left + 3, rowY, 9, true);
+      text(item?.auditDate || "-", left + 15, rowY, 9);
+      text(item?.caseId || "-", left + 43, rowY, 9, true);
+      const inquiryLines = pdf.splitTextToSize(item?.inquiry || "-", 66);
+      text(Array.isArray(inquiryLines) ? inquiryLines[0] : String(inquiryLines), left + 72, rowY, 9);
+      text(item ? item.finalScore.toFixed(2) : "-", left + 144, rowY, 9, true);
+      text(item?.grade || "-", left + 174, rowY, 9, true);
+      y += 10;
     }
 
-    line("Signature Status", 14, true);
-    SIGNATURE_FLOW.forEach((role) => {
-      const signed = getSignedEntry(entries, role);
-      const status = signed ? "Signed" : statusForRole(entries, role, selectedDocument.monthKey);
-      const nameForPdf = signed ? signed.signerName || signed.signedBy : "-";
-      const signedDate = signed ? formatDateTime(signed.signedAt) : "-";
-      line(`${roleThaiLabel(role)} | ${nameForPdf} | ${status} | ${signedDate}`, 11);
-    });
+    y += 5;
+    drawSectionTitle("Acknowledgement / Signature");
+    line("รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", 11);
+
+    const drawSignatureBox = (x: number, yy: number, w: number, h: number, role: SignRole, label: string) => {
+      pdf.setDrawColor(203, 213, 225);
+      pdf.setFillColor(255, 255, 255);
+      pdf.roundedRect(x, yy, w, h, 3, 3, "FD");
+
+      text(label, x + 4, yy + 7, 11, true, [88, 28, 135]);
+      text("ลงชื่อ ........................................................", x + 4, yy + 17, 11);
+      text(safePdfName(role), x + 4, yy + 25, 12, true, [31, 41, 55]);
+      text(label, x + 4, yy + 33, 10, false, [100, 116, 139]);
+      text(`วันที่ ${safePdfDate(role)}`, x + 4, yy + 41, 10);
+      text(`Status: ${safePdfStatus(role)}`, x + 4, yy + 49, 10, true, safePdfStatus(role) === "Signed" ? [5, 150, 105] : [180, 83, 9]);
+    };
+
+    const boxW = 86;
+    const boxH = 54;
+    drawSignatureBox(left, y, boxW, boxH, "Agent", "Agent ผู้ถูกประเมิน");
+    drawSignatureBox(left + 98, y, boxW, boxH, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
+    y += boxH + 8;
+    drawSignatureBox(left, y, boxW, boxH, "Supervisor", "Supervisor หัวหน้าแผนก");
+    drawSignatureBox(left + 98, y, boxW, boxH, "QA", "QA ผู้ตรวจสอบ");
+
+    y += boxH + 8;
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(left, y, right - left, 13, 3, 3, "F");
+    text("PDF จะแสดงชื่อเฉพาะผู้ที่ Signed แล้วเท่านั้น หากยังไม่ Signed จะแสดงเป็น -", left + 4, y + 8, 10, false, [71, 85, 105]);
 
     const fileName = `Signature_${selectedDocument.monthKey}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
-    downloadBlob(doc.output("blob"), fileName);
+    downloadBlob(pdf.output("blob"), fileName);
     setPdfMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPdfMessage(""), 3500);
   };
@@ -812,7 +909,7 @@ export default function SignatureCenterMockup({
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
-          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงกดเซ็นไม่ได้ / วันที่ 11-15 เปิดให้เซ็น / Generate PDF ได้ทุกสถานะ แต่ PDF จะแสดงชื่อเฉพาะคนที่เซ็นแล้วเท่านั้น
+          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันรับทราบได้ / วันที่ 11-15 เปิดให้เซ็น / PDF แสดงชื่อเฉพาะคนที่เซ็นแล้ว
         </div>
       </div>
 
@@ -943,13 +1040,19 @@ export default function SignatureCenterMockup({
                   <div className="mt-1 text-xl font-black text-slate-950">Preview 10 เคสก่อนเซ็น</div>
                 </div>
                 {!previewConfirmed ? (
-                  <button
-                    type="button"
-                    onClick={confirmPreview}
-                    className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
-                  >
-                    ยืนยันรับทราบข้อมูล
-                  </button>
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={confirmPreview}
+                      disabled={!confirmAvailable}
+                      className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      ยืนยันรับทราบข้อมูล
+                    </button>
+                    {confirmBlockedReason ? (
+                      <div className="max-w-[260px] text-right text-xs font-bold leading-5 text-amber-600">{confirmBlockedReason}</div>
+                    ) : null}
+                  </div>
                 ) : (
                   <span className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-700">Preview Confirmed</span>
                 )}
