@@ -5484,7 +5484,7 @@ export default function App() {
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
         ) : activeTab === "signature-center" ? (
-          <SignatureCenterMockup currentUser={currentUser} />
+          <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} />
         ) : activeTab === "coaching" && coachingAllowed ? (
           <CoachingMockup
             currentUser={currentUser}

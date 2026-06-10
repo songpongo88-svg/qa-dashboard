@@ -11,7 +11,18 @@ type CurrentUser = {
   email?: string;
 };
 
-type SignRole = "Agent" | "Senior" | "Supervisor" | "QA";
+type UserAccountSnapshot = {
+  username: string;
+  displayName: string;
+  role: string;
+  agentName: string;
+  email?: string;
+  teamLead?: string;
+  teamName?: string;
+  status?: string;
+};
+
+type SignRole = "QA" | "Supervisor" | "Senior" | "Agent";
 type SignStatus = "Signed" | "Pending";
 
 type SignatureEntry = {
@@ -30,6 +41,7 @@ type SignatureDocument = {
   seniorName: string;
   supervisorName: string;
   qaName: string;
+  teamName: string;
   caseCount: number;
   averageScore: number;
   grade: string;
@@ -38,8 +50,8 @@ type SignatureDocument = {
 };
 
 const RAW_DATA_FILE = "/QA_RawData_March-May2026.xlsx";
-const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v1";
-const REQUIRED_ROLES: SignRole[] = ["Agent", "Senior", "Supervisor", "QA"];
+const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v2";
+const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -50,6 +62,16 @@ function normalizeText(value: unknown) {
 
 function normalizeKey(value: unknown) {
   return normalizeText(value).toLowerCase();
+}
+
+function compactPerson(value: unknown) {
+  return normalizeText(value).toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
+}
+
+function isSamePerson(a: unknown, b: unknown) {
+  const left = compactPerson(a);
+  const right = compactPerson(b);
+  return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
 }
 
 function parseExcelDate(value: unknown): Date | null {
@@ -120,14 +142,10 @@ function safeName(value: unknown, fallback = "-") {
   return text || fallback;
 }
 
-function compactPerson(value: unknown) {
-  return normalizeText(value).toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
-}
-
-function isSamePerson(a: unknown, b: unknown) {
-  const left = compactPerson(a);
-  const right = compactPerson(b);
-  return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
+function findAccountForAgent(accounts: UserAccountSnapshot[], agentName: string) {
+  return accounts.find((account) =>
+    [account.agentName, account.displayName, account.username].some((identity) => isSamePerson(identity, agentName))
+  );
 }
 
 function readSignatureStore(): Record<string, SignatureEntry[]> {
@@ -142,32 +160,25 @@ function writeSignatureStore(value: Record<string, SignatureEntry[]>) {
   window.localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(value));
 }
 
-function canSignRole(currentUser: CurrentUser, role: SignRole, signerName: string) {
-  if (currentUser.role === "Quality Assurance") return true;
-  if (role === "QA") return currentUser.role === "Quality Assurance";
-  if (role === "Supervisor") return currentUser.role === "Supervisor" || isSamePerson(currentUser.displayName, signerName);
-  if (role === "Senior") return currentUser.role === "Senior" || isSamePerson(currentUser.displayName, signerName);
-  return isSamePerson(currentUser.agentName, signerName) || isSamePerson(currentUser.displayName, signerName);
-}
-
-function roleThaiLabel(role: SignRole) {
-  if (role === "Agent") return "Agent ผู้ถูกประเมิน";
-  if (role === "Senior") return "Senior / หัวหน้าทีม";
-  if (role === "Supervisor") return "Supervisor";
-  return "QA ผู้ตรวจสอบ";
-}
-
-function createDocumentHash(doc: SignatureDocument) {
+function createDocumentHash(doc: Omit<SignatureDocument, "documentHash">) {
   return btoa(
     unescape(
       encodeURIComponent(
-        [doc.monthKey, doc.agentName, doc.caseCount, doc.averageScore.toFixed(2), doc.grade].join("|")
+        [
+          doc.monthKey,
+          doc.agentName,
+          doc.seniorName,
+          doc.supervisorName,
+          doc.caseCount,
+          doc.averageScore.toFixed(2),
+          doc.grade,
+        ].join("|")
       )
     )
-  ).slice(0, 16);
+  ).slice(0, 18);
 }
 
-function buildDocuments(rows: unknown[][]) {
+function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
   const headerIndex = rows.findIndex((row) => {
     const keys = row.map((item) => normalizeKey(item));
     return keys.includes("agent name") && (keys.includes("case id") || keys.includes("final score"));
@@ -183,6 +194,7 @@ function buildDocuments(rows: unknown[][]) {
     seniorName: string;
     supervisorName: string;
     qaName: string;
+    teamName: string;
     scores: number[];
     cases: Set<string>;
   }>();
@@ -191,6 +203,7 @@ function buildDocuments(rows: unknown[][]) {
     const agentName = safeName(helper.get(row, ["Agent Name", "Agent", "Employee Name", "User"], ""));
     if (!agentName || agentName === "-") return;
 
+    const account = findAccountForAgent(accounts, agentName);
     const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
     const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
     const monthStart = parseExcelDate(helper.get(row, ["Month Start", "Month"], ""));
@@ -201,9 +214,14 @@ function buildDocuments(rows: unknown[][]) {
     const finalScore = Number(finalScoreValue);
     const score = Number.isFinite(finalScore) ? finalScore : 0;
 
-    const seniorName = safeName(helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader", "หัวหน้าทีม"], ""), "Senior / Team Lead");
+    const seniorName = safeName(
+      account?.teamLead ||
+        helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader", "หัวหน้าทีม"], ""),
+      "Senior / Team Lead"
+    );
     const supervisorName = safeName(helper.get(row, ["Supervisor", "Sup", "หัวหน้าแผนก"], ""), "Supervisor");
     const qaName = safeName(helper.get(row, ["QA", "QA Name", "Auditor", "Evaluator", "Audit By"], ""), "Quality Assurance");
+    const teamName = safeName(account?.teamName || helper.get(row, ["Team", "Team Name", "ทีม"], ""), "-");
 
     const key = `${monthKey}::${agentName}`;
     const current = grouped.get(key) || {
@@ -212,6 +230,7 @@ function buildDocuments(rows: unknown[][]) {
       seniorName,
       supervisorName,
       qaName,
+      teamName,
       scores: [],
       cases: new Set<string>(),
     };
@@ -219,6 +238,7 @@ function buildDocuments(rows: unknown[][]) {
     current.seniorName = current.seniorName === "Senior / Team Lead" ? seniorName : current.seniorName;
     current.supervisorName = current.supervisorName === "Supervisor" ? supervisorName : current.supervisorName;
     current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
+    current.teamName = current.teamName === "-" ? teamName : current.teamName;
     if (caseId && caseId !== "-") current.cases.add(caseId);
     if (score > 0) current.scores.push(score);
     grouped.set(key, current);
@@ -229,7 +249,7 @@ function buildDocuments(rows: unknown[][]) {
       const averageScore = item.scores.length
         ? item.scores.reduce((sum, score) => sum + score, 0) / item.scores.length
         : 0;
-      const doc: SignatureDocument = {
+      const base = {
         id: `${item.monthKey}::${item.agentName}`,
         monthKey: item.monthKey,
         monthLabel: getMonthLabel(item.monthKey),
@@ -237,32 +257,110 @@ function buildDocuments(rows: unknown[][]) {
         seniorName: item.seniorName,
         supervisorName: item.supervisorName,
         qaName: item.qaName,
+        teamName: item.teamName,
         caseCount: item.cases.size || item.scores.length,
         averageScore,
         grade: scoreToGrade(averageScore, item.monthKey),
         eligibleByScore: averageScore >= 80,
-        documentHash: "",
       };
-      return { ...doc, documentHash: createDocumentHash(doc) };
+      return { ...base, documentHash: createDocumentHash(base) };
     })
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName));
 }
 
-function SignaturePill({ signed }: { signed: boolean }) {
+function getRoleSigner(doc: SignatureDocument, role: SignRole) {
+  if (role === "QA") return doc.qaName;
+  if (role === "Supervisor") return doc.supervisorName;
+  if (role === "Senior") return doc.seniorName;
+  return doc.agentName;
+}
+
+function getSignedEntry(entries: SignatureEntry[], role: SignRole) {
+  return entries.find((entry) => entry.role === role && entry.status === "Signed");
+}
+
+function getCurrentStep(entries: SignatureEntry[]) {
+  return SIGNATURE_FLOW.find((role) => !getSignedEntry(entries, role)) || null;
+}
+
+function getPreviousStep(role: SignRole) {
+  const index = SIGNATURE_FLOW.indexOf(role);
+  return index > 0 ? SIGNATURE_FLOW[index - 1] : null;
+}
+
+function roleThaiLabel(role: SignRole) {
+  if (role === "QA") return "QA ผู้ตรวจสอบ";
+  if (role === "Supervisor") return "Supervisor";
+  if (role === "Senior") return "Senior / หัวหน้าทีม";
+  return "Agent ผู้ถูกประเมิน";
+}
+
+function roleBadgeText(role: SignRole) {
+  if (role === "QA") return "1";
+  if (role === "Supervisor") return "2";
+  if (role === "Senior") return "3";
+  return "4";
+}
+
+function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
+  const signerName = getRoleSigner(doc, role);
+  if (role === "QA") return currentUser.role === "Quality Assurance" || isSamePerson(currentUser.displayName, signerName);
+  if (role === "Supervisor") {
+    return currentUser.role === "Supervisor" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
+  }
+  if (role === "Senior") {
+    return currentUser.role === "Senior" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
+  }
+  return isSamePerson(currentUser.agentName, doc.agentName) || isSamePerson(currentUser.displayName, doc.agentName);
+}
+
+function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entries: SignatureEntry[]) {
+  if (currentUser.role === "Quality Assurance") return true;
+
+  const qaSigned = Boolean(getSignedEntry(entries, "QA"));
+  const supervisorSigned = Boolean(getSignedEntry(entries, "Supervisor"));
+  const seniorSigned = Boolean(getSignedEntry(entries, "Senior"));
+
+  if (currentUser.role === "Supervisor") {
+    return qaSigned && (doc.supervisorName === "Supervisor" || canSignIdentity(currentUser, doc, "Supervisor"));
+  }
+
+  if (currentUser.role === "Senior") {
+    return supervisorSigned && (doc.seniorName === "Senior / Team Lead" || canSignIdentity(currentUser, doc, "Senior"));
+  }
+
+  return seniorSigned && canSignIdentity(currentUser, doc, "Agent");
+}
+
+function statusForRole(entries: SignatureEntry[], role: SignRole) {
+  if (getSignedEntry(entries, role)) return "Signed";
+  const currentStep = getCurrentStep(entries);
+  if (currentStep === role) return "Pending";
+  return "Waiting";
+}
+
+function SignaturePill({ status }: { status: "Signed" | "Pending" | "Waiting" }) {
+  const tone =
+    status === "Signed"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : status === "Pending"
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-slate-200 bg-slate-50 text-slate-500";
+
   return (
-    <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-        signed
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-amber-200 bg-amber-50 text-amber-700"
-      }`}
-    >
-      {signed ? "Signed" : "Pending"}
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${tone}`}>
+      {status}
     </span>
   );
 }
 
-export default function SignatureCenterMockup({ currentUser }: { currentUser: CurrentUser }) {
+export default function SignatureCenterMockup({
+  currentUser,
+  accounts = [],
+}: {
+  currentUser: CurrentUser;
+  accounts?: UserAccountSnapshot[];
+}) {
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
@@ -284,7 +382,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
         const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
-        const nextDocs = buildDocuments(rows);
+        const nextDocs = buildDocuments(rows, accounts);
         if (!alive) return;
         setDocuments(nextDocs);
         setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
@@ -300,7 +398,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
     return () => {
       alive = false;
     };
-  }, []);
+  }, [accounts]);
 
   useEffect(() => {
     writeSignatureStore(signatures);
@@ -310,14 +408,20 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
     return Array.from(new Set(documents.map((item) => item.monthKey))).sort().reverse();
   }, [documents]);
 
+  const visibleDocuments = useMemo(() => {
+    return documents.filter((doc) => canViewDocument(currentUser, doc, signatures[doc.id] || []));
+  }, [currentUser, documents, signatures]);
+
   const filteredDocuments = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    return documents.filter((doc) => {
+    return visibleDocuments.filter((doc) => {
       const entries = signatures[doc.id] || [];
-      const signedCount = REQUIRED_ROLES.filter((role) => entries.some((entry) => entry.role === role && entry.status === "Signed")).length;
-      const isComplete = signedCount === REQUIRED_ROLES.length;
+      const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+      const isComplete = signedCount === SIGNATURE_FLOW.length;
+      const currentStep = getCurrentStep(entries);
       const statusMatch =
         statusFilter === "all" ||
+        (statusFilter === "my-turn" && currentStep && canSignIdentity(currentUser, doc, currentStep)) ||
         (statusFilter === "ready" && isComplete && doc.eligibleByScore) ||
         (statusFilter === "pending" && !isComplete) ||
         (statusFilter === "not-eligible" && !doc.eligibleByScore);
@@ -329,41 +433,40 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
         doc.supervisorName.toLowerCase().includes(keyword);
       return statusMatch && monthMatch && keywordMatch;
     });
-  }, [documents, search, selectedMonth, signatures, statusFilter]);
+  }, [currentUser, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
-  const selectedDocument = filteredDocuments.find((item) => item.id === selectedDocumentId) || filteredDocuments[0] || documents[0] || null;
+  const selectedDocument = filteredDocuments.find((item) => item.id === selectedDocumentId) || filteredDocuments[0] || visibleDocuments[0] || null;
   const selectedEntries = selectedDocument ? signatures[selectedDocument.id] || [] : [];
-
-  const roles = selectedDocument
-    ? [
-        { role: "Agent" as SignRole, signerName: selectedDocument.agentName },
-        { role: "Senior" as SignRole, signerName: selectedDocument.seniorName },
-        { role: "Supervisor" as SignRole, signerName: selectedDocument.supervisorName },
-        { role: "QA" as SignRole, signerName: selectedDocument.qaName },
-      ]
-    : [];
-
-  const signStatusByRole = (role: SignRole) => selectedEntries.find((entry) => entry.role === role && entry.status === "Signed");
-  const signedCount = roles.filter((item) => signStatusByRole(item.role)).length;
-  const isComplete = Boolean(selectedDocument && signedCount === REQUIRED_ROLES.length);
+  const currentStep = getCurrentStep(selectedEntries);
+  const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(selectedEntries, role))).length;
+  const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
 
   const summary = useMemo(() => {
     let complete = 0;
     let pending = 0;
     let ready = 0;
-    documents.forEach((doc) => {
-      const entries = signatures[doc.id] || [];
-      const count = REQUIRED_ROLES.filter((role) => entries.some((entry) => entry.role === role && entry.status === "Signed")).length;
-      if (count === REQUIRED_ROLES.length) complete += 1;
-      else pending += 1;
-      if (count === REQUIRED_ROLES.length && doc.eligibleByScore) ready += 1;
-    });
-    return { total: documents.length, complete, pending, ready };
-  }, [documents, signatures]);
+    let myTurn = 0;
 
-  const signRole = (role: SignRole, signerName: string) => {
+    visibleDocuments.forEach((doc) => {
+      const entries = signatures[doc.id] || [];
+      const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+      const nextStep = getCurrentStep(entries);
+      if (count === SIGNATURE_FLOW.length) complete += 1;
+      else pending += 1;
+      if (count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
+      if (nextStep && canSignIdentity(currentUser, doc, nextStep)) myTurn += 1;
+    });
+
+    return { total: visibleDocuments.length, complete, pending, ready, myTurn };
+  }, [currentUser, signatures, visibleDocuments]);
+
+  const signRole = (role: SignRole) => {
     if (!selectedDocument) return;
+    if (role !== currentStep) return;
+    if (!canSignIdentity(currentUser, selectedDocument, role)) return;
+
+    const signerName = getRoleSigner(selectedDocument, role);
     const signedAt = new Date().toISOString();
     const nextEntry: SignatureEntry = {
       role,
@@ -372,6 +475,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
       signedBy: currentUser.displayName || currentUser.username,
       signedAt,
     };
+
     setSignatures((previous) => {
       const current = previous[selectedDocument.id] || [];
       return {
@@ -419,12 +523,13 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
       <PageHero
         eyebrow="Monthly Acknowledgement"
         title="Signature Center"
-        subtitle="ระบบรับทราบผลประเมินรายเดือนและล็อก Incentive จนกว่าจะเซ็นครบทุกช่อง"
+        subtitle="ระบบเซ็นรับทราบผลประเมินตามลำดับ QA > Supervisor > Team Lead > Agent ก่อนปล่อย Incentive"
       />
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         {[
-          { label: "เอกสารทั้งหมด", value: summary.total, tone: "text-slate-900" },
+          { label: "เอกสารที่เห็นได้", value: summary.total, tone: "text-slate-900" },
+          { label: "ถึงคิวฉัน", value: summary.myTurn, tone: "text-violet-700" },
           { label: "เซ็นครบแล้ว", value: summary.complete, tone: "text-emerald-700" },
           { label: "รอเซ็น", value: summary.pending, tone: "text-amber-700" },
           { label: "พร้อมจ่าย Incentive", value: summary.ready, tone: "text-violet-700" },
@@ -436,10 +541,26 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
         ))}
       </div>
 
+      <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
+        <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
+          {SIGNATURE_FLOW.map((role, index) => (
+            <React.Fragment key={role}>
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">
+                {roleBadgeText(role)}. {roleThaiLabel(role)}
+              </span>
+              {index < SIGNATURE_FLOW.length - 1 ? <span className="text-slate-300">→</span> : null}
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="mt-3 text-sm leading-6 text-slate-500">
+          เอกสารจะเปิดให้เซ็นตามลำดับเท่านั้น: QA เซ็นก่อน → Supervisor → Team Lead ของ Agent → Agent ผู้ถูกประเมิน
+        </div>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Document Queue</div>
-          <div className="mt-1 text-xl font-black text-slate-950">รายการที่ต้องเซ็น</div>
+          <div className="mt-1 text-xl font-black text-slate-950">รายการที่เกี่ยวข้องกับฉัน</div>
 
           <div className="mt-4 grid gap-3">
             <input
@@ -464,6 +585,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
               <option value="all">ทุกสถานะ</option>
+              <option value="my-turn">ถึงคิวฉัน</option>
               <option value="pending">รอเซ็น</option>
               <option value="ready">พร้อมจ่าย Incentive</option>
               <option value="not-eligible">คะแนนไม่ผ่าน Incentive</option>
@@ -473,7 +595,8 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
           <div className="mt-5 max-h-[620px] space-y-3 overflow-y-auto pr-1">
             {filteredDocuments.map((doc) => {
               const entries = signatures[doc.id] || [];
-              const count = REQUIRED_ROLES.filter((role) => entries.some((entry) => entry.role === role && entry.status === "Signed")).length;
+              const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+              const nextStep = getCurrentStep(entries);
               const selected = selectedDocument?.id === doc.id;
               return (
                 <button
@@ -491,12 +614,12 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
                       <div className="text-sm font-black text-slate-950">{doc.agentName}</div>
                       <div className="mt-1 text-xs font-bold text-slate-500">{doc.monthLabel}</div>
                     </div>
-                    <SignaturePill signed={count === REQUIRED_ROLES.length} />
+                    <SignaturePill status={count === SIGNATURE_FLOW.length ? "Signed" : "Pending"} />
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{count}/4 signed</span>
-                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Score {doc.averageScore.toFixed(2)}</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">Grade {doc.grade}</span>
+                    <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Next: {nextStep ? roleThaiLabel(nextStep) : "Complete"}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">Score {doc.averageScore.toFixed(2)}</span>
                   </div>
                 </button>
               );
@@ -504,7 +627,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
 
             {!filteredDocuments.length ? (
               <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                ไม่พบรายการตามเงื่อนไขที่เลือก
+                ยังไม่มีรายการที่ถึงคิว หรือเกี่ยวข้องกับ Role นี้
               </div>
             ) : null}
           </div>
@@ -518,7 +641,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
                   <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Monthly Document</div>
                   <div className="mt-1 text-2xl font-black text-slate-950">{selectedDocument.agentName}</div>
                   <div className="mt-1 text-sm font-semibold text-slate-500">
-                    {selectedDocument.monthLabel} • {selectedDocument.caseCount} case(s) • Hash {selectedDocument.documentHash}
+                    {selectedDocument.monthLabel} • Team: {selectedDocument.teamName} • {selectedDocument.caseCount} case(s) • Hash {selectedDocument.documentHash}
                   </div>
                 </div>
                 <div
@@ -541,7 +664,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Average Score</div>
                   <div className="mt-1 text-2xl font-black text-violet-700">{selectedDocument.averageScore.toFixed(2)}</div>
@@ -549,6 +672,10 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Grade</div>
                   <div className="mt-1 text-2xl font-black text-slate-950">{selectedDocument.grade}</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Current Step</div>
+                  <div className="mt-1 text-base font-black text-slate-950">{currentStep ? roleThaiLabel(currentStep) : "Complete"}</div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Signature Progress</div>
@@ -561,7 +688,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Required Signatures</div>
-                  <div className="mt-1 text-xl font-black text-slate-950">ต้องเซ็นครบทุกช่องก่อนจ่าย Incentive</div>
+                  <div className="mt-1 text-xl font-black text-slate-950">เซ็นตามลำดับก่อนจ่าย Incentive</div>
                 </div>
                 {currentUser.role === "Quality Assurance" ? (
                   <button
@@ -575,36 +702,56 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
               </div>
 
               <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200">
-                <div className="grid grid-cols-[150px_minmax(0,1fr)_150px_190px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
+                <div className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
+                  <div>Step</div>
                   <div>Role</div>
                   <div>Signer</div>
                   <div>Status</div>
                   <div>Action</div>
                 </div>
 
-                {roles.map((item) => {
-                  const signed = signStatusByRole(item.role);
-                  const allowSign = canSignRole(currentUser, item.role, item.signerName);
+                {SIGNATURE_FLOW.map((role) => {
+                  const signed = getSignedEntry(selectedEntries, role);
+                  const status = statusForRole(selectedEntries, role) as "Signed" | "Pending" | "Waiting";
+                  const signerName = getRoleSigner(selectedDocument, role);
+                  const isCurrent = currentStep === role;
+                  const allowSign = isCurrent && canSignIdentity(currentUser, selectedDocument, role);
+                  const previous = getPreviousStep(role);
                   return (
-                    <div key={item.role} className="grid grid-cols-[150px_minmax(0,1fr)_150px_190px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
-                      <div className="font-black text-slate-950">{roleThaiLabel(item.role)}</div>
+                    <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
                       <div>
-                        <div className="font-bold text-slate-900">{item.signerName}</div>
+                        <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
+                          signed ? "bg-emerald-100 text-emerald-700" : isCurrent ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {roleBadgeText(role)}
+                        </span>
+                      </div>
+                      <div className="font-black text-slate-950">{roleThaiLabel(role)}</div>
+                      <div>
+                        <div className="font-bold text-slate-900">{signerName}</div>
                         {signed ? (
                           <div className="mt-1 text-xs font-semibold text-slate-400">
                             Signed by {signed.signedBy} • {new Date(signed.signedAt).toLocaleString("th-TH")}
                           </div>
+                        ) : status === "Waiting" && previous ? (
+                          <div className="mt-1 text-xs font-semibold text-slate-400">รอ {roleThaiLabel(previous)} เซ็นก่อน</div>
                         ) : null}
                       </div>
-                      <div><SignaturePill signed={Boolean(signed)} /></div>
+                      <div><SignaturePill status={status} /></div>
                       <div>
                         <button
                           type="button"
-                          onClick={() => signRole(item.role, item.signerName)}
+                          onClick={() => signRole(role)}
                           disabled={Boolean(signed) || !allowSign}
                           className="w-full rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
-                          {signed ? "เซ็นแล้ว" : allowSign ? "รับทราบและลงนาม" : "รอผู้เกี่ยวข้อง"}
+                          {signed
+                            ? "เซ็นแล้ว"
+                            : allowSign
+                              ? "รับทราบและลงนาม"
+                              : status === "Waiting"
+                                ? "ยังไม่ถึงคิว"
+                                : "รอผู้เกี่ยวข้อง"}
                         </button>
                       </div>
                     </div>
@@ -613,7 +760,7 @@ export default function SignatureCenterMockup({ currentUser }: { currentUser: Cu
               </div>
 
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                ระบบนี้เป็น Electronic Acknowledgement ใน Dashboard: เก็บชื่อผู้กดรับทราบ เวลา และ document hash เพื่อใช้ตรวจสอบย้อนหลัง หากคะแนนหรือเอกสารถูกแก้ ควร reset signature และให้เซ็นใหม่
+                ทุกคนที่เกี่ยวข้องจะเห็นสถานะว่าใครเซ็นแล้ว / ใครยังไม่เซ็น แต่ปุ่มเซ็นจะเปิดเฉพาะคนที่ถึงคิวเท่านั้น
               </div>
             </div>
           </div>
