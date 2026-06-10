@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
@@ -38,6 +38,7 @@ type SignatureEntry = {
   signedAt: string;
   status: SignStatus;
   note?: string;
+  signatureDataUrl?: string;
 };
 
 type SignatureCaseDetail = {
@@ -559,7 +560,21 @@ function autoHistoricalEntries(doc: SignatureDocument): SignatureEntry[] {
 }
 
 function effectiveEntriesForDoc(doc: SignatureDocument, signatures: Record<string, SignatureEntry[]>) {
-  if (isHistoricalPaidPeriod(doc.monthKey)) return autoHistoricalEntries(doc);
+  if (isHistoricalPaidPeriod(doc.monthKey)) {
+    const storedEntries = signatures[doc.id] || [];
+    return autoHistoricalEntries(doc).map((entry) => {
+      const stored = storedEntries.find((item) => item.role === entry.role);
+      return stored?.signatureDataUrl
+        ? {
+            ...entry,
+            signatureDataUrl: stored.signatureDataUrl,
+            signedBy: stored.signedBy || entry.signedBy,
+            signedAt: stored.signedAt || entry.signedAt,
+            signerName: stored.signerName || entry.signerName,
+          }
+        : entry;
+    });
+  }
   return signatures[doc.id] || [];
 }
 
@@ -1173,6 +1188,155 @@ function SignaturePill({ status }: { status: SignatureStepStatus }) {
   return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${tone}`}>{status}</span>;
 }
 
+function SignaturePadModal({
+  roleLabel,
+  signerName,
+  onCancel,
+  onSave,
+}: {
+  roleLabel: string;
+  signerName: string;
+  onCancel: () => void;
+  onSave: (dataUrl: string) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const hasDrawnRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.lineWidth = 3;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = "#111827";
+  }, []);
+
+  const getPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  };
+
+  const startDrawing = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    canvas.setPointerCapture(event.pointerId);
+    const point = getPoint(event);
+    drawingRef.current = true;
+    hasDrawnRef.current = true;
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+  };
+
+  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const context = canvasRef.current?.getContext("2d");
+    if (!context) return;
+    const point = getPoint(event);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+
+  const stopDrawing = () => {
+    drawingRef.current = false;
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawnRef.current = false;
+  };
+
+  const saveSignature = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!hasDrawnRef.current) {
+      window.alert("กรุณาวาดลายเซ็นก่อนกด Save Signature");
+      return;
+    }
+    onSave(canvas.toDataURL("image/png"));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-3xl rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_30px_80px_rgba(15,23,42,0.35)]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Draw Signature</div>
+            <div className="mt-1 text-xl font-black text-slate-950">{roleLabel}</div>
+            <div className="mt-1 text-sm font-semibold text-slate-500">{signerName}</div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-50"
+          >
+            ปิด
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-3">
+          <canvas
+            ref={canvasRef}
+            width={900}
+            height={260}
+            onPointerDown={startDrawing}
+            onPointerMove={draw}
+            onPointerUp={stopDrawing}
+            onPointerCancel={stopDrawing}
+            onPointerLeave={stopDrawing}
+            className="h-[220px] w-full touch-none rounded-[18px] border border-slate-200 bg-white"
+          />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={clearSignature}
+            className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100"
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={saveSignature}
+            className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
+          >
+            Save Signature
+          </button>
+        </div>
+      </div>
+
+      {signingRole && selectedDocument ? (
+        <SignaturePadModal
+          roleLabel={roleThaiLabel(signingRole)}
+          signerName={getRoleSigner(selectedDocument, signingRole)}
+          onCancel={() => setSigningRole(null)}
+          onSave={(dataUrl) => {
+            const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
+            if (existingSigned) {
+              saveDrawnSignature(signingRole, dataUrl);
+            } else {
+              signRole(signingRole, dataUrl);
+            }
+            setSigningRole(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export default function SignatureCenterMockup({
   currentUser,
   accounts = [],
@@ -1192,6 +1356,7 @@ export default function SignatureCenterMockup({
   const [loadMessage, setLoadMessage] = useState("");
   const [pdfMessage, setPdfMessage] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
+  const [signingRole, setSigningRole] = useState<SignRole | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -1430,7 +1595,30 @@ export default function SignatureCenterMockup({
     }));
   };
 
-  const signRole = (role: SignRole) => {
+  const saveDrawnSignature = (role: SignRole, signatureDataUrl: string) => {
+    if (!selectedDocument) return;
+    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    const existingSigned = getSignedEntry(entries, role);
+    const nextEntry: SignatureEntry = {
+      role,
+      signerName: existingSigned?.signerName || getRoleSigner(selectedDocument, role),
+      status: "Signed",
+      signedBy: existingSigned?.signedBy || currentUser.displayName || currentUser.username,
+      signedAt: existingSigned?.signedAt || new Date().toISOString(),
+      note: existingSigned?.note,
+      signatureDataUrl,
+    };
+
+    setSignatures((previous) => {
+      const current = previous[selectedDocument.id] || [];
+      return {
+        ...previous,
+        [selectedDocument.id]: [...current.filter((entry) => entry.role !== role), nextEntry],
+      };
+    });
+  };
+
+  const signRole = (role: SignRole, signatureDataUrl?: string) => {
     if (!selectedDocument) return;
     if (hasPendingAppeal) return;
     if (!previewConfirmed) return;
@@ -1445,6 +1633,7 @@ export default function SignatureCenterMockup({
       status: "Signed",
       signedBy: currentUser.displayName || currentUser.username,
       signedAt: new Date().toISOString(),
+      signatureDataUrl,
     };
 
     setSignatures((previous) => {
@@ -1525,6 +1714,11 @@ export default function SignatureCenterMockup({
     const safePdfStatus = (role: SignRole) => {
       const signed = getSignedEntry(entries, role);
       return signed ? "Signed" : statusForRole(entries, role, selectedDocument.monthKey);
+    };
+
+    const safePdfSignature = (role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      return signed?.signatureDataUrl || "";
     };
 
     pdf.setFillColor(95, 39, 159);
@@ -1621,11 +1815,20 @@ export default function SignatureCenterMockup({
       pdf.roundedRect(x, yy, w, h, 3, 3, "FD");
 
       text(label, x + 4, yy + 7, 11, true, [88, 28, 135]);
-      text("ลงชื่อ ........................................................", x + 4, yy + 17, 11);
-      text(safePdfName(role), x + 4, yy + 25, 12, true, [31, 41, 55]);
-      text(label, x + 4, yy + 33, 10, false, [100, 116, 139]);
-      text(`วันที่ ${safePdfDate(role)}`, x + 4, yy + 41, 10);
-      text(`Status: ${safePdfStatus(role)}`, x + 4, yy + 49, 10, true, safePdfStatus(role) === "Signed" ? [5, 150, 105] : [180, 83, 9]);
+      const signatureImage = safePdfSignature(role);
+      if (signatureImage) {
+        try {
+          pdf.addImage(signatureImage, "PNG", x + 4, yy + 10, 50, 15);
+        } catch {
+          text("ลงชื่อ ........................................................", x + 4, yy + 17, 11);
+        }
+      } else {
+        text("ลงชื่อ ........................................................", x + 4, yy + 17, 11);
+      }
+      text(safePdfName(role), x + 4, yy + 29, 12, true, [31, 41, 55]);
+      text(label, x + 4, yy + 37, 10, false, [100, 116, 139]);
+      text(`วันที่ ${safePdfDate(role)}`, x + 4, yy + 45, 10);
+      text(`Status: ${safePdfStatus(role)}`, x + 4, yy + 51, 10, true, safePdfStatus(role) === "Signed" ? [5, 150, 105] : [180, 83, 9]);
     };
 
     const boxW = 86;
@@ -1998,6 +2201,9 @@ export default function SignatureCenterMockup({
                       currentStep === role &&
                       canSignIdentity(currentUser, selectedDocument, role) &&
                       isSigningAllowedByDate(selectedDocument.monthKey);
+                    const canEditDrawnSignature =
+                      Boolean(signed) &&
+                      (currentUser.role === "Quality Assurance" || canSignIdentity(currentUser, selectedDocument, role));
                     const previous = getPreviousStep(role);
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
@@ -2025,16 +2231,18 @@ export default function SignatureCenterMockup({
                         <div>
                           <button
                             type="button"
-                            onClick={() => signRole(role)}
-                            disabled={Boolean(signed) || !allowSign}
+                            onClick={() => setSigningRole(role)}
+                            disabled={(!signed && !allowSign) || (Boolean(signed) && !canEditDrawnSignature)}
                             className="w-full rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                           >
                             {signed
-                              ? "เซ็นแล้ว"
+                              ? signed.signatureDataUrl
+                                ? "แก้ลายเซ็นจริง"
+                                : "เพิ่มลายเซ็นจริง"
                               : allowSign
                                 ? timeline === "Signature Deadline Passed"
-                                  ? "เซ็นล่าช้า / รอบจ่ายถัดไป"
-                                  : "รับทราบและลงนาม"
+                                  ? "วาดและลงนามล่าช้า"
+                                  : "วาดและลงนาม"
                                 : status === "Locked"
                                   ? "ยังไม่เปิดให้เซ็น"
                                   : status === "Expired"
