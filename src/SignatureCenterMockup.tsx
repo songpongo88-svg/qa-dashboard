@@ -261,7 +261,21 @@ function getTimelineStatus(monthKey: string, now = new Date()) {
 function isSigningAllowedByDate(monthKey: string, now = new Date()) {
   if (isHistoricalPaidPeriod(monthKey)) return false;
   const window = getSignatureWindow(monthKey);
-  return now >= window.openAt && now <= window.dueAt;
+  // เปิดให้ลงนามได้หลังปิดรอบ Appeal เป็นต้นไป
+  // ถ้าเซ็นหลัง Due Date จะถือเป็น Late Signature และไม่เข้ารอบจ่ายเดือนปัจจุบัน
+  return now >= window.openAt;
+}
+
+function isPaymentExportWindowOpen(monthKey: string, now = new Date()) {
+  if (isHistoricalPaidPeriod(monthKey)) return true;
+  const window = getSignatureWindow(monthKey);
+  return now > window.dueAt;
+}
+
+function isSignedWithinCurrentPaymentCycle(signedAt: string, monthKey: string) {
+  const signedTime = new Date(signedAt || "").getTime();
+  const dueTime = getSignatureWindow(monthKey).dueAt.getTime();
+  return !Number.isNaN(signedTime) && signedTime <= dueTime;
 }
 
 function isAfterAppealPeriod(monthKey: string, now = new Date()) {
@@ -511,6 +525,137 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
+function isPaymentReadyDocument(
+  doc: SignatureDocument,
+  entries: SignatureEntry[],
+  pendingAppealCaseMap: Map<string, PendingAppealCase>
+) {
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
+  const hasPending = doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
+  const signedWithinCycle = SIGNATURE_FLOW.every((role) => {
+    const signed = getSignedEntry(entries, role);
+    return Boolean(signed) && isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
+  });
+  return signedComplete && signedWithinCycle && doc.eligibleByScore && !hasPending;
+}
+
+function isLateSignedDocument(
+  doc: SignatureDocument,
+  entries: SignatureEntry[],
+  pendingAppealCaseMap: Map<string, PendingAppealCase>
+) {
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
+  const hasPending = doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
+  const hasLateSignature = SIGNATURE_FLOW.some((role) => {
+    const signed = getSignedEntry(entries, role);
+    return Boolean(signed) && !isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
+  });
+  return signedComplete && hasLateSignature && doc.eligibleByScore && !hasPending;
+}
+
+function makePaymentFileName(monthKey: string) {
+  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
+  return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
+}
+
+function generatePaymentExcelFile(
+  monthKey: string,
+  readyDocs: SignatureDocument[],
+  signatures: Record<string, SignatureEntry[]>
+) {
+  const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
+  const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
+  const avgScore = sortedDocs.length
+    ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
+    : 0;
+  const criticalCases = 0;
+  const year = /^\d{4}-\d{2}$/.test(monthKey) ? monthKey.slice(0, 4) : "";
+
+  const aoa: unknown[][] = [
+    ["Monthly Team Summary"],
+    ["Selected month overview for incentive payment. Only agents with completed signatures and Ready to Pay status are included."],
+    [],
+    ["Current View"],
+    [],
+    ["Month", getMonthLabel(monthKey), null, "Year", year, null, "Team Cases", totalCases],
+    [],
+    ["Avg Score", Number(avgScore.toFixed(2)), null, "Critical Cases", criticalCases, null, "Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold"],
+    [null, null, null, null, null, null, "Export Rule", "Pay only agents signed complete by day 15"],
+    [],
+    ["Agent Monthly Ranking"],
+    [],
+    ["Seq", "Agent", "Cases", "Avg Score", "Grade", "Incentive", "Critical", "Status"],
+  ];
+
+  sortedDocs.forEach((doc, index) => {
+    const entries = effectiveEntriesForDoc(doc, signatures);
+    const lastSignedAt =
+      SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
+        .filter(Boolean)
+        .sort()
+        .pop() || "";
+    aoa.push([
+      index + 1,
+      doc.agentName,
+      doc.caseCount,
+      Number(doc.averageScore.toFixed(2)),
+      doc.grade,
+      "Ready to Pay",
+      "No",
+      `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+    ]);
+  });
+
+  const summaryStartRow = aoa.length + 3;
+  aoa.push(
+    [],
+    ["Payment Export Summary"],
+    ["Total Paid Agents In This Cycle", sortedDocs.length],
+    ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
+    ["Generated At", new Date().toLocaleString("th-TH")],
+    ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
+    [],
+    ["Signature Validation"],
+    ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "Document Hash", "Status"],
+  );
+
+  sortedDocs.forEach((doc, index) => {
+    const entries = effectiveEntriesForDoc(doc, signatures);
+    aoa.push([
+      index + 1,
+      doc.agentName,
+      getSignedEntry(entries, "QA")?.signerName || "-",
+      getSignedEntry(entries, "Supervisor")?.signerName || "-",
+      getSignedEntry(entries, "Senior")?.signerName || "-",
+      getSignedEntry(entries, "Agent")?.signerName || "-",
+      doc.documentHash,
+      "Completed",
+    ]);
+  });
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet(aoa);
+  sheet["!cols"] = [
+    { wch: 8 },
+    { wch: 30 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 22 },
+    { wch: 38 },
+  ];
+  sheet["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
+    { s: { r: 10, c: 0 }, e: { r: 10, c: 7 } },
+    { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 7 } },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, "Monthly_Team_Summary");
+  XLSX.writeFile(workbook, makePaymentFileName(monthKey));
+}
+
 function SignaturePill({ status }: { status: SignatureStepStatus }) {
   const tone =
     status === "Signed"
@@ -543,6 +688,7 @@ export default function SignatureCenterMockup({
   const [loading, setLoading] = useState(true);
   const [loadMessage, setLoadMessage] = useState("");
   const [pdfMessage, setPdfMessage] = useState("");
+  const [paymentMessage, setPaymentMessage] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -655,6 +801,31 @@ export default function SignatureCenterMockup({
       return statusMatch && monthMatch && keywordMatch;
     });
   }, [confirmedDocs, currentUser, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
+
+  const selectedMonthPaymentDocs = useMemo(() => {
+    if (selectedMonth === "all") return [];
+    return documents
+      .filter((doc) => doc.monthKey === selectedMonth)
+      .filter((doc) => isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
+  }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
+
+  const selectedMonthLateSignedDocs = useMemo(() => {
+    if (selectedMonth === "all") return [];
+    return documents
+      .filter((doc) => doc.monthKey === selectedMonth)
+      .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
+  }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
+
+  const selectedMonthTotalDocs = useMemo(() => {
+    if (selectedMonth === "all") return 0;
+    return documents.filter((doc) => doc.monthKey === selectedMonth).length;
+  }, [documents, selectedMonth]);
+
+  const canGeneratePaymentExcel =
+    currentUser.role === "Quality Assurance" &&
+    selectedMonth !== "all" &&
+    isPaymentExportWindowOpen(selectedMonth) &&
+    selectedMonthPaymentDocs.length > 0;
 
   const selectedDocument = filteredDocuments.find((item) => item.id === selectedDocumentId) || filteredDocuments[0] || visibleDocuments[0] || null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
@@ -907,6 +1078,13 @@ export default function SignatureCenterMockup({
     window.setTimeout(() => setPdfMessage(""), 3500);
   };
 
+  const generatePaymentExcel = () => {
+    if (!canGeneratePaymentExcel || selectedMonth === "all") return;
+    generatePaymentExcelFile(selectedMonth, selectedMonthPaymentDocs, signatures);
+    setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
+    window.setTimeout(() => setPaymentMessage(""), 3500);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[45vh] items-center justify-center">
@@ -966,8 +1144,47 @@ export default function SignatureCenterMockup({
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
-          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันรับทราบได้ / วันที่ 11-15 เปิดให้เซ็น / PDF แสดงชื่อเฉพาะคนที่เซ็นแล้ว
+          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันได้ / จ่ายรอบปัจจุบันเฉพาะคนที่เซ็นครบภายในวันที่ 15 / เซ็นหลังจากนั้นไปรอบจ่ายถัดไป
         </div>
+      </div>
+
+      <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Monthly Incentive Payment Export</div>
+            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน</div>
+            <div className="mt-1 text-sm leading-6 text-slate-500">
+              หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role ภายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
+            </div>
+          </div>
+          <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Ready Agents</div>
+            <div className="mt-1 text-2xl font-black text-violet-700">
+              {selectedMonth === "all" ? "-" : `${selectedMonthPaymentDocs.length} คน`}
+            </div>
+            <div className="mt-1 text-xs font-semibold text-slate-500">
+              {selectedMonth === "all"
+                ? "กรุณาเลือกเดือนก่อน"
+                : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน`}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={generatePaymentExcel}
+            disabled={!canGeneratePaymentExcel}
+            className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Generate Payment Excel
+          </button>
+        </div>
+        {paymentMessage ? (
+          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{paymentMessage}</div>
+        ) : null}
+        {!canGeneratePaymentExcel ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
+            เงื่อนไขยังไม่ครบ: ต้องเป็น QA, ต้องเลือกเดือน, ต้องพ้นวันที่ 15 แล้ว และต้องมีอย่างน้อย 1 Agent ที่เซ็นครบทุก Role ภายในกำหนด/ไม่มี Appeal Pending/Ready to Pay
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -1229,7 +1446,9 @@ export default function SignatureCenterMockup({
                             {signed
                               ? "เซ็นแล้ว"
                               : allowSign
-                                ? "รับทราบและลงนาม"
+                                ? timeline === "Signature Deadline Passed"
+                                  ? "เซ็นล่าช้า / รอบจ่ายถัดไป"
+                                  : "รับทราบและลงนาม"
                                 : status === "Locked"
                                   ? "ยังไม่เปิดให้เซ็น"
                                   : status === "Expired"
