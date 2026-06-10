@@ -2018,46 +2018,143 @@ export default function AppealMockup({
     };
 
     const addMainTitle = () => {
-      ensureSpace(30);
-      let textLeft = left;
-      const logoSize = 16;
+      const headerTop = y;
+      const headerHeight = 112;
+      ensureSpace(headerHeight + 6);
+
+      const purple = [112, 46, 166] as [number, number, number];
+      const purpleDark = [76, 29, 149] as [number, number, number];
+      const purplePale = [248, 245, 252] as [number, number, number];
+      const border = [203, 184, 220] as [number, number, number];
+
+      const monthLabel = getMonthLabel(new Date((selectedCase.monthKey || "2026-05") + "-01"));
+      const appealVersionText = sanitizeDisplayText(selectedRevision.appealVersion, "REV1");
+      const scoreText = selectedRevision.finalScore.toFixed(2);
+      const gradeText = sanitizeDisplayText(selectedRevision.grade, "-");
+      const criticalErrorText = "NO";
+      const appealStatusText = "Approved";
+      const commentStatusText = "Approved";
+      const reviewTypeText = selectedRevision.reviewStatus === "Revised" ? "Revised" : sanitizeDisplayText(selectedRevision.reviewStatus, "Revised");
+      const remarkText =
+        Math.abs(scoreDelta) < 0.001
+          ? "Rewrite / score unchanged"
+          : "Rewrite / score " + (scoreDelta > 0 ? "increased " : "decreased ") + scoreDeltaText;
+
+      const drawRoundedBox = (
+        x: number,
+        boxY: number,
+        w: number,
+        h: number,
+        fill: [number, number, number] = [255, 255, 255],
+        stroke: [number, number, number] = border
+      ) => {
+        doc.setFillColor(fill[0], fill[1], fill[2]);
+        doc.setDrawColor(stroke[0], stroke[1], stroke[2]);
+        doc.setLineWidth(0.25);
+        doc.roundedRect(x, boxY, w, h, 2.8, 2.8, "FD");
+      };
+
+      const drawInfoCard = (
+        x: number,
+        boxY: number,
+        w: number,
+        h: number,
+        label: string,
+        value: string,
+        options?: { compact?: boolean; badge?: boolean; labelColor?: [number, number, number] }
+      ) => {
+        drawRoundedBox(x, boxY, w, h, [255, 255, 255], border);
+
+        setPdfFont(doc, "bold");
+        doc.setFontSize(options?.compact ? 8.6 : 9.5);
+        setColor(options?.labelColor || purpleDark);
+        doc.text(label, x + 4, boxY + 5.2);
+
+        const safeValue = sanitizeDisplayText(value, "-");
+        const valueWidth = w - 8;
+
+        if (options?.badge) {
+          const badgeW = Math.min(w - 8, Math.max(18, doc.getTextWidth(safeValue) + 8));
+          doc.setFillColor(purple[0], purple[1], purple[2]);
+          doc.roundedRect(x + 4, boxY + h - 9.2, badgeW, 6.5, 1.8, 1.8, "F");
+          setPdfFont(doc, "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(255, 255, 255);
+          doc.text(safeValue, x + 8, boxY + h - 4.5);
+          return;
+        }
+
+        setPdfFont(doc, "normal");
+        doc.setFontSize(options?.compact ? 8.2 : 10.5);
+        setColor(PDF_COLORS.body);
+        const lines = doc.splitTextToSize(safeValue, valueWidth).slice(0, options?.compact ? 2 : 3);
+        doc.text(lines, x + 4, boxY + 10.8);
+      };
+
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
+
+      drawRoundedBox(left, headerTop, contentWidth, headerHeight, purplePale, border);
+
+      doc.setFillColor(purple[0], purple[1], purple[2]);
+      doc.roundedRect(left, headerTop, contentWidth, 17, 2.8, 2.8, "F");
+      doc.setFillColor(purpleDark[0], purpleDark[1], purpleDark[2]);
+      doc.rect(left, headerTop + 13.5, contentWidth, 3.5, "F");
 
       if (logoDataUrl) {
         try {
-          doc.addImage(logoDataUrl, "PNG", left, y - 1, logoSize, logoSize);
-          textLeft = left + logoSize + 5;
-        } catch {
-          textLeft = left;
-        }
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(left + 5, headerTop + 3.2, 10.6, 10.6, 2, 2, "F");
+          doc.addImage(logoDataUrl, "PNG", left + 6.2, headerTop + 4.2, 8.2, 8.2);
+        } catch {}
       }
 
       setPdfFont(doc, "bold");
-      doc.setFontSize(18);
-      setColor(PDF_COLORS.black);
-      doc.text("QA Appeal Result Report", textLeft, y + 1);
+      doc.setFontSize(17);
+      doc.setTextColor(255, 255, 255);
+      doc.text("APPEAL REVIEW REPORT", left + 19, headerTop + 10.8);
 
       setPdfFont(doc, "normal");
-      doc.setFontSize(10.5);
-      setColor(PDF_COLORS.muted);
-      doc.text("Robinhood QA Appeal Review Report", textLeft, y + 6);
+      doc.setFontSize(10.2);
+      doc.setTextColor(235, 225, 245);
+      doc.text("รายงานการตรวจสอบอุทธรณ์", left + 19, headerTop + 15.3);
 
-      y += 14;
-      setPdfFont(doc, "normal");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.body);
-      doc.text(`Case ID: ${selectedCase.caseId || "-"}`, textLeft, y);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(right - 24, headerTop + 4.2, 17, 8.4, 2.2, 2.2, "F");
+      setPdfFont(doc, "bold");
+      doc.setFontSize(10);
+      setColor(purpleDark);
+      doc.text(appealVersionText, right - 20.7, headerTop + 10.1);
 
-      y += 5;
-      doc.text(`Case Agent: ${selectedCase.agent || "-"}`, textLeft, y);
+      const row1Y = headerTop + 23;
+      const row2Y = headerTop + 43;
+      const row3Y = headerTop + 63;
+      const row4Y = headerTop + 83;
+      const gap = 3.5;
+      const col3 = (contentWidth - 8 - gap * 2) / 3;
+      const col4 = (contentWidth - 8 - gap * 3) / 4;
+      const x0 = left + 4;
 
-      y += 5;
-      doc.text(`Generated By: ${generatedByDisplay}${generatedByRole}`, textLeft, y);
-      
-      y += 5;
-      doc.text(`Generated At: ${generatedAtDisplay || "-"}`, textLeft, y);
+      drawInfoCard(x0, row1Y, col3, 15, "Agent", selectedCase.agent || "-");
+      drawInfoCard(x0 + col3 + gap, row1Y, col3, 15, "Month", monthLabel || "-");
+      drawInfoCard(x0 + (col3 + gap) * 2, row1Y, col3, 15, "Appeal Ver.", appealVersionText);
 
-      y += 3;
-      drawDivider(1.5, 5, PDF_COLORS.sectionLine, 0.45);
+      drawInfoCard(x0, row2Y, col4, 15, "Audit Date", selectedCase.auditDate || "-");
+      drawInfoCard(x0 + col4 + gap, row2Y, col4, 15, "Case ID", selectedCase.caseId || "-");
+      drawInfoCard(x0 + (col4 + gap) * 2, row2Y, col4, 15, "Final Score", scoreText, { badge: true });
+      drawInfoCard(x0 + (col4 + gap) * 3, row2Y, col4, 15, "Case Grade", gradeText, { badge: true });
+
+      drawInfoCard(x0, row3Y, col3 * 2 + gap, 15, "Customer Inquiry", selectedCase.inquiry || "-", { compact: true });
+      drawInfoCard(x0 + col3 * 2 + gap * 2, row3Y, col3, 15, "Critical Error", criticalErrorText);
+
+      drawInfoCard(x0, row4Y, col3, 15, "Appeal Status", appealStatusText, { badge: true });
+      drawInfoCard(x0 + col3 + gap, row4Y, col3, 15, "Comment Status", commentStatusText, { badge: true });
+      drawInfoCard(x0 + (col3 + gap) * 2, row4Y, col3, 15, "Review Type", reviewTypeText, { badge: true });
+
+      drawInfoCard(x0, headerTop + 101, contentWidth - 8, 8, "Remark", remarkText, { compact: true });
+
+      y = headerTop + headerHeight + 8;
+      drawDivider(0, 5, PDF_COLORS.sectionLine, 0.35);
     };
 
     const addSectionTitle = (text: string) => {
@@ -2247,19 +2344,7 @@ export default function AppealMockup({
       );
     }
 
-    addSectionTitle("Case Overview");
-    addKeyValue("Case ID", selectedCase.caseId || "-");
-    addKeyValue("Agent", selectedCase.agent || "-");
-    addKeyValue("Case Date", selectedCase.auditDate || "-");
-    addKeyValue("Week Label", selectedCase.weekLabel || "-");
-    addKeyValue("Month", selectedCase.monthKey || "-");
-    addKeyValue("Rewrite Round", `เธเธฃเธฑเนเธเธ—เธตเน ${selectedRevision.appealRound}`);
-    addKeyValue("Original Score", selectedRevision.previousScore.toFixed(2));
-    addKeyValue("Final Score", selectedRevision.finalScore.toFixed(2));
-    addKeyValue("Score Change", scoreDeltaText);
-    addKeyValue("Original Grade", selectedCaseOriginalGradeForPdf);
-    addKeyValue("Final Grade", selectedRevision.grade);
-    addKeyValue("Appealed Topics", `${selectedRevision.appealedTopics.length} topic(s)`);
+    // Case overview is included in the redesigned PDF header.
 
     addSectionTitle("Appeal Timeline");
     addKeyValue("Appeal Submit Date & Time", selectedRevision.appealSubmitDateTime || "-", 58);
@@ -2292,7 +2377,7 @@ export default function AppealMockup({
 
     addSectionTitle("Appealed Topics");
     if (!selectedRevision.appealedTopics.length) {
-      addParagraph("เนเธกเนเธเธเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน");
+      addParagraph("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
     } else {
       selectedRevision.appealedTopics.forEach((topic) => {
         addTopicBlock(topic);
