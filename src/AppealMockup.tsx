@@ -2306,9 +2306,30 @@ export default function AppealMockup({
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="rounded-3xl border border-violet-200 bg-white px-8 py-6 text-center shadow-sm">
-          <div className="text-lg font-bold text-violet-700">Loading appeal data...</div>
-          <div className="mt-2 text-sm text-slate-500">กรุณารอสักครู่ ระบบกำลังเตรียมข้อมูลอุทธรณ์</div>
+        <div className="relative w-[330px] overflow-hidden rounded-[34px] border border-violet-200 bg-white/95 px-8 py-8 text-center shadow-[0_24px_70px_rgba(109,40,217,0.16)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.12),transparent_32%)]" />
+          <div className="pointer-events-none absolute left-8 top-7 h-2 w-2 animate-ping rounded-full bg-violet-300" />
+          <div className="pointer-events-none absolute right-10 top-12 h-2.5 w-2.5 rounded-full bg-fuchsia-200" />
+          <div className="pointer-events-none absolute right-8 bottom-8 h-2 w-2 animate-pulse rounded-full bg-violet-300" />
+
+          <div className="relative z-10">
+            <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 shadow-inner">
+              <span className="animate-bounce text-6xl leading-none">🦉</span>
+            </div>
+
+            <div className="mt-5 text-lg font-extrabold text-violet-700">
+              กำลังโหลดข้อมูลอุทธรณ์...
+            </div>
+            <div className="mt-2 text-sm leading-6 text-slate-500">
+              นกฮูกกำลังตรวจข้อมูลล่าสุด กรุณารอสักครู่
+            </div>
+
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-500 [animation-delay:-0.25s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-400 [animation-delay:-0.12s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-300" />
+            </div>
+          </div>
         </div>
       </div>
     );
