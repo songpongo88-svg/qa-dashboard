@@ -676,7 +676,9 @@ function generatePaymentExcelFile(
     [],
     ["Agent Monthly Ranking"],
     [],
-    ["Seq", "Name", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "QA Signer", "Supervisor Signer", "Senior / Team Lead Signer", "Agent Signer", "Sign Complete At", "Critical", "Status"],
+    ...(totalPromoAmount > 0
+      ? [["Seq", "Name", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "QA Signer", "Supervisor Signer", "Senior / Team Lead Signer", "Agent Signer", "Sign Complete At", "Critical", "Status"]]
+      : [["Seq", "Name", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "Incentive Detail", "QA Signer", "Supervisor Signer", "Senior / Team Lead Signer", "Agent Signer", "Sign Complete At", "Critical", "Status"]]),
   ];
 
   sortedDocs.forEach((doc, index) => {
@@ -691,23 +693,41 @@ function generatePaymentExcelFile(
         .filter(Boolean)
         .sort()
         .pop() || "";
-    aoa.push([
-      index + 1,
-      doc.agentName,
-      doc.caseCount,
-      Number(doc.averageScore.toFixed(2)),
-      doc.grade,
-      incentive.cash,
-      incentive.promo,
-      incentive.label,
-      qaSigner,
-      supervisorSigner,
-      seniorSigner,
-      agentSigner,
-      lastSignedAt ? formatDateTime(lastSignedAt) : "-",
-      "No",
-      `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
-    ]);
+    const rankingRow = totalPromoAmount > 0
+      ? [
+          index + 1,
+          doc.agentName,
+          doc.caseCount,
+          Number(doc.averageScore.toFixed(2)),
+          doc.grade,
+          incentive.cash,
+          incentive.promo,
+          incentive.label,
+          qaSigner,
+          supervisorSigner,
+          seniorSigner,
+          agentSigner,
+          lastSignedAt ? formatDateTime(lastSignedAt) : "-",
+          "No",
+          `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+        ]
+      : [
+          index + 1,
+          doc.agentName,
+          doc.caseCount,
+          Number(doc.averageScore.toFixed(2)),
+          doc.grade,
+          incentive.cash,
+          incentive.label,
+          qaSigner,
+          supervisorSigner,
+          seniorSigner,
+          agentSigner,
+          lastSignedAt ? formatDateTime(lastSignedAt) : "-",
+          "No",
+          `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+        ];
+    aoa.push(rankingRow);
   });
 
   const summaryStartRow = aoa.length + 3;
@@ -716,7 +736,7 @@ function generatePaymentExcelFile(
     ["Payment Export Summary"],
     ["Total Paid Agents In This Cycle", sortedDocs.length],
     ["Total Cash Amount (THB)", totalCashAmount],
-    ["Total RBH Promo (THB)", totalPromoAmount],
+    ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", totalPromoAmount]] : []),
     ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
     ["Generated At", new Date().toLocaleString("th-TH")],
     ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
@@ -814,6 +834,29 @@ function generatePaymentPdfFile(
     pdf.text(value, x, yy);
   };
 
+  const drawColText = (
+    value: string,
+    x: number,
+    yy: number,
+    width: number,
+    size = 9,
+    bold = false,
+    color: [number, number, number] = [31, 41, 55],
+    align: "left" | "center" | "right" = "left"
+  ) => {
+    setFont(size, bold, color);
+    const safeValue = String(value ?? "");
+    if (align === "center") {
+      pdf.text(safeValue, x + width / 2, yy, { align: "center" });
+      return;
+    }
+    if (align === "right") {
+      pdf.text(safeValue, x + width - 2, yy, { align: "right" });
+      return;
+    }
+    pdf.text(safeValue, x + 2, yy);
+  };
+
   const section = (title: string) => {
     pdf.setFillColor(109, 40, 217);
     pdf.roundedRect(left, y, right - left, 8, 2, 2, "F");
@@ -843,24 +886,41 @@ function generatePaymentPdfFile(
   smallCell("Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold", left + 208, y, 64);
   y += 17;
   smallCell("Total Cash (THB)", formatBahtAmount(totalCashAmount), left, y, 54);
-  smallCell("RBH Promo (THB)", formatBahtAmount(totalPromoAmount), left + 58, y, 56);
-  smallCell("Payment Cutoff", paymentCutoff, left + 118, y, 68);
-  smallCell("Export Rule", "Pay only signed complete by day 15", left + 190, y, 82);
+  if (totalPromoAmount > 0) {
+    smallCell("RBH Promo (THB)", formatBahtAmount(totalPromoAmount), left + 58, y, 56);
+    smallCell("Payment Cutoff", paymentCutoff, left + 118, y, 68);
+    smallCell("Export Rule", "Pay only signed complete by day 15", left + 190, y, 82);
+  } else {
+    smallCell("Payment Cutoff", paymentCutoff, left + 58, y, 72);
+    smallCell("Export Rule", "Pay only signed complete by day 15", left + 134, y, 138);
+  }
   y += 20;
 
   section("Agent Monthly Ranking");
-  const headers = [
-    ["Seq", 10],
-    ["Name", 54],
-    ["Cases", 18],
-    ["Avg Score", 24],
-    ["Grade", 16],
-    ["Incentive Amt", 30],
-    ["RBH Promo", 26],
-    ["Incentive Detail", 46],
-    ["Critical", 18],
-    ["Status", 31],
-  ];
+  const headers = totalPromoAmount > 0
+    ? [
+        ["Seq", 10],
+        ["Name", 54],
+        ["Cases", 18],
+        ["Avg Score", 24],
+        ["Grade", 16],
+        ["Incentive Amt", 30],
+        ["RBH Promo", 26],
+        ["Incentive Detail", 46],
+        ["Critical", 18],
+        ["Status", 31],
+      ]
+    : [
+        ["Seq", 10],
+        ["Name", 58],
+        ["Cases", 22],
+        ["Avg Score", 26],
+        ["Grade", 18],
+        ["Incentive Amt", 36],
+        ["Incentive Detail", 58],
+        ["Critical", 22],
+        ["Status", 23],
+      ];
 
   const colX: number[] = [];
   let x = left;
@@ -873,7 +933,11 @@ function generatePaymentPdfFile(
     pdf.setFillColor(237, 233, 254);
     pdf.setDrawColor(221, 214, 254);
     pdf.rect(left, y, right - left, 9, "FD");
-    headers.forEach(([label], index) => drawText(String(label), colX[index] + 2, y + 6, 9.5, true, [88, 28, 135]));
+    headers.forEach(([label, width], index) => {
+      const labelText = String(label);
+      const align = labelText === "Name" || labelText === "Incentive Detail" || labelText === "Status" ? "left" : "center";
+      drawColText(labelText, colX[index], y + 6, Number(width), 9.5, true, [88, 28, 135], align);
+    });
     y += 9;
   };
 
@@ -898,22 +962,36 @@ function generatePaymentPdfFile(
     pdf.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
     pdf.rect(left, y, right - left, 8, "FD");
     const incentive = getDocumentIncentive(doc);
-    const row = [
-      String(index + 1),
-      doc.agentName,
-      String(doc.caseCount),
-      doc.averageScore.toFixed(2),
-      doc.grade,
-      formatBahtAmount(incentive.cash),
-      formatBahtAmount(incentive.promo),
-      incentive.label,
-      "No",
-      `Signed / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
-    ];
+    const row = totalPromoAmount > 0
+      ? [
+          String(index + 1),
+          doc.agentName,
+          String(doc.caseCount),
+          doc.averageScore.toFixed(2),
+          doc.grade,
+          formatBahtAmount(incentive.cash),
+          formatBahtAmount(incentive.promo),
+          incentive.label,
+          "No",
+          `Signed / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+        ]
+      : [
+          String(index + 1),
+          doc.agentName,
+          String(doc.caseCount),
+          doc.averageScore.toFixed(2),
+          doc.grade,
+          formatBahtAmount(incentive.cash),
+          incentive.label,
+          "No",
+          `Signed / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+        ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(headers[colIndex][1]) - 3;
       const lines = pdf.splitTextToSize(String(value), maxWidth);
-      drawText(Array.isArray(lines) ? lines[0] : String(lines), colX[colIndex] + 2, y + 5.5, 9, colIndex === 1 || colIndex === 5);
+      const label = String(headers[colIndex][0]);
+      const align = label === "Name" || label === "Incentive Detail" || label === "Status" ? "left" : "center";
+      drawColText(Array.isArray(lines) ? lines[0] : String(lines), colX[colIndex], y + 5.5, Number(headers[colIndex][1]), 9, colIndex === 1 || label === "Incentive Amt", [31, 41, 55], align);
     });
     y += 8;
   });
@@ -936,7 +1014,7 @@ function generatePaymentPdfFile(
   const summaryRows = [
     ["Total Paid Agents In This Cycle", String(sortedDocs.length)],
     ["Total Cash Amount (THB)", formatBahtAmount(totalCashAmount)],
-    ["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)],
+    ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)]] : []),
     ["Payment Cutoff", paymentCutoff],
     ["Generated At", new Date().toLocaleString("th-TH")],
     ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
@@ -979,7 +1057,11 @@ function generatePaymentPdfFile(
     pdf.setFillColor(237, 233, 254);
     pdf.setDrawColor(221, 214, 254);
     pdf.rect(left, y, right - left, 9, "FD");
-    sigHeaders.forEach(([label], index) => drawText(String(label), sigX[index] + 2, y + 6, 9, true, [88, 28, 135]));
+    sigHeaders.forEach(([label, width], index) => {
+      const labelText = String(label);
+      const align = labelText === "Name" || labelText === "Document Ref." || labelText === "Status" ? "left" : "center";
+      drawColText(labelText, sigX[index], y + 6, Number(width), 9, true, [88, 28, 135], align);
+    });
     y += 9;
   };
 
@@ -1010,7 +1092,9 @@ function generatePaymentPdfFile(
     row.forEach((value, colIndex) => {
       const maxWidth = Number(sigHeaders[colIndex][1]) - 3;
       const lines = pdf.splitTextToSize(String(value), maxWidth);
-      drawText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex] + 2, y + 5.5, 7.6, colIndex === 1);
+      const label = String(sigHeaders[colIndex][0]);
+      const align = label === "Name" || label === "Document Ref." || label === "Status" ? "left" : "center";
+      drawColText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex], y + 5.5, Number(sigHeaders[colIndex][1]), 7.6, colIndex === 1, [31, 41, 55], align);
     });
     y += 8;
   });
