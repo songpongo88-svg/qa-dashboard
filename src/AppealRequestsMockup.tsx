@@ -577,13 +577,27 @@ export default function AppealRequestsMockup({
                           </div>
                         </div>
                         <textarea
+                  onPaste={(event) => {
+                    requestAnimationFrame(() => {
+                      const target = event.currentTarget;
+                      target.style.height = "auto";
+                      target.style.height = `${target.scrollHeight}px`;
+                    });
+                  }}
+                  onInput={(event) => {
+                    const target = event.currentTarget;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
+                  rows={3}
+                  data-auto-resize-review="true"
                           value={topic.revisedComment || ""}
                           disabled={selectedRequest.status !== "Pending"}
                           onChange={(event) => {
                             const value = event.target.value;
                             setDraftTopics((current) => current.map((item) => item.code === topic.code ? { ...item, revisedComment: value } : item));
                           }}
-                          className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                          className="mt-3 min-h-[92px] w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 resize-none overflow-hidden"
                           placeholder="Revised comment / reason after review"
                         />
                       </div>
@@ -602,10 +616,24 @@ export default function AppealRequestsMockup({
                       <option value="Rejected">Reject</option>
                     </select>
                     <textarea
+                  onPaste={(event) => {
+                    requestAnimationFrame(() => {
+                      const target = event.currentTarget;
+                      target.style.height = "auto";
+                      target.style.height = `${target.scrollHeight}px`;
+                    });
+                  }}
+                  onInput={(event) => {
+                    const target = event.currentTarget;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
+                  rows={3}
+                  data-auto-resize-review="true"
                       value={reviewSummary}
                       disabled={selectedRequest.status !== "Pending"}
                       onChange={(event) => setReviewSummary(event.target.value)}
-                      className="min-h-[88px] rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
+                      className="min-h-[88px] rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 resize-none overflow-hidden"
                       placeholder="Appeal review summary"
                     />
                   </div>
