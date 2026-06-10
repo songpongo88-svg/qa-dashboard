@@ -7,6 +7,7 @@ import AppealRequestsMockup, { buildAppealRequests } from "./AppealRequestsMocku
 import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
+import SignatureCenterMockup from "./SignatureCenterMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -134,6 +135,7 @@ type AppTab =
   | "team-chat"
   | "call-history"
   | "summary"
+  | "signature-center"
   | "coaching"
   | "rubric"
   | "usage-log"
@@ -213,6 +215,7 @@ const VALID_APP_TABS = new Set<AppTab>([
   "appeal-override",
   "task-inbox",
   "summary",
+  "signature-center",
   "coaching",
   "rubric",
   "usage-log",
@@ -5151,6 +5154,7 @@ export default function App() {
                     options={[
                       { value: "dashboard", label: "Dashboard" },
                       { value: "summary", label: "Summary" },
+                      { value: "signature-center", label: "Signatures" },
                       ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
                     ]}
                   />
@@ -5479,6 +5483,8 @@ export default function App() {
             onSelectedMonthChange={setSelectedMonthGlobal}
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
+        ) : activeTab === "signature-center" ? (
+          <SignatureCenterMockup currentUser={currentUser} />
         ) : activeTab === "coaching" && coachingAllowed ? (
           <CoachingMockup
             currentUser={currentUser}
