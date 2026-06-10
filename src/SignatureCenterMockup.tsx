@@ -531,12 +531,12 @@ function isPaymentReadyDocument(
   pendingAppealCaseMap: Map<string, PendingAppealCase>
 ) {
   const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
-  const hasPending = doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
+  const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
   const signedWithinCycle = SIGNATURE_FLOW.every((role) => {
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
-  return signedComplete && signedWithinCycle && doc.eligibleByScore && !hasPending;
+  return signedComplete && signedWithinCycle && !hasPending;
 }
 
 function isLateSignedDocument(
@@ -545,12 +545,12 @@ function isLateSignedDocument(
   pendingAppealCaseMap: Map<string, PendingAppealCase>
 ) {
   const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
-  const hasPending = doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
+  const hasPending = !isHistoricalPaidPeriod(doc.monthKey) && doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
   const hasLateSignature = SIGNATURE_FLOW.some((role) => {
     const signed = getSignedEntry(entries, role);
     return Boolean(signed) && !isSignedWithinCurrentPaymentCycle(signed?.signedAt || "", doc.monthKey);
   });
-  return signedComplete && hasLateSignature && doc.eligibleByScore && !hasPending;
+  return signedComplete && hasLateSignature && !hasPending;
 }
 
 function makePaymentFileName(monthKey: string) {
@@ -1445,7 +1445,7 @@ export default function SignatureCenterMockup({
             </div>
           </div>
           <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Ready Agents</div>
+            <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Signed Complete Agents</div>
             <div className="mt-1 text-2xl font-black text-violet-700">
               {selectedMonth === "all" ? "-" : `${selectedMonthPaymentDocs.length} คน`}
             </div>
@@ -1479,7 +1479,7 @@ export default function SignatureCenterMockup({
         ) : null}
         {!canGeneratePaymentExcel ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: ต้องเป็น QA, ต้องเลือกเดือน, ต้องพ้นวันที่ 15 แล้ว และต้องมีอย่างน้อย 1 Agent ที่เซ็นครบทุก Role ภายในกำหนด/ไม่มี Appeal Pending/Ready to Pay
+            เงื่อนไขยังไม่ครบ: ต้องเป็น QA, ต้องเลือกเดือน, ต้องพ้นวันที่ 15 แล้ว และต้องมีอย่างน้อย 1 Agent ที่เซ็นครบทุก Role ภายในกำหนด/ไม่มี Appeal Pending
           </div>
         ) : null}
       </div>
