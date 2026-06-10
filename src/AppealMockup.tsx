@@ -618,7 +618,7 @@ function topicScoreStatusTone(originalScore: number, revisedScore: number) {
 function gradeShiftTone(originalGrade: Grade, revisedGrade: Grade) {
   if (originalGrade === revisedGrade) {
     return {
-      label: `Grade Maintained ยท ${revisedGrade}`,
+      label: `Grade Maintained • ${revisedGrade}`,
       className: "border-slate-200 bg-slate-50 text-slate-700",
     };
   }
@@ -628,11 +628,11 @@ function gradeShiftTone(originalGrade: Grade, revisedGrade: Grade) {
 
   return improved
     ? {
-        label: `Grade Up ยท ${originalGrade} โ’ ${revisedGrade}`,
+        label: `Grade Up • ${originalGrade} → ${revisedGrade}`,
         className: "border-emerald-200 bg-emerald-50 text-emerald-700",
       }
     : {
-        label: `Grade Down ยท ${originalGrade} โ’ ${revisedGrade}`,
+        label: `Grade Down • ${originalGrade} → ${revisedGrade}`,
         className: "border-rose-200 bg-rose-50 text-rose-700",
       };
 }
@@ -760,9 +760,7 @@ function AppealClosedBanner() {
           <div className="mt-2 text-2xl font-extrabold tracking-tight">
             This appeal has been finalized
           </div>
-          <div className="mt-2 text-sm leading-6 text-white/95">
-            เน€เธเธชเธเธตเนเนเธ”เนเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธชเธฃเนเธเธชเธดเนเธเนเธฅเนเธง เนเธฅเธฐเนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเน€เธเธดเนเธกเน€เธ•เธดเธกเนเธ”เนเธญเธตเธ
-          </div>
+          <div className="mt-2 text-sm leading-6 text-white/95">เคสนี้ได้พิจารณาอุทธรณ์เสร็จสิ้นแล้ว และไม่สามารถยื่นอุทธรณ์เพิ่มเติมได้อีก</div>
         </div>
 
         <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 backdrop-blur-sm">
@@ -807,7 +805,7 @@ function QuickCaseCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-900">{item.caseId}</div>
           <div className="mt-1 text-[11px] text-slate-500">
-            {item.agent} ยท {item.appealResultDateTime || item.auditDate}
+            {item.agent} • {item.appealResultDateTime || item.auditDate}
           </div>
         </div>
 
@@ -836,7 +834,7 @@ function QuickCaseCard({
           <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
             Original: {item.previousScore.toFixed(2)}
           </span>
-          <span className="text-slate-400">โ’</span>
+          <span className="text-slate-400">→</span>
           <span className="rounded-full bg-violet-100 px-2 py-1 text-violet-700">
             Final: {item.finalScore.toFixed(2)}
           </span>
@@ -918,7 +916,7 @@ function AppealedTopicsCaseDetailTable({
                     <div className="mt-1 text-sm text-slate-600">
                       {originalScore}/{topic.max} (
                       {((originalScore / Math.max(topic.max, 1)) * 100).toFixed(1)}%)
-                      <span className="mx-2 text-slate-400">โ’</span>
+                      <span className="mx-2 text-slate-400">→</span>
                       {revisedScore}/{topic.max} ({pct.toFixed(1)}%)
                     </div>
                   </div>
@@ -931,7 +929,7 @@ function AppealedTopicsCaseDetailTable({
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">
                         Original {originalScore}/{topic.max}
                       </span>
-                      <span className="text-slate-400">โ’</span>
+                      <span className="text-slate-400">→</span>
                       <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
                         Revised {revisedScore}/{topic.max}
                       </span>
@@ -940,7 +938,7 @@ function AppealedTopicsCaseDetailTable({
                       >
                         {diff === 0
                           ? "No score change"
-                          : `${diff > 0 ? "+" : ""}${diff} ยท ${statusTone.label}`}
+                          : `${diff > 0 ? "+" : ""}${diff} • ${statusTone.label}`}
                       </span>
                     </span>
                   </div>
@@ -990,7 +988,7 @@ function AppealedTopicsCaseDetailTable({
           })
         ) : (
           <div className="py-10 text-center text-sm text-slate-500">
-            เนเธกเนเธเธเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน
+            ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
           </div>
         )}
       </div>
@@ -1013,7 +1011,7 @@ function AppealRevisionHistory({
     <Panel>
       <PanelHeader
         title="Rewrite History"
-        subtitle="เธ—เธธเธเธเธฃเธฑเนเธเธ—เธตเนเธกเธตเธเธฒเธฃ rewrite เธเธญเธเน€เธเธชเธเธตเน เนเธ”เธขเธเธฐเนเธเธเธซเธฅเธฑเธเธ”เนเธฒเธเธเธเนเธเนเธเธฃเธฑเนเธเธฅเนเธฒเธชเธธเธ”"
+        subtitle="ทุกครั้งที่มีการ rewrite ของเคสนี้ โดยคะแนนหลักด้านบนใช้ครั้งล่าสุด"
       />
       <PanelBody>
         <div className="space-y-4">
@@ -1096,7 +1094,7 @@ function AppealRevisionHistory({
                       </div>
                       <div className="mt-1 whitespace-nowrap font-extrabold text-slate-900">
                         {revision.previousScore.toFixed(2)}
-                        <span className="mx-1.5 text-slate-300">โ’</span>
+                        <span className="mx-1.5 text-slate-300">→</span>
                         <span className="text-violet-700">{revision.finalScore.toFixed(2)}</span>
                       </div>
                     </div>
@@ -1794,7 +1792,7 @@ export default function AppealMockup({
         setAllCases(collapseAppealRowsToLatest([...mapped, ...firebaseMapped]));
       } catch (error: any) {
         console.error(error);
-        setLoadError(error?.message || "เนเธซเธฅเธ”เนเธเธฅเน Excel เนเธกเนเธชเธณเน€เธฃเนเธ");
+        setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
       } finally {
         setIsLoading(false);
       }
@@ -2310,7 +2308,7 @@ export default function AppealMockup({
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="rounded-3xl border border-violet-200 bg-white px-8 py-6 text-center shadow-sm">
           <div className="text-lg font-bold text-violet-700">Loading appeal data...</div>
-          <div className="mt-2 text-sm text-slate-500">เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน</div>
+          <div className="mt-2 text-sm text-slate-500">กรุณารอสักครู่ ระบบกำลังเตรียมข้อมูลอุทธรณ์</div>
         </div>
       </div>
     );
@@ -2319,7 +2317,7 @@ export default function AppealMockup({
   if (loadError) {
     return (
       <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-6 text-rose-700">
-        <div className="text-lg font-bold">เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ</div>
+        <div className="text-lg font-bold">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>
         <div className="mt-2 text-sm">{loadError}</div>
       </div>
     );
@@ -2332,7 +2330,7 @@ export default function AppealMockup({
       <PageHero
         eyebrow="Appeal Management"
         title="Appeal Case Center"
-        subtitle="เธฃเธงเธกเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช QA เธเธฃเนเธญเธกเธกเธธเธกเธกเธญเธเธฃเธฒเธขเน€เธ”เธทเธญเธ เธฃเธฒเธขเธเธทเนเธญเน€เธเธช เนเธฅเธฐเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เธเธฅเธเธฃเธฐเน€เธกเธดเธเนเธเธซเธเนเธฒเน€เธ”เธตเธขเธง"
+        subtitle="รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว"
       />
       {false ? (
       <div>
@@ -2408,7 +2406,7 @@ export default function AppealMockup({
         <Panel className="h-fit">
           <PanelHeader
             title="Appeal Case List"
-            subtitle="เน€เธฅเธทเธญเธเน€เธฅเธเน€เธเธชเธเธฒเธเธฃเธฒเธขเธเธฒเธฃเธ”เนเธฒเธเธเนเธฒเธขเน€เธเธทเนเธญเน€เธเธดเธ”เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”"
+            subtitle="เลือกเลขเคสจากรายการด้านซ้ายเพื่อเปิดดูรายละเอียด"
           />
           <PanelBody className="space-y-4">
             {!roleScopedAgentList.length ? (
@@ -2469,20 +2467,20 @@ export default function AppealMockup({
               <input
                 value={searchCaseId}
                 onChange={(e) => setSearchCaseId(e.target.value)}
-                placeholder="เน€เธเนเธ AA206880"
+                placeholder="เช่น AA206880"
                 className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
               />
             </div>
 
             <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3 text-sm text-violet-900">
               <span className="font-semibold">{formatMonthKeyLabel(selectedMonthKey)}</span>
-              <span className="text-slate-500"> ยท {filteredCases.length} case(s)</span>
+              <span className="text-slate-500"> • {filteredCases.length} case(s)</span>
             </div>
 
             <div className="space-y-3">
               {!filteredCases.length ? (
                 <div className="rounded-2xl border border-dashed border-violet-200 bg-white/70 p-6 text-center text-sm text-slate-500">
-                  เนเธกเนเธเธเธเนเธญเธกเธนเธฅเน€เธเธช
+                  ไม่พบข้อมูลเคส
                 </div>
               ) : (
                 filteredCases.map((item) => (
@@ -2503,7 +2501,7 @@ export default function AppealMockup({
             <Panel>
               <PanelBody>
                 <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-10 text-center text-sm text-slate-500">
-                  เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเน€เธฅเธเน€เธเธชเธเธฒเธเธฃเธฒเธขเธเธฒเธฃเธ”เนเธฒเธเธเนเธฒเธขเธเนเธญเธ เธฃเธฐเธเธเธเธฐเธขเธฑเธเนเธกเนเน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธชเธญเธฑเธ•เนเธเธกเธฑเธ•เธด
+                  กรุณาเลือกเลขเคสจากรายการด้านซ้ายก่อน ระบบจะแสดงรายละเอียดเคสอัตโนมัติ
                 </div>
               </PanelBody>
             </Panel>
@@ -2519,7 +2517,7 @@ export default function AppealMockup({
                   title="Final Score"
                   value={(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}
                   tone="border-violet-300 bg-violet-100 text-violet-900"
-                  sub={`${(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)} โ’ ${(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}`}
+                  sub={`${(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)} → ${(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}`}
                 />
                 <ScoreCard
                   title="Grade"
@@ -2527,12 +2525,12 @@ export default function AppealMockup({
                   tone={gradeTone(selectedRevision?.grade ?? selectedCase.grade)}
                   sub={
                     selectedCaseGradeShift
-                      ? `${selectedCaseGradeShift.label} โ€ข ${
+                      ? `${selectedCaseGradeShift.label} • ${
                           selectedCaseUsesNewPolicy ? "New Criteria" : "Previous Criteria"
                         }`
                       : selectedCaseUsesNewPolicy
-                        ? `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} โ€ข New Criteria`
-                        : `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} โ€ข Previous Criteria`
+                        ? `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • New Criteria`
+                        : `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • Previous Criteria`
                   }
                 />
               </div>
@@ -2541,7 +2539,7 @@ export default function AppealMockup({
                 <Panel>
                   <PanelHeader
                     title="Appeal Case Summary"
-                    subtitle="เธเนเธญเธกเธนเธฅเธชเธฃเธธเธเธเธญเธเน€เธเธชเนเธฅเธฐเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เน"
+                    subtitle="ข้อมูลสรุปของเคสและผลการพิจารณาอุทธรณ์"
                   />
                   <PanelBody className="space-y-5">
                     <div className="grid gap-4 md:grid-cols-2">
@@ -2702,7 +2700,7 @@ export default function AppealMockup({
               <Panel>
                 <PanelHeader
                   title="Appealed Topics"
-                  subtitle="เนเธชเธ”เธเน€เธเธเธฒเธฐเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน เธเธฃเนเธญเธกเน€เธเธฃเธตเธขเธเน€เธ—เธตเธขเธเธเธฐเนเธเธเน€เธ”เธดเธกเนเธฅเธฐเธเธฐเนเธเธเนเธซเธกเน"
+                  subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
                 />
                 <PanelBody>
                   {!(selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length) ? (
@@ -2726,7 +2724,7 @@ export default function AppealMockup({
                           </div>
                           <div className="mt-2 text-lg font-extrabold text-slate-900">
                             {(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)}
-                            <span className="mx-2 text-slate-300">โ’</span>
+                            <span className="mx-2 text-slate-300">→</span>
                             <span className="text-violet-700">
                               {(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}
                             </span>
@@ -2742,7 +2740,7 @@ export default function AppealMockup({
                             >
                               {selectedCaseOriginalGrade || selectedRevision?.grade || selectedCase.grade}
                             </span>
-                            <span className="text-slate-300">โ’</span>
+                            <span className="text-slate-300">→</span>
                             <span
                               className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedRevision?.grade ?? selectedCase.grade)}`}
                             >
