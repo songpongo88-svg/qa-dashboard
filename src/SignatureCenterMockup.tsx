@@ -295,6 +295,38 @@ function findAccountForAgent(accounts: UserAccountSnapshot[], agentName: string)
   );
 }
 
+function isSuspendedAccount(account?: UserAccountSnapshot | null) {
+  const status = normalizeText(account?.status).toLowerCase();
+  return status.includes("suspended");
+}
+
+function isGenericRoleName(value: unknown) {
+  const text = normalizeText(value).toLowerCase();
+  return !text ||
+    text === "-" ||
+    text === "supervisor" ||
+    text === "senior" ||
+    text === "senior / team lead" ||
+    text === "senior / lead" ||
+    text === "team lead" ||
+    text === "quality assurance";
+}
+
+function resolveFallbackSignerName(value: unknown, fallback = "Phommarin Thaithom") {
+  return isGenericRoleName(value) ? fallback : safeName(value, fallback);
+}
+
+function resolveSupervisorName(value: unknown) {
+  return resolveFallbackSignerName(value, "Phommarin Thaithom");
+}
+
+function resolveSeniorNameForAgent(account: UserAccountSnapshot | undefined, value: unknown) {
+  const leadName = normalizeText(account?.teamLead || value);
+  if (!isGenericRoleName(leadName)) return leadName;
+  if (!account || isSuspendedAccount(account)) return "Phommarin Thaithom";
+  return "Phommarin Thaithom";
+}
+
 function readSignatureStore(): Record<string, SignatureEntry[]> {
   try {
     return JSON.parse(window.localStorage.getItem(SIGNATURE_STORAGE_KEY) || "{}") || {};
@@ -362,8 +394,8 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     const finalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
     const score = Number.isFinite(finalScore) ? finalScore : 0;
 
-    const seniorName = safeName(account?.teamLead || helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader"], ""), "Senior / Team Lead");
-    const supervisorName = safeName(helper.get(row, ["Supervisor", "Sup"], ""), "Supervisor");
+    const seniorName = resolveSeniorNameForAgent(account, helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader"], ""));
+    const supervisorName = resolveSupervisorName(helper.get(row, ["Supervisor", "Sup"], ""));
     const qaName = safeName(helper.get(row, ["QA", "QA Name", "Auditor", "Evaluator", "Audit By"], ""), "Quality Assurance");
     const teamName = safeName(account?.teamName || helper.get(row, ["Team", "Team Name"], ""), "-");
     const inquiry = safeName(helper.get(row, ["Customer Inquiry", "Intent", "Inquiry", "หัวข้อ"], ""), "-");
@@ -382,8 +414,8 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
       caseIds: new Set<string>(),
     };
 
-    current.seniorName = current.seniorName === "Senior / Team Lead" ? seniorName : current.seniorName;
-    current.supervisorName = current.supervisorName === "Supervisor" ? supervisorName : current.supervisorName;
+    current.seniorName = isGenericRoleName(current.seniorName) ? seniorName : current.seniorName;
+    current.supervisorName = isGenericRoleName(current.supervisorName) ? supervisorName : current.supervisorName;
     current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
     current.teamName = current.teamName === "-" ? teamName : current.teamName;
 
@@ -436,8 +468,8 @@ function getQaSignerNameByMonth(monthKey: string, fallback = "Quality Assurance"
 
 function getRoleSigner(doc: SignatureDocument, role: SignRole) {
   if (role === "QA") return getQaSignerNameByMonth(doc.monthKey, doc.qaName);
-  if (role === "Supervisor") return doc.supervisorName;
-  if (role === "Senior") return doc.seniorName;
+  if (role === "Supervisor") return resolveSupervisorName(doc.supervisorName);
+  if (role === "Senior") return resolveFallbackSignerName(doc.seniorName, "Phommarin Thaithom");
   return doc.agentName;
 }
 
@@ -610,8 +642,8 @@ function generatePaymentExcelFile(
     const entries = effectiveEntriesForDoc(doc, signatures);
     const incentive = getDocumentIncentive(doc);
     const qaSigner = getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-";
-    const supervisorSigner = getSignedEntry(entries, "Supervisor")?.signerName || "-";
-    const seniorSigner = getSignedEntry(entries, "Senior")?.signerName || "-";
+    const supervisorSigner = getSignedEntry(entries, "Supervisor") ? getRoleSigner(doc, "Supervisor") : "-";
+    const seniorSigner = getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-";
     const agentSigner = getSignedEntry(entries, "Agent")?.signerName || "-";
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
@@ -658,8 +690,8 @@ function generatePaymentExcelFile(
       index + 1,
       doc.agentName,
       getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-",
-      getSignedEntry(entries, "Supervisor")?.signerName || "-",
-      getSignedEntry(entries, "Senior")?.signerName || "-",
+      getSignedEntry(entries, "Supervisor") ? getRoleSigner(doc, "Supervisor") : "-",
+      getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
       doc.documentHash.slice(0, 10),
       "Completed",
@@ -923,8 +955,8 @@ function generatePaymentPdfFile(
       String(index + 1),
       doc.agentName,
       getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-",
-      getSignedEntry(entries, "Supervisor")?.signerName || "-",
-      getSignedEntry(entries, "Senior")?.signerName || "-",
+      getSignedEntry(entries, "Supervisor") ? getRoleSigner(doc, "Supervisor") : "-",
+      getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
       doc.documentHash,
       "Completed",
@@ -1249,7 +1281,7 @@ export default function SignatureCenterMockup({
 
     const safePdfName = (role: SignRole) => {
       const signed = getSignedEntry(entries, role);
-      return signed ? role === "QA" ? getRoleSigner(selectedDocument, role) : signed.signerName || signed.signedBy || "-" : "-";
+      return signed ? getRoleSigner(selectedDocument, role) || signed.signerName || signed.signedBy || "-" : "-";
     };
 
     const safePdfDate = (role: SignRole) => {
