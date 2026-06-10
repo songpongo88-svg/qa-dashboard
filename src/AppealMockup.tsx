@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import PageHero from "./PageHero";
 import { scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
+import { buildAppealRequests } from "./AppealRequestsMockup";
+import { fetchAppealEvents } from "./appealStore";
+import { type UsageLogEvent } from "./usageLog";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -106,17 +109,17 @@ const LEGACY_TOPIC_MASTER = [
 ] as const;
 
 const APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
-  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
-  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
-  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
-  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
-  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
-  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
-  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
-  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
-  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
-  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+  { code: "1.1", label: "เธกเธฒเธ•เธฃเธเธฒเธเธเธฒเธฃเธ—เธฑเธเธ—เธฒเธขเนเธฅเธฐเธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
+  { code: "1.2", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธก PDPA / Policy / เธเนเธญเธเธณเธซเธเธ”", max: 10 },
+  { code: "1.3", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฃเธฐเธเธงเธเธเธฒเธฃเนเธฅเธฐ SLA", max: 10 },
+  { code: "2.1", label: "เธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
+  { code: "2.2", label: "เธเธงเธฒเธกเธเธฃเธเธ–เนเธงเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
+  { code: "2.3", label: "เธเธงเธฒเธกเธเธฑเธ”เน€เธเธเธเธญเธเธเธฑเนเธเธ•เธญเธเนเธฅเธฐเนเธซเธฅเนเธเธญเนเธฒเธเธญเธดเธ", max: 5 },
+  { code: "3.1", label: "เธเธฒเธฃเธงเธดเน€เธเธฃเธฒเธฐเธซเนเนเธฅเธฐเนเธเนเนเธเธเธฑเธเธซเธฒเนเธ”เนเธ•เธฃเธเธเธธเธ”", max: 15 },
+  { code: "3.2", label: "Ownership เนเธฅเธฐเธเธฒเธฃเนเธเนเธ Next Step", max: 10 },
+  { code: "4.1", label: "เนเธเธฃเธเธชเธฃเนเธฒเธเธเนเธญเธเธงเธฒเธกเนเธฅเธฐเธเธงเธฒเธกเธญเนเธฒเธเธเนเธฒเธข", max: 5 },
+  { code: "4.2", label: "เธเธงเธฒเธกเธเธฃเธฐเธเธฑเธเนเธฅเธฐเธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธ เธฒเธฉเธฒ", max: 5 },
+  { code: "4.3", label: "เธเนเธณเน€เธชเธตเธขเธเนเธฅเธฐเธเธงเธฒเธกเน€เธซเธกเธฒเธฐเธชเธกเธ•เธฒเธกเธชเธ–เธฒเธเธเธฒเธฃเธ“เน", max: 10 },
 ] as const;
 
 const JUNE_2026_TOPIC_MASTER = [
@@ -528,10 +531,10 @@ function isNoAppealReason(value: unknown) {
   const text = normalizeAppealReason(value).toLowerCase();
   if (!text) return false;
   return (
-    text === "ไม่อุทธรณ์หัวข้อนี้" ||
+    text === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ||
     text === "not appeal" ||
     text === "no appeal" ||
-    text.includes("ไม่อุทธรณ์")
+    text.includes("เนเธกเนเธญเธธเธ—เธเธฃเธ“เน")
   );
 }
 
@@ -577,7 +580,7 @@ function topicScoreStatusTone(originalScore: number, revisedScore: number) {
 function gradeShiftTone(originalGrade: Grade, revisedGrade: Grade) {
   if (originalGrade === revisedGrade) {
     return {
-      label: `Grade Maintained · ${revisedGrade}`,
+      label: `Grade Maintained ยท ${revisedGrade}`,
       className: "border-slate-200 bg-slate-50 text-slate-700",
     };
   }
@@ -587,11 +590,11 @@ function gradeShiftTone(originalGrade: Grade, revisedGrade: Grade) {
 
   return improved
     ? {
-        label: `Grade Up · ${originalGrade} → ${revisedGrade}`,
+        label: `Grade Up ยท ${originalGrade} โ’ ${revisedGrade}`,
         className: "border-emerald-200 bg-emerald-50 text-emerald-700",
       }
     : {
-        label: `Grade Down · ${originalGrade} → ${revisedGrade}`,
+        label: `Grade Down ยท ${originalGrade} โ’ ${revisedGrade}`,
         className: "border-rose-200 bg-rose-50 text-rose-700",
       };
 }
@@ -608,10 +611,10 @@ function SongkranBackdrop() {
       <div className="absolute left-[18%] top-[12%] h-4 w-4 rounded-full bg-cyan-300/60" />
       <div className="absolute right-[12%] top-[18%] h-3 w-3 rounded-full bg-pink-300/50" />
       <div className="absolute left-5 bottom-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">
-        🔫💦
+        ๐”ซ๐’ฆ
       </div>
       <div className="absolute right-5 top-4 hidden rounded-[24px] border border-white/20 bg-white/10 px-3 py-2 text-2xl backdrop-blur md:flex">
-        🪣🌸
+        ๐ชฃ๐ธ
       </div>
     </div>
   );
@@ -720,7 +723,7 @@ function AppealClosedBanner() {
             This appeal has been finalized
           </div>
           <div className="mt-2 text-sm leading-6 text-white/95">
-            เคสนี้ได้พิจารณาอุทธรณ์เสร็จสิ้นแล้ว และไม่สามารถยื่นอุทธรณ์เพิ่มเติมได้อีก
+            เน€เธเธชเธเธตเนเนเธ”เนเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธชเธฃเนเธเธชเธดเนเธเนเธฅเนเธง เนเธฅเธฐเนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เนเน€เธเธดเนเธกเน€เธ•เธดเธกเนเธ”เนเธญเธตเธ
           </div>
         </div>
 
@@ -766,7 +769,7 @@ function QuickCaseCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-900">{item.caseId}</div>
           <div className="mt-1 text-[11px] text-slate-500">
-            {item.agent} · {item.appealResultDateTime || item.auditDate}
+            {item.agent} ยท {item.appealResultDateTime || item.auditDate}
           </div>
         </div>
 
@@ -795,7 +798,7 @@ function QuickCaseCard({
           <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
             Original: {item.previousScore.toFixed(2)}
           </span>
-          <span className="text-slate-400">→</span>
+          <span className="text-slate-400">โ’</span>
           <span className="rounded-full bg-violet-100 px-2 py-1 text-violet-700">
             Final: {item.finalScore.toFixed(2)}
           </span>
@@ -877,7 +880,7 @@ function AppealedTopicsCaseDetailTable({
                     <div className="mt-1 text-sm text-slate-600">
                       {originalScore}/{topic.max} (
                       {((originalScore / Math.max(topic.max, 1)) * 100).toFixed(1)}%)
-                      <span className="mx-2 text-slate-400">→</span>
+                      <span className="mx-2 text-slate-400">โ’</span>
                       {revisedScore}/{topic.max} ({pct.toFixed(1)}%)
                     </div>
                   </div>
@@ -890,7 +893,7 @@ function AppealedTopicsCaseDetailTable({
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-700">
                         Original {originalScore}/{topic.max}
                       </span>
-                      <span className="text-slate-400">→</span>
+                      <span className="text-slate-400">โ’</span>
                       <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 font-semibold text-violet-700">
                         Revised {revisedScore}/{topic.max}
                       </span>
@@ -899,7 +902,7 @@ function AppealedTopicsCaseDetailTable({
                       >
                         {diff === 0
                           ? "No score change"
-                          : `${diff > 0 ? "+" : ""}${diff} · ${statusTone.label}`}
+                          : `${diff > 0 ? "+" : ""}${diff} ยท ${statusTone.label}`}
                       </span>
                     </span>
                   </div>
@@ -929,7 +932,7 @@ function AppealedTopicsCaseDetailTable({
                       <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                         {sanitizeDisplayText(
                           topic.originalComment,
-                          "ยังไม่มี Evaluation Comment"
+                          "เธขเธฑเธเนเธกเนเธกเธต Evaluation Comment"
                         )}
                       </div>
                     </div>
@@ -939,7 +942,7 @@ function AppealedTopicsCaseDetailTable({
                         Revised Comment
                       </div>
                       <div className="mt-3 whitespace-pre-line leading-7 text-slate-900">
-                        {sanitizeDisplayText(topic.comment, "ยังไม่มี Revised Comment")}
+                        {sanitizeDisplayText(topic.comment, "เธขเธฑเธเนเธกเนเธกเธต Revised Comment")}
                       </div>
                     </div>
                   </div>
@@ -949,7 +952,7 @@ function AppealedTopicsCaseDetailTable({
           })
         ) : (
           <div className="py-10 text-center text-sm text-slate-500">
-            ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
+            เนเธกเนเธเธเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน
           </div>
         )}
       </div>
@@ -972,7 +975,7 @@ function AppealRevisionHistory({
     <Panel>
       <PanelHeader
         title="Rewrite History"
-        subtitle="ทุกครั้งที่มีการ rewrite ของเคสนี้ โดยคะแนนหลักด้านบนใช้ครั้งล่าสุด"
+        subtitle="เธ—เธธเธเธเธฃเธฑเนเธเธ—เธตเนเธกเธตเธเธฒเธฃ rewrite เธเธญเธเน€เธเธชเธเธตเน เนเธ”เธขเธเธฐเนเธเธเธซเธฅเธฑเธเธ”เนเธฒเธเธเธเนเธเนเธเธฃเธฑเนเธเธฅเนเธฒเธชเธธเธ”"
       />
       <PanelBody>
         <div className="space-y-4">
@@ -1017,7 +1020,7 @@ function AppealRevisionHistory({
                       </span>
                       <div>
                         <div className="text-sm font-extrabold text-slate-950">
-                          Rewrite ครั้งที่ {revision.appealRound}
+                          Rewrite เธเธฃเธฑเนเธเธ—เธตเน {revision.appealRound}
                         </div>
                         <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                           {sanitizeDisplayText(revision.appealVersion, "No Version")}
@@ -1055,7 +1058,7 @@ function AppealRevisionHistory({
                       </div>
                       <div className="mt-1 whitespace-nowrap font-extrabold text-slate-900">
                         {revision.previousScore.toFixed(2)}
-                        <span className="mx-1.5 text-slate-300">→</span>
+                        <span className="mx-1.5 text-slate-300">โ’</span>
                         <span className="text-violet-700">{revision.finalScore.toFixed(2)}</span>
                       </div>
                     </div>
@@ -1252,9 +1255,9 @@ export default function AppealMockup({
           fetch("/Appleal ROWDATA.xlsx"),
         ]);
 
-        if (!rawResponse.ok) throw new Error("ไม่พบไฟล์ QA_RawData_March-May2026.xlsx ในโฟลเดอร์ public");
+        if (!rawResponse.ok) throw new Error("เนเธกเนเธเธเนเธเธฅเน QA_RawData_March-May2026.xlsx เนเธเนเธเธฅเน€เธ”เธญเธฃเน public");
         if (!appealResponse.ok)
-          throw new Error("ไม่พบไฟล์ Appleal ROWDATA.xlsx ในโฟลเดอร์ public");
+          throw new Error("เนเธกเนเธเธเนเธเธฅเน Appleal ROWDATA.xlsx เนเธเนเธเธฅเน€เธ”เธญเธฃเน public");
 
         const rawBuffer = await rawResponse.arrayBuffer();
         const rawWorkbook = XLSX.read(rawBuffer, { type: "array", cellDates: true });
@@ -1274,7 +1277,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-        if (rawHeaderIndex === -1) throw new Error("ไม่พบ Header ใน QA_RawData_March-May2026.xlsx");
+        if (rawHeaderIndex === -1) throw new Error("เนเธกเนเธเธ Header เนเธ QA_RawData_March-May2026.xlsx");
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
@@ -1305,7 +1308,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-        if (appealHeaderIndex === -1) throw new Error("ไม่พบ Header ใน Appleal ROWDATA.xlsx");
+        if (appealHeaderIndex === -1) throw new Error("เนเธกเนเธเธ Header เนเธ Appleal ROWDATA.xlsx");
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
         const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
@@ -1554,10 +1557,206 @@ export default function AppealMockup({
           })
           .filter(Boolean) as AppealCaseItem[];
 
-        setAllCases(collapseAppealRowsToLatest(mapped));
+        const firebaseMapped: AppealCaseItem[] = [];
+
+        try {
+          const appealEvents = (await fetchAppealEvents(
+            [
+              "appeal_request_submitted",
+              "appeal_request_reviewed",
+              "appeal_request_reset",
+            ],
+            { limit: 2000, forceRefresh: true }
+          )) as UsageLogEvent[];
+
+          const firebaseAppealRequests = (buildAppealRequests(appealEvents) as any[])
+            .filter((request) => request.status === "Approved");
+
+          firebaseAppealRequests.forEach((request, firebaseIndex) => {
+            const caseId = String(request.caseId || "").trim();
+            if (!caseId) return;
+
+            const normalizedCaseId = normalizeCaseId(caseId);
+            const rawRow = rawCaseMap.get(normalizedCaseId);
+
+            const rawAgent = rawRow
+              ? String(rawHelper.getValue(rawRow, "Agent Name") ?? "").trim()
+              : String(request.agent || "").trim();
+
+            const agent = toTitleCaseName(rawAgent);
+
+            const inquiry = rawRow
+              ? String(
+                  rawHelper.getValue(rawRow, "Customer Inquiry") ??
+                    rawHelper.getValue(rawRow, "Inquiry TH") ??
+                    rawHelper.getValue(rawRow, "Inquiry") ??
+                    request.inquiry ??
+                    ""
+                ).trim()
+              : String(request.inquiry || "").trim();
+
+            const auditRaw = rawRow ? rawHelper.getValue(rawRow, "Audit Date") : request.auditDate;
+            const auditDateObj = parseExcelDate(auditRaw);
+            const monthStartRaw = rawRow ? rawHelper.getValue(rawRow, "Month Start") : null;
+            const monthLabelRaw = rawRow ? rawHelper.getValue(rawRow, "Month Label") : null;
+            const monthDate = getReportingMonthDate(monthStartRaw, monthLabelRaw, auditDateObj);
+            const monthKey = getMonthKey(monthDate);
+            const auditDate = formatDateOnly(auditRaw);
+
+            const weekLabel = rawRow
+              ? String(
+                  rawHelper.getValue(rawRow, "Week Label") ??
+                    rawHelper.getValue(rawRow, "Week") ??
+                    "-"
+                ).trim()
+              : "-";
+
+            const caseUrl = rawRow
+              ? String(
+                  rawHelper.getValue(rawRow, "Case URL") ??
+                    rawHelper.getValue(rawRow, "Case Url") ??
+                    rawHelper.getValue(rawRow, "URL") ??
+                    request.caseUrl ??
+                    ""
+                ).trim()
+              : String(request.caseUrl || "").trim();
+
+            const rawOverallScore =
+              rawHelper.getLastValue(rawRow || [], "Final Score") ??
+              rawHelper.getValue(rawRow || [], "Final Score") ??
+              request.finalScore ??
+              null;
+
+            const previousScore = Number(
+              rawOverallScore !== null &&
+                rawOverallScore !== undefined &&
+                String(rawOverallScore).trim() !== ""
+                ? rawOverallScore
+                : 0
+            );
+
+            const requestTopicMap = new Map(
+              (Array.isArray(request.topics) ? request.topics : []).map((topic: any) => [
+                String(topic.code || ""),
+                topic,
+              ])
+            );
+
+            const topicMaster = getTopicMasterByMonth(monthKey);
+            const topics: Topic[] = topicMaster.map((master) => {
+              const requestTopic: any = requestTopicMap.get(master.code);
+
+              const originalScore =
+                Number(rawHelper.getValue(rawRow || [], `${master.code} Score`) ?? requestTopic?.score ?? 0) || 0;
+
+              const originalComment = String(
+                rawHelper.getValue(rawRow || [], `${master.code} Comment`) ??
+                  rawHelper.getValue(rawRow || [], `${master.code} Evaluation Comment`) ??
+                  requestTopic?.comment ??
+                  ""
+              ).trim();
+
+              const revisedScoreCandidate =
+                requestTopic?.revisedScore ??
+                requestTopic?.finalScore ??
+                requestTopic?.score ??
+                null;
+
+              const revisedCommentCandidate =
+                requestTopic?.revisedComment ??
+                requestTopic?.comment ??
+                "";
+
+              const appealReason = String(requestTopic?.appealReason ?? "").trim();
+
+              const hasRevisedScore =
+                revisedScoreCandidate !== null &&
+                revisedScoreCandidate !== undefined &&
+                String(revisedScoreCandidate).trim() !== "" &&
+                !Number.isNaN(Number(revisedScoreCandidate));
+
+              const hasRevisedComment =
+                revisedCommentCandidate !== null &&
+                revisedCommentCandidate !== undefined &&
+                String(revisedCommentCandidate).trim() !== "";
+
+              const revisedScore = hasRevisedScore ? Number(revisedScoreCandidate) : originalScore;
+              const revisedComment = hasRevisedComment
+                ? String(revisedCommentCandidate).trim()
+                : originalComment;
+
+              const appealed = !!appealReason && !isNoAppealReason(appealReason);
+              const changed =
+                appealed &&
+                isRealTopicChanged(
+                  originalScore,
+                  revisedScore,
+                  originalComment,
+                  revisedComment
+                );
+
+              return {
+                code: master.code,
+                label: master.label,
+                score: revisedScore,
+                max: master.max,
+                pct: master.max > 0 ? Math.round((revisedScore / master.max) * 100) : 0,
+                comment: revisedComment,
+                originalScore,
+                originalComment,
+                appealReason,
+                appealed,
+                changed,
+              };
+            });
+
+            const appealedTopics = topics.filter((topic) => topic.appealed);
+            const changedTopics = topics.filter((topic) => topic.changed);
+            const finalScoreFromTopics = topics.reduce((sum, topic) => sum + Number(topic.score || 0), 0);
+            const finalScore = Number.isFinite(finalScoreFromTopics) && finalScoreFromTopics > 0
+              ? finalScoreFromTopics
+              : previousScore;
+
+            const reviewedAtRaw = request.reviewedAt || request.submittedAt || "";
+            const appealTimestampRank = new Date(reviewedAtRaw).getTime();
+
+            firebaseMapped.push({
+              key: `firebase-appeal-${request.requestId || firebaseIndex + 1}-${caseId}`,
+              caseId,
+              agent,
+              auditDate,
+              auditDateObj,
+              monthKey,
+              weekLabel,
+              inquiry,
+              previousScore,
+              finalScore,
+              reviewStatus: changedTopics.length ? "Revised" : "Original",
+              grade: scoreToGrade(finalScore, monthKey),
+              appealVersion: "Firebase",
+              appealSubmitDateTime: formatDateTimeOrRaw(request.submittedAt),
+              appealResultDateTime: formatDateTimeOrRaw(request.reviewedAt),
+              appealChannel: "Dashboard Case Detail",
+              appealReviewSummary: sanitizeDisplayText(request.reviewSummary, "-"),
+              caseUrl,
+              appealRound: 1,
+              rewriteHistory: [],
+              appealSourceIndex: mapped.length + firebaseIndex + 1,
+              appealVersionRank: 9999,
+              appealTimestampRank: Number.isNaN(appealTimestampRank) ? Date.now() : appealTimestampRank,
+              appealedTopics,
+              changedTopics,
+              allTopics: topics,
+            } as AppealCaseItem);
+          });
+        } catch (firebaseError) {
+          console.warn("Load Firebase appeal events failed", firebaseError);
+        }
+
+        setAllCases(collapseAppealRowsToLatest([...mapped, ...firebaseMapped]));
       } catch (error: any) {
         console.error(error);
-        setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
+        setLoadError(error?.message || "เนเธซเธฅเธ”เนเธเธฅเน Excel เนเธกเนเธชเธณเน€เธฃเนเธ");
       } finally {
         setIsLoading(false);
       }
@@ -2018,7 +2217,7 @@ export default function AppealMockup({
     addKeyValue("Case Date", selectedCase.auditDate || "-");
     addKeyValue("Week Label", selectedCase.weekLabel || "-");
     addKeyValue("Month", selectedCase.monthKey || "-");
-    addKeyValue("Rewrite Round", `ครั้งที่ ${selectedRevision.appealRound}`);
+    addKeyValue("Rewrite Round", `เธเธฃเธฑเนเธเธ—เธตเน ${selectedRevision.appealRound}`);
     addKeyValue("Original Score", selectedRevision.previousScore.toFixed(2));
     addKeyValue("Final Score", selectedRevision.finalScore.toFixed(2));
     addKeyValue("Score Change", scoreDeltaText);
@@ -2057,7 +2256,7 @@ export default function AppealMockup({
 
     addSectionTitle("Appealed Topics");
     if (!selectedRevision.appealedTopics.length) {
-      addParagraph("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
+      addParagraph("เนเธกเนเธเธเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน");
     } else {
       selectedRevision.appealedTopics.forEach((topic) => {
         addTopicBlock(topic);
@@ -2073,7 +2272,7 @@ export default function AppealMockup({
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="rounded-3xl border border-violet-200 bg-white px-8 py-6 text-center shadow-sm">
           <div className="text-lg font-bold text-violet-700">Loading appeal data...</div>
-          <div className="mt-2 text-sm text-slate-500">กรุณารอสักครู่</div>
+          <div className="mt-2 text-sm text-slate-500">เธเธฃเธธเธ“เธฒเธฃเธญเธชเธฑเธเธเธฃเธนเน</div>
         </div>
       </div>
     );
@@ -2082,7 +2281,7 @@ export default function AppealMockup({
   if (loadError) {
     return (
       <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-6 text-rose-700">
-        <div className="text-lg font-bold">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>
+        <div className="text-lg font-bold">เน€เธเธดเธ”เธเนเธญเธเธดเธ”เธเธฅเธฒเธ”เนเธเธเธฒเธฃเนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ</div>
         <div className="mt-2 text-sm">{loadError}</div>
       </div>
     );
@@ -2095,7 +2294,7 @@ export default function AppealMockup({
       <PageHero
         eyebrow="Appeal Management"
         title="Appeal Case Center"
-        subtitle="รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว"
+        subtitle="เธฃเธงเธกเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช QA เธเธฃเนเธญเธกเธกเธธเธกเธกเธญเธเธฃเธฒเธขเน€เธ”เธทเธญเธ เธฃเธฒเธขเธเธทเนเธญเน€เธเธช เนเธฅเธฐเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เธเธฅเธเธฃเธฐเน€เธกเธดเธเนเธเธซเธเนเธฒเน€เธ”เธตเธขเธง"
       />
       {false ? (
       <div>
@@ -2109,7 +2308,7 @@ export default function AppealMockup({
               Appeal Result Workspace
             </div>
             <div className="mt-3 max-w-2xl text-sm leading-7 text-white/90 sm:text-[15px]">
-              รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว
+              เธฃเธงเธกเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เนเน€เธเธช QA เธเธฃเนเธญเธกเธกเธธเธกเธกเธญเธเธฃเธฒเธขเน€เธ”เธทเธญเธ เธฃเธฒเธขเธเธทเนเธญเน€เธเธช เนเธฅเธฐเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เธเธฅเธเธฃเธฐเน€เธกเธดเธเนเธเธซเธเนเธฒเน€เธ”เธตเธขเธง
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
@@ -2171,7 +2370,7 @@ export default function AppealMockup({
         <Panel className="h-fit">
           <PanelHeader
             title="Appeal Case List"
-            subtitle="เลือกเลขเคสจากรายการด้านซ้ายเพื่อเปิดดูรายละเอียด"
+            subtitle="เน€เธฅเธทเธญเธเน€เธฅเธเน€เธเธชเธเธฒเธเธฃเธฒเธขเธเธฒเธฃเธ”เนเธฒเธเธเนเธฒเธขเน€เธเธทเนเธญเน€เธเธดเธ”เธ”เธนเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”"
           />
           <PanelBody className="space-y-4">
             {!roleScopedAgentList.length ? (
@@ -2232,20 +2431,20 @@ export default function AppealMockup({
               <input
                 value={searchCaseId}
                 onChange={(e) => setSearchCaseId(e.target.value)}
-                placeholder="เช่น AA206880"
+                placeholder="เน€เธเนเธ AA206880"
                 className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none ring-0 transition focus:border-violet-400"
               />
             </div>
 
             <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3 text-sm text-violet-900">
               <span className="font-semibold">{formatMonthKeyLabel(selectedMonthKey)}</span>
-              <span className="text-slate-500"> · {filteredCases.length} case(s)</span>
+              <span className="text-slate-500"> ยท {filteredCases.length} case(s)</span>
             </div>
 
             <div className="space-y-3">
               {!filteredCases.length ? (
                 <div className="rounded-2xl border border-dashed border-violet-200 bg-white/70 p-6 text-center text-sm text-slate-500">
-                  ไม่พบข้อมูลเคส
+                  เนเธกเนเธเธเธเนเธญเธกเธนเธฅเน€เธเธช
                 </div>
               ) : (
                 filteredCases.map((item) => (
@@ -2266,7 +2465,7 @@ export default function AppealMockup({
             <Panel>
               <PanelBody>
                 <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-10 text-center text-sm text-slate-500">
-                  กรุณาเลือกเลขเคสจากรายการด้านซ้ายก่อน ระบบจะยังไม่เปิดรายละเอียดเคสอัตโนมัติ
+                  เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเน€เธฅเธเน€เธเธชเธเธฒเธเธฃเธฒเธขเธเธฒเธฃเธ”เนเธฒเธเธเนเธฒเธขเธเนเธญเธ เธฃเธฐเธเธเธเธฐเธขเธฑเธเนเธกเนเน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธชเธญเธฑเธ•เนเธเธกเธฑเธ•เธด
                 </div>
               </PanelBody>
             </Panel>
@@ -2282,7 +2481,7 @@ export default function AppealMockup({
                   title="Final Score"
                   value={(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}
                   tone="border-violet-300 bg-violet-100 text-violet-900"
-                  sub={`${(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)} → ${(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}`}
+                  sub={`${(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)} โ’ ${(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}`}
                 />
                 <ScoreCard
                   title="Grade"
@@ -2290,12 +2489,12 @@ export default function AppealMockup({
                   tone={gradeTone(selectedRevision?.grade ?? selectedCase.grade)}
                   sub={
                     selectedCaseGradeShift
-                      ? `${selectedCaseGradeShift.label} • ${
+                      ? `${selectedCaseGradeShift.label} โ€ข ${
                           selectedCaseUsesNewPolicy ? "New Criteria" : "Previous Criteria"
                         }`
                       : selectedCaseUsesNewPolicy
-                        ? `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • New Criteria`
-                        : `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} • Previous Criteria`
+                        ? `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} โ€ข New Criteria`
+                        : `${selectedRevision?.reviewStatus ?? selectedCase.reviewStatus} โ€ข Previous Criteria`
                   }
                 />
               </div>
@@ -2304,7 +2503,7 @@ export default function AppealMockup({
                 <Panel>
                   <PanelHeader
                     title="Appeal Case Summary"
-                    subtitle="ข้อมูลสรุปของเคสและผลการพิจารณาอุทธรณ์"
+                    subtitle="เธเนเธญเธกเธนเธฅเธชเธฃเธธเธเธเธญเธเน€เธเธชเนเธฅเธฐเธเธฅเธเธฒเธฃเธเธดเธเธฒเธฃเธ“เธฒเธญเธธเธ—เธเธฃเธ“เน"
                   />
                   <PanelBody className="space-y-5">
                     <div className="grid gap-4 md:grid-cols-2">
@@ -2465,12 +2664,12 @@ export default function AppealMockup({
               <Panel>
                 <PanelHeader
                   title="Appealed Topics"
-                  subtitle="แสดงเฉพาะหัวข้อที่มีการยื่นอุทธรณ์ พร้อมเปรียบเทียบคะแนนเดิมและคะแนนใหม่"
+                  subtitle="เนเธชเธ”เธเน€เธเธเธฒเธฐเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน เธเธฃเนเธญเธกเน€เธเธฃเธตเธขเธเน€เธ—เธตเธขเธเธเธฐเนเธเธเน€เธ”เธดเธกเนเธฅเธฐเธเธฐเนเธเธเนเธซเธกเน"
                 />
                 <PanelBody>
                   {!(selectedRevision?.appealedTopics.length ?? selectedCase.appealedTopics.length) ? (
                     <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                      ไม่พบหัวข้อที่มีการยื่นอุทธรณ์
+                      เนเธกเนเธเธเธซเธฑเธงเธเนเธญเธ—เธตเนเธกเธตเธเธฒเธฃเธขเธทเนเธเธญเธธเธ—เธเธฃเธ“เน
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -2489,7 +2688,7 @@ export default function AppealMockup({
                           </div>
                           <div className="mt-2 text-lg font-extrabold text-slate-900">
                             {(selectedRevision?.previousScore ?? selectedCase.previousScore).toFixed(2)}
-                            <span className="mx-2 text-slate-300">→</span>
+                            <span className="mx-2 text-slate-300">โ’</span>
                             <span className="text-violet-700">
                               {(selectedRevision?.finalScore ?? selectedCase.finalScore).toFixed(2)}
                             </span>
@@ -2505,7 +2704,7 @@ export default function AppealMockup({
                             >
                               {selectedCaseOriginalGrade || selectedRevision?.grade || selectedCase.grade}
                             </span>
-                            <span className="text-slate-300">→</span>
+                            <span className="text-slate-300">โ’</span>
                             <span
                               className={`inline-flex rounded-full border px-3 py-1 ${gradeTone(selectedRevision?.grade ?? selectedCase.grade)}`}
                             >
@@ -2557,3 +2756,4 @@ export default function AppealMockup({
     </div>
   );
 }
+
