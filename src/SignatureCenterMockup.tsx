@@ -6,7 +6,7 @@ import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
-import { scoreToGrade } from "./lib/scoreIncentivePolicy";
+import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 
 type CurrentUser = {
   username: string;
@@ -558,6 +558,17 @@ function makePaymentFileName(monthKey: string) {
   return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
 }
 
+function getDocumentIncentive(doc: SignatureDocument) {
+  return getIncentiveByGrade(doc.grade as any, doc.monthKey);
+}
+
+function formatBahtAmount(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0);
+}
+
 function generatePaymentExcelFile(
   monthKey: string,
   readyDocs: SignatureDocument[],
@@ -565,6 +576,8 @@ function generatePaymentExcelFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
   const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
+  const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
+  const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
   const avgScore = sortedDocs.length
     ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
     : 0;
@@ -584,11 +597,12 @@ function generatePaymentExcelFile(
     [],
     ["Agent Monthly Ranking"],
     [],
-    ["Seq", "Agent", "Cases", "Avg Score", "Grade", "Incentive", "Critical", "Status"],
+    ["Seq", "Agent", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "Critical", "Status"],
   ];
 
   sortedDocs.forEach((doc, index) => {
     const entries = effectiveEntriesForDoc(doc, signatures);
+    const incentive = getDocumentIncentive(doc);
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
         .filter(Boolean)
@@ -600,7 +614,9 @@ function generatePaymentExcelFile(
       doc.caseCount,
       Number(doc.averageScore.toFixed(2)),
       doc.grade,
-      "Ready to Pay",
+      incentive.cash,
+      incentive.promo,
+      incentive.label,
       "No",
       `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
     ]);
@@ -611,6 +627,8 @@ function generatePaymentExcelFile(
     [],
     ["Payment Export Summary"],
     ["Total Paid Agents In This Cycle", sortedDocs.length],
+    ["Total Cash Amount (THB)", totalCashAmount],
+    ["Total RBH Promo (THB)", totalPromoAmount],
     ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
     ["Generated At", new Date().toLocaleString("th-TH")],
     ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
@@ -641,16 +659,18 @@ function generatePaymentExcelFile(
     { wch: 12 },
     { wch: 14 },
     { wch: 14 },
-    { wch: 20 },
     { wch: 22 },
+    { wch: 18 },
+    { wch: 34 },
+    { wch: 16 },
     { wch: 38 },
   ];
   sheet["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
-    { s: { r: 10, c: 0 }, e: { r: 10, c: 7 } },
-    { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 7 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 9 } },
+    { s: { r: 10, c: 0 }, e: { r: 10, c: 9 } },
+    { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 9 } },
   ];
   XLSX.utils.book_append_sheet(workbook, sheet, "Monthly_Team_Summary");
   XLSX.writeFile(workbook, makePaymentFileName(monthKey));
@@ -727,21 +747,24 @@ function generatePaymentPdfFile(
   smallCell("Avg Score", avgScore.toFixed(2), left + 162, y, 42);
   smallCell("Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold", left + 208, y, 64);
   y += 17;
-  smallCell("Critical Cases", "0", left, y, 48);
-  smallCell("Payment Cutoff", paymentCutoff, left + 52, y, 72);
-  smallCell("Export Rule", "Pay only signed complete by day 15", left + 128, y, 144);
+  smallCell("Total Cash (THB)", formatBahtAmount(totalCashAmount), left, y, 54);
+  smallCell("RBH Promo (THB)", formatBahtAmount(totalPromoAmount), left + 58, y, 56);
+  smallCell("Payment Cutoff", paymentCutoff, left + 118, y, 68);
+  smallCell("Export Rule", "Pay only signed complete by day 15", left + 190, y, 82);
   y += 20;
 
   section("Agent Monthly Ranking");
   const headers = [
     ["Seq", 10],
-    ["Agent", 58],
-    ["Cases", 25],
-    ["Avg Score", 32],
-    ["Grade", 22],
-    ["Incentive", 42],
-    ["Critical", 28],
-    ["Status", 82],
+    ["Agent", 54],
+    ["Cases", 18],
+    ["Avg Score", 24],
+    ["Grade", 16],
+    ["Incentive Amt", 30],
+    ["RBH Promo", 26],
+    ["Incentive Detail", 46],
+    ["Critical", 18],
+    ["Status", 31],
   ];
 
   const colX: number[] = [];
@@ -779,15 +802,18 @@ function generatePaymentPdfFile(
     pdf.setDrawColor(226, 232, 240);
     pdf.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
     pdf.rect(left, y, right - left, 8, "FD");
+    const incentive = getDocumentIncentive(doc);
     const row = [
       String(index + 1),
       doc.agentName,
       String(doc.caseCount),
       doc.averageScore.toFixed(2),
       doc.grade,
-      "Ready to Pay",
+      formatBahtAmount(incentive.cash),
+      formatBahtAmount(incentive.promo),
+      incentive.label,
       "No",
-      `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+      `Signed / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
     ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(headers[colIndex][1]) - 3;
@@ -814,6 +840,8 @@ function generatePaymentPdfFile(
   section("Payment Export Summary");
   const summaryRows = [
     ["Total Paid Agents In This Cycle", String(sortedDocs.length)],
+    ["Total Cash Amount (THB)", formatBahtAmount(totalCashAmount)],
+    ["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)],
     ["Payment Cutoff", paymentCutoff],
     ["Generated At", new Date().toLocaleString("th-TH")],
     ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
@@ -1404,7 +1432,7 @@ export default function SignatureCenterMockup({
             <div className="mt-1 text-xs font-semibold text-slate-500">
               {selectedMonth === "all"
                 ? "กรุณาเลือกเดือนก่อน"
-                : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน`}
+                : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthPaymentDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
