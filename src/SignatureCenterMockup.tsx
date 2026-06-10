@@ -576,12 +576,12 @@ function generatePaymentExcelFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
   const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
-  const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
-  const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
   const avgScore = sortedDocs.length
     ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
     : 0;
   const criticalCases = 0;
+  const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
+  const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
   const year = /^\d{4}-\d{2}$/.test(monthKey) ? monthKey.slice(0, 4) : "";
 
   const aoa: unknown[][] = [
@@ -597,12 +597,16 @@ function generatePaymentExcelFile(
     [],
     ["Agent Monthly Ranking"],
     [],
-    ["Seq", "Agent", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "Critical", "Status"],
+    ["Seq", "Agent", "Cases", "Avg Score", "Grade", "Incentive Amount (THB)", "RBH Promo (THB)", "Incentive Detail", "QA Signer", "Supervisor Signer", "Senior / Team Lead Signer", "Agent Signer", "Sign Complete At", "Critical", "Status"],
   ];
 
   sortedDocs.forEach((doc, index) => {
     const entries = effectiveEntriesForDoc(doc, signatures);
     const incentive = getDocumentIncentive(doc);
+    const qaSigner = getSignedEntry(entries, "QA")?.signerName || "-";
+    const supervisorSigner = getSignedEntry(entries, "Supervisor")?.signerName || "-";
+    const seniorSigner = getSignedEntry(entries, "Senior")?.signerName || "-";
+    const agentSigner = getSignedEntry(entries, "Agent")?.signerName || "-";
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
         .filter(Boolean)
@@ -617,6 +621,11 @@ function generatePaymentExcelFile(
       incentive.cash,
       incentive.promo,
       incentive.label,
+      qaSigner,
+      supervisorSigner,
+      seniorSigner,
+      agentSigner,
+      lastSignedAt ? formatDateTime(lastSignedAt) : "-",
       "No",
       `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
     ]);
@@ -662,15 +671,20 @@ function generatePaymentExcelFile(
     { wch: 22 },
     { wch: 18 },
     { wch: 34 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 28 },
+    { wch: 24 },
+    { wch: 22 },
     { wch: 16 },
     { wch: 38 },
   ];
   sheet["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 9 } },
-    { s: { r: 10, c: 0 }, e: { r: 10, c: 9 } },
-    { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 9 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 14 } },
+    { s: { r: 10, c: 0 }, e: { r: 10, c: 14 } },
+    { s: { r: summaryStartRow - 1, c: 0 }, e: { r: summaryStartRow - 1, c: 14 } },
   ];
   XLSX.utils.book_append_sheet(workbook, sheet, "Monthly_Team_Summary");
   XLSX.writeFile(workbook, makePaymentFileName(monthKey));
@@ -688,6 +702,8 @@ function generatePaymentPdfFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => b.averageScore - a.averageScore || a.agentName.localeCompare(b.agentName));
   const totalCases = sortedDocs.reduce((sum, doc) => sum + doc.caseCount, 0);
+  const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
+  const totalPromoAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).promo, 0);
   const avgScore = sortedDocs.length
     ? sortedDocs.reduce((sum, doc) => sum + doc.averageScore, 0) / sortedDocs.length
     : 0;
