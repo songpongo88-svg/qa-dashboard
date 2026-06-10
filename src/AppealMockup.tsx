@@ -932,7 +932,7 @@ function AppealedTopicsCaseDetailTable({
                       <div className="mt-3 whitespace-pre-line leading-7 text-slate-800">
                         {sanitizeDisplayText(
                           topic.originalComment,
-                          "เธขเธฑเธเนเธกเนเธกเธต Evaluation Comment"
+                          "ยังไม่มี Evaluation Comment"
                         )}
                       </div>
                     </div>
@@ -942,7 +942,7 @@ function AppealedTopicsCaseDetailTable({
                         Revised Comment
                       </div>
                       <div className="mt-3 whitespace-pre-line leading-7 text-slate-900">
-                        {sanitizeDisplayText(topic.comment, "เธขเธฑเธเนเธกเนเธกเธต Revised Comment")}
+                        {sanitizeDisplayText(topic.comment, "ยังไม่มี Revised Comment")}
                       </div>
                     </div>
                   </div>
@@ -1277,7 +1277,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-        if (rawHeaderIndex === -1) throw new Error("เนเธกเนเธเธ Header เนเธ QA_RawData_March-May2026.xlsx");
+        if (rawHeaderIndex === -1) throw new Error("ไม่พบ Header ใน QA_RawData_March-May2026.xlsx");
 
         const rawHeaderRow = (rawRows[rawHeaderIndex] || []) as any[];
         const rawDataRows = rawRows.slice(rawHeaderIndex + 1);
@@ -1308,7 +1308,7 @@ export default function AppealMockup({
           }
           return -1;
         })();
-        if (appealHeaderIndex === -1) throw new Error("เนเธกเนเธเธ Header เนเธ Appleal ROWDATA.xlsx");
+        if (appealHeaderIndex === -1) throw new Error("ไม่พบ Header ใน Appleal ROWDATA.xlsx");
 
         const appealHeaderRow = (appealRows[appealHeaderIndex] || []) as any[];
         const appealDataRows = appealRows.slice(appealHeaderIndex + 1);
@@ -2756,5 +2756,6 @@ export default function AppealMockup({
     </div>
   );
 }
+
 
 
