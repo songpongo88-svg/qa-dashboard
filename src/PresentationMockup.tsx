@@ -742,24 +742,24 @@ function DashboardStyleSlide({
   const highlightRows = weeklyTopicRows.length ? weeklyTopicRows : lowTopics.slice(0, 4);
 
   return (
-    <div className="relative h-[630px] w-[1120px] overflow-hidden rounded-[18px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
-      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#4c1d95] via-[#8b2be8] to-[#c084fc]" />
-      <div className="absolute -right-24 -top-28 h-64 w-96 rotate-12 rounded-[55%] bg-violet-200/55" />
-      <div className="absolute -right-10 -top-16 h-48 w-80 rotate-12 rounded-[55%] bg-fuchsia-200/45" />
-      <div className="absolute -bottom-28 -left-24 h-48 w-80 -rotate-12 rounded-[55%] bg-violet-300/45" />
-      <div className="absolute right-16 top-74 grid grid-cols-7 gap-1 opacity-25">
+    <div className="relative h-[900px] w-[1600px] overflow-hidden rounded-[8px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+      <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-[#4c1d95] via-[#8b2be8] to-[#c084fc]" />
+      <div className="absolute -right-24 -top-28 h-[330px] w-[520px] rotate-12 rounded-[55%] bg-violet-200/55" />
+      <div className="absolute -right-6 -top-8 h-[230px] w-[420px] rotate-12 rounded-[55%] bg-fuchsia-200/45" />
+      <div className="absolute -bottom-32 -left-28 h-[260px] w-[430px] -rotate-12 rounded-[55%] bg-violet-300/45" />
+      <div className="absolute right-24 top-[110px] grid grid-cols-7 gap-2 opacity-25">
         {Array.from({ length: 28 }).map((_, index) => (
-          <span key={index} className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+          <span key={index} className="h-2 w-2 rounded-full bg-violet-500" />
         ))}
       </div>
 
-      <div className="relative z-10 h-full p-7 text-slate-950">
+      <div className="relative z-10 h-full p-9 text-slate-950">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-[44px] font-black leading-none tracking-tight text-[#35126f]">สรุปภาพรวม QA Dashboard</h2>
-            <div className="mt-2 text-[20px] font-semibold text-slate-900">Weekly Dashboard + Monthly Analytics</div>
+            <h2 className="text-[62px] font-black leading-none tracking-tight text-[#35126f]">สรุปภาพรวม QA Dashboard</h2>
+            <div className="mt-3 text-[28px] font-semibold text-slate-900">Weekly Dashboard + Monthly Analytics</div>
           </div>
-          <div className="rounded-full border border-violet-100 bg-white/90 px-5 py-3 text-[14px] font-black text-violet-900 shadow-sm">
+          <div className="mr-8 mt-3 rounded-full border border-violet-100 bg-white/90 px-8 py-4 text-[19px] font-black text-violet-900 shadow-sm">
             ข้อมูลล่าสุด: {new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" })}
           </div>
         </div>
@@ -769,14 +769,14 @@ function DashboardStyleSlide({
         ) : !selectedWeek ? (
           <div className="mt-40 text-center text-[24px] font-black text-slate-500">ยังไม่มีข้อมูลสำหรับสร้างสไลด์</div>
         ) : (
-          <div className="mt-3 grid gap-4">
-            <div className="grid grid-cols-[680px_1fr] gap-4">
-              <section className="rounded-[22px] border border-violet-100 bg-white/92 p-4 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
+          <div className="mt-4 grid gap-5">
+            <div className="grid grid-cols-[940px_1fr] gap-6">
+              <section className="rounded-[24px] border border-violet-100 bg-white/92 p-6 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
                 <SlideRibbon index="1" label="Weekly Dashboard" />
-                <div className="mt-3 rounded-[18px] border border-violet-100 bg-violet-50/40 p-4">
-                  <div className="text-[13px] font-black text-slate-900">Current Viewing Scope</div>
-                  <div className="mt-1 text-[10px] font-semibold text-slate-500">Selected tab and current data scope</div>
-                  <div className="mt-4 grid grid-cols-5 gap-2">
+                <div className="mt-4 rounded-[18px] border border-violet-100 bg-violet-50/40 p-5">
+                  <div className="text-[15px] font-black text-slate-900">Current Viewing Scope</div>
+                  <div className="mt-1 text-[12px] font-semibold text-slate-500">Selected tab and current data scope</div>
+                  <div className="mt-5 grid grid-cols-5 gap-3">
                     <ScopeBox label="View" value="Weekly Dashboard" />
                     <ScopeBox label="Agent" value="All Agents" />
                     <ScopeBox label="Month" value={monthLabel} />
@@ -786,24 +786,24 @@ function DashboardStyleSlide({
                 </div>
 
                 {sections.kpiSummary ? (
-                  <div className="mt-3 grid grid-cols-3 gap-3">
+                  <div className="mt-4 grid grid-cols-3 gap-4">
                     <DashboardMiniKpi label="Cases" value={`${currentCases.length}`} sub="Case(s) in current view" />
                     <DashboardMiniKpi label="Average Score" value={currentAvg.toFixed(2)} sub="Average final score in current view" highlight />
                     <DashboardMiniKpi label="Grade" value={grade} sub="Calculated from current average score" blue />
                   </div>
                 ) : null}
 
-                <div className="mt-3 rounded-[18px] border border-violet-100 bg-white p-3">
-                  <div className="text-[13px] font-black text-slate-900">Summary Table</div>
-                  <div className="mt-1 text-[10px] font-semibold text-slate-500">Summary result based on current tab and filters</div>
-                  <div className="mt-3 overflow-hidden rounded-xl border border-violet-100">
-                    <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] bg-[#35126f] px-3 py-2 text-[11px] font-black text-white">
+                <div className="mt-4 rounded-[18px] border border-violet-100 bg-white p-4">
+                  <div className="text-[16px] font-black text-slate-900">Summary Table</div>
+                  <div className="mt-1 text-[12px] font-semibold text-slate-500">Summary result based on current tab and filters</div>
+                  <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
+                    <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] bg-[#35126f] px-4 py-3 text-[14px] font-black text-white">
                       <div>Week</div>
                       <div className="text-center">Cases</div>
                       <div className="text-center">Average Score</div>
                       <div className="text-center">Grade</div>
                     </div>
-                    <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] px-3 py-2 text-[12px] font-bold text-slate-900">
+                    <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] px-4 py-3 text-[15px] font-bold text-slate-900">
                       <div>{selectedWeek.label}</div>
                       <div className="text-center">{currentCases.length}</div>
                       <div className="text-center">{currentAvg.toFixed(2)}</div>
@@ -813,24 +813,24 @@ function DashboardStyleSlide({
                 </div>
               </section>
 
-              <section className="grid gap-3">
+              <section className="grid gap-4">
                 {sections.kpiSummary ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-5">
                     <RightKpi icon="▣" label="Cases" value={`${currentCases.length}`} />
                     <RightKpi icon="▤" label="คะแนนเฉลี่ย" value={currentAvg.toFixed(2)} />
                     <RightKpi icon="◎" label="Grade" value={grade} />
                     <RightKpi icon="▦" label="สัปดาห์" value={selectedWeek.label} small />
                   </div>
                 ) : null}
-                <div className="rounded-[18px] border border-violet-100 bg-white/92 p-4 shadow-[0_12px_30px_rgba(88,28,135,0.10)]">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#35126f] text-xl text-white">☆</span>
-                    <div className="text-[17px] font-black text-[#35126f]">สรุปไฮไลต์</div>
+                <div className="rounded-[20px] border border-violet-100 bg-white/92 p-6 shadow-[0_12px_30px_rgba(88,28,135,0.10)]">
+                  <div className="flex items-center gap-4">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#35126f] text-2xl text-white">☆</span>
+                    <div className="text-[22px] font-black text-[#35126f]">สรุปไฮไลต์</div>
                   </div>
-                  <ul className="mt-3 space-y-1.5 pl-5 text-[14px] font-semibold leading-snug text-slate-950">
+                  <ul className="mt-5 space-y-2 pl-8 text-[17px] font-semibold leading-snug text-slate-950">
                     <li>เดือน{monthLabel}: {currentCases.length} เคส | คะแนนเฉลี่ย {currentAvg.toFixed(2)} | Grade {grade}</li>
                     {highlightRows.slice(0, 4).map((item) => (
-                      <li key={item.id}>{truncateText(item.title, 42)}: {item.percent.toFixed(2)}%</li>
+                      <li key={item.id}>{truncateText(item.title, 68)}: {item.percent.toFixed(2)}%</li>
                     ))}
                     {criticalCount ? <li>Critical Error: {criticalCount} เคส ต้องติดตามทันที</li> : null}
                   </ul>
@@ -838,22 +838,22 @@ function DashboardStyleSlide({
               </section>
             </div>
 
-            <div className="grid grid-cols-[540px_1fr] gap-4">
-              <section className="rounded-[22px] border border-violet-100 bg-white/92 p-4 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
+            <div className="grid grid-cols-[760px_1fr] gap-6">
+              <section className="rounded-[24px] border border-violet-100 bg-white/92 p-6 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
                 <SlideRibbon index="2" label="Monthly Analytics / Topic Performance" />
-                <div className="mt-3 text-[16px] font-black text-slate-950">Monthly Analytics</div>
-                <div className="text-[10px] font-semibold text-slate-500">Last 3 months for tracking monthly score movement</div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="mt-4 text-[20px] font-black text-slate-950">Monthly Analytics</div>
+                <div className="text-[12px] font-semibold text-slate-500">Last 3 months for tracking monthly score movement</div>
+                <div className="mt-4 grid grid-cols-3 gap-3">
                   <ScopeBox label="Visible Rows" value={`${monthRows.length}`} />
                   <ScopeBox label="Total Cases" value={`${monthRows.reduce((sum, item) => sum + item.cases, 0)}`} blue />
                   <ScopeBox label="Zero Case Rows" value="0" green />
                 </div>
-                <div className="mt-3 overflow-hidden rounded-xl border border-violet-100">
-                  <div className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] bg-slate-950 px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-white">
+                <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
+                  <div className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] bg-slate-950 px-4 py-3 text-[13px] font-black uppercase tracking-[0.08em] text-white">
                     <div>Month</div><div className="text-center">Cases</div><div className="text-center">Average</div><div className="text-center">Grade</div><div className="text-center">Progress</div>
                   </div>
                   {monthRows.map((row) => (
-                    <div key={row.key} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] items-center border-t border-slate-100 px-3 py-2 text-[12px] font-bold text-slate-900">
+                    <div key={row.key} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] items-center border-t border-slate-100 px-4 py-3 text-[15px] font-bold text-slate-900">
                       <div>{row.label}</div>
                       <div className="text-center">{row.cases}</div>
                       <div className="text-center">{row.avg.toFixed(2)}</div>
@@ -867,15 +867,15 @@ function DashboardStyleSlide({
                 </div>
               </section>
 
-              <section className="rounded-[22px] border border-violet-100 bg-white/92 p-4 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
-                <div className="text-[16px] font-black text-slate-950">Topic Performance</div>
-                <div className="text-[10px] font-semibold text-slate-500">Average topic score in current view</div>
-                <div className="mt-3 overflow-hidden rounded-xl border border-violet-100">
-                  <div className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] bg-[#35126f] px-3 py-2 text-[11px] font-black text-white">
+              <section className="rounded-[24px] border border-violet-100 bg-white/92 p-6 shadow-[0_14px_34px_rgba(88,28,135,0.12)]">
+                <div className="text-[20px] font-black text-slate-950">Topic Performance</div>
+                <div className="text-[12px] font-semibold text-slate-500">Average topic score in current view</div>
+                <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
+                  <div className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] bg-[#35126f] px-4 py-3 text-[13px] font-black text-white">
                     <div className="text-center">Topic</div><div>Description</div><div className="text-center">Avg Score</div><div className="text-center">Max</div><div className="text-center">Avg %</div>
                   </div>
                   {(sections.topicPerformance ? highlightRows.slice(0, 4) : []).map((row, index) => (
-                    <div key={row.id} className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] border-t border-slate-100 px-3 py-2 text-[12px] font-bold text-slate-900">
+                    <div key={row.id} className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] border-t border-slate-100 px-4 py-3 text-[15px] font-bold text-slate-900">
                       <div className="text-center">{index + 1}</div>
                       <div>{truncateText(row.title, 48)}</div>
                       <div className="text-center">{row.score.toFixed(2)}</div>
@@ -895,9 +895,9 @@ function DashboardStyleSlide({
 
 function SlideRibbon({ index, label }: { index: string; label: string }) {
   return (
-    <div className="-ml-4 -mt-4 inline-flex min-w-[175px] items-center gap-3 rounded-br-2xl rounded-tl-[20px] bg-gradient-to-r from-[#35126f] to-[#9d3df2] px-4 py-2 text-white">
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[14px] font-black text-[#35126f]">{index}</span>
-      <span className="text-[16px] font-black">{label}</span>
+    <div className="-ml-6 -mt-6 inline-flex min-w-[250px] items-center gap-4 rounded-br-2xl rounded-tl-[22px] bg-gradient-to-r from-[#35126f] to-[#9d3df2] px-6 py-3 text-white">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[18px] font-black text-[#35126f]">{index}</span>
+      <span className="text-[22px] font-black">{label}</span>
     </div>
   );
 }
@@ -905,9 +905,9 @@ function SlideRibbon({ index, label }: { index: string; label: string }) {
 function ScopeBox({ label, value, blue = false, green = false }: { label: string; value: string; blue?: boolean; green?: boolean }) {
   const labelColor = green ? "text-emerald-600" : blue ? "text-sky-600" : "text-violet-700";
   return (
-    <div className="min-w-0 rounded-xl border border-violet-100 bg-white px-3 py-2">
-      <div className={`text-[10px] font-black uppercase ${labelColor}`}>{label}</div>
-      <div className="mt-1 truncate text-[12px] font-black text-slate-950">{value}</div>
+    <div className="min-w-0 rounded-xl border border-violet-100 bg-white px-4 py-3">
+      <div className={`text-[12px] font-black uppercase ${labelColor}`}>{label}</div>
+      <div className="mt-1 text-[15px] font-black leading-tight text-slate-950">{value}</div>
     </div>
   );
 }
@@ -915,21 +915,21 @@ function ScopeBox({ label, value, blue = false, green = false }: { label: string
 function DashboardMiniKpi({ label, value, sub, highlight = false, blue = false }: { label: string; value: string; sub: string; highlight?: boolean; blue?: boolean }) {
   const valueColor = blue ? "text-sky-700" : highlight ? "text-violet-700" : "text-slate-950";
   return (
-    <div className="rounded-[18px] border border-violet-100 bg-white px-4 py-3">
-      <div className="text-[12px] font-bold text-slate-500">{label}</div>
-      <div className={`mt-1 text-[28px] font-black leading-none ${valueColor}`}>{value}</div>
-      <div className="mt-2 text-[10px] font-semibold text-slate-500">{sub}</div>
+    <div className="rounded-[18px] border border-violet-100 bg-white px-6 py-4">
+      <div className="text-[15px] font-bold text-slate-500">{label}</div>
+      <div className={`mt-2 text-[42px] font-black leading-none ${valueColor}`}>{value}</div>
+      <div className="mt-2 text-[12px] font-semibold text-slate-500">{sub}</div>
     </div>
   );
 }
 
 function RightKpi({ icon, label, value, small = false }: { icon: string; label: string; value: string; small?: boolean }) {
   return (
-    <div className="flex min-h-[63px] items-center gap-3 rounded-[18px] border border-violet-100 bg-white/92 px-4 py-3 shadow-[0_10px_24px_rgba(88,28,135,0.08)]">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-700 to-[#35126f] text-xl font-black text-white">{icon}</div>
+    <div className="flex min-h-[90px] items-center gap-5 rounded-[20px] border border-violet-100 bg-white/92 px-6 py-4 shadow-[0_10px_24px_rgba(88,28,135,0.08)]">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-700 to-[#35126f] text-2xl font-black text-white">{icon}</div>
       <div className="min-w-0">
-        <div className="text-[14px] font-semibold text-slate-900">{label}</div>
-        <div className={`mt-0.5 font-black leading-none text-slate-950 ${small ? "text-[13px]" : "text-[22px]"}`}>{value}</div>
+        <div className="text-[17px] font-semibold text-slate-900">{label}</div>
+        <div className={`mt-1 font-black leading-none text-slate-950 ${small ? "text-[17px]" : "text-[30px]"}`}>{value}</div>
       </div>
     </div>
   );
