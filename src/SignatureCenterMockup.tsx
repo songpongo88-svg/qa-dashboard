@@ -1339,6 +1339,7 @@ export default function SignatureCenterMockup({
   const [loadMessage, setLoadMessage] = useState("");
   const [pdfMessage, setPdfMessage] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
   const [signingRole, setSigningRole] = useState<SignRole | null>(null);
 
   useEffect(() => {
@@ -1630,6 +1631,43 @@ export default function SignatureCenterMockup({
         [selectedDocument.id]: [...current.filter((entry) => entry.role !== role), nextEntry],
       };
     });
+  };
+
+  const shareSignatureStatus = async () => {
+    if (!selectedDocument) return;
+    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    const lines = SIGNATURE_FLOW.map((role) => {
+      const signed = getSignedEntry(entries, role);
+      return `${signed ? "✅" : "❌"} ${roleThaiLabel(role)}: ${signed ? signed.signerName : "ยังไม่ลงนาม"}`;
+    });
+    const pendingLines = SIGNATURE_FLOW
+      .filter((role) => !getSignedEntry(entries, role))
+      .map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`);
+
+    const text = [
+      `เอกสาร Signature เดือน ${selectedDocument.monthLabel}`,
+      `Agent: ${selectedDocument.agentName}`,
+      "",
+      "สถานะการลงนาม:",
+      ...lines,
+      "",
+      pendingLines.length ? "ผู้ที่ยังไม่ลงนาม:" : "สถานะ: ลงนามครบแล้ว",
+      ...(pendingLines.length ? pendingLines : []),
+      "",
+      pendingLines.length
+        ? "รบกวนผู้ที่ยังไม่ลงนาม เข้าระบบเพื่อเซ็นเอกสารให้เรียบร้อยค่ะ/ครับ"
+        : "เอกสารนี้ลงนามครบแล้วค่ะ/ครับ",
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareMessage("คัดลอกข้อความแชร์แล้ว");
+    } catch {
+      window.prompt("คัดลอกข้อความนี้เพื่อแชร์", text);
+      setShareMessage("แสดงข้อความสำหรับคัดลอกแล้ว");
+    }
+
+    window.setTimeout(() => setShareMessage(""), 3000);
   };
 
   const resetDocument = () => {
@@ -2160,16 +2198,31 @@ export default function SignatureCenterMockup({
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
                     <div className="mt-1 text-xl font-black text-slate-950">เซ็นตามลำดับ QA &gt; Supervisor &gt; Team Lead &gt; Agent</div>
                   </div>
-                  {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
-                      onClick={resetDocument}
-                      className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                      onClick={shareSignatureStatus}
+                      className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
                     >
-                      Reset เอกสารนี้
+                      แชร์สถานะผู้ยังไม่เซ็น
                     </button>
-                  ) : null}
+                    {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
+                      <button
+                        type="button"
+                        onClick={resetDocument}
+                        className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                      >
+                        Reset เอกสารนี้
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+
+                {shareMessage ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
+                    {shareMessage}
+                  </div>
+                ) : null}
 
                 <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200">
                   <div className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white">
@@ -2188,10 +2241,11 @@ export default function SignatureCenterMockup({
                       currentStep === role &&
                       canSignIdentity(currentUser, selectedDocument, role) &&
                       isSigningAllowedByDate(selectedDocument.monthKey);
-                    const canEditDrawnSignature =
+                    const canAddFirstDrawnSignature =
                       Boolean(signed) &&
+                      !signed?.signatureDataUrl &&
                       canSignIdentity(currentUser, selectedDocument, role);
-                    const canOpenSignaturePad = (!signed && allowSign) || canEditDrawnSignature;
+                    const canOpenSignaturePad = (!signed && allowSign) || canAddFirstDrawnSignature;
                     const previous = getPreviousStep(role);
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
@@ -2228,11 +2282,11 @@ export default function SignatureCenterMockup({
                             }`}
                           >
                             {signed
-                              ? canEditDrawnSignature
-                                ? signed.signatureDataUrl
-                                  ? "แก้ลายเซ็นจริง"
-                                  : "เพิ่มลายเซ็นจริง"
-                                : "เฉพาะเจ้าของลายเซ็น"
+                              ? signed.signatureDataUrl
+                                ? "เอกสารลงนามแล้ว"
+                                : canAddFirstDrawnSignature
+                                  ? "เพิ่มลายเซ็นจริง"
+                                  : "เฉพาะเจ้าของลายเซ็น"
                               : allowSign
                                 ? timeline === "Signature Deadline Passed"
                                   ? "วาดและลงนามล่าช้า"
@@ -2252,7 +2306,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                  PDF ออกได้ทุกสถานะ แต่ลายเซ็นจริงต้องให้เจ้าของ Role เซ็นเองเท่านั้น ระบบไม่อนุญาตให้เซ็นแทนกัน
+                  PDF ออกได้ทุกสถานะ แต่ลายเซ็นจริงต้องให้เจ้าของ Role เซ็นเองเท่านั้น เมื่อบันทึกลายเซ็นจริงแล้วจะกลับมาแก้เองไม่ได้
                 </div>
               </div>
             ) : null}
