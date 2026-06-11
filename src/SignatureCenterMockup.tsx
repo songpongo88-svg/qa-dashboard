@@ -1591,6 +1591,9 @@ export default function SignatureCenterMockup({
     : [];
   const hasPendingAppeal = selectedPendingAppeals.length > 0;
   const currentStep = getCurrentStep(selectedEntries);
+  const nextSignerRole = currentStep;
+  const nextSignerName = selectedDocument && nextSignerRole ? getRoleSigner(selectedDocument, nextSignerRole) : "";
+  const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
   const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(selectedEntries, role))).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
@@ -1714,6 +1717,52 @@ export default function SignatureCenterMockup({
         [selectedDocument.id]: [...current.filter((entry) => entry.role !== role), nextEntry],
       };
     });
+  };
+
+  const copyNextSignerAlert = async () => {
+    if (!selectedDocument) return;
+    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    const nextRole = getCurrentStep(entries);
+    const lastRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(entries, role)));
+    const latestStatus = nextRole
+      ? lastRole
+        ? `${roleThaiLabel(lastRole)} ลงนามแล้ว`
+        : previewConfirmed
+          ? "Agent ยืนยันรับทราบข้อมูลแล้ว"
+          : "รอ Agent ยืนยันรับทราบข้อมูล"
+      : "เอกสารลงนามครบแล้ว";
+
+    const text = nextRole
+      ? [
+          "แจ้งเตือนลงนามเอกสาร QA Incentive",
+          "",
+          `เดือน: ${selectedDocument.monthLabel}`,
+          `Agent: ${selectedDocument.agentName}`,
+          "",
+          `สถานะล่าสุด: ${latestStatus}`,
+          `ขั้นตอนถัดไป: รอ ${roleThaiLabel(nextRole)} ลงนาม`,
+          `ผู้ที่ต้องดำเนินการ: ${getRoleSigner(selectedDocument, nextRole)}`,
+          "",
+          "รบกวนเข้าระบบ Signature Center เพื่อลงนามค่ะ/ครับ",
+        ].join("\n")
+      : [
+          "แจ้งเตือนลงนามเอกสาร QA Incentive",
+          "",
+          `เดือน: ${selectedDocument.monthLabel}`,
+          `Agent: ${selectedDocument.agentName}`,
+          "",
+          "สถานะล่าสุด: เอกสารลงนามครบแล้ว",
+        ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareMessage("คัดลอกข้อความแจ้งเตือนแล้ว");
+    } catch {
+      window.prompt("คัดลอกข้อความนี้เพื่อแจ้งเตือน", text);
+      setShareMessage("แสดงข้อความแจ้งเตือนสำหรับคัดลอกแล้ว");
+    }
+
+    window.setTimeout(() => setShareMessage(""), 3000);
   };
 
   const shareSignatureStatus = async () => {
@@ -2303,6 +2352,39 @@ export default function SignatureCenterMockup({
                         Reset เอกสารนี้
                       </button>
                     ) : null}
+                  </div>
+                </div>
+
+                <div className={`mt-4 rounded-[24px] border px-5 py-4 shadow-[0_14px_34px_rgba(88,28,135,0.08)] ${
+                  nextSignerRole
+                    ? "border-violet-200 bg-violet-50"
+                    : "border-emerald-200 bg-emerald-50"
+                }`}>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className={`text-xs font-black uppercase tracking-[0.18em] ${
+                        nextSignerRole ? "text-violet-600" : "text-emerald-700"
+                      }`}>
+                        Next Signer Alert
+                      </div>
+                      <div className="mt-1 text-lg font-black text-slate-950">
+                        {nextSignerRole
+                          ? `ขั้นตอนถัดไป: รอ ${roleThaiLabel(nextSignerRole)} ลงนาม`
+                          : "เอกสารลงนามครบแล้ว"}
+                      </div>
+                      <div className="mt-1 text-sm font-bold text-slate-600">
+                        {nextSignerRole
+                          ? `ผู้ที่ต้องดำเนินการ: ${nextSignerName}`
+                          : "ไม่เหลือ Role ที่ต้องเซ็นต่อ"}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={copyNextSignerAlert}
+                      className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                    >
+                      คัดลอกข้อความแจ้งเตือน
+                    </button>
                   </div>
                 </div>
 
