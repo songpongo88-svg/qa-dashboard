@@ -8,7 +8,7 @@ import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverride
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import SignatureCenterMockup from "./SignatureCenterMockup";
-import PresentationBuilderMockup from "./PresentationBuilderMockup";
+import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -2966,7 +2966,7 @@ export default function App() {
     usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
   );
   const performanceMenuValue =
-    activeTab === "dashboard" || activeTab === "summary" || activeTab === "signature-center" || (activeTab === "coaching" && coachingAllowed)
+    activeTab === "dashboard" || activeTab === "summary" || activeTab === "signature-center" || activeTab === "presentation-builder" || (activeTab === "coaching" && coachingAllowed)
       ? activeTab
       : "";
   const reviewMenuValue =
@@ -3082,7 +3082,7 @@ export default function App() {
 
   const handlePerformanceMenuChange = (value: string) => {
     if (value === "coaching" && !coachingAllowed) return;
-    if (value === "dashboard" || value === "summary" || value === "signature-center" || value === "coaching") {
+    if (value === "dashboard" || value === "summary" || value === "signature-center" || value === "presentation-builder" || value === "coaching") {
       setActiveTab(value);
       replaceWorkspaceUrl(value === "dashboard" ? {} : { tab: value });
     }
@@ -5158,7 +5158,7 @@ export default function App() {
                       { value: "dashboard", label: "Dashboard" },
                       { value: "summary", label: "Summary" },
                       { value: "signature-center", label: "Signatures" },
-                       { value: "presentation-builder", label: "Presentation" },
+                      { value: "presentation-builder", label: "Presentation" },
                       ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
                     ]}
                   />
@@ -5490,7 +5490,11 @@ export default function App() {
         ) : activeTab === "signature-center" ? (
           <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} />
         ) : activeTab === "presentation-builder" ? (
-          <PresentationBuilderMockup currentUser={currentUser} roleScopedAgentNames={roleScopedAgentNames} dataRefreshKey={qaDataRefreshKey} />
+          <PresentationMockup
+            currentUser={currentUser}
+            roleScopedAgentNames={roleScopedAgentNames}
+            dataRefreshKey={qaDataRefreshKey}
+          />
         ) : activeTab === "coaching" && coachingAllowed ? (
           <CoachingMockup
             currentUser={currentUser}
