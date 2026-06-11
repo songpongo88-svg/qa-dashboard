@@ -1595,6 +1595,11 @@ export default function SignatureCenterMockup({
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
   const readyForIncentive = Boolean(selectedDocument?.eligibleByScore && isComplete);
   const previewConfirmed = Boolean(selectedDocument && (confirmedDocs[selectedDocument.id] || isHistoricalPaidPeriod(selectedDocument.monthKey)));
+  const workflowReadyToSign = Boolean(
+    selectedDocument &&
+    !hasPendingAppeal &&
+    (previewConfirmed || isAfterAppealPeriod(selectedDocument.monthKey))
+  );
   const confirmAvailable = Boolean(
     selectedDocument &&
     !previewConfirmed &&
@@ -1680,7 +1685,7 @@ export default function SignatureCenterMockup({
   const signRole = (role: SignRole, signatureDataUrl?: string, saveToSavedLibrary = false) => {
     if (!selectedDocument) return;
     if (hasPendingAppeal) return;
-    if (!previewConfirmed) return;
+    if (!isAfterAppealPeriod(selectedDocument.monthKey)) return;
     if (role !== currentStep) return;
     if (!isSigningAllowedByDate(selectedDocument.monthKey)) return;
     if (!canSignIdentity(currentUser, selectedDocument, role)) return;
@@ -2269,12 +2274,17 @@ export default function SignatureCenterMockup({
               </div>
             </div>
 
-            {previewConfirmed && !hasPendingAppeal ? (
+            {workflowReadyToSign ? (
               <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
                     <div className="mt-1 text-xl font-black text-slate-950">เซ็นตามลำดับ QA &gt; Supervisor &gt; Team Lead &gt; Agent</div>
+                    {!previewConfirmed ? (
+                      <div className="mt-1 text-xs font-bold text-amber-600">
+                        Agent ยังไม่ได้กดยืนยันรับทราบ แต่ QA สามารถเริ่ม Workflow ได้หลังปิดรอบ Appeal
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
