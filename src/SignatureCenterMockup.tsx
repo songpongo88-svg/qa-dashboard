@@ -592,26 +592,16 @@ function effectiveEntriesForDoc(doc: SignatureDocument, signatures: Record<strin
 }
 
 function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entries: SignatureEntry[]) {
-  if (currentUser.role === "Quality Assurance") return true;
+  const currentStep = getCurrentStep(entries);
 
-  const supervisorName = getRoleSigner(doc, "Supervisor");
-  const seniorName = getRoleSigner(doc, "Senior");
-  const agentName = getRoleSigner(doc, "Agent");
+  // Queue-only visibility:
+  // Each role sees only the documents that are currently sent to that role for signing.
+  // Completed docs and docs waiting for other roles are hidden from the Document Queue.
+  // Payment Export still uses all documents from the raw data and is not affected by this queue filter.
+  if (!currentStep) return false;
+  if (!isAfterAppealPeriod(doc.monthKey)) return false;
 
-  const isSupervisorOwner =
-    isSamePerson(currentUser.displayName, supervisorName) ||
-    isSamePerson(currentUser.agentName, supervisorName);
-  const isSeniorOwner =
-    isSamePerson(currentUser.displayName, seniorName) ||
-    isSamePerson(currentUser.agentName, seniorName);
-  const isAgentOwner =
-    isSamePerson(currentUser.displayName, agentName) ||
-    isSamePerson(currentUser.agentName, agentName);
-
-  // Visibility should not depend on signature sequence.
-  // Related users can preview their own documents before their signing turn.
-  // The actual Sign button remains locked by getCurrentStep / allowSign below.
-  return isSupervisorOwner || isSeniorOwner || isAgentOwner;
+  return canSignIdentity(currentUser, doc, currentStep);
 }
 
 function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string): SignatureStepStatus {
@@ -2220,7 +2210,7 @@ export default function SignatureCenterMockup({
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Document Queue</div>
-          <div className="mt-1 text-xl font-black text-slate-950">รายการที่เกี่ยวข้องกับฉัน</div>
+          <div className="mt-1 text-xl font-black text-slate-950">คิวที่ต้องเซ็นของฉัน</div>
 
           <div className="mt-4 grid gap-3">
             <input
@@ -2239,6 +2229,9 @@ export default function SignatureCenterMockup({
                 <option key={month} value={month}>{getMonthLabel(month)}</option>
               ))}
             </select>
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
+              แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น
+            </div>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
@@ -2304,7 +2297,7 @@ export default function SignatureCenterMockup({
 
             {!filteredDocuments.length ? (
               <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                ยังไม่มีรายการตามเงื่อนไขที่เลือก
+                ยังไม่มีคิวเซ็นของคุณตามเงื่อนไขที่เลือก
               </div>
             ) : null}
           </div>
