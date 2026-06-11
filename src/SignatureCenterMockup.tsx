@@ -593,15 +593,25 @@ function effectiveEntriesForDoc(doc: SignatureDocument, signatures: Record<strin
 
 function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entries: SignatureEntry[]) {
   if (currentUser.role === "Quality Assurance") return true;
-  if (isHistoricalPaidPeriod(doc.monthKey)) {
-    return [doc.agentName, doc.seniorName, doc.supervisorName].some((name) => isSamePerson(currentUser.displayName, name) || isSamePerson(currentUser.agentName, name));
-  }
-  const qaSigned = Boolean(getSignedEntry(entries, "QA"));
-  const supervisorSigned = Boolean(getSignedEntry(entries, "Supervisor"));
-  const seniorSigned = Boolean(getSignedEntry(entries, "Senior"));
-  if (currentUser.role === "Supervisor") return qaSigned && canSignIdentity(currentUser, doc, "Supervisor");
-  if (currentUser.role === "Senior") return supervisorSigned && canSignIdentity(currentUser, doc, "Senior");
-  return seniorSigned && canSignIdentity(currentUser, doc, "Agent");
+
+  const supervisorName = getRoleSigner(doc, "Supervisor");
+  const seniorName = getRoleSigner(doc, "Senior");
+  const agentName = getRoleSigner(doc, "Agent");
+
+  const isSupervisorOwner =
+    isSamePerson(currentUser.displayName, supervisorName) ||
+    isSamePerson(currentUser.agentName, supervisorName);
+  const isSeniorOwner =
+    isSamePerson(currentUser.displayName, seniorName) ||
+    isSamePerson(currentUser.agentName, seniorName);
+  const isAgentOwner =
+    isSamePerson(currentUser.displayName, agentName) ||
+    isSamePerson(currentUser.agentName, agentName);
+
+  // Visibility should not depend on signature sequence.
+  // Related users can preview their own documents before their signing turn.
+  // The actual Sign button remains locked by getCurrentStep / allowSign below.
+  return isSupervisorOwner || isSeniorOwner || isAgentOwner;
 }
 
 function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string): SignatureStepStatus {
