@@ -584,18 +584,22 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
             </div>
 
             <div className="overflow-x-auto rounded-[24px] border border-violet-100 bg-slate-100 p-3">
-              <DashboardStyleSlide
-                loading={loading}
-                selectedWeek={selectedWeek}
-                currentCases={currentCases}
-                currentAvg={currentAvg}
-                criticalCount={criticalCount}
-                grade={scoreToGrade(currentAvg)}
-                goodTopics={goodTopics}
-                lowTopics={lowTopics}
-                monthRows={monthRows}
-                sections={sections}
-              />
+              <div className="h-[648px] w-[1152px] overflow-hidden rounded-[8px] bg-white">
+                <div style={{ transform: "scale(0.72)", transformOrigin: "top left", width: 1600, height: 900 }}>
+                  <DashboardStyleSlide
+                    loading={loading}
+                    selectedWeek={selectedWeek}
+                    currentCases={currentCases}
+                    currentAvg={currentAvg}
+                    criticalCount={criticalCount}
+                    grade={scoreToGrade(currentAvg)}
+                    goodTopics={goodTopics}
+                    lowTopics={lowTopics}
+                    monthRows={monthRows}
+                    sections={sections}
+                  />
+                </div>
+              </div>
               <div className="hidden">
               <div className="h-[630px] w-[1120px] overflow-hidden rounded-[18px] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
                 <div className="relative h-full w-full overflow-hidden p-9 text-slate-950">
