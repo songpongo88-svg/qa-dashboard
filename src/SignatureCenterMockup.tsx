@@ -1396,6 +1396,7 @@ export default function SignatureCenterMockup({
   const [paymentMessage, setPaymentMessage] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [signingRole, setSigningRole] = useState<SignRole | null>(null);
+  const shareLinkAppliedRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -1510,6 +1511,19 @@ export default function SignatureCenterMockup({
 
   const monthOptions = useMemo(() => Array.from(new Set(documents.map((item) => item.monthKey))).sort().reverse(), [documents]);
 
+  useEffect(() => {
+    if (shareLinkAppliedRef.current || !documents.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const monthParam = params.get("month");
+    const docParam = params.get("doc");
+    if (monthParam) setSelectedMonth(monthParam);
+    if (docParam && documents.some((doc) => doc.id === docParam)) {
+      setSelectedDocumentId(docParam);
+      setStatusFilter("all");
+    }
+    if (monthParam || docParam) shareLinkAppliedRef.current = true;
+  }, [documents]);
+
   const pendingAppealCaseMap = useMemo(() => {
     const map = new Map<string, PendingAppealCase>();
     buildAppealRequests(appealLogs)
@@ -1576,6 +1590,21 @@ export default function SignatureCenterMockup({
       .filter((doc) => isLateSignedDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
   }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
+  const rolePendingCounts = useMemo(() => {
+    const counts: Record<SignRole, number> = { QA: 0, Supervisor: 0, Senior: 0, Agent: 0 };
+    const sourceDocs = documents.filter((doc) => selectedMonth === "all" || doc.monthKey === selectedMonth);
+
+    sourceDocs.forEach((doc) => {
+      if (!isAfterAppealPeriod(doc.monthKey)) return;
+      if (doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId))) return;
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      const step = getCurrentStep(entries);
+      if (step) counts[step] += 1;
+    });
+
+    return counts;
+  }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
+
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
   const canGeneratePaymentExcel =
@@ -1624,6 +1653,16 @@ export default function SignatureCenterMockup({
   const getSavedSignatureKey = (role: SignRole) => {
     const identity = currentUser.username || currentUser.email || currentUser.agentName || currentUser.displayName;
     return `${compactPerson(identity)}::${role}`;
+  };
+
+  const createSignatureShareLink = (doc: SignatureDocument, role?: SignRole | null) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", "signature-center");
+    url.searchParams.set("month", doc.monthKey);
+    url.searchParams.set("doc", doc.id);
+    if (role) url.searchParams.set("role", role);
+    else url.searchParams.delete("role");
+    return url.toString();
   };
 
   const summary = useMemo(() => {
@@ -1719,6 +1758,19 @@ export default function SignatureCenterMockup({
     });
   };
 
+  const copySelectedDocumentShareLink = async () => {
+    if (!selectedDocument) return;
+    const link = createSignatureShareLink(selectedDocument, nextSignerRole);
+    try {
+      await navigator.clipboard.writeText(link);
+      setShareMessage("คัดลอก Share Link แล้ว");
+    } catch {
+      window.prompt("คัดลอก Share Link นี้", link);
+      setShareMessage("แสดง Share Link สำหรับคัดลอกแล้ว");
+    }
+    window.setTimeout(() => setShareMessage(""), 3000);
+  };
+
   const copyNextSignerAlert = async () => {
     if (!selectedDocument) return;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
@@ -1743,6 +1795,9 @@ export default function SignatureCenterMockup({
           `ขั้นตอนถัดไป: รอ ${roleThaiLabel(nextRole)} ลงนาม`,
           `ผู้ที่ต้องดำเนินการ: ${getRoleSigner(selectedDocument, nextRole)}`,
           "",
+          "กดลิงก์นี้เพื่อเปิดเอกสาร:",
+          createSignatureShareLink(selectedDocument, nextRole),
+          "",
           "รบกวนเข้าระบบ Signature Center เพื่อลงนามค่ะ/ครับ",
         ].join("\n")
       : [
@@ -1752,6 +1807,9 @@ export default function SignatureCenterMockup({
           `Agent: ${selectedDocument.agentName}`,
           "",
           "สถานะล่าสุด: เอกสารลงนามครบแล้ว",
+          "",
+          "กดลิงก์นี้เพื่อเปิดเอกสาร:",
+          createSignatureShareLink(selectedDocument, null),
         ].join("\n");
 
     try {
@@ -2133,6 +2191,32 @@ export default function SignatureCenterMockup({
         ) : null}
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {SIGNATURE_FLOW.map((role) => {
+          const pendingCount = rolePendingCounts[role] || 0;
+          return (
+            <div
+              key={role}
+              className="relative rounded-[24px] border border-violet-100 bg-white p-4 shadow-[0_14px_34px_rgba(88,28,135,0.06)]"
+            >
+              {pendingCount > 0 ? (
+                <span className="absolute right-4 top-4 flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-600 px-2 text-xs font-black text-white">
+                  {pendingCount}
+                </span>
+              ) : null}
+              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Pending Queue</div>
+              <div className="mt-1 pr-12 text-base font-black text-slate-950">{roleThaiLabel(role)}</div>
+              <div className={`mt-2 text-2xl font-black ${pendingCount > 0 ? "text-rose-600" : "text-slate-300"}`}>
+                {pendingCount}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-slate-500">
+                เฉพาะเอกสารที่ส่งมาถึงคิว Role นี้แล้ว
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Document Queue</div>
@@ -2174,6 +2258,12 @@ export default function SignatureCenterMockup({
             {filteredDocuments.map((doc) => {
               const entries = effectiveEntriesForDoc(doc, signatures);
               const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+              const docCurrentStep = getCurrentStep(entries);
+              const isMyPendingTurn =
+                Boolean(docCurrentStep) &&
+                canSignIdentity(currentUser, doc, docCurrentStep as SignRole) &&
+                isSigningAllowedByDate(doc.monthKey) &&
+                !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
               const selected = selectedDocument?.id === doc.id;
               return (
                 <button
@@ -2187,9 +2277,19 @@ export default function SignatureCenterMockup({
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-black text-slate-950">{doc.agentName}</div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {isMyPendingTurn ? <span className="h-2.5 w-2.5 rounded-full bg-rose-600" /> : null}
+                        <div className="truncate text-sm font-black text-slate-950">{doc.agentName}</div>
+                      </div>
                       <div className="mt-1 text-xs font-bold text-slate-500">{doc.monthLabel}</div>
+                      {docCurrentStep ? (
+                        <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black ${
+                          isMyPendingTurn ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"
+                        }`}>
+                          รอ {roleThaiLabel(docCurrentStep)} เซ็น
+                        </div>
+                      ) : null}
                     </div>
                     <SignaturePill status={count === SIGNATURE_FLOW.length ? "Signed" : "Pending"} />
                   </div>
@@ -2378,13 +2478,22 @@ export default function SignatureCenterMockup({
                           : "ไม่เหลือ Role ที่ต้องเซ็นต่อ"}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={copyNextSignerAlert}
-                      className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
-                    >
-                      คัดลอกข้อความแจ้งเตือน
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={copySelectedDocumentShareLink}
+                        className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50"
+                      >
+                        Copy Share Link
+                      </button>
+                      <button
+                        type="button"
+                        onClick={copyNextSignerAlert}
+                        className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                      >
+                        คัดลอกข้อความแจ้งเตือน
+                      </button>
+                    </div>
                   </div>
                 </div>
 
