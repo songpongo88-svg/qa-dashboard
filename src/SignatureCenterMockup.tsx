@@ -87,6 +87,7 @@ const RAW_DATA_FILES = [
 
 const SIGNATURE_STORAGE_KEY = "qa-monthly-signature-center-v4";
 const SIGNATURE_CONFIRM_KEY = "qa-monthly-signature-confirmed-v1";
+const SIGNATURE_LIBRARY_KEY = "qa-monthly-signature-library-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
@@ -358,6 +359,18 @@ function readConfirmedStore(): Record<string, string> {
 
 function writeConfirmedStore(value: Record<string, string>) {
   window.localStorage.setItem(SIGNATURE_CONFIRM_KEY, JSON.stringify(value));
+}
+
+function readSignatureLibraryStore(): Record<string, string> {
+  try {
+    return JSON.parse(window.localStorage.getItem(SIGNATURE_LIBRARY_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSignatureLibraryStore(value: Record<string, string>) {
+  window.localStorage.setItem(SIGNATURE_LIBRARY_KEY, JSON.stringify(value));
 }
 
 function createDocumentHash(doc: Omit<SignatureDocument, "documentHash">) {
@@ -1191,17 +1204,22 @@ function SignaturePill({ status }: { status: SignatureStepStatus }) {
 function SignaturePadModal({
   roleLabel,
   signerName,
+  savedSignatureDataUrl,
   onCancel,
+  onUseSavedSignature,
   onSave,
 }: {
   roleLabel: string;
   signerName: string;
+  savedSignatureDataUrl?: string;
   onCancel: () => void;
-  onSave: (dataUrl: string) => void;
+  onUseSavedSignature?: () => void;
+  onSave: (dataUrl: string, saveToLibrary: boolean) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const hasDrawnRef = useRef(false);
+  const [saveToLibrary, setSaveToLibrary] = useState(true);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1264,7 +1282,7 @@ function SignaturePadModal({
       window.alert("กรุณาวาดลายเซ็นก่อนกด Save Signature");
       return;
     }
-    onSave(canvas.toDataURL("image/png"));
+    onSave(canvas.toDataURL("image/png"), saveToLibrary);
   };
 
   return (
@@ -1285,6 +1303,22 @@ function SignaturePadModal({
           </button>
         </div>
 
+        {savedSignatureDataUrl ? (
+          <div className="mt-4 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4">
+            <div className="text-sm font-black text-emerald-800">มีลายเซ็นเดิมของคุณในระบบ</div>
+            <div className="mt-2 rounded-2xl border border-emerald-100 bg-white p-3">
+              <img src={savedSignatureDataUrl} alt="Saved signature" className="h-16 max-w-full object-contain" />
+            </div>
+            <button
+              type="button"
+              onClick={onUseSavedSignature}
+              className="mt-3 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+            >
+              ใช้ลายเซ็นเดิม
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-3">
           <canvas
             ref={canvasRef}
@@ -1298,6 +1332,16 @@ function SignaturePadModal({
             className="h-[220px] w-full touch-none rounded-[18px] border border-slate-200 bg-white"
           />
         </div>
+
+        <label className="mt-4 flex items-center gap-2 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800">
+          <input
+            type="checkbox"
+            checked={saveToLibrary}
+            onChange={(event) => setSaveToLibrary(event.target.checked)}
+            className="h-4 w-4 accent-violet-700"
+          />
+          บันทึกลายเซ็นนี้ไว้ใช้ครั้งต่อไป
+        </label>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
@@ -1330,6 +1374,7 @@ export default function SignatureCenterMockup({
   const [documents, setDocuments] = useState<SignatureDocument[]>([]);
   const [appealLogs, setAppealLogs] = useState<UsageLogEvent[]>([]);
   const [signatures, setSignatures] = useState<Record<string, SignatureEntry[]>>(() => readSignatureStore());
+  const [signatureLibrary, setSignatureLibrary] = useState<Record<string, string>>(() => readSignatureLibraryStore());
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("all");
@@ -1449,6 +1494,10 @@ export default function SignatureCenterMockup({
     writeConfirmedStore(confirmedDocs);
   }, [confirmedDocs]);
 
+  useEffect(() => {
+    writeSignatureLibraryStore(signatureLibrary);
+  }, [signatureLibrary]);
+
   const monthOptions = useMemo(() => Array.from(new Set(documents.map((item) => item.monthKey))).sort().reverse(), [documents]);
 
   const pendingAppealCaseMap = useMemo(() => {
@@ -1554,6 +1603,11 @@ export default function SignatureCenterMockup({
     : "";
   const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
 
+  const getSavedSignatureKey = (role: SignRole) => {
+    const identity = currentUser.username || currentUser.email || currentUser.agentName || currentUser.displayName;
+    return `${compactPerson(identity)}::${role}`;
+  };
+
   const summary = useMemo(() => {
     let complete = 0;
     let pending = 0;
@@ -1579,7 +1633,7 @@ export default function SignatureCenterMockup({
     }));
   };
 
-  const saveDrawnSignature = (role: SignRole, signatureDataUrl: string) => {
+  const saveDrawnSignature = (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
     if (!selectedDocument) return;
     if (!canSignIdentity(currentUser, selectedDocument, role)) {
       window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
@@ -1597,6 +1651,13 @@ export default function SignatureCenterMockup({
       signatureDataUrl,
     };
 
+    if (saveToSavedLibrary) {
+      setSignatureLibrary((previous) => ({
+        ...previous,
+        [getSavedSignatureKey(role)]: signatureDataUrl,
+      }));
+    }
+
     setSignatures((previous) => {
       const current = previous[selectedDocument.id] || [];
       return {
@@ -1606,7 +1667,7 @@ export default function SignatureCenterMockup({
     });
   };
 
-  const signRole = (role: SignRole, signatureDataUrl?: string) => {
+  const signRole = (role: SignRole, signatureDataUrl?: string, saveToSavedLibrary = false) => {
     if (!selectedDocument) return;
     if (hasPendingAppeal) return;
     if (!previewConfirmed) return;
@@ -1623,6 +1684,13 @@ export default function SignatureCenterMockup({
       signedAt: new Date().toISOString(),
       signatureDataUrl,
     };
+
+    if (signatureDataUrl && saveToSavedLibrary) {
+      setSignatureLibrary((previous) => ({
+        ...previous,
+        [getSavedSignatureKey(role)]: signatureDataUrl,
+      }));
+    }
 
     setSignatures((previous) => {
       const current = previous[selectedDocument.id] || [];
@@ -2246,6 +2314,7 @@ export default function SignatureCenterMockup({
                       !signed?.signatureDataUrl &&
                       canSignIdentity(currentUser, selectedDocument, role);
                     const canOpenSignaturePad = (!signed && allowSign) || canAddFirstDrawnSignature;
+                    const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
                     const previous = getPreviousStep(role);
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
@@ -2285,12 +2354,16 @@ export default function SignatureCenterMockup({
                               ? signed.signatureDataUrl
                                 ? "เอกสารลงนามแล้ว"
                                 : canAddFirstDrawnSignature
-                                  ? "เพิ่มลายเซ็นจริง"
+                                  ? savedSignatureDataUrl
+                                    ? "ใช้ลายเซ็นเดิม"
+                                    : "เพิ่มลายเซ็นจริง"
                                   : "เฉพาะเจ้าของลายเซ็น"
                               : allowSign
-                                ? timeline === "Signature Deadline Passed"
-                                  ? "วาดและลงนามล่าช้า"
-                                  : "วาดและลงนาม"
+                                ? savedSignatureDataUrl
+                                  ? "ใช้ลายเซ็นเดิม"
+                                  : timeline === "Signature Deadline Passed"
+                                    ? "วาดและลงนามล่าช้า"
+                                    : "วาดและลงนาม"
                                 : status === "Locked"
                                   ? "ยังไม่เปิดให้เซ็น"
                                   : status === "Expired"
@@ -2318,8 +2391,11 @@ export default function SignatureCenterMockup({
         <SignaturePadModal
           roleLabel={roleThaiLabel(signingRole)}
           signerName={getRoleSigner(selectedDocument, signingRole)}
+          savedSignatureDataUrl={signatureLibrary[getSavedSignatureKey(signingRole)]}
           onCancel={() => setSigningRole(null)}
-          onSave={(dataUrl) => {
+          onUseSavedSignature={() => {
+            const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(signingRole)];
+            if (!savedSignatureDataUrl) return;
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
               window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
               setSigningRole(null);
@@ -2327,9 +2403,23 @@ export default function SignatureCenterMockup({
             }
             const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
             if (existingSigned) {
-              saveDrawnSignature(signingRole, dataUrl);
+              saveDrawnSignature(signingRole, savedSignatureDataUrl, false);
             } else {
-              signRole(signingRole, dataUrl);
+              signRole(signingRole, savedSignatureDataUrl, false);
+            }
+            setSigningRole(null);
+          }}
+          onSave={(dataUrl, saveToSavedLibrary) => {
+            if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
+              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+              setSigningRole(null);
+              return;
+            }
+            const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
+            if (existingSigned) {
+              saveDrawnSignature(signingRole, dataUrl, saveToSavedLibrary);
+            } else {
+              signRole(signingRole, dataUrl, saveToSavedLibrary);
             }
             setSigningRole(null);
           }}
