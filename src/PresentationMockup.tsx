@@ -73,6 +73,29 @@ const DEFAULT_SECTIONS: Record<SectionKey, boolean> = {
   actionPlan: true,
 };
 
+const SAMPLE_WEEKLY_SLIDE_DATA = {
+  cases: 15,
+  averageScore: 95.07,
+  grade: "A",
+  month: "June 2026",
+  week: "01/06/2026 - 07/06/2026",
+  mergeRows: 51,
+  revised: 0,
+};
+
+const SAMPLE_MONTH_ROWS: MonthRow[] = [
+  { key: "2026-06", label: "June 2026", cases: 15, avg: 95.07, grade: "A" },
+  { key: "2026-05", label: "May 2026", cases: 120, avg: 85.49, grade: "B" },
+  { key: "2026-04", label: "April 2026", cases: 120, avg: 86.16, grade: "B" },
+];
+
+const SAMPLE_TOPIC_ROWS: TopicRow[] = [
+  { id: "sample-process", title: "Process & Policy Compliance", score: 29.07, max: 30, percent: 96.9, cases: 15 },
+  { id: "sample-answer", title: "Answer Quality & Problem Analysis", score: 18.67, max: 20, percent: 93.35, cases: 15 },
+  { id: "sample-followup", title: "Case Handling & Follow-up", score: 23.47, max: 25, percent: 93.88, cases: 15 },
+  { id: "sample-communication", title: "Communication Skills", score: 23.87, max: 25, percent: 95.48, cases: 15 },
+];
+
 function parseAuditDate(value: string) {
   const text = String(value || "").trim();
   if (!text) return null;
@@ -739,11 +762,32 @@ function DashboardStyleSlide({
   monthRows: MonthRow[];
   sections: Record<SectionKey, boolean>;
 }) {
+  const hasRealData = Boolean(selectedWeek && currentCases.length);
   const monthKey = selectedWeek ? formatMonthKey(selectedWeek.start) : "";
-  const monthLabel = monthKey ? formatMonthLabelFromKey(monthKey) : "-";
-  const weeklyTopicRows = goodTopics.slice(0, 4);
-  const maxMonthCases = Math.max(...monthRows.map((row) => row.cases), 1);
-  const highlightRows = weeklyTopicRows.length ? weeklyTopicRows : lowTopics.slice(0, 4);
+  const slideData = {
+    cases: hasRealData ? currentCases.length : SAMPLE_WEEKLY_SLIDE_DATA.cases,
+    averageScore: hasRealData ? currentAvg : SAMPLE_WEEKLY_SLIDE_DATA.averageScore,
+    grade: hasRealData ? grade : SAMPLE_WEEKLY_SLIDE_DATA.grade,
+    month: hasRealData && monthKey ? formatMonthLabelFromKey(monthKey) : SAMPLE_WEEKLY_SLIDE_DATA.month,
+    week: hasRealData && selectedWeek ? selectedWeek.label : SAMPLE_WEEKLY_SLIDE_DATA.week,
+    mergeRows: hasRealData ? currentCases.length : SAMPLE_WEEKLY_SLIDE_DATA.mergeRows,
+    revised: SAMPLE_WEEKLY_SLIDE_DATA.revised,
+  };
+  const resolvedMonthRows = monthRows.length ? monthRows : SAMPLE_MONTH_ROWS;
+  const realTopicRows = (goodTopics.length ? goodTopics : lowTopics).slice(0, 4);
+  const topicRows = realTopicRows.length ? realTopicRows : SAMPLE_TOPIC_ROWS;
+  const maxMonthCases = Math.max(...resolvedMonthRows.map((row) => row.cases), 1);
+  const topCards = [
+    { icon: "□", label: "Cases", value: String(slideData.cases) },
+    { icon: "▤", label: "คะแนนเฉลี่ย", value: slideData.averageScore.toFixed(2) },
+    { icon: "◎", label: "Grade", value: slideData.grade },
+    { icon: "▦", label: "สัปดาห์", value: slideData.week, small: true },
+  ];
+  const insightRows = [
+    `เดือน${slideData.month}: ${slideData.cases} เคส | คะแนนเฉลี่ย ${slideData.averageScore.toFixed(2)} | Grade ${slideData.grade}`,
+    ...topicRows.map((item) => `${item.title}: ${item.percent.toFixed(2)}%`),
+  ];
+  if (criticalCount) insightRows.push(`Critical Error: ${criticalCount} เคส ต้องติดตามทันที`);
 
   return (
     <div className="relative h-[900px] w-[1600px] overflow-hidden rounded-[8px] border border-violet-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
@@ -770,8 +814,6 @@ function DashboardStyleSlide({
 
         {loading ? (
           <div className="mt-40 text-center text-[24px] font-black text-violet-700">กำลังโหลดข้อมูล...</div>
-        ) : !selectedWeek ? (
-          <div className="mt-40 text-center text-[24px] font-black text-slate-500">ยังไม่มีข้อมูลสำหรับสร้างสไลด์</div>
         ) : (
           <div className="mt-4 grid gap-5">
             <div className="grid grid-cols-[940px_1fr] gap-6">
@@ -783,17 +825,17 @@ function DashboardStyleSlide({
                   <div className="mt-5 grid grid-cols-5 gap-3">
                     <ScopeBox label="View" value="Weekly Dashboard" />
                     <ScopeBox label="Agent" value="All Agents" />
-                    <ScopeBox label="Month" value={monthLabel} />
-                    <ScopeBox label="Week" value={selectedWeek.label.replace(/\s+/g, " ")} />
-                    <ScopeBox label="Merge Rows" value={`${currentCases.length}`} />
+                    <ScopeBox label="Month" value={slideData.month} />
+                    <ScopeBox label="Week" value={slideData.week} />
+                    <ScopeBox label="Merge Rows" value={`${slideData.mergeRows}`} />
                   </div>
                 </div>
 
                 {sections.kpiSummary ? (
                   <div className="mt-4 grid grid-cols-3 gap-4">
-                    <DashboardMiniKpi label="Cases" value={`${currentCases.length}`} sub="Case(s) in current view" />
-                    <DashboardMiniKpi label="Average Score" value={currentAvg.toFixed(2)} sub="Average final score in current view" highlight />
-                    <DashboardMiniKpi label="Grade" value={grade} sub="Calculated from current average score" blue />
+                    <DashboardMiniKpi label="Cases" value={`${slideData.cases}`} sub="Case(s) in current view" />
+                    <DashboardMiniKpi label="Average Score" value={slideData.averageScore.toFixed(2)} sub="Average final score in current view" highlight />
+                    <DashboardMiniKpi label="Grade" value={slideData.grade} sub="Calculated from current average score" blue />
                   </div>
                 ) : null}
 
@@ -808,10 +850,10 @@ function DashboardStyleSlide({
                       <div className="text-center">Grade</div>
                     </div>
                     <div className="grid grid-cols-[1.6fr_0.8fr_1fr_0.8fr] px-4 py-3 text-[15px] font-bold text-slate-900">
-                      <div>{selectedWeek.label}</div>
-                      <div className="text-center">{currentCases.length}</div>
-                      <div className="text-center">{currentAvg.toFixed(2)}</div>
-                      <div className="text-center"><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">{grade}</span></div>
+                      <div>{slideData.week}</div>
+                      <div className="text-center">{slideData.cases}</div>
+                      <div className="text-center">{slideData.averageScore.toFixed(2)}</div>
+                      <div className="text-center"><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">{slideData.grade}</span></div>
                     </div>
                   </div>
                 </div>
@@ -820,10 +862,9 @@ function DashboardStyleSlide({
               <section className="grid gap-4">
                 {sections.kpiSummary ? (
                   <div className="grid grid-cols-2 gap-5">
-                    <RightKpi icon="▣" label="Cases" value={`${currentCases.length}`} />
-                    <RightKpi icon="▤" label="คะแนนเฉลี่ย" value={currentAvg.toFixed(2)} />
-                    <RightKpi icon="◎" label="Grade" value={grade} />
-                    <RightKpi icon="▦" label="สัปดาห์" value={selectedWeek.label} small />
+                    {topCards.map((item) => (
+                      <RightKpi key={item.label} icon={item.icon} label={item.label} value={item.value} small={item.small} />
+                    ))}
                   </div>
                 ) : null}
                 <div className="rounded-[20px] border border-violet-100 bg-white/92 p-6 shadow-[0_12px_30px_rgba(88,28,135,0.10)]">
@@ -832,11 +873,7 @@ function DashboardStyleSlide({
                     <div className="text-[22px] font-black text-[#35126f]">สรุปไฮไลต์</div>
                   </div>
                   <ul className="mt-5 space-y-2 pl-8 text-[17px] font-semibold leading-snug text-slate-950">
-                    <li>เดือน{monthLabel}: {currentCases.length} เคส | คะแนนเฉลี่ย {currentAvg.toFixed(2)} | Grade {grade}</li>
-                    {highlightRows.slice(0, 4).map((item) => (
-                      <li key={item.id}>{truncateText(item.title, 68)}: {item.percent.toFixed(2)}%</li>
-                    ))}
-                    {criticalCount ? <li>Critical Error: {criticalCount} เคส ต้องติดตามทันที</li> : null}
+                    {insightRows.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </div>
               </section>
@@ -848,15 +885,15 @@ function DashboardStyleSlide({
                 <div className="mt-4 text-[20px] font-black text-slate-950">Monthly Analytics</div>
                 <div className="text-[12px] font-semibold text-slate-500">Last 3 months for tracking monthly score movement</div>
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  <ScopeBox label="Visible Rows" value={`${monthRows.length}`} />
-                  <ScopeBox label="Total Cases" value={`${monthRows.reduce((sum, item) => sum + item.cases, 0)}`} blue />
+                  <ScopeBox label="Visible Rows" value={`${resolvedMonthRows.length}`} />
+                  <ScopeBox label="Total Cases" value={`${resolvedMonthRows.reduce((sum, item) => sum + item.cases, 0)}`} blue />
                   <ScopeBox label="Zero Case Rows" value="0" green />
                 </div>
                 <div className="mt-4 overflow-hidden rounded-xl border border-violet-100">
                   <div className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] bg-slate-950 px-4 py-3 text-[13px] font-black uppercase tracking-[0.08em] text-white">
                     <div>Month</div><div className="text-center">Cases</div><div className="text-center">Average</div><div className="text-center">Grade</div><div className="text-center">Progress</div>
                   </div>
-                  {monthRows.map((row) => (
+                  {resolvedMonthRows.map((row) => (
                     <div key={row.key} className="grid grid-cols-[1.4fr_0.7fr_0.9fr_0.6fr_1fr] items-center border-t border-slate-100 px-4 py-3 text-[15px] font-bold text-slate-900">
                       <div>{row.label}</div>
                       <div className="text-center">{row.cases}</div>
@@ -878,7 +915,7 @@ function DashboardStyleSlide({
                   <div className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] bg-[#35126f] px-4 py-3 text-[13px] font-black text-white">
                     <div className="text-center">Topic</div><div>Description</div><div className="text-center">Avg Score</div><div className="text-center">Max</div><div className="text-center">Avg %</div>
                   </div>
-                  {(sections.topicPerformance ? highlightRows.slice(0, 4) : []).map((row, index) => (
+                  {(sections.topicPerformance ? topicRows.slice(0, 4) : []).map((row, index) => (
                     <div key={row.id} className="grid grid-cols-[0.5fr_2.2fr_0.9fr_0.7fr_0.8fr] border-t border-slate-100 px-4 py-3 text-[15px] font-bold text-slate-900">
                       <div className="text-center">{index + 1}</div>
                       <div>{truncateText(row.title, 48)}</div>
