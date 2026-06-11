@@ -2292,6 +2292,9 @@ export default function SignatureCenterMockup({
                 ? "ประวัติจะแสดงเอกสารที่เกี่ยวข้อง เพื่อกลับไปตรวจสอบหรือ Reset ได้"
                 : "แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น"}
             </div>
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
+              แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น
+            </div>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
