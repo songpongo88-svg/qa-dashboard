@@ -1379,6 +1379,7 @@ export default function SignatureCenterMockup({
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [documentView, setDocumentView] = useState<"queue" | "history">("queue");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadMessage, setLoadMessage] = useState("");
@@ -1561,6 +1562,28 @@ export default function SignatureCenterMockup({
     });
   }, [confirmedDocs, currentUser, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
+  const historyFilteredDocuments = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return documents.filter((doc) => {
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      const related =
+        currentUser.role === "Quality Assurance" ||
+        SIGNATURE_FLOW.some((role) => canSignIdentity(currentUser, doc, role));
+      if (!related) return false;
+
+      const monthMatch = selectedMonth === "all" || doc.monthKey === selectedMonth;
+      const keywordMatch =
+        !keyword ||
+        doc.agentName.toLowerCase().includes(keyword) ||
+        doc.seniorName.toLowerCase().includes(keyword) ||
+        doc.supervisorName.toLowerCase().includes(keyword);
+
+      return monthMatch && keywordMatch;
+    });
+  }, [currentUser, documents, search, selectedMonth, signatures]);
+
+  const activeDocuments = documentView === "history" ? historyFilteredDocuments : filteredDocuments;
+
   const selectedMonthAllDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
     return documents.filter((doc) => doc.monthKey === selectedMonth);
@@ -1603,8 +1626,14 @@ export default function SignatureCenterMockup({
     isPaymentExportWindowOpen(selectedMonth) &&
     selectedMonthPaymentDocs.length > 0;
 
-  const selectedDocument = filteredDocuments.find((item) => item.id === selectedDocumentId) || filteredDocuments[0] || visibleDocuments[0] || null;
+  const selectedDocument = activeDocuments.find((item) => item.id === selectedDocumentId) || activeDocuments[0] || filteredDocuments[0] || historyFilteredDocuments[0] || null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
+  const mySignedRoles = selectedDocument
+    ? SIGNATURE_FLOW.filter((role) => {
+        const signed = getSignedEntry(selectedEntries, role);
+        return Boolean(signed) && canSignIdentity(currentUser, selectedDocument, role);
+      })
+    : [];
   const selectedPendingAppeals = selectedDocument
     ? selectedDocument.cases.filter((item) => pendingAppealCaseMap.has(item.caseId))
     : [];
@@ -2209,8 +2238,37 @@ export default function SignatureCenterMockup({
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
-          <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Document Queue</div>
-          <div className="mt-1 text-xl font-black text-slate-950">คิวที่ต้องเซ็นของฉัน</div>
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">
+            {documentView === "history" ? "Signature History" : "Document Queue"}
+          </div>
+          <div className="mt-1 text-xl font-black text-slate-950">
+            {documentView === "history" ? "ประวัติ / Reset" : "คิวที่ต้องเซ็นของฉัน"}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setDocumentView("queue")}
+              className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                documentView === "queue"
+                  ? "bg-violet-700 text-white"
+                  : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
+              }`}
+            >
+              คิวของฉัน ({filteredDocuments.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocumentView("history")}
+              className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                documentView === "history"
+                  ? "bg-slate-950 text-white"
+                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              ประวัติ ({historyFilteredDocuments.length})
+            </button>
+          </div>
 
           <div className="mt-4 grid gap-3">
             <input
@@ -2230,7 +2288,9 @@ export default function SignatureCenterMockup({
               ))}
             </select>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
-              แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น
+              {documentView === "history"
+                ? "ประวัติจะแสดงเอกสารที่เกี่ยวข้อง เพื่อกลับไปตรวจสอบหรือ Reset ได้"
+                : "แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น"}
             </div>
             <select
               value={statusFilter}
@@ -2248,7 +2308,7 @@ export default function SignatureCenterMockup({
           </div>
 
           <div className="mt-5 max-h-[620px] space-y-3 overflow-y-auto pr-1">
-            {filteredDocuments.map((doc) => {
+            {activeDocuments.map((doc) => {
               const entries = effectiveEntriesForDoc(doc, signatures);
               const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
               const docCurrentStep = getCurrentStep(entries);
@@ -2295,9 +2355,11 @@ export default function SignatureCenterMockup({
               );
             })}
 
-            {!filteredDocuments.length ? (
+            {!activeDocuments.length ? (
               <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                ยังไม่มีคิวเซ็นของคุณตามเงื่อนไขที่เลือก
+                {documentView === "history"
+                  ? "ยังไม่มีประวัติเอกสารตามเงื่อนไขที่เลือก"
+                  : "ยังไม่มีคิวเซ็นของคุณตามเงื่อนไขที่เลือก"}
               </div>
             ) : null}
           </div>
@@ -2314,16 +2376,37 @@ export default function SignatureCenterMockup({
                     {selectedDocument.monthLabel} • Team: {selectedDocument.teamName} • Team Lead: {selectedDocument.seniorName}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={generatePdf}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
-                >
-                  Generate Final PDF
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {documentView === "history" && currentUser.role === "Quality Assurance" && selectedDocument && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
+                    <button
+                      type="button"
+                      onClick={resetDocument}
+                      className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Reset เอกสารนี้
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={generatePdf}
+                    className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
+                  >
+                    Generate Final PDF
+                  </button>
+                </div>
               </div>
 
               {pdfMessage ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{pdfMessage}</div> : null}
+
+              <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-bold ${
+                mySignedRoles.length
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-amber-200 bg-amber-50 text-amber-800"
+              }`}>
+                {mySignedRoles.length
+                  ? `เช็กแล้ว: คุณเซ็นเอกสารนี้แล้วใน Role ${mySignedRoles.map(roleThaiLabel).join(", ")}`
+                  : "เช็กแล้ว: ยังไม่พบลายเซ็นของคุณในเอกสารนี้"}
+              </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
