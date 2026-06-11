@@ -8,6 +8,7 @@ import AppealOverrideMockup, { buildAppealCaseOverrides } from "./AppealOverride
 import QARubricMockup from "./QARubricMockup";
 import SummaryMockup from "./SummaryMockup";
 import SignatureCenterMockup from "./SignatureCenterMockup";
+import PresentationBuilderMockup from "./PresentationBuilderMockup";
 import CoachingMockup from "./CoachingMockup";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
@@ -136,6 +137,7 @@ type AppTab =
   | "call-history"
   | "summary"
   | "signature-center"
+  | "presentation-builder"
   | "coaching"
   | "rubric"
   | "usage-log"
@@ -216,6 +218,7 @@ const VALID_APP_TABS = new Set<AppTab>([
   "task-inbox",
   "summary",
   "signature-center",
+  "presentation-builder",
   "coaching",
   "rubric",
   "usage-log",
@@ -5155,6 +5158,7 @@ export default function App() {
                       { value: "dashboard", label: "Dashboard" },
                       { value: "summary", label: "Summary" },
                       { value: "signature-center", label: "Signatures" },
+                       { value: "presentation-builder", label: "Presentation" },
                       ...(coachingAllowed ? [{ value: "coaching", label: "Coaching" }] : []),
                     ]}
                   />
@@ -5485,6 +5489,8 @@ export default function App() {
           />
         ) : activeTab === "signature-center" ? (
           <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} />
+        ) : activeTab === "presentation-builder" ? (
+          <PresentationBuilderMockup currentUser={currentUser} roleScopedAgentNames={roleScopedAgentNames} dataRefreshKey={qaDataRefreshKey} />
         ) : activeTab === "coaching" && coachingAllowed ? (
           <CoachingMockup
             currentUser={currentUser}
