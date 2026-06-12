@@ -534,13 +534,8 @@ function getSignedEntry(entries: SignatureEntry[], role: SignRole) {
   return entries.find((entry) => entry.role === role && entry.status === "Signed");
 }
 
-function getCurrentStep(entries: SignatureEntry[]) {
-  return SIGNATURE_FLOW.find((role) => !getSignedEntry(entries, role)) || null;
-}
-
-function getPreviousStep(role: SignRole) {
-  const index = SIGNATURE_FLOW.indexOf(role);
-  return index > 0 ? SIGNATURE_FLOW[index - 1] : null;
+function getPendingRoles(entries: SignatureEntry[]) {
+  return SIGNATURE_FLOW.filter((role) => !getSignedEntry(entries, role));
 }
 
 function roleThaiLabel(role: SignRole) {
@@ -592,27 +587,20 @@ function effectiveEntriesForDoc(doc: SignatureDocument, signatures: Record<strin
 }
 
 function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entries: SignatureEntry[]) {
-  const currentStep = getCurrentStep(entries);
-
-  // Queue-only visibility:
-  // Each role sees only the documents that are currently sent to that role for signing.
-  // Completed docs and docs waiting for other roles are hidden from the Document Queue.
-  // Payment Export still uses all documents from the raw data and is not affected by this queue filter.
-  if (!currentStep) return false;
+  const pendingRoles = getPendingRoles(entries);
+  if (!pendingRoles.length) return false;
   if (!isAfterAppealPeriod(doc.monthKey)) return false;
 
-  return canSignIdentity(currentUser, doc, currentStep);
+  return pendingRoles.some((role) => canSignIdentity(currentUser, doc, role));
 }
 
 function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string): SignatureStepStatus {
   if (getSignedEntry(entries, role)) return "Signed";
   if (isHistoricalPaidPeriod(monthKey)) return "Signed";
   const timeline = getTimelineStatus(monthKey);
-  const currentStep = getCurrentStep(entries);
   if (timeline === "Appeal Period Open" || timeline === "Waiting Signature Window") return "Locked";
-  if (timeline === "Signature Deadline Passed") return currentStep === role ? "Expired" : "Waiting";
-  if (currentStep === role) return "Pending";
-  return "Waiting";
+  if (timeline === "Signature Deadline Passed") return "Expired";
+  return "Pending";
 }
 
 function formatDateTime(value: string) {
@@ -1541,12 +1529,12 @@ export default function SignatureCenterMockup({
     return visibleDocuments.filter((doc) => {
       const entries = effectiveEntriesForDoc(doc, signatures);
       const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
-      const currentStep = getCurrentStep(entries);
+      const pendingRoles = getPendingRoles(entries);
       const isComplete = signedCount === SIGNATURE_FLOW.length;
       const timeline = getTimelineStatus(doc.monthKey);
       const statusMatch =
         statusFilter === "all" ||
-        (statusFilter === "my-turn" && currentStep && canSignIdentity(currentUser, doc, currentStep) && isSigningAllowedByDate(doc.monthKey)) ||
+        (statusFilter === "my-turn" && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) && isSigningAllowedByDate(doc.monthKey)) ||
         (statusFilter === "preview" && !confirmedDocs[doc.id] && !isHistoricalPaidPeriod(doc.monthKey)) ||
         (statusFilter === "ready" && isComplete && doc.eligibleByScore) ||
         (statusFilter === "pending" && !isComplete) ||
@@ -1611,8 +1599,9 @@ export default function SignatureCenterMockup({
       if (!isAfterAppealPeriod(doc.monthKey)) return;
       if (doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId))) return;
       const entries = effectiveEntriesForDoc(doc, signatures);
-      const step = getCurrentStep(entries);
-      if (step) counts[step] += 1;
+      getPendingRoles(entries).forEach((role) => {
+        counts[role] += 1;
+      });
     });
 
     return counts;
@@ -1638,9 +1627,7 @@ export default function SignatureCenterMockup({
     ? selectedDocument.cases.filter((item) => pendingAppealCaseMap.has(item.caseId))
     : [];
   const hasPendingAppeal = selectedPendingAppeals.length > 0;
-  const currentStep = getCurrentStep(selectedEntries);
-  const nextSignerRole = currentStep;
-  const nextSignerName = selectedDocument && nextSignerRole ? getRoleSigner(selectedDocument, nextSignerRole) : "";
+  const pendingRoles = getPendingRoles(selectedEntries);
   const lastSignedRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(selectedEntries, role)));
   const signedCount = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(selectedEntries, role))).length;
   const isComplete = Boolean(selectedDocument && signedCount === SIGNATURE_FLOW.length);
@@ -1692,11 +1679,11 @@ export default function SignatureCenterMockup({
     visibleDocuments.forEach((doc) => {
       const entries = effectiveEntriesForDoc(doc, signatures);
       const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
-      const step = getCurrentStep(entries);
+      const pendingRoles = getPendingRoles(entries);
       if (count === SIGNATURE_FLOW.length) complete += 1;
       else pending += 1;
       if (count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
-      if (step && canSignIdentity(currentUser, doc, step) && isSigningAllowedByDate(doc.monthKey)) myTurn += 1;
+      if (pendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) && isSigningAllowedByDate(doc.monthKey)) myTurn += 1;
     });
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
   }, [currentUser, signatures, visibleDocuments]);
@@ -1747,9 +1734,13 @@ export default function SignatureCenterMockup({
     if (!selectedDocument) return;
     if (hasPendingAppeal) return;
     if (!isAfterAppealPeriod(selectedDocument.monthKey)) return;
-    if (role !== currentStep) return;
     if (!isSigningAllowedByDate(selectedDocument.monthKey)) return;
     if (!canSignIdentity(currentUser, selectedDocument, role)) return;
+    if (getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), role)) return;
+    if (role === "Agent" && !previewConfirmed) {
+      window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
+      return;
+    }
 
     const signerName = getRoleSigner(selectedDocument, role);
     const nextEntry: SignatureEntry = {
@@ -1777,9 +1768,38 @@ export default function SignatureCenterMockup({
     });
   };
 
+  const openSignaturePad = (role: SignRole) => {
+    if (!selectedDocument) return;
+    if (role === "Agent" && !previewConfirmed && !getSignedEntry(selectedEntries, "Agent")) {
+      window.alert("กรุณากดยืนยันรับทราบข้อมูลก่อน แล้วจึงกดเซ็นในช่อง Agent ผู้ถูกประเมิน");
+      return;
+    }
+    setSigningRole(role);
+  };
+
+  const resetSignatureRole = (role: SignRole) => {
+    if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
+    if (getTimelineStatus(selectedDocument.monthKey) !== "Signature Deadline Passed") return;
+    if (currentUser.role !== "Quality Assurance") return;
+    setSignatures((previous) => {
+      const current = previous[selectedDocument.id] || [];
+      return {
+        ...previous,
+        [selectedDocument.id]: current.filter((entry) => entry.role !== role),
+      };
+    });
+    if (role === "Agent") {
+      setConfirmedDocs((previous) => {
+        const next = { ...previous };
+        delete next[selectedDocument.id];
+        return next;
+      });
+    }
+  };
+
   const copySelectedDocumentShareLink = async () => {
     if (!selectedDocument) return;
-    const link = createSignatureShareLink(selectedDocument, nextSignerRole);
+    const link = createSignatureShareLink(selectedDocument, null);
     try {
       await navigator.clipboard.writeText(link);
       setShareMessage("คัดลอก Share Link แล้ว");
@@ -1793,17 +1813,12 @@ export default function SignatureCenterMockup({
   const copyNextSignerAlert = async () => {
     if (!selectedDocument) return;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
-    const nextRole = getCurrentStep(entries);
-    const lastRole = [...SIGNATURE_FLOW].reverse().find((role) => Boolean(getSignedEntry(entries, role)));
-    const latestStatus = nextRole
-      ? lastRole
-        ? `${roleThaiLabel(lastRole)} ลงนามแล้ว`
-        : previewConfirmed
-          ? "Agent ยืนยันรับทราบข้อมูลแล้ว"
-          : "รอ Agent ยืนยันรับทราบข้อมูล"
+    const pendingRoles = getPendingRoles(entries);
+    const latestStatus = pendingRoles.length
+      ? `${SIGNATURE_FLOW.length - pendingRoles.length}/4 role ลงนามแล้ว`
       : "เอกสารลงนามครบแล้ว";
 
-    const text = nextRole
+    const text = pendingRoles.length
       ? [
           "แจ้งเตือนลงนามเอกสาร QA Incentive",
           "",
@@ -1811,11 +1826,11 @@ export default function SignatureCenterMockup({
           `Agent: ${selectedDocument.agentName}`,
           "",
           `สถานะล่าสุด: ${latestStatus}`,
-          `ขั้นตอนถัดไป: รอ ${roleThaiLabel(nextRole)} ลงนาม`,
-          `ผู้ที่ต้องดำเนินการ: ${getRoleSigner(selectedDocument, nextRole)}`,
+          "ผู้ที่ยังต้องลงนาม:",
+          ...pendingRoles.map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`),
           "",
           "กดลิงก์นี้เพื่อเปิดเอกสาร:",
-          createSignatureShareLink(selectedDocument, nextRole),
+          createSignatureShareLink(selectedDocument, null),
           "",
           "รบกวนเข้าระบบ Signature Center เพื่อลงนามค่ะ/ครับ",
         ].join("\n")
@@ -2130,7 +2145,7 @@ export default function SignatureCenterMockup({
       <div className="grid gap-4 md:grid-cols-5">
         {[
           { label: "เอกสารที่เห็นได้", value: summary.total, tone: "text-slate-900" },
-          { label: "ถึงคิวฉัน", value: summary.myTurn, tone: "text-violet-700" },
+          { label: "รอฉันลงนาม", value: summary.myTurn, tone: "text-violet-700" },
           { label: "เซ็นครบแล้ว", value: summary.complete, tone: "text-emerald-700" },
           { label: "รอเซ็น", value: summary.pending, tone: "text-amber-700" },
           { label: "พร้อมจ่าย Incentive", value: summary.ready, tone: "text-violet-700" },
@@ -2229,7 +2244,7 @@ export default function SignatureCenterMockup({
                 {pendingCount}
               </div>
               <div className="mt-1 text-xs font-semibold text-slate-500">
-                เฉพาะเอกสารที่ส่งมาถึงคิว Role นี้แล้ว
+                เฉพาะเอกสารที่ Role ของคุณยังต้องลงนาม
               </div>
             </div>
           );
@@ -2290,10 +2305,10 @@ export default function SignatureCenterMockup({
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
               {documentView === "history"
                 ? "ประวัติจะแสดงเอกสารที่เกี่ยวข้อง เพื่อกลับไปตรวจสอบหรือ Reset ได้"
-                : "แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น"}
+                : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
             </div>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
-              แสดงเฉพาะเอกสารที่ส่งมาถึงคิวเซ็นของ Role คุณแล้วเท่านั้น
+              แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น
             </div>
             <select
               value={statusFilter}
@@ -2302,7 +2317,7 @@ export default function SignatureCenterMockup({
             >
               <option value="all">ทุกสถานะ</option>
               <option value="preview">รอ Confirm Preview</option>
-              <option value="my-turn">ถึงคิวฉัน</option>
+              <option value="my-turn">รอฉันลงนาม</option>
               <option value="pending">รอเซ็น</option>
               <option value="ready">พร้อมจ่าย Incentive</option>
               <option value="appeal-pending">มี Appeal รอ Approved</option>
@@ -2314,10 +2329,9 @@ export default function SignatureCenterMockup({
             {activeDocuments.map((doc) => {
               const entries = effectiveEntriesForDoc(doc, signatures);
               const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
-              const docCurrentStep = getCurrentStep(entries);
+              const docPendingRoles = getPendingRoles(entries);
               const isMyPendingTurn =
-                Boolean(docCurrentStep) &&
-                canSignIdentity(currentUser, doc, docCurrentStep as SignRole) &&
+                docPendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) &&
                 isSigningAllowedByDate(doc.monthKey) &&
                 !doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId));
               const selected = selectedDocument?.id === doc.id;
@@ -2339,11 +2353,11 @@ export default function SignatureCenterMockup({
                         <div className="truncate text-sm font-black text-slate-950">{doc.agentName}</div>
                       </div>
                       <div className="mt-1 text-xs font-bold text-slate-500">{doc.monthLabel}</div>
-                      {docCurrentStep ? (
+                      {docPendingRoles.length ? (
                         <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black ${
                           isMyPendingTurn ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"
                         }`}>
-                          รอ {roleThaiLabel(docCurrentStep)} เซ็น
+                          รอเซ็น {docPendingRoles.length} role
                         </div>
                       ) : null}
                     </div>
@@ -2507,10 +2521,10 @@ export default function SignatureCenterMockup({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
-                    <div className="mt-1 text-xl font-black text-slate-950">เซ็นตามลำดับ QA &gt; Supervisor &gt; Team Lead &gt; Agent</div>
+                    <div className="mt-1 text-xl font-black text-slate-950">เปิดให้ทุก Role ลงนามได้อิสระหลังปิด Appeal</div>
                     {!previewConfirmed ? (
                       <div className="mt-1 text-xs font-bold text-amber-600">
-                        Agent ยังไม่ได้กดยืนยันรับทราบ แต่ QA สามารถเริ่ม Workflow ได้หลังปิดรอบ Appeal
+                        Agent ต้องกดยืนยันรับทราบก่อนลงนามของตัวเอง แต่ Role อื่นลงนามได้โดยไม่ต้องรอ Agent
                       </div>
                     ) : null}
                   </div>
@@ -2535,25 +2549,25 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className={`mt-4 rounded-[24px] border px-5 py-4 shadow-[0_14px_34px_rgba(88,28,135,0.08)] ${
-                  nextSignerRole
+                  pendingRoles.length
                     ? "border-violet-200 bg-violet-50"
                     : "border-emerald-200 bg-emerald-50"
                 }`}>
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className={`text-xs font-black uppercase tracking-[0.18em] ${
-                        nextSignerRole ? "text-violet-600" : "text-emerald-700"
+                        pendingRoles.length ? "text-violet-600" : "text-emerald-700"
                       }`}>
-                        Next Signer Alert
+                        Pending Signers Alert
                       </div>
                       <div className="mt-1 text-lg font-black text-slate-950">
-                        {nextSignerRole
-                          ? `ขั้นตอนถัดไป: รอ ${roleThaiLabel(nextSignerRole)} ลงนาม`
+                        {pendingRoles.length
+                          ? `ยังรอลงนาม ${pendingRoles.length} role`
                           : "เอกสารลงนามครบแล้ว"}
                       </div>
                       <div className="mt-1 text-sm font-bold text-slate-600">
-                        {nextSignerRole
-                          ? `ผู้ที่ต้องดำเนินการ: ${nextSignerName}`
+                        {pendingRoles.length
+                          ? pendingRoles.map((role) => `${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`).join(" / ")
                           : "ไม่เหลือ Role ที่ต้องเซ็นต่อ"}
                       </div>
                     </div>
@@ -2595,22 +2609,26 @@ export default function SignatureCenterMockup({
                     const signed = getSignedEntry(selectedEntries, role);
                     const status = statusForRole(selectedEntries, role, selectedDocument.monthKey);
                     const signerName = getRoleSigner(selectedDocument, role);
+                    const isAgentBlockedByConfirm = role === "Agent" && !previewConfirmed && !signed;
                     const allowSign =
-                      currentStep === role &&
                       canSignIdentity(currentUser, selectedDocument, role) &&
                       isSigningAllowedByDate(selectedDocument.monthKey);
                     const canAddFirstDrawnSignature =
                       Boolean(signed) &&
                       !signed?.signatureDataUrl &&
                       canSignIdentity(currentUser, selectedDocument, role);
+                    const canResetRoleAfterDeadline =
+                      currentUser.role === "Quality Assurance" &&
+                      !isHistoricalPaidPeriod(selectedDocument.monthKey) &&
+                      getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
+                      !signed;
                     const canOpenSignaturePad = (!signed && allowSign) || canAddFirstDrawnSignature;
                     const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
-                    const previous = getPreviousStep(role);
                     return (
                       <div key={role} className="grid grid-cols-[90px_220px_minmax(0,1fr)_150px_210px] items-center gap-3 border-t border-slate-200 px-4 py-4 text-sm">
                         <div>
                           <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
-                            signed ? "bg-emerald-100 text-emerald-700" : currentStep === role ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
+                            signed ? "bg-emerald-100 text-emerald-700" : allowSign ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"
                           }`}>
                             {index + 1}
                           </span>
@@ -2622,8 +2640,8 @@ export default function SignatureCenterMockup({
                             <div className="mt-1 text-xs font-semibold text-slate-400">
                               Signed by {signed.signedBy} • {formatDateTime(signed.signedAt)}
                             </div>
-                          ) : status === "Waiting" && previous ? (
-                            <div className="mt-1 text-xs font-semibold text-slate-400">รอ {roleThaiLabel(previous)} เซ็นก่อน</div>
+                          ) : isAgentBlockedByConfirm ? (
+                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent ต้องกดยืนยันรับทราบก่อนลงนาม</div>
                           ) : status === "Locked" ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
                           ) : null}
@@ -2632,7 +2650,7 @@ export default function SignatureCenterMockup({
                         <div>
                           <button
                             type="button"
-                            onClick={() => setSigningRole(role)}
+                            onClick={() => openSignaturePad(role)}
                             disabled={!canOpenSignaturePad}
                             className={`w-full rounded-2xl px-4 py-2 text-xs font-black transition ${
                               canOpenSignaturePad
@@ -2649,7 +2667,9 @@ export default function SignatureCenterMockup({
                                     : "เพิ่มลายเซ็นจริง"
                                   : "เฉพาะเจ้าของลายเซ็น"
                               : allowSign
-                                ? savedSignatureDataUrl
+                                ? isAgentBlockedByConfirm
+                                  ? "กดยืนยันก่อนเซ็น"
+                                  : savedSignatureDataUrl
                                   ? "ใช้ลายเซ็นเดิม"
                                   : timeline === "Signature Deadline Passed"
                                     ? "วาดและลงนามล่าช้า"
@@ -2658,10 +2678,17 @@ export default function SignatureCenterMockup({
                                   ? "ยังไม่เปิดให้เซ็น"
                                   : status === "Expired"
                                     ? "เกินกำหนด"
-                                    : status === "Waiting"
-                                      ? "ยังไม่ถึงคิว"
-                                      : "รอผู้เกี่ยวข้อง"}
+                                    : "รอผู้เกี่ยวข้อง"}
                           </button>
+                          {canResetRoleAfterDeadline ? (
+                            <button
+                              type="button"
+                              onClick={() => resetSignatureRole(role)}
+                              className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                            >
+                              Reset คนนี้
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     );
