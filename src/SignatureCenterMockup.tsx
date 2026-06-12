@@ -7,6 +7,12 @@ import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
+import {
+  clearStoredSignatureConfirm,
+  fetchStoredSignatureDocuments,
+  saveStoredSignatureConfirm,
+  saveStoredSignatureDocument,
+} from "./signatureStore";
 
 type CurrentUser = {
   username: string;
@@ -1507,6 +1513,38 @@ export default function SignatureCenterMockup({
   }, [accounts]);
 
   useEffect(() => {
+    let alive = true;
+    const loadRemoteSignatures = async () => {
+      try {
+        const storedDocs = await fetchStoredSignatureDocuments();
+        if (!alive || !storedDocs.length) return;
+
+        setSignatures((previous) => {
+          const next = { ...previous };
+          storedDocs.forEach((doc) => {
+            if (doc.entries.length) next[doc.docId] = doc.entries as SignatureEntry[];
+          });
+          return next;
+        });
+
+        setConfirmedDocs((previous) => {
+          const next = { ...previous };
+          storedDocs.forEach((doc) => {
+            if (doc.confirmedAt) next[doc.docId] = doc.confirmedAt;
+          });
+          return next;
+        });
+      } catch (error) {
+        console.warn("Load remote signatures failed", error);
+      }
+    };
+    void loadRemoteSignatures();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     writeSignatureStore(signatures);
   }, [signatures]);
 
@@ -1722,12 +1760,22 @@ export default function SignatureCenterMockup({
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
   }, [currentUser, signatures, visibleDocuments]);
 
+  const persistDocumentSignatures = (docId: string, entries: SignatureEntry[], confirmedAt = "") => {
+    void saveStoredSignatureDocument(docId, entries, confirmedAt).catch((error) => {
+      console.warn("Save remote signature failed", error);
+    });
+  };
+
   const confirmPreview = () => {
     if (!selectedDocument || !confirmAvailable || hasPendingAppeal) return;
+    const confirmedAt = new Date().toISOString();
     setConfirmedDocs((previous) => ({
       ...previous,
-      [selectedDocument.id]: new Date().toISOString(),
+      [selectedDocument.id]: confirmedAt,
     }));
+    void saveStoredSignatureConfirm(selectedDocument.id, confirmedAt).catch((error) => {
+      console.warn("Save remote signature confirm failed", error);
+    });
   };
 
   const saveDrawnSignature = (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
@@ -1755,13 +1803,14 @@ export default function SignatureCenterMockup({
       }));
     }
 
+    const nextEntries = [...entries.filter((entry) => entry.role !== role), nextEntry];
     setSignatures((previous) => {
-      const current = previous[selectedDocument.id] || [];
       return {
         ...previous,
-        [selectedDocument.id]: [...current.filter((entry) => entry.role !== role), nextEntry],
+        [selectedDocument.id]: nextEntries,
       };
     });
+    persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
   };
 
   const signRole = (role: SignRole, signatureDataUrl?: string, saveToSavedLibrary = false) => {
@@ -1770,7 +1819,8 @@ export default function SignatureCenterMockup({
     if (!isAfterAppealPeriod(selectedDocument.monthKey)) return;
     if (!isSigningAllowedByDate(selectedDocument.monthKey)) return;
     if (!canSignIdentity(currentUser, selectedDocument, role)) return;
-    if (getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), role)) return;
+    const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    if (getSignedEntry(entries, role)) return;
     if (role === "Agent" && !previewConfirmed) {
       window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
       return;
@@ -1793,13 +1843,14 @@ export default function SignatureCenterMockup({
       }));
     }
 
+    const nextEntries = [...entries.filter((entry) => entry.role !== role), nextEntry];
     setSignatures((previous) => {
-      const current = previous[selectedDocument.id] || [];
       return {
         ...previous,
-        [selectedDocument.id]: [...current.filter((entry) => entry.role !== role), nextEntry],
+        [selectedDocument.id]: nextEntries,
       };
     });
+    persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
   };
 
   const openSignaturePad = (role: SignRole) => {
@@ -1815,11 +1866,11 @@ export default function SignatureCenterMockup({
     if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
     if (getTimelineStatus(selectedDocument.monthKey) !== "Signature Deadline Passed") return;
     if (currentUser.role !== "Quality Assurance") return;
+    const nextEntriesForRemote = selectedEntries.filter((entry) => entry.role !== role);
     setSignatures((previous) => {
-      const current = previous[selectedDocument.id] || [];
       return {
         ...previous,
-        [selectedDocument.id]: current.filter((entry) => entry.role !== role),
+        [selectedDocument.id]: nextEntriesForRemote,
       };
     });
     if (role === "Agent") {
@@ -1828,6 +1879,11 @@ export default function SignatureCenterMockup({
         delete next[selectedDocument.id];
         return next;
       });
+      void clearStoredSignatureConfirm(selectedDocument.id, nextEntriesForRemote).catch((error) => {
+        console.warn("Clear remote signature confirm failed", error);
+      });
+    } else {
+      persistDocumentSignatures(selectedDocument.id, nextEntriesForRemote, confirmedDocs[selectedDocument.id] || "");
     }
   };
 
@@ -1939,6 +1995,9 @@ export default function SignatureCenterMockup({
       const next = { ...previous };
       delete next[selectedDocument.id];
       return next;
+    });
+    void clearStoredSignatureConfirm(selectedDocument.id, []).catch((error) => {
+      console.warn("Reset remote signature document failed", error);
     });
   };
 
