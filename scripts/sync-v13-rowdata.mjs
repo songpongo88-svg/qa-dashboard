@@ -1,6 +1,9 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import XLSX from "xlsx";
 import { initializeApp, getApps } from "firebase/app";
 import { collection, getDocs, getFirestore, limit, orderBy, query } from "firebase/firestore/lite";
@@ -155,6 +158,44 @@ function makeBackup(filePath) {
   return backupPath;
 }
 
+function appendRowsWithExcelCom({ appendRows, caseIdColumn }) {
+  const payloadPath = path.join(os.tmpdir(), `qa-v13-rowdata-${Date.now()}.json`);
+  const helperPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "append-v13-rowdata-com.ps1");
+
+  fs.writeFileSync(payloadPath, JSON.stringify({ rows: appendRows }), "utf8");
+  const result = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      helperPath,
+      "-WorkbookPath",
+      TARGET_WORKBOOK,
+      "-SheetName",
+      TARGET_SHEET,
+      "-PayloadPath",
+      payloadPath,
+      "-CaseIdColumn",
+      String(caseIdColumn + 1),
+    ],
+    { encoding: "utf8" }
+  );
+
+  try {
+    fs.unlinkSync(payloadPath);
+  } catch {
+    // Best effort cleanup only.
+  }
+
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.status !== 0) {
+    throw new Error(`Excel COM append failed with exit code ${result.status}`);
+  }
+}
+
 async function main() {
   if (!fs.existsSync(TARGET_WORKBOOK)) {
     throw new Error(`Workbook not found: ${TARGET_WORKBOOK}`);
@@ -192,9 +233,8 @@ async function main() {
     return;
   }
 
-  XLSX.utils.sheet_add_aoa(sheet, appendRows, { origin: -1 });
   const backupPath = makeBackup(TARGET_WORKBOOK);
-  XLSX.writeFile(workbook, TARGET_WORKBOOK, { bookType: "xlsx", cellDates: true });
+  appendRowsWithExcelCom({ appendRows, caseIdColumn });
 
   console.log(`Updated ${TARGET_WORKBOOK}`);
   console.log(`Backup: ${backupPath}`);
