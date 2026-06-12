@@ -113,6 +113,22 @@ function isSamePerson(a: unknown, b: unknown) {
   return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
 }
 
+function currentUserMatchesName(currentUser: CurrentUser, name: unknown) {
+  return (
+    isSamePerson(currentUser.displayName, name) ||
+    isSamePerson(currentUser.agentName, name) ||
+    isSamePerson(currentUser.username, name) ||
+    isSamePerson(currentUser.email, name)
+  );
+}
+
+function currentUserHasRole(currentUser: CurrentUser, role: SignRole) {
+  if (role === "QA") return currentUser.role === "Quality Assurance";
+  if (role === "Supervisor") return currentUser.role === "Supervisor";
+  if (role === "Senior") return currentUser.role === "Senior";
+  return true;
+}
+
 function parseExcelDate(value: unknown): Date | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (typeof value === "number") {
@@ -547,10 +563,13 @@ function roleThaiLabel(role: SignRole) {
 
 function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
   const signerName = getRoleSigner(doc, role);
-  if (role === "QA") return currentUser.role === "Quality Assurance" || isSamePerson(currentUser.displayName, signerName);
-  if (role === "Supervisor") return currentUser.role === "Supervisor" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
-  if (role === "Senior") return currentUser.role === "Senior" || isSamePerson(currentUser.displayName, signerName) || isSamePerson(currentUser.agentName, signerName);
-  return isSamePerson(currentUser.agentName, doc.agentName) || isSamePerson(currentUser.displayName, doc.agentName);
+  if (role === "Agent") {
+    return currentUserMatchesName(currentUser, doc.agentName);
+  }
+
+  if (!currentUserHasRole(currentUser, role)) return false;
+  if (role === "QA" && compactPerson(signerName) === compactPerson("Quality Assurance")) return true;
+  return currentUserMatchesName(currentUser, signerName);
 }
 
 function autoHistoricalEntries(doc: SignatureDocument): SignatureEntry[] {
@@ -592,6 +611,13 @@ function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entri
   if (!isAfterAppealPeriod(doc.monthKey)) return false;
 
   return pendingRoles.some((role) => canSignIdentity(currentUser, doc, role));
+}
+
+function canMonitorDocument(currentUser: CurrentUser, doc: SignatureDocument) {
+  if (currentUser.role === "Quality Assurance") return canSignIdentity(currentUser, doc, "QA");
+  if (currentUser.role === "Supervisor") return canSignIdentity(currentUser, doc, "Supervisor");
+  if (currentUser.role === "Senior") return canSignIdentity(currentUser, doc, "Senior");
+  return canSignIdentity(currentUser, doc, "Agent");
 }
 
 function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string): SignatureStepStatus {
@@ -1551,17 +1577,13 @@ export default function SignatureCenterMockup({
         doc.seniorName.toLowerCase().includes(keyword) ||
         doc.supervisorName.toLowerCase().includes(keyword);
       return statusMatch && monthMatch && keywordMatch;
-    });
+    }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   }, [confirmedDocs, currentUser, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
   const historyFilteredDocuments = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return documents.filter((doc) => {
-      const entries = effectiveEntriesForDoc(doc, signatures);
-      const related =
-        currentUser.role === "Quality Assurance" ||
-        SIGNATURE_FLOW.some((role) => canSignIdentity(currentUser, doc, role));
-      if (!related) return false;
+      if (!canMonitorDocument(currentUser, doc)) return false;
 
       const monthMatch = selectedMonth === "all" || doc.monthKey === selectedMonth;
       const keywordMatch =
@@ -1571,10 +1593,15 @@ export default function SignatureCenterMockup({
         doc.supervisorName.toLowerCase().includes(keyword);
 
       return monthMatch && keywordMatch;
-    });
-  }, [currentUser, documents, search, selectedMonth, signatures]);
+    }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
+  }, [currentUser, documents, search, selectedMonth]);
 
   const activeDocuments = documentView === "history" ? historyFilteredDocuments : filteredDocuments;
+  const isQaUser = currentUser.role === "Quality Assurance";
+  const monitorTitle = isQaUser ? "QA Monitor" : "ประวัติของฉัน";
+  const monitorDescription = isQaUser
+    ? "แสดงเอกสารที่ QA คนนี้รับผิดชอบ พร้อมสถานะว่าใครเซ็นแล้วและใครยังเหลือ"
+    : "แสดงเฉพาะเอกสารที่เกี่ยวข้องกับสิทธิ์ของคุณเท่านั้น";
 
   const selectedMonthAllDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -1597,19 +1624,22 @@ export default function SignatureCenterMockup({
 
   const rolePendingCounts = useMemo(() => {
     const counts: Record<SignRole, number> = { QA: 0, Supervisor: 0, Senior: 0, Agent: 0 };
-    const sourceDocs = documents.filter((doc) => selectedMonth === "all" || doc.monthKey === selectedMonth);
+    const sourceDocs = documents
+      .filter((doc) => selectedMonth === "all" || doc.monthKey === selectedMonth)
+      .filter((doc) => canMonitorDocument(currentUser, doc));
 
     sourceDocs.forEach((doc) => {
       if (!isAfterAppealPeriod(doc.monthKey)) return;
       if (doc.cases.some((item) => pendingAppealCaseMap.has(item.caseId))) return;
       const entries = effectiveEntriesForDoc(doc, signatures);
       getPendingRoles(entries).forEach((role) => {
+        if (currentUser.role !== "Quality Assurance" && !canSignIdentity(currentUser, doc, role)) return;
         counts[role] += 1;
       });
     });
 
     return counts;
-  }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
+  }, [currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
 
@@ -2258,10 +2288,10 @@ export default function SignatureCenterMockup({
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">
-            {documentView === "history" ? "Signature History" : "Document Queue"}
+            {documentView === "history" ? (isQaUser ? "QA Signature Monitor" : "Signature History") : "Document Queue"}
           </div>
           <div className="mt-1 text-xl font-black text-slate-950">
-            {documentView === "history" ? "ประวัติ / Reset" : "คิวที่ต้องเซ็นของฉัน"}
+            {documentView === "history" ? monitorTitle : "คิวที่ต้องเซ็นของฉัน"}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -2285,7 +2315,7 @@ export default function SignatureCenterMockup({
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              ประวัติ ({historyFilteredDocuments.length})
+              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
             </button>
           </div>
 
@@ -2308,11 +2338,13 @@ export default function SignatureCenterMockup({
             </select>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
               {documentView === "history"
-                ? "ประวัติจะแสดงเอกสารที่เกี่ยวข้อง เพื่อกลับไปตรวจสอบหรือ Reset ได้"
+                ? monitorDescription
                 : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
             </div>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
-              แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น
+              {isQaUser
+                ? "QA Monitor ใช้เช็กสถานะรวมของเอกสาร QA ที่คุณรับผิดชอบ โดยไม่รวมเอกสารของ QA คนอื่น"
+                : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
             </div>
             <select
               value={statusFilter}
@@ -2334,6 +2366,7 @@ export default function SignatureCenterMockup({
               const entries = effectiveEntriesForDoc(doc, signatures);
               const count = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
               const docPendingRoles = getPendingRoles(entries);
+              const docSignedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role)));
               const isMyPendingTurn =
                 docPendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) &&
                 isSigningAllowedByDate(doc.monthKey) &&
@@ -2372,6 +2405,16 @@ export default function SignatureCenterMockup({
                     <span className="rounded-full bg-violet-100 px-2.5 py-1 text-violet-700">Score {doc.averageScore.toFixed(2)}</span>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{getTimelineStatus(doc.monthKey)}</span>
                   </div>
+                  {documentView === "history" ? (
+                    <div className="mt-3 space-y-1 text-xs font-bold leading-5">
+                      <div className="text-emerald-700">
+                        เซ็นแล้ว: {docSignedRoles.length ? docSignedRoles.map(roleThaiLabel).join(", ") : "-"}
+                      </div>
+                      <div className="text-rose-700">
+                        ยังเหลือ: {docPendingRoles.length ? docPendingRoles.map((role) => `${roleThaiLabel(role)} (${getRoleSigner(doc, role)})`).join(", ") : "ครบแล้ว"}
+                      </div>
+                    </div>
+                  ) : null}
                 </button>
               );
             })}
