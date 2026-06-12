@@ -1267,7 +1267,7 @@ function SignaturePadModal({
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!hasDrawnRef.current) {
-      window.alert("กรุณาวาดลายเซ็นก่อนกด Save Signature");
+      window.alert("กรุณาวาดลายเซ็นก่อนกดยืนยันเซ็นใหม่");
       return;
     }
     onSave(canvas.toDataURL("image/png"), saveToLibrary);
@@ -1294,6 +1294,9 @@ function SignaturePadModal({
         {savedSignatureDataUrl ? (
           <div className="mt-4 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4">
             <div className="text-sm font-black text-emerald-800">มีลายเซ็นเดิมของคุณในระบบ</div>
+            <div className="mt-1 text-xs font-bold text-emerald-700">
+              หากต้องการใช้ลายเซ็นนี้ ให้กดปุ่มยืนยันด้านล่าง ระบบจะบันทึกการลงนามทันที
+            </div>
             <div className="mt-2 rounded-2xl border border-emerald-100 bg-white p-3">
               <img src={savedSignatureDataUrl} alt="Saved signature" className="h-16 max-w-full object-contain" />
             </div>
@@ -1302,12 +1305,13 @@ function SignaturePadModal({
               onClick={onUseSavedSignature}
               className="mt-3 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
             >
-              ใช้ลายเซ็นเดิม
+              ยืนยันใช้ลายเซ็นเดิม
             </button>
           </div>
         ) : null}
 
         <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-3">
+          <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">หรือวาดลายเซ็นใหม่</div>
           <canvas
             ref={canvasRef}
             width={900}
@@ -1344,7 +1348,7 @@ function SignaturePadModal({
             onClick={saveSignature}
             className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
           >
-            Save Signature
+            ยืนยันเซ็นใหม่
           </button>
         </div>
       </div>
@@ -2663,14 +2667,14 @@ export default function SignatureCenterMockup({
                                 ? "เอกสารลงนามแล้ว"
                                 : canAddFirstDrawnSignature
                                   ? savedSignatureDataUrl
-                                    ? "ใช้ลายเซ็นเดิม"
+                                    ? "ตรวจสอบลายเซ็นเดิม"
                                     : "เพิ่มลายเซ็นจริง"
                                   : "เฉพาะเจ้าของลายเซ็น"
                               : allowSign
                                 ? isAgentBlockedByConfirm
                                   ? "กดยืนยันก่อนเซ็น"
                                   : savedSignatureDataUrl
-                                  ? "ใช้ลายเซ็นเดิม"
+                                  ? "ตรวจสอบลายเซ็นเดิม"
                                   : timeline === "Signature Deadline Passed"
                                     ? "วาดและลงนามล่าช้า"
                                     : "วาดและลงนาม"
