@@ -73,6 +73,47 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function excelDateSerialFromDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  return date.getTime() / 86400000 + 25569;
+}
+
+function excelDateSerialFromParts(year, month, day) {
+  return Date.UTC(year, month - 1, day) / 86400000 + 25569;
+}
+
+function parseDateOnly(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  let match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return excelDateSerialFromParts(Number(match[1]), Number(match[2]), Number(match[3]));
+  }
+
+  match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    return excelDateSerialFromParts(Number(match[3]), Number(match[2]), Number(match[1]));
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? value : excelDateSerialFromDate(parsed);
+}
+
+function parseDateTime(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? value : excelDateSerialFromDate(new Date(parsed.getTime() + 7 * 60 * 60 * 1000));
+}
+
+function parseTimeSerial(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return value || "";
+  return (Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] || 0)) / 86400;
+}
+
 function appealFinalScoreFromTopics(topics) {
   return topics.reduce((sum, topic) => {
     const revisedScore = toNumber(topic.revisedScore, Number.NaN);
@@ -226,11 +267,11 @@ function rawValueForHeader(header, record) {
   if (topic) return header.endsWith(" Score") ? topic.score : topic.comment;
 
   const map = {
-    "Audit Date": record.auditDate,
+    "Audit Date": parseDateTime(record.submittedAt),
     "Agent Name": record.agentName,
-    "Case Date": preview["Case Date"] || preview["Audit Date"] || record.auditDate || "",
-    "Waiting Time": record.waitingTime,
-    "Service Time": record.serviceTime,
+    "Case Date": parseDateOnly(preview["Case Date"] || preview["Audit Date"] || record.auditDate || ""),
+    "Waiting Time": parseTimeSerial(record.waitingTime),
+    "Service Time": parseTimeSerial(record.serviceTime),
     "Case ID": record.caseId,
     "Case URL": record.caseUrl,
     "Critical Error": record.criticalError ? "YES" : "NO",
@@ -282,11 +323,11 @@ function appealValueForHeader(header, request, original) {
   const changed = request.status === "Approved" && Number(finalScore) !== Number(originalFinalScore);
 
   const map = {
-    "Audit Date": original?.auditDate || original?.["Audit Date"] || request.auditDate,
+    "Audit Date": original?.submittedAt ? parseDateTime(original.submittedAt) : original?.["Audit Date"] || parseDateTime(request.reviewedAt || request.submittedAt),
     "Agent Name": original?.agentName || original?.["Agent Name"] || request.agent,
-    "Case Date": original?.rawDataPreview?.["Case Date"] || original?.["Case Date"] || original?.rawDataPreview?.["Audit Date"] || original?.auditDate || request.auditDate,
-    "Waiting Time": original?.waitingTime || original?.["Waiting Time"] || "",
-    "Service Time": original?.serviceTime || original?.["Service Time"] || "",
+    "Case Date": original?.rawDataPreview?.["Case Date"] ? parseDateOnly(original.rawDataPreview["Case Date"]) : original?.["Case Date"] || parseDateOnly(original?.rawDataPreview?.["Audit Date"] || original?.auditDate || request.auditDate),
+    "Waiting Time": original?.waitingTime ? parseTimeSerial(original.waitingTime) : original?.["Waiting Time"] || "",
+    "Service Time": original?.serviceTime ? parseTimeSerial(original.serviceTime) : original?.["Service Time"] || "",
     "Case ID": request.caseId,
     "Case URL": original?.caseUrl || original?.["Case URL"] || request.caseUrl,
     "Critical Error": original?.criticalError ? "YES" : "NO",
