@@ -148,7 +148,7 @@ try {
     $ws.Range($ws.Cells.Item(${DATA_START_ROW}, 53), $ws.Cells.Item(${DATA_START_ROW} + $rowCount - 1, 54)).NumberFormat = '@'
     $target = $ws.Range($ws.Cells.Item(${DATA_START_ROW}, 1), $ws.Cells.Item(${DATA_START_ROW} + $rowCount - 1, $colCount))
     $target.Value2 = $data
-    $ws.Range($ws.Cells.Item(${DATA_START_ROW}, 75), $ws.Cells.Item(${DATA_START_ROW} + $rowCount - 1, 75)).FormulaR1C1 = '=IF(AND(RC2<>"""",RC46=Control_Panel!R5C2,COUNTIFS(R5C2:RC2,RC2,R5C46:RC46,Control_Panel!R5C2)<=10),COUNTIFS(R5C2:RC2,RC2,R5C46:RC46,Control_Panel!R5C2),"""")'
+    $ws.Range($ws.Cells.Item(${DATA_START_ROW}, 75), $ws.Cells.Item(${DATA_START_ROW} + $rowCount - 1, 75)).FormulaR1C1 = '=IF(AND(RC2<>"",RC46=Control_Panel!R5C2,COUNTIFS(R5C2:RC2,RC2,R5C46:RC46,Control_Panel!R5C2)=1),MAX(R4C75:R[-1]C75)+1,"")'
   }
 
   $ws.Range('A5:A' + (${DATA_START_ROW} + $rowCount - 1)).NumberFormat = 'dd/mm/yyyy hh:mm'
