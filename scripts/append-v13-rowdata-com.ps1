@@ -9,7 +9,9 @@ param(
   [string]$PayloadPath,
 
   [Parameter(Mandatory = $true)]
-  [int]$CaseIdColumn
+  [int]$CaseIdColumn,
+
+  [switch]$ValueOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,10 +54,12 @@ try {
   $columnCount = @($rows[0]).Count
 
   foreach ($row in $rows) {
-    $sourceRange = $sheet.Range($sheet.Cells.Item([int]$formatSourceRow, 1), $sheet.Cells.Item([int]$formatSourceRow, [int]$columnCount))
-    $targetRange = $sheet.Range($sheet.Cells.Item([int]$targetRow, 1), $sheet.Cells.Item([int]$targetRow, [int]$columnCount))
-    $sourceRange.Copy() | Out-Null
-    $targetRange.PasteSpecial(-4122) | Out-Null
+    if (-not $ValueOnly) {
+      $sourceRange = $sheet.Range($sheet.Cells.Item([int]$formatSourceRow, 1), $sheet.Cells.Item([int]$formatSourceRow, [int]$columnCount))
+      $targetRange = $sheet.Range($sheet.Cells.Item([int]$targetRow, 1), $sheet.Cells.Item([int]$targetRow, [int]$columnCount))
+      $sourceRange.Copy() | Out-Null
+      $targetRange.PasteSpecial(-4122) | Out-Null
+    }
 
     $values = @($row)
     for ($index = 0; $index -lt $values.Count; $index++) {
@@ -76,7 +80,9 @@ try {
     $appended++
   }
 
-  $excel.CutCopyMode = $false
+  if (-not $ValueOnly) {
+    $excel.CutCopyMode = 0
+  }
   $workbook.Save()
   $saved = $true
   Write-Output "Appended rows with Excel COM: $appended"
