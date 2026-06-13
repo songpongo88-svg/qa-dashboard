@@ -205,6 +205,20 @@ function existingKeys(rows, columnIndex) {
   return new Set(rows.slice(DATA_START_ROW_INDEX).map((row) => normalizeKey(row?.[columnIndex])).filter(Boolean));
 }
 
+function buildRawExcelRecordMap(rows, headers) {
+  const caseIdColumn = headers.findIndex((header) => header === "Case ID");
+  if (caseIdColumn < 0) return new Map();
+  return new Map(
+    rows
+      .slice(DATA_START_ROW_INDEX)
+      .map((row) => {
+        const record = Object.fromEntries(headers.map((header, index) => [header, row?.[index] ?? ""]));
+        return [normalizeKey(row?.[caseIdColumn]), record];
+      })
+      .filter(([caseId]) => caseId)
+  );
+}
+
 function rawValueForHeader(header, record) {
   const preview = record.rawDataPreview || {};
   if (preview[header] !== undefined && preview[header] !== null && preview[header] !== "") return preview[header];
@@ -214,7 +228,7 @@ function rawValueForHeader(header, record) {
   const map = {
     "Audit Date": record.auditDate,
     "Agent Name": record.agentName,
-    "Case Date": preview["Case Date"] || "",
+    "Case Date": preview["Case Date"] || preview["Audit Date"] || record.auditDate || "",
     "Waiting Time": record.waitingTime,
     "Service Time": record.serviceTime,
     "Case ID": record.caseId,
@@ -268,29 +282,29 @@ function appealValueForHeader(header, request, original) {
   const changed = request.status === "Approved" && Number(finalScore) !== Number(originalFinalScore);
 
   const map = {
-    "Audit Date": original?.auditDate || request.auditDate,
-    "Agent Name": original?.agentName || request.agent,
-    "Case Date": original?.rawDataPreview?.["Case Date"] || "",
-    "Waiting Time": original?.waitingTime || "",
-    "Service Time": original?.serviceTime || "",
+    "Audit Date": original?.auditDate || original?.["Audit Date"] || request.auditDate,
+    "Agent Name": original?.agentName || original?.["Agent Name"] || request.agent,
+    "Case Date": original?.rawDataPreview?.["Case Date"] || original?.["Case Date"] || original?.rawDataPreview?.["Audit Date"] || original?.auditDate || request.auditDate,
+    "Waiting Time": original?.waitingTime || original?.["Waiting Time"] || "",
+    "Service Time": original?.serviceTime || original?.["Service Time"] || "",
     "Case ID": request.caseId,
-    "Case URL": original?.caseUrl || request.caseUrl,
+    "Case URL": original?.caseUrl || original?.["Case URL"] || request.caseUrl,
     "Critical Error": original?.criticalError ? "YES" : "NO",
-    "Customer Inquiry": original?.inquiry || request.inquiry,
+    "Customer Inquiry": original?.inquiry || original?.["Customer Inquiry"] || request.inquiry,
     "Final Score": finalScore,
-    "Month Start": original?.rawDataPreview?.["Month Start"] || "",
-    "Month Label": original?.rawDataPreview?.["Month Label"] || "",
-    "Week Start": original?.rawDataPreview?.["Week Start"] || "",
-    "Week End": original?.rawDataPreview?.["Week End"] || "",
-    "Week Label": original?.rawDataPreview?.["Week Label"] || "",
-    "Agent Month Seq": original?.rawDataPreview?.["Agent Month Seq"] || "",
-    "Agent Week Seq": original?.rawDataPreview?.["Agent Week Seq"] || "",
-    "Month Key": original?.rawDataPreview?.["Month Key"] || "",
-    "Week Key": original?.rawDataPreview?.["Week Key"] || "",
-    "Critical Flag": original?.rawDataPreview?.["Critical Flag"] || "",
-    "Case Description": original?.caseDescription || request.caseDescription,
-    "Case Image URL": original?.evidenceUrls?.join("\n") || "",
-    "QA Scheme": original?.qaScheme || "",
+    "Month Start": original?.rawDataPreview?.["Month Start"] || original?.["Month Start"] || "",
+    "Month Label": original?.rawDataPreview?.["Month Label"] || original?.["Month Label"] || "",
+    "Week Start": original?.rawDataPreview?.["Week Start"] || original?.["Week Start"] || "",
+    "Week End": original?.rawDataPreview?.["Week End"] || original?.["Week End"] || "",
+    "Week Label": original?.rawDataPreview?.["Week Label"] || original?.["Week Label"] || "",
+    "Agent Month Seq": original?.rawDataPreview?.["Agent Month Seq"] || original?.["Agent Month Seq"] || "",
+    "Agent Week Seq": original?.rawDataPreview?.["Agent Week Seq"] || original?.["Agent Week Seq"] || "",
+    "Month Key": original?.rawDataPreview?.["Month Key"] || original?.["Month Key"] || "",
+    "Week Key": original?.rawDataPreview?.["Week Key"] || original?.["Week Key"] || "",
+    "Critical Flag": original?.rawDataPreview?.["Critical Flag"] || original?.["Critical Flag"] || "",
+    "Case Description": original?.caseDescription || original?.["Case Description / รายละเอียดเคส คำอธิบายเคส"] || original?.["Case Description"] || request.caseDescription,
+    "Case Image URL": original?.evidenceUrls?.join("\n") || original?.["Case Image URL / ภาพประกอบเคส"] || original?.["Case Image URL"] || "",
+    "QA Scheme": original?.qaScheme || original?.["QA Scheme"] || "",
     "Comment Status": request.status === "Approved" ? "Revised" : "Rejected",
     "Original Case Key": `${request.caseId}-ORI`,
     "Appeal Record Key": `${request.caseId}-${version}`,
@@ -368,6 +382,7 @@ async function main() {
   if (appealCaseIdColumn < 0) throw new Error("Appeal_Data Case ID column not found");
 
   const evaluations = await fetchEvaluations();
+  const rawExcelRecordMap = buildRawExcelRecordMap(raw.rows, raw.headers);
   const evaluationMap = new Map(evaluations.map((item) => [normalizeKey(item.caseId), item]));
   const existingRawCaseIds = existingKeys(raw.rows, rawCaseIdColumn);
   const rawRecords = evaluations
@@ -385,7 +400,7 @@ async function main() {
     return !existingAppealKeys.has(normalizeKey(matchKey)) && !existingAppealKeys.has(normalizeKey(request.caseId));
   });
   const appealRows = appealRecords.map((request) => {
-    const original = evaluationMap.get(normalizeKey(request.caseId));
+    const original = evaluationMap.get(normalizeKey(request.caseId)) || rawExcelRecordMap.get(normalizeKey(request.caseId));
     return appeal.headers.map((header) => appealValueForHeader(header, request, original));
   });
 
