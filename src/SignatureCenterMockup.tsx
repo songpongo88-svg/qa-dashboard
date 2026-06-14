@@ -1522,7 +1522,11 @@ export default function SignatureCenterMockup({
         setSignatures((previous) => {
           const next = { ...previous };
           storedDocs.forEach((doc) => {
-            if (doc.entries.length) next[doc.docId] = doc.entries as SignatureEntry[];
+            if (doc.entries.length) {
+              next[doc.docId] = doc.entries as SignatureEntry[];
+            } else {
+              delete next[doc.docId];
+            }
           });
           return next;
         });
@@ -1530,7 +1534,11 @@ export default function SignatureCenterMockup({
         setConfirmedDocs((previous) => {
           const next = { ...previous };
           storedDocs.forEach((doc) => {
-            if (doc.confirmedAt) next[doc.docId] = doc.confirmedAt;
+            if (doc.confirmedAt) {
+              next[doc.docId] = doc.confirmedAt;
+            } else {
+              delete next[doc.docId];
+            }
           });
           return next;
         });
