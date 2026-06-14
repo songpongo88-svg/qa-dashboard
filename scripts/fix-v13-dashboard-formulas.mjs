@@ -83,6 +83,7 @@ try {
   $excel = New-Object -ComObject Excel.Application
   $excel.Visible = $false
   $excel.DisplayAlerts = $false
+  $excel.Calculation = -4135
   $wb = $excel.Workbooks.Open($path)
 
   $weekly = $wb.Worksheets.Item('Weekly_Dashboard')
@@ -107,7 +108,8 @@ try {
   Fix-AgentRanking $monthlyTeam $monthlyAgentFormula 14 27
   ApplyTopicBlock $monthlyTeam 'A' 'B' 'C' 'D' 'E' 'F' 31 'month'
 
-  $excel.CalculateFullRebuild()
+  $wb.ForceFullCalculation = $true
+  $wb.RefreshAll() | Out-Null
   $wb.Save()
   Write-Output "Backup created: ${backup}"
   Write-Output "Dashboard formulas fixed: topic performance and A-Z agent ranking"
