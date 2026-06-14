@@ -127,6 +127,7 @@ try {
   $excel = New-Object -ComObject Excel.Application
   $excel.Visible = $false
   $excel.DisplayAlerts = $false
+  try { $excel.Calculation = -4135 } catch {}
   $wb = $excel.Workbooks.Open($path)
   $ws = $wb.Worksheets.Item('Effective_Data')
   $oldLast = $ws.Cells.Item($ws.Rows.Count, 6).End(-4162).Row
@@ -156,7 +157,14 @@ try {
   $ws.Range('D5:E' + (${DATA_START_ROW} + $rowCount - 1)).NumberFormat = 'hh:mm'
   $ws.Range('AT5:AT' + (${DATA_START_ROW} + $rowCount - 1)).NumberFormat = 'dd/mm/yyyy'
   $ws.Range('AV5:AW' + (${DATA_START_ROW} + $rowCount - 1)).NumberFormat = 'dd/mm/yyyy'
-  $excel.CalculateFullRebuild()
+  $ws.Calculate()
+  foreach ($sheetName in @('Weekly_Dashboard','Weekly_QA_by_Agent','Monthly_Dashboard','Monthly_Team_Summary','Yearly_Team_Summary')) {
+    try {
+      $wb.Worksheets.Item($sheetName).Calculate()
+    } catch {
+      # Some workbook versions may not have every summary sheet.
+    }
+  }
   $wb.Save()
   Write-Output "Backup created: ${escapedBackup}"
   Write-Output "Effective_Data rebuilt rows: $rowCount"
