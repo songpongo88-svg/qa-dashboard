@@ -48,6 +48,26 @@ function toStoredDocument(row: any, fallbackId = ""): StoredSignatureDocument {
   };
 }
 
+function sanitizeEntry(entry: StoredSignatureEntry) {
+  const cleanEntry: StoredSignatureEntry = {
+    role: entry.role,
+    signerName: String(entry.signerName || ""),
+    signedBy: String(entry.signedBy || ""),
+    signedAt: String(entry.signedAt || ""),
+    status: entry.status === "Pending" ? "Pending" : "Signed",
+  };
+
+  if (entry.note) cleanEntry.note = String(entry.note);
+  if (entry.signatureDataUrl) cleanEntry.signatureDataUrl = String(entry.signatureDataUrl);
+  return cleanEntry;
+}
+
+function sanitizeEntries(entries: StoredSignatureEntry[] = []) {
+  return entries
+    .map(sanitizeEntry)
+    .filter((entry) => entry.role && entry.signerName && entry.signedAt);
+}
+
 export async function fetchStoredSignatureDocuments() {
   const snapshot = await getDocs(collection(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION));
   return snapshot.docs
@@ -57,11 +77,12 @@ export async function fetchStoredSignatureDocuments() {
 
 export async function saveStoredSignatureDocument(docId: string, entries: StoredSignatureEntry[], confirmedAt = "") {
   const now = new Date().toISOString();
+  const cleanEntries = sanitizeEntries(entries);
   await setDoc(
     doc(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION, safeDocId(docId)),
     {
       docId,
-      entries,
+      entries: cleanEntries,
       ...(confirmedAt ? { confirmedAt } : {}),
       updatedAt: now,
       updatedAtServer: serverTimestamp(),
@@ -86,11 +107,12 @@ export async function saveStoredSignatureConfirm(docId: string, confirmedAt: str
 
 export async function clearStoredSignatureConfirm(docId: string, entries: StoredSignatureEntry[] = []) {
   const now = new Date().toISOString();
+  const cleanEntries = sanitizeEntries(entries);
   await setDoc(
     doc(firebaseDb, SIGNATURE_DOCUMENT_COLLECTION, safeDocId(docId)),
     {
       docId,
-      entries,
+      entries: cleanEntries,
       confirmedAt: deleteField(),
       updatedAt: now,
       updatedAtServer: serverTimestamp(),
