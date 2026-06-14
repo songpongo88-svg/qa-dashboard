@@ -246,6 +246,8 @@ function getMonthKeyFromRow(row: unknown[], helper: ReturnType<typeof buildHeade
   );
   const monthKeyMatch = explicitMonthKey.match(/(20\d{2})[-/](\d{1,2})/);
   if (monthKeyMatch) return `${monthKeyMatch[1]}-${String(Number(monthKeyMatch[2])).padStart(2, "0")}`;
+  const compactMonthKeyMatch = explicitMonthKey.match(/(20\d{2})(\d{2})\d{2}/);
+  if (compactMonthKeyMatch) return `${compactMonthKeyMatch[1]}-${compactMonthKeyMatch[2]}`;
 
   const monthDate =
     parseMonthValueToDate(helper.get(row, ["Month Label", "Month", "Reporting Month", "Selected Month", "Report Month"], "")) ||
@@ -2101,8 +2103,9 @@ export default function SignatureCenterMockup({
     y += 2;
     drawSectionTitle("Incentive Summary");
     const incentiveRows = [
-      ["Incentive", individualIncentive.label || "No Incentive", "Cash (THB)", formatBahtAmount(individualIncentive.cash || 0)],
-      ["RBH Promo (THB)", formatBahtAmount(individualIncentive.promo || 0), "Remark", individualIncentive.remark || "-"],
+      ["Estimated Incentive", individualIncentive.label || "No Incentive", "Payment Status", readyForIncentive ? "Ready to Pay" : "Hold / Not Ready"],
+      ["Cash (THB)", formatBahtAmount(individualIncentive.cash || 0), "RBH Promo (THB)", formatBahtAmount(individualIncentive.promo || 0)],
+      ["Remark", individualIncentive.remark || "-", "Condition", readyForIncentive ? "Signature completed" : "Waiting signature completion"],
     ];
     incentiveRows.forEach((row) => {
       const yy = y;
