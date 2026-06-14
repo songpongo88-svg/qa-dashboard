@@ -129,7 +129,7 @@ function currentUserMatchesName(currentUser: CurrentUser, name: unknown) {
 }
 
 function currentUserHasRole(currentUser: CurrentUser, role: SignRole) {
-  if (role === "QA") return currentUser.role === "Quality Assurance";
+  if (role === "QA") return currentUser.role === "Quality Assurance" || currentUser.role === "Admin";
   if (role === "Supervisor") return currentUser.role === "Supervisor";
   if (role === "Senior") return currentUser.role === "Senior";
   return true;
@@ -622,7 +622,7 @@ function canViewDocument(currentUser: CurrentUser, doc: SignatureDocument, entri
 }
 
 function canMonitorDocument(currentUser: CurrentUser, doc: SignatureDocument) {
-  if (currentUser.role === "Quality Assurance") return canSignIdentity(currentUser, doc, "QA");
+  if (currentUser.role === "Quality Assurance" || currentUser.role === "Admin") return true;
   if (currentUser.role === "Supervisor") return canSignIdentity(currentUser, doc, "Supervisor");
   if (currentUser.role === "Senior") return canSignIdentity(currentUser, doc, "Senior");
   return canSignIdentity(currentUser, doc, "Agent");
@@ -1235,8 +1235,8 @@ function SignaturePadModal({
   signerName: string;
   savedSignatureDataUrl?: string;
   onCancel: () => void;
-  onUseSavedSignature?: () => void;
-  onSave: (dataUrl: string, saveToLibrary: boolean) => void;
+  onUseSavedSignature?: () => void | Promise<void>;
+  onSave: (dataUrl: string, saveToLibrary: boolean) => void | Promise<void>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
@@ -1770,29 +1770,30 @@ export default function SignatureCenterMockup({
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
   }, [currentUser, signatures, visibleDocuments]);
 
-  const persistDocumentSignatures = (docId: string, entries: SignatureEntry[], confirmedAt = "") => {
-    void saveStoredSignatureDocument(docId, entries, confirmedAt).catch((error) => {
-      console.warn("Save remote signature failed", error);
-    });
+  const persistDocumentSignatures = async (docId: string, entries: SignatureEntry[], confirmedAt = "") => {
+    await saveStoredSignatureDocument(docId, entries, confirmedAt);
   };
 
-  const confirmPreview = () => {
+  const confirmPreview = async () => {
     if (!selectedDocument || !confirmAvailable || hasPendingAppeal) return;
     const confirmedAt = new Date().toISOString();
-    setConfirmedDocs((previous) => ({
-      ...previous,
-      [selectedDocument.id]: confirmedAt,
-    }));
-    void saveStoredSignatureConfirm(selectedDocument.id, confirmedAt).catch((error) => {
+    try {
+      await saveStoredSignatureConfirm(selectedDocument.id, confirmedAt);
+      setConfirmedDocs((previous) => ({
+        ...previous,
+        [selectedDocument.id]: confirmedAt,
+      }));
+    } catch (error) {
       console.warn("Save remote signature confirm failed", error);
-    });
+      window.alert("บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
   };
 
-  const saveDrawnSignature = (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
-    if (!selectedDocument) return;
+  const saveDrawnSignature = async (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
+    if (!selectedDocument) return false;
     if (!canSignIdentity(currentUser, selectedDocument, role)) {
       window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
-      return;
+      return false;
     }
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const existingSigned = getSignedEntry(entries, role);
@@ -1806,6 +1807,15 @@ export default function SignatureCenterMockup({
       signatureDataUrl,
     };
 
+    const nextEntries = [...entries.filter((entry) => entry.role !== role), nextEntry];
+    try {
+      await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
+    } catch (error) {
+      console.warn("Save remote signature failed", error);
+      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return false;
+    }
+
     if (saveToSavedLibrary) {
       setSignatureLibrary((previous) => ({
         ...previous,
@@ -1813,27 +1823,26 @@ export default function SignatureCenterMockup({
       }));
     }
 
-    const nextEntries = [...entries.filter((entry) => entry.role !== role), nextEntry];
     setSignatures((previous) => {
       return {
         ...previous,
         [selectedDocument.id]: nextEntries,
       };
     });
-    persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
+    return true;
   };
 
-  const signRole = (role: SignRole, signatureDataUrl?: string, saveToSavedLibrary = false) => {
-    if (!selectedDocument) return;
-    if (hasPendingAppeal) return;
-    if (!isAfterAppealPeriod(selectedDocument.monthKey)) return;
-    if (!isSigningAllowedByDate(selectedDocument.monthKey)) return;
-    if (!canSignIdentity(currentUser, selectedDocument, role)) return;
+  const signRole = async (role: SignRole, signatureDataUrl?: string, saveToSavedLibrary = false) => {
+    if (!selectedDocument) return false;
+    if (hasPendingAppeal) return false;
+    if (!isAfterAppealPeriod(selectedDocument.monthKey)) return false;
+    if (!isSigningAllowedByDate(selectedDocument.monthKey)) return false;
+    if (!canSignIdentity(currentUser, selectedDocument, role)) return false;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
-    if (getSignedEntry(entries, role)) return;
+    if (getSignedEntry(entries, role)) return false;
     if (role === "Agent" && !previewConfirmed) {
       window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
-      return;
+      return false;
     }
 
     const signerName = getRoleSigner(selectedDocument, role);
@@ -1846,6 +1855,15 @@ export default function SignatureCenterMockup({
       signatureDataUrl,
     };
 
+    const nextEntries = [...entries.filter((entry) => entry.role !== role), nextEntry];
+    try {
+      await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
+    } catch (error) {
+      console.warn("Save remote signature failed", error);
+      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return false;
+    }
+
     if (signatureDataUrl && saveToSavedLibrary) {
       setSignatureLibrary((previous) => ({
         ...previous,
@@ -1853,14 +1871,13 @@ export default function SignatureCenterMockup({
       }));
     }
 
-    const nextEntries = [...entries.filter((entry) => entry.role !== role), nextEntry];
     setSignatures((previous) => {
       return {
         ...previous,
         [selectedDocument.id]: nextEntries,
       };
     });
-    persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
+    return true;
   };
 
   const openSignaturePad = (role: SignRole) => {
@@ -2827,7 +2844,7 @@ export default function SignatureCenterMockup({
           signerName={getRoleSigner(selectedDocument, signingRole)}
           savedSignatureDataUrl={signatureLibrary[getSavedSignatureKey(signingRole)]}
           onCancel={() => setSigningRole(null)}
-          onUseSavedSignature={() => {
+          onUseSavedSignature={async () => {
             const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(signingRole)];
             if (!savedSignatureDataUrl) return;
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
@@ -2836,26 +2853,28 @@ export default function SignatureCenterMockup({
               return;
             }
             const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
+            let saved = false;
             if (existingSigned) {
-              saveDrawnSignature(signingRole, savedSignatureDataUrl, false);
+              saved = await saveDrawnSignature(signingRole, savedSignatureDataUrl, false);
             } else {
-              signRole(signingRole, savedSignatureDataUrl, false);
+              saved = await signRole(signingRole, savedSignatureDataUrl, false);
             }
-            setSigningRole(null);
+            if (saved) setSigningRole(null);
           }}
-          onSave={(dataUrl, saveToSavedLibrary) => {
+          onSave={async (dataUrl, saveToSavedLibrary) => {
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
               window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
               setSigningRole(null);
               return;
             }
             const existingSigned = getSignedEntry(effectiveEntriesForDoc(selectedDocument, signatures), signingRole);
+            let saved = false;
             if (existingSigned) {
-              saveDrawnSignature(signingRole, dataUrl, saveToSavedLibrary);
+              saved = await saveDrawnSignature(signingRole, dataUrl, saveToSavedLibrary);
             } else {
-              signRole(signingRole, dataUrl, saveToSavedLibrary);
+              saved = await signRole(signingRole, dataUrl, saveToSavedLibrary);
             }
-            setSigningRole(null);
+            if (saved) setSigningRole(null);
           }}
         />
       ) : null}

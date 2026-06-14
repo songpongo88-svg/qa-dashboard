@@ -32,6 +32,28 @@ export function getIncentivePolicyKey(monthKey?: string | null): IncentivePolicy
   return "APR_2026_ONWARD";
 }
 
+function hasRbhPromo(monthKey?: string | null) {
+  const normalized = normalizeMonthKey(monthKey);
+  return normalized === "2026-01" || normalized === "2026-04";
+}
+
+function formatIncentiveLabel(cash: number, promo: number) {
+  const cashText = `${cash.toLocaleString("en-US")} THB`;
+  if (promo <= 0) return cashText;
+  return `${cash.toLocaleString("en-US")} Cash + ${promo.toLocaleString("en-US")} RBH Promo Code`;
+}
+
+function makeIncentive(cash: number, promo: number, remark: GradeLevel | string, scheme: IncentivePolicyKey): IncentiveResult {
+  return {
+    total: cash,
+    cash,
+    promo,
+    label: formatIncentiveLabel(cash, promo),
+    remark,
+    scheme,
+  };
+}
+
 export function scoreToGrade(score: number, monthKey?: string | null, criticalError = false): Grade {
   const safeScore = Number.isFinite(score) ? score : 0;
   if (criticalError) return "G";
@@ -92,15 +114,18 @@ export function getGradeMeaning(grade: Grade) {
 
 export function getIncentiveByGrade(grade: Grade, monthKey?: string | null): IncentiveResult {
   const scheme = getIncentivePolicyKey(monthKey);
+  const promoByGrade: Record<"A" | "B" | "C", number> = hasRbhPromo(monthKey)
+    ? { A: 500, B: 300, C: 150 }
+    : { A: 0, B: 0, C: 0 };
 
   if (scheme === "JAN_FEB_2026") {
     switch (grade) {
       case "A":
-        return { total: 1000, cash: 1000, promo: 0, label: "1,000 THB", remark: "Excellent", scheme };
+        return makeIncentive(1000, promoByGrade.A, "Excellent", scheme);
       case "B":
-        return { total: 500, cash: 500, promo: 0, label: "500 THB", remark: "Strong", scheme };
+        return makeIncentive(500, promoByGrade.B, "Strong", scheme);
       case "C":
-        return { total: 300, cash: 300, promo: 0, label: "300 THB", remark: "Standard", scheme };
+        return makeIncentive(300, promoByGrade.C, "Standard", scheme);
       default:
         return { total: 0, cash: 0, promo: 0, label: "No Incentive", remark: getGradeLevel(grade), scheme };
     }
@@ -121,11 +146,11 @@ export function getIncentiveByGrade(grade: Grade, monthKey?: string | null): Inc
 
   switch (grade) {
     case "A":
-      return { total: 1000, cash: 1000, promo: 500, label: "1,000 Cash + 500 RBH Promo Code", remark: "Excellent", scheme };
+      return makeIncentive(1000, promoByGrade.A, "Excellent", scheme);
     case "B":
-      return { total: 700, cash: 700, promo: 300, label: "700 Cash + 300 RBH Promo Code", remark: "Strong", scheme };
+      return makeIncentive(700, promoByGrade.B, "Strong", scheme);
     case "C":
-      return { total: 500, cash: 500, promo: 150, label: "500 Cash + 150 RBH Promo Code", remark: "Standard", scheme };
+      return makeIncentive(500, promoByGrade.C, "Standard", scheme);
     default:
       return { total: 0, cash: 0, promo: 0, label: "No Incentive", remark: getGradeLevel(grade), scheme };
   }

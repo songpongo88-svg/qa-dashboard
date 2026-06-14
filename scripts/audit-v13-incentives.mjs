@@ -57,10 +57,15 @@ function scoreToGrade(score, monthKey, criticalError = false) {
 
 function incentiveByGrade(grade, monthKey) {
   const scheme = policyKey(monthKey);
+  const hasPromo = monthKey === "2026-01" || monthKey === "2026-04";
+  const promoByGrade = hasPromo ? { A: 500, B: 300, C: 150 } : { A: 0, B: 0, C: 0 };
+  const label = (cash, promo) => promo > 0
+    ? `${cash.toLocaleString("en-US")} Cash + ${promo.toLocaleString("en-US")} RBH Promo Code`
+    : `${cash.toLocaleString("en-US")} THB`;
   if (scheme === "JAN_FEB_2026") {
-    if (grade === "A") return { label: "1,000 THB", cash: 1000, promo: 0, remark: "Excellent" };
-    if (grade === "B") return { label: "500 THB", cash: 500, promo: 0, remark: "Strong" };
-    if (grade === "C") return { label: "300 THB", cash: 300, promo: 0, remark: "Standard" };
+    if (grade === "A") return { label: label(1000, promoByGrade.A), cash: 1000, promo: promoByGrade.A, remark: "Excellent" };
+    if (grade === "B") return { label: label(500, promoByGrade.B), cash: 500, promo: promoByGrade.B, remark: "Strong" };
+    if (grade === "C") return { label: label(300, promoByGrade.C), cash: 300, promo: promoByGrade.C, remark: "Standard" };
     return { label: "No Incentive", cash: 0, promo: 0, remark: "No Incentive" };
   }
   if (scheme === "MAR_2026") {
@@ -69,9 +74,9 @@ function incentiveByGrade(grade, monthKey) {
     if (grade === "C") return { label: "300 THB", cash: 300, promo: 0, remark: "Standard" };
     return { label: "No Incentive", cash: 0, promo: 0, remark: "No Incentive" };
   }
-  if (grade === "A") return { label: "1,000 Cash + 500 RBH Promo Code", cash: 1000, promo: 500, remark: "Excellent" };
-  if (grade === "B") return { label: "700 Cash + 300 RBH Promo Code", cash: 700, promo: 300, remark: "Strong" };
-  if (grade === "C") return { label: "500 Cash + 150 RBH Promo Code", cash: 500, promo: 150, remark: "Standard" };
+  if (grade === "A") return { label: label(1000, promoByGrade.A), cash: 1000, promo: promoByGrade.A, remark: "Excellent" };
+  if (grade === "B") return { label: label(700, promoByGrade.B), cash: 700, promo: promoByGrade.B, remark: "Strong" };
+  if (grade === "C") return { label: label(500, promoByGrade.C), cash: 500, promo: promoByGrade.C, remark: "Standard" };
   return { label: "No Incentive", cash: 0, promo: 0, remark: "No Incentive" };
 }
 
