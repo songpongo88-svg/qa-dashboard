@@ -3071,24 +3071,6 @@ function SlideOverCaseDetail({
                         </button>
                       ) : null}
 
-                      {availablePdfUrls.filter((item) => !String(item.label || '').toLowerCase().includes('original pdf')).map((item) => (
-                        <button
-                          key={item.label}
-                          type="button"
-                          onClick={() =>
-                            setPreviewAsset({
-                              type: "pdf",
-                              url: item.url,
-                              title: item.label,
-                              downloadUrl: item.url,
-                            })
-                          }
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                          title={`Open ${item.label}`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
                     </div>
                   </div>
                 </div>
