@@ -569,9 +569,11 @@ function isNoAppealReason(value: unknown) {
   const text = normalizeAppealReason(value).toLowerCase();
   if (!text) return false;
   return (
+    text === "ไม่อุทธรณ์หัวข้อนี้" ||
     text === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ||
     text === "not appeal" ||
     text === "no appeal" ||
+    text.includes("ไม่อุทธรณ์") ||
     text.includes("เนเธกเนเธญเธธเธ—เธเธฃเธ“เน")
   );
 }
@@ -1531,7 +1533,7 @@ export default function AppealMockup({
                 ? String(revisedCommentCandidate).trim()
                 : originalComment;
 
-              const appealed = !!appealReason && !isNoAppealReason(appealReason);
+              const appealed = Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
                 appealed &&
                 isRealTopicChanged(
@@ -1721,7 +1723,9 @@ export default function AppealMockup({
                 ? String(revisedCommentCandidate).trim()
                 : originalComment;
 
-              const appealed = !!appealReason && !isNoAppealReason(appealReason);
+              const appealed =
+                requestTopic?.wantsAppeal === true ||
+                Boolean(appealReason && !isNoAppealReason(appealReason));
               const changed =
                 appealed &&
                 isRealTopicChanged(

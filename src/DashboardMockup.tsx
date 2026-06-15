@@ -1287,15 +1287,19 @@ function normalizeAppealReason(value: unknown) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
+const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
+
 function isNoAppealReason(value: unknown) {
   const text = normalizeAppealReason(value);
   if (!text) return false;
   const normalized = text.toLowerCase();
   return (
-    normalized === "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49" ||
+    normalized === NO_APPEAL_TEXT.toLowerCase() ||
+    normalized === "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน" ||
     normalized === "not appeal" ||
     normalized === "no appeal" ||
-    normalized.includes("\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C")
+    normalized.includes("ไม่อุทธรณ์") ||
+    normalized.includes("เนเธกเนเธญเธธเธ—เธเธฃเธ“เน")
   );
 }
 
@@ -2437,7 +2441,7 @@ function SlideOverCaseDetail({
         max: topic.max,
         comment: topic.comment,
         wantsAppeal: false,
-        appealReason: "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49",
+        appealReason: NO_APPEAL_TEXT,
       }))
     );
     setAppealSubmitMessage("");
@@ -2456,16 +2460,19 @@ function SlideOverCaseDetail({
       return;
     }
 
-    const hasAppealedTopic = appealDraftTopics.some((topic) => topic.wantsAppeal && topic.appealReason.trim() && topic.appealReason.trim() !== "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49");
+    const topicsForExport = appealDraftTopics
+      .filter((topic) => topic.wantsAppeal && topic.appealReason.trim() && !isNoAppealReason(topic.appealReason))
+      .map((topic) => ({
+        ...topic,
+        wantsAppeal: true,
+        appealReason: topic.appealReason.trim(),
+      }));
+
+    const hasAppealedTopic = topicsForExport.length > 0;
     if (!hasAppealedTopic) {
       setAppealSubmitMessage("Please enter an appeal reason for at least one topic.");
       return;
     }
-
-    const topicsForExport = appealDraftTopics.map((topic) => ({
-      ...topic,
-      appealReason: topic.wantsAppeal ? topic.appealReason.trim() : "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49",
-    }));
 
     setAppealSubmitBusy(true);
     try {
@@ -2769,7 +2776,7 @@ function SlideOverCaseDetail({
                             setAppealDraftTopics((current) =>
                               current.map((item) =>
                                 item.code === topic.code
-                                  ? { ...item, wantsAppeal: false, appealReason: "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49" }
+                                  ? { ...item, wantsAppeal: false, appealReason: NO_APPEAL_TEXT }
                                   : item
                               )
                             )
@@ -2779,14 +2786,14 @@ function SlideOverCaseDetail({
                               ? "border-slate-400 bg-slate-900 text-white"
                               : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                           }`}
-                        >{"\\ไ\\ม\\่\\อ\\ุ\\ท\\ธ\\ร\\ณ\\์\\ห\\ั\\ว\\ข\\้\\อ\\น\\ี\\้"}</button>
+                        >{NO_APPEAL_TEXT}</button>
                         <button
                           type="button"
                           onClick={() =>
                             setAppealDraftTopics((current) =>
                               current.map((item) =>
                                 item.code === topic.code
-                                  ? { ...item, wantsAppeal: true, appealReason: item.appealReason === "\u0E44\u0E21\u0E48\u0E2D\u0E38\u0E17\u0E18\u0E23\u0E13\u0E4C\u0E2B\u0E31\u0E27\u0E02\u0E49\u0E2D\u0E19\u0E35\u0E49" ? "" : item.appealReason }
+                                  ? { ...item, wantsAppeal: true, appealReason: isNoAppealReason(item.appealReason) ? "" : item.appealReason }
                                   : item
                               )
                             )
@@ -2801,7 +2808,7 @@ function SlideOverCaseDetail({
 
                       {!topic.wantsAppeal ? (
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
-                          Export value: {"ไม่อุทธรณ์หัวข้อนี้"}
+                          หัวข้อนี้จะไม่ถูกส่งเข้า Appeal
                         </div>
                       ) : (
                         <textarea
@@ -3587,7 +3594,7 @@ export default function DashboardMockup({
               comment,
             });
 
-            const appealedThisTopic = !isNoAppealReason(appealReasonRaw);
+            const appealedThisTopic = Boolean(String(appealReasonRaw ?? "").trim()) && !isNoAppealReason(appealReasonRaw);
             const changedThisTopic = hasRealTopicChange(
               originalScoreRaw,
               revisedScoreRaw,

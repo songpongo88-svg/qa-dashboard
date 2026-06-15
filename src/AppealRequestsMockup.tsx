@@ -16,7 +16,8 @@ type AppealTopic = {
   revisedComment?: string;
 };
 
-const NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
+const NO_APPEAL_TEXT = "ไม่อุทธรณ์หัวข้อนี้";
+const LEGACY_NO_APPEAL_TEXT = "เนเธกเนเธญเธธเธ—เธเธฃเธ“เนเธซเธฑเธงเธเนเธญเธเธตเน";
 
 type AppealRequest = {
   requestId: string;
@@ -77,12 +78,35 @@ function toNumber(value: unknown, fallback = 0) {
 }
 
 
-function appealFinalScoreFromTopics(topics: AppealTopic[]) {
+function normalizeAppealReason(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function isNoAppealReason(value: unknown) {
+  const normalized = normalizeAppealReason(value).toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === NO_APPEAL_TEXT.toLowerCase() ||
+    normalized === LEGACY_NO_APPEAL_TEXT ||
+    normalized === "not appeal" ||
+    normalized === "no appeal" ||
+    normalized.includes("ไม่อุทธรณ์") ||
+    normalized.includes("เนเธกเนเธญเธธเธ—เธเธฃเธ“เน")
+  );
+}
+
+function isAppealedTopic(topic?: AppealTopic | null) {
+  if (!topic) return false;
+  const reason = normalizeAppealReason(topic.appealReason);
+  return topic.wantsAppeal === true || Boolean(reason && !isNoAppealReason(reason));
+}
+
+function appealFinalScoreFromTopics(topics: AppealTopic[], originalFinalScore: number) {
   return topics.reduce((sum, topic) => {
     const revisedScore = toNumber(topic.revisedScore, Number.NaN);
-    const activeScore = Number.isNaN(revisedScore) ? toNumber(topic.score) : revisedScore;
-    return sum + activeScore;
-  }, 0);
+    if (Number.isNaN(revisedScore)) return sum;
+    return sum + (revisedScore - toNumber(topic.score));
+  }, originalFinalScore);
 }
 
 function appealGradeFromScore(score: number) {
@@ -118,6 +142,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
       const reset = resets.get(requestId);
       const reviewTopics = Array.isArray(review?.details?.topics) ? (review?.details?.topics as AppealTopic[]) : null;
       const baseTopics = Array.isArray(log.details?.topics) ? (log.details?.topics as AppealTopic[]) : [];
+      const appealedTopics = (reviewTopics || baseTopics).filter(isAppealedTopic);
       const submittedAtTime = new Date(log.created_at || String(log.details?.submittedAt || "")).getTime();
       const reviewedAtTime = new Date(review?.created_at || String(review?.details?.reviewedAt || "")).getTime();
       const resetAtTime = new Date(reset?.created_at || String(reset?.details?.resetAt || "")).getTime();
@@ -151,7 +176,7 @@ export function buildAppealRequests(logs: UsageLogEvent[]) {
         reviewSummary: String(review?.details?.reviewSummary || ""),
         reviewedAt: String(review?.details?.reviewedAt || review?.created_at || ""),
         submittedByUsername: String(log.details?.submittedByUsername || ""),
-        topics: reviewTopics || baseTopics,
+        topics: appealedTopics,
       };
     });
 }
@@ -172,7 +197,7 @@ function buildAppealResetHistory(logs: UsageLogEvent[]) {
 function exportAppealRows(requests: AppealRequest[]) {
   const reviewed = requests.filter((item) => item.status === "Approved" || item.status === "Rejected");
   const topicCodes = Array.from(
-    new Set(reviewed.flatMap((item) => item.topics.map((topic) => topic.code)))
+    new Set(reviewed.flatMap((item) => item.topics.filter(isAppealedTopic).map((topic) => topic.code)))
   ).sort((a, b) => Number(a) - Number(b));
 
   const baseHeaders = [
@@ -199,8 +224,9 @@ function exportAppealRows(requests: AppealRequest[]) {
   ]);
 
   const rows = reviewed.map((item) => {
-    const topicMap = new Map(item.topics.map((topic) => [topic.code, topic]));
-    const approvedFinalScore = item.status === "Approved" ? appealFinalScoreFromTopics(item.topics) : item.finalScore;
+    const appealTopics = item.topics.filter(isAppealedTopic);
+    const topicMap = new Map(appealTopics.map((topic) => [topic.code, topic]));
+    const approvedFinalScore = item.status === "Approved" ? appealFinalScoreFromTopics(appealTopics, item.finalScore) : item.finalScore;
     const row: Record<string, unknown> = {
       "Case ID": item.caseId,
       "Agent Name": item.agent,
@@ -223,7 +249,7 @@ function exportAppealRows(requests: AppealRequest[]) {
       row[`${code} Revised Score`] = item.status === "Approved" ? topic?.revisedScore ?? topic?.score ?? "" : topic?.score ?? "";
       row[`${code} Comment`] = topic?.comment ?? "";
       row[`${code} Revised Comment`] = item.status === "Approved" ? topic?.revisedComment ?? "" : "";
-      row[`${code} Appeal Reason`] = topic?.wantsAppeal ? topic?.appealReason ?? "" : NO_APPEAL_TEXT;
+      row[`${code} Appeal Reason`] = isAppealedTopic(topic) ? topic?.appealReason ?? "" : "";
     });
 
     return row;
@@ -491,7 +517,7 @@ export default function AppealRequestsMockup({
                   </div>
                   <div className="mt-2 text-xs text-slate-500">Submitted: {formatDateTime(item.submittedAt)}</div>
                   <div className="mt-2 text-xs font-semibold text-violet-700">
-                    {item.topics.filter((topic) => topic.wantsAppeal || topic.appealReason !== NO_APPEAL_TEXT).length} appealed topic(s)
+                    {item.topics.filter(isAppealedTopic).length} appealed topic(s)
                   </div>
                 </button>
               ))}
@@ -542,7 +568,7 @@ export default function AppealRequestsMockup({
 
                 <div className="space-y-3">
                   {draftTopics
-                    .filter((topic) => topic.wantsAppeal || topic.appealReason !== NO_APPEAL_TEXT)
+                    .filter(isAppealedTopic)
                     .map((topic) => (
                       <div key={topic.code} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
