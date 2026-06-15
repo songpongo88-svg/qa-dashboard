@@ -142,7 +142,8 @@ export async function logUsageEvent(
       login_at: eventType === "login" ? now : user.loginAt || "",
       logout_at: eventType === "logout" ? now : "",
       details: {
-        tab: payload.tab || "",
+        ...(payload.details || {}),
+        tab: payload.tab || payload.details?.tab || "",
       },
     });
 

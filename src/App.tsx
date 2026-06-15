@@ -2794,6 +2794,8 @@ export default function App() {
   const latestIncomingChatRef = useRef("");
   const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const loginAgentScopeSeededRef = useRef(false);
+  const currentUserWasRestoredRef = useRef(Boolean(currentUser));
+  const restoredLoginLoggedRef = useRef(false);
 
   const welcomeName = useMemo(() => {
     if (!currentUser) return "";
@@ -4282,6 +4284,25 @@ export default function App() {
       clearSessionTimers();
     };
   }, [currentUser, showSessionWarning]);
+
+  useEffect(() => {
+    if (!currentUser || !currentUserWasRestoredRef.current || restoredLoginLoggedRef.current) return;
+
+    const marker = `qa-restored-login:${currentUser.username}:${currentUser.loginAt}`;
+    if (sessionStorage.getItem(marker)) {
+      restoredLoginLoggedRef.current = true;
+      return;
+    }
+
+    sessionStorage.setItem(marker, "1");
+    restoredLoginLoggedRef.current = true;
+    void logUsageEvent(currentUser, "login", {
+      tab: activeTab,
+      details: {
+        reason: "session_restored",
+      },
+    });
+  }, [activeTab, currentUser]);
 
   const handleLogin = () => {
     void handleLoginAsync();
