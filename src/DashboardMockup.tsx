@@ -4481,8 +4481,23 @@ export default function DashboardMockup({
                         setSlideOverOpen(false);
                       }}
                       placeholder={"ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือกเดือน"}
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-12 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                     />
+                    {caseIdSearch.trim() ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCaseIdSearch("");
+                          setSelectedCaseKey("");
+                          setSlideOverOpen(false);
+                        }}
+                        className="absolute inset-y-0 right-3 my-auto flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-base font-black leading-none text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+                        aria-label="Clear case ID search"
+                        title="Clear search"
+                      >
+                        ×
+                      </button>
+                    ) : (
                     <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -4499,22 +4514,9 @@ export default function DashboardMockup({
                         />
                       </svg>
                     </div>
+                    )}
                   </div>
                 </div>
-
-                {caseIdSearch.trim() ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCaseIdSearch("");
-                      setSelectedCaseKey("");
-                      setSlideOverOpen(false);
-                    }}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
-                  >
-                    Clear Search
-                  </button>
-                ) : null}
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                   <div>
