@@ -1994,10 +1994,10 @@ export default function SignatureCenterMockup({
   const selectedMonthExportAllEvaluated = selectedMonth !== "all" && shouldExportAllEvaluatedAgents(selectedMonth);
 
   const canGeneratePaymentExcel =
-    currentUser.role === "Quality Assurance" &&
+    (currentUser.role === "Quality Assurance" || currentUser.role === "Admin") &&
     selectedMonth !== "all" &&
-    isPaymentExportWindowOpen(selectedMonth) &&
-    selectedMonthExportDocs.length > 0;
+    selectedMonthExportDocs.length > 0 &&
+    (shouldExportAllEvaluatedAgents(selectedMonth) || isPaymentExportWindowOpen(selectedMonth));
 
   const selectedDocument = activeDocuments.find((item) => item.id === selectedDocumentId) || activeDocuments[0] || filteredDocuments[0] || historyFilteredDocuments[0] || null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
@@ -2666,7 +2666,7 @@ export default function SignatureCenterMockup({
         ) : null}
         {!canGeneratePaymentExcel ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: ต้องเป็น QA, ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
+            เงื่อนไขยังไม่ครบ: ต้องเป็น QA/Admin, ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
           </div>
         ) : selectedMonthExportAllEvaluated ? (
           <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-800">
