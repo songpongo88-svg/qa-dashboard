@@ -909,7 +909,7 @@ function getSignatureValidationStatus(
     return `Pending ${pendingRoles.map(roleThaiLabel).join(", ")}`;
   }
 
-  return getSignatureValidationStatus(doc, entries, exportsAllEvaluated);
+  return exportsAllEvaluated ? "Exported" : "Completed";
 }
 
 
