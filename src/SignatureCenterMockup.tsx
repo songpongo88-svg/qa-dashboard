@@ -1063,7 +1063,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          exportsAllEvaluated ? "Exported" : statusText,
+          statusText,
         ]
       : [
           index + 1,
@@ -1079,7 +1079,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          exportsAllEvaluated ? "Exported" : statusText,
+          statusText,
         ];
     aoa.push(rankingRow);
   });
@@ -1346,7 +1346,7 @@ function generatePaymentPdfFile(
           formatBahtAmount(incentive.promo),
           incentive.label,
           "No",
-          exportsAllEvaluated ? "Exported" : statusText,
+          statusText,
         ]
       : [
           String(index + 1),
@@ -1357,7 +1357,7 @@ function generatePaymentPdfFile(
           formatBahtAmount(incentive.cash),
           incentive.label,
           "No",
-          exportsAllEvaluated ? "Exported" : statusText,
+          statusText,
         ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(headers[colIndex][1]) - 3;
