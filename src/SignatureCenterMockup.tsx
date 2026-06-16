@@ -1964,6 +1964,14 @@ export default function SignatureCenterMockup({
     return selectedMonthPaymentDocs;
   }, [selectedMonth, selectedMonthAllDocs, selectedMonthPaymentDocs]);
 
+  const selectedMonthPaymentExportDocs = useMemo(() => {
+    if (selectedMonth === "all") return [];
+    const fallbackDocs = selectedMonthAllDocs
+      .filter((doc) => doc.caseCount > 0)
+      .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
+    return selectedMonthExportDocs.length ? selectedMonthExportDocs : fallbackDocs;
+  }, [selectedMonth, selectedMonthAllDocs, selectedMonthExportDocs]);
+
   const selectedMonthLateSignedDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
     return documents
@@ -1993,9 +2001,7 @@ export default function SignatureCenterMockup({
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
   const selectedMonthExportAllEvaluated = selectedMonth !== "all" && shouldExportAllEvaluatedAgents(selectedMonth);
 
-  const canGeneratePaymentExcel =
-    selectedMonth !== "all" &&
-    selectedMonthExportDocs.length > 0;
+  const canGeneratePaymentExcel = selectedMonth !== "all";
 
   const selectedDocument = activeDocuments.find((item) => item.id === selectedDocumentId) || activeDocuments[0] || filteredDocuments[0] || historyFilteredDocuments[0] || null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
@@ -2544,11 +2550,11 @@ export default function SignatureCenterMockup({
       window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
       return;
     }
-    if (!selectedMonthExportDocs.length) {
+    if (!selectedMonthPaymentExportDocs.length) {
       window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
       return;
     }
-    generatePaymentExcelFile(selectedMonth, selectedMonthExportDocs, signatures, selectedMonthAllDocs);
+    generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
@@ -2558,11 +2564,11 @@ export default function SignatureCenterMockup({
       window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
       return;
     }
-    if (!selectedMonthExportDocs.length) {
+    if (!selectedMonthPaymentExportDocs.length) {
       window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
       return;
     }
-    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthExportDocs, signatures, selectedMonthAllDocs);
+    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
@@ -2644,21 +2650,21 @@ export default function SignatureCenterMockup({
               {selectedMonthExportAllEvaluated ? "Evaluated Agents" : "Signed Complete Agents"}
             </div>
             <div className="mt-1 text-2xl font-black text-violet-700">
-              {selectedMonth === "all" ? "-" : `${selectedMonthExportDocs.length} คน`}
+              {selectedMonth === "all" ? "-" : `${selectedMonthPaymentExportDocs.length} คน`}
             </div>
             <div className="mt-1 text-xs font-semibold text-slate-500">
               {selectedMonth === "all"
                 ? "กรุณาเลือกเดือนก่อน"
                 : selectedMonthExportAllEvaluated
-                  ? `May export พิเศษ: รวม Agent ที่ถูกประเมินทั้งหมด ${selectedMonthExportDocs.length} คน / รวมบาท ${formatBahtAmount(selectedMonthExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`
-                  : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
+                  ? `May export พิเศษ: รวม Agent ที่ถูกประเมินทั้งหมด ${selectedMonthExportDocs.length} คน / รวมบาท ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`
+                  : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={generatePaymentPdf}
-              disabled={selectedMonth === "all" || selectedMonthExportDocs.length === 0}
+              disabled={selectedMonth === "all"}
               className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               Generate Payment PDF
@@ -2666,7 +2672,7 @@ export default function SignatureCenterMockup({
             <button
               type="button"
               onClick={generatePaymentExcel}
-              disabled={selectedMonth === "all" || selectedMonthExportDocs.length === 0}
+              disabled={selectedMonth === "all"}
               className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             >
               Generate Excel
@@ -2676,7 +2682,7 @@ export default function SignatureCenterMockup({
         {paymentMessage ? (
           <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{paymentMessage}</div>
         ) : null}
-        {!canGeneratePaymentExcel ? (
+        {selectedMonth === "all" ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
             เงื่อนไขยังไม่ครบ: ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
           </div>
