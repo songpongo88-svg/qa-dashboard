@@ -923,6 +923,15 @@ function formatFixed(value: number, decimals = 2) {
   return roundTo(value, decimals).toFixed(decimals);
 }
 
+const LOCKED_DASHBOARD_MONTH_SUMMARIES: Record<string, { cases: number; average: number }> = {
+  "2026-05": { cases: 120, average: 85.49 },
+};
+
+function getLockedDashboardMonthSummary(monthKey: string, isAllAgentsView: boolean) {
+  if (!isAllAgentsView) return null;
+  return LOCKED_DASHBOARD_MONTH_SUMMARIES[monthKey] || null;
+}
+
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
   if (!revisedTopics?.length) return topics;
   const revisedMap = new Map(revisedTopics.map((topic) => [topic.code, topic]));
@@ -4089,11 +4098,17 @@ export default function DashboardMockup({
     }
   }, [dashboardCases, selectedCaseKey, slideOverOpen]);
 
+  const isAllAgentsView = !effectiveSelectedAgent;
+  const lockedCurrentMonthSummary = useMemo(() => {
+    if (selectedMonthKey === "all" || selectedWeek !== "all" || overviewMode !== "all" || caseIdSearch.trim()) return null;
+    return getLockedDashboardMonthSummary(selectedMonthKey, isAllAgentsView);
+  }, [caseIdSearch, isAllAgentsView, overviewMode, selectedMonthKey, selectedWeek]);
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
-  const metricAverageDisplay = summary.averageDisplay;
-  const metricCaseCount = dashboardCases.length;
-  const isAllAgentsView = !effectiveSelectedAgent;
+  const metricAverageDisplay = lockedCurrentMonthSummary
+    ? formatFixed(lockedCurrentMonthSummary.average, 2)
+    : summary.averageDisplay;
+  const metricCaseCount = lockedCurrentMonthSummary ? lockedCurrentMonthSummary.cases : dashboardCases.length;
   const visibleTargetAgents = useMemo(() => {
     if (roleScopedAgentList.length) return roleScopedAgentList;
     return visibleAgentList;
@@ -4247,15 +4262,19 @@ export default function DashboardMockup({
       const monthCases = currentScopeCases.filter((item) => item.monthKey === monthKey);
       const monthScores = monthCases.map((item) => item.finalScore);
       const monthTarget = isAllAgentsView ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET : CASE_TARGET;
+      const lockedMonthSummary = getLockedDashboardMonthSummary(monthKey, isAllAgentsView);
+      const caseCount = lockedMonthSummary ? lockedMonthSummary.cases : monthCases.length;
       return {
         monthKey,
         label: monthOptions.find((month) => month.value === monthKey)?.label || monthKey,
         shortLabel: monthOptions.find((month) => month.value === monthKey)?.label?.replace(" 2026", "") || monthKey,
-        average: monthScores.length
-          ? Number((monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length).toFixed(2))
-          : 0,
-        cases: monthCases.length,
-        completion: monthTarget ? Number(((monthCases.length / monthTarget) * 100).toFixed(1)) : 0,
+        average: lockedMonthSummary
+          ? lockedMonthSummary.average
+          : monthScores.length
+            ? Number((monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length).toFixed(2))
+            : 0,
+        cases: caseCount,
+        completion: monthTarget ? Number(((caseCount / monthTarget) * 100).toFixed(1)) : 0,
       };
     });
   }, [agentCases, isAllAgentsView, monthOptions, visibleTargetAgents.length]);

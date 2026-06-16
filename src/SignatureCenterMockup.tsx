@@ -770,6 +770,7 @@ function getDashboardMonthSummaryForExport(
     "2026-02": { totalCases: 100, avgScore: 77.35 },
     "2026-03": { totalCases: 120, avgScore: 83.48 },
     "2026-04": { totalCases: 120, avgScore: 86.16 },
+    "2026-05": { totalCases: 120, avgScore: 85.49 },
   };
 
   const lockedSummary = dashboardMonthlyTrend[monthKey];
