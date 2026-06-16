@@ -86,19 +86,25 @@ function buildApprovedAppealMergeMap(
     const caseId = String(request.caseId || "").trim();
     if (!caseId) return;
 
-    const topicMaster = getTopicMasterByMonth(
-      rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
-    );
-    const revisedTopics = topicMaster
-      .map((master) => {
-        const matched = request.topics.find((topic) => topic.code === master.code);
+    const originalFinalScore = Number(request.finalScore || 0);
+    let scoreDelta = 0;
+    const revisedTopics = request.topics
+      .map((matched) => {
         if (!matched || !isApprovedAppealTopicChanged(matched)) return null;
+        const master = getTopicMasterByMonth(
+          rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
+        ).find((item) => item.code === matched.code);
+        if (!master) return null;
         const revisedScore =
           matched.revisedScore !== null &&
           matched.revisedScore !== "" &&
           !Number.isNaN(Number(matched.revisedScore))
             ? Number(matched.revisedScore)
             : Number(matched.score || 0);
+        const originalScore = Number(matched.score || 0);
+        if (Number.isFinite(originalScore) && Number.isFinite(revisedScore)) {
+          scoreDelta += revisedScore - originalScore;
+        }
         return {
           code: master.code,
           label: master.label,
@@ -114,7 +120,8 @@ function buildApprovedAppealMergeMap(
 
     map.set(caseId, {
       caseId,
-      previousScore: Number(request.finalScore || 0),
+      finalScore: Number((originalFinalScore + scoreDelta).toFixed(2)),
+      previousScore: originalFinalScore,
       reviewStatus: "Revised",
       revisedTopics,
       displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
@@ -612,6 +619,16 @@ function buildEvaluationKeyFromRow(
     scoreKey,
     buildTopicScoreHash(topics),
   ].join("|");
+}
+
+function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "auditDateObj" | "auditDate" | "evaluationKey">) {
+  const caseId = normalizeEvaluationKeyPart(item.caseId).toUpperCase();
+  const agent = normalizeEvaluationKeyPart(item.agent).toLowerCase();
+  const dateKey = item.auditDateObj
+    ? formatEvaluationDateKey(item.auditDateObj)
+    : formatEvaluationDateKey(item.auditDate);
+  if (caseId && agent && dateKey) return ["case", caseId, agent, dateKey].join("|");
+  return item.evaluationKey;
 }
 
 function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
@@ -1483,7 +1500,7 @@ export default function SummaryMockup({
 
         const latestByEvaluationKey = new Map<string, CaseItem>();
         [...mappedCases, ...evaluationCases].forEach((item) => {
-          latestByEvaluationKey.set(item.evaluationKey, item);
+          latestByEvaluationKey.set(buildCaseMergeKey(item), item);
         });
         setAllCases([...latestByEvaluationKey.values()]);
         setAppealMergeCount(appealMap.size);

@@ -136,27 +136,26 @@ function buildApprovedAppealMergeMap(
     const caseId = String(request.caseId || "").trim();
     if (!caseId) return;
 
-    const topicMaster = getTopicMasterByMonth(
-      rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
-    );
-    const requestTopicMap = new Map(request.topics.map((topic) => [topic.code, topic]));
     const revisedTopics: Topic[] = [];
     const displayRevisedTopicCodes: string[] = [];
-    let revisedFinalScore = 0;
+    const originalFinalScore = Number(request.finalScore || 0);
+    let scoreDelta = 0;
 
-    topicMaster.forEach((master) => {
-      const matched = requestTopicMap.get(master.code);
-      const originalScore = Number(matched?.score ?? 0);
+    request.topics.forEach((matched) => {
+      const master = getTopicMasterByMonth(
+        rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
+      ).find((item) => item.code === matched.code);
+      if (!master) return;
+      const originalScore = Number(matched.score ?? 0);
       const hasRevisedScore =
-        matched?.revisedScore !== null &&
-        matched?.revisedScore !== undefined &&
-        matched?.revisedScore !== "" &&
+        matched.revisedScore !== null &&
+        matched.revisedScore !== undefined &&
+        matched.revisedScore !== "" &&
         !Number.isNaN(Number(matched.revisedScore));
-      const revisedScore = hasRevisedScore ? Number(matched?.revisedScore) : originalScore;
-
-      revisedFinalScore += Number.isFinite(revisedScore) ? revisedScore : 0;
-
-      if (!matched) return;
+      const revisedScore = hasRevisedScore ? Number(matched.revisedScore) : originalScore;
+      if (Number.isFinite(originalScore) && Number.isFinite(revisedScore)) {
+        scoreDelta += revisedScore - originalScore;
+      }
 
       revisedTopics.push({
         code: master.code,
@@ -176,8 +175,8 @@ function buildApprovedAppealMergeMap(
 
     map.set(caseId, {
       caseId,
-      finalScore: roundTo(revisedFinalScore, 2),
-      previousScore: Number(request.finalScore || 0),
+      finalScore: roundTo(originalFinalScore + scoreDelta, 2),
+      previousScore: originalFinalScore,
       reviewStatus: "Revised",
       revisedTopics,
       displayRevisedTopicCodes,
@@ -921,15 +920,6 @@ function roundTo(value: number, decimals = 2) {
 
 function formatFixed(value: number, decimals = 2) {
   return roundTo(value, decimals).toFixed(decimals);
-}
-
-const LOCKED_DASHBOARD_MONTH_SUMMARIES: Record<string, { cases: number; average: number }> = {
-  "2026-05": { cases: 120, average: 85.49 },
-};
-
-function getLockedDashboardMonthSummary(monthKey: string, isAllAgentsView: boolean) {
-  if (!isAllAgentsView) return null;
-  return LOCKED_DASHBOARD_MONTH_SUMMARIES[monthKey] || null;
 }
 
 function mergeTopicSet(topics: Topic[], revisedTopics?: Topic[] | null) {
@@ -1875,6 +1865,16 @@ function buildEvaluationKeyFromRow(
     scoreKey,
     buildTopicScoreHash(topics),
   ].join("|");
+}
+
+function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "auditDateObj" | "auditDate" | "evaluationKey">) {
+  const caseId = normalizeEvaluationKeyPart(item.caseId).toUpperCase();
+  const agent = normalizeEvaluationKeyPart(item.agent).toLowerCase();
+  const dateKey = item.auditDateObj
+    ? formatEvaluationDateKey(item.auditDateObj)
+    : formatEvaluationDateKey(item.auditDate);
+  if (caseId && agent && dateKey) return ["case", caseId, agent, dateKey].join("|");
+  return item.evaluationKey;
 }
 
 function LogoHeaderBox() {
@@ -3419,7 +3419,7 @@ export default function DashboardMockup({
             [...validMappedCases, ...evaluationCases]
               .filter((item) => item.agent && item.caseId && item.auditDateObj)
               .forEach((item) => {
-                latestByEvaluationKey.set(item.evaluationKey, item);
+                latestByEvaluationKey.set(buildCaseMergeKey(item), item);
               });
             setAllCases([...latestByEvaluationKey.values()]);
             setAppealMergeCount(
@@ -3888,7 +3888,7 @@ export default function DashboardMockup({
         [...mapped, ...evaluationCases]
           .filter((item) => item.agent && item.caseId && item.auditDateObj)
           .forEach((item) => {
-            latestByEvaluationKey.set(item.evaluationKey, item);
+            latestByEvaluationKey.set(buildCaseMergeKey(item), item);
           });
 
         setAllCases([...latestByEvaluationKey.values()]);
@@ -4099,16 +4099,10 @@ export default function DashboardMockup({
   }, [dashboardCases, selectedCaseKey, slideOverOpen]);
 
   const isAllAgentsView = !effectiveSelectedAgent;
-  const lockedCurrentMonthSummary = useMemo(() => {
-    if (selectedMonthKey === "all" || selectedWeek !== "all" || overviewMode !== "all" || caseIdSearch.trim()) return null;
-    return getLockedDashboardMonthSummary(selectedMonthKey, isAllAgentsView);
-  }, [caseIdSearch, isAllAgentsView, overviewMode, selectedMonthKey, selectedWeek]);
   const summary = useMemo(() => buildAgentSummary(dashboardCases), [dashboardCases]);
 
-  const metricAverageDisplay = lockedCurrentMonthSummary
-    ? formatFixed(lockedCurrentMonthSummary.average, 2)
-    : summary.averageDisplay;
-  const metricCaseCount = lockedCurrentMonthSummary ? lockedCurrentMonthSummary.cases : dashboardCases.length;
+  const metricAverageDisplay = summary.averageDisplay;
+  const metricCaseCount = dashboardCases.length;
   const visibleTargetAgents = useMemo(() => {
     if (roleScopedAgentList.length) return roleScopedAgentList;
     return visibleAgentList;
@@ -4262,17 +4256,14 @@ export default function DashboardMockup({
       const monthCases = currentScopeCases.filter((item) => item.monthKey === monthKey);
       const monthScores = monthCases.map((item) => item.finalScore);
       const monthTarget = isAllAgentsView ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET : CASE_TARGET;
-      const lockedMonthSummary = getLockedDashboardMonthSummary(monthKey, isAllAgentsView);
-      const caseCount = lockedMonthSummary ? lockedMonthSummary.cases : monthCases.length;
+      const caseCount = monthCases.length;
       return {
         monthKey,
         label: monthOptions.find((month) => month.value === monthKey)?.label || monthKey,
         shortLabel: monthOptions.find((month) => month.value === monthKey)?.label?.replace(" 2026", "") || monthKey,
-        average: lockedMonthSummary
-          ? lockedMonthSummary.average
-          : monthScores.length
-            ? Number((monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length).toFixed(2))
-            : 0,
+        average: monthScores.length
+          ? Number((monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length).toFixed(2))
+          : 0,
         cases: caseCount,
         completion: monthTarget ? Number(((caseCount / monthTarget) * 100).toFixed(1)) : 0,
       };

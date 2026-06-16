@@ -88,6 +88,13 @@ type PendingAppealCase = {
   submittedAt: string;
 };
 
+type SignatureApprovedAppeal = {
+  caseId: string;
+  finalScore: number;
+  previousScore: number;
+  reviewedAt: string;
+};
+
 const RAW_DATA_FILES = [
   "/QA_RawData_January-February2026.xlsx",
   "/QA_RawData_March-May2026.xlsx",
@@ -461,7 +468,65 @@ function createZeroCaseDocument(monthKey: string, account: UserAccountSnapshot):
   return { ...base, documentHash: createDocumentHash(base) };
 }
 
-function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
+function isSignatureAppealTopicChanged(topic: {
+  score?: number;
+  revisedScore?: number | string;
+  revisedComment?: string;
+}) {
+  const revisedScore =
+    topic.revisedScore !== null &&
+    topic.revisedScore !== "" &&
+    !Number.isNaN(Number(topic.revisedScore))
+      ? Number(topic.revisedScore)
+      : undefined;
+  const originalScore = Number(topic.score ?? 0);
+  return (
+    (revisedScore !== undefined && Math.abs(revisedScore - originalScore) > 0.0001) ||
+    String(topic.revisedComment || "").trim() !== ""
+  );
+}
+
+function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
+  const map = new Map<string, SignatureApprovedAppeal>();
+  buildAppealRequests(logs)
+    .filter((item) => item.status === "Approved")
+    .sort(
+      (a, b) =>
+        new Date(a.reviewedAt || a.submittedAt || "").getTime() -
+        new Date(b.reviewedAt || b.submittedAt || "").getTime()
+    )
+    .forEach((request) => {
+      const caseId = normalizeText(request.caseId);
+      if (!caseId) return;
+      const previousScore = Number(request.finalScore || 0);
+      const scoreDelta = request.topics
+        .filter(isSignatureAppealTopicChanged)
+        .reduce((sum, topic) => {
+          const originalScore = Number(topic.score || 0);
+          const revisedScore =
+            topic.revisedScore !== null &&
+            topic.revisedScore !== "" &&
+            !Number.isNaN(Number(topic.revisedScore))
+              ? Number(topic.revisedScore)
+              : originalScore;
+          if (!Number.isFinite(originalScore) || !Number.isFinite(revisedScore)) return sum;
+          return sum + revisedScore - originalScore;
+        }, 0);
+      map.set(caseId, {
+        caseId,
+        previousScore,
+        finalScore: Number((previousScore + scoreDelta).toFixed(2)),
+        reviewedAt: request.reviewedAt || request.submittedAt || "",
+      });
+    });
+  return map;
+}
+
+function buildDocuments(
+  rows: unknown[][],
+  accounts: UserAccountSnapshot[],
+  approvedAppealMap: Map<string, SignatureApprovedAppeal> = new Map()
+) {
   const headerIndex = rows.findIndex((row) => {
     const keys = row.map((item) => normalizeKey(item));
     return keys.includes("agent name") && (keys.includes("case id") || keys.includes("final score"));
@@ -491,7 +556,9 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     const account = findAccountForAgent(accounts, agentName);
     const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
     const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
-    const finalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
+    const rawFinalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
+    const appealScore = approvedAppealMap.get(caseId)?.finalScore;
+    const finalScore = Number.isFinite(Number(appealScore)) ? Number(appealScore) : rawFinalScore;
     const score = Number.isFinite(finalScore) ? finalScore : 0;
 
     const seniorName = resolveSeniorNameForAgent(account, helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader"], ""));
@@ -765,17 +832,6 @@ function getDashboardMonthSummaryForExport(
   allMonthDocs: SignatureDocument[],
   fallbackDocs: SignatureDocument[]
 ) {
-  const dashboardMonthlyTrend: Record<string, { totalCases: number; avgScore: number }> = {
-    "2026-01": { totalCases: 100, avgScore: 77.10 },
-    "2026-02": { totalCases: 100, avgScore: 77.35 },
-    "2026-03": { totalCases: 120, avgScore: 83.48 },
-    "2026-04": { totalCases: 120, avgScore: 86.16 },
-    "2026-05": { totalCases: 120, avgScore: 85.49 },
-  };
-
-  const lockedSummary = dashboardMonthlyTrend[monthKey];
-  if (lockedSummary) return lockedSummary;
-
   const sourceDocs = allMonthDocs.length ? allMonthDocs : fallbackDocs;
   const caseScores = sourceDocs.flatMap((doc) =>
     doc.cases
@@ -1507,6 +1563,18 @@ export default function SignatureCenterMockup({
         setLoading(true);
         setLoadMessage("");
         const loadedDocs: SignatureDocument[] = [];
+        const approvedAppealLogs = await fetchAppealEvents(
+          [
+            "appeal_request_submitted",
+            "appeal_request_reviewed",
+            "appeal_request_reset",
+          ],
+          { limit: 2000, forceRefresh: true }
+        ).catch((error) => {
+          console.warn("Signature Center approved appeal merge skipped", error);
+          return [] as UsageLogEvent[];
+        });
+        const approvedAppealMap = buildSignatureApprovedAppealMap(approvedAppealLogs as UsageLogEvent[]);
         for (const fileName of RAW_DATA_FILES) {
           const response = await fetch(fileName, { cache: "no-store" });
           if (!response.ok) continue;
@@ -1514,7 +1582,7 @@ export default function SignatureCenterMockup({
           const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
           const sheet = workbook.Sheets["Raw_Data"] || workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
-          loadedDocs.push(...buildDocuments(rows, accounts));
+          loadedDocs.push(...buildDocuments(rows, accounts, approvedAppealMap));
         }
         if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
         const docMap = new Map<string, SignatureDocument>();
