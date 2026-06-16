@@ -1994,10 +1994,8 @@ export default function SignatureCenterMockup({
   const selectedMonthExportAllEvaluated = selectedMonth !== "all" && shouldExportAllEvaluatedAgents(selectedMonth);
 
   const canGeneratePaymentExcel =
-    (currentUser.role === "Quality Assurance" || currentUser.role === "Admin") &&
     selectedMonth !== "all" &&
-    selectedMonthExportDocs.length > 0 &&
-    (shouldExportAllEvaluatedAgents(selectedMonth) || isPaymentExportWindowOpen(selectedMonth));
+    selectedMonthExportDocs.length > 0;
 
   const selectedDocument = activeDocuments.find((item) => item.id === selectedDocumentId) || activeDocuments[0] || filteredDocuments[0] || historyFilteredDocuments[0] || null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
@@ -2542,14 +2540,28 @@ export default function SignatureCenterMockup({
   };
 
   const generatePaymentExcel = () => {
-    if (!canGeneratePaymentExcel || selectedMonth === "all") return;
+    if (selectedMonth === "all") {
+      window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
+      return;
+    }
+    if (!selectedMonthExportDocs.length) {
+      window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
+      return;
+    }
     generatePaymentExcelFile(selectedMonth, selectedMonthExportDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
 
   const generatePaymentPdf = () => {
-    if (!canGeneratePaymentExcel || selectedMonth === "all") return;
+    if (selectedMonth === "all") {
+      window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
+      return;
+    }
+    if (!selectedMonthExportDocs.length) {
+      window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
+      return;
+    }
     const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthExportDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
@@ -2646,7 +2658,7 @@ export default function SignatureCenterMockup({
             <button
               type="button"
               onClick={generatePaymentPdf}
-              disabled={!canGeneratePaymentExcel}
+              disabled={selectedMonth === "all" || selectedMonthExportDocs.length === 0}
               className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               Generate Payment PDF
@@ -2654,7 +2666,7 @@ export default function SignatureCenterMockup({
             <button
               type="button"
               onClick={generatePaymentExcel}
-              disabled={!canGeneratePaymentExcel}
+              disabled={selectedMonth === "all" || selectedMonthExportDocs.length === 0}
               className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
             >
               Generate Excel
@@ -2666,7 +2678,7 @@ export default function SignatureCenterMockup({
         ) : null}
         {!canGeneratePaymentExcel ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: ต้องเป็น QA/Admin, ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
+            เงื่อนไขยังไม่ครบ: ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
           </div>
         ) : selectedMonthExportAllEvaluated ? (
           <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-800">
