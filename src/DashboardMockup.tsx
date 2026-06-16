@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -1867,16 +1867,51 @@ function buildEvaluationKeyFromRow(
   ].join("|");
 }
 
-function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "auditDateObj" | "auditDate" | "evaluationKey">) {
+function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluationKey">) {
   const caseId = normalizeEvaluationKeyPart(item.caseId).toUpperCase();
   const agent = normalizeEvaluationKeyPart(item.agent).toLowerCase();
-  const dateKey = item.auditDateObj
-    ? formatEvaluationDateKey(item.auditDateObj)
-    : formatEvaluationDateKey(item.auditDate);
-  if (caseId && agent && dateKey) return ["case", caseId, agent, dateKey].join("|");
+  if (caseId && agent) return ["case", caseId, agent].join("|");
   return item.evaluationKey;
 }
 
+function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: CaseItem[]) {
+  const rawMonthKeys = new Set(rawCases.map((item) => item.monthKey).filter(Boolean));
+  const merged = new Map<string, CaseItem>();
+
+  rawCases
+    .filter((item) => item.agent && item.caseId && item.auditDateObj)
+    .forEach((item) => {
+      merged.set(buildCaseMergeKey(item), item);
+    });
+
+  storedCases
+    .filter((item) => item.agent && item.caseId && item.auditDateObj)
+    .forEach((item) => {
+      const key = buildCaseMergeKey(item);
+
+      // Months that already have RawData must keep RawData + Appeal as source of truth.
+      // Stored/web evaluations can only fill truly missing case+agent keys, not overwrite.
+      if (rawMonthKeys.has(item.monthKey)) {
+        if (!merged.has(key)) {
+          merged.set(key, item);
+        }
+        return;
+      }
+
+      // New months without RawData can still use stored/web evaluations.
+      if (!merged.has(key)) {
+        merged.set(key, item);
+        return;
+      }
+
+      const existing = merged.get(key);
+      if (existing && !rawMonthKeys.has(existing.monthKey)) {
+        merged.set(key, item);
+      }
+    });
+
+  return [...merged.values()];
+}
 function LogoHeaderBox() {
   return (
     <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] border border-white/20 bg-white/12 shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md lg:h-28 lg:w-28">
@@ -3415,13 +3450,8 @@ export default function DashboardMockup({
 
             const validMappedCases = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
             evaluationCases = await loadEvaluationCases();
-            const latestByEvaluationKey = new Map<string, CaseItem>();
-            [...validMappedCases, ...evaluationCases]
-              .filter((item) => item.agent && item.caseId && item.auditDateObj)
-              .forEach((item) => {
-                latestByEvaluationKey.set(buildCaseMergeKey(item), item);
-              });
-            setAllCases([...latestByEvaluationKey.values()]);
+            const canonicalCases = mergeRawAndStoredEvaluationCases(validMappedCases, evaluationCases);
+            setAllCases(canonicalCases);
             setAppealMergeCount(
               validMappedCases.filter((item) => item.reviewStatus === "Revised").length
             );
@@ -3884,14 +3914,8 @@ export default function DashboardMockup({
           });
 
         evaluationCases = await loadEvaluationCases();
-        const latestByEvaluationKey = new Map<string, CaseItem>();
-        [...mapped, ...evaluationCases]
-          .filter((item) => item.agent && item.caseId && item.auditDateObj)
-          .forEach((item) => {
-            latestByEvaluationKey.set(buildCaseMergeKey(item), item);
-          });
-
-        setAllCases([...latestByEvaluationKey.values()]);
+        const canonicalCases = mergeRawAndStoredEvaluationCases(mapped, evaluationCases);
+        setAllCases(canonicalCases);
       } catch (error: any) {
         console.error("Load Error:", error);
         if (evaluationCases.length) {
