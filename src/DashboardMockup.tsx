@@ -4012,8 +4012,11 @@ export default function DashboardMockup({
   }, [selectedMonthKey]);
 
   const dateFilteredCases = useMemo(() => {
+    if (selectedMonthKey && selectedMonthKey !== "all") {
+      return agentCases.filter((item) => item.monthKey === selectedMonthKey);
+    }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
-  }, [agentCases, dateFrom, dateTo]);
+  }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
 
   const searchScopedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();

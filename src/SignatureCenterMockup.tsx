@@ -99,6 +99,7 @@ const SIGNATURE_LIBRARY_KEY = "qa-monthly-signature-library-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
+const FORCE_EXPORT_ALL_EVALUATED_MONTHS = new Set(["2026-05"]);
 const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -300,9 +301,14 @@ function isSigningAllowedByDate(monthKey: string, now = new Date()) {
 }
 
 function isPaymentExportWindowOpen(monthKey: string, now = new Date()) {
+  if (FORCE_EXPORT_ALL_EVALUATED_MONTHS.has(monthKey)) return true;
   if (isHistoricalPaidPeriod(monthKey)) return true;
   const window = getSignatureWindow(monthKey);
   return now > window.dueAt;
+}
+
+function shouldExportAllEvaluatedAgents(monthKey: string) {
+  return FORCE_EXPORT_ALL_EVALUATED_MONTHS.has(monthKey);
 }
 
 function isSignedWithinCurrentPaymentCycle(signedAt: string, monthKey: string) {
@@ -513,9 +519,9 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
     current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
     current.teamName = current.teamName === "-" ? teamName : current.teamName;
 
-    if (Number.isFinite(finalScore)) current.scores.push(score);
     if (caseId && caseId !== "-" && !current.caseIds.has(caseId)) {
       current.caseIds.add(caseId);
+      if (Number.isFinite(finalScore)) current.scores.push(score);
       current.cases.push({
         caseId,
         auditDate: auditDate ? auditDate.toLocaleDateString("th-TH") : "-",
@@ -524,6 +530,8 @@ function buildDocuments(rows: unknown[][], accounts: UserAccountSnapshot[]) {
         grade: scoreToGrade(score, monthKey),
         comment,
       });
+    } else if ((!caseId || caseId === "-") && Number.isFinite(finalScore)) {
+      current.scores.push(score);
     }
 
     grouped.set(key, current);
@@ -804,6 +812,11 @@ function generatePaymentExcelFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
+  const exportsAllEvaluated = shouldExportAllEvaluatedAgents(monthKey);
+  const exportRuleText = exportsAllEvaluated
+    ? "May 2026 one-time export: include all evaluated agents without waiting for completed signatures."
+    : "Pay only agents signed complete by day 15";
+  const statusText = exportsAllEvaluated ? "Evaluated / Signature not required for this export" : "Signed Complete";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const criticalCases = 0;
@@ -813,14 +826,16 @@ function generatePaymentExcelFile(
 
   const aoa: unknown[][] = [
     ["Monthly Team Summary"],
-    ["Selected month overview for incentive payment. Only agents with completed signatures and Ready to Pay status are included."],
+    [exportsAllEvaluated
+      ? "Selected month overview for incentive payment. May 2026 includes every evaluated agent for this urgent export."
+      : "Selected month overview for incentive payment. Only agents with completed signatures and Ready to Pay status are included."],
     [],
     ["Current View"],
     [],
     ["Month", getMonthLabel(monthKey), null, "Year", year, null, "Team Cases", totalCases],
     [],
     ["Avg Score", Number(avgScore.toFixed(2)), null, "Critical Cases", criticalCases, null, "Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold"],
-    [null, null, null, null, null, null, "Export Rule", "Pay only agents signed complete by day 15"],
+    [null, null, null, null, null, null, "Export Rule", exportRuleText],
     [],
     ["Agent Monthly Ranking"],
     [],
@@ -857,7 +872,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ]
       : [
           index + 1,
@@ -873,7 +888,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          `Signed Complete / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ];
     aoa.push(rankingRow);
   });
@@ -887,7 +902,9 @@ function generatePaymentExcelFile(
     ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", totalPromoAmount]] : []),
     ["Payment Cutoff", formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString())],
     ["Generated At", new Date().toLocaleString("th-TH")],
-    ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
+    ["Document Rule", exportsAllEvaluated
+      ? "May 2026 one-time export includes every evaluated agent; signatures can continue afterward."
+      : "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
     [],
     ["Signature Validation"],
     ["Seq", "Agent", "QA", "Supervisor", "Senior / Team Lead", "Agent Signature", "Document Ref.", "Status"],
@@ -903,7 +920,7 @@ function generatePaymentExcelFile(
       getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
       doc.documentHash.slice(0, 10),
-      "Completed",
+      exportsAllEvaluated ? "Exported" : "Completed",
     ]);
   });
 
@@ -950,6 +967,11 @@ function generatePaymentPdfFile(
 ) {
   const sortedDocs = [...readyDocs].sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   const dashboardSummary = getDashboardMonthSummaryForExport(monthKey, allMonthDocs, sortedDocs);
+  const exportsAllEvaluated = shouldExportAllEvaluatedAgents(monthKey);
+  const exportRuleText = exportsAllEvaluated
+    ? "May 2026: Export all evaluated agents"
+    : "Pay only signed complete by day 15";
+  const statusText = exportsAllEvaluated ? "Evaluated" : "Signed";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -1037,10 +1059,10 @@ function generatePaymentPdfFile(
   if (totalPromoAmount > 0) {
     smallCell("RBH Promo (THB)", formatBahtAmount(totalPromoAmount), left + 58, y, 56);
     smallCell("Payment Cutoff", paymentCutoff, left + 118, y, 68);
-    smallCell("Export Rule", "Pay only signed complete by day 15", left + 190, y, 82);
+    smallCell("Export Rule", exportRuleText, left + 190, y, 82);
   } else {
     smallCell("Payment Cutoff", paymentCutoff, left + 58, y, 72);
-    smallCell("Export Rule", "Pay only signed complete by day 15", left + 134, y, 138);
+    smallCell("Export Rule", exportRuleText, left + 134, y, 138);
   }
   y += 20;
 
@@ -1121,7 +1143,7 @@ function generatePaymentPdfFile(
           formatBahtAmount(incentive.promo),
           incentive.label,
           "No",
-          `Signed / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ]
       : [
           String(index + 1),
@@ -1132,7 +1154,7 @@ function generatePaymentPdfFile(
           formatBahtAmount(incentive.cash),
           incentive.label,
           "No",
-          `Signed / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(headers[colIndex][1]) - 3;
@@ -1165,7 +1187,9 @@ function generatePaymentPdfFile(
     ...(totalPromoAmount > 0 ? [["Total RBH Promo (THB)", formatBahtAmount(totalPromoAmount)]] : []),
     ["Payment Cutoff", paymentCutoff],
     ["Generated At", new Date().toLocaleString("th-TH")],
-    ["Document Rule", "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
+    ["Document Rule", exportsAllEvaluated
+      ? "May 2026 urgent export includes every evaluated agent; signatures can continue afterward."
+      : "Include only agents signed complete by day 15 and no pending Appeal remains. Late signatures move to next payment cycle."],
   ];
 
   summaryRows.forEach((row, index) => {
@@ -1235,7 +1259,7 @@ function generatePaymentPdfFile(
       getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-",
       getSignedEntry(entries, "Agent")?.signerName || "-",
       doc.documentHash,
-      "Completed",
+      exportsAllEvaluated ? "Exported" : "Completed",
     ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(sigHeaders[colIndex][1]) - 3;
@@ -1706,6 +1730,16 @@ export default function SignatureCenterMockup({
       .filter((doc) => isPaymentReadyDocument(doc, effectiveEntriesForDoc(doc, signatures), pendingAppealCaseMap));
   }, [documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
+  const selectedMonthExportDocs = useMemo(() => {
+    if (selectedMonth === "all") return [];
+    if (shouldExportAllEvaluatedAgents(selectedMonth)) {
+      return selectedMonthAllDocs
+        .filter((doc) => doc.caseCount > 0)
+        .sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
+    }
+    return selectedMonthPaymentDocs;
+  }, [selectedMonth, selectedMonthAllDocs, selectedMonthPaymentDocs]);
+
   const selectedMonthLateSignedDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
     return documents
@@ -1733,12 +1767,13 @@ export default function SignatureCenterMockup({
   }, [currentUser, documents, pendingAppealCaseMap, selectedMonth, signatures]);
 
   const selectedMonthTotalDocs = selectedMonthAllDocs.length;
+  const selectedMonthExportAllEvaluated = selectedMonth !== "all" && shouldExportAllEvaluatedAgents(selectedMonth);
 
   const canGeneratePaymentExcel =
     currentUser.role === "Quality Assurance" &&
     selectedMonth !== "all" &&
     isPaymentExportWindowOpen(selectedMonth) &&
-    selectedMonthPaymentDocs.length > 0;
+    selectedMonthExportDocs.length > 0;
 
   const selectedDocument = activeDocuments.find((item) => item.id === selectedDocumentId) || activeDocuments[0] || filteredDocuments[0] || historyFilteredDocuments[0] || null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
@@ -2284,14 +2319,14 @@ export default function SignatureCenterMockup({
 
   const generatePaymentExcel = () => {
     if (!canGeneratePaymentExcel || selectedMonth === "all") return;
-    generatePaymentExcelFile(selectedMonth, selectedMonthPaymentDocs, signatures, selectedMonthAllDocs);
+    generatePaymentExcelFile(selectedMonth, selectedMonthExportDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
 
   const generatePaymentPdf = () => {
     if (!canGeneratePaymentExcel || selectedMonth === "all") return;
-    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentDocs, signatures, selectedMonthAllDocs);
+    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthExportDocs, signatures, selectedMonthAllDocs);
     setPaymentMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPaymentMessage(""), 3500);
   };
@@ -2369,14 +2404,18 @@ export default function SignatureCenterMockup({
             </div>
           </div>
           <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Signed Complete Agents</div>
+            <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+              {selectedMonthExportAllEvaluated ? "Evaluated Agents" : "Signed Complete Agents"}
+            </div>
             <div className="mt-1 text-2xl font-black text-violet-700">
-              {selectedMonth === "all" ? "-" : `${selectedMonthPaymentDocs.length} คน`}
+              {selectedMonth === "all" ? "-" : `${selectedMonthExportDocs.length} คน`}
             </div>
             <div className="mt-1 text-xs font-semibold text-slate-500">
               {selectedMonth === "all"
                 ? "กรุณาเลือกเดือนก่อน"
-                : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthPaymentDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
+                : selectedMonthExportAllEvaluated
+                  ? `May export พิเศษ: รวม Agent ที่ถูกประเมินทั้งหมด ${selectedMonthExportDocs.length} คน / รวมบาท ${formatBahtAmount(selectedMonthExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`
+                  : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -2403,7 +2442,11 @@ export default function SignatureCenterMockup({
         ) : null}
         {!canGeneratePaymentExcel ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: ต้องเป็น QA, ต้องเลือกเดือน, ต้องพ้นวันที่ 15 แล้ว และต้องมีอย่างน้อย 1 Agent ที่เซ็นครบทุก Role ภายในกำหนด/ไม่มี Appeal Pending
+            เงื่อนไขยังไม่ครบ: ต้องเป็น QA, ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
+          </div>
+        ) : selectedMonthExportAllEvaluated ? (
+          <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-800">
+            May 2026 เปิด Export พิเศษ: Generate ได้ทันทีจาก Agent ทุกคนที่มีผลประเมิน โดยไม่ต้องรอเซ็นครบ
           </div>
         ) : null}
       </div>
