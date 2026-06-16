@@ -1889,16 +1889,11 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
     .forEach((item) => {
       const key = buildCaseMergeKey(item);
 
-      // Months that already have RawData must keep RawData + Appeal as source of truth.
-      // Stored/web evaluations can only fill truly missing case+agent keys, not overwrite.
       if (rawMonthKeys.has(item.monthKey)) {
-        if (!merged.has(key)) {
-          merged.set(key, item);
-        }
+        if (!merged.has(key)) merged.set(key, item);
         return;
       }
 
-      // New months without RawData can still use stored/web evaluations.
       if (!merged.has(key)) {
         merged.set(key, item);
         return;
@@ -3685,7 +3680,11 @@ export default function DashboardMockup({
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];
           buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
-            appealMap.set(caseId, item);
+            // Uploaded RawData + uploaded Appeal ROWDATA must win for uploaded months.
+            // Web approval logs are only allowed when the case is not in uploaded RawData.
+            if (!rawCaseMonthKeyMap.has(caseId) && !appealMap.has(caseId)) {
+              appealMap.set(caseId, item);
+            }
           });
         } catch (error) {
           console.warn("Approved appeal review merge skipped", error);

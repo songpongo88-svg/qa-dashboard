@@ -522,6 +522,80 @@ function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
   return map;
 }
 
+function getLastSignatureHeaderValue(
+  headerRow: unknown[],
+  row: unknown[],
+  headerName: string,
+  fallback: unknown = ""
+) {
+  const target = normalizeKey(headerName);
+  for (let index = headerRow.length - 1; index >= 0; index -= 1) {
+    if (normalizeKey(headerRow[index]) !== target) continue;
+    const value = row[index];
+    if (value !== null && value !== undefined && normalizeText(value) !== "") return value;
+  }
+  return fallback;
+}
+
+function buildSignatureRawAppealMap(rows: unknown[][]) {
+  const headerIndex = rows.findIndex((row) => row.map((item) => normalizeKey(item)).includes("case id"));
+  const map = new Map<string, SignatureApprovedAppeal>();
+  if (headerIndex < 0) return map;
+
+  const headerRow = rows[headerIndex] || [];
+  const helper = buildHeaderMap(headerRow);
+
+  rows.slice(headerIndex + 1).forEach((row) => {
+    const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""), "");
+    if (!caseId) return;
+
+    const monthKey = getMonthKeyFromRow(row, helper);
+    const rawFinalScore = Number(getLastSignatureHeaderValue(headerRow, row, "Final Score", ""));
+    if (!Number.isFinite(rawFinalScore)) return;
+
+    const rawPreviousScore = Number(helper.get(row, ["Previous Score", "Original Score"], rawFinalScore));
+    const item: SignatureApprovedAppeal = {
+      caseId,
+      previousScore: Number.isFinite(rawPreviousScore) ? rawPreviousScore : rawFinalScore,
+      finalScore: Number(rawFinalScore.toFixed(2)),
+      reviewedAt: normalizeText(helper.get(row, ["Reviewed At", "Review Date", "Audit Date", "Timestamp"], "")),
+    };
+
+    map.set(caseId, item);
+    if (/^20\d{2}-\d{2}$/.test(monthKey)) {
+      map.set(`${caseId}::${monthKey}`, item);
+    }
+  });
+
+  return map;
+}
+
+async function fetchSignatureRawAppealMap() {
+  const appealFiles = [
+    "/Appleal ROWDATA.xlsx",
+    "/Appeal ROWDATA.xlsx",
+    "/Appeal_ROWDATA.xlsx",
+  ];
+
+  for (const fileName of appealFiles) {
+    try {
+      const response = await fetch(fileName, { cache: "no-store" });
+      if (!response.ok) continue;
+      const buffer = await response.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+      const sheet = workbook.Sheets["Appeal_Data"] || workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+      const map = buildSignatureRawAppealMap(rows);
+      if (map.size) return map;
+    } catch (error) {
+      console.warn(`Signature raw appeal file skipped: ${fileName}`, error);
+    }
+  }
+
+  return new Map<string, SignatureApprovedAppeal>();
+}
+
+
 function buildDocuments(
   rows: unknown[][],
   accounts: UserAccountSnapshot[],
@@ -557,7 +631,7 @@ function buildDocuments(
     const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
     const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
     const rawFinalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
-    const appealScore = approvedAppealMap.get(caseId)?.finalScore;
+    const appealScore = (approvedAppealMap.get(`${caseId}::${monthKey}`) || approvedAppealMap.get(caseId))?.finalScore;
     const finalScore = Number.isFinite(Number(appealScore)) ? Number(appealScore) : rawFinalScore;
     const score = Number.isFinite(finalScore) ? finalScore : 0;
 
@@ -1563,18 +1637,27 @@ export default function SignatureCenterMockup({
         setLoading(true);
         setLoadMessage("");
         const loadedDocs: SignatureDocument[] = [];
-        const approvedAppealLogs = await fetchAppealEvents(
-          [
-            "appeal_request_submitted",
-            "appeal_request_reviewed",
-            "appeal_request_reset",
-          ],
-          { limit: 2000, forceRefresh: true }
-        ).catch((error) => {
-          console.warn("Signature Center approved appeal merge skipped", error);
-          return [] as UsageLogEvent[];
+        const rawAppealMap = await fetchSignatureRawAppealMap().catch((error) => {
+          console.warn("Signature Center raw appeal merge skipped", error);
+          return new Map<string, SignatureApprovedAppeal>();
         });
-        const approvedAppealMap = buildSignatureApprovedAppealMap(approvedAppealLogs as UsageLogEvent[]);
+        let approvedAppealMap = rawAppealMap;
+
+        // Fallback only: if no uploaded Appeal ROWDATA exists, use web approval logs.
+        if (!approvedAppealMap.size) {
+          const approvedAppealLogs = await fetchAppealEvents(
+            [
+              "appeal_request_submitted",
+              "appeal_request_reviewed",
+              "appeal_request_reset",
+            ],
+            { limit: 2000, forceRefresh: true }
+          ).catch((error) => {
+            console.warn("Signature Center approved appeal merge skipped", error);
+            return [] as UsageLogEvent[];
+          });
+          approvedAppealMap = buildSignatureApprovedAppealMap(approvedAppealLogs as UsageLogEvent[]);
+        }
         for (const fileName of RAW_DATA_FILES) {
           const response = await fetch(fileName, { cache: "no-store" });
           if (!response.ok) continue;
