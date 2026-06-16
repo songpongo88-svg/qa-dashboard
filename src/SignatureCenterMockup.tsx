@@ -1040,7 +1040,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ]
       : [
           index + 1,
@@ -1056,7 +1056,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ];
     aoa.push(rankingRow);
   });
@@ -1139,7 +1139,7 @@ function generatePaymentPdfFile(
   const exportRuleText = exportsAllEvaluated
     ? "May 2026: Export all evaluated agents"
     : "Pay only signed complete by day 15";
-  const statusText = exportsAllEvaluated ? "Evaluated" : "Signed";
+  const statusText = exportsAllEvaluated ? "Exported" : "Signed";
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -1237,30 +1237,30 @@ function generatePaymentPdfFile(
   section("Agent Monthly Ranking");
   const headers = totalPromoAmount > 0
     ? [
-        ["Seq", 10],
-        ["Name", 54],
-        ["Cases", 18],
-        ["Avg Score", 24],
-        ["Grade", 16],
-        ["Incentive Amt", 30],
-        ["RBH Promo", 26],
-        ["Incentive Detail", 46],
-        ["Critical", 18],
-        ["Status", 31],
+        ["Seq", 9],
+        ["Name", 48],
+        ["Cases", 15],
+        ["Avg Score", 20],
+        ["Grade", 12],
+        ["Incentive Amt", 24],
+        ["RBH Promo", 22],
+        ["Incentive Detail", 34],
+        ["Critical", 13],
+        ["Status", 76],
       ]
     : [
-        ["Seq", 10],
-        ["Name", 58],
-        ["Cases", 22],
-        ["Avg Score", 26],
-        ["Grade", 18],
-        ["Incentive Amt", 36],
-        ["Incentive Detail", 58],
-        ["Critical", 22],
-        ["Status", 23],
+        ["Seq", 9],
+        ["Name", 50],
+        ["Cases", 16],
+        ["Avg Score", 20],
+        ["Grade", 13],
+        ["Incentive Amt", 28],
+        ["Incentive Detail", 36],
+        ["Critical", 14],
+        ["Status", 87],
       ];
 
-  const colX: number[] = [];
+const colX: number[] = [];
   let x = left;
   headers.forEach(([, width]) => {
     colX.push(x);
@@ -1311,7 +1311,7 @@ function generatePaymentPdfFile(
           formatBahtAmount(incentive.promo),
           incentive.label,
           "No",
-          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ]
       : [
           String(index + 1),
@@ -1322,7 +1322,7 @@ function generatePaymentPdfFile(
           formatBahtAmount(incentive.cash),
           incentive.label,
           "No",
-          `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
         ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(headers[colIndex][1]) - 3;
@@ -1376,17 +1376,17 @@ function generatePaymentPdfFile(
   }
   section("Signature Validation");
   const sigHeaders = [
-    ["Seq", 10],
-    ["Name", 46],
-    ["QA", 34],
-    ["Supervisor", 35],
-    ["Senior / Lead", 45],
-    ["Agent Sign", 40],
-    ["Document Ref.", 28],
-    ["Status", 32],
+    ["Seq", 9],
+    ["Name", 44],
+    ["QA", 33],
+    ["Supervisor", 33],
+    ["Senior / Lead", 33],
+    ["Agent Sign", 33],
+    ["Document Ref.", 43],
+    ["Status", 45],
   ];
 
-  const sigX: number[] = [];
+const sigX: number[] = [];
   x = left;
   sigHeaders.forEach(([, width]) => {
     sigX.push(x);
@@ -1434,7 +1434,7 @@ function generatePaymentPdfFile(
       const lines = pdf.splitTextToSize(String(value), maxWidth);
       const label = String(sigHeaders[colIndex][0]);
       const align = label === "Name" || label === "Document Ref." || label === "Status" ? "left" : "center";
-      drawColText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex], y + 5.5, Number(sigHeaders[colIndex][1]), 7.6, colIndex === 1, [31, 41, 55], align);
+      drawColText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex], y + 5.5, Number(sigHeaders[colIndex][1]), label === "Status" ? 7.1 : 7.6, colIndex === 1, [31, 41, 55], align);
     });
     y += 8;
   });
