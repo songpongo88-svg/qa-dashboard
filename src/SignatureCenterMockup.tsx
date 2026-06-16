@@ -913,6 +913,29 @@ function getSignatureValidationStatus(
 }
 
 
+function getOverallPdfGradeLabel(avgScore: number) {
+  if (!Number.isFinite(avgScore)) return "-";
+  if (avgScore >= 90) return "A";
+  if (avgScore >= 85) return "B";
+  if (avgScore >= 80) return "C";
+  if (avgScore >= 75) return "D";
+  return "F";
+}
+
+function getAgentSignedStatusText(
+  doc: SignatureDocument,
+  entries: SignatureEntry[],
+  exportsAllEvaluated: boolean
+) {
+  const agentEntry = getSignedEntry(entries, "Agent");
+  if (agentEntry?.signedAt) {
+    return "Agent Signed / " + formatDateTime(agentEntry.signedAt);
+  }
+
+  return exportsAllEvaluated ? "Exported" : "Completed";
+}
+
+
 function makePaymentFileName(monthKey: string) {
   const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
   return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
@@ -1040,7 +1063,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : statusText,
         ]
       : [
           index + 1,
@@ -1056,7 +1079,7 @@ function generatePaymentExcelFile(
           agentSigner,
           lastSignedAt ? formatDateTime(lastSignedAt) : "-",
           "No",
-          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : statusText,
         ];
     aoa.push(rankingRow);
   });
@@ -1139,7 +1162,7 @@ function generatePaymentPdfFile(
   const exportRuleText = exportsAllEvaluated
     ? "May 2026: Export all evaluated agents"
     : "Pay only signed complete by day 15";
-  const statusText = exportsAllEvaluated ? "Exported" : "Signed";
+  const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -1217,50 +1240,62 @@ function generatePaymentPdfFile(
 
   y = 32;
   section("Current View");
-  smallCell("Month", getMonthLabel(monthKey), left, y, 66);
-  smallCell("Year", year, left + 70, y, 40);
-  smallCell("Team Cases", totalCases, left + 114, y, 44);
-  smallCell("Avg Score", avgScore.toFixed(2), left + 162, y, 42);
-  smallCell("Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold", left + 208, y, 64);
-  y += 17;
-  smallCell("Total Cash (THB)", formatBahtAmount(totalCashAmount), left, y, 54);
-  if (totalPromoAmount > 0) {
-    smallCell("RBH Promo (THB)", formatBahtAmount(totalPromoAmount), left + 58, y, 56);
-    smallCell("Payment Cutoff", paymentCutoff, left + 118, y, 68);
-    smallCell("Export Rule", exportRuleText, left + 190, y, 82);
-  } else {
-    smallCell("Payment Cutoff", paymentCutoff, left + 58, y, 72);
-    smallCell("Export Rule", exportRuleText, left + 134, y, 138);
-  }
-  y += 20;
+  const overallGrade = getOverallPdfGradeLabel(avgScore);
+  const currentInfoRows: Array<Array<[string, string | number]>> = [
+    [
+      ["Month", getMonthLabel(monthKey)],
+      ["Year", year],
+      ["Team Cases", totalCases],
+      ["Avg Score", avgScore.toFixed(2)],
+      ["Overall Grade", overallGrade],
+    ],
+    [
+      ["Payment Status", sortedDocs.length > 0 ? "Ready to Export" : "Hold"],
+      ["Total Cash (THB)", formatBahtAmount(totalCashAmount)],
+      ["Payment Cutoff", paymentCutoff],
+      ["Export Rule", exportRuleText],
+    ],
+  ];
+
+  currentInfoRows.forEach((row) => {
+    const usableWidth = right - left;
+    const colWidth = usableWidth / row.length;
+    row.forEach(([label, value], index) => {
+      const cellX = left + index * colWidth;
+      drawText(label, cellX + 1, y, 8.6, true, [100, 116, 139]);
+      drawText(String(value), cellX + 1, y + 5.2, 10.5, true, [15, 23, 42]);
+    });
+    y += 10;
+  });
+  y += 4;
 
   section("Agent Monthly Ranking");
   const headers = totalPromoAmount > 0
     ? [
         ["Seq", 9],
-        ["Name", 48],
-        ["Cases", 15],
-        ["Avg Score", 20],
-        ["Grade", 12],
-        ["Incentive Amt", 24],
+        ["Name", 49],
+        ["Cases", 16],
+        ["Avg Score", 19],
+        ["Grade", 14],
+        ["Incentive Amt", 26],
         ["RBH Promo", 22],
-        ["Incentive Detail", 34],
+        ["Incentive Detail", 25],
         ["Critical", 13],
-        ["Status", 76],
+        ["Status", 80],
       ]
     : [
         ["Seq", 9],
         ["Name", 50],
         ["Cases", 16],
-        ["Avg Score", 20],
-        ["Grade", 13],
+        ["Avg Score", 19],
+        ["Grade", 14],
         ["Incentive Amt", 28],
-        ["Incentive Detail", 36],
-        ["Critical", 14],
-        ["Status", 87],
+        ["Incentive Detail", 26],
+        ["Critical", 13],
+        ["Status", 98],
       ];
 
-const colX: number[] = [];
+  const colX: number[] = [];
   let x = left;
   headers.forEach(([, width]) => {
     colX.push(x);
@@ -1311,7 +1346,7 @@ const colX: number[] = [];
           formatBahtAmount(incentive.promo),
           incentive.label,
           "No",
-          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : statusText,
         ]
       : [
           String(index + 1),
@@ -1322,7 +1357,7 @@ const colX: number[] = [];
           formatBahtAmount(incentive.cash),
           incentive.label,
           "No",
-          exportsAllEvaluated ? "Exported" : `${statusText} / ${lastSignedAt ? formatDateTime(lastSignedAt) : "-"}`,
+          exportsAllEvaluated ? "Exported" : statusText,
         ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(headers[colIndex][1]) - 3;
@@ -1377,16 +1412,16 @@ const colX: number[] = [];
   section("Signature Validation");
   const sigHeaders = [
     ["Seq", 9],
-    ["Name", 44],
-    ["QA", 33],
-    ["Supervisor", 33],
-    ["Senior / Lead", 33],
-    ["Agent Sign", 33],
-    ["Document Ref.", 43],
-    ["Status", 45],
+    ["Name", 42],
+    ["QA", 34],
+    ["Supervisor", 34],
+    ["Senior / Lead", 34],
+    ["Agent Sign", 34],
+    ["Document Ref.", 42],
+    ["Status", 44],
   ];
 
-const sigX: number[] = [];
+  const sigX: number[] = [];
   x = left;
   sigHeaders.forEach(([, width]) => {
     sigX.push(x);
@@ -1399,7 +1434,7 @@ const sigX: number[] = [];
     pdf.rect(left, y, right - left, 9, "FD");
     sigHeaders.forEach(([label, width], index) => {
       const labelText = String(label);
-      const align = labelText === "Name" || labelText === "Document Ref." || labelText === "Status" ? "left" : "center";
+      const align = labelText === "Seq" ? "center" : "left";
       drawColText(labelText, sigX[index], y + 6, Number(width), 9, true, [88, 28, 135], align);
     });
     y += 9;
@@ -1433,7 +1468,7 @@ const sigX: number[] = [];
       const maxWidth = Number(sigHeaders[colIndex][1]) - 3;
       const lines = pdf.splitTextToSize(String(value), maxWidth);
       const label = String(sigHeaders[colIndex][0]);
-      const align = label === "Name" || label === "Document Ref." || label === "Status" ? "left" : "center";
+      const align = label === "Seq" ? "center" : "left";
       drawColText(Array.isArray(lines) ? lines[0] : String(lines), sigX[colIndex], y + 5.5, Number(sigHeaders[colIndex][1]), label === "Status" ? 7.1 : 7.6, colIndex === 1, [31, 41, 55], align);
     });
     y += 8;
