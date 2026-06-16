@@ -621,13 +621,10 @@ function buildEvaluationKeyFromRow(
   ].join("|");
 }
 
-function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "auditDateObj" | "auditDate" | "evaluationKey">) {
+function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluationKey">) {
   const caseId = normalizeEvaluationKeyPart(item.caseId).toUpperCase();
   const agent = normalizeEvaluationKeyPart(item.agent).toLowerCase();
-  const dateKey = item.auditDateObj
-    ? formatEvaluationDateKey(item.auditDateObj)
-    : formatEvaluationDateKey(item.auditDate);
-  if (caseId && agent && dateKey) return ["case", caseId, agent, dateKey].join("|");
+  if (caseId && agent) return ["case", caseId, agent].join("|");
   return item.evaluationKey;
 }
 
@@ -1496,10 +1493,12 @@ export default function SummaryMockup({
               displayRevisedTopicCodes: [],
             } as CaseItem;
           })
-          .filter((item) => item.agent && item.caseId && item.auditDateObj);
+            .filter((item) => item.agent && item.caseId && item.auditDateObj);
 
         const latestByEvaluationKey = new Map<string, CaseItem>();
-        [...mappedCases, ...evaluationCases].forEach((item) => {
+        const rawMonthKeys = new Set(mappedCases.map((item) => item.monthKey).filter(Boolean));
+        const evaluationCasesForMerge = evaluationCases.filter((item) => !rawMonthKeys.has(item.monthKey));
+        [...evaluationCasesForMerge, ...mappedCases].forEach((item) => {
           latestByEvaluationKey.set(buildCaseMergeKey(item), item);
         });
         setAllCases([...latestByEvaluationKey.values()]);
