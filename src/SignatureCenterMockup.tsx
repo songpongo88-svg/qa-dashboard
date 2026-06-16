@@ -1298,7 +1298,6 @@ function generatePaymentPdfFile(
   const exportRuleText = exportsAllEvaluated
     ? "May 2026: Export all evaluated agents"
     : "Pay only signed complete by day 15";
-  const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -1461,6 +1460,7 @@ function generatePaymentPdfFile(
     }
 
     const entries = effectiveEntriesForDoc(doc, signatures);
+    const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
         .filter(Boolean)
