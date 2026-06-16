@@ -876,6 +876,43 @@ function isLateSignedDocument(
   return signedComplete && hasLateSignature && !hasPending;
 }
 
+function getSignatureValidationRoleText(
+  doc: SignatureDocument,
+  entries: SignatureEntry[],
+  role: SignRole,
+  now = new Date()
+) {
+  const signed = getSignedEntry(entries, role);
+  if (signed) return signed.signerName || getRoleSigner(doc, role);
+
+  const resetEntry = getActiveDeadlineResetEntry(entries, role, now);
+  if (resetEntry) return resetEntry.signerName || getRoleSigner(doc, role);
+
+  const status = statusForRole(entries, role, doc.monthKey, now);
+  if (status === "Pending") return getRoleSigner(doc, role);
+
+  return "-";
+}
+
+function getSignatureValidationStatus(
+  doc: SignatureDocument,
+  entries: SignatureEntry[],
+  exportsAllEvaluated: boolean,
+  now = new Date()
+) {
+  const pendingRoles = SIGNATURE_FLOW.filter((role) => {
+    if (getSignedEntry(entries, role)) return false;
+    return statusForRole(entries, role, doc.monthKey, now) === "Pending";
+  });
+
+  if (pendingRoles.length) {
+    return `Pending ${pendingRoles.map(roleThaiLabel).join(", ")}`;
+  }
+
+  return getSignatureValidationStatus(doc, entries, exportsAllEvaluated);
+}
+
+
 function makePaymentFileName(monthKey: string) {
   const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
   return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
@@ -978,10 +1015,10 @@ function generatePaymentExcelFile(
   sortedDocs.forEach((doc, index) => {
     const entries = effectiveEntriesForDoc(doc, signatures);
     const incentive = getDocumentIncentive(doc);
-    const qaSigner = getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-";
-    const supervisorSigner = getSignedEntry(entries, "Supervisor") ? getRoleSigner(doc, "Supervisor") : "-";
-    const seniorSigner = getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-";
-    const agentSigner = getSignedEntry(entries, "Agent")?.signerName || "-";
+    const qaSigner = getSignatureValidationRoleText(doc, entries, "QA");
+    const supervisorSigner = getSignatureValidationRoleText(doc, entries, "Supervisor");
+    const seniorSigner = getSignatureValidationRoleText(doc, entries, "Senior");
+    const agentSigner = getSignatureValidationRoleText(doc, entries, "Agent");
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
         .filter(Boolean)
@@ -1046,12 +1083,12 @@ function generatePaymentExcelFile(
     aoa.push([
       index + 1,
       doc.agentName,
-      getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-",
-      getSignedEntry(entries, "Supervisor") ? getRoleSigner(doc, "Supervisor") : "-",
-      getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-",
-      getSignedEntry(entries, "Agent")?.signerName || "-",
+      getSignatureValidationRoleText(doc, entries, "QA"),
+      getSignatureValidationRoleText(doc, entries, "Supervisor"),
+      getSignatureValidationRoleText(doc, entries, "Senior"),
+      getSignatureValidationRoleText(doc, entries, "Agent"),
       doc.documentHash.slice(0, 10),
-      exportsAllEvaluated ? "Exported" : "Completed",
+      getSignatureValidationStatus(doc, entries, exportsAllEvaluated),
     ]);
   });
 
@@ -1385,12 +1422,12 @@ function generatePaymentPdfFile(
     const row = [
       String(index + 1),
       doc.agentName,
-      getSignedEntry(entries, "QA") ? getRoleSigner(doc, "QA") : "-",
-      getSignedEntry(entries, "Supervisor") ? getRoleSigner(doc, "Supervisor") : "-",
-      getSignedEntry(entries, "Senior") ? getRoleSigner(doc, "Senior") : "-",
-      getSignedEntry(entries, "Agent")?.signerName || "-",
+      getSignatureValidationRoleText(doc, entries, "QA"),
+      getSignatureValidationRoleText(doc, entries, "Supervisor"),
+      getSignatureValidationRoleText(doc, entries, "Senior"),
+      getSignatureValidationRoleText(doc, entries, "Agent"),
       doc.documentHash,
-      exportsAllEvaluated ? "Exported" : "Completed",
+      getSignatureValidationStatus(doc, entries, exportsAllEvaluated),
     ];
     row.forEach((value, colIndex) => {
       const maxWidth = Number(sigHeaders[colIndex][1]) - 3;
