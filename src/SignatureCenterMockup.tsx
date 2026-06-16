@@ -102,6 +102,7 @@ const CASE_TARGET = 10;
 const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+const DEFAULT_SUPERVISOR_SIGNER = "Phrommarin Thaithorn";
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -356,14 +357,22 @@ function resolveFallbackSignerName(value: unknown, fallback = "Phommarin Thaitho
 }
 
 function resolveSupervisorName(value: unknown) {
-  return resolveFallbackSignerName(value, "Phommarin Thaithom");
+  const compact = compactPerson(value);
+  const knownAliases = new Set([
+    compactPerson("Phommarin Thaithom"),
+    compactPerson("Phommarin Thaithorn"),
+    compactPerson("Phrommarin Thaithom"),
+    compactPerson(DEFAULT_SUPERVISOR_SIGNER),
+  ]);
+  if (isGenericRoleName(value) || knownAliases.has(compact)) return DEFAULT_SUPERVISOR_SIGNER;
+  return resolveFallbackSignerName(value, DEFAULT_SUPERVISOR_SIGNER);
 }
 
 function resolveSeniorNameForAgent(account: UserAccountSnapshot | undefined, value: unknown) {
   const leadName = normalizeText(account?.teamLead || value);
   if (!isGenericRoleName(leadName)) return leadName;
-  if (!account || isSuspendedAccount(account)) return "Phommarin Thaithom";
-  return "Phommarin Thaithom";
+  if (!account || isSuspendedAccount(account)) return DEFAULT_SUPERVISOR_SIGNER;
+  return DEFAULT_SUPERVISOR_SIGNER;
 }
 
 function readSignatureStore(): Record<string, SignatureEntry[]> {
@@ -555,7 +564,7 @@ function getQaSignerNameByMonth(monthKey: string, fallback = "Quality Assurance"
 function getRoleSigner(doc: SignatureDocument, role: SignRole) {
   if (role === "QA") return getQaSignerNameByMonth(doc.monthKey, doc.qaName);
   if (role === "Supervisor") return resolveSupervisorName(doc.supervisorName);
-  if (role === "Senior") return resolveFallbackSignerName(doc.seniorName, "Phommarin Thaithom");
+  if (role === "Senior") return resolveFallbackSignerName(doc.seniorName, DEFAULT_SUPERVISOR_SIGNER);
   return doc.agentName;
 }
 
