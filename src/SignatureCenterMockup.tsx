@@ -100,6 +100,8 @@ const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
 const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
+const SIGNATURE_RESET_WINDOW_DAYS = 3;
+const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -565,6 +567,22 @@ function getDeadlineResetEntry(entries: SignatureEntry[], role: SignRole) {
   return entries.find((entry) => entry.role === role && entry.status === "Pending" && entry.note === SIGNATURE_DEADLINE_RESET_NOTE);
 }
 
+function getDeadlineResetExpiresAt(entry?: SignatureEntry) {
+  const resetTime = new Date(entry?.resetAt || "").getTime();
+  if (Number.isNaN(resetTime)) return null;
+  return new Date(resetTime + SIGNATURE_RESET_WINDOW_MS);
+}
+
+function isDeadlineResetActive(entry?: SignatureEntry, now = new Date()) {
+  const expiresAt = getDeadlineResetExpiresAt(entry);
+  return Boolean(expiresAt && now.getTime() <= expiresAt.getTime());
+}
+
+function getActiveDeadlineResetEntry(entries: SignatureEntry[], role: SignRole, now = new Date()) {
+  const entry = getDeadlineResetEntry(entries, role);
+  return isDeadlineResetActive(entry, now) ? entry : undefined;
+}
+
 function getPendingRoles(entries: SignatureEntry[]) {
   return SIGNATURE_FLOW.filter((role) => !getSignedEntry(entries, role));
 }
@@ -635,12 +653,12 @@ function canMonitorDocument(currentUser: CurrentUser, doc: SignatureDocument) {
   return canSignIdentity(currentUser, doc, "Agent");
 }
 
-function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string): SignatureStepStatus {
+function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: string, now = new Date()): SignatureStepStatus {
   if (getSignedEntry(entries, role)) return "Signed";
   if (isHistoricalPaidPeriod(monthKey)) return "Signed";
-  const timeline = getTimelineStatus(monthKey);
+  const timeline = getTimelineStatus(monthKey, now);
   if (timeline === "Appeal Period Open" || timeline === "Waiting Signature Window") return "Locked";
-  if (timeline === "Signature Deadline Passed" && getDeadlineResetEntry(entries, role)) return "Pending";
+  if (timeline === "Signature Deadline Passed" && getActiveDeadlineResetEntry(entries, role, now)) return "Pending";
   if (timeline === "Signature Deadline Passed") return "Expired";
   return "Pending";
 }
@@ -648,7 +666,7 @@ function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: stri
 function canSignRoleByDate(monthKey: string, entries: SignatureEntry[], role: SignRole, now = new Date()) {
   if (!isSigningAllowedByDate(monthKey, now)) return false;
   if (getTimelineStatus(monthKey, now) === "Signature Deadline Passed") {
-    return Boolean(getDeadlineResetEntry(entries, role));
+    return Boolean(getActiveDeadlineResetEntry(entries, role, now));
   }
   return true;
 }
@@ -2777,6 +2795,9 @@ export default function SignatureCenterMockup({
                   {SIGNATURE_FLOW.map((role, index) => {
                     const signed = getSignedEntry(selectedEntries, role);
                     const resetAfterDeadline = getDeadlineResetEntry(selectedEntries, role);
+                    const activeResetAfterDeadline = getActiveDeadlineResetEntry(selectedEntries, role);
+                    const resetExpiresAt = getDeadlineResetExpiresAt(resetAfterDeadline);
+                    const resetWindowExpired = Boolean(resetAfterDeadline && !activeResetAfterDeadline);
                     const status = statusForRole(selectedEntries, role, selectedDocument.monthKey);
                     const signerName = getRoleSigner(selectedDocument, role);
                     const isAgentBlockedByConfirm = role === "Agent" && !previewConfirmed && !signed;
@@ -2792,7 +2813,7 @@ export default function SignatureCenterMockup({
                       !isHistoricalPaidPeriod(selectedDocument.monthKey) &&
                       getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
                       !signed &&
-                      !resetAfterDeadline;
+                      !activeResetAfterDeadline;
                     const canOpenSignaturePad = (!signed && allowSign) || canAddFirstDrawnSignature;
                     const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
                     return (
@@ -2815,9 +2836,13 @@ export default function SignatureCenterMockup({
                             <div className="mt-1 text-xs font-semibold text-amber-600">Agent ต้องกดยืนยันรับทราบก่อนลงนาม</div>
                           ) : status === "Locked" ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
-                          ) : resetAfterDeadline ? (
+                          ) : activeResetAfterDeadline ? (
                             <div className="mt-1 text-xs font-semibold text-violet-600">
-                              รีเซ็ตแล้ว รอเจ้าของ Role ลงนามอีกครั้ง
+                              รีเซ็ตแล้ว เซ็นได้ถึง {resetExpiresAt ? formatDateTime(resetExpiresAt.toISOString()) : `${SIGNATURE_RESET_WINDOW_DAYS} วัน`}
+                            </div>
+                          ) : resetWindowExpired ? (
+                            <div className="mt-1 text-xs font-semibold text-rose-600">
+                              รอบรีเซ็ตหมดอายุแล้ว กด Reset ใหม่ได้
                             </div>
                           ) : null}
                         </div>
