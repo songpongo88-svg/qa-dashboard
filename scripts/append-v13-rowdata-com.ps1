@@ -22,6 +22,23 @@ function Release-ComObject($object) {
   }
 }
 
+function Test-DateHeader($Header) {
+  $text = [Convert]::ToString($Header).Trim().ToLowerInvariant()
+  return (
+    $text -eq "audit date" -or
+    $text -eq "case date" -or
+    $text -eq "month start" -or
+    $text -eq "week start" -or
+    $text -eq "week end" -or
+    $text -eq "appeal submit" -or
+    $text -eq "appeal result" -or
+    $text -eq "appeal submit date & time" -or
+    $text -eq "appeal result date & time" -or
+    $text -eq "evaluation submitted at" -or
+    $text.Contains("date")
+  )
+}
+
 $payload = Get-Content -LiteralPath $PayloadPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $rows = @($payload.rows)
 
@@ -52,6 +69,13 @@ try {
   $formatSourceRow = [Math]::Max(5, $targetRow - 1)
   $appended = 0
   $columnCount = @($rows[0]).Count
+  $dateColumns = @{}
+  for ($columnIndex = 1; $columnIndex -le $columnCount; $columnIndex++) {
+    $header = $sheet.Cells.Item(4, [int]$columnIndex).Text
+    if (Test-DateHeader $header) {
+      $dateColumns[[int]$columnIndex] = $true
+    }
+  }
 
   foreach ($row in $rows) {
     if (-not $ValueOnly) {
@@ -73,6 +97,10 @@ try {
         $cell.Value2 = [double]$value
       } else {
         $cell.Value2 = [Convert]::ToString($value)
+      }
+
+      if ($dateColumns.ContainsKey([int]($index + 1))) {
+        $cell.NumberFormat = "dd/mm/yyyy"
       }
     }
 

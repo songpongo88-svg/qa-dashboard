@@ -65,6 +65,7 @@ $env:QA_V13_WORKBOOK = $WorkbookPath
 
 try {
   Invoke-NodeStep ".\scripts\sync-v13-excel-data-only.mjs"
+  Invoke-NodeStep ".\scripts\repair-v13-date-formats.mjs"
   Invoke-NodeStep ".\scripts\repair-v13-rawdata-formulas.mjs"
   Invoke-NodeStep ".\scripts\sort-v13-rawdata.mjs"
   Invoke-NodeStep ".\scripts\rebuild-v13-effective-data.mjs"

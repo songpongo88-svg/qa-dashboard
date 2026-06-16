@@ -86,25 +86,26 @@ function parseDateOnly(value) {
   const text = String(value || "").trim();
   if (!text) return "";
 
-  let match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
   if (match) {
     return excelDateSerialFromParts(Number(match[1]), Number(match[2]), Number(match[3]));
   }
 
-  match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+.*)?$/);
   if (match) {
-    return excelDateSerialFromParts(Number(match[3]), Number(match[2]), Number(match[1]));
+    let year = Number(match[3]);
+    if (year < 100) year += 2500;
+    if (year > 2400) year -= 543;
+    return excelDateSerialFromParts(year, Number(match[2]), Number(match[1]));
   }
 
   const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? value : excelDateSerialFromDate(parsed);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return excelDateSerialFromParts(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
 }
 
 function parseDateTime(value) {
-  const text = String(value || "").trim();
-  if (!text) return "";
-  const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? value : excelDateSerialFromDate(new Date(parsed.getTime() + 7 * 60 * 60 * 1000));
+  return parseDateOnly(value);
 }
 
 function parseTimeSerial(value) {
@@ -267,7 +268,7 @@ function rawValueForHeader(header, record) {
   if (topic) return header.endsWith(" Score") ? topic.score : topic.comment;
 
   const map = {
-    "Audit Date": parseDateTime(record.submittedAt),
+    "Audit Date": parseDateOnly(preview["Audit Date"] || record.auditDate || record.submittedAt),
     "Agent Name": record.agentName,
     "Case Date": parseDateOnly(preview["Case Date"] || preview["Audit Date"] || record.auditDate || ""),
     "Waiting Time": parseTimeSerial(record.waitingTime),
@@ -323,7 +324,11 @@ function appealValueForHeader(header, request, original) {
   const changed = request.status === "Approved" && Number(finalScore) !== Number(originalFinalScore);
 
   const map = {
-    "Audit Date": original?.submittedAt ? parseDateTime(original.submittedAt) : original?.["Audit Date"] || parseDateTime(request.reviewedAt || request.submittedAt),
+    "Audit Date": original?.rawDataPreview?.["Audit Date"]
+      ? parseDateOnly(original.rawDataPreview["Audit Date"])
+      : original?.auditDate
+        ? parseDateOnly(original.auditDate)
+        : original?.["Audit Date"] || parseDateOnly(request.auditDate || request.reviewedAt || request.submittedAt),
     "Agent Name": original?.agentName || original?.["Agent Name"] || request.agent,
     "Case Date": original?.rawDataPreview?.["Case Date"] ? parseDateOnly(original.rawDataPreview["Case Date"]) : original?.["Case Date"] || parseDateOnly(original?.rawDataPreview?.["Audit Date"] || original?.auditDate || request.auditDate),
     "Waiting Time": original?.waitingTime ? parseTimeSerial(original.waitingTime) : original?.["Waiting Time"] || "",
@@ -352,14 +357,14 @@ function appealValueForHeader(header, request, original) {
     "Appeal Match Key": `${request.caseId}|${version}`,
     "Auto Change Remark": changed ? "Score changed" : request.status,
     "Appeal Review Summary": request.reviewSummary,
-    "Appeal Submit": request.submittedAt,
-    "Appeal Result": request.reviewedAt,
+    "Appeal Submit": parseDateOnly(request.submittedAt),
+    "Appeal Result": parseDateOnly(request.reviewedAt),
     "Appeal Channel": "Dashboard Case Detail",
     Grade: grade,
     "Appeal Status": request.status,
     "Appeal Version": version,
-    "Appeal Submit Date & Time": request.submittedAt,
-    "Appeal Result Date & Time": request.reviewedAt,
+    "Appeal Submit Date & Time": parseDateOnly(request.submittedAt),
+    "Appeal Result Date & Time": parseDateOnly(request.reviewedAt),
     "RawData File": request.rawDataSourceName,
     "Request ID": request.requestId,
   };
