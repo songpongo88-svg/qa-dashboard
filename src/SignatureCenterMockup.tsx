@@ -45,6 +45,8 @@ type SignatureEntry = {
   status: SignStatus;
   note?: string;
   signatureDataUrl?: string;
+  resetBy?: string;
+  resetAt?: string;
 };
 
 type SignatureCaseDetail = {
@@ -97,6 +99,7 @@ const SIGNATURE_LIBRARY_KEY = "qa-monthly-signature-library-v1";
 const SIGNATURE_FLOW: SignRole[] = ["QA", "Supervisor", "Senior", "Agent"];
 const HISTORICAL_PAID_LAST_MONTH = "2026-04";
 const CASE_TARGET = 10;
+const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -558,6 +561,10 @@ function getSignedEntry(entries: SignatureEntry[], role: SignRole) {
   return entries.find((entry) => entry.role === role && entry.status === "Signed");
 }
 
+function getDeadlineResetEntry(entries: SignatureEntry[], role: SignRole) {
+  return entries.find((entry) => entry.role === role && entry.status === "Pending" && entry.note === SIGNATURE_DEADLINE_RESET_NOTE);
+}
+
 function getPendingRoles(entries: SignatureEntry[]) {
   return SIGNATURE_FLOW.filter((role) => !getSignedEntry(entries, role));
 }
@@ -633,8 +640,17 @@ function statusForRole(entries: SignatureEntry[], role: SignRole, monthKey: stri
   if (isHistoricalPaidPeriod(monthKey)) return "Signed";
   const timeline = getTimelineStatus(monthKey);
   if (timeline === "Appeal Period Open" || timeline === "Waiting Signature Window") return "Locked";
+  if (timeline === "Signature Deadline Passed" && getDeadlineResetEntry(entries, role)) return "Pending";
   if (timeline === "Signature Deadline Passed") return "Expired";
   return "Pending";
+}
+
+function canSignRoleByDate(monthKey: string, entries: SignatureEntry[], role: SignRole, now = new Date()) {
+  if (!isSigningAllowedByDate(monthKey, now)) return false;
+  if (getTimelineStatus(monthKey, now) === "Signature Deadline Passed") {
+    return Boolean(getDeadlineResetEntry(entries, role));
+  }
+  return true;
 }
 
 function formatDateTime(value: string) {
@@ -1612,7 +1628,7 @@ export default function SignatureCenterMockup({
       const timeline = getTimelineStatus(doc.monthKey);
       const statusMatch =
         statusFilter === "all" ||
-        (statusFilter === "my-turn" && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) && isSigningAllowedByDate(doc.monthKey)) ||
+        (statusFilter === "my-turn" && pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) ||
         (statusFilter === "preview" && !confirmedDocs[doc.id] && !isHistoricalPaidPeriod(doc.monthKey)) ||
         (statusFilter === "ready" && isComplete && doc.eligibleByScore) ||
         (statusFilter === "pending" && !isComplete) ||
@@ -1765,7 +1781,7 @@ export default function SignatureCenterMockup({
       if (count === SIGNATURE_FLOW.length) complete += 1;
       else pending += 1;
       if (count === SIGNATURE_FLOW.length && doc.eligibleByScore) ready += 1;
-      if (pendingRoles.some((role) => canSignIdentity(currentUser, doc, role)) && isSigningAllowedByDate(doc.monthKey)) myTurn += 1;
+      if (pendingRoles.some((role) => canSignIdentity(currentUser, doc, role) && canSignRoleByDate(doc.monthKey, entries, role))) myTurn += 1;
     });
     return { total: visibleDocuments.length, complete, pending, ready, myTurn };
   }, [currentUser, signatures, visibleDocuments]);
@@ -1836,9 +1852,9 @@ export default function SignatureCenterMockup({
     if (!selectedDocument) return false;
     if (hasPendingAppeal) return false;
     if (!isAfterAppealPeriod(selectedDocument.monthKey)) return false;
-    if (!isSigningAllowedByDate(selectedDocument.monthKey)) return false;
     if (!canSignIdentity(currentUser, selectedDocument, role)) return false;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
+    if (!canSignRoleByDate(selectedDocument.monthKey, entries, role)) return false;
     if (getSignedEntry(entries, role)) return false;
     if (role === "Agent" && !previewConfirmed) {
       window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
@@ -1889,11 +1905,35 @@ export default function SignatureCenterMockup({
     setSigningRole(role);
   };
 
-  const resetSignatureRole = (role: SignRole) => {
+  const resetSignatureRole = async (role: SignRole) => {
     if (!selectedDocument || isHistoricalPaidPeriod(selectedDocument.monthKey)) return;
     if (getTimelineStatus(selectedDocument.monthKey) !== "Signature Deadline Passed") return;
     if (currentUser.role !== "Quality Assurance") return;
-    const nextEntriesForRemote = selectedEntries.filter((entry) => entry.role !== role);
+    const resetAt = new Date().toISOString();
+    const resetEntry: SignatureEntry = {
+      role,
+      signerName: getRoleSigner(selectedDocument, role),
+      signedBy: "",
+      signedAt: "",
+      status: "Pending",
+      note: SIGNATURE_DEADLINE_RESET_NOTE,
+      resetBy: currentUser.displayName || currentUser.username,
+      resetAt,
+    };
+    const nextEntriesForRemote = [...selectedEntries.filter((entry) => entry.role !== role), resetEntry];
+
+    try {
+      if (role === "Agent") {
+        await clearStoredSignatureConfirm(selectedDocument.id, nextEntriesForRemote);
+      } else {
+        await persistDocumentSignatures(selectedDocument.id, nextEntriesForRemote, confirmedDocs[selectedDocument.id] || "");
+      }
+    } catch (error) {
+      console.warn("Reset role signature failed", error);
+      window.alert("รีเซ็ตลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return;
+    }
+
     setSignatures((previous) => {
       return {
         ...previous,
@@ -1906,11 +1946,6 @@ export default function SignatureCenterMockup({
         delete next[selectedDocument.id];
         return next;
       });
-      void clearStoredSignatureConfirm(selectedDocument.id, nextEntriesForRemote).catch((error) => {
-        console.warn("Clear remote signature confirm failed", error);
-      });
-    } else {
-      persistDocumentSignatures(selectedDocument.id, nextEntriesForRemote, confirmedDocs[selectedDocument.id] || "");
     }
   };
 
@@ -2741,12 +2776,13 @@ export default function SignatureCenterMockup({
 
                   {SIGNATURE_FLOW.map((role, index) => {
                     const signed = getSignedEntry(selectedEntries, role);
+                    const resetAfterDeadline = getDeadlineResetEntry(selectedEntries, role);
                     const status = statusForRole(selectedEntries, role, selectedDocument.monthKey);
                     const signerName = getRoleSigner(selectedDocument, role);
                     const isAgentBlockedByConfirm = role === "Agent" && !previewConfirmed && !signed;
                     const allowSign =
                       canSignIdentity(currentUser, selectedDocument, role) &&
-                      isSigningAllowedByDate(selectedDocument.monthKey);
+                      canSignRoleByDate(selectedDocument.monthKey, selectedEntries, role);
                     const canAddFirstDrawnSignature =
                       Boolean(signed) &&
                       !signed?.signatureDataUrl &&
@@ -2755,7 +2791,8 @@ export default function SignatureCenterMockup({
                       currentUser.role === "Quality Assurance" &&
                       !isHistoricalPaidPeriod(selectedDocument.monthKey) &&
                       getTimelineStatus(selectedDocument.monthKey) === "Signature Deadline Passed" &&
-                      !signed;
+                      !signed &&
+                      !resetAfterDeadline;
                     const canOpenSignaturePad = (!signed && allowSign) || canAddFirstDrawnSignature;
                     const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(role)];
                     return (
@@ -2778,6 +2815,10 @@ export default function SignatureCenterMockup({
                             <div className="mt-1 text-xs font-semibold text-amber-600">Agent ต้องกดยืนยันรับทราบก่อนลงนาม</div>
                           ) : status === "Locked" ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
+                          ) : resetAfterDeadline ? (
+                            <div className="mt-1 text-xs font-semibold text-violet-600">
+                              รีเซ็ตแล้ว รอเจ้าของ Role ลงนามอีกครั้ง
+                            </div>
                           ) : null}
                         </div>
                         <div><SignaturePill status={status} /></div>
@@ -2817,7 +2858,7 @@ export default function SignatureCenterMockup({
                           {canResetRoleAfterDeadline ? (
                             <button
                               type="button"
-                              onClick={() => resetSignatureRole(role)}
+                              onClick={() => void resetSignatureRole(role)}
                               className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
                             >
                               Reset คนนี้

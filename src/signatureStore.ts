@@ -11,6 +11,8 @@ export type StoredSignatureEntry = {
   status: "Signed" | "Pending";
   note?: string;
   signatureDataUrl?: string;
+  resetBy?: string;
+  resetAt?: string;
 };
 
 export type StoredSignatureDocument = {
@@ -41,8 +43,14 @@ function toStoredDocument(row: any, fallbackId = ""): StoredSignatureDocument {
         status: entry.status === "Pending" ? "Pending" : "Signed",
         note: entry.note ? String(entry.note) : undefined,
         signatureDataUrl: entry.signatureDataUrl || entry.signature_data_url || undefined,
+        resetBy: entry.resetBy || entry.reset_by ? String(entry.resetBy || entry.reset_by) : undefined,
+        resetAt: entry.resetAt || entry.reset_at ? String(entry.resetAt || entry.reset_at) : undefined,
       }))
-      .filter((entry: StoredSignatureEntry) => entry.role && entry.signerName && entry.signedAt),
+      .filter((entry: StoredSignatureEntry) =>
+        entry.role &&
+        entry.signerName &&
+        (entry.status === "Pending" || entry.signedAt)
+      ),
     confirmedAt: String(row.confirmedAt || row.confirmed_at || ""),
     updatedAt: String(row.updatedAt || row.updated_at || ""),
   };
@@ -59,13 +67,19 @@ function sanitizeEntry(entry: StoredSignatureEntry) {
 
   if (entry.note) cleanEntry.note = String(entry.note);
   if (entry.signatureDataUrl) cleanEntry.signatureDataUrl = String(entry.signatureDataUrl);
+  if (entry.resetBy) cleanEntry.resetBy = String(entry.resetBy);
+  if (entry.resetAt) cleanEntry.resetAt = String(entry.resetAt);
   return cleanEntry;
 }
 
 function sanitizeEntries(entries: StoredSignatureEntry[] = []) {
   return entries
     .map(sanitizeEntry)
-    .filter((entry) => entry.role && entry.signerName && entry.signedAt);
+    .filter((entry) =>
+      entry.role &&
+      entry.signerName &&
+      (entry.status === "Pending" || entry.signedAt)
+    );
 }
 
 export async function fetchStoredSignatureDocuments() {
