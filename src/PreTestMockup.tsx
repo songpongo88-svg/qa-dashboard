@@ -263,7 +263,7 @@ const DEFAULT_SET: PreTestSet = {
   description: "แบบทดสอบสถานการณ์สำหรับทีม Robinhood QA และ Admin Live Chat",
   passScore: 11,
   timeLimitSeconds: 90,
-  active: true,
+  active: false,
   questions: DEFAULT_QUESTIONS,
   updatedAt: "2026-06-03T02:30:00+07:00",
   updatedBy: "System",
