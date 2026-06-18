@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { THT_PLUS_2026_PRETEST_SET } from "./preTestThtPlus2026";
 import { fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
 
 type CurrentUserLike = {
@@ -22,6 +23,7 @@ type PreTestQuestion = {
   prompt: string;
   choices: QuestionChoice[];
   correctChoiceId: string;
+  slideNote?: string;
 };
 
 type PreTestSet = {
@@ -267,6 +269,11 @@ const DEFAULT_SET: PreTestSet = {
   updatedBy: "System",
 };
 
+const BUILT_IN_PRE_TEST_SETS: PreTestSet[] = [
+  DEFAULT_SET,
+  THT_PLUS_2026_PRETEST_SET,
+];
+
 function safeJsonArray<T>(value: string | null): T[] {
   if (!value) return [];
   try {
@@ -399,6 +406,7 @@ function normalizeSet(raw: unknown): PreTestSet | null {
         prompt: String(next.prompt),
         choices,
         correctChoiceId: String(next.correctChoiceId || choices[0]?.id || "A"),
+        slideNote: String(next.slideNote || ""),
       };
     })
     .filter(Boolean) as PreTestQuestion[];
@@ -452,7 +460,7 @@ function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
     }
   };
 
-  setLatest(DEFAULT_SET);
+  BUILT_IN_PRE_TEST_SETS.forEach(setLatest);
   localSets.forEach(setLatest);
 
   [...logs].reverse().forEach((log) => {
@@ -462,7 +470,7 @@ function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
     }
     if (log.event_type === "pretest_set_deleted") {
       const setId = String(log.details?.setId || "");
-      if (setId && setId !== DEFAULT_SET.id) map.delete(setId);
+      if (setId && !BUILT_IN_PRE_TEST_SETS.some((set) => set.id === setId)) map.delete(setId);
     }
   });
 
@@ -848,6 +856,7 @@ export default function PreTestMockup({
         ...question,
         id: question.id || `q${index + 1}`,
         prompt: question.prompt.trim(),
+        slideNote: question.slideNote?.trim() || "",
         choices: question.choices.map((choice) => ({ ...choice, text: choice.text.trim() })),
       }))
       .filter((question) => question.prompt && question.choices.every((choice) => choice.text));
@@ -892,6 +901,10 @@ export default function PreTestMockup({
   async function deleteSet(setId: string) {
     if (setId === DEFAULT_SET.id) {
       showToast("Default set cannot be deleted. You can disable it instead.");
+      return;
+    }
+    if (BUILT_IN_PRE_TEST_SETS.some((set) => set.id === setId)) {
+      showToast("Built-in set cannot be deleted. You can disable it instead.");
       return;
     }
     const nextSets = sets.filter((set) => set.id !== setId);
@@ -1493,6 +1506,15 @@ export default function PreTestMockup({
                             ))}
                           </select>
                         </div>
+                        <div className="mt-3">
+                          <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">หมายเหตุ (อ้างอิง Slide)</label>
+                          <input
+                            value={question.slideNote || ""}
+                            onChange={(event) => updateEditorQuestion(questionIndex, { slideNote: event.target.value })}
+                            className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-emerald-400"
+                            placeholder="เช่น อ้างอิง Slide 2"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1536,6 +1558,11 @@ export default function PreTestMockup({
                             Correct: {question.correctChoiceId}
                           </div>
                         </div>
+                        {question.slideNote ? (
+                          <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black text-amber-700">
+                            {question.slideNote}
+                          </div>
+                        ) : null}
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
                           {question.choices.map((choice) => (
                             <div
