@@ -1280,11 +1280,6 @@ export default function PreTestMockup({
                               : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/60"
                           }`}
                         >
-                          <span className={`mr-3 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-sm font-black ${
-                            selected ? "bg-emerald-700 text-white" : "bg-slate-950 text-white"
-                          }`}>
-                            {selected ? "✓" : ""}
-                          </span>
                           <span className="text-sm font-bold leading-6 text-slate-800">{choice.text}</span>
                         </button>
                       );
