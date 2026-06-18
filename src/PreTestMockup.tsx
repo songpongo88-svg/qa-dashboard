@@ -365,7 +365,7 @@ function formatDateTime(value: string | Date) {
 function getChoiceText(question: PreTestQuestion, choiceId?: string) {
   if (!choiceId) return "-";
   const choice = question.choices.find((item) => item.id === choiceId);
-  return choice ? `${choice.id}. ${choice.text}` : choiceId;
+  return choice ? choice.text : choiceId;
 }
 
 function createBlankQuestion(index: number): PreTestQuestion {
@@ -548,10 +548,12 @@ export default function PreTestMockup({
     return sets.find((set) => set.id === previewSetId) || selectedSet;
   }, [previewSetId, selectedSet, sets]);
   const currentQuestion = preparedQuestions[currentQuestionIndex];
-  const answeredCount = Object.keys(answers).length;
   const inAttempt = Boolean(attemptId && preparedQuestions.length && !resultScreen);
+  const answeredCount = preparedQuestions.length
+    ? preparedQuestions.filter((question) => Boolean(answers[question.id])).length
+    : Object.keys(answers).length;
   const progressPercent = preparedQuestions.length ? Math.round((answeredCount / preparedQuestions.length) * 100) : 0;
-  const canSubmitAttempt = inAttempt && answeredCount === preparedQuestions.length;
+  const canSubmitAttempt = inAttempt && preparedQuestions.every((question) => Boolean(answers[question.id]));
   const currentUsername = currentUser?.username || "guest";
   const hasCompletedSelectedSet = results.some((item) => item.setId === selectedSet.id && item.username === currentUsername);
   const historyUsers = useMemo(() => {
@@ -1278,10 +1280,10 @@ export default function PreTestMockup({
                               : "border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/60"
                           }`}
                         >
-                          <span className={`mr-3 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-sm font-black ${
+                          <span className={`mr-3 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-sm font-black ${
                             selected ? "bg-emerald-700 text-white" : "bg-slate-950 text-white"
                           }`}>
-                            {choice.id}
+                            {selected ? "✓" : ""}
                           </span>
                           <span className="text-sm font-bold leading-6 text-slate-800">{choice.text}</span>
                         </button>
