@@ -2942,7 +2942,7 @@ export default function App() {
   const takePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "takePreTest") : false;
   const managePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "managePreTest") : false;
   const viewPreTestResultsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewPreTestResults") : false;
-  const preTestAllowed = takePreTestAllowed || managePreTestAllowed || viewPreTestResultsAllowed;
+  const preTestAllowed = Boolean(currentUser);
   const appealRequestsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
   const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
   const rubricAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewRubric") : false;
@@ -5453,7 +5453,7 @@ export default function App() {
         ) : activeTab === "pre-test" && preTestAllowed ? (
           <PreTestMockup
             currentUser={currentUser}
-            canTakePreTest={takePreTestAllowed}
+            canTakePreTest={preTestAllowed || takePreTestAllowed}
             canManagePreTest={managePreTestAllowed}
             canViewPreTestResults={viewPreTestResultsAllowed}
           />
