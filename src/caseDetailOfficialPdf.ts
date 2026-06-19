@@ -26,6 +26,9 @@ const SCORE_GREY: [number, number, number] = [244, 245, 247];
 const GREEN: [number, number, number] = [226, 246, 234];
 const YELLOW: [number, number, number] = [255, 242, 204];
 const RED: [number, number, number] = [252, 226, 226];
+const BODY_TEXT_SIZE = 6.45;
+const BODY_LINE_SPACING = 0.5;
+const SMALL_BODY_TEXT_SIZE = 5.95;
 
 type TextOptions = {
   bold?: boolean;
@@ -45,6 +48,13 @@ function safeText(value: unknown, fallback = "-") {
 function safeMultiline(value: unknown, fallback = "-") {
   const text = String(value ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
   return text || fallback;
+}
+
+function formatDescriptionText(value: unknown, fallback = "-") {
+  return safeMultiline(value, fallback)
+    .replace(/[ \t]*\(([^()\n]*[A-Za-z][^()\n]*)\)/g, "\n($1)")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function num(value: unknown, fallback = 0) {
@@ -152,7 +162,7 @@ export async function generateOfficialCaseDetailPdf({
   const writeText = (value: unknown, x: number, yy: number, w: number, h: number, opts: TextOptions = {}) => {
     setFont(opts.bold ? "bold" : "normal");
     const size = opts.size ?? 7.2;
-    const leading = opts.leading ?? 0.32;
+    const leading = opts.leading ?? 0.46;
     doc.setFontSize(size);
     const color = opts.color ?? BLACK;
     doc.setTextColor(color[0], color[1], color[2]);
@@ -196,7 +206,7 @@ export async function generateOfficialCaseDetailPdf({
       valign: opts.valign ?? "auto",
       align: opts.align ?? "left",
       maxLines: opts.maxLines ?? Math.max(1, Math.floor((h - 3) / 2.4)),
-      leading: opts.leading ?? 0.32,
+      leading: opts.leading ?? 0.46,
     });
   };
 
@@ -212,7 +222,7 @@ export async function generateOfficialCaseDetailPdf({
   };
 
 
-  const lineHeight = (size: number, leading = 0.34) => size * leading;
+  const lineHeight = (size: number, leading = BODY_LINE_SPACING) => size * leading;
 
   const measureTextLines = (value: unknown, w: number, size = 7, pad = 2.6) => {
     setFont("normal");
@@ -277,17 +287,17 @@ export async function generateOfficialCaseDetailPdf({
     y += 14;
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
-    const inquiryRowH = Math.max(16, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), 6.5, 0.34, 6)));
+    const inquiryRowH = Math.max(18, Math.min(34, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 7)));
     addPageIfNeeded(inquiryRowH);
     label(0, y, 1, inquiryRowH, "Critical Error");
     value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", maxLines: 1, size: 6.6 });
     label(2, y, 1, inquiryRowH, "Customer\nInquiry");
     value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
       align: "left",
-      size: 6.5,
+      size: BODY_TEXT_SIZE,
       valign: "middle",
-      maxLines: fitLinesForHeight(inquiryRowH, 6.5, 0.34, 5),
-      leading: 0.34,
+      maxLines: fitLinesForHeight(inquiryRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 6),
+      leading: BODY_LINE_SPACING,
       bold: false,
     });
     y += inquiryRowH;
@@ -305,15 +315,15 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += caseUrlRowH;
 
-    const descriptionText = caseItem.caseDescription || "-";
-    const descriptionRowH = Math.max(24, Math.min(52, measureTextHeight(descriptionText, wOf(1, 7), 6.6, 0.34, 7)));
+    const descriptionText = formatDescriptionText(caseItem.caseDescription || "-");
+    const descriptionRowH = Math.max(30, Math.min(68, measureTextHeight(descriptionText, wOf(1, 7), BODY_TEXT_SIZE, BODY_LINE_SPACING, 8)));
     addPageIfNeeded(descriptionRowH);
     label(0, y, 1, descriptionRowH, "Case\nDescription");
     value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
-      size: 6.6,
+      size: BODY_TEXT_SIZE,
       valign: "middle",
-      maxLines: fitLinesForHeight(descriptionRowH, 6.6, 0.34, 6),
-      leading: 0.34,
+      maxLines: fitLinesForHeight(descriptionRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 7),
+      leading: BODY_LINE_SPACING,
       bold: false,
     });
     y += descriptionRowH;
@@ -365,17 +375,17 @@ export async function generateOfficialCaseDetailPdf({
     y += 15;
 
     const inquiryText = caseItem.inquiryTh || caseItem.inquiryEn || "-";
-    const inquiryRowH = Math.max(18, Math.min(32, measureTextHeight(inquiryText, wOf(3, 5), 6.8, 0.34, 6)));
+    const inquiryRowH = Math.max(20, Math.min(36, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 7)));
     addPageIfNeeded(inquiryRowH);
     label(0, y, 1, inquiryRowH, "Critical Error");
     value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", maxLines: 2 });
     label(2, y, 1, inquiryRowH, "Customer\nInquiry");
     value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
       align: "left",
-      size: 6.8,
+      size: BODY_TEXT_SIZE,
       valign: "top",
-      maxLines: fitLinesForHeight(inquiryRowH, 6.8, 0.34, 5),
-      leading: 0.34,
+      maxLines: fitLinesForHeight(inquiryRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 6),
+      leading: BODY_LINE_SPACING,
     });
     y += inquiryRowH;
 
@@ -400,26 +410,26 @@ export async function generateOfficialCaseDetailPdf({
     y += 8;
 
     const remarkText = caseItem.remark || "Rewrite / score unchanged";
-    const remarkRowH = Math.max(20, Math.min(46, measureTextHeight(remarkText, wOf(1, 7), 7, 0.34, 7)));
+    const remarkRowH = Math.max(24, Math.min(58, measureTextHeight(remarkText, wOf(1, 7), BODY_TEXT_SIZE, BODY_LINE_SPACING, 8)));
     addPageIfNeeded(remarkRowH);
     label(0, y, 1, remarkRowH, "Remark");
     value(1, y, 7, remarkRowH, remarkText, LIGHT_PURPLE, {
-      size: 7,
+      size: BODY_TEXT_SIZE,
       valign: "top",
-      maxLines: fitLinesForHeight(remarkRowH, 7, 0.34, 6),
-      leading: 0.34,
+      maxLines: fitLinesForHeight(remarkRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 7),
+      leading: BODY_LINE_SPACING,
     });
     y += remarkRowH;
 
-    const descriptionText = caseItem.caseDescription || "Revised";
-    const descriptionRowH = Math.max(24, Math.min(58, measureTextHeight(descriptionText, wOf(1, 7), 7, 0.34, 8)));
+    const descriptionText = formatDescriptionText(caseItem.caseDescription || "Revised");
+    const descriptionRowH = Math.max(30, Math.min(70, measureTextHeight(descriptionText, wOf(1, 7), BODY_TEXT_SIZE, BODY_LINE_SPACING, 8)));
     addPageIfNeeded(descriptionRowH);
     label(0, y, 1, descriptionRowH, "Case\nDescription");
     value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
-      size: 7,
+      size: BODY_TEXT_SIZE,
       valign: "top",
-      maxLines: fitLinesForHeight(descriptionRowH, 7, 0.34, 6),
-      leading: 0.34,
+      maxLines: fitLinesForHeight(descriptionRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 7),
+      leading: BODY_LINE_SPACING,
     });
     y += descriptionRowH;
 
@@ -482,7 +492,7 @@ export async function generateOfficialCaseDetailPdf({
     const score = num(active.score, num(topic.score));
     const max = num(active.max, num(topic.max));
     const pct = normalizePct(active.pct, score, max);
-    const description = safeText(active.label || topic.label);
+    const description = formatDescriptionText(active.label || topic.label);
     const comment = safeMultiline(active.comment || topic.comment || "-");
     const appealReason = topicAppealReason(topic, revised, isRevised);
 
@@ -491,19 +501,19 @@ export async function generateOfficialCaseDetailPdf({
     const descriptionLines = doc.splitTextToSize(description, Math.max(2, wOf(1) - 2.4));
     const commentLines = doc.splitTextToSize(comment, Math.max(2, commentW));
     const appealLines = includeAppeal ? doc.splitTextToSize(appealReason, Math.max(2, appealW)) : [];
-    const baseRowH = includeAppeal ? 42 : 34;
+    const baseRowH = includeAppeal ? 52 : 42;
     const neededH = Math.max(
       baseRowH,
-      8 + descriptionLines.length * 2.25,
-      8 + commentLines.length * 2.18,
-      includeAppeal ? 8 + appealLines.length * 2.18 : 0
+      8 + descriptionLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
+      8 + commentLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING),
+      includeAppeal ? 8 + appealLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING) : 0
     );
     let rowH = Math.min(neededH, bottom - top - 22);
 
     if (y + rowH > bottom) newTopicPage();
     if (y + rowH > bottom) rowH = Math.max(34, bottom - y);
 
-    const maxBodyLines = Math.max(2, Math.floor((rowH - 4) / 2.15));
+    const maxBodyLines = fitLinesForHeight(rowH, SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING, 6);
     const shortDescription = descriptionLines.length <= 2;
     const shortComment = commentLines.length <= 2;
     const shortAppeal = appealLines.length <= 2;
@@ -516,10 +526,11 @@ export async function generateOfficialCaseDetailPdf({
       maxLines: 2,
     });
     cell(1, y, 1, rowH, description, WHITE, {
-      size: 6.7,
+      size: BODY_TEXT_SIZE,
       align: "center",
       valign: shortDescription ? "middle" : "top",
-      maxLines: Math.max(2, Math.floor((rowH - 4) / 2.3)),
+      maxLines: fitLinesForHeight(rowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 6),
+      leading: BODY_LINE_SPACING,
     });
     cell(2, y, 1, rowH, score.toFixed(0), WHITE, { size: 6.8, align: "center", valign: "middle" });
     cell(3, y, 1, rowH, max.toFixed(0), SCORE_GREY, { size: 6.8, align: "center", valign: "middle" });
@@ -528,26 +539,26 @@ export async function generateOfficialCaseDetailPdf({
 
     if (includeAppeal) {
       cell(6, y, 1, rowH, comment, WHITE, {
-        size: commentLines.length > 18 ? 5.3 : 5.8,
+        size: SMALL_BODY_TEXT_SIZE,
         align: "left",
-        valign: "middle",
+        valign: shortComment ? "middle" : "top",
         maxLines: maxBodyLines,
-        leading: 0.34,
+        leading: BODY_LINE_SPACING,
       });
       cell(7, y, 1, rowH, appealReason, WHITE, {
-        size: appealLines.length > 18 ? 5.1 : 5.7,
+        size: SMALL_BODY_TEXT_SIZE,
         align: "left",
         valign: shortAppeal ? "middle" : "top",
         maxLines: maxBodyLines,
-        leading: 0.34,
+        leading: BODY_LINE_SPACING,
       });
     } else {
       cell(6, y, 1, rowH, comment, WHITE, {
-        size: commentLines.length > 18 ? 5.4 : 6.05,
+        size: SMALL_BODY_TEXT_SIZE,
         align: "left",
-        valign: "middle",
+        valign: shortComment ? "middle" : "top",
         maxLines: maxBodyLines,
-        leading: 0.34,
+        leading: BODY_LINE_SPACING,
       });
     }
 
