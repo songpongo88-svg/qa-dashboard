@@ -29,6 +29,8 @@ const RED: [number, number, number] = [252, 226, 226];
 const BODY_TEXT_SIZE = 6.45;
 const BODY_LINE_SPACING = 0.5;
 const SMALL_BODY_TEXT_SIZE = 5.95;
+const CASE_DESCRIPTION_TEXT_SIZE = 6.2;
+const CASE_DESCRIPTION_LINE_SPACING = 0.44;
 
 type TextOptions = {
   bold?: boolean;
@@ -54,6 +56,13 @@ function formatDescriptionText(value: unknown, fallback = "-") {
   return safeMultiline(value, fallback)
     .replace(/[ \t]*\(([^()\n]*[A-Za-z][^()\n]*)\)/g, "\n($1)")
     .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function formatCaseDescriptionText(value: unknown, fallback = "-") {
+  return formatDescriptionText(value, fallback)
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{2,}/g, "\n")
     .trim();
 }
 
@@ -315,15 +324,18 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += caseUrlRowH;
 
-    const descriptionText = formatDescriptionText(caseItem.caseDescription || "-");
-    const descriptionRowH = Math.max(30, Math.min(68, measureTextHeight(descriptionText, wOf(1, 7), BODY_TEXT_SIZE, BODY_LINE_SPACING, 8)));
+    const descriptionText = formatCaseDescriptionText(caseItem.caseDescription || "-");
+    const descriptionRowH = Math.max(
+      24,
+      Math.min(46, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 7))
+    );
     addPageIfNeeded(descriptionRowH);
     label(0, y, 1, descriptionRowH, "Case\nDescription");
     value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
-      size: BODY_TEXT_SIZE,
-      valign: "middle",
-      maxLines: fitLinesForHeight(descriptionRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 7),
-      leading: BODY_LINE_SPACING,
+      size: CASE_DESCRIPTION_TEXT_SIZE,
+      valign: "top",
+      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 6),
+      leading: CASE_DESCRIPTION_LINE_SPACING,
       bold: false,
     });
     y += descriptionRowH;
@@ -421,15 +433,18 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += remarkRowH;
 
-    const descriptionText = formatDescriptionText(caseItem.caseDescription || "Revised");
-    const descriptionRowH = Math.max(30, Math.min(70, measureTextHeight(descriptionText, wOf(1, 7), BODY_TEXT_SIZE, BODY_LINE_SPACING, 8)));
+    const descriptionText = formatCaseDescriptionText(caseItem.caseDescription || "Revised");
+    const descriptionRowH = Math.max(
+      24,
+      Math.min(48, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 7))
+    );
     addPageIfNeeded(descriptionRowH);
     label(0, y, 1, descriptionRowH, "Case\nDescription");
     value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
-      size: BODY_TEXT_SIZE,
+      size: CASE_DESCRIPTION_TEXT_SIZE,
       valign: "top",
-      maxLines: fitLinesForHeight(descriptionRowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 7),
-      leading: BODY_LINE_SPACING,
+      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 6),
+      leading: CASE_DESCRIPTION_LINE_SPACING,
     });
     y += descriptionRowH;
 
