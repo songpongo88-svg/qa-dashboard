@@ -516,12 +516,12 @@ export async function generateOfficialCaseDetailPdf({
     const descriptionLines = doc.splitTextToSize(description, Math.max(2, wOf(1) - 2.4));
     const commentLines = doc.splitTextToSize(comment, Math.max(2, commentW));
     const appealLines = includeAppeal ? doc.splitTextToSize(appealReason, Math.max(2, appealW)) : [];
-    const baseRowH = includeAppeal ? 52 : 42;
+    const baseRowH = includeAppeal ? 30 : 24;
     const neededH = Math.max(
       baseRowH,
-      8 + descriptionLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
-      8 + commentLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING),
-      includeAppeal ? 8 + appealLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING) : 0
+      5.5 + descriptionLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
+      5.5 + commentLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING),
+      includeAppeal ? 5.5 + appealLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING) : 0
     );
     let rowH = Math.min(neededH, bottom - top - 22);
 
