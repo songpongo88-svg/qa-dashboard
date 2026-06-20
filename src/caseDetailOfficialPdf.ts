@@ -29,6 +29,8 @@ const RED: [number, number, number] = [252, 226, 226];
 const BODY_TEXT_SIZE = 6.45;
 const BODY_LINE_SPACING = 0.5;
 const SMALL_BODY_TEXT_SIZE = 5.95;
+const TOPIC_BODY_LINE_SPACING = 0.43;
+const TOPIC_ROW_PAD_Y = 3.8;
 const CASE_DESCRIPTION_TEXT_SIZE = 6.2;
 const CASE_DESCRIPTION_LINE_SPACING = 0.44;
 
@@ -516,22 +518,20 @@ export async function generateOfficialCaseDetailPdf({
     const descriptionLines = doc.splitTextToSize(description, Math.max(2, wOf(1) - 2.4));
     const commentLines = doc.splitTextToSize(comment, Math.max(2, commentW));
     const appealLines = includeAppeal ? doc.splitTextToSize(appealReason, Math.max(2, appealW)) : [];
-    const baseRowH = includeAppeal ? 30 : 24;
+    const baseRowH = includeAppeal ? 24 : 18;
     const neededH = Math.max(
       baseRowH,
-      5.5 + descriptionLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
-      5.5 + commentLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING),
-      includeAppeal ? 5.5 + appealLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING) : 0
+      TOPIC_ROW_PAD_Y + descriptionLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
+      TOPIC_ROW_PAD_Y + commentLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING),
+      includeAppeal ? TOPIC_ROW_PAD_Y + appealLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) : 0
     );
     let rowH = Math.min(neededH, bottom - top - 22);
 
     if (y + rowH > bottom) newTopicPage();
     if (y + rowH > bottom) rowH = Math.max(34, bottom - y);
 
-    const maxBodyLines = fitLinesForHeight(rowH, SMALL_BODY_TEXT_SIZE, BODY_LINE_SPACING, 6);
+    const maxBodyLines = fitLinesForHeight(rowH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y);
     const shortDescription = descriptionLines.length <= 2;
-    const shortComment = commentLines.length <= 2;
-    const shortAppeal = appealLines.length <= 2;
 
     cell(0, y, 1, rowH, active.code || topic.code || "-", WHITE, {
       bold: true,
@@ -556,24 +556,24 @@ export async function generateOfficialCaseDetailPdf({
       cell(6, y, 1, rowH, comment, WHITE, {
         size: SMALL_BODY_TEXT_SIZE,
         align: "left",
-        valign: shortComment ? "middle" : "top",
+        valign: "middle",
         maxLines: maxBodyLines,
-        leading: BODY_LINE_SPACING,
+        leading: TOPIC_BODY_LINE_SPACING,
       });
       cell(7, y, 1, rowH, appealReason, WHITE, {
         size: SMALL_BODY_TEXT_SIZE,
         align: "left",
-        valign: shortAppeal ? "middle" : "top",
+        valign: "middle",
         maxLines: maxBodyLines,
-        leading: BODY_LINE_SPACING,
+        leading: TOPIC_BODY_LINE_SPACING,
       });
     } else {
       cell(6, y, 1, rowH, comment, WHITE, {
         size: SMALL_BODY_TEXT_SIZE,
         align: "left",
-        valign: shortComment ? "middle" : "top",
+        valign: "middle",
         maxLines: maxBodyLines,
-        leading: BODY_LINE_SPACING,
+        leading: TOPIC_BODY_LINE_SPACING,
       });
     }
 
