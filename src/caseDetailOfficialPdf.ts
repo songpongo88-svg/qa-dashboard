@@ -68,12 +68,13 @@ function formatCaseDescriptionText(value: unknown, fallback = "-") {
     .trim();
 }
 
-function compactTopicBodyText(value: unknown, fallback = "-") {
+function formatTopicBodyText(value: unknown, fallback = "-") {
   return safeMultiline(value, fallback)
     .split("\n")
     .map((line) => line.replace(/[ \t]+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n");
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function num(value: unknown, fallback = 0) {
@@ -518,8 +519,8 @@ export async function generateOfficialCaseDetailPdf({
     const max = num(active.max, num(topic.max));
     const pct = normalizePct(active.pct, score, max);
     const description = formatDescriptionText(active.label || topic.label);
-    const comment = compactTopicBodyText(active.comment || topic.comment || "-");
-    const appealReason = compactTopicBodyText(topicAppealReason(topic, revised, isRevised));
+    const comment = formatTopicBodyText(active.comment || topic.comment || "-");
+    const appealReason = formatTopicBodyText(topicAppealReason(topic, revised, isRevised));
 
     const commentW = wOf(6) - 2.4;
     const appealW = includeAppeal ? wOf(7) - 2.4 : 0;
