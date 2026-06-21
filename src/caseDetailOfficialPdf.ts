@@ -338,7 +338,7 @@ export async function generateOfficialCaseDetailPdf({
     const inquiryRowH = Math.max(12, Math.min(28, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
     addPageIfNeeded(inquiryRowH);
     label(0, y, 1, inquiryRowH, "Critical Error");
-    value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", maxLines: 1, size: 6.6 });
+    value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 1, size: 6.6 });
     label(2, y, 1, inquiryRowH, "Customer\nInquiry");
     value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
       align: "left",
@@ -366,14 +366,14 @@ export async function generateOfficialCaseDetailPdf({
     const descriptionText = formatCaseDescriptionText(caseItem.caseDescription || "-");
     const descriptionRowH = Math.max(
       18,
-      Math.min(42, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 5))
+      Math.min(38, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 4))
     );
     addPageIfNeeded(descriptionRowH);
     label(0, y, 1, descriptionRowH, "Case\nDescription");
     value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
       size: CASE_DESCRIPTION_TEXT_SIZE,
-      valign: "top",
-      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 6),
+      valign: descriptionRowH <= 24 ? "middle" : "top",
+      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 5),
       leading: CASE_DESCRIPTION_LINE_SPACING,
       bold: false,
     });
@@ -449,7 +449,7 @@ export async function generateOfficialCaseDetailPdf({
     const inquiryRowH = Math.max(12, Math.min(30, measureTextHeight(inquiryText, wOf(3, 5), BODY_TEXT_SIZE, BODY_LINE_SPACING, 5)));
     addPageIfNeeded(inquiryRowH);
     label(0, y, 1, inquiryRowH, "Critical Error");
-    value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", maxLines: 2 });
+    value(1, y, 1, inquiryRowH, "NO", LIGHT_PURPLE, { align: "center", valign: "middle", maxLines: 2 });
     label(2, y, 1, inquiryRowH, "Customer\nInquiry");
     value(3, y, 5, inquiryRowH, inquiryText, LIGHT_PURPLE, {
       align: "left",
@@ -495,14 +495,14 @@ export async function generateOfficialCaseDetailPdf({
     const descriptionText = formatCaseDescriptionText(caseItem.caseDescription || "Revised");
     const descriptionRowH = Math.max(
       18,
-      Math.min(42, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 5))
+      Math.min(38, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 4))
     );
     addPageIfNeeded(descriptionRowH);
     label(0, y, 1, descriptionRowH, "Case\nDescription");
     value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
       size: CASE_DESCRIPTION_TEXT_SIZE,
-      valign: "top",
-      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 6),
+      valign: descriptionRowH <= 24 ? "middle" : "top",
+      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 5),
       leading: CASE_DESCRIPTION_LINE_SPACING,
     });
     y += descriptionRowH;
