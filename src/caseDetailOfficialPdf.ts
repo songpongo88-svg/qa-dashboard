@@ -42,6 +42,7 @@ type TextOptions = {
   valign?: "top" | "middle" | "auto";
   maxLines?: number;
   leading?: number;
+  link?: string;
 };
 
 function safeText(value: unknown, fallback = "-") {
@@ -197,7 +198,17 @@ export async function generateOfficialCaseDetailPdf({
     shown.forEach((line: string, index: number) => {
       const align = opts.align || "left";
       const tx = align === "center" ? x + w / 2 : align === "right" ? x + w - 1.2 : x + 1.2;
-      doc.text(line, tx, startY + index * lineH, { align });
+      const baselineY = startY + index * lineH;
+      doc.text(line, tx, baselineY, { align });
+      if (opts.link) {
+        const textW = Math.min(doc.getTextWidth(line), Math.max(2, w - 2.4));
+        const linkX = align === "center" ? tx - textW / 2 : align === "right" ? tx - textW : tx;
+        doc.link(linkX, baselineY - lineH * 0.82, textW, lineH, { url: opts.link });
+        stroke(color);
+        doc.setLineWidth(0.12);
+        doc.line(linkX, baselineY + 0.45, linkX + textW, baselineY + 0.45);
+        stroke(GRID);
+      }
     });
   };
 
@@ -227,6 +238,8 @@ export async function generateOfficialCaseDetailPdf({
       align: opts.align ?? "left",
       maxLines: opts.maxLines ?? Math.max(1, Math.floor((h - 3) / 2.4)),
       leading: opts.leading ?? 0.46,
+      color: opts.color,
+      link: opts.link,
     });
   };
 
@@ -271,6 +284,11 @@ export async function generateOfficialCaseDetailPdf({
     if (raw === "-") return raw;
     const compact = raw.length > 170 ? `${raw.slice(0, 112)} ... ${raw.slice(-42)}` : raw;
     return compact.replace(/([/?&=._#%-])/g, "$1 ").replace(/\s+/g, " ").trim();
+  };
+
+  const pdfLinkUrl = (value: unknown) => {
+    const raw = safeText(value, "");
+    return /^https?:\/\//i.test(raw) ? raw : undefined;
   };
 
   const addPageIfNeeded = (neededHeight: number) => {
@@ -350,7 +368,8 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += inquiryRowH;
 
-    const caseUrlText = normalizeUrlForPdf(caseItem.caseUrl || "-");
+    const caseUrlRaw = caseItem.caseUrl || "-";
+    const caseUrlText = normalizeUrlForPdf(caseUrlRaw);
     const caseUrlRowH = Math.max(7, Math.min(13, measureTextHeight(caseUrlText, wOf(1, 7), 5.1, 0.33, 3.8)));
     addPageIfNeeded(caseUrlRowH);
     label(0, y, 1, caseUrlRowH, "Case URL");
@@ -360,6 +379,8 @@ export async function generateOfficialCaseDetailPdf({
       maxLines: fitLinesForHeight(caseUrlRowH, 5.1, 0.33, 5),
       leading: 0.33,
       bold: false,
+      color: pdfLinkUrl(caseUrlRaw) ? [37, 99, 235] : BLACK,
+      link: pdfLinkUrl(caseUrlRaw),
     });
     y += caseUrlRowH;
 
@@ -379,7 +400,8 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += descriptionRowH;
 
-    const imageUrlText = normalizeUrlForPdf(caseItem.caseImageUrl || "-");
+    const imageUrlRaw = caseItem.caseImageUrl || "-";
+    const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
     const imageUrlRowH = Math.max(7, Math.min(12, measureTextHeight(imageUrlText, wOf(1, 7), 5.1, 0.33, 3.8)));
     addPageIfNeeded(imageUrlRowH);
     label(0, y, 1, imageUrlRowH, "Case Image\nURL");
@@ -389,6 +411,8 @@ export async function generateOfficialCaseDetailPdf({
       maxLines: fitLinesForHeight(imageUrlRowH, 5.1, 0.33, 5),
       leading: 0.33,
       bold: false,
+      color: pdfLinkUrl(imageUrlRaw) ? [37, 99, 235] : BLACK,
+      link: pdfLinkUrl(imageUrlRaw),
     });
     y += imageUrlRowH + 3;
   };
@@ -460,7 +484,8 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += inquiryRowH;
 
-    const caseUrlText = normalizeUrlForPdf(caseItem.caseUrl || "-");
+    const caseUrlRaw = caseItem.caseUrl || "-";
+    const caseUrlText = normalizeUrlForPdf(caseUrlRaw);
     const caseUrlRowH = Math.max(7, Math.min(13, measureTextHeight(caseUrlText, wOf(1, 7), 5.4, 0.34, 3.8)));
     addPageIfNeeded(caseUrlRowH);
     label(0, y, 1, caseUrlRowH, "Case URL");
@@ -469,6 +494,8 @@ export async function generateOfficialCaseDetailPdf({
       valign: "top",
       maxLines: fitLinesForHeight(caseUrlRowH, 5.4, 0.34, 5),
       leading: 0.34,
+      color: pdfLinkUrl(caseUrlRaw) ? [37, 99, 235] : BLACK,
+      link: pdfLinkUrl(caseUrlRaw),
     });
     y += caseUrlRowH;
 
@@ -507,7 +534,8 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += descriptionRowH;
 
-    const imageUrlText = normalizeUrlForPdf(caseItem.caseImageUrl || safeText(caseItem.appealVersion, "REV1"));
+    const imageUrlRaw = caseItem.caseImageUrl || safeText(caseItem.appealVersion, "REV1");
+    const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
     const imageUrlRowH = Math.max(7, Math.min(12, measureTextHeight(imageUrlText, wOf(1, 7), 6.2, 0.34, 3.8)));
     addPageIfNeeded(imageUrlRowH);
     label(0, y, 1, imageUrlRowH, "Case Image\nURL");
@@ -516,6 +544,8 @@ export async function generateOfficialCaseDetailPdf({
       valign: "middle",
       maxLines: fitLinesForHeight(imageUrlRowH, 6.2, 0.34, 5),
       leading: 0.34,
+      color: pdfLinkUrl(imageUrlRaw) ? [37, 99, 235] : BLACK,
+      link: pdfLinkUrl(imageUrlRaw),
     });
     y += imageUrlRowH + 3;
   };
