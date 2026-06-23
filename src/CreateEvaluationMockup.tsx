@@ -1147,7 +1147,7 @@ export default function CreateEvaluationMockup({
     }));
   }
 
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylbofwrg2ACewevItVtx5JbHMRKlJxA_hcIkDYzzWkTZERTxX1YD5bO59MoBAk_ccS/exec";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypLpTfP6swrUoRrM2x6YTa1OFif9uGB6mOmgY7JlaHgKx1cBwp0zt9VNuJpuYsYC9f/exec";
 
 async function uploadFileToGoogleDrive(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
