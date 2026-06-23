@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
@@ -934,7 +934,7 @@ export default function CreateEvaluationMockup({
     if (agentName.trim()) return true;
     const message = `Please select Agent Full Name before ${actionLabel}.`;
     setDraftMessage(message);
-    window.alert(`${message}\n\n��س����͡ Agent Full Name ��͹����Թ���`);
+    window.alert(`${message}\n\n???????? Agent Full Name ???????????`);
     return false;
   }
 
@@ -991,7 +991,7 @@ export default function CreateEvaluationMockup({
       if (duplicateSubmitted || duplicateRaw) {
         const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
         setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
-        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\n�к����͹حҵ��� Submit �Ţ��ʫ�� �ҡ��ͧ��������ʷ����»����Թ���� ���价�� Report ���ǡ� Edit ��ʹ���`);
+        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\n???????????? Submit ??????? ???????????????????????????? ?????? Report ????? Edit ??????`);
         return;
       }
     } catch (error) {
@@ -1732,7 +1732,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                 </div>
               </div>
               <div className="hidden">
-                Export RowData ��������� RawData �ҡ GitHub �����������ҡ QA Evaluation Form �����ǧ Case Date ������͡ ����ö�������ʨҡ��������ǡ� Edit ��������䢵�����
+                Export RowData ????????? RawData ?? GitHub ???????????? QA Evaluation Form ?????? Case Date ??????? ???????????????????????? Edit ??????????????
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
                 Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
@@ -1888,7 +1888,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     ))}
                   </select>
                   <span className="mt-2 block text-xs font-semibold text-slate-500">
-                    �ʴ�੾�� user ��� Role �١��Դ�Է��� QA Evaluation Target
+                    ?????? user ??? Role ?????????? QA Evaluation Target
                   </span>
                 </label>
 
@@ -1941,12 +1941,12 @@ async function handleEvidenceFiles(files: FileList | null) {
 
                 <label className="block">
                   <span className={labelClass}>Customer Inquiry</span>
-                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="��ػ�Ӷ�����ͻ����繷���١���/�������/��ҹ��ҵԴ���������..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="???????????????????????/???????/????????????????..." className={`${inputClass} leading-6`} />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="��ػ��������´��� �����觷�� Agent ����Թ���..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="??????????????? ???????? Agent ????????..." className={`${inputClass} leading-6`} />
                 </label>
               </div>
             </SectionCard>
@@ -2005,7 +2005,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      �ѧ���������Ṻ �����Ṻ���������к����ѻ��Ŵ���� Google Drive ������ҧ�ԧ������ѵ���ѵ�
+                      ???????????? ???????????????????????????? Google Drive ?????????????????????
                     </div>
                   )}
                 </div>
@@ -2018,7 +2018,7 @@ async function handleEvidenceFiles(files: FileList | null) {
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600">
-                  ���͡��ṹ�ҡ dropdown ����к��˵ؼš�û����Թ�¡����������Ǣ�� ��ṹ������ Grade ���ѹ�ѵ���ѵԨҡ��ṹ������͡���㹿�������
+                  ????????? dropdown ???????????????????????????????? ????????? Grade ?????????????????????????????????
                 </div>
               </div>
 
@@ -2090,7 +2090,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="�к��˵ؼš�û����Թ��Ǣ�͹��..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="?????????????????????..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );
