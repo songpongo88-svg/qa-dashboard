@@ -1119,20 +1119,47 @@ export default function CreateEvaluationMockup({
     }));
   }
 
-  async function handleEvidenceFiles(files: FileList | null) {
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyh1vdzRxEcty0EAHqtWPN-MuHBjtsKa5PbuLoWuik-0ucPKhOl5X_RpQx951bjdWaO/exec";
+
+async function uploadFileToGoogleDrive(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = (reader.result as string).split(",")[1];
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ base64, mimeType: file.type, fileName: file.name }),
+        });
+        const result = await response.json();
+        if (result.success) resolve(result.url);
+        else reject(new Error(result.error || "Upload failed"));
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleEvidenceFiles(files: FileList | null) {
     if (!files?.length) return;
     const acceptedFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type === "application/pdf");
     const nextFiles = await Promise.all(
       acceptedFiles.map(async (file) => {
         const previewUrl = URL.createObjectURL(file);
-        const dataUrl = file.type.startsWith("image/") && file.size <= 4 * 1024 * 1024 ? await fileToDataUrl(file) : "";
+        let storedUrl = previewUrl;
+        try {
+          storedUrl = await uploadFileToGoogleDrive(file);
+        } catch (err) {
+          console.warn("Upload to Google Drive failed", err);
+        }
         return {
-        id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
+          id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          name: file.name,
+          type: file.type,
+          size: file.size,
           previewUrl,
-          storedUrl: dataUrl || previewUrl,
+          storedUrl,
         };
       })
     );
