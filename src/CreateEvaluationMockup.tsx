@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+ï»¿import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
@@ -934,7 +934,7 @@ export default function CreateEvaluationMockup({
     if (agentName.trim()) return true;
     const message = `Please select Agent Full Name before ${actionLabel}.`;
     setDraftMessage(message);
-    window.alert(`${message}\n\n¡ÃØ³ÒàÅ×Í¡ Agent Full Name ¡èÍ¹´Óà¹Ô¹¡ÒÃ`);
+    window.alert(`${message}\n\nï¿½ï¿½Ø³ï¿½ï¿½ï¿½ï¿½Í¡ Agent Full Name ï¿½ï¿½Í¹ï¿½ï¿½ï¿½ï¿½Ô¹ï¿½ï¿½ï¿½`);
     return false;
   }
 
@@ -991,7 +991,7 @@ export default function CreateEvaluationMockup({
       if (duplicateSubmitted || duplicateRaw) {
         const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
         setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
-        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\nÃÐººäÁèÍ¹Ø­ÒµãËé Submit àÅ¢à¤Ê«éÓ ËÒ¡µéÍ§¡ÒÃá¡éà¤Ê·Õèà¤Â»ÃÐàÁÔ¹áÅéÇ ãËéä»·Õè Report áÅéÇ¡´ Edit à¤Ê¹Ñé¹`);
+        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\nï¿½Ðºï¿½ï¿½ï¿½ï¿½Í¹Ø­Òµï¿½ï¿½ï¿½ Submit ï¿½Å¢ï¿½ï¿½Ê«ï¿½ï¿½ ï¿½Ò¡ï¿½ï¿½Í§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê·ï¿½ï¿½ï¿½ï¿½Â»ï¿½ï¿½ï¿½ï¿½Ô¹ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ä»·ï¿½ï¿½ Report ï¿½ï¿½ï¿½Ç¡ï¿½ Edit ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½`);
         return;
       }
     } catch (error) {
@@ -1149,24 +1149,55 @@ export default function CreateEvaluationMockup({
 
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypLpTfP6swrUoRrM2x6YTa1OFif9uGB6mOmgY7JlaHgKx1cBwp0zt9VNuJpuYsYC9f/exec";
 
-async function uploadFileToGoogleDrive(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64 = (reader.result as string).split(",")[1];
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          body: JSON.stringify({ base64, mimeType: file.type, fileName: file.name }),
-        });
-        const result = await response.json();
-        if (result.success) resolve(result.url);
-        else reject(new Error(result.error || "Upload failed"));
-      } catch (err) { reject(err); }
-    };
-    reader.onerror = () => reject(new Error("File read failed"));
-    reader.readAsDataURL(file);
+async function mergeAndUploadToDrive(files: File[]): Promise<string> {
+  const { jsPDF } = await import("jspdf");
+  const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const dataUrl = await new Promise<string>((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result as string);
+      reader.onerror = () => rej(new Error("Read failed"));
+      reader.readAsDataURL(file);
+    });
+
+    if (i > 0) pdf.addPage();
+
+    if (file.type === "application/pdf") {
+      pdf.setFontSize(12);
+      pdf.text(`[PDF: ${file.name}]`, 20, 40);
+    } else {
+      const img = await new Promise<HTMLImageElement>((res) => {
+        const el = new Image();
+        el.onload = () => res(el);
+        el.src = dataUrl;
+      });
+      const ratio = Math.min(pageW / img.width, pageH / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      const x = (pageW - w) / 2;
+      const y = (pageH - h) / 2;
+      pdf.addImage(dataUrl, file.type === "image/png" ? "PNG" : "JPEG", x, y, w, h);
+    }
+  }
+
+  const base64 = pdf.output("datauristring").split(",")[1];
+  const fileName = `evidence_${Date.now()}.pdf`;
+  const response = await fetch("/api/google-drive-upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base64, mimeType: "application/pdf", fileName }),
   });
+  const result = await response.json();
+  if (result.success) return result.url;
+  throw new Error(result.error || "Upload failed");
+}
+
+async function uploadFileToGoogleDrive(file: File): Promise<string> {
+  return mergeAndUploadToDrive([file]);
 }
 
 async function handleEvidenceFiles(files: FileList | null) {
@@ -1177,7 +1208,7 @@ async function handleEvidenceFiles(files: FileList | null) {
         const previewUrl = URL.createObjectURL(file);
         let storedUrl = previewUrl;
         try {
-          storedUrl = await uploadFileToGoogleDrive(file);
+          storedUrl = driveUrl;
         } catch (err) {
           console.warn("Upload to Google Drive failed", err);
         }
@@ -1693,7 +1724,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                 </div>
               </div>
               <div className="hidden">
-                Export RowData ÃÇÁ¢éÍÁÙÅ RawData ¨Ò¡ GitHub áÅÐà¤ÊãËÁè¨Ò¡ QA Evaluation Form µÒÁªèÇ§ Case Date ·ÕèàÅ×Í¡ ÊÒÁÒÃ¶¤é¹ËÒà¤Ê¨Ò¡¿ÍÃìÁáÅéÇ¡´ Edit à¾×èÍá¡éä¢µèÍä´é
+                Export RowData ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ RawData ï¿½Ò¡ GitHub ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò¡ QA Evaluation Form ï¿½ï¿½ï¿½ï¿½ï¿½Ç§ Case Date ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¡ ï¿½ï¿½ï¿½ï¿½Ã¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¨Ò¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¡ï¿½ Edit ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ä¢µï¿½ï¿½ï¿½ï¿½ï¿½
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
                 Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
@@ -1849,7 +1880,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     ))}
                   </select>
                   <span className="mt-2 block text-xs font-semibold text-slate-500">
-                    áÊ´§à©¾ÒÐ user ·Õè Role ¶Ù¡à»Ô´ÊÔ·¸Ôì QA Evaluation Target
+                    ï¿½Ê´ï¿½à©¾ï¿½ï¿½ user ï¿½ï¿½ï¿½ Role ï¿½Ù¡ï¿½ï¿½Ô´ï¿½Ô·ï¿½ï¿½ï¿½ QA Evaluation Target
                   </span>
                 </label>
 
@@ -1902,12 +1933,12 @@ async function handleEvidenceFiles(files: FileList | null) {
 
                 <label className="block">
                   <span className={labelClass}>Customer Inquiry</span>
-                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="ÊÃØ»¤Ó¶ÒÁËÃ×Í»ÃÐà´ç¹·ÕèÅÙ¡¤éÒ/äÃà´ÍÃì/ÃéÒ¹¤éÒµÔ´µèÍà¢éÒÁÒ..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="ï¿½ï¿½Ø»ï¿½Ó¶ï¿½ï¿½ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ï¿½ç¹·ï¿½ï¿½ï¿½Ù¡ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½Ò¹ï¿½ï¿½ÒµÔ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½..." className={`${inputClass} leading-6`} />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="ÊÃØ»ÃÒÂÅÐàÍÕÂ´à¤Ê áÅÐÊÔè§·Õè Agent ´Óà¹Ô¹¡ÒÃ..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="ï¿½ï¿½Ø»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½è§·ï¿½ï¿½ Agent ï¿½ï¿½ï¿½ï¿½Ô¹ï¿½ï¿½ï¿½..." className={`${inputClass} leading-6`} />
                 </label>
               </div>
             </SectionCard>
@@ -1966,7 +1997,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      ÂÑ§äÁèÁÕä¿Åìá¹º àÁ×èÍá¹ºä¿ÅìáÅéÇÃÐºº¨ÐÍÑ»âËÅ´à¢éÒ Google Drive áÅÐÊÃéÒ§ÅÔ§¡ìãËéÍÑµâ¹ÁÑµÔ
+                      ï¿½Ñ§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½á¹º ï¿½ï¿½ï¿½ï¿½ï¿½á¹ºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðºï¿½ï¿½ï¿½ï¿½Ñ»ï¿½ï¿½Å´ï¿½ï¿½ï¿½ï¿½ Google Drive ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò§ï¿½Ô§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñµï¿½ï¿½ï¿½Ñµï¿½
                     </div>
                   )}
                 </div>
@@ -1979,7 +2010,7 @@ async function handleEvidenceFiles(files: FileList | null) {
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600">
-                  àÅ×Í¡¤Ðá¹¹¨Ò¡ dropdown áÅÐÃÐºØàËµØ¼Å¡ÒÃ»ÃÐàÁÔ¹áÂ¡µÒÁáµèÅÐËÑÇ¢éÍ ¤Ðá¹¹ÃÇÁáÅÐ Grade ¨ÐÃÑ¹ÍÑµâ¹ÁÑµÔ¨Ò¡¤Ðá¹¹·ÕèàÅ×Í¡äÇéã¹¿ÍÃìÁ¹Õé
+                  ï¿½ï¿½ï¿½Í¡ï¿½ï¿½á¹¹ï¿½Ò¡ dropdown ï¿½ï¿½ï¿½ï¿½Ðºï¿½ï¿½ËµØ¼Å¡ï¿½Ã»ï¿½ï¿½ï¿½ï¿½Ô¹ï¿½Â¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¢ï¿½ï¿½ ï¿½ï¿½á¹¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Grade ï¿½ï¿½ï¿½Ñ¹ï¿½Ñµï¿½ï¿½ï¿½ÑµÔ¨Ò¡ï¿½ï¿½á¹¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¡ï¿½ï¿½ï¿½ã¹¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 </div>
               </div>
 
@@ -2051,7 +2082,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="ÃÐºØàËµØ¼Å¡ÒÃ»ÃÐàÁÔ¹ËÑÇ¢éÍ¹Õé..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="ï¿½Ðºï¿½ï¿½ËµØ¼Å¡ï¿½Ã»ï¿½ï¿½ï¿½ï¿½Ô¹ï¿½ï¿½Ç¢ï¿½Í¹ï¿½ï¿½..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );
