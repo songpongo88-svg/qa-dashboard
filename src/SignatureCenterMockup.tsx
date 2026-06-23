@@ -6,6 +6,7 @@ import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
+import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
 import {
   clearStoredSignatureConfirm,
@@ -697,11 +698,151 @@ function buildDocuments(
         averageScore,
         grade: scoreToGrade(averageScore, item.monthKey),
         eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
-        cases: item.cases.slice(0, 10),
+        cases: item.cases,
       };
       return { ...base, documentHash: createDocumentHash(base) };
     })
     .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName));
+}
+
+function buildDocumentsFromStoredEvaluations(
+  records: StoredEvaluation[],
+  accounts: UserAccountSnapshot[],
+  approvedAppealMap: Map<string, SignatureApprovedAppeal> = new Map()
+) {
+  const grouped = new Map<string, {
+    monthKey: string;
+    agentName: string;
+    seniorName: string;
+    supervisorName: string;
+    qaName: string;
+    teamName: string;
+    scores: number[];
+    cases: SignatureCaseDetail[];
+    caseIds: Set<string>;
+  }>();
+
+  records.forEach((record) => {
+    const rawPreview = record.rawDataPreview || {};
+    const agentName = canonicalAgentName(record.agentName || record.targetDisplayName || rawPreview["Agent Name"]);
+    if (!agentName || agentName === "-") return;
+
+    const auditDate = parseExcelDate(
+      record.auditDate ||
+        rawPreview["Audit Date"] ||
+        rawPreview["Case Date"] ||
+        record.auditTimestamp ||
+        record.submittedAt
+    );
+    const monthKey = getMonthKey(auditDate);
+    if (!isDashboardReportingMonth(monthKey)) return;
+
+    const caseId = safeName(record.caseId || rawPreview["Case ID"], "");
+    const rawFinalScore = Number(record.finalScore || rawPreview["Final Score"] || 0);
+    const appealScore = approvedAppealMap.get(caseId)?.finalScore;
+    const finalScore = Number.isFinite(Number(appealScore)) ? Number(appealScore) : rawFinalScore;
+    if (!Number.isFinite(finalScore)) return;
+
+    const account = findAccountForAgent(accounts, agentName);
+    const seniorName = resolveSeniorNameForAgent(account, rawPreview["Senior"] || rawPreview["Team Lead"] || rawPreview["Team Leader"]);
+    const supervisorName = resolveSupervisorName(rawPreview["Supervisor"] || rawPreview["Sup"]);
+    const qaName = safeName(
+      record.evaluatorName || rawPreview["QA"] || rawPreview["QA Name"] || rawPreview["Auditor"] || rawPreview["Evaluator"],
+      getQaSignerNameByMonth(monthKey)
+    );
+    const teamName = safeName(account?.teamName || rawPreview["Team"] || rawPreview["Team Name"], "-");
+    const inquiry = safeName(record.inquiry || rawPreview["Customer Inquiry"] || rawPreview["Inquiry"] || rawPreview["หัวข้อ"], "-");
+    const comment = safeName(record.caseDescription || rawPreview["Final Comment"] || rawPreview["Comment"] || rawPreview["QA Comment"], "-");
+
+    const key = `${monthKey}::${agentName}`;
+    const current = grouped.get(key) || {
+      monthKey,
+      agentName,
+      seniorName,
+      supervisorName,
+      qaName,
+      teamName,
+      scores: [],
+      cases: [],
+      caseIds: new Set<string>(),
+    };
+
+    current.seniorName = isGenericRoleName(current.seniorName) ? seniorName : current.seniorName;
+    current.supervisorName = isGenericRoleName(current.supervisorName) ? supervisorName : current.supervisorName;
+    current.qaName = current.qaName === "Quality Assurance" ? qaName : current.qaName;
+    current.teamName = current.teamName === "-" ? teamName : current.teamName;
+
+    if (caseId && !current.caseIds.has(caseId)) {
+      current.caseIds.add(caseId);
+      current.scores.push(finalScore);
+      current.cases.push({
+        caseId,
+        auditDate: auditDate ? auditDate.toLocaleDateString("th-TH") : "-",
+        inquiry,
+        finalScore,
+        grade: scoreToGrade(finalScore, monthKey),
+        comment,
+      });
+    }
+
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values())
+    .map((item): SignatureDocument => {
+      const averageScore = item.scores.length
+        ? item.scores.reduce((sum, score) => sum + score, 0) / item.scores.length
+        : 0;
+      const caseCount = item.caseIds.size || item.scores.length;
+      const base = {
+        id: `${item.monthKey}::${item.agentName}`,
+        monthKey: item.monthKey,
+        monthLabel: getMonthLabel(item.monthKey),
+        agentName: item.agentName,
+        seniorName: item.seniorName,
+        supervisorName: item.supervisorName,
+        qaName: item.qaName,
+        teamName: item.teamName,
+        caseCount,
+        averageScore,
+        grade: scoreToGrade(averageScore, item.monthKey),
+        eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
+        cases: item.cases,
+      };
+      return { ...base, documentHash: createDocumentHash(base) };
+    })
+    .sort((a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th"));
+}
+
+function mergeSignatureDocuments(existing: SignatureDocument, incoming: SignatureDocument): SignatureDocument {
+  const caseMap = new Map<string, SignatureCaseDetail>();
+  existing.cases.forEach((item) => caseMap.set(item.caseId, item));
+  incoming.cases.forEach((item) => caseMap.set(item.caseId, item));
+  const cases = Array.from(caseMap.values());
+  const caseCount = cases.length || Math.max(existing.caseCount, incoming.caseCount);
+  const averageScore = cases.length
+    ? cases.reduce((sum, item) => sum + Number(item.finalScore || 0), 0) / cases.length
+    : (() => {
+        const existingCases = Math.max(Number(existing.caseCount) || 0, 0);
+        const incomingCases = Math.max(Number(incoming.caseCount) || 0, 0);
+        const totalCases = existingCases + incomingCases;
+        if (!totalCases) return 0;
+        return ((Number(existing.averageScore) || 0) * existingCases + (Number(incoming.averageScore) || 0) * incomingCases) / totalCases;
+      })();
+  const monthKey = incoming.monthKey || existing.monthKey;
+  const base = {
+    ...existing,
+    ...incoming,
+    id: incoming.id || existing.id,
+    monthKey,
+    monthLabel: getMonthLabel(monthKey),
+    caseCount,
+    averageScore,
+    grade: scoreToGrade(averageScore, monthKey),
+    eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
+    cases,
+  };
+  return { ...base, documentHash: createDocumentHash(base) };
 }
 
 function getQaSignerNameByMonth(monthKey: string, fallback = "Quality Assurance") {
@@ -848,6 +989,16 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
+function savePdfFile(pdf: jsPDF, fileName: string) {
+  try {
+    pdf.save(fileName);
+    return;
+  } catch (error) {
+    console.warn("jsPDF save failed, falling back to blob download", error);
+  }
+  downloadBlob(pdf.output("blob"), fileName);
+}
+
 function isPaymentReadyDocument(
   doc: SignatureDocument,
   entries: SignatureEntry[],
@@ -967,27 +1118,12 @@ function getDashboardMonthSummaryForExport(
   fallbackDocs: SignatureDocument[]
 ) {
   const sourceDocs = allMonthDocs.length ? allMonthDocs : fallbackDocs;
-  const caseScores = sourceDocs.flatMap((doc) =>
-    doc.cases
-      .map((item) => Number(item.finalScore))
-      .filter((score) => Number.isFinite(score))
+  const totalCases = sourceDocs.reduce((sum, doc) => sum + Math.max(Number(doc.caseCount) || 0, 0), 0);
+  const weightedScore = sourceDocs.reduce(
+    (sum, doc) => sum + (Number(doc.averageScore) || 0) * Math.max(Number(doc.caseCount) || 0, 0),
+    0
   );
-
-  const totalCases = caseScores.length
-    ? caseScores.length
-    : sourceDocs.reduce((sum, doc) => sum + Math.max(Number(doc.caseCount) || 0, 0), 0);
-
-  let avgScore = 0;
-  if (caseScores.length) {
-    avgScore = caseScores.reduce((sum, score) => sum + score, 0) / caseScores.length;
-  } else {
-    const weightedScore = sourceDocs.reduce(
-      (sum, doc) => sum + (Number(doc.averageScore) || 0) * Math.max(Number(doc.caseCount) || 0, 0),
-      0
-    );
-    const weightedCases = sourceDocs.reduce((sum, doc) => sum + Math.max(Number(doc.caseCount) || 0, 0), 0);
-    avgScore = weightedCases > 0 ? weightedScore / weightedCases : 0;
-  }
+  const avgScore = totalCases > 0 ? weightedScore / totalCases : 0;
 
   return {
     totalCases,
@@ -1162,7 +1298,6 @@ function generatePaymentPdfFile(
   const exportRuleText = exportsAllEvaluated
     ? "May 2026: Export all evaluated agents"
     : "Pay only signed complete by day 15";
-  const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
   const totalCases = dashboardSummary.totalCases;
   const avgScore = dashboardSummary.avgScore;
   const totalCashAmount = sortedDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0);
@@ -1325,6 +1460,7 @@ function generatePaymentPdfFile(
     }
 
     const entries = effectiveEntriesForDoc(doc, signatures);
+    const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
     const lastSignedAt =
       SIGNATURE_FLOW.map((role) => getSignedEntry(entries, role)?.signedAt || "")
         .filter(Boolean)
@@ -1475,7 +1611,7 @@ function generatePaymentPdfFile(
   });
 
   const fileName = makePaymentPdfFileName(monthKey);
-  downloadBlob(pdf.output("blob"), fileName);
+  savePdfFile(pdf, fileName);
   return fileName;
 }
 
@@ -1739,9 +1875,22 @@ export default function SignatureCenterMockup({
           const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
           loadedDocs.push(...buildDocuments(rows, accounts, approvedAppealMap));
         }
+        const storedEvaluations = await fetchStoredEvaluations(1000).catch((error) => {
+          console.warn("Signature Center stored evaluations skipped", error);
+          return [] as StoredEvaluation[];
+        });
+        const rawMonthKeys = new Set(loadedDocs.map((doc) => doc.monthKey).filter(Boolean));
+        loadedDocs.push(
+          ...buildDocumentsFromStoredEvaluations(storedEvaluations, accounts, approvedAppealMap).filter(
+            (doc) => !rawMonthKeys.has(doc.monthKey)
+          )
+        );
         if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
         const docMap = new Map<string, SignatureDocument>();
-        loadedDocs.forEach((doc) => docMap.set(doc.id, doc));
+        loadedDocs.forEach((doc) => {
+          const existing = docMap.get(doc.id);
+          docMap.set(doc.id, existing ? mergeSignatureDocuments(existing, doc) : doc);
+        });
 
         // Do not add every All Team user into monthly payment export.
         // Payment PDF / Excel must follow the names already shown in the monthly Dashboard.
@@ -1774,16 +1923,7 @@ export default function SignatureCenterMockup({
             canonicalDocMap.set(canonicalId, normalizedDoc);
             return;
           }
-          const keep = existing.caseCount >= normalizedDoc.caseCount ? existing : normalizedDoc;
-          const other = existing.caseCount >= normalizedDoc.caseCount ? normalizedDoc : existing;
-          canonicalDocMap.set(canonicalId, {
-            ...keep,
-            cases: keep.cases.length ? keep.cases : other.cases,
-            averageScore: keep.caseCount > 0 ? keep.averageScore : other.averageScore,
-            grade: keep.caseCount > 0 ? keep.grade : other.grade,
-            eligibleByScore: keep.caseCount > 0 ? keep.eligibleByScore : other.eligibleByScore,
-            caseCount: Math.max(keep.caseCount, other.caseCount),
-          });
+          canonicalDocMap.set(canonicalId, mergeSignatureDocuments(existing, normalizedDoc));
         });
 
         const nextDocs = Array.from(canonicalDocMap.values()).sort(
@@ -2554,9 +2694,14 @@ export default function SignatureCenterMockup({
       window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
       return;
     }
-    generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
-    setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
-    window.setTimeout(() => setPaymentMessage(""), 3500);
+    try {
+      generatePaymentExcelFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
+      setPaymentMessage(`Generated ${makePaymentFileName(selectedMonth)}`);
+      window.setTimeout(() => setPaymentMessage(""), 3500);
+    } catch (error) {
+      console.error("Generate payment Excel failed", error);
+      setPaymentMessage(error instanceof Error ? `Generate Excel failed: ${error.message}` : "Generate Excel failed");
+    }
   };
 
   const generatePaymentPdf = () => {
@@ -2568,9 +2713,14 @@ export default function SignatureCenterMockup({
       window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
       return;
     }
-    const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
-    setPaymentMessage(`Generated ${fileName}`);
-    window.setTimeout(() => setPaymentMessage(""), 3500);
+    try {
+      const fileName = generatePaymentPdfFile(selectedMonth, selectedMonthPaymentExportDocs, signatures, selectedMonthAllDocs);
+      setPaymentMessage(`Generated ${fileName}`);
+      window.setTimeout(() => setPaymentMessage(""), 3500);
+    } catch (error) {
+      console.error("Generate payment PDF failed", error);
+      setPaymentMessage(error instanceof Error ? `Generate PDF failed: ${error.message}` : "Generate PDF failed");
+    }
   };
 
   if (loading) {

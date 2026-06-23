@@ -23,6 +23,8 @@ type EvidenceFile = {
   size: number;
   previewUrl: string;
   storedUrl: string;
+  uploadStatus?: "pending" | "uploaded" | "failed";
+  uploadError?: string;
 };
 
 type AutoGrowTextareaProps = {
@@ -437,6 +439,31 @@ function fileToDataUrl(file: File) {
   });
 }
 
+async function fileToBase64Payload(file: File) {
+  const dataUrl = await fileToDataUrl(file);
+  return dataUrl.includes(",") ? dataUrl.split(",").pop() || "" : dataUrl;
+}
+
+async function uploadEvidenceFileToDrive(file: File, caseId: string) {
+  const response = await fetch("/api/google-drive-upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream",
+      caseId: caseId || "draft-case",
+      dataBase64: await fileToBase64Payload(file),
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.webViewLink) {
+    throw new Error(payload.error || "Upload to Google Drive failed.");
+  }
+
+  return String(payload.webViewLink);
+}
+
 function formatFileSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return "0 MB";
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
@@ -633,6 +660,7 @@ export default function CreateEvaluationMockup({
   const [caseDescription, setCaseDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+  const [evidenceUploadMessage, setEvidenceUploadMessage] = useState("");
   const [criticalError, setCriticalError] = useState(false);
   const [evaluationStartedAt, setEvaluationStartedAt] = useState("");
   const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState("");
@@ -1165,6 +1193,45 @@ async function handleEvidenceFiles(files: FileList | null) {
     );
 
     setEvidenceFiles((current) => [...current, ...nextFiles]);
+    setEvidenceUploadMessage(`Uploading ${nextFiles.length} file(s) to Google Drive...`);
+
+    const uploadResults = await Promise.allSettled(
+      acceptedFiles.map((file, index) => uploadEvidenceFileToDrive(file, caseId || "draft-case").then((url) => ({ id: nextFiles[index].id, url })))
+    );
+
+    let uploadedCount = 0;
+    uploadResults.forEach((result, index) => {
+      const fileId = nextFiles[index].id;
+      if (result.status === "fulfilled") {
+        uploadedCount += 1;
+        setEvidenceFiles((current) =>
+          current.map((file) =>
+            file.id === fileId
+              ? { ...file, storedUrl: result.value.url, uploadStatus: "uploaded", uploadError: "" }
+              : file
+          )
+        );
+        return;
+      }
+
+      setEvidenceFiles((current) =>
+        current.map((file) =>
+          file.id === fileId
+            ? {
+                ...file,
+                uploadStatus: "failed",
+                uploadError: result.reason instanceof Error ? result.reason.message : "Upload failed",
+              }
+            : file
+        )
+      );
+    });
+
+    setEvidenceUploadMessage(
+      uploadedCount === nextFiles.length
+        ? `Uploaded ${uploadedCount} file(s) to Google Drive.`
+        : `Uploaded ${uploadedCount}/${nextFiles.length} file(s). Please check failed files.`
+    );
   }
 
   function buildRowDataRows(records: EvaluationRecord[]): RawDataExportRow[] {
@@ -1857,17 +1924,22 @@ async function handleEvidenceFiles(files: FileList | null) {
                     className={`${inputClass} leading-6`}
                   />
                   <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">
-                    Upload PDF/images to Google Drive, set sharing permission, then paste the links here. Local image attachments are saved as preview data only; automatic Google Drive upload will be a separate integration.
+                    Paste Google Drive links manually, or attach PDF/images below. Attached files will upload to the shared Google Drive evidence folder and save Drive links automatically.
                   </span>
                 </label>
                 <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="inline-flex cursor-pointer items-center rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(2,132,199,0.22)] transition hover:bg-sky-800">
                       Attach Files
-                      <input type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFiles(event.target.files); event.currentTarget.value = ""; }} />
+                      <input data-storage-upload="disabled" type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFiles(event.target.files); event.currentTarget.value = ""; }} />
                     </label>
-                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF - multiple files</span>
+                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF - upload to Google Drive</span>
                   </div>
+                  {evidenceUploadMessage ? (
+                    <div className="mt-3 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-black text-sky-800">
+                      {evidenceUploadMessage}
+                    </div>
+                  ) : null}
 
                   {evidenceFiles.length ? (
                     <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1879,6 +1951,13 @@ async function handleEvidenceFiles(files: FileList | null) {
                             <div className="space-y-2 p-3">
                               <div className="truncate text-xs font-black text-slate-900" title={file.name}>{file.name}</div>
                               <div className="text-[11px] font-semibold text-slate-500">{formatFileSize(file.size)}</div>
+                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">Uploading to Google Drive...</div> : null}
+                              {file.uploadStatus === "uploaded" ? (
+                                <a href={file.storedUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] font-black text-emerald-700 underline">
+                                  Google Drive link ready
+                                </a>
+                              ) : null}
+                              {file.uploadStatus === "failed" ? <div className="text-[11px] font-black text-rose-700">{file.uploadError || "Upload failed"}</div> : null}
                               <button type="button" onClick={() => removeEvidenceFile(file.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">Remove</button>
                             </div>
                           </div>
@@ -1887,7 +1966,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      ยังไม่มีไฟล์แนบ ระบบจะแสดงไฟล์ที่แนบไว้เป็น Preview ภายในเครื่องก่อน เมื่อเชื่อมต่อ Supabase Storage แล้ว ระบบจะสร้าง URL ให้อัตโนมัติ
+                      ยังไม่มีไฟล์แนบ เมื่อแนบไฟล์แล้วระบบจะอัปโหลดเข้า Google Drive และสร้างลิงก์ให้อัตโนมัติ
                     </div>
                   )}
                 </div>

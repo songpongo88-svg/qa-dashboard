@@ -891,6 +891,7 @@ function installEvidenceAttachmentUploadListener() {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
       if (target.type !== "file") return;
+      if (target.dataset.storageUpload === "disabled") return;
       if (!target.files || !target.files.length) return;
 
       const caseId = getCurrentCaseIdFromPage();
