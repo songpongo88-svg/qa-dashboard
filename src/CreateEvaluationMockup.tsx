@@ -1203,12 +1203,20 @@ async function uploadFileToGoogleDrive(file: File): Promise<string> {
 async function handleEvidenceFiles(files: FileList | null) {
     if (!files?.length) return;
     const acceptedFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type === "application/pdf");
+    
+    let driveUrl = "";
+    try {
+      driveUrl = await mergeAndUploadToDrive(acceptedFiles);
+    } catch (err) {
+      console.warn("Upload to Google Drive failed", err);
+    }
+
     const nextFiles = await Promise.all(
       acceptedFiles.map(async (file) => {
         const previewUrl = URL.createObjectURL(file);
-        let storedUrl = previewUrl;
+        let storedUrl = driveUrl || previewUrl;
         try {
-          storedUrl = driveUrl;
+          storedUrl = driveUrl || previewUrl;
         } catch (err) {
           console.warn("Upload to Google Drive failed", err);
         }
