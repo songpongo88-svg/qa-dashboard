@@ -1,4 +1,4 @@
-Ôªøimport { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import PageHero from "./PageHero";
 import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
@@ -934,7 +934,7 @@ export default function CreateEvaluationMockup({
     if (agentName.trim()) return true;
     const message = `Please select Agent Full Name before ${actionLabel}.`;
     setDraftMessage(message);
-    window.alert(`${message}\n\n‡∏Å‡∏£‡∏∏‡∏ì‡∏≤‡πÄ‡∏•‡∏∑‡∏≠‡∏Å Agent Full Name ‡∏Å‡πà‡∏≠‡∏ô‡∏î‡∏≥‡πÄ‡∏ô‡∏¥‡∏ô‡∏Å‡∏≤‡∏£`);
+    window.alert(`${message}\n\n°√ÿ≥“‡≈◊Õ° Agent Full Name °ËÕπ¥”‡π‘π°“√`);
     return false;
   }
 
@@ -991,7 +991,7 @@ export default function CreateEvaluationMockup({
       if (duplicateSubmitted || duplicateRaw) {
         const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
         setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
-        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\n‡∏£‡∏∞‡∏ö‡∏ö‡πÑ‡∏°‡πà‡∏≠‡∏ô‡∏∏‡∏ç‡∏≤‡∏ï‡πÉ‡∏´‡πâ Submit ‡πÄ‡∏•‡∏Ç‡πÄ‡∏Ñ‡∏™‡∏ã‡πâ‡∏≥ ‡∏´‡∏≤‡∏Å‡∏ï‡πâ‡∏≠‡∏á‡∏Å‡∏≤‡∏£‡πÅ‡∏Å‡πâ‡πÄ‡∏Ñ‡∏™‡∏ó‡∏µ‡πà‡πÄ‡∏Ñ‡∏¢‡∏õ‡∏£‡∏∞‡πÄ‡∏°‡∏¥‡∏ô‡πÅ‡∏•‡πâ‡∏ß ‡πÉ‡∏´‡πâ‡πÑ‡∏õ‡∏ó‡∏µ‡πà Report ‡πÅ‡∏•‡πâ‡∏ß‡∏Å‡∏î Edit ‡πÄ‡∏Ñ‡∏™‡∏ô‡∏±‡πâ‡∏ô`);
+        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\n√–∫∫‰¡ËÕπÿ≠“µ„ÀÈ Submit ‡≈¢‡§ ´È” À“°µÈÕß°“√·°È‡§ ∑’Ë‡§¬ª√–‡¡‘π·≈È« „ÀÈ‰ª∑’Ë Report ·≈È«°¥ Edit ‡§ π—Èπ`);
         return;
       }
     } catch (error) {
@@ -1693,7 +1693,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                 </div>
               </div>
               <div className="hidden">
-                Export RowData ‡∏£‡∏ß‡∏°‡∏Ç‡πâ‡∏≠‡∏°‡∏π‡∏• RawData ‡∏à‡∏≤‡∏Å GitHub ‡πÅ‡∏•‡∏∞‡πÄ‡∏Ñ‡∏™‡πÉ‡∏´‡∏°‡πà‡∏à‡∏≤‡∏Å QA Evaluation Form ‡∏ï‡∏≤‡∏°‡∏ä‡πà‡∏ß‡∏á Case Date ‡∏ó‡∏µ‡πà‡πÄ‡∏•‡∏∑‡∏≠‡∏Å ‡∏™‡∏≤‡∏°‡∏≤‡∏£‡∏ñ‡∏Ñ‡πâ‡∏ô‡∏´‡∏≤‡πÄ‡∏Ñ‡∏™‡∏à‡∏≤‡∏Å‡∏ü‡∏≠‡∏£‡πå‡∏°‡πÅ‡∏•‡πâ‡∏ß‡∏Å‡∏î Edit ‡πÄ‡∏û‡∏∑‡πà‡∏≠‡πÅ‡∏Å‡πâ‡πÑ‡∏Ç‡∏ï‡πà‡∏≠‡πÑ‡∏î‡πâ
+                Export RowData √«¡¢ÈÕ¡Ÿ≈ RawData ®“° GitHub ·≈–‡§ „À¡Ë®“° QA Evaluation Form µ“¡™Ë«ß Case Date ∑’Ë‡≈◊Õ°  “¡“√∂§ÈπÀ“‡§ ®“°øÕ√Ï¡·≈È«°¥ Edit ‡æ◊ËÕ·°È‰¢µËÕ‰¥È
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
                 Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
@@ -1849,7 +1849,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     ))}
                   </select>
                   <span className="mt-2 block text-xs font-semibold text-slate-500">
-                    ‡πÅ‡∏™‡∏î‡∏á‡πÄ‡∏â‡∏û‡∏≤‡∏∞ user ‡∏ó‡∏µ‡πà Role ‡∏ñ‡∏π‡∏Å‡πÄ‡∏õ‡∏¥‡∏î‡∏™‡∏¥‡∏ó‡∏ò‡∏¥‡πå QA Evaluation Target
+                    · ¥ß‡©æ“– user ∑’Ë Role ∂Ÿ°‡ª‘¥ ‘∑∏‘Ï QA Evaluation Target
                   </span>
                 </label>
 
@@ -1902,12 +1902,12 @@ async function handleEvidenceFiles(files: FileList | null) {
 
                 <label className="block">
                   <span className={labelClass}>Customer Inquiry</span>
-                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="‡∏™‡∏£‡∏∏‡∏õ‡∏Ñ‡∏≥‡∏ñ‡∏≤‡∏°‡∏´‡∏£‡∏∑‡∏≠‡∏õ‡∏£‡∏∞‡πÄ‡∏î‡πá‡∏ô‡∏ó‡∏µ‡πà‡∏•‡∏π‡∏Å‡∏Ñ‡πâ‡∏≤/‡πÑ‡∏£‡πÄ‡∏î‡∏≠‡∏£‡πå/‡∏£‡πâ‡∏≤‡∏ô‡∏Ñ‡πâ‡∏≤‡∏ï‡∏¥‡∏î‡∏ï‡πà‡∏≠‡πÄ‡∏Ç‡πâ‡∏≤‡∏°‡∏≤..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder=" √ÿª§”∂“¡À√◊Õª√–‡¥Áπ∑’Ë≈Ÿ°§È“/‰√‡¥Õ√Ï/√È“π§È“µ‘¥µËÕ‡¢È“¡“..." className={`${inputClass} leading-6`} />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="‡∏™‡∏£‡∏∏‡∏õ‡∏£‡∏≤‡∏¢‡∏•‡∏∞‡πÄ‡∏≠‡∏µ‡∏¢‡∏î‡πÄ‡∏Ñ‡∏™ ‡πÅ‡∏•‡∏∞‡∏™‡∏¥‡πà‡∏á‡∏ó‡∏µ‡πà Agent ‡∏î‡∏≥‡πÄ‡∏ô‡∏¥‡∏ô‡∏Å‡∏≤‡∏£..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder=" √ÿª√“¬≈–‡Õ’¬¥‡§  ·≈– ‘Ëß∑’Ë Agent ¥”‡π‘π°“√..." className={`${inputClass} leading-6`} />
                 </label>
               </div>
             </SectionCard>
@@ -1966,7 +1966,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      ‡∏¢‡∏±‡∏á‡πÑ‡∏°‡πà‡∏°‡∏µ‡πÑ‡∏ü‡∏•‡πå‡πÅ‡∏ô‡∏ö ‡πÄ‡∏°‡∏∑‡πà‡∏≠‡πÅ‡∏ô‡∏ö‡πÑ‡∏ü‡∏•‡πå‡πÅ‡∏•‡πâ‡∏ß‡∏£‡∏∞‡∏ö‡∏ö‡∏à‡∏∞‡∏≠‡∏±‡∏õ‡πÇ‡∏´‡∏•‡∏î‡πÄ‡∏Ç‡πâ‡∏≤ Google Drive ‡πÅ‡∏•‡∏∞‡∏™‡∏£‡πâ‡∏≤‡∏á‡∏•‡∏¥‡∏á‡∏Å‡πå‡πÉ‡∏´‡πâ‡∏≠‡∏±‡∏ï‡πÇ‡∏ô‡∏°‡∏±‡∏ï‡∏¥
+                      ¬—ß‰¡Ë¡’‰ø≈Ï·π∫ ‡¡◊ËÕ·π∫‰ø≈Ï·≈È«√–∫∫®–Õ—ª‚À≈¥‡¢È“ Google Drive ·≈– √È“ß≈‘ß°Ï„ÀÈÕ—µ‚π¡—µ‘
                     </div>
                   )}
                 </div>
@@ -1979,7 +1979,7 @@ async function handleEvidenceFiles(files: FileList | null) {
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600">
-                  ‡πÄ‡∏•‡∏∑‡∏≠‡∏Å‡∏Ñ‡∏∞‡πÅ‡∏ô‡∏ô‡∏à‡∏≤‡∏Å dropdown ‡πÅ‡∏•‡∏∞‡∏£‡∏∞‡∏ö‡∏∏‡πÄ‡∏´‡∏ï‡∏∏‡∏ú‡∏•‡∏Å‡∏≤‡∏£‡∏õ‡∏£‡∏∞‡πÄ‡∏°‡∏¥‡∏ô‡πÅ‡∏¢‡∏Å‡∏ï‡∏≤‡∏°‡πÅ‡∏ï‡πà‡∏•‡∏∞‡∏´‡∏±‡∏ß‡∏Ç‡πâ‡∏≠ ‡∏Ñ‡∏∞‡πÅ‡∏ô‡∏ô‡∏£‡∏ß‡∏°‡πÅ‡∏•‡∏∞ Grade ‡∏à‡∏∞‡∏£‡∏±‡∏ô‡∏≠‡∏±‡∏ï‡πÇ‡∏ô‡∏°‡∏±‡∏ï‡∏¥‡∏à‡∏≤‡∏Å‡∏Ñ‡∏∞‡πÅ‡∏ô‡∏ô‡∏ó‡∏µ‡πà‡πÄ‡∏•‡∏∑‡∏≠‡∏Å‡πÑ‡∏ß‡πâ‡πÉ‡∏ô‡∏ü‡∏≠‡∏£‡πå‡∏°‡∏ô‡∏µ‡πâ
+                  ‡≈◊Õ°§–·ππ®“° dropdown ·≈–√–∫ÿ‡Àµÿº≈°“√ª√–‡¡‘π·¬°µ“¡·µË≈–À—«¢ÈÕ §–·ππ√«¡·≈– Grade ®–√—πÕ—µ‚π¡—µ‘®“°§–·ππ∑’Ë‡≈◊Õ°‰«È„πøÕ√Ï¡π’È
                 </div>
               </div>
 
@@ -2051,7 +2051,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="‡∏£‡∏∞‡∏ö‡∏∏‡πÄ‡∏´‡∏ï‡∏∏‡∏ú‡∏•‡∏Å‡∏≤‡∏£‡∏õ‡∏£‡∏∞‡πÄ‡∏°‡∏¥‡∏ô‡∏´‡∏±‡∏ß‡∏Ç‡πâ‡∏≠‡∏ô‡∏µ‡πâ..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="√–∫ÿ‡Àµÿº≈°“√ª√–‡¡‘πÀ—«¢ÈÕπ’È..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );
