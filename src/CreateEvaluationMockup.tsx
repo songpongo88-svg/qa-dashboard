@@ -445,14 +445,19 @@ async function fileToBase64Payload(file: File) {
 }
 
 async function uploadEvidenceFileToDrive(file: File, caseId: string) {
+  const dataBase64 = await fileToBase64Payload(file);
+  const contentType = file.type || "application/octet-stream";
   const response = await fetch("/api/google-drive-upload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       fileName: file.name,
-      contentType: file.type || "application/octet-stream",
+      name: file.name,
+      contentType,
+      mimeType: contentType,
       caseId: caseId || "draft-case",
-      dataBase64: await fileToBase64Payload(file),
+      dataBase64,
+      base64: dataBase64,
     }),
   });
 

@@ -3,10 +3,10 @@ const QA_EVIDENCE_FOLDER_ID = "1RoWdiu-lcB287rVBHzmNCXPMTnejE8TK";
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
-    const fileName = sanitizeFileName(payload.fileName || "evidence-file");
-    const contentType = payload.contentType || "application/octet-stream";
+    const fileName = sanitizeFileName(payload.fileName || payload.name || "evidence-file");
+    const contentType = payload.contentType || payload.mimeType || "application/octet-stream";
     const caseId = sanitizeFileName(payload.caseId || "uncategorized");
-    const dataBase64 = payload.dataBase64 || "";
+    const dataBase64 = payload.dataBase64 || payload.base64 || "";
 
     if (!dataBase64) {
       return jsonResponse({ error: "File data is missing." });

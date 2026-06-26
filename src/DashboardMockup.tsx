@@ -2262,7 +2262,7 @@ function getSafeCaseImagePreviewUrl(rawUrl: string) {
     "";
 
   if (driveId) {
-    return `https://drive.google.com/file/d/${decodeURIComponent(driveId)}/preview`;
+    return `https://drive.google.com/thumbnail?id=${decodeURIComponent(driveId)}&sz=w2400`;
   }
 
   return raw;
@@ -2276,11 +2276,17 @@ function SafeCaseImagePreview({
   title: string;
 }) {
   const safeUrl = getSafeCaseImagePreviewUrl(url);
+  const [imageFailed, setImageFailed] = useState(false);
   const lowerUrl = String(url || "").toLowerCase();
   const isDriveUrl = lowerUrl.includes("drive.google.com") || lowerUrl.includes("googleusercontent.com");
   const isDirectImage =
+    isDriveUrl ||
     safeUrl.startsWith("data:image/") ||
     /\.(png|jpg|jpeg|webp|gif|bmp|svg|avif)(?:$|[?#])/i.test(safeUrl);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [safeUrl]);
 
   if (!safeUrl) {
     return (
@@ -2293,17 +2299,18 @@ function SafeCaseImagePreview({
     );
   }
 
-  if (isDriveUrl) {
+  if (isDirectImage && !imageFailed) {
     return (
-      <div className="flex h-full w-full flex-col gap-3">
-        <iframe
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+        <img
           key={safeUrl}
           src={safeUrl}
-          title={title}
-          className="h-full min-h-[70vh] w-full rounded-2xl border border-slate-200 bg-white shadow-lg"
-          allow="autoplay"
+          alt={title}
+          className="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-lg"
+          referrerPolicy="no-referrer"
+          onError={() => setImageFailed(true)}
         />
-        <div className="flex justify-center">
+        {isDriveUrl ? (
           <a
             href={url}
             target="_blank"
@@ -2312,19 +2319,8 @@ function SafeCaseImagePreview({
           >
             Open original link
           </a>
-        </div>
+        ) : null}
       </div>
-    );
-  }
-
-  if (isDirectImage) {
-    return (
-      <img
-        src={safeUrl}
-        alt={title}
-        className="max-h-full max-w-full rounded-2xl object-contain shadow-lg"
-        referrerPolicy="no-referrer"
-      />
     );
   }
 
