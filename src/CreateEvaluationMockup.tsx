@@ -934,7 +934,7 @@ export default function CreateEvaluationMockup({
     if (agentName.trim()) return true;
     const message = `Please select Agent Full Name before ${actionLabel}.`;
     setDraftMessage(message);
-    window.alert(`${message}\n\n???????? Agent Full Name ???????????`);
+    window.alert(`${message}\n\nกรุณาเลือก Agent Full Name ก่อนดำเนินการ`);
     return false;
   }
 
@@ -991,7 +991,7 @@ export default function CreateEvaluationMockup({
       if (duplicateSubmitted || duplicateRaw) {
         const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
         setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
-        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\n???????????? Submit ??????? ???????????????????????????? ?????? Report ????? Edit ??????`);
+        window.alert(`Case ID ${normalizedSubmitCaseId} already exists in ${source}.\n\nไม่สามารถ Submit ซ้ำได้ หากต้องการแก้ไขข้อมูลเดิม ให้ไปที่ Report แล้วกด Edit เคสนั้น`);
         return;
       }
     } catch (error) {
@@ -1200,42 +1200,39 @@ async function uploadFileToGoogleDrive(file: File): Promise<string> {
   return mergeAndUploadToDrive([file]);
 }
 
-async function handleEvidenceFiles(files: FileList | null) {
+  async function handleEvidenceFiles(files: FileList | null) {
     if (!files?.length) return;
+
     const acceptedFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type === "application/pdf");
-    
-    let driveUrl = "";
-    try {
-      driveUrl = await mergeAndUploadToDrive(acceptedFiles);
-    } catch (err) {
-      console.warn("Upload to Google Drive failed", err);
+    if (!acceptedFiles.length) {
+      setEvidenceUploadMessage("รองรับเฉพาะไฟล์ JPG, PNG, WEBP และ PDF");
+      return;
     }
 
-    const nextFiles = await Promise.all(
-      acceptedFiles.map(async (file) => {
-        const previewUrl = URL.createObjectURL(file);
-        let storedUrl = driveUrl || previewUrl;
-        try {
-          storedUrl = driveUrl || previewUrl;
-        } catch (err) {
-          console.warn("Upload to Google Drive failed", err);
-        }
-        return {
-          id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          previewUrl,
-          storedUrl,
-        };
-      })
-    );
+    const nextFiles: EvidenceFile[] = acceptedFiles.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      return {
+        id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        previewUrl,
+        storedUrl: previewUrl,
+        uploadStatus: "pending",
+        uploadError: "",
+      };
+    });
 
     setEvidenceFiles((current) => [...current, ...nextFiles]);
-    setEvidenceUploadMessage(`Uploading ${nextFiles.length} file(s) to Google Drive...`);
+    setEvidenceUploadMessage(`กำลังอัปโหลด ${nextFiles.length} ไฟล์เข้า Google Drive...`);
 
     const uploadResults = await Promise.allSettled(
-      acceptedFiles.map((file, index) => uploadEvidenceFileToDrive(file, caseId || "draft-case").then((url) => ({ id: nextFiles[index].id, url })))
+      acceptedFiles.map((file, index) =>
+        uploadEvidenceFileToDrive(file, caseId || "draft-case").then((url) => ({
+          id: nextFiles[index].id,
+          url,
+        }))
+      )
     );
 
     let uploadedCount = 0;
@@ -1268,8 +1265,8 @@ async function handleEvidenceFiles(files: FileList | null) {
 
     setEvidenceUploadMessage(
       uploadedCount === nextFiles.length
-        ? `Uploaded ${uploadedCount} file(s) to Google Drive.`
-        : `Uploaded ${uploadedCount}/${nextFiles.length} file(s). Please check failed files.`
+        ? `อัปโหลดเข้า Google Drive สำเร็จ ${uploadedCount} ไฟล์`
+        : `อัปโหลดสำเร็จ ${uploadedCount}/${nextFiles.length} ไฟล์ กรุณาตรวจสอบไฟล์ที่ไม่สำเร็จ`
     );
   }
 
@@ -1732,7 +1729,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                 </div>
               </div>
               <div className="hidden">
-                Export RowData ????????? RawData ?? GitHub ???????????? QA Evaluation Form ?????? Case Date ??????? ???????????????????????? Edit ??????????????
+                Export RowData จะรวมข้อมูล RawData จาก GitHub และข้อมูลจาก QA Evaluation Form ตามช่วง Case Date ที่เลือก รวมถึงเคสที่บันทึกหรือแก้ไขไว้
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
                 Export RowData uses the selected Case Date range and includes GitHub RawData plus submitted QA Evaluation cases.
@@ -1888,7 +1885,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     ))}
                   </select>
                   <span className="mt-2 block text-xs font-semibold text-slate-500">
-                    ?????? user ??? Role ?????????? QA Evaluation Target
+                    แสดงเฉพาะ user ที่ Role ถูกเปิดสิทธิ์ QA Evaluation Target
                   </span>
                 </label>
 
@@ -1941,12 +1938,12 @@ async function handleEvidenceFiles(files: FileList | null) {
 
                 <label className="block">
                   <span className={labelClass}>Customer Inquiry</span>
-                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="???????????????????????/???????/????????????????..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={inquiry} onChange={(event) => setInquiry(event.target.value)} minRows={3} placeholder="สรุปคำถามหรือประเด็นที่ลูกค้า/ไรเดอร์/ร้านค้าติดต่อเข้ามา..." className={`${inputClass} leading-6`} />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="??????????????? ???????? Agent ????????..." className={`${inputClass} leading-6`} />
+                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
                 </label>
               </div>
             </SectionCard>
@@ -1959,11 +1956,11 @@ async function handleEvidenceFiles(files: FileList | null) {
                     value={evidenceUrl}
                     onChange={(event) => setEvidenceUrl(event.target.value)}
                     minRows={4}
-                    placeholder="Paste Google Drive share links here. Use one link per line for multiple PDFs/images."
+                    placeholder="วางลิงก์ Google Drive ได้ที่นี่ ถ้ามีหลายไฟล์ให้วางแยกบรรทัด"
                     className={`${inputClass} leading-6`}
                   />
                   <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">
-                    Paste Google Drive links manually, or attach PDF/images below. Attached files will upload to the shared Google Drive evidence folder and save Drive links automatically.
+                    วางลิงก์ Google Drive เองได้ หรือกดแนบไฟล์ด้านล่าง ระบบจะอัปโหลดเข้าโฟลเดอร์ Google Drive และบันทึกลิงก์ให้อัตโนมัติ
                   </span>
                 </label>
                 <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50 p-4">
@@ -1972,7 +1969,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                       Attach Files
                       <input data-storage-upload="disabled" type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFiles(event.target.files); event.currentTarget.value = ""; }} />
                     </label>
-                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF - upload to Google Drive</span>
+                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF - อัปโหลดเข้า Google Drive ได้หลายไฟล์</span>
                   </div>
                   {evidenceUploadMessage ? (
                     <div className="mt-3 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-black text-sky-800">
@@ -1981,23 +1978,33 @@ async function handleEvidenceFiles(files: FileList | null) {
                   ) : null}
 
                   {evidenceFiles.length ? (
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      {evidenceFiles.map((file) => {
+                    <div className="mt-4 grid grid-cols-1 gap-3">
+                      {evidenceFiles.map((file, fileIndex) => {
                         const isImage = file.type.startsWith("image/");
+                        const isPdf = file.type === "application/pdf";
                         return (
                           <div key={file.id} className="overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-sm">
-                            {isImage ? <img src={file.previewUrl} alt={file.name} className="h-24 w-full object-cover" /> : <div className="flex h-24 items-center justify-center bg-slate-100 text-sm font-black text-slate-600">PDF</div>}
+                            <div className="border-b border-sky-100 bg-sky-50 px-3 py-2 text-[11px] font-black text-sky-800">
+                              Preview {fileIndex + 1}
+                            </div>
+                            {isImage ? (
+                              <img src={file.previewUrl} alt={file.name} className="max-h-56 w-full bg-white object-contain" />
+                            ) : isPdf ? (
+                              <iframe src={file.previewUrl} title={file.name} className="h-56 w-full bg-white" />
+                            ) : (
+                              <div className="flex h-24 items-center justify-center bg-slate-100 text-sm font-black text-slate-600">FILE</div>
+                            )}
                             <div className="space-y-2 p-3">
                               <div className="truncate text-xs font-black text-slate-900" title={file.name}>{file.name}</div>
                               <div className="text-[11px] font-semibold text-slate-500">{formatFileSize(file.size)}</div>
-                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">Uploading to Google Drive...</div> : null}
+                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">กำลังอัปโหลดเข้า Google Drive...</div> : null}
                               {file.uploadStatus === "uploaded" ? (
                                 <a href={file.storedUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] font-black text-emerald-700 underline">
-                                  Google Drive link ready
+                                  เปิดลิงก์ Google Drive
                                 </a>
                               ) : null}
-                              {file.uploadStatus === "failed" ? <div className="text-[11px] font-black text-rose-700">{file.uploadError || "Upload failed"}</div> : null}
-                              <button type="button" onClick={() => removeEvidenceFile(file.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">Remove</button>
+                              {file.uploadStatus === "failed" ? <div className="text-[11px] font-black text-rose-700">{file.uploadError || "อัปโหลดไม่สำเร็จ"}</div> : null}
+                              <button type="button" onClick={() => removeEvidenceFile(file.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">ลบไฟล์</button>
                             </div>
                           </div>
                         );
@@ -2005,7 +2012,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      ???????????? ???????????????????????????? Google Drive ?????????????????????
+                      ยังไม่มีไฟล์แนบ เมื่อแนบไฟล์แล้วระบบจะอัปโหลดเข้า Google Drive และสร้างลิงก์ให้อัตโนมัติ
                     </div>
                   )}
                 </div>
@@ -2018,7 +2025,7 @@ async function handleEvidenceFiles(files: FileList | null) {
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
                 <div className="mt-1 text-sm leading-6 text-slate-600">
-                  ????????? dropdown ???????????????????????????????? ????????? Grade ?????????????????????????????????
+                  เลือกคะแนนจาก dropdown และระบุเหตุผลการประเมินแยกตามแต่ละหัวข้อ คะแนนรวมและ Grade จะรันอัตโนมัติจากคะแนนที่เลือกไว้ในฟอร์มนี้
                 </div>
               </div>
 
@@ -2090,7 +2097,7 @@ async function handleEvidenceFiles(files: FileList | null) {
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="?????????????????????..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
                                   </label>
                                 </div>
                               );
@@ -2315,4 +2322,5 @@ async function handleEvidenceFiles(files: FileList | null) {
     </div>
   );
 }
+
 
