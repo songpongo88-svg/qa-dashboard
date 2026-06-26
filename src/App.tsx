@@ -5448,6 +5448,7 @@ export default function App() {
         ) : activeTab === "create-evaluation" && createEvaluationAllowed ? (
           <CreateEvaluationMockup
             agentOptions={qaEvaluationAgentOptions}
+            currentUser={currentUser}
             onSubmitEvaluation={handleEvaluationSubmitted}
           />
         ) : activeTab === "pre-test" && preTestAllowed ? (

@@ -65,6 +65,14 @@ export type EvaluationAgentOption = {
   email?: string;
 };
 
+type EvaluationCurrentUser = {
+  username: string;
+  displayName: string;
+  role: string;
+  agentName: string;
+  email?: string;
+};
+
 export type EvaluationSubmitPayload = {
   recordId?: string;
   evaluationKey?: string;
@@ -704,9 +712,11 @@ function SectionCard({
 
 export default function CreateEvaluationMockup({
   agentOptions,
+  currentUser,
   onSubmitEvaluation,
 }: {
   agentOptions?: EvaluationAgentOption[];
+  currentUser?: EvaluationCurrentUser | null;
   onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
 }) {
   const [agentName, setAgentName] = useState("");
@@ -748,6 +758,8 @@ export default function CreateEvaluationMockup({
     Resolution: true,
     Communication: true,
   });
+  const evaluatorName = currentUser?.displayName || currentUser?.agentName || currentUser?.username || "Songpon Phothong";
+  const canOpenExportReport = currentUser?.role === "Quality Assurance";
 
   const activeRubric = useMemo(() => getRubricForDate(auditDate), [auditDate]);
   const topics = activeRubric.topics;
@@ -825,6 +837,12 @@ export default function CreateEvaluationMockup({
   }, [workspaceView]);
 
   useEffect(() => {
+    if (!canOpenExportReport && workspaceView === "report") {
+      setWorkspaceView("form");
+    }
+  }, [canOpenExportReport, workspaceView]);
+
+  useEffect(() => {
     setSubmittedReportPage(1);
     setRawReportPage(1);
   }, [reportDateFrom, reportDateTo, reportSearch]);
@@ -873,7 +891,7 @@ export default function CreateEvaluationMockup({
       "QA Scheme": activeRubric.code,
       "Rubric Version": activeRubric.name,
       "Rubric Active Period": rubricPeriod,
-      "Evaluator Name": "Songpon Phothong",
+      "Evaluator Name": evaluatorName,
       "Evaluation Started At": evaluationSubmittedAt || "-",
       "Evaluation Submitted At": evaluationSubmittedAt || "-",
       "Draft Saved At": draftSavedAt || "-",
@@ -890,7 +908,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -1294,7 +1312,7 @@ export default function CreateEvaluationMockup({
         "QA Scheme": record.qaScheme,
         "Rubric Version": record.rubricName,
         "Rubric Active Period": record.rubricPeriod,
-        "Evaluator Name": "Songpon Phothong",
+        "Evaluator Name": String(record.rawDataPreview?.["Evaluator Name"] || evaluatorName),
         "Evaluation Started At": parseDateTimeValue(record.evaluationStartedAt) || record.evaluationStartedAt,
         "Evaluation Submitted At": parseDateTimeValue(record.submittedAt) || record.submittedAt,
         "Evaluation Status": "Submitted",
@@ -1564,7 +1582,7 @@ export default function CreateEvaluationMockup({
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Evaluation Workspace</div>
                   <div className="mt-1 text-xl font-black text-slate-950">{caseId || "New QA Evaluation"}</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-500">Evaluator: <span className="font-black text-slate-800">Songpon Phothong</span></div>
+                  <div className="mt-1 text-sm font-semibold text-slate-500">Evaluator: <span className="font-black text-slate-800">{evaluatorName}</span></div>
                 </div>
                 <div className="inline-flex w-fit rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm">
                   {evaluationStatus}
@@ -1593,7 +1611,15 @@ export default function CreateEvaluationMockup({
                 <button type="button" onClick={() => setWorkspaceView("history")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
                   Evaluation History
                 </button>
-                <button type="button" onClick={() => setWorkspaceView("report")} className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (canOpenExportReport) setWorkspaceView("report");
+                  }}
+                  disabled={!canOpenExportReport}
+                  title={canOpenExportReport ? "Open Export Report" : "Export Report is available for Quality Assurance only"}
+                  className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:bg-slate-700/70 disabled:text-slate-400 disabled:hover:bg-slate-700/70"
+                >
                   Export Report
                 </button>
                 {activeSubmittedRecordId ? (
