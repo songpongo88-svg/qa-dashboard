@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
 import {
@@ -442,6 +443,59 @@ function fileToDataUrl(file: File) {
 async function fileToBase64Payload(file: File) {
   const dataUrl = await fileToDataUrl(file);
   return dataUrl.includes(",") ? dataUrl.split(",").pop() || "" : dataUrl;
+}
+
+function loadImageFromDataUrl(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Cannot read image file."));
+    image.src = dataUrl;
+  });
+}
+
+function imageToJpegDataUrl(image: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Cannot prepare image for PDF.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function safePdfEvidenceName(caseId: string) {
+  const safeCaseId = (caseId || "draft-case").trim().replace(/[^\w.-]+/g, "_") || "draft-case";
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+  return `${safeCaseId}_Evidence_Attachment_${timestamp}.pdf`;
+}
+
+async function buildImageEvidencePdf(files: File[], caseId: string) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+  const maxWidth = pageWidth - margin * 2;
+  const maxHeight = pageHeight - margin * 2;
+
+  for (let index = 0; index < files.length; index += 1) {
+    if (index > 0) doc.addPage();
+    const file = files[index];
+    const dataUrl = await fileToDataUrl(file);
+    const image = await loadImageFromDataUrl(dataUrl);
+    const imageRatio = image.width / image.height || 1;
+    const boxRatio = maxWidth / maxHeight;
+    const width = imageRatio > boxRatio ? maxWidth : maxHeight * imageRatio;
+    const height = imageRatio > boxRatio ? maxWidth / imageRatio : maxHeight;
+    const x = (pageWidth - width) / 2;
+    const y = (pageHeight - height) / 2;
+    doc.addImage(imageToJpegDataUrl(image), "JPEG", x, y, width, height, undefined, "FAST");
+  }
+
+  const blob = doc.output("blob");
+  return new File([blob], safePdfEvidenceName(caseId), { type: "application/pdf" });
 }
 
 async function uploadEvidenceFileToDrive(file: File, caseId: string) {
@@ -1161,65 +1215,63 @@ export default function CreateEvaluationMockup({
       return;
     }
 
-    const nextFiles: EvidenceFile[] = acceptedFiles.map((file) => {
-      const previewUrl = URL.createObjectURL(file);
-      return {
-        id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        previewUrl,
-        storedUrl: previewUrl,
-        uploadStatus: "pending",
-        uploadError: "",
-      };
+    const pdfFiles = acceptedFiles.filter((file) => file.type === "application/pdf");
+    const imageFiles = acceptedFiles.filter((file) => file.type.startsWith("image/"));
+    if (pdfFiles.length && acceptedFiles.length > 1) {
+      setEvidenceUploadMessage("ตอนนี้ระบบรวม PDF เดิมกับไฟล์อื่นเป็น PDF เดียวไม่ได้ กรุณาแนบรูปหลายไฟล์ หรือแนบ PDF เดี่ยว 1 ไฟล์");
+      return;
+    }
+
+    setEvidenceUploadMessage("กำลังรวมไฟล์แนบเป็น PDF เดียว...");
+
+    let pdfFile: File;
+    try {
+      pdfFile = pdfFiles.length === 1 ? pdfFiles[0] : await buildImageEvidencePdf(imageFiles, caseId || "draft-case");
+    } catch (error) {
+      setEvidenceUploadMessage(error instanceof Error ? error.message : "รวมไฟล์เป็น PDF ไม่สำเร็จ");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(pdfFile);
+    const combinedFile: EvidenceFile = {
+      id: `${pdfFile.name}-${pdfFile.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: pdfFile.name,
+      type: "application/pdf",
+      size: pdfFile.size,
+      previewUrl,
+      storedUrl: previewUrl,
+      uploadStatus: "pending",
+      uploadError: "",
+    };
+
+    setEvidenceFiles((current) => {
+      current.forEach((file) => URL.revokeObjectURL(file.previewUrl));
+      return [combinedFile];
     });
+    setEvidenceUploadMessage("กำลังอัปโหลด PDF หลายหน้าเข้า Google Drive...");
 
-    setEvidenceFiles((current) => [...current, ...nextFiles]);
-    setEvidenceUploadMessage(`กำลังอัปโหลด ${nextFiles.length} ไฟล์เข้า Google Drive...`);
-
-    const uploadResults = await Promise.allSettled(
-      acceptedFiles.map((file, index) =>
-        uploadEvidenceFileToDrive(file, caseId || "draft-case").then((url) => ({
-          id: nextFiles[index].id,
-          url,
-        }))
-      )
-    );
-
-    let uploadedCount = 0;
-    uploadResults.forEach((result, index) => {
-      const fileId = nextFiles[index].id;
-      if (result.status === "fulfilled") {
-        uploadedCount += 1;
-        setEvidenceFiles((current) =>
-          current.map((file) =>
-            file.id === fileId
-              ? { ...file, storedUrl: result.value.url, uploadStatus: "uploaded", uploadError: "" }
-              : file
-          )
-        );
-        return;
-      }
-
+    try {
+      const url = await uploadEvidenceFileToDrive(pdfFile, caseId || "draft-case");
       setEvidenceFiles((current) =>
         current.map((file) =>
-          file.id === fileId
+          file.id === combinedFile.id ? { ...file, storedUrl: url, uploadStatus: "uploaded", uploadError: "" } : file
+        )
+      );
+      setEvidenceUploadMessage(`อัปโหลดสำเร็จ: รวม ${acceptedFiles.length} ไฟล์เป็น PDF ลิงก์เดียวแล้ว`);
+    } catch (error) {
+      setEvidenceFiles((current) =>
+        current.map((file) =>
+          file.id === combinedFile.id
             ? {
                 ...file,
                 uploadStatus: "failed",
-                uploadError: result.reason instanceof Error ? result.reason.message : "Upload failed",
+                uploadError: error instanceof Error ? error.message : "Upload failed",
               }
             : file
         )
       );
-    });
-
-    setEvidenceUploadMessage(
-      uploadedCount === nextFiles.length
-        ? `อัปโหลดเข้า Google Drive สำเร็จ ${uploadedCount} ไฟล์`
-        : `อัปโหลดสำเร็จ ${uploadedCount}/${nextFiles.length} ไฟล์ กรุณาตรวจสอบไฟล์ที่ไม่สำเร็จ`
-    );
+      setEvidenceUploadMessage("อัปโหลด PDF เข้า Google Drive ไม่สำเร็จ กรุณาตรวจสอบ Apps Script หรือสิทธิ์โฟลเดอร์");
+    }
   }
 
   function buildRowDataRows(records: EvaluationRecord[]): RawDataExportRow[] {
@@ -1903,16 +1955,16 @@ export default function CreateEvaluationMockup({
             <SectionCard label="Section B" title="Evidence Attachment">
               <div className="space-y-4">
                 <label className="block">
-                  <span className={labelClass}>Google Drive Evidence Links / PDF / Image</span>
+                  <span className={labelClass}>Google Drive Evidence Link / Combined PDF</span>
                   <AutoGrowTextarea
                     value={evidenceUrl}
                     onChange={(event) => setEvidenceUrl(event.target.value)}
                     minRows={4}
-                    placeholder="วางลิงก์ Google Drive ได้ที่นี่ ถ้ามีหลายไฟล์ให้วางแยกบรรทัด"
+                    placeholder="วางลิงก์ Google Drive ได้ที่นี่ หรือแนบไฟล์เพื่อให้ระบบรวมเป็น PDF ลิงก์เดียว"
                     className={`${inputClass} leading-6`}
                   />
                   <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">
-                    วางลิงก์ Google Drive เองได้ หรือกดแนบไฟล์ด้านล่าง ระบบจะอัปโหลดเข้าโฟลเดอร์ Google Drive และบันทึกลิงก์ให้อัตโนมัติ
+                    วางลิงก์ Google Drive เองได้ หรือกดแนบรูปหลายไฟล์ด้านล่าง ระบบจะรวมเป็น PDF หลายหน้า อัปโหลดเข้า Google Drive และบันทึกลิงก์เดียวให้อัตโนมัติ
                   </span>
                 </label>
                 <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50 p-4">
@@ -1921,7 +1973,7 @@ export default function CreateEvaluationMockup({
                       Attach Files
                       <input data-storage-upload="disabled" type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFiles(event.target.files); event.currentTarget.value = ""; }} />
                     </label>
-                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP, PDF - อัปโหลดเข้า Google Drive ได้หลายไฟล์</span>
+                    <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP - รวมเป็น PDF หลายหน้า / PDF เดี่ยว - อัปโหลดเป็นลิงก์เดียว</span>
                   </div>
                   {evidenceUploadMessage ? (
                     <div className="mt-3 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-black text-sky-800">
@@ -1937,7 +1989,7 @@ export default function CreateEvaluationMockup({
                         return (
                           <div key={file.id} className="overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-sm">
                             <div className="border-b border-sky-100 bg-sky-50 px-3 py-2 text-[11px] font-black text-sky-800">
-                              Preview {fileIndex + 1}
+                              Combined PDF Preview
                             </div>
                             {isImage ? (
                               <img src={file.previewUrl} alt={file.name} className="max-h-56 w-full bg-white object-contain" />
@@ -1949,7 +2001,7 @@ export default function CreateEvaluationMockup({
                             <div className="space-y-2 p-3">
                               <div className="truncate text-xs font-black text-slate-900" title={file.name}>{file.name}</div>
                               <div className="text-[11px] font-semibold text-slate-500">{formatFileSize(file.size)}</div>
-                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">กำลังอัปโหลดเข้า Google Drive...</div> : null}
+                              {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">กำลังอัปโหลด PDF เข้า Google Drive...</div> : null}
                               {file.uploadStatus === "uploaded" ? (
                                 <a href={file.storedUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] font-black text-emerald-700 underline">
                                   เปิดลิงก์ Google Drive
@@ -1964,7 +2016,7 @@ export default function CreateEvaluationMockup({
                     </div>
                   ) : (
                     <div className="mt-4 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600">
-                      ยังไม่มีไฟล์แนบ เมื่อแนบไฟล์แล้วระบบจะอัปโหลดเข้า Google Drive และสร้างลิงก์ให้อัตโนมัติ
+                      ยังไม่มีไฟล์แนบ เมื่อแนบรูปหลายไฟล์ ระบบจะรวมเป็น PDF หลายหน้าและสร้าง Google Drive ลิงก์เดียวให้อัตโนมัติ
                     </div>
                   )}
                 </div>
