@@ -1147,59 +1147,6 @@ export default function CreateEvaluationMockup({
     }));
   }
 
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbypLpTfP6swrUoRrM2x6YTa1OFif9uGB6mOmgY7JlaHgKx1cBwp0zt9VNuJpuYsYC9f/exec";
-
-async function mergeAndUploadToDrive(files: File[]): Promise<string> {
-  const { jsPDF } = await import("jspdf");
-  const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const dataUrl = await new Promise<string>((res, rej) => {
-      const reader = new FileReader();
-      reader.onload = () => res(reader.result as string);
-      reader.onerror = () => rej(new Error("Read failed"));
-      reader.readAsDataURL(file);
-    });
-
-    if (i > 0) pdf.addPage();
-
-    if (file.type === "application/pdf") {
-      pdf.setFontSize(12);
-      pdf.text(`[PDF: ${file.name}]`, 20, 40);
-    } else {
-      const img = await new Promise<HTMLImageElement>((res) => {
-        const el = new Image();
-        el.onload = () => res(el);
-        el.src = dataUrl;
-      });
-      const ratio = Math.min(pageW / img.width, pageH / img.height);
-      const w = img.width * ratio;
-      const h = img.height * ratio;
-      const x = (pageW - w) / 2;
-      const y = (pageH - h) / 2;
-      pdf.addImage(dataUrl, file.type === "image/png" ? "PNG" : "JPEG", x, y, w, h);
-    }
-  }
-
-  const base64 = pdf.output("datauristring").split(",")[1];
-  const fileName = `evidence_${Date.now()}.pdf`;
-  const response = await fetch("/api/google-drive-upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ base64, mimeType: "application/pdf", fileName }),
-  });
-  const result = await response.json();
-  if (result.success) return result.url;
-  throw new Error(result.error || "Upload failed");
-}
-
-async function uploadFileToGoogleDrive(file: File): Promise<string> {
-  return mergeAndUploadToDrive([file]);
-}
-
   async function handleEvidenceFiles(files: FileList | null) {
     if (!files?.length) return;
 
