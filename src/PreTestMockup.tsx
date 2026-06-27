@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
@@ -35,6 +35,9 @@ type PreTestSet = {
   passScore: number;
   timeLimitSeconds: number;
   active: boolean;
+  availableFrom?: string;
+  availableUntil?: string;
+  autoCloseEnabled?: boolean;
   questions: PreTestQuestion[];
   updatedAt: string;
   updatedBy: string;
@@ -53,6 +56,11 @@ type PreTestResult = {
   displayName: string;
   role: string;
   agentName: string;
+  email?: string;
+  attemptNo: number;
+  retakeOfResultId?: string;
+  retakeOpenedBy?: string;
+  retakeOpenedAt?: string;
   startedAt: string;
   submittedAt: string;
   score: number;
@@ -73,19 +81,36 @@ type AttemptSession = {
   answers: Record<string, string>;
 };
 
-type PreTestAttemptState = "not_started" | "in_progress" | "submitted" | "expired" | "no_access";
+type PreTestRetakeGrant = {
+  id: string;
+  setId: string;
+  username: string;
+  email?: string;
+  displayName?: string;
+  agentName?: string;
+  resultId?: string;
+  nextAttemptNo: number;
+  openedBy: string;
+  openedAt: string;
+};
+
+type PreTestSetStatus = "active" | "disabled" | "not_yet_open" | "expired" | "auto_closed";
+type PreTestAttemptState = "not_started" | "in_progress" | "submitted" | "retake_open" | "not_yet_open" | "expired" | "disabled" | "no_access";
 
 type PreTestMockupProps = {
   currentUser?: CurrentUserLike | null;
   canTakePreTest?: boolean;
   canManagePreTest?: boolean;
   canViewPreTestResults?: boolean;
+  canResetPreTestRetake?: boolean;
+  canExportPreTestResults?: boolean;
 };
 
 type WorkspaceTab = "take" | "sets" | "history";
 
 const SETS_STORAGE_KEY = "qa-dashboard:pre-test-sets";
 const RESULTS_STORAGE_KEY = "qa-dashboard:pre-test-results";
+const RETAKE_GRANTS_STORAGE_KEY = "qa-dashboard:pre-test-retake-grants";
 const ACTIVE_ATTEMPT_STORAGE_KEY = "qa-dashboard:pre-test-active-attempt";
 const DEFAULT_SET_ID = "thai-help-plus-robinhood-2026";
 const RESULTS_HISTORY_BASELINE_AT = "2026-06-03T09:03:00+07:00";
@@ -372,6 +397,42 @@ function formatDateTime(value: string | Date) {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
 }
 
+function formatDateTimeLocalInput(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+}
+
+function parseDateTimeLocalInput(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function getSetEffectiveStatus(set: PreTestSet, now = new Date()): PreTestSetStatus {
+  if (!set.active) return "disabled";
+  const nowTime = now.getTime();
+  const fromTime = set.availableFrom ? new Date(set.availableFrom).getTime() : NaN;
+  const untilTime = set.availableUntil ? new Date(set.availableUntil).getTime() : NaN;
+  if (!Number.isNaN(fromTime) && nowTime < fromTime) return "not_yet_open";
+  if (!Number.isNaN(untilTime) && nowTime > untilTime) return set.autoCloseEnabled ? "auto_closed" : "expired";
+  return "active";
+}
+
+function getSetStatusLabel(status: PreTestSetStatus) {
+  if (status === "disabled") return "Inactive";
+  if (status === "not_yet_open") return "Not yet open";
+  if (status === "expired") return "Expired";
+  if (status === "auto_closed") return "Auto closed";
+  return "Active";
+}
+
 function normalizeIdentity(value: unknown) {
   return String(value || "")
     .trim()
@@ -463,6 +524,9 @@ function normalizeSet(raw: unknown): PreTestSet | null {
     passScore: Math.max(1, Number(item.passScore || 1)),
     timeLimitSeconds: Math.max(30, Number(item.timeLimitSeconds || 90)),
     active: item.active !== false,
+    availableFrom: String(item.availableFrom || ""),
+    availableUntil: String(item.availableUntil || ""),
+    autoCloseEnabled: item.autoCloseEnabled === true,
     questions,
     updatedAt: String(item.updatedAt || new Date().toISOString()),
     updatedBy: String(item.updatedBy || "System"),
@@ -481,6 +545,11 @@ function normalizeResult(raw: unknown): PreTestResult | null {
     displayName: String(item.displayName || ""),
     role: String(item.role || ""),
     agentName: String(item.agentName || ""),
+    email: String(item.email || ""),
+    attemptNo: Math.max(1, Number(item.attemptNo || 1)),
+    retakeOfResultId: String(item.retakeOfResultId || ""),
+    retakeOpenedBy: String(item.retakeOpenedBy || ""),
+    retakeOpenedAt: String(item.retakeOpenedAt || ""),
     startedAt: String(item.startedAt || ""),
     submittedAt: String(item.submittedAt || ""),
     score: Number(item.score || 0),
@@ -489,6 +558,23 @@ function normalizeResult(raw: unknown): PreTestResult | null {
     result: item.result === "Pass" ? "Pass" : "Fail",
     answers: (item.answers || {}) as Record<string, string>,
     questions: Array.isArray(item.questions) ? item.questions as PreTestQuestion[] : undefined,
+  };
+}
+
+function normalizeRetakeGrant(raw: unknown): PreTestRetakeGrant | null {
+  const item = raw as Partial<PreTestRetakeGrant>;
+  if (!item || typeof item !== "object" || !item.setId || !item.username) return null;
+  return {
+    id: String(item.id || `retake-${item.setId}-${item.username}-${item.openedAt || Date.now()}`),
+    setId: String(item.setId),
+    username: String(item.username),
+    email: String(item.email || ""),
+    displayName: String(item.displayName || ""),
+    agentName: String(item.agentName || ""),
+    resultId: String(item.resultId || ""),
+    nextAttemptNo: Math.max(2, Number(item.nextAttemptNo || 2)),
+    openedBy: String(item.openedBy || "System"),
+    openedAt: String(item.openedAt || new Date().toISOString()),
   };
 }
 
@@ -535,23 +621,36 @@ function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[]) {
       const result = normalizeResult(log.details?.result);
       if (result && isVisibleResult(result)) map.set(result.id, result);
     }
-    if (log.event_type === "pretest_attempt_reset") {
-      const resultId = String(log.details?.resultId || "");
-      const setId = String(log.details?.setId || "");
-      const username = String(log.details?.username || "");
-      if (resultId) {
-        map.delete(resultId);
-      } else if (setId && username) {
-        [...map.values()].forEach((result) => {
-          if (result.setId === setId && result.username === username) map.delete(result.id);
-        });
-      }
-    }
     if (log.event_type === "pretest_history_cleared") {
       map.clear();
     }
   });
-  return [...map.values()].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  return [...map.values()].sort((a, b) => {
+    const submittedDiff = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+    return submittedDiff || b.attemptNo - a.attemptNo;
+  });
+}
+
+function mergeRetakeGrants(localGrants: PreTestRetakeGrant[], logs: UsageLogEvent[]) {
+  const map = new Map<string, PreTestRetakeGrant>();
+  localGrants.forEach((grant) => map.set(grant.id, grant));
+  [...logs].reverse().forEach((log) => {
+    if (log.event_type !== "pretest_retake_opened" && log.event_type !== "pretest_attempt_reset") return;
+    const grant = normalizeRetakeGrant(log.details?.grant || {
+      id: log.details?.grantId || log.details?.resultId || log.id,
+      resultId: log.details?.resultId,
+      setId: log.details?.setId,
+      username: log.details?.username,
+      email: log.details?.email,
+      displayName: log.details?.displayName,
+      agentName: log.details?.agentName,
+      nextAttemptNo: log.details?.nextAttemptNo,
+      openedBy: log.details?.openedBy || log.details?.resetBy,
+      openedAt: log.details?.openedAt || log.details?.resetAt || log.created_at,
+    });
+    if (grant) map.set(grant.id, grant);
+  });
+  return [...map.values()].sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime());
 }
 
 function getDefaultTab(canManage: boolean, canViewResults: boolean): WorkspaceTab {
@@ -565,6 +664,8 @@ export default function PreTestMockup({
   canTakePreTest = true,
   canManagePreTest = false,
   canViewPreTestResults = false,
+  canResetPreTestRetake = false,
+  canExportPreTestResults = false,
 }: PreTestMockupProps) {
   const [sets, setSets] = useState<PreTestSet[]>(() => {
     const localSets = readLocal<PreTestSet>(SETS_STORAGE_KEY).map(normalizeSet).filter(Boolean) as PreTestSet[];
@@ -572,6 +673,9 @@ export default function PreTestMockup({
   });
   const [results, setResults] = useState<PreTestResult[]>(() => {
     return readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[];
+  });
+  const [retakeGrants, setRetakeGrants] = useState<PreTestRetakeGrant[]>(() => {
+    return readLocal<PreTestRetakeGrant>(RETAKE_GRANTS_STORAGE_KEY).map(normalizeRetakeGrant).filter(Boolean) as PreTestRetakeGrant[];
   });
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(() => getDefaultTab(canManagePreTest, canViewPreTestResults));
   const [selectedSetId, setSelectedSetId] = useState(DEFAULT_SET_ID);
@@ -592,10 +696,11 @@ export default function PreTestMockup({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [resultScreen, setResultScreen] = useState<PreTestResult | null>(null);
 
-  const activeSets = useMemo(() => sets.filter((set) => set.active), [sets]);
+  const activeSets = useMemo(() => sets.filter((set) => getSetEffectiveStatus(set) === "active"), [sets]);
   const selectedSet = useMemo(() => {
     return sets.find((set) => set.id === selectedSetId) || activeSets[0] || sets[0] || DEFAULT_SET;
   }, [activeSets, selectedSetId, sets]);
+  const selectedSetStatus = getSetEffectiveStatus(selectedSet);
   const previewSet = useMemo(() => {
     return sets.find((set) => set.id === previewSetId) || selectedSet;
   }, [previewSetId, selectedSet, sets]);
@@ -609,24 +714,47 @@ export default function PreTestMockup({
   const currentUsername = currentUser?.username || "guest";
   const currentUserIdentities = useMemo(() => getUserIdentityCandidates(currentUser), [currentUser]);
   const roleAllowsPreTest = canTakePreTest;
-  const hasCompletedSelectedSet = results.some((item) =>
-    item.setId === selectedSet.id && hasMatchingIdentity(currentUserIdentities, item)
-  );
+  const selectedUserResults = useMemo(() => results
+    .filter((item) => item.setId === selectedSet.id && hasMatchingIdentity(currentUserIdentities, item))
+    .sort((a, b) => a.attemptNo - b.attemptNo || new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()),
+  [currentUserIdentities, results, selectedSet.id]);
+  const latestRetakeGrant = useMemo(() => retakeGrants.find((grant) =>
+    grant.setId === selectedSet.id && hasMatchingIdentity(currentUserIdentities, {
+      username: grant.username,
+      displayName: grant.displayName || "",
+      agentName: grant.agentName || "",
+    })
+  ), [currentUserIdentities, retakeGrants, selectedSet.id]);
+  const nextAttemptNo = selectedUserResults.length + 1;
+  const retakeIsOpen = Boolean(latestRetakeGrant && nextAttemptNo <= latestRetakeGrant.nextAttemptNo);
+  const hasCompletedSelectedSet = selectedUserResults.length > 0 && !retakeIsOpen;
+  const latestRetakeSource = retakeIsOpen ? selectedUserResults[selectedUserResults.length - 1] : undefined;
+  const setDisabledState = selectedSetStatus === "disabled" || selectedSetStatus === "not_yet_open" || selectedSetStatus === "expired" || selectedSetStatus === "auto_closed";
   const attemptState: PreTestAttemptState = !currentUser
     ? "no_access"
     : inAttempt
       ? "in_progress"
-      : hasCompletedSelectedSet
-        ? "submitted"
-        : !selectedSet.active
-          ? "expired"
-          : roleAllowsPreTest
-            ? "not_started"
-            : "no_access";
+      : !roleAllowsPreTest
+        ? "no_access"
+        : selectedSetStatus === "disabled"
+          ? "disabled"
+          : selectedSetStatus === "not_yet_open"
+            ? "not_yet_open"
+            : selectedSetStatus === "expired" || selectedSetStatus === "auto_closed"
+              ? "expired"
+              : retakeIsOpen
+                ? "retake_open"
+                : hasCompletedSelectedSet
+                  ? "submitted"
+                  : setDisabledState
+                    ? "disabled"
+                    : "not_started";
   const startDisabledReason = (() => {
     if (attemptState === "no_access") return "ไม่สามารถเริ่ม Pre-Test ได้: role หรือ profile ของผู้ใช้ยังไม่มีสิทธิ์ทำแบบทดสอบ";
     if (attemptState === "submitted") return "ผู้ใช้นี้ส่งคำตอบ Pre-Test ชุดนี้แล้ว หากต้องทำซ้ำต้องให้ผู้ดูแล Reset Retake ก่อน";
-    if (attemptState === "expired") return "ชุดคำถามนี้ถูกปิดใช้งานหรือหมดเวลาทำแบบทดสอบแล้ว";
+    if (attemptState === "disabled") return "ชุดคำถามนี้ถูกปิดใช้งานอยู่ กรุณาติดต่อ QA หรือ Supervisor";
+    if (attemptState === "not_yet_open") return `ชุดคำถามนี้ยังไม่เปิด เริ่มทำได้เมื่อ ${formatDateTime(selectedSet.availableFrom || "")}`;
+    if (attemptState === "expired") return `หมดเวลาทำแบบทดสอบแล้ว${selectedSet.availableUntil ? ` ตั้งแต่ ${formatDateTime(selectedSet.availableUntil)}` : ""}`;
     return "";
   })();
   const historyUsers = useMemo(() => {
@@ -650,12 +778,45 @@ export default function PreTestMockup({
         item.setCode,
         item.displayName,
         item.username,
+        item.email,
         item.agentName,
         item.role,
+        item.attemptNo,
         item.result,
       ].some((value) => String(value || "").toLowerCase().includes(search));
     });
   }, [historySearch, historySetFilter, historyUserFilter, results]);
+
+  const refreshCentralData = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const logs = await fetchUsageLogsByEventTypes([
+        "pretest_set_saved",
+        "pretest_set_deleted",
+        "pretest_attempt_submitted",
+        "pretest_attempt_reset",
+        "pretest_retake_opened",
+        "pretest_history_cleared",
+      ], 1500);
+      const localSets = readLocal<PreTestSet>(SETS_STORAGE_KEY).map(normalizeSet).filter(Boolean) as PreTestSet[];
+      const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[];
+      const localGrants = readLocal<PreTestRetakeGrant>(RETAKE_GRANTS_STORAGE_KEY).map(normalizeRetakeGrant).filter(Boolean) as PreTestRetakeGrant[];
+      const nextSets = mergeSets(localSets, logs);
+      const nextResults = mergeResults(localResults, logs);
+      const nextGrants = mergeRetakeGrants(localGrants, logs);
+      setSets(nextSets);
+      setResults(nextResults);
+      setRetakeGrants(nextGrants);
+      writeLocal(SETS_STORAGE_KEY, nextSets);
+      writeLocal(RESULTS_STORAGE_KEY, nextResults);
+      writeLocal(RETAKE_GRANTS_STORAGE_KEY, nextGrants);
+    } catch (error) {
+      console.warn("[Pre-Test] Central sync failed. Local storage fallback is still available.", error);
+      throw error;
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -669,28 +830,11 @@ export default function PreTestMockup({
   useEffect(() => {
     let alive = true;
     async function loadCentralData() {
-      setSyncing(true);
       try {
-        const logs = await fetchUsageLogsByEventTypes([
-          "pretest_set_saved",
-          "pretest_set_deleted",
-          "pretest_attempt_submitted",
-          "pretest_attempt_reset",
-          "pretest_history_cleared",
-        ], 1500);
         if (!alive) return;
-        const localSets = readLocal<PreTestSet>(SETS_STORAGE_KEY).map(normalizeSet).filter(Boolean) as PreTestSet[];
-        const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[];
-        const nextSets = mergeSets(localSets, logs);
-        const nextResults = mergeResults(localResults, logs);
-        setSets(nextSets);
-        setResults(nextResults);
-        writeLocal(SETS_STORAGE_KEY, nextSets);
-        writeLocal(RESULTS_STORAGE_KEY, nextResults);
+        await refreshCentralData();
       } catch {
         // Keep local fallback visible when Supabase is unavailable.
-      } finally {
-        if (alive) setSyncing(false);
       }
     }
 
@@ -698,7 +842,7 @@ export default function PreTestMockup({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [refreshCentralData]);
 
   useEffect(() => {
     if (!inAttempt) return;
@@ -808,7 +952,7 @@ export default function PreTestMockup({
   }
 
   function startAttempt() {
-    if (attemptState !== "not_started") {
+    if (attemptState !== "not_started" && attemptState !== "retake_open") {
       if (startDisabledReason) {
         console.warn(`[Pre-Test] ${startDisabledReason}`, {
           username: currentUser?.username,
@@ -860,8 +1004,9 @@ export default function PreTestMockup({
       return total + (answers[question.id] === question.correctChoiceId ? 1 : 0);
     }, 0);
     const submittedAt = new Date().toISOString();
+    const attemptNo = nextAttemptNo;
     const result: PreTestResult = {
-      id: attemptId,
+      id: `${attemptId}-attempt-${attemptNo}`,
       setId: selectedSet.id,
       setCode: selectedSet.code,
       setTitle: selectedSet.title,
@@ -869,6 +1014,11 @@ export default function PreTestMockup({
       displayName: currentUser?.displayName || "Guest",
       role: currentUser?.role || "",
       agentName: currentUser?.agentName || currentUser?.displayName || "",
+      email: currentUser?.email || "",
+      attemptNo,
+      retakeOfResultId: latestRetakeSource?.id || "",
+      retakeOpenedBy: latestRetakeGrant?.openedBy || "",
+      retakeOpenedAt: latestRetakeGrant?.openedAt || "",
       startedAt,
       submittedAt,
       score,
@@ -878,7 +1028,7 @@ export default function PreTestMockup({
       answers,
       questions: selectedSet.questions,
     };
-    const nextResults = [result, ...results.filter((item) => item.id !== result.id && !(item.setId === result.setId && item.username === result.username))];
+    const nextResults = [result, ...results.filter((item) => item.id !== result.id)];
     setResults(nextResults);
     writeLocal(RESULTS_STORAGE_KEY, nextResults);
     writeLocalObject(ACTIVE_ATTEMPT_STORAGE_KEY, null);
@@ -887,10 +1037,15 @@ export default function PreTestMockup({
     setPreparedQuestions([]);
     setCurrentQuestionIndex(0);
     setRemainingSeconds(0);
-    await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
-      tab: "pre-test",
-      details: { result, reason },
-    });
+    try {
+      await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
+        tab: "pre-test",
+        details: { result, reason },
+      });
+      await refreshCentralData();
+    } catch (error) {
+      console.warn("[Pre-Test] Central submit sync failed. Result was kept in local storage.", error);
+    }
   }
 
   function resetAttempt() {
@@ -915,6 +1070,9 @@ export default function PreTestMockup({
       passScore: 1,
       timeLimitSeconds: 90,
       active: true,
+      availableFrom: "",
+      availableUntil: "",
+      autoCloseEnabled: false,
       questions: [createBlankQuestion(1)],
       updatedAt: now,
       updatedBy: currentUser?.displayName || "System",
@@ -960,6 +1118,9 @@ export default function PreTestMockup({
       description: editorSet.description.trim(),
       passScore: Math.max(1, editorSet.passScore),
       timeLimitSeconds: Math.max(30, editorSet.timeLimitSeconds),
+      availableFrom: editorSet.availableFrom || "",
+      availableUntil: editorSet.availableUntil || "",
+      autoCloseEnabled: editorSet.autoCloseEnabled === true,
       questions: cleanQuestions,
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.displayName || "System",
@@ -1021,33 +1182,82 @@ export default function PreTestMockup({
     });
   }
 
+  async function toggleSetActive(set: PreTestSet) {
+    const nextSet: PreTestSet = {
+      ...set,
+      active: !set.active,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.displayName || "System",
+    };
+    const nextSets = [nextSet, ...sets.filter((item) => item.id !== nextSet.id)].sort((a, b) => a.title.localeCompare(b.title));
+    setSets(nextSets);
+    writeLocal(SETS_STORAGE_KEY, nextSets);
+    showToast(nextSet.active ? "Pre-Test set enabled." : "Pre-Test set disabled.");
+    await logUsageEvent(currentUser || null, "pretest_set_saved", {
+      tab: "pre-test",
+      details: { set: nextSet },
+    });
+  }
+
   async function resetRetake(result: PreTestResult) {
-    const nextResults = results.filter((item) => item.id !== result.id && !(item.setId === result.setId && item.username === result.username));
-    setResults(nextResults);
-    writeLocal(RESULTS_STORAGE_KEY, nextResults);
+    const matchingResults = results.filter((item) => item.setId === result.setId && hasMatchingIdentity(getResultIdentityCandidates(result), item));
+    const nextAttemptNo = Math.max(...matchingResults.map((item) => item.attemptNo || 1), result.attemptNo || 1) + 1;
+    const grant: PreTestRetakeGrant = {
+      id: `retake-${result.setId}-${result.username}-${Date.now()}`,
+      setId: result.setId,
+      username: result.username,
+      email: result.email || "",
+      displayName: result.displayName,
+      agentName: result.agentName,
+      resultId: result.id,
+      nextAttemptNo,
+      openedBy: currentUser?.displayName || "System",
+      openedAt: new Date().toISOString(),
+    };
+    const nextGrants = [grant, ...retakeGrants.filter((item) => item.id !== grant.id)];
+    setRetakeGrants(nextGrants);
+    writeLocal(RETAKE_GRANTS_STORAGE_KEY, nextGrants);
     showToast(`Retake opened for ${result.displayName || result.username}.`);
-    await logUsageEvent(currentUser || null, "pretest_attempt_reset", {
+    await logUsageEvent(currentUser || null, "pretest_retake_opened", {
       tab: "pre-test",
       details: {
+        grant,
         resultId: result.id,
         setId: result.setId,
         username: result.username,
-        resetBy: currentUser?.displayName || "System",
-        resetAt: new Date().toISOString(),
+        nextAttemptNo,
       },
+    });
+  }
+
+  function getOpenRetakeGrantForResult(result: PreTestResult) {
+    const matchingResults = results.filter((item) => item.setId === result.setId && hasMatchingIdentity(getResultIdentityCandidates(result), item));
+    const nextAttemptNo = matchingResults.length + 1;
+    return retakeGrants.find((grant) => {
+      if (grant.setId !== result.setId) return false;
+      if (!hasMatchingIdentity(getResultIdentityCandidates(result), {
+        username: grant.username,
+        displayName: grant.displayName || "",
+        agentName: grant.agentName || "",
+      })) return false;
+      return grant.nextAttemptNo >= nextAttemptNo && (!grant.resultId || grant.resultId === result.id || result.attemptNo === nextAttemptNo - 1);
     });
   }
 
   function exportHistory() {
     const rows = historyRows.map((item) => ({
+      "Attempt No.": item.attemptNo,
       "Submitted At": formatDateTime(item.submittedAt),
       "Started At": formatDateTime(item.startedAt),
       "Test Code": item.setCode,
       "Test Title": item.setTitle,
       Username: item.username,
+      Email: item.email || "",
       "Display Name": item.displayName,
       Role: item.role,
       Agent: item.agentName,
+      "Retake Opened At": item.retakeOpenedAt ? formatDateTime(item.retakeOpenedAt) : "",
+      "Retake Opened By": item.retakeOpenedBy || "",
       Score: item.score,
       Total: item.total,
       "Pass Score": item.passScore,
@@ -1138,7 +1348,12 @@ export default function PreTestMockup({
 
       drawReportHeader();
 
-      historyRows.forEach((result, resultIndex) => {
+      const sortedPdfRows = [...historyRows].sort((a, b) => {
+        if (historyUserFilter !== "all" && historySetFilter !== "all") return a.attemptNo - b.attemptNo;
+        return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+      });
+
+      sortedPdfRows.forEach((result, resultIndex) => {
         const set = sets.find((item) => item.id === result.setId);
         const questions = result.questions || set?.questions || [];
         const cardStartY = y;
@@ -1150,7 +1365,7 @@ export default function PreTestMockup({
         doc.setFont("THSarabunNew", "bold");
         doc.setFontSize(8);
         setText(colors.muted);
-        doc.text(`PRE-TEST RESULT ${resultIndex + 1}`, left + 5, y, { baseline: "top" });
+        doc.text(`PRE-TEST ${result.attemptNo || resultIndex + 1}`, left + 5, y, { baseline: "top" });
         doc.setFontSize(15);
         setText(colors.ink);
         doc.text(doc.splitTextToSize(result.setTitle || "-", 180) as string[], left + 5, y + 6, { baseline: "top" });
@@ -1172,8 +1387,8 @@ export default function PreTestMockup({
         y = cardStartY + 36;
 
         const boxWidth = (contentWidth - 8) / 4;
-        drawMetaBox("Participant", result.displayName || result.username || "-", left, boxWidth);
-        drawMetaBox("Role", result.role || "-", left + boxWidth + 2.6, boxWidth);
+        drawMetaBox("Participant", `${result.displayName || result.username || "-"}${result.email ? ` / ${result.email}` : ""}`, left, boxWidth);
+        drawMetaBox("Username / Agent", `${result.username || "-"} / ${result.agentName || "-"}`, left + boxWidth + 2.6, boxWidth);
         drawMetaBox("Started At", formatDateTime(result.startedAt), left + (boxWidth + 2.6) * 2, boxWidth);
         drawMetaBox("Submitted At", formatDateTime(result.submittedAt), left + (boxWidth + 2.6) * 3, boxWidth);
         y += 19;
@@ -1240,7 +1455,11 @@ export default function PreTestMockup({
       });
 
       const safeDate = new Date().toISOString().slice(0, 10);
-      doc.save(`pretest_result_report_${safeDate}.pdf`);
+      const selectedUser = historyUserFilter === "all" ? "all" : historyUserFilter;
+      const selectedSet = historySetFilter === "all" ? "all" : (sets.find((item) => item.id === historySetFilter)?.code || historySetFilter);
+      const safeUser = selectedUser.replace(/[^a-z0-9_-]+/gi, "_");
+      const safeSet = selectedSet.replace(/[^a-z0-9_-]+/gi, "_");
+      doc.save(`pretest_results_${safeUser}_${safeSet}_${safeDate}.pdf`);
       showToast("Pre-Test PDF downloaded.");
       await logUsageEvent(currentUser || null, "pretest_result_pdf_downloaded", {
         tab: "pre-test",
@@ -1324,18 +1543,18 @@ export default function PreTestMockup({
                       onChange={(event) => setSelectedSetId(event.target.value)}
                       className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-950 outline-none focus:border-emerald-400"
                     >
-                      {activeSets.map((set) => (
-                        <option key={set.id} value={set.id}>{set.code} - {set.title}</option>
+                      {sets.map((set) => (
+                        <option key={set.id} value={set.id}>{set.code} - {set.title} ({getSetStatusLabel(getSetEffectiveStatus(set))})</option>
                       ))}
                     </select>
                     <div className="flex flex-col gap-2">
                       <button
                         type="button"
-                        disabled={attemptState !== "not_started"}
+                        disabled={attemptState !== "not_started" && attemptState !== "retake_open"}
                         onClick={startAttempt}
                         className="h-14 rounded-2xl bg-slate-950 px-8 text-sm font-black text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
-                        {attemptState === "submitted" ? "Completed" : attemptState === "in_progress" ? "Resume Test" : "Start Test"}
+                        {attemptState === "submitted" ? "Completed" : attemptState === "retake_open" ? `Start Retake ${nextAttemptNo}` : "Start Test"}
                       </button>
                       {startDisabledReason ? (
                         <div className="max-w-sm text-xs font-bold leading-5 text-amber-700">{startDisabledReason}</div>
@@ -1487,14 +1706,18 @@ export default function PreTestMockup({
                       <div className="mt-2 text-lg font-black text-slate-950">{set.title}</div>
                       <div className="mt-1 text-xs font-bold leading-5 text-slate-500">{set.questions.length} question(s) · pass {set.passScore}</div>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-black ${set.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                      {set.active ? "Active" : "Inactive"}
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${getSetEffectiveStatus(set) === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                      {getSetStatusLabel(getSetEffectiveStatus(set))}
                     </span>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     <button type="button" onClick={(event) => { event.stopPropagation(); editSet(set); }} className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700">Edit</button>
                     <button type="button" onClick={(event) => { event.stopPropagation(); void copyShareLink(set.id); }} className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Share</button>
-                    <button type="button" onClick={(event) => { event.stopPropagation(); void deleteSet(set.id); }} className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Delete</button>
+                    {BUILT_IN_PRE_TEST_SETS.some((item) => item.id === set.id) ? (
+                      <button type="button" onClick={(event) => { event.stopPropagation(); void toggleSetActive(set); }} className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">{set.active ? "Disable" : "Enable"}</button>
+                    ) : (
+                      <button type="button" onClick={(event) => { event.stopPropagation(); void deleteSet(set.id); }} className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Delete</button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1532,6 +1755,33 @@ export default function PreTestMockup({
                         <option>Active</option>
                         <option>Inactive</option>
                       </select>
+                    </Field>
+                    <Field label="Available From">
+                      <input
+                        type="datetime-local"
+                        value={formatDateTimeLocalInput(editorSet.availableFrom)}
+                        onChange={(event) => setEditorSet({ ...editorSet, availableFrom: parseDateTimeLocalInput(event.target.value) })}
+                        className={FORM_INPUT_CLASS}
+                      />
+                    </Field>
+                    <Field label="Available Until">
+                      <input
+                        type="datetime-local"
+                        value={formatDateTimeLocalInput(editorSet.availableUntil)}
+                        onChange={(event) => setEditorSet({ ...editorSet, availableUntil: parseDateTimeLocalInput(event.target.value) })}
+                        className={FORM_INPUT_CLASS}
+                      />
+                    </Field>
+                    <Field label="Auto Close">
+                      <label className="flex h-[52px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={editorSet.autoCloseEnabled === true}
+                          onChange={(event) => setEditorSet({ ...editorSet, autoCloseEnabled: event.target.checked })}
+                          className="h-4 w-4 accent-emerald-600"
+                        />
+                        Auto close when end time reached
+                      </label>
                     </Field>
                     <Field label="Description">
                       <input value={editorSet.description} onChange={(event) => setEditorSet({ ...editorSet, description: event.target.value })} className={FORM_INPUT_CLASS} />
@@ -1624,6 +1874,7 @@ export default function PreTestMockup({
                     <InfoRow label="Questions" value={`${previewSet.questions.length}`} />
                     <InfoRow label="Pass Criteria" value={`${previewSet.passScore}/${previewSet.questions.length}`} />
                     <InfoRow label="Time Limit" value={formatDuration(previewSet.timeLimitSeconds)} />
+                    <InfoRow label="Status" value={getSetStatusLabel(getSetEffectiveStatus(previewSet))} />
                   </div>
                   <div className="space-y-4">
                     {previewSet.questions.map((question, questionIndex) => (
@@ -1711,27 +1962,42 @@ export default function PreTestMockup({
                       <option key={setId} value={setId}>{title}</option>
                     ))}
                   </select>
-                  <button type="button" onClick={generateResultsPdf} className="h-12 rounded-2xl bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
-                    Generate PDF
-                  </button>
-                  <button type="button" onClick={exportHistory} className="h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-500">
-                    Export Excel
-                  </button>
+                  {canExportPreTestResults ? (
+                    <>
+                      <button type="button" onClick={generateResultsPdf} className="h-12 rounded-2xl bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
+                        Generate PDF
+                      </button>
+                      <button type="button" onClick={exportHistory} className="h-12 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-500">
+                        Export Excel
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
               <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-bold text-slate-500">
-                Showing {historyRows.length} result(s). Each user can complete each question set once; use Reset Retake when a retest is approved.
+                Showing {historyRows.length} result(s). Retake keeps previous attempts and opens the next attempt number.
               </div>
               <div className="divide-y divide-slate-100">
-                {historyRows.length ? historyRows.map((item) => (
-                  <div key={item.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[1.35fr_1fr_1fr_130px_150px] lg:items-center">
+                {historyRows.length ? historyRows.map((item) => {
+                  const openRetakeGrant = getOpenRetakeGrantForResult(item);
+                  return (
+                  <div key={item.id} className="grid gap-4 px-5 py-4 lg:grid-cols-[1.2fr_0.7fr_1fr_1fr_130px_150px] lg:items-center">
                     <div>
                       <div className="text-sm font-black text-slate-950">{item.setTitle}</div>
                       <div className="mt-1 text-xs font-bold text-slate-500">{item.setCode}</div>
                     </div>
                     <div>
+                      <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-600">Attempt</div>
+                      <div className="mt-1 text-lg font-black text-slate-950">{item.attemptNo}</div>
+                      {openRetakeGrant ? (
+                        <div className="mt-1 text-[11px] font-bold text-amber-700">Retake opened for Attempt {openRetakeGrant.nextAttemptNo}</div>
+                      ) : item.retakeOpenedAt ? (
+                        <div className="mt-1 text-[11px] font-bold text-amber-700">Retake attempt</div>
+                      ) : null}
+                    </div>
+                    <div>
                       <div className="text-sm font-black text-slate-950">{item.displayName}</div>
-                      <div className="mt-1 text-xs font-bold text-slate-500">{item.role}</div>
+                      <div className="mt-1 text-xs font-bold text-slate-500">{item.email || item.username}</div>
                     </div>
                     <div className="text-sm font-bold text-slate-600">
                       {formatDateTime(item.submittedAt)}
@@ -1743,7 +2009,7 @@ export default function PreTestMockup({
                       <div className="mt-1 text-xs font-black text-slate-500">{item.score}/{item.total}</div>
                     </div>
                     <div className="flex justify-end">
-                      {canManagePreTest ? (
+                      {canResetPreTestRetake ? (
                         <button
                           type="button"
                           onClick={() => void resetRetake(item)}
@@ -1756,7 +2022,8 @@ export default function PreTestMockup({
                       )}
                     </div>
                   </div>
-                )) : (
+                );
+                }) : (
                   <div className="p-10 text-center text-sm font-bold text-slate-500">No pre-test history found.</div>
                 )}
               </div>

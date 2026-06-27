@@ -58,6 +58,8 @@ type RolePermissionKey =
   | "takePreTest"
   | "managePreTest"
   | "viewPreTestResults"
+  | "resetPreTestRetake"
+  | "exportPreTestResults"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -392,6 +394,8 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "takePreTest",
   "managePreTest",
   "viewPreTestResults",
+  "resetPreTestRetake",
+  "exportPreTestResults",
   "viewUsageLog",
   "exportPdf",
   "exportAppealRawdata",
@@ -426,6 +430,8 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: false,
+    exportPreTestResults: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -455,6 +461,8 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: false,
+    exportPreTestResults: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -484,6 +492,8 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: false,
+    exportPreTestResults: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -511,8 +521,10 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     manageRubric: false,
     createEvaluation: true,
     takePreTest: true,
-    managePreTest: false,
-    viewPreTestResults: false,
+    managePreTest: true,
+    viewPreTestResults: true,
+    resetPreTestRetake: true,
+    exportPreTestResults: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
@@ -2948,7 +2960,9 @@ export default function App() {
   const takePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "takePreTest") : false;
   const managePreTestAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "managePreTest") : false;
   const viewPreTestResultsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewPreTestResults") : false;
-  const preTestAllowed = Boolean(currentUser);
+  const resetPreTestRetakeAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "resetPreTestRetake") : false;
+  const exportPreTestResultsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "exportPreTestResults") : false;
+  const preTestAllowed = Boolean(currentUser) && (takePreTestAllowed || managePreTestAllowed || viewPreTestResultsAllowed);
   const appealRequestsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
   const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
   const rubricAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewRubric") : false;
@@ -5463,6 +5477,8 @@ export default function App() {
             canTakePreTest={takePreTestAllowed}
             canManagePreTest={managePreTestAllowed}
             canViewPreTestResults={viewPreTestResultsAllowed}
+            canResetPreTestRetake={resetPreTestRetakeAllowed}
+            canExportPreTestResults={exportPreTestResultsAllowed}
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
