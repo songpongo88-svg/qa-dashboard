@@ -52,7 +52,13 @@ export type StoredMaintenanceState = {
 
 function normalizeRoleName(value: unknown) {
   const roleName = String(value || "").trim();
-  return roleName.toLowerCase() === "agent" ? "Admin Live Chat" : roleName;
+  const normalized = roleName.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+  if (normalized === "agent" || normalized === "admin live chat") return "Admin Live Chat";
+  if (normalized === "virtual rider") return "Virtual Rider";
+  if (normalized === "senior") return "Senior";
+  if (normalized === "supervisor") return "Supervisor";
+  if (normalized === "quality assurance" || normalized === "qa") return "Quality Assurance";
+  return roleName;
 }
 
 function safeDocId(value: unknown) {

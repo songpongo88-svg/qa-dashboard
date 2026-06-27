@@ -10,6 +10,7 @@ type CurrentUserLike = {
   displayName: string;
   role: string;
   agentName: string;
+  email?: string;
   loginAt?: string;
 };
 
@@ -71,6 +72,8 @@ type AttemptSession = {
   currentQuestionIndex: number;
   answers: Record<string, string>;
 };
+
+type PreTestAttemptState = "not_started" | "in_progress" | "submitted" | "expired" | "no_access";
 
 type PreTestMockupProps = {
   currentUser?: CurrentUserLike | null;
@@ -369,6 +372,47 @@ function formatDateTime(value: string | Date) {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
 }
 
+function normalizeIdentity(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeEmailLocalPart(value: unknown) {
+  const normalized = normalizeIdentity(value);
+  return normalized.includes("@") ? normalized.split("@")[0] : normalized;
+}
+
+function getUserIdentityCandidates(user?: CurrentUserLike | null) {
+  if (!user) return [];
+  const rawValues = [
+    user.username,
+    user.email,
+    normalizeEmailLocalPart(user.email),
+    user.displayName,
+    user.agentName,
+  ];
+  return [...new Set(rawValues.map(normalizeIdentity).filter(Boolean))];
+}
+
+function getResultIdentityCandidates(result: Pick<PreTestResult, "username" | "displayName" | "agentName"> & { email?: string }) {
+  const rawValues = [
+    result.username,
+    result.email,
+    normalizeEmailLocalPart(result.email),
+    result.displayName,
+    result.agentName,
+  ];
+  return [...new Set(rawValues.map(normalizeIdentity).filter(Boolean))];
+}
+
+function hasMatchingIdentity(userCandidates: string[], result: Pick<PreTestResult, "username" | "displayName" | "agentName">) {
+  if (!userCandidates.length) return false;
+  const resultCandidates = getResultIdentityCandidates(result);
+  return resultCandidates.some((value) => userCandidates.includes(value));
+}
+
 function getChoiceText(question: PreTestQuestion, choiceId?: string) {
   if (!choiceId) return "-";
   const choice = question.choices.find((item) => item.id === choiceId);
@@ -563,7 +607,28 @@ export default function PreTestMockup({
   const progressPercent = preparedQuestions.length ? Math.round((answeredCount / preparedQuestions.length) * 100) : 0;
   const canSubmitAttempt = inAttempt && preparedQuestions.every((question) => Boolean(answers[question.id]));
   const currentUsername = currentUser?.username || "guest";
-  const hasCompletedSelectedSet = results.some((item) => item.setId === selectedSet.id && item.username === currentUsername);
+  const currentUserIdentities = useMemo(() => getUserIdentityCandidates(currentUser), [currentUser]);
+  const roleAllowsPreTest = canTakePreTest;
+  const hasCompletedSelectedSet = results.some((item) =>
+    item.setId === selectedSet.id && hasMatchingIdentity(currentUserIdentities, item)
+  );
+  const attemptState: PreTestAttemptState = !currentUser
+    ? "no_access"
+    : inAttempt
+      ? "in_progress"
+      : hasCompletedSelectedSet
+        ? "submitted"
+        : !selectedSet.active
+          ? "expired"
+          : roleAllowsPreTest
+            ? "not_started"
+            : "no_access";
+  const startDisabledReason = (() => {
+    if (attemptState === "no_access") return "ไม่สามารถเริ่ม Pre-Test ได้: role หรือ profile ของผู้ใช้ยังไม่มีสิทธิ์ทำแบบทดสอบ";
+    if (attemptState === "submitted") return "ผู้ใช้นี้ส่งคำตอบ Pre-Test ชุดนี้แล้ว หากต้องทำซ้ำต้องให้ผู้ดูแล Reset Retake ก่อน";
+    if (attemptState === "expired") return "ชุดคำถามนี้ถูกปิดใช้งานหรือหมดเวลาทำแบบทดสอบแล้ว";
+    return "";
+  })();
   const historyUsers = useMemo(() => {
     const map = new Map<string, string>();
     results.forEach((item) => map.set(item.username, item.displayName || item.username));
@@ -673,7 +738,7 @@ export default function PreTestMockup({
   useEffect(() => {
     if (attemptId || resultScreen || !sets.length) return;
     const session = readLocalObject<AttemptSession>(ACTIVE_ATTEMPT_STORAGE_KEY);
-    if (!session || session.username !== currentUsername) return;
+    if (!session || !currentUserIdentities.includes(normalizeIdentity(session.username))) return;
     const sessionSet = sets.find((set) => set.id === session.setId);
     if (!sessionSet || !session.preparedQuestions?.length) {
       writeLocalObject(ACTIVE_ATTEMPT_STORAGE_KEY, null);
@@ -694,7 +759,7 @@ export default function PreTestMockup({
     } else {
       showToast("Resumed active Pre-Test. Timer continued from the original start time.");
     }
-  }, [attemptId, currentUsername, resultScreen, sets]);
+  }, [attemptId, currentUserIdentities, resultScreen, sets]);
 
   useEffect(() => {
     if (!inAttempt) return;
@@ -743,7 +808,21 @@ export default function PreTestMockup({
   }
 
   function startAttempt() {
-    if (!canTakePreTest || !selectedSet.active) return;
+    if (attemptState !== "not_started") {
+      if (startDisabledReason) {
+        console.warn(`[Pre-Test] ${startDisabledReason}`, {
+          username: currentUser?.username,
+          email: currentUser?.email,
+          agentName: currentUser?.agentName,
+          displayName: currentUser?.displayName,
+          role: currentUser?.role,
+          selectedSet: selectedSet.id,
+          attemptState,
+        });
+        showToast(startDisabledReason);
+      }
+      return;
+    }
     if (hasCompletedSelectedSet) {
       showToast("This user has already completed this Pre-Test. Please request Reset Retake before trying again.");
       return;
@@ -1205,7 +1284,7 @@ export default function PreTestMockup({
 
         <section className="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-8">
           <div className="flex flex-wrap items-center gap-3">
-            {canTakePreTest ? (
+            {roleAllowsPreTest ? (
               <TabButton active={workspaceTab === "take"} onClick={() => setWorkspaceTab("take")} label="Take Test" />
             ) : null}
             {canManagePreTest ? (
@@ -1252,14 +1331,14 @@ export default function PreTestMockup({
                     <div className="flex flex-col gap-2">
                       <button
                         type="button"
-                        disabled={!canTakePreTest || !selectedSet.active || hasCompletedSelectedSet}
+                        disabled={attemptState !== "not_started"}
                         onClick={startAttempt}
                         className="h-14 rounded-2xl bg-slate-950 px-8 text-sm font-black text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
-                        {hasCompletedSelectedSet ? "Completed" : "Start Test"}
+                        {attemptState === "submitted" ? "Completed" : attemptState === "in_progress" ? "Resume Test" : "Start Test"}
                       </button>
-                      {hasCompletedSelectedSet ? (
-                        <div className="text-xs font-bold text-amber-700">This set was already completed. Reset Retake is required to test again.</div>
+                      {startDisabledReason ? (
+                        <div className="max-w-sm text-xs font-bold leading-5 text-amber-700">{startDisabledReason}</div>
                       ) : null}
                     </div>
                   </div>
