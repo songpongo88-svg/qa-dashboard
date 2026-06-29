@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode 
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
-import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluationTopic } from "./evaluationStore";
+import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluation, type StoredEvaluationTopic } from "./evaluationStore";
 import {
   RUBRIC_GROUP_LABELS,
   formatRubricDate,
@@ -615,6 +615,47 @@ function formatThaiDate(value: string) {
   return date.toLocaleDateString("en-GB");
 }
 
+function normalizeAgentMatchValue(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function getEvaluationMonthKey(value: unknown) {
+  const inputDate = formatDateInputFromAny(value);
+  if (inputDate) return inputDate.slice(0, 7);
+  const parsed = parseDateTimeValue(value);
+  if (!parsed) return "";
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  return `${yyyy}-${mm}`;
+}
+
+function buildAgentMatchValues(agentName: string, agentOption?: EvaluationAgentOption) {
+  return new Set(
+    [
+      agentName,
+      agentOption?.agentName,
+      agentOption?.displayName,
+      agentOption?.username,
+      agentOption?.email,
+    ]
+      .map(normalizeAgentMatchValue)
+      .filter(Boolean)
+  );
+}
+
+function storedEvaluationMatchesAgent(record: StoredEvaluation, agentValues: Set<string>) {
+  const recordValues = [
+    record.agentName,
+    record.targetDisplayName,
+    record.targetUsername,
+    record.targetEmail,
+  ].map(normalizeAgentMatchValue);
+  return recordValues.some((value) => value && agentValues.has(value));
+}
+
 function scoreOptions(max: number) {
   return Array.from({ length: max + 1 }, (_, index) => index);
 }
@@ -743,6 +784,8 @@ export default function CreateEvaluationMockup({
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
   const [submittedRecords, setSubmittedRecords] = useState<EvaluationRecord[]>([]);
   const [submittedRecordsLoading, setSubmittedRecordsLoading] = useState(false);
+  const [agentQuotaRecords, setAgentQuotaRecords] = useState<StoredEvaluation[]>([]);
+  const [agentQuotaLoading, setAgentQuotaLoading] = useState(false);
   const [submitPreview, setSubmitPreview] = useState<SubmitPreviewState | null>(null);
   const [submitInProgress, setSubmitInProgress] = useState(false);
   const [rawReportRecords, setRawReportRecords] = useState<RawReportRecord[]>([]);
@@ -781,6 +824,65 @@ export default function CreateEvaluationMockup({
     () => availableAgentOptions.find((agent) => agent.agentName === agentName || agent.displayName === agentName),
     [agentName, availableAgentOptions]
   );
+  const selectedMonthKey = useMemo(() => getEvaluationMonthKey(auditDate) || todayInputValue().slice(0, 7), [auditDate]);
+  const selectedAgentCaseCount = useMemo(() => {
+    const agentValues = buildAgentMatchValues(agentName, selectedAgentOption);
+    if (!agentValues.size || !selectedMonthKey) return 0;
+
+    const uniqueCases = new Set<string>();
+    agentQuotaRecords.forEach((record) => {
+      const recordMonthKey = getEvaluationMonthKey(record.auditDate || record.auditTimestamp || record.submittedAt || record.updatedAt || record.createdAt);
+      if (recordMonthKey !== selectedMonthKey) return;
+      if (!storedEvaluationMatchesAgent(record, agentValues)) return;
+      const normalizedCaseId = normalizeCaseId(record.caseId || record.id || record.evaluationKey);
+      if (normalizedCaseId) uniqueCases.add(normalizedCaseId);
+    });
+    return uniqueCases.size;
+  }, [agentName, agentQuotaRecords, selectedAgentOption, selectedMonthKey]);
+  const agentQuotaStatus = useMemo(() => {
+    if (!agentName.trim()) return null;
+    if (agentQuotaLoading) {
+      return {
+        text: "สถานะการประเมิน: กำลังตรวจจำนวนเคสของ Agent นี้",
+        className: "border-slate-200 bg-slate-50 text-slate-600",
+      };
+    }
+    if (selectedAgentCaseCount <= 0) {
+      return {
+        text: "สถานะการประเมิน: ยังไม่พบเคสประเมินของ Agent นี้ในเดือนที่เลือก",
+        className: "border-slate-200 bg-slate-50 text-slate-600",
+      };
+    }
+    if (selectedAgentCaseCount < 10) {
+      return {
+        text: `สถานะการประเมิน: ประเมินแล้ว ${selectedAgentCaseCount}/10 เคส ขาดอีก ${10 - selectedAgentCaseCount} เคส`,
+        className: "border-amber-200 bg-amber-50 text-amber-800",
+      };
+    }
+    return {
+      text: `สถานะการประเมิน: ครบเป้าแล้ว ${selectedAgentCaseCount}/10 เคส`,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }, [agentName, agentQuotaLoading, selectedAgentCaseCount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAgentQuotaLoading(true);
+    fetchStoredEvaluations(500)
+      .then((records) => {
+        if (!cancelled) setAgentQuotaRecords(records);
+      })
+      .catch((error) => {
+        console.warn("Agent evaluation quota could not be loaded", error);
+        if (!cancelled) setAgentQuotaRecords([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAgentQuotaLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setTopicState((current) => {
@@ -1914,9 +2016,15 @@ export default function CreateEvaluationMockup({
                       </option>
                     ))}
                   </select>
-                  <span className="mt-2 block text-xs font-semibold text-slate-500">
-                    แสดงเฉพาะ user ที่ Role ถูกเปิดสิทธิ์ QA Evaluation Target
-                  </span>
+                  {agentQuotaStatus ? (
+                    <span className={`mt-2 block rounded-xl border px-3 py-2 text-xs font-bold leading-relaxed ${agentQuotaStatus.className}`}>
+                      {agentQuotaStatus.text}
+                    </span>
+                  ) : (
+                    <span className="mt-2 block text-xs font-semibold text-slate-500">
+                      เลือก Agent เพื่อดูจำนวนเคสที่ประเมินแล้วในเดือนนี้
+                    </span>
+                  )}
                 </label>
 
                 <div className="grid grid-cols-2 gap-3">

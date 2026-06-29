@@ -3220,6 +3220,10 @@ export default function App() {
     if (value === "pre-test" && !preTestAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
+    if (value === "create-evaluation") {
+      window.open(buildWorkspaceUrl({ tab: "create-evaluation" }), "_blank", "noopener,noreferrer");
+      return;
+    }
     if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       navigateToTab(value);
     }
