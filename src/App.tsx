@@ -208,7 +208,7 @@ const DEFAULT_BUILD_META: BuildMeta = {
 };
 
 const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
-const ACTIVE_TAB_STORAGE_KEY = "qa-dashboard:last-active-tab";
+const ACTIVE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-tab-session";
 const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
@@ -218,6 +218,8 @@ const VALID_APP_TABS = new Set<AppTab>([
   "appeal-requests",
   "appeal-override",
   "task-inbox",
+  "team-chat",
+  "call-history",
   "summary",
   "signature-center",
   "presentation-builder",
@@ -230,14 +232,6 @@ const VALID_APP_TABS = new Set<AppTab>([
 function normalizeAppTab(value: string | null | undefined): AppTab | "" {
   const normalized = String(value || "").trim();
   return VALID_APP_TABS.has(normalized as AppTab) ? (normalized as AppTab) : "";
-}
-
-function getNavigationType() {
-  try {
-    return (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.type || "";
-  } catch {
-    return "";
-  }
 }
 
 function compactCentralStoreText(value: unknown, fallback = "") {
@@ -2785,12 +2779,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>(() => {
     try {
       const initialTab = normalizeAppTab(new URL(window.location.href).searchParams.get("tab"));
-      const storedTab = normalizeAppTab(window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY));
-
-      if (initialTab === "pre-test" && getNavigationType() === "reload") {
-        return storedTab && storedTab !== "pre-test" ? storedTab : "dashboard";
-      }
-
+      const storedTab = normalizeAppTab(window.sessionStorage.getItem(ACTIVE_TAB_SESSION_STORAGE_KEY));
       return initialTab || storedTab || "dashboard";
     } catch {
       return "dashboard";
@@ -2983,6 +2972,7 @@ export default function App() {
     hasRolePermission(currentUser, rolePermissions, "manageRoles") ||
     hasRolePermission(currentUser, rolePermissions, "manageMaintenance")
   );
+  const teamChatAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "useTeamChat") : false;
   const maintenanceBlocked = Boolean(currentUser) && maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const canUseAdminAccountMenu = Boolean(currentUser) && (
     usageLogAllowed || roleAdminAllowed || passwordResetShortcutAllowed
@@ -3041,30 +3031,146 @@ export default function App() {
     return `${window.location.origin}${window.location.pathname}?${nextParams.toString()}`;
   }
 
-  function replaceWorkspaceUrl(params: Record<string, string | undefined> = {}) {
-    const nextUrl = new URL(window.location.href);
-    nextUrl.search = "";
-    Object.entries(params).forEach(([key, value]) => {
-      if (value) nextUrl.searchParams.set(key, value);
-    });
-    window.history.replaceState({}, "", nextUrl.toString());
-  }
+  const getTabBlockedReason = useCallback((tab: AppTab) => {
+    if (!currentUser) return "";
+    if (tab === "coaching" && !coachingAllowed) return "missing viewCoaching permission";
+    if (tab === "usage-log" && !usageLogAllowed) return "missing viewUsageLog permission";
+    if (tab === "appeal-requests" && !appealRequestsAllowed) return "missing reviewAppeals permission";
+    if (tab === "appeal-override" && !appealOverrideAllowed) return "missing appealOverride permission";
+    if (tab === "create-evaluation" && !createEvaluationAllowed) return "missing createEvaluation permission";
+    if (tab === "pre-test" && !preTestAllowed) return "missing pre-test permission";
+    if (tab === "user-roles" && !roleAdminAllowed) return "missing user role admin permission";
+    if ((tab === "team-chat" || tab === "call-history") && !teamChatAllowed) return "missing useTeamChat permission";
+    return "";
+  }, [
+    appealOverrideAllowed,
+    appealRequestsAllowed,
+    coachingAllowed,
+    createEvaluationAllowed,
+    currentUser,
+    preTestAllowed,
+    roleAdminAllowed,
+    teamChatAllowed,
+    usageLogAllowed,
+  ]);
 
-  useEffect(() => {
-    window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+  const applyRouteParams = useCallback((tab: AppTab, params: URLSearchParams) => {
+    const requestedCaseId = params.get("caseId")?.trim() || "";
+    const requestedAgent = params.get("agent")?.trim() || "";
+    const requestedRubricCode = params.get("rubricCode")?.trim() || "";
 
-    const currentUrl = new URL(window.location.href);
-    const urlTab = currentUrl.searchParams.get("tab");
-
-    if (activeTab === "dashboard") {
-      if (urlTab && urlTab !== "dashboard") replaceWorkspaceUrl({});
+    if (tab === "dashboard") {
+      setDashboardSubTab(params.get("subTab") === "case-detail" || requestedCaseId ? "case-detail" : "overview");
+      setSelectedDashboardCaseId(requestedCaseId);
+      if (requestedAgent) setSelectedAgentGlobal(requestedAgent);
       return;
     }
 
-    if (urlTab !== activeTab) {
-      replaceWorkspaceUrl({ tab: activeTab });
+    if (tab === "appeal") {
+      setSelectedMonthGlobal("all");
+      setSelectedAppealCaseId(requestedCaseId);
+      if (requestedAgent) setSelectedAgentGlobal(requestedAgent);
+      return;
     }
+
+    if (tab === "rubric") {
+      setSelectedRubricCode(requestedRubricCode);
+    }
+  }, []);
+
+  const writeWorkspaceRoute = useCallback((
+    tab: AppTab,
+    options: {
+      replace?: boolean;
+      params?: Record<string, string | undefined>;
+    } = {}
+  ) => {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("tab", tab);
+    Object.entries(options.params || {}).forEach(([key, value]) => {
+      if (value) {
+        nextUrl.searchParams.set(key, value);
+      } else {
+        nextUrl.searchParams.delete(key);
+      }
+    });
+
+    const method = options.replace ? "replaceState" : "pushState";
+    window.history[method]({}, "", nextUrl.toString());
+  }, []);
+
+  const navigateToTab = useCallback((
+    tab: AppTab,
+    options: {
+      replace?: boolean;
+      params?: Record<string, string | undefined>;
+    } = {}
+  ) => {
+    const blockedReason = getTabBlockedReason(tab);
+    const nextTab = blockedReason ? "dashboard" : tab;
+
+    if (blockedReason) {
+      console.warn(`Navigation blocked for ${tab}: ${blockedReason}`);
+    }
+
+    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
+    setActiveTab(nextTab);
+
+    const nextParams = new URLSearchParams(window.location.search);
+    nextParams.set("tab", nextTab);
+    Object.entries(options.params || {}).forEach(([key, value]) => {
+      if (value) {
+        nextParams.set(key, value);
+      } else {
+        nextParams.delete(key);
+      }
+    });
+    applyRouteParams(nextTab, nextParams);
+
+    writeWorkspaceRoute(nextTab, {
+      replace: options.replace || Boolean(blockedReason),
+      params: blockedReason ? {} : options.params,
+    });
+  }, [applyRouteParams, getTabBlockedReason, writeWorkspaceRoute]);
+
+  const syncRouteFromLocation = useCallback((options: { replace?: boolean } = {}) => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab =
+      normalizeAppTab(params.get("tab")) ||
+      normalizeAppTab(window.sessionStorage.getItem(ACTIVE_TAB_SESSION_STORAGE_KEY)) ||
+      "dashboard";
+    const blockedReason = getTabBlockedReason(requestedTab);
+    const nextTab = blockedReason ? "dashboard" : requestedTab;
+
+    if (blockedReason) {
+      console.warn(`Navigation redirected from ${requestedTab}: ${blockedReason}`);
+    }
+
+    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
+    setActiveTab(nextTab);
+    applyRouteParams(nextTab, params);
+
+    const urlTab = normalizeAppTab(params.get("tab"));
+    if (options.replace || !urlTab || blockedReason) {
+      writeWorkspaceRoute(nextTab, {
+        replace: true,
+        params: blockedReason ? {} : Object.fromEntries(params.entries()),
+      });
+    }
+  }, [applyRouteParams, getTabBlockedReason, writeWorkspaceRoute]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      syncRouteFromLocation();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [syncRouteFromLocation]);
 
   async function copyShareLink(label: string, url: string) {
     try {
@@ -3105,8 +3211,7 @@ export default function App() {
   const handlePerformanceMenuChange = (value: string) => {
     if (value === "coaching" && !coachingAllowed) return;
     if (value === "dashboard" || value === "summary" || value === "signature-center" || value === "presentation-builder" || value === "coaching") {
-      setActiveTab(value);
-      replaceWorkspaceUrl(value === "dashboard" ? {} : { tab: value });
+      navigateToTab(value);
     }
   };
 
@@ -3115,13 +3220,8 @@ export default function App() {
     if (value === "pre-test" && !preTestAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
-    if (value === "create-evaluation") {
-      window.open(buildWorkspaceUrl({ tab: "create-evaluation" }), "_blank", "noopener,noreferrer");
-      return;
-    }
     if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
-      setActiveTab(value);
-      replaceWorkspaceUrl({ tab: value });
+      navigateToTab(value);
     }
   };
 
@@ -3132,11 +3232,9 @@ export default function App() {
       resetChangePasswordState();
       setShowChangePasswordModal(true);
     } else if (value === "usage-log" && usageLogAllowed) {
-      setActiveTab("usage-log");
-      replaceWorkspaceUrl({ tab: "usage-log" });
+      navigateToTab("usage-log");
     } else if (value === "user-roles" && roleAdminAllowed) {
-      setActiveTab("user-roles");
-      replaceWorkspaceUrl({ tab: "user-roles" });
+      navigateToTab("user-roles");
     } else if (value === "reset-password" && passwordResetShortcutAllowed) {
       resetPasswordModalState();
       setShowResetPasswordModal(true);
@@ -3823,32 +3921,8 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-
-    const params = new URLSearchParams(window.location.search);
-    const requestedTab = params.get("tab");
-    const requestedCaseId = params.get("caseId")?.trim() || "";
-    const requestedAgent = params.get("agent")?.trim() || "";
-    const requestedRubricCode = params.get("rubricCode")?.trim() || "";
-
-    if (requestedTab === "appeal") {
-      setActiveTab("appeal");
-      setSelectedMonthGlobal("all");
-      setSelectedAppealCaseId(requestedCaseId);
-      if (requestedAgent) {
-        setSelectedAgentGlobal(requestedAgent);
-      }
-    } else if (requestedTab === "dashboard") {
-      setActiveTab("dashboard");
-      setDashboardSubTab(params.get("subTab") === "case-detail" || requestedCaseId ? "case-detail" : "overview");
-      setSelectedDashboardCaseId(requestedCaseId);
-      if (requestedAgent) {
-        setSelectedAgentGlobal(requestedAgent);
-      }
-    } else if (requestedTab === "rubric" && rubricAllowed) {
-      setActiveTab("rubric");
-      setSelectedRubricCode(requestedRubricCode);
-    }
-  }, [currentUser, rubricAllowed]);
+    syncRouteFromLocation({ replace: true });
+  }, [currentUser, syncRouteFromLocation]);
 
   useEffect(() => {
     void loadMaintenanceState();
@@ -3869,27 +3943,30 @@ export default function App() {
 
   useEffect(() => {
     if (activeTab === "coaching" && !coachingAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
     if (activeTab === "usage-log" && !usageLogAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
     if (activeTab === "appeal-requests" && !appealRequestsAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
     if (activeTab === "appeal-override" && !appealOverrideAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
     if (activeTab === "create-evaluation" && !createEvaluationAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
     if (activeTab === "pre-test" && !preTestAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
-      setActiveTab("dashboard");
+      navigateToTab("dashboard", { replace: true });
     }
-  }, [activeTab, coachingAllowed, usageLogAllowed, appealRequestsAllowed, appealOverrideAllowed, createEvaluationAllowed, preTestAllowed, roleAdminAllowed]);
+    if ((activeTab === "team-chat" || activeTab === "call-history") && !teamChatAllowed) {
+      navigateToTab("dashboard", { replace: true });
+    }
+  }, [activeTab, appealOverrideAllowed, appealRequestsAllowed, coachingAllowed, createEvaluationAllowed, navigateToTab, preTestAllowed, roleAdminAllowed, teamChatAllowed, usageLogAllowed]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -4076,26 +4153,38 @@ export default function App() {
 
     if (task.type === "appeal") {
       if (appealRequestsAllowed) {
-        setActiveTab("appeal-requests");
+        navigateToTab("appeal-requests");
       }
       return;
     }
 
     if (task.type === "appeal-result") {
-      setActiveTab("dashboard");
       setDashboardSubTab("case-detail");
       setSelectedAppealCaseId("");
       setSelectedDashboardCaseId(task.caseId || "");
       setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
+      navigateToTab("dashboard", {
+        params: {
+          subTab: "case-detail",
+          caseId: task.caseId || "",
+          agent: task.agentName || currentUser?.agentName || "",
+        },
+      });
       return;
     }
 
     if (task.type === "appeal-override") {
-      setActiveTab("dashboard");
       setDashboardSubTab("case-detail");
       setSelectedAppealCaseId("");
       setSelectedDashboardCaseId(task.caseId || "");
       setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
+      navigateToTab("dashboard", {
+        params: {
+          subTab: "case-detail",
+          caseId: task.caseId || "",
+          agent: task.agentName || currentUser?.agentName || "",
+        },
+      });
       return;
     }
 
@@ -4121,24 +4210,30 @@ export default function App() {
     }
 
     if (task.type === "evaluation") {
-      setActiveTab("dashboard");
       setDashboardSubTab(task.caseId ? "case-detail" : "overview");
       setSelectedAppealCaseId("");
       setSelectedDashboardCaseId(task.caseId || "");
       setSelectedAgentGlobal(task.agentName || currentUser?.agentName || "");
+      navigateToTab("dashboard", {
+        params: {
+          subTab: task.caseId ? "case-detail" : "overview",
+          caseId: task.caseId || "",
+          agent: task.agentName || currentUser?.agentName || "",
+        },
+      });
       return;
     }
 
-    setActiveTab("dashboard");
     setDashboardSubTab("overview");
     if (currentUser && !hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) {
       setSelectedAgentGlobal(currentUser.agentName || currentUser.displayName || currentUser.username);
     }
+    navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } });
   };
 
   const openTaskInbox = () => {
     setInboxReturnTitle("");
-    setActiveTab("task-inbox");
+    navigateToTab("task-inbox");
     void loadInboxTasks();
   };
 
@@ -4237,7 +4332,7 @@ export default function App() {
     setUsername("");
     setPassword("");
     setLoginError("");
-    setActiveTab("dashboard");
+    navigateToTab("dashboard", { replace: true, params: { subTab: "", caseId: "", agent: "", rubricCode: "" } });
     setDashboardSubTab("overview");
     loginAgentScopeSeededRef.current = false;
     setSelectedAgentGlobal("");
@@ -4347,8 +4442,7 @@ export default function App() {
       setLoginError("");
       setUsername("");
       setPassword("");
-      setActiveTab("dashboard");
-      setDashboardSubTab("overview");
+      syncRouteFromLocation({ replace: true });
       loginAgentScopeSeededRef.current = false;
       setSelectedAgentGlobal("");
       setSelectedMonthGlobal("all");
@@ -4427,8 +4521,7 @@ export default function App() {
         setLoginError("");
         setUsername("");
         setPassword("");
-        setActiveTab("dashboard");
-        setDashboardSubTab("overview");
+        syncRouteFromLocation({ replace: true });
 
         const matchedPermissions = rolePermissions[nextUser.role] || getDefaultRolePermissions(nextUser.role);
         const initialAgentScope = matchedPermissions.viewAllAgents ? "" : nextUser.agentName;
@@ -4533,8 +4626,7 @@ export default function App() {
     setLoginError("");
     setUsername("");
     setPassword("");
-    setActiveTab("dashboard");
-    setDashboardSubTab("overview");
+    syncRouteFromLocation({ replace: true });
     const matchedPermissions = rolePermissions[matchedUser.role] || getDefaultRolePermissions(matchedUser.role);
     const initialAgentScope = matchedPermissions.viewAllAgents ? "" : matchedUser.agentName;
     loginAgentScopeSeededRef.current = Boolean(initialAgentScope);
@@ -5283,7 +5375,7 @@ export default function App() {
                   <button
                     type="button"
                     title="User & Roles"
-                    onClick={() => setActiveTab("user-roles")}
+                    onClick={() => navigateToTab("user-roles")}
                     className={`group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       activeTab === "user-roles"
                         ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
@@ -5299,7 +5391,7 @@ export default function App() {
                   <button
                     type="button"
                     title="Activity Log"
-                    onClick={() => setActiveTab("usage-log")}
+                    onClick={() => navigateToTab("usage-log")}
                     className={`group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       activeTab === "usage-log"
                         ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
@@ -5396,8 +5488,20 @@ export default function App() {
           <div>
             <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 sm:px-5 lg:px-6 2xl:px-8">
               <div className="flex flex-wrap gap-2">
-                <DashboardSubButton active={dashboardSubTab === "overview"} label="Performance Overview" onClick={() => setDashboardSubTab("overview")} songkranTheme={songkranTheme} />
-                <DashboardSubButton active={dashboardSubTab === "case-detail"} label="Case Detail Workspace" onClick={() => setDashboardSubTab("case-detail")} songkranTheme={songkranTheme} />
+                <DashboardSubButton active={dashboardSubTab === "overview"} label="Performance Overview" onClick={() => {
+                  setDashboardSubTab("overview");
+                  navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } });
+                }} songkranTheme={songkranTheme} />
+                <DashboardSubButton active={dashboardSubTab === "case-detail"} label="Case Detail Workspace" onClick={() => {
+                  setDashboardSubTab("case-detail");
+                  navigateToTab("dashboard", {
+                    params: {
+                      subTab: "case-detail",
+                      caseId: selectedDashboardCaseId || "",
+                      agent: selectedAgentGlobal || "",
+                    },
+                  });
+                }} songkranTheme={songkranTheme} />
               </div>
             </div>
 
@@ -5415,8 +5519,16 @@ export default function App() {
               onSelectedWeekChange={setSelectedWeekGlobal}
               onShareCaseDetail={shareCaseDetailLink}
               onOpenCaseDetail={(caseId, agentName) => {
-                setActiveTab("dashboard");
                 setDashboardSubTab("case-detail");
+                setSelectedDashboardCaseId(caseId || "");
+                if (agentName) setSelectedAgentGlobal(agentName);
+                navigateToTab("dashboard", {
+                  params: {
+                    subTab: "case-detail",
+                    caseId: caseId || "",
+                    agent: agentName || "",
+                  },
+                });
                 logUsageEvent(currentUser, "case_detail_open", {
                   tab: "dashboard",
                   case_id: caseId || "",
@@ -5514,7 +5626,7 @@ export default function App() {
             currentUser={currentUser}
             messages={chatMessages}
             onOpenChat={() => {
-              setActiveTab("team-chat");
+              navigateToTab("team-chat");
               void sendPresence();
               void loadChatData();
             }}
