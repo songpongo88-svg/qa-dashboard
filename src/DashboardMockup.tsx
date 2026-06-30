@@ -3178,6 +3178,7 @@ export default function DashboardMockup({
   onSelectedMonthKeyChange,
   onSelectedWeekChange,
   onOpenCaseDetail,
+  onCloseCaseDetail,
   onOpenAppealCase,
   onGeneratePdf,
   onShareCaseDetail,
@@ -3194,6 +3195,7 @@ export default function DashboardMockup({
   onSelectedMonthKeyChange?: (monthKey: string) => void;
   onSelectedWeekChange?: (week: string) => void;
   onOpenCaseDetail?: (caseId?: string, agentName?: string) => void;
+  onCloseCaseDetail?: () => void;
   onOpenAppealCase?: (caseId: string, agentName?: string) => void;
   onGeneratePdf?: (caseId: string, agentName?: string, pdfType?: string) => void;
   onShareCaseDetail?: (caseId: string, agentName?: string) => void;
@@ -3213,6 +3215,15 @@ export default function DashboardMockup({
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+
+  function closeCaseDetail() {
+    setSlideOverOpen(false);
+    setSelectedCaseKey("");
+    if (externalCaseIdSearch) {
+      setCaseIdSearch("");
+    }
+    onCloseCaseDetail?.();
+  }
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -5374,7 +5385,7 @@ export default function DashboardMockup({
                     open={slideOverOpen}
                     caseItem={activeSelectedCase}
                     currentUser={currentUser}
-                    onClose={() => setSlideOverOpen(false)}
+                    onClose={closeCaseDetail}
                     onOpenAppealCase={onOpenAppealCase}
                     onGeneratePdf={onGeneratePdf}
                     onShareCaseDetail={onShareCaseDetail}

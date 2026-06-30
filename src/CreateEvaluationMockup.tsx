@@ -26,6 +26,11 @@ type EvidenceFile = {
   storedUrl: string;
   uploadStatus?: "pending" | "uploaded" | "failed";
   uploadError?: string;
+  sourceFiles?: File[];
+  sourceFileNames?: string[];
+  sourcePreviewUrls?: string[];
+  sourceFileCount?: number;
+  pageCount?: number;
 };
 
 type AutoGrowTextareaProps = {
@@ -537,6 +542,9 @@ function formatFileSize(size: number) {
 }
 
 function evidenceFileLabel(file: EvidenceFile) {
+  if (file.sourceFileCount && file.sourceFileCount > 1) {
+    return `Combined PDF: ${file.name} (${file.sourceFileCount} files / ${file.pageCount || file.sourceFileCount} pages)`;
+  }
   return `${file.type === "application/pdf" ? "PDF" : "Image"}: ${file.name} (${formatFileSize(file.size)})`;
 }
 
@@ -967,9 +975,15 @@ export default function CreateEvaluationMockup({
 
   const evidencePreviewValue = useMemo(() => {
     const manualUrl = evidenceUrl.trim();
-    const attached = evidenceFiles.map((file) => file.storedUrl || file.previewUrl || `attachment://${caseId || "draft-case"}/${file.name}`);
+    const attached = evidenceFiles
+      .map((file) => {
+        if (file.uploadStatus === "uploaded" && file.storedUrl) return file.storedUrl;
+        if (file.storedUrl && !file.storedUrl.startsWith("blob:")) return file.storedUrl;
+        return "";
+      })
+      .filter(Boolean);
     return [manualUrl, ...attached].filter(Boolean).join("\n");
-  }, [caseId, evidenceFiles, evidenceUrl]);
+  }, [evidenceFiles, evidenceUrl]);
   const evidenceDisplayValue = useMemo(() => {
     const manualLinks = evidenceUrl
       .split(/\n+/)
@@ -1128,7 +1142,10 @@ export default function CreateEvaluationMockup({
     setCaseDescription("");
     setEvidenceUrl("");
     setEvidenceFiles((current) => {
-      current.forEach((file) => URL.revokeObjectURL(file.previewUrl));
+      current.forEach((file) => {
+        URL.revokeObjectURL(file.previewUrl);
+        file.sourcePreviewUrls?.forEach((url) => URL.revokeObjectURL(url));
+      });
       return [];
     });
     setCriticalError(false);
@@ -1626,10 +1643,103 @@ export default function CreateEvaluationMockup({
     setReportMessage(`Exported ${filteredRaw.length} RawData row(s) and ${filteredSubmitted.length} submitted evaluation row(s).`);
   }
 
+  async function createAndUploadEvidencePdfV2(sourceFiles: File[], existingId?: string, existingSourcePreviewUrls?: string[]) {
+    const pdfFiles = sourceFiles.filter((file) => file.type === "application/pdf");
+    const imageFiles = sourceFiles.filter((file) => file.type.startsWith("image/"));
+    if (pdfFiles.length && sourceFiles.length > 1) {
+      setEvidenceUploadMessage("ยังไม่รองรับการรวม PDF กับรูปภาพพร้อมกัน กรุณาแนบรูปหลายไฟล์ หรือแนบ PDF เดี่ยว 1 ไฟล์");
+      return;
+    }
+
+    const pageCount = pdfFiles.length === 1 ? 1 : sourceFiles.length;
+    setEvidenceUploadMessage(`กำลังรวม ${sourceFiles.length} ไฟล์เป็น PDF เดียว ${pageCount} หน้า...`);
+
+    let pdfFile: File;
+    try {
+      pdfFile = pdfFiles.length === 1 ? pdfFiles[0] : await buildImageEvidencePdf(imageFiles, caseId || "draft-case");
+    } catch (error) {
+      setEvidenceUploadMessage(error instanceof Error ? error.message : "รวมไฟล์เป็น PDF ไม่สำเร็จ");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(pdfFile);
+    const sourcePreviewUrls = existingSourcePreviewUrls || sourceFiles.map((file) => URL.createObjectURL(file));
+    const combinedFile: EvidenceFile = {
+      id: existingId || `${pdfFile.name}-${pdfFile.size}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: pdfFile.name,
+      type: "application/pdf",
+      size: pdfFile.size,
+      previewUrl,
+      storedUrl: previewUrl,
+      uploadStatus: "pending",
+      uploadError: "",
+      sourceFiles,
+      sourceFileNames: sourceFiles.map((file) => file.name),
+      sourcePreviewUrls,
+      sourceFileCount: sourceFiles.length,
+      pageCount,
+    };
+
+    setEvidenceFiles((current) => {
+      current.forEach((file) => {
+        URL.revokeObjectURL(file.previewUrl);
+        if (file.id !== combinedFile.id) {
+          file.sourcePreviewUrls?.forEach((url) => URL.revokeObjectURL(url));
+        }
+      });
+      return [combinedFile];
+    });
+    setEvidenceUploadMessage(`กำลังอัปโหลด PDF ${pageCount} หน้าเข้า Google Drive...`);
+
+    try {
+      const url = await uploadEvidenceFileToDrive(pdfFile, caseId || "draft-case");
+      setEvidenceFiles((current) =>
+        current.map((file) =>
+          file.id === combinedFile.id ? { ...file, storedUrl: url, uploadStatus: "uploaded", uploadError: "" } : file
+        )
+      );
+      setEvidenceUploadMessage(`อัปโหลดสำเร็จ: รวม ${sourceFiles.length} ไฟล์เป็น PDF เดียว ${pageCount} หน้า และบันทึกลง Google Drive แล้ว`);
+    } catch (error) {
+      setEvidenceFiles((current) =>
+        current.map((file) =>
+          file.id === combinedFile.id
+            ? { ...file, uploadStatus: "failed", uploadError: error instanceof Error ? error.message : "Upload failed" }
+            : file
+        )
+      );
+      setEvidenceUploadMessage("อัปโหลด PDF เข้า Google Drive ไม่สำเร็จ กรุณาตรวจสอบ API/สิทธิ์โฟลเดอร์ แล้วแนบใหม่อีกครั้ง");
+    }
+  }
+
+  async function handleEvidenceFilesV2(files: FileList | null) {
+    if (!files?.length) return;
+    const acceptedFiles = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type === "application/pdf");
+    if (!acceptedFiles.length) {
+      setEvidenceUploadMessage("รองรับเฉพาะไฟล์ JPG, PNG, WEBP และ PDF");
+      return;
+    }
+    await createAndUploadEvidencePdfV2(acceptedFiles);
+  }
+
+  async function moveEvidenceSourceFile(file: EvidenceFile, sourceIndex: number, direction: -1 | 1) {
+    if (!file.sourceFiles?.length) return;
+    const nextIndex = sourceIndex + direction;
+    if (nextIndex < 0 || nextIndex >= file.sourceFiles.length) return;
+
+    const nextFiles = [...file.sourceFiles];
+    const nextPreviewUrls = [...(file.sourcePreviewUrls || [])];
+    [nextFiles[sourceIndex], nextFiles[nextIndex]] = [nextFiles[nextIndex], nextFiles[sourceIndex]];
+    [nextPreviewUrls[sourceIndex], nextPreviewUrls[nextIndex]] = [nextPreviewUrls[nextIndex], nextPreviewUrls[sourceIndex]];
+    await createAndUploadEvidencePdfV2(nextFiles, file.id, nextPreviewUrls);
+  }
+
   function removeEvidenceFile(id: string) {
     setEvidenceFiles((current) => {
       const target = current.find((file) => file.id === id);
-      if (target) URL.revokeObjectURL(target.previewUrl);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+        target.sourcePreviewUrls?.forEach((url) => URL.revokeObjectURL(url));
+      }
       return current.filter((file) => file.id !== id);
     });
   }
@@ -2105,7 +2215,7 @@ export default function CreateEvaluationMockup({
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="inline-flex cursor-pointer items-center rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-black text-white shadow-[0_12px_24px_rgba(2,132,199,0.22)] transition hover:bg-sky-800">
                       Attach Files
-                      <input data-storage-upload="disabled" type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFiles(event.target.files); event.currentTarget.value = ""; }} />
+                      <input data-storage-upload="disabled" type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(event) => { handleEvidenceFilesV2(event.target.files); event.currentTarget.value = ""; }} />
                     </label>
                     <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP - รวมเป็น PDF หลายหน้า / PDF เดี่ยว - อัปโหลดเป็นลิงก์เดียว</span>
                   </div>
@@ -2120,10 +2230,12 @@ export default function CreateEvaluationMockup({
                       {evidenceFiles.map((file, fileIndex) => {
                         const isImage = file.type.startsWith("image/");
                         const isPdf = file.type === "application/pdf";
+                        const sourceCount = file.sourceFileCount || file.sourceFiles?.length || 1;
+                        const pageCount = file.pageCount || sourceCount;
                         return (
                           <div key={file.id} className="overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-sm">
                             <div className="border-b border-sky-100 bg-sky-50 px-3 py-2 text-[11px] font-black text-sky-800">
-                              Combined PDF Preview
+                              Combined PDF Preview • รวม {sourceCount} ไฟล์เป็น PDF เดียว {pageCount} หน้า
                             </div>
                             {isImage ? (
                               <img src={file.previewUrl} alt={file.name} className="max-h-56 w-full bg-white object-contain" />
@@ -2135,6 +2247,47 @@ export default function CreateEvaluationMockup({
                             <div className="space-y-2 p-3">
                               <div className="truncate text-xs font-black text-slate-900" title={file.name}>{file.name}</div>
                               <div className="text-[11px] font-semibold text-slate-500">{formatFileSize(file.size)}</div>
+                              {file.sourceFileNames?.length ? (
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                                  <div className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                    Source files / PDF page order
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    {file.sourceFileNames.map((sourceName, sourceIndex) => (
+                                      <div key={`${file.id}-${sourceName}-${sourceIndex}`} className="flex gap-2 rounded-xl border border-white bg-white p-2 shadow-sm">
+                                        {file.sourcePreviewUrls?.[sourceIndex] && file.sourceFiles?.[sourceIndex]?.type.startsWith("image/") ? (
+                                          <img src={file.sourcePreviewUrls[sourceIndex]} alt={sourceName} className="h-12 w-12 rounded-lg border border-slate-200 object-contain" />
+                                        ) : (
+                                          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-[10px] font-black text-slate-500">PDF</div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                          <div className="truncate text-[11px] font-black text-slate-800" title={sourceName}>
+                                            {sourceIndex + 1}/{sourceCount} {sourceName}
+                                          </div>
+                                          <div className="mt-1 flex flex-wrap gap-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => moveEvidenceSourceFile(file, sourceIndex, -1)}
+                                              disabled={sourceIndex === 0 || file.uploadStatus === "pending"}
+                                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                              Move Up
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => moveEvidenceSourceFile(file, sourceIndex, 1)}
+                                              disabled={sourceIndex >= sourceCount - 1 || file.uploadStatus === "pending"}
+                                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                            >
+                                              Move Down
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
                               {file.uploadStatus === "pending" ? <div className="text-[11px] font-black text-amber-600">กำลังอัปโหลด PDF เข้า Google Drive...</div> : null}
                               {file.uploadStatus === "uploaded" ? (
                                 <a href={file.storedUrl} target="_blank" rel="noreferrer" className="block truncate text-[11px] font-black text-emerald-700 underline">

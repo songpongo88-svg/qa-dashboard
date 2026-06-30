@@ -5522,6 +5522,17 @@ export default function App() {
               onSelectedMonthKeyChange={setSelectedMonthGlobal}
               onSelectedWeekChange={setSelectedWeekGlobal}
               onShareCaseDetail={shareCaseDetailLink}
+              onCloseCaseDetail={() => {
+                setSelectedDashboardCaseId("");
+                navigateToTab("dashboard", {
+                  replace: true,
+                  params: {
+                    subTab: "case-detail",
+                    caseId: "",
+                    agent: selectedAgentGlobal || "",
+                  },
+                });
+              }}
               onOpenCaseDetail={(caseId, agentName) => {
                 setDashboardSubTab("case-detail");
                 setSelectedDashboardCaseId(caseId || "");
