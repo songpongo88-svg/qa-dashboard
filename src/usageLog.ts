@@ -28,10 +28,20 @@ export type UsageLogEvent = {
 
 const ACCESS_LOG_COLLECTION = "qa_access_logs";
 const DEFAULT_USAGE_LOG_LIMIT = 300;
-const MAX_GENERAL_USAGE_LOG_LIMIT = 1000;
-const MAX_EVENT_USAGE_LOG_LIMIT = 2000;
+const MAX_GENERAL_USAGE_LOG_LIMIT = 5000;
+const MAX_EVENT_USAGE_LOG_LIMIT = 5000;
 const USAGE_LOG_READ_CACHE_TTL_MS = 60 * 1000;
-const ALLOWED_ACCESS_EVENT_TYPES = new Set(["login", "logout"]);
+const ALLOWED_ACCESS_EVENT_TYPES = new Set([
+  "login",
+  "logout",
+  "pretest_attempt_submitted",
+  "pretest_attempt_reset",
+  "pretest_retake_opened",
+  "pretest_set_saved",
+  "pretest_set_deleted",
+  "pretest_history_cleared",
+  "pretest_result_pdf_downloaded",
+]);
 
 type UsageLogFetchOptions = number | {
   limit?: number;

@@ -561,6 +561,46 @@ function normalizeResult(raw: unknown): PreTestResult | null {
   };
 }
 
+function isResultVisibleByBaseline(result: PreTestResult, showAllHistorical: boolean) {
+  if (showAllHistorical) return true;
+  const baselineTime = new Date(RESULTS_HISTORY_BASELINE_AT).getTime();
+  const submittedTime = new Date(result.submittedAt).getTime();
+  return Number.isNaN(submittedTime) || submittedTime >= baselineTime;
+}
+
+function getCentralResultsFromLogs(logs: UsageLogEvent[]) {
+  const map = new Map<string, PreTestResult>();
+  [...logs].reverse().forEach((log) => {
+    if (log.event_type !== "pretest_attempt_submitted") return;
+    const result = normalizeResult(log.details?.result);
+    if (result) map.set(result.id, result);
+  });
+  return [...map.values()];
+}
+
+function countHiddenByBaseline(results: PreTestResult[]) {
+  return results.filter((result) => !isResultVisibleByBaseline(result, false)).length;
+}
+
+function isImportableResult(result: PreTestResult) {
+  return Boolean(
+    result.id &&
+    result.setId &&
+    result.setCode &&
+    result.setTitle &&
+    result.username &&
+    result.submittedAt &&
+    Number.isFinite(result.score) &&
+    Number.isFinite(result.total) &&
+    result.total > 0 &&
+    Number.isFinite(result.passScore) &&
+    result.answers &&
+    typeof result.answers === "object" &&
+    Array.isArray(result.questions) &&
+    result.questions.length > 0
+  );
+}
+
 function normalizeRetakeGrant(raw: unknown): PreTestRetakeGrant | null {
   const item = raw as Partial<PreTestRetakeGrant>;
   if (!item || typeof item !== "object" || !item.setId || !item.username) return null;
@@ -607,12 +647,10 @@ function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
   return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[]) {
+function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[], showAllHistorical = false) {
   const map = new Map<string, PreTestResult>();
-  const baselineTime = new Date(RESULTS_HISTORY_BASELINE_AT).getTime();
   const isVisibleResult = (result: PreTestResult) => {
-    const submittedTime = new Date(result.submittedAt).getTime();
-    return Number.isNaN(submittedTime) || submittedTime >= baselineTime;
+    return isResultVisibleByBaseline(result, showAllHistorical);
   };
 
   localResults.filter(isVisibleResult).forEach((result) => map.set(result.id, result));
@@ -685,6 +723,12 @@ export default function PreTestMockup({
   const [historySearch, setHistorySearch] = useState("");
   const [historyUserFilter, setHistoryUserFilter] = useState("all");
   const [historySetFilter, setHistorySetFilter] = useState("all");
+  const [showAllHistoricalResults, setShowAllHistoricalResults] = useState(false);
+  const [centralResultsCount, setCentralResultsCount] = useState(0);
+  const [hiddenHistoricalCount, setHiddenHistoricalCount] = useState(0);
+  const [lastCentralSyncAt, setLastCentralSyncAt] = useState("");
+  const [syncWarning, setSyncWarning] = useState("");
+  const [historyStatusMessage, setHistoryStatusMessage] = useState("");
   const [previewSetId, setPreviewSetId] = useState(DEFAULT_SET_ID);
   const [switchWarningCount, setSwitchWarningCount] = useState(0);
 
@@ -786,8 +830,11 @@ export default function PreTestMockup({
       ].some((value) => String(value || "").toLowerCase().includes(search));
     });
   }, [historySearch, historySetFilter, historyUserFilter, results]);
+  const localResultsCount = useMemo(() => {
+    return readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean).length;
+  }, [results]);
 
-  const refreshCentralData = useCallback(async () => {
+  const refreshCentralData = useCallback(async (showMessage = false) => {
     setSyncing(true);
     try {
       const logs = await fetchUsageLogsByEventTypes([
@@ -797,26 +844,42 @@ export default function PreTestMockup({
         "pretest_attempt_reset",
         "pretest_retake_opened",
         "pretest_history_cleared",
-      ], 1500);
+      ], { limit: 5000, cacheTtlMs: 0, forceRefresh: true });
       const localSets = readLocal<PreTestSet>(SETS_STORAGE_KEY).map(normalizeSet).filter(Boolean) as PreTestSet[];
       const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[];
       const localGrants = readLocal<PreTestRetakeGrant>(RETAKE_GRANTS_STORAGE_KEY).map(normalizeRetakeGrant).filter(Boolean) as PreTestRetakeGrant[];
       const nextSets = mergeSets(localSets, logs);
-      const nextResults = mergeResults(localResults, logs);
+      const beforeIds = new Set(localResults.map((item) => item.id));
+      const centralResults = getCentralResultsFromLogs(logs);
+      const nextResults = mergeResults(localResults, logs, showAllHistoricalResults);
+      const allResults = mergeResults(localResults, logs, true);
       const nextGrants = mergeRetakeGrants(localGrants, logs);
+      const recoveredCount = nextResults.filter((item) => !beforeIds.has(item.id)).length;
       setSets(nextSets);
       setResults(nextResults);
       setRetakeGrants(nextGrants);
+      setCentralResultsCount(centralResults.length);
+      setHiddenHistoricalCount(countHiddenByBaseline(allResults));
+      setLastCentralSyncAt(new Date().toISOString());
+      setSyncWarning("");
+      if (showMessage) {
+        const message = recoveredCount
+          ? `ดึงประวัติย้อนหลังสำเร็จ ${recoveredCount} รายการ`
+          : "ไม่พบประวัติ Pre-Test เพิ่มเติมใน central log";
+        setHistoryStatusMessage(message);
+        showToast(message);
+      }
       writeLocal(SETS_STORAGE_KEY, nextSets);
-      writeLocal(RESULTS_STORAGE_KEY, nextResults);
+      writeLocal(RESULTS_STORAGE_KEY, allResults);
       writeLocal(RETAKE_GRANTS_STORAGE_KEY, nextGrants);
     } catch (error) {
       console.warn("[Pre-Test] Central sync failed. Local storage fallback is still available.", error);
+      setSyncWarning("เชื่อมต่อ central log ไม่สำเร็จ กรุณาลอง Refresh Central Results อีกครั้ง");
       throw error;
     } finally {
       setSyncing(false);
     }
-  }, []);
+  }, [showAllHistoricalResults]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1038,13 +1101,122 @@ export default function PreTestMockup({
     setCurrentQuestionIndex(0);
     setRemainingSeconds(0);
     try {
-      await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
+      const savedCentrally = await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
         tab: "pre-test",
         details: { result, reason },
       });
+      if (!savedCentrally) {
+        setSyncWarning("ผลถูกบันทึกในเครื่องนี้แล้ว แต่ยังไม่ sync เข้า central log กรุณากด Sync My Pre-Test Result");
+        showToast("ผลถูกบันทึกในเครื่องนี้แล้ว แต่ยังไม่ sync เข้า central log กรุณากด Sync My Pre-Test Result");
+        return;
+      }
       await refreshCentralData();
     } catch (error) {
       console.warn("[Pre-Test] Central submit sync failed. Result was kept in local storage.", error);
+      setSyncWarning("ผลถูกบันทึกในเครื่องนี้แล้ว แต่ยังไม่ sync เข้า central log กรุณากด Sync My Pre-Test Result");
+      showToast("ผลถูกบันทึกในเครื่องนี้แล้ว แต่ยังไม่ sync เข้า central log กรุณากด Sync My Pre-Test Result");
+    }
+  }
+
+  async function syncMyPreTestResults() {
+    if (!currentUser) {
+      showToast("กรุณา login ก่อน sync ผล Pre-Test");
+      return;
+    }
+    setSyncing(true);
+    try {
+      const logs = await fetchUsageLogsByEventTypes(["pretest_attempt_submitted"], { limit: 5000, cacheTtlMs: 0, forceRefresh: true });
+      const centralIds = new Set(getCentralResultsFromLogs(logs).map((item) => item.id));
+      const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY)
+        .map(normalizeResult)
+        .filter(Boolean) as PreTestResult[];
+      const myResults = localResults.filter((item) => hasMatchingIdentity(currentUserIdentities, item));
+      let syncedCount = 0;
+      for (const result of myResults) {
+        if (centralIds.has(result.id)) continue;
+        const saved = await logUsageEvent(currentUser, "pretest_attempt_submitted", {
+          tab: "pre-test",
+          details: { result, reason: "manual-local-sync" },
+        });
+        if (!saved) throw new Error("central-log-write-failed");
+        centralIds.add(result.id);
+        syncedCount += 1;
+      }
+      await refreshCentralData();
+      const message = syncedCount
+        ? `Sync My Pre-Test Result สำเร็จ ${syncedCount} รายการ`
+        : "ผล Pre-Test ของคุณ sync เข้า central log แล้ว ไม่มีรายการใหม่";
+      setSyncWarning("");
+      showToast(message);
+    } catch (error) {
+      console.warn("[Pre-Test] Manual local result sync failed.", error);
+      setSyncWarning("Sync My Pre-Test Result ไม่สำเร็จ กรุณาลองใหม่ หรือ Export JSON ส่งให้ QA");
+      showToast("Sync My Pre-Test Result ไม่สำเร็จ กรุณาลองใหม่ หรือ Export JSON ส่งให้ QA");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function exportMyPreTestResultJson() {
+    const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY)
+      .map(normalizeResult)
+      .filter(Boolean) as PreTestResult[];
+    const myResults = localResults.filter((item) => hasMatchingIdentity(currentUserIdentities, item));
+    if (!myResults.length) {
+      showToast("ไม่พบผล Pre-Test ในเครื่องนี้สำหรับ export");
+      return;
+    }
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), results: myResults }, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `my_pretest_results_${currentUser?.username || "user"}_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Export Pre-Test JSON สำเร็จ ${myResults.length} รายการ`);
+  }
+
+  async function importPreTestResultJson(file: File | null) {
+    if (!file) return;
+    setSyncing(true);
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      const rawResults = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.results) ? parsed.results : [parsed?.result || parsed];
+      const importedResults = (rawResults.map(normalizeResult).filter(Boolean) as PreTestResult[]).filter(isImportableResult);
+      if (!importedResults.length) {
+        showToast("Import ไม่สำเร็จ: JSON ต้องมี result พร้อม answers และ questions ครบ");
+        return;
+      }
+      const logs = await fetchUsageLogsByEventTypes(["pretest_attempt_submitted"], { limit: 5000, cacheTtlMs: 0, forceRefresh: true });
+      const centralIds = new Set(getCentralResultsFromLogs(logs).map((item) => item.id));
+      const existingIds = new Set(results.map((item) => item.id));
+      const acceptedResults = importedResults.filter((item) => !existingIds.has(item.id) && !centralIds.has(item.id));
+      for (const result of acceptedResults) {
+        const saved = await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
+          tab: "pre-test",
+          details: { result, reason: "qa-json-import", importedBy: currentUser?.displayName || currentUser?.username || "" },
+        });
+        if (!saved) throw new Error("central-log-write-failed");
+      }
+      const nextResults = [...acceptedResults, ...results].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+      setResults(nextResults);
+      writeLocal(RESULTS_STORAGE_KEY, nextResults);
+      await refreshCentralData();
+      const message = acceptedResults.length
+        ? `Import Pre-Test Result JSON สำเร็จ ${acceptedResults.length} รายการ`
+        : "ไม่ได้นำเข้าเพิ่ม เพราะ result.id ซ้ำกับประวัติเดิม";
+      setHistoryStatusMessage(message);
+      showToast(message);
+    } catch (error) {
+      console.warn("[Pre-Test] Import result JSON failed.", error);
+      showToast("Import Pre-Test Result JSON ไม่สำเร็จ กรุณาตรวจไฟล์อีกครั้ง");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -1656,6 +1828,23 @@ export default function PreTestMockup({
                   >
                     Back to Pre-Test
                   </button>
+                  <div className="mt-4 flex flex-wrap justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void syncMyPreTestResults()}
+                      disabled={syncing}
+                      className="rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-sm font-black text-emerald-700 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Sync My Pre-Test Result
+                    </button>
+                    <button
+                      type="button"
+                      onClick={exportMyPreTestResultJson}
+                      className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:border-slate-400"
+                    >
+                      Export My Result JSON
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </main>
@@ -1672,6 +1861,28 @@ export default function PreTestMockup({
                   <InfoRow label="Pass Criteria" value={`${selectedSet.passScore}/${selectedSet.questions.length} question(s)`} />
                   <InfoRow label="Time Limit" value={formatDuration(selectedSet.timeLimitSeconds)} />
                   <InfoRow label="Current User" value={currentUser?.displayName || "Guest"} />
+                  {syncWarning ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black leading-5 text-amber-700">
+                      {syncWarning}
+                    </div>
+                  ) : null}
+                  <div className="grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void syncMyPreTestResults()}
+                      disabled={syncing}
+                      className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Sync My Pre-Test Result
+                    </button>
+                    <button
+                      type="button"
+                      onClick={exportMyPreTestResultJson}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 transition hover:border-slate-400"
+                    >
+                      Export My Result JSON
+                    </button>
+                  </div>
                 </div>
               </div>
             </aside>
@@ -1935,7 +2146,7 @@ export default function PreTestMockup({
                     Filter by user or question set, then generate a PDF report with questions, selected answers, and pass/fail result.
                   </p>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-[1fr_260px_300px_auto_auto]">
+                <div className="grid gap-3 lg:grid-cols-[1fr_230px_270px_auto_auto_auto]">
                   <input
                     value={historySearch}
                     onChange={(event) => setHistorySearch(event.target.value)}
@@ -1962,6 +2173,26 @@ export default function PreTestMockup({
                       <option key={setId} value={setId}>{title}</option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => void refreshCentralData(true)}
+                    disabled={syncing}
+                    className="h-12 rounded-2xl border border-white/15 bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Refresh Central Results
+                  </button>
+                  <label className="flex h-12 cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
+                    Import Result JSON
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      className="hidden"
+                      onChange={(event) => {
+                        void importPreTestResultJson(event.target.files?.[0] || null);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
                   {canExportPreTestResults ? (
                     <>
                       <button type="button" onClick={generateResultsPdf} className="h-12 rounded-2xl bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
@@ -1974,8 +2205,30 @@ export default function PreTestMockup({
                   ) : null}
                 </div>
               </div>
-              <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-bold text-slate-500">
-                Showing {historyRows.length} result(s). Retake keeps previous attempts and opens the next attempt number.
+              <div className="space-y-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-bold text-slate-500">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span>Showing {historyRows.length} result(s). Retake keeps previous attempts and opens the next attempt number.</span>
+                  <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={showAllHistoricalResults}
+                      onChange={(event) => setShowAllHistoricalResults(event.target.checked)}
+                    />
+                    Show all historical results
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px]">
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Local results: {localResultsCount}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Central results: {centralResultsCount}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Last sync: {lastCentralSyncAt ? formatDateTime(lastCentralSyncAt) : "-"}</span>
+                  {!showAllHistoricalResults && hiddenHistoricalCount ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                      {hiddenHistoricalCount} result(s) hidden by baseline. Turn on Show all historical results to view them.
+                    </span>
+                  ) : null}
+                  {syncWarning ? <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-700">{syncWarning}</span> : null}
+                  {historyStatusMessage ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{historyStatusMessage}</span> : null}
+                </div>
               </div>
               <div className="divide-y divide-slate-100">
                 {historyRows.length ? historyRows.map((item) => {
