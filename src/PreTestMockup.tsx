@@ -2210,7 +2210,7 @@ export default function PreTestMockup({
                     Filter by user or question set, then generate a PDF report with questions, selected answers, and pass/fail result.
                   </p>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-[1fr_220px_250px_auto_auto_auto_auto]">
+                <div className="grid gap-3 lg:grid-cols-[1fr_220px_250px_auto_auto_auto_auto_auto]">
                   <input
                     value={historySearch}
                     onChange={(event) => setHistorySearch(event.target.value)}
@@ -2244,6 +2244,14 @@ export default function PreTestMockup({
                     className="h-12 rounded-2xl border border-white/15 bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Refresh Central Results
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void syncMyPreTestResults()}
+                    disabled={syncing || !currentUser || !localResultsCount}
+                    className="h-12 rounded-2xl border border-white/15 bg-emerald-500 px-5 text-sm font-black text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Sync My Result
                   </button>
                   <button
                     type="button"
@@ -2312,6 +2320,11 @@ export default function PreTestMockup({
                   {filtersActive ? (
                     <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
                       Filters are active. Some matched central results may be hidden until you clear filters.
+                    </span>
+                  ) : null}
+                  {localResultsCount > 0 && centralLogsFetchedCount === 0 ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                      This device has local Pre-Test results that are not in central log yet. Click Sync My Result.
                     </span>
                   ) : null}
                   {syncWarning ? <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-700">{syncWarning}</span> : null}
