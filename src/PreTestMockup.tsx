@@ -601,6 +601,7 @@ function extractPreTestResultFromLog(log: UsageLogEvent) {
 
 function analyzeCentralResultLogs(logs: UsageLogEvent[]) {
   const map = new Map<string, PreTestResult>();
+  const latestClearTime = getLatestPreTestHistoryClearTime(logs);
   let parsedCount = 0;
   let invalidCount = 0;
   const pathCounts = new Map<string, number>();
@@ -613,6 +614,7 @@ function analyzeCentralResultLogs(logs: UsageLogEvent[]) {
     }
     parsedCount += 1;
     pathCounts.set(extracted.path, (pathCounts.get(extracted.path) || 0) + 1);
+    if (!isResultAfterHistoryClear(extracted.result, latestClearTime)) return;
     map.set(extracted.result.id, extracted.result);
   });
   const submittedLogCount = logs.filter((log) => log.event_type === "pretest_attempt_submitted").length;
@@ -634,10 +636,26 @@ function getResultFromPreTestLog(log: UsageLogEvent) {
   return extracted?.result || null;
 }
 
+function getLatestPreTestHistoryClearTime(logs: UsageLogEvent[]) {
+  return logs.reduce((latest, log) => {
+    if (log.event_type !== "pretest_history_cleared") return latest;
+    const rawTime = String(log.details?.clearedAt || log.created_at || "");
+    const time = new Date(rawTime).getTime();
+    return Number.isFinite(time) ? Math.max(latest, time) : latest;
+  }, 0);
+}
+
+function isResultAfterHistoryClear(result: PreTestResult, latestClearTime: number) {
+  if (!latestClearTime) return true;
+  const submittedTime = new Date(result.submittedAt).getTime();
+  return Number.isFinite(submittedTime) && submittedTime > latestClearTime;
+}
+
 function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[], showAllHistorical = false) {
   const map = new Map<string, PreTestResult>();
+  const latestClearTime = getLatestPreTestHistoryClearTime(logs);
   const isVisibleResult = (result: PreTestResult) => {
-    return isResultVisibleByBaseline(result, showAllHistorical);
+    return isResultVisibleByBaseline(result, showAllHistorical) && isResultAfterHistoryClear(result, latestClearTime);
   };
 
   localResults.filter(isVisibleResult).forEach((result) => map.set(result.id, result));
@@ -1190,11 +1208,14 @@ export default function PreTestMockup({
     setSyncing(true);
     try {
       const logs = await fetchUsageLogsByEventTypes(["pretest_attempt_submitted"], { limit: 5000, cacheTtlMs: 0, forceRefresh: true });
+      const latestClearTime = getLatestPreTestHistoryClearTime(logs);
       const centralIds = new Set(getCentralResultsFromLogs(logs).map((item) => item.id));
       const localResults = readLocal<PreTestResult>(RESULTS_STORAGE_KEY)
         .map(normalizeResult)
         .filter(Boolean) as PreTestResult[];
-      const myResults = localResults.filter((item) => hasMatchingIdentity(currentUserIdentities, item));
+      const myLocalResults = localResults.filter((item) => hasMatchingIdentity(currentUserIdentities, item));
+      const myResults = myLocalResults.filter((item) => isResultAfterHistoryClear(item, latestClearTime));
+      const skippedClearedCount = myLocalResults.length - myResults.length;
       let syncedCount = 0;
       for (const result of myResults) {
         if (centralIds.has(result.id)) continue;
@@ -1209,7 +1230,9 @@ export default function PreTestMockup({
       await refreshCentralData();
       const message = syncedCount
         ? `Sync My Pre-Test Result สำเร็จ ${syncedCount} รายการ`
-        : "ผล Pre-Test ของคุณ sync เข้า central log แล้ว ไม่มีรายการใหม่";
+        : skippedClearedCount
+          ? "ไม่มีผลใหม่ให้ Sync เพราะผลเดิมถูกล้างประวัติไปแล้ว"
+          : "ผล Pre-Test ของคุณ sync เข้า central log แล้ว ไม่มีรายการใหม่";
       setSyncWarning("");
       showToast(message);
     } catch (error) {
@@ -1257,9 +1280,10 @@ export default function PreTestMockup({
         return;
       }
       const logs = await fetchUsageLogsByEventTypes(["pretest_attempt_submitted"], { limit: 5000, cacheTtlMs: 0, forceRefresh: true });
+      const latestClearTime = getLatestPreTestHistoryClearTime(logs);
       const centralIds = new Set(getCentralResultsFromLogs(logs).map((item) => item.id));
       const existingIds = new Set(results.map((item) => item.id));
-      const acceptedResults = importedResults.filter((item) => !existingIds.has(item.id) && !centralIds.has(item.id));
+      const acceptedResults = importedResults.filter((item) => isResultAfterHistoryClear(item, latestClearTime) && !existingIds.has(item.id) && !centralIds.has(item.id));
       for (const result of acceptedResults) {
         const saved = await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
           tab: "pre-test",
@@ -1279,6 +1303,39 @@ export default function PreTestMockup({
     } catch (error) {
       console.warn("[Pre-Test] Import result JSON failed.", error);
       showToast("Import Pre-Test Result JSON ไม่สำเร็จ กรุณาตรวจไฟล์อีกครั้ง");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function clearAllPreTestHistory() {
+    if (!canViewPreTestResults && !canManagePreTest) {
+      showToast("Only QA/Supervisor can clear Pre-Test history.");
+      return;
+    }
+    const ok = window.confirm("Clear all Pre-Test Results History? Old local results submitted before this reset will not sync back.");
+    if (!ok) return;
+    setSyncing(true);
+    try {
+      const clearedAt = new Date().toISOString();
+      const saved = await logUsageEvent(currentUser || null, "pretest_history_cleared", {
+        tab: "pre-test",
+        details: {
+          clearedAt,
+          clearedBy: currentUser?.displayName || currentUser?.username || "System",
+          reason: "qa-reset-results-history",
+        },
+      });
+      if (!saved) throw new Error("central-log-write-failed");
+      setResults([]);
+      writeLocal(RESULTS_STORAGE_KEY, []);
+      setResultScreen(null);
+      setHistoryStatusMessage("Pre-Test Results History cleared. Old local results before this reset will not sync back.");
+      showToast("Pre-Test Results History cleared.");
+      await refreshCentralData();
+    } catch (error) {
+      console.warn("[Pre-Test] Clear results history failed.", error);
+      showToast("Clear Pre-Test Results History failed. Please try again.");
     } finally {
       setSyncing(false);
     }
@@ -2210,7 +2267,7 @@ export default function PreTestMockup({
                     Filter by user or question set, then generate a PDF report with questions, selected answers, and pass/fail result.
                   </p>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-[1fr_220px_250px_auto_auto_auto_auto_auto]">
+                <div className="grid gap-3 lg:grid-cols-[1fr_220px_250px_auto_auto_auto_auto_auto_auto]">
                   <input
                     value={historySearch}
                     onChange={(event) => setHistorySearch(event.target.value)}
@@ -2277,6 +2334,14 @@ export default function PreTestMockup({
                       }}
                     />
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => void clearAllPreTestHistory()}
+                    disabled={syncing}
+                    className="h-12 rounded-2xl border border-rose-200 bg-rose-50 px-5 text-sm font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Clear History
+                  </button>
                   {canExportPreTestResults ? (
                     <>
                       <button type="button" onClick={generateResultsPdf} className="h-12 rounded-2xl bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
