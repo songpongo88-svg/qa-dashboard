@@ -568,14 +568,92 @@ function isResultVisibleByBaseline(result: PreTestResult, showAllHistorical: boo
   return Number.isNaN(submittedTime) || submittedTime >= baselineTime;
 }
 
-function getCentralResultsFromLogs(logs: UsageLogEvent[]) {
+function getPathValue(source: unknown, path: string) {
+  return path.split(".").reduce<unknown>((value, key) => {
+    if (!value || typeof value !== "object") return undefined;
+    return (value as Record<string, unknown>)[key];
+  }, source);
+}
+
+const PRE_TEST_RESULT_LOG_PATHS = [
+  "details.result",
+  "details.details.result",
+  "details.pretestResult",
+  "details.payload.result",
+  "result",
+  "payload.result",
+];
+
+function extractPreTestResultFromLog(log: UsageLogEvent) {
+  for (const path of PRE_TEST_RESULT_LOG_PATHS) {
+    const result = normalizeResult(getPathValue(log, path));
+    if (result) return { result, path };
+  }
+  console.warn("[Pre-Test] pretest_attempt_submitted log found but result could not be parsed", {
+    logId: log.id,
+    createdAt: log.created_at,
+    username: log.username,
+    triedPaths: PRE_TEST_RESULT_LOG_PATHS,
+    detailsKeys: log.details && typeof log.details === "object" ? Object.keys(log.details) : [],
+  });
+  return null;
+}
+
+function analyzeCentralResultLogs(logs: UsageLogEvent[]) {
   const map = new Map<string, PreTestResult>();
+  let parsedCount = 0;
+  let invalidCount = 0;
+  const pathCounts = new Map<string, number>();
   [...logs].reverse().forEach((log) => {
     if (log.event_type !== "pretest_attempt_submitted") return;
-    const result = normalizeResult(log.details?.result);
-    if (result) map.set(result.id, result);
+    const extracted = extractPreTestResultFromLog(log);
+    if (!extracted) {
+      invalidCount += 1;
+      return;
+    }
+    parsedCount += 1;
+    pathCounts.set(extracted.path, (pathCounts.get(extracted.path) || 0) + 1);
+    map.set(extracted.result.id, extracted.result);
   });
-  return [...map.values()];
+  const submittedLogCount = logs.filter((log) => log.event_type === "pretest_attempt_submitted").length;
+  return {
+    results: [...map.values()],
+    submittedLogCount,
+    parsedCount,
+    invalidCount,
+    pathSummary: [...pathCounts.entries()].map(([path, count]) => `${path}:${count}`).join(", ") || "-",
+  };
+}
+
+function getCentralResultsFromLogs(logs: UsageLogEvent[]) {
+  return analyzeCentralResultLogs(logs).results;
+}
+
+function getResultFromPreTestLog(log: UsageLogEvent) {
+  const extracted = extractPreTestResultFromLog(log);
+  return extracted?.result || null;
+}
+
+function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[], showAllHistorical = false) {
+  const map = new Map<string, PreTestResult>();
+  const isVisibleResult = (result: PreTestResult) => {
+    return isResultVisibleByBaseline(result, showAllHistorical);
+  };
+
+  localResults.filter(isVisibleResult).forEach((result) => map.set(result.id, result));
+  [...logs].reverse().forEach((log) => {
+    if (log.event_type === "pretest_attempt_submitted") {
+      const result = getResultFromPreTestLog(log);
+      if (result && isVisibleResult(result)) map.set(result.id, result);
+    }
+    if (log.event_type === "pretest_history_cleared") {
+      map.clear();
+    }
+  });
+  return [...map.values()].sort((a, b) => {
+    const submittedDiff = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+    return submittedDiff || b.attemptNo - a.attemptNo;
+  });
 }
 
 function countHiddenByBaseline(results: PreTestResult[]) {
@@ -647,28 +725,6 @@ function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
   return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function mergeResults(localResults: PreTestResult[], logs: UsageLogEvent[], showAllHistorical = false) {
-  const map = new Map<string, PreTestResult>();
-  const isVisibleResult = (result: PreTestResult) => {
-    return isResultVisibleByBaseline(result, showAllHistorical);
-  };
-
-  localResults.filter(isVisibleResult).forEach((result) => map.set(result.id, result));
-  [...logs].reverse().forEach((log) => {
-    if (log.event_type === "pretest_attempt_submitted") {
-      const result = normalizeResult(log.details?.result);
-      if (result && isVisibleResult(result)) map.set(result.id, result);
-    }
-    if (log.event_type === "pretest_history_cleared") {
-      map.clear();
-    }
-  });
-  return [...map.values()].sort((a, b) => {
-    const submittedDiff = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
-    return submittedDiff || b.attemptNo - a.attemptNo;
-  });
-}
-
 function mergeRetakeGrants(localGrants: PreTestRetakeGrant[], logs: UsageLogEvent[]) {
   const map = new Map<string, PreTestRetakeGrant>();
   localGrants.forEach((grant) => map.set(grant.id, grant));
@@ -725,6 +781,10 @@ export default function PreTestMockup({
   const [historySetFilter, setHistorySetFilter] = useState("all");
   const [showAllHistoricalResults, setShowAllHistoricalResults] = useState(false);
   const [centralResultsCount, setCentralResultsCount] = useState(0);
+  const [centralLogsFetchedCount, setCentralLogsFetchedCount] = useState(0);
+  const [centralResultsParsedCount, setCentralResultsParsedCount] = useState(0);
+  const [centralInvalidLogsCount, setCentralInvalidLogsCount] = useState(0);
+  const [centralResultPathSummary, setCentralResultPathSummary] = useState("-");
   const [hiddenHistoricalCount, setHiddenHistoricalCount] = useState(0);
   const [lastCentralSyncAt, setLastCentralSyncAt] = useState("");
   const [syncWarning, setSyncWarning] = useState("");
@@ -812,7 +872,7 @@ export default function PreTestMockup({
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [results]);
   const historyRows = useMemo(() => {
-    const search = historySearch.trim().toLowerCase();
+    const search = normalizeIdentity(historySearch);
     return results.filter((item) => {
       if (historyUserFilter !== "all" && item.username !== historyUserFilter) return false;
       if (historySetFilter !== "all" && item.setId !== historySetFilter) return false;
@@ -823,13 +883,15 @@ export default function PreTestMockup({
         item.displayName,
         item.username,
         item.email,
+        normalizeEmailLocalPart(item.email),
         item.agentName,
         item.role,
         item.attemptNo,
         item.result,
-      ].some((value) => String(value || "").toLowerCase().includes(search));
+      ].some((value) => normalizeIdentity(value).includes(search));
     });
   }, [historySearch, historySetFilter, historyUserFilter, results]);
+  const filtersActive = Boolean(historySearch.trim() || historyUserFilter !== "all" || historySetFilter !== "all");
   const localResultsCount = useMemo(() => {
     return readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean).length;
   }, [results]);
@@ -850,7 +912,7 @@ export default function PreTestMockup({
       const localGrants = readLocal<PreTestRetakeGrant>(RETAKE_GRANTS_STORAGE_KEY).map(normalizeRetakeGrant).filter(Boolean) as PreTestRetakeGrant[];
       const nextSets = mergeSets(localSets, logs);
       const beforeIds = new Set(localResults.map((item) => item.id));
-      const centralResults = getCentralResultsFromLogs(logs);
+      const centralStats = analyzeCentralResultLogs(logs);
       const nextResults = mergeResults(localResults, logs, showAllHistoricalResults);
       const allResults = mergeResults(localResults, logs, true);
       const nextGrants = mergeRetakeGrants(localGrants, logs);
@@ -858,14 +920,16 @@ export default function PreTestMockup({
       setSets(nextSets);
       setResults(nextResults);
       setRetakeGrants(nextGrants);
-      setCentralResultsCount(centralResults.length);
+      setCentralResultsCount(centralStats.results.length);
+      setCentralLogsFetchedCount(centralStats.submittedLogCount);
+      setCentralResultsParsedCount(centralStats.parsedCount);
+      setCentralInvalidLogsCount(centralStats.invalidCount);
+      setCentralResultPathSummary(centralStats.pathSummary);
       setHiddenHistoricalCount(countHiddenByBaseline(allResults));
       setLastCentralSyncAt(new Date().toISOString());
-      setSyncWarning("");
+      setSyncWarning(centralStats.invalidCount ? `Found ${centralStats.invalidCount} Pre-Test log(s) that could not be parsed. Check console warning for log id.` : "");
       if (showMessage) {
-        const message = recoveredCount
-          ? `ดึงประวัติย้อนหลังสำเร็จ ${recoveredCount} รายการ`
-          : "ไม่พบประวัติ Pre-Test เพิ่มเติมใน central log";
+        const message = `Central refresh complete: found ${centralStats.submittedLogCount} logs, parsed ${centralStats.parsedCount} result(s), invalid ${centralStats.invalidCount}, recovered ${recoveredCount}.`;
         setHistoryStatusMessage(message);
         showToast(message);
       }
@@ -2146,7 +2210,7 @@ export default function PreTestMockup({
                     Filter by user or question set, then generate a PDF report with questions, selected answers, and pass/fail result.
                   </p>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-[1fr_230px_270px_auto_auto_auto]">
+                <div className="grid gap-3 lg:grid-cols-[1fr_220px_250px_auto_auto_auto_auto]">
                   <input
                     value={historySearch}
                     onChange={(event) => setHistorySearch(event.target.value)}
@@ -2180,6 +2244,18 @@ export default function PreTestMockup({
                     className="h-12 rounded-2xl border border-white/15 bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Refresh Central Results
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHistorySearch("");
+                      setHistoryUserFilter("all");
+                      setHistorySetFilter("all");
+                    }}
+                    disabled={!filtersActive}
+                    className="h-12 rounded-2xl border border-white/15 bg-white/90 px-5 text-sm font-black text-slate-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Clear filters
                   </button>
                   <label className="flex h-12 cursor-pointer items-center justify-center rounded-2xl border border-white/15 bg-white px-5 text-sm font-black text-slate-950 transition hover:bg-emerald-50">
                     Import Result JSON
@@ -2220,10 +2296,22 @@ export default function PreTestMockup({
                 <div className="flex flex-wrap gap-2 text-[11px]">
                   <span className="rounded-full bg-white px-3 py-1 text-slate-700">Local results: {localResultsCount}</span>
                   <span className="rounded-full bg-white px-3 py-1 text-slate-700">Central results: {centralResultsCount}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Central logs fetched: {centralLogsFetchedCount}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Parsed central results: {centralResultsParsedCount}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Invalid central logs: {centralInvalidLogsCount}</span>
                   <span className="rounded-full bg-white px-3 py-1 text-slate-700">Last sync: {lastCentralSyncAt ? formatDateTime(lastCentralSyncAt) : "-"}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">
+                    Current filters: {filtersActive ? `search="${historySearch.trim() || "-"}", user=${historyUserFilter}, set=${historySetFilter}` : "none"}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-slate-700">Parser paths: {centralResultPathSummary}</span>
                   {!showAllHistoricalResults && hiddenHistoricalCount ? (
                     <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
                       {hiddenHistoricalCount} result(s) hidden by baseline. Turn on Show all historical results to view them.
+                    </span>
+                  ) : null}
+                  {filtersActive ? (
+                    <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">
+                      Filters are active. Some matched central results may be hidden until you clear filters.
                     </span>
                   ) : null}
                   {syncWarning ? <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-700">{syncWarning}</span> : null}
