@@ -31,6 +31,15 @@ type RolePermissionKey =
   | "takePreTest"
   | "managePreTest"
   | "viewPreTestResults"
+  | "resetPreTestRetake"
+  | "exportPreTestResults"
+  | "viewTrainingCheckIn"
+  | "viewTrainingAttendance"
+  | "checkInTrainingSelf"
+  | "manageTrainingSessions"
+  | "manageTrainingRoster"
+  | "manualUpdateTrainingAttendance"
+  | "exportTrainingAttendance"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -144,6 +153,15 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "takePreTest", label: "Take Pre-Test", category: "Review", description: "Open assigned Pre-Test sets and submit test attempts." },
   { key: "managePreTest", label: "Manage Pre-Test", category: "Review", description: "Create, edit, disable, delete, and share Pre-Test question sets." },
   { key: "viewPreTestResults", label: "View Pre-Test Results", category: "Review", description: "Open Pre-Test history and export attempt results." },
+  { key: "resetPreTestRetake", label: "Reset Pre-Test Retake", category: "Review", description: "Open the next Pre-Test attempt while preserving previous history." },
+  { key: "exportPreTestResults", label: "Export Pre-Test Results", category: "Review", description: "Export Pre-Test result history to PDF or Excel." },
+  { key: "viewTrainingCheckIn", label: "View Training Check-in", category: "Review", description: "Open Training Check-in and see available training sessions." },
+  { key: "viewTrainingAttendance", label: "View Training Attendance", category: "Review", description: "See roster attendance status and training history." },
+  { key: "checkInTrainingSelf", label: "Check in Training Self", category: "Review", description: "Check in and check out only the current user's own roster row." },
+  { key: "manageTrainingSessions", label: "Manage Training Sessions", category: "Review", description: "Create, edit, activate, and close training sessions." },
+  { key: "manageTrainingRoster", label: "Manage Training Roster", category: "Review", description: "Add or remove expected participants from training roster." },
+  { key: "manualUpdateTrainingAttendance", label: "Manual Training Attendance", category: "Review", description: "Manually adjust participant attendance with a reason." },
+  { key: "exportTrainingAttendance", label: "Export Training Attendance", category: "Review", description: "Export attendance report including all roster members." },
   { key: "viewUsageLog", label: "View Usage Log", category: "Account", description: "Open system usage log and export logs." },
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
   { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
@@ -176,6 +194,15 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: false,
+    exportPreTestResults: false,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: false,
+    manageTrainingRoster: false,
+    manualUpdateTrainingAttendance: false,
+    exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -205,6 +232,15 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: false,
+    exportPreTestResults: false,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: false,
+    manageTrainingRoster: false,
+    manualUpdateTrainingAttendance: false,
+    exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -234,6 +270,15 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: false,
+    exportPreTestResults: false,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: false,
+    manageTrainingRoster: false,
+    manualUpdateTrainingAttendance: false,
+    exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -263,6 +308,15 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     takePreTest: true,
     managePreTest: false,
     viewPreTestResults: false,
+    resetPreTestRetake: true,
+    exportPreTestResults: true,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: true,
+    manageTrainingRoster: true,
+    manualUpdateTrainingAttendance: true,
+    exportTrainingAttendance: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,

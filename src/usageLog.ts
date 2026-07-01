@@ -41,6 +41,13 @@ const ALLOWED_ACCESS_EVENT_TYPES = new Set([
   "pretest_set_deleted",
   "pretest_history_cleared",
   "pretest_result_pdf_downloaded",
+  "training_session_created",
+  "training_session_updated",
+  "training_session_closed",
+  "training_roster_updated",
+  "training_check_in",
+  "training_check_out",
+  "training_attendance_manual_update",
 ]);
 
 type UsageLogFetchOptions = number | {

@@ -14,6 +14,7 @@ import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
 import PreTestMockup from "./PreTestMockup";
+import TrainingAttendanceMockup from "./TrainingAttendanceMockup";
 import { upsertStoredEvaluation } from "./evaluationStore";
 import PageHero from "./PageHero";
 import TeamChatMockup, { ChatAttachment, ChatMessage, OnlineUser, WebRtcSignal } from "./TeamChatMockup";
@@ -60,6 +61,13 @@ type RolePermissionKey =
   | "viewPreTestResults"
   | "resetPreTestRetake"
   | "exportPreTestResults"
+  | "viewTrainingCheckIn"
+  | "viewTrainingAttendance"
+  | "checkInTrainingSelf"
+  | "manageTrainingSessions"
+  | "manageTrainingRoster"
+  | "manualUpdateTrainingAttendance"
+  | "exportTrainingAttendance"
   | "viewUsageLog"
   | "exportPdf"
   | "exportAppealRawdata"
@@ -132,6 +140,7 @@ type AppTab =
   | "appeal"
   | "create-evaluation"
   | "pre-test"
+  | "training-attendance"
   | "appeal-requests"
   | "appeal-override"
   | "task-inbox"
@@ -215,6 +224,7 @@ const VALID_APP_TABS = new Set<AppTab>([
   "appeal",
   "create-evaluation",
   "pre-test",
+  "training-attendance",
   "appeal-requests",
   "appeal-override",
   "task-inbox",
@@ -390,6 +400,13 @@ const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewPreTestResults",
   "resetPreTestRetake",
   "exportPreTestResults",
+  "viewTrainingCheckIn",
+  "viewTrainingAttendance",
+  "checkInTrainingSelf",
+  "manageTrainingSessions",
+  "manageTrainingRoster",
+  "manualUpdateTrainingAttendance",
+  "exportTrainingAttendance",
   "viewUsageLog",
   "exportPdf",
   "exportAppealRawdata",
@@ -426,6 +443,13 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewPreTestResults: false,
     resetPreTestRetake: false,
     exportPreTestResults: false,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: false,
+    manageTrainingRoster: false,
+    manualUpdateTrainingAttendance: false,
+    exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -457,6 +481,13 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewPreTestResults: false,
     resetPreTestRetake: false,
     exportPreTestResults: false,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: false,
+    manageTrainingRoster: false,
+    manualUpdateTrainingAttendance: false,
+    exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: false,
     exportAppealRawdata: false,
@@ -488,6 +519,13 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewPreTestResults: false,
     resetPreTestRetake: false,
     exportPreTestResults: false,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: false,
+    manageTrainingRoster: false,
+    manualUpdateTrainingAttendance: false,
+    exportTrainingAttendance: false,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: false,
@@ -519,6 +557,13 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
     viewPreTestResults: true,
     resetPreTestRetake: true,
     exportPreTestResults: true,
+    viewTrainingCheckIn: true,
+    viewTrainingAttendance: true,
+    checkInTrainingSelf: true,
+    manageTrainingSessions: true,
+    manageTrainingRoster: true,
+    manualUpdateTrainingAttendance: true,
+    exportTrainingAttendance: true,
     viewUsageLog: false,
     exportPdf: true,
     exportAppealRawdata: true,
@@ -2952,6 +2997,14 @@ export default function App() {
   const resetPreTestRetakeAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "resetPreTestRetake") : false;
   const exportPreTestResultsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "exportPreTestResults") : false;
   const preTestAllowed = Boolean(currentUser) && (takePreTestAllowed || managePreTestAllowed || viewPreTestResultsAllowed);
+  const viewTrainingCheckInAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewTrainingCheckIn") : false;
+  const viewTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewTrainingAttendance") : false;
+  const checkInTrainingSelfAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "checkInTrainingSelf") : false;
+  const manageTrainingSessionsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manageTrainingSessions") : false;
+  const manageTrainingRosterAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manageTrainingRoster") : false;
+  const manualUpdateTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "manualUpdateTrainingAttendance") : false;
+  const exportTrainingAttendanceAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "exportTrainingAttendance") : false;
+  const trainingAttendanceAllowed = Boolean(currentUser) && (viewTrainingCheckInAllowed || viewTrainingAttendanceAllowed);
   const appealRequestsAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "reviewAppeals") : false;
   const appealOverrideAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "appealOverride") : false;
   const rubricAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "viewRubric") : false;
@@ -2984,6 +3037,7 @@ export default function App() {
   const reviewMenuValue =
     activeTab === "appeal" ||
     (activeTab === "pre-test" && preTestAllowed) ||
+    (activeTab === "training-attendance" && trainingAttendanceAllowed) ||
     (activeTab === "create-evaluation" && createEvaluationAllowed) ||
     activeTab === "appeal-requests" ||
     activeTab === "appeal-override" ||
@@ -3039,6 +3093,7 @@ export default function App() {
     if (tab === "appeal-override" && !appealOverrideAllowed) return "missing appealOverride permission";
     if (tab === "create-evaluation" && !createEvaluationAllowed) return "missing createEvaluation permission";
     if (tab === "pre-test" && !preTestAllowed) return "missing pre-test permission";
+    if (tab === "training-attendance" && !trainingAttendanceAllowed) return "missing training attendance permission";
     if (tab === "user-roles" && !roleAdminAllowed) return "missing user role admin permission";
     if ((tab === "team-chat" || tab === "call-history") && !teamChatAllowed) return "missing useTeamChat permission";
     return "";
@@ -3051,6 +3106,7 @@ export default function App() {
     preTestAllowed,
     roleAdminAllowed,
     teamChatAllowed,
+    trainingAttendanceAllowed,
     usageLogAllowed,
   ]);
 
@@ -3218,13 +3274,14 @@ export default function App() {
   const handleReviewMenuChange = (value: string) => {
     if (value === "create-evaluation" && !createEvaluationAllowed) return;
     if (value === "pre-test" && !preTestAllowed) return;
+    if (value === "training-attendance" && !trainingAttendanceAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "create-evaluation") {
       window.open(buildWorkspaceUrl({ tab: "create-evaluation" }), "_blank", "noopener,noreferrer");
       return;
     }
-    if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
+    if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "training-attendance" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       navigateToTab(value);
     }
   };
@@ -3964,13 +4021,16 @@ export default function App() {
     if (activeTab === "pre-test" && !preTestAllowed) {
       navigateToTab("dashboard", { replace: true });
     }
+    if (activeTab === "training-attendance" && !trainingAttendanceAllowed) {
+      navigateToTab("dashboard", { replace: true });
+    }
     if (activeTab === "user-roles" && !roleAdminAllowed) {
       navigateToTab("dashboard", { replace: true });
     }
     if ((activeTab === "team-chat" || activeTab === "call-history") && !teamChatAllowed) {
       navigateToTab("dashboard", { replace: true });
     }
-  }, [activeTab, appealOverrideAllowed, appealRequestsAllowed, coachingAllowed, createEvaluationAllowed, navigateToTab, preTestAllowed, roleAdminAllowed, teamChatAllowed, usageLogAllowed]);
+  }, [activeTab, appealOverrideAllowed, appealRequestsAllowed, coachingAllowed, createEvaluationAllowed, navigateToTab, preTestAllowed, roleAdminAllowed, teamChatAllowed, trainingAttendanceAllowed, usageLogAllowed]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -5323,6 +5383,8 @@ export default function App() {
 
                                           ...(preTestAllowed ? [{ value: "pre-test", label: "Pre-Test" }] : []),
 
+                                          ...(trainingAttendanceAllowed ? [{ value: "training-attendance", label: "Training Check-in" }] : []),
+
                                           ...(rubricAllowed ? [{ value: "rubric", label: "Rubric" }] : []),
 
                                         ]}
@@ -5606,6 +5668,18 @@ export default function App() {
             canViewPreTestResults={viewPreTestResultsAllowed}
             canResetPreTestRetake={resetPreTestRetakeAllowed}
             canExportPreTestResults={exportPreTestResultsAllowed}
+          />
+        ) : activeTab === "training-attendance" && trainingAttendanceAllowed ? (
+          <TrainingAttendanceMockup
+            currentUser={currentUser}
+            accounts={effectiveUserAccounts}
+            canViewTrainingCheckIn={viewTrainingCheckInAllowed}
+            canViewTrainingAttendance={viewTrainingAttendanceAllowed}
+            canCheckInTrainingSelf={checkInTrainingSelfAllowed}
+            canManageTrainingSessions={manageTrainingSessionsAllowed}
+            canManageTrainingRoster={manageTrainingRosterAllowed}
+            canManualUpdateTrainingAttendance={manualUpdateTrainingAttendanceAllowed}
+            canExportTrainingAttendance={exportTrainingAttendanceAllowed}
           />
         ) : activeTab === "appeal-requests" && appealRequestsAllowed ? (
           <AppealRequestsMockup currentUser={currentUser} onTasksChanged={loadInboxTasks} />
