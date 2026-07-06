@@ -279,6 +279,55 @@ export async function generateOfficialCaseDetailPdf({
     return Math.max(1, Math.floor((h - padY) / lineHeight(size, leading)));
   };
 
+  const splitTextLines = (value: unknown, w: number, size: number) => {
+    setFont("normal");
+    doc.setFontSize(size);
+    return doc.splitTextToSize(safeMultiline(value), Math.max(2, w - 2.4));
+  };
+
+  const drawWideTextRow = ({
+    labelText,
+    text,
+    size,
+    leading,
+    minH,
+    padY,
+  }: {
+    labelText: string;
+    text: unknown;
+    size: number;
+    leading: number;
+    minH: number;
+    padY: number;
+  }) => {
+    const lines = splitTextLines(text, wOf(1, 7), size);
+    let index = 0;
+    while (index < lines.length) {
+      const available = bottom - y;
+      if (available < minH) {
+        doc.addPage();
+        y = top;
+      }
+      const fitCount = Math.max(1, fitLinesForHeight(bottom - y, size, leading, padY));
+      const chunk = lines.slice(index, index + fitCount);
+      const rowH = Math.max(minH, chunk.length * lineHeight(size, leading) + padY);
+      label(0, y, 1, rowH, index === 0 ? labelText : `${labelText}\n(cont.)`);
+      value(1, y, 7, rowH, chunk.join("\n"), LIGHT_PURPLE, {
+        size,
+        valign: "top",
+        maxLines: chunk.length,
+        leading,
+        bold: false,
+      });
+      y += rowH;
+      index += chunk.length;
+      if (index < lines.length) {
+        doc.addPage();
+        y = top;
+      }
+    }
+  };
+
   const normalizeUrlForPdf = (value: unknown) => {
     const raw = safeText(value, "-");
     if (raw === "-") return raw;
@@ -384,21 +433,14 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += caseUrlRowH;
 
-    const descriptionText = formatCaseDescriptionText(caseItem.caseDescription || "-");
-    const descriptionRowH = Math.max(
-      18,
-      Math.min(38, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 4))
-    );
-    addPageIfNeeded(descriptionRowH);
-    label(0, y, 1, descriptionRowH, "Case\nDescription");
-    value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
+    drawWideTextRow({
+      labelText: "Case\nDescription",
+      text: formatCaseDescriptionText(caseItem.caseDescription || "-"),
       size: CASE_DESCRIPTION_TEXT_SIZE,
-      valign: descriptionRowH <= 24 ? "middle" : "top",
-      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 5),
       leading: CASE_DESCRIPTION_LINE_SPACING,
-      bold: false,
+      minH: 18,
+      padY: 5,
     });
-    y += descriptionRowH;
 
     const imageUrlRaw = caseItem.caseImageUrl || "-";
     const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
@@ -519,20 +561,14 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += remarkRowH;
 
-    const descriptionText = formatCaseDescriptionText(caseItem.caseDescription || "Revised");
-    const descriptionRowH = Math.max(
-      18,
-      Math.min(38, measureTextHeight(descriptionText, wOf(1, 7), CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 4))
-    );
-    addPageIfNeeded(descriptionRowH);
-    label(0, y, 1, descriptionRowH, "Case\nDescription");
-    value(1, y, 7, descriptionRowH, descriptionText, LIGHT_PURPLE, {
+    drawWideTextRow({
+      labelText: "Case\nDescription",
+      text: formatCaseDescriptionText(caseItem.caseDescription || "Revised"),
       size: CASE_DESCRIPTION_TEXT_SIZE,
-      valign: descriptionRowH <= 24 ? "middle" : "top",
-      maxLines: fitLinesForHeight(descriptionRowH, CASE_DESCRIPTION_TEXT_SIZE, CASE_DESCRIPTION_LINE_SPACING, 5),
       leading: CASE_DESCRIPTION_LINE_SPACING,
+      minH: 18,
+      padY: 5,
     });
-    y += descriptionRowH;
 
     const imageUrlRaw = caseItem.caseImageUrl || safeText(caseItem.appealVersion, "REV1");
     const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
@@ -600,71 +636,81 @@ export async function generateOfficialCaseDetailPdf({
     const comment = formatTopicBodyText(active.comment || topic.comment || "-");
     const appealReason = formatTopicBodyText(topicAppealReason(topic, revised, isRevised));
 
-    const commentW = wOf(6) - 2.4;
-    const appealW = includeAppeal ? wOf(7) - 2.4 : 0;
-    const descriptionLines = doc.splitTextToSize(description, Math.max(2, wOf(1) - 2.4));
-    const commentLines = doc.splitTextToSize(comment, Math.max(2, commentW));
-    const appealLines = includeAppeal ? doc.splitTextToSize(appealReason, Math.max(2, appealW)) : [];
+    const descriptionLines = splitTextLines(description, wOf(1), BODY_TEXT_SIZE);
+    const commentLines = splitTextLines(comment, wOf(6), SMALL_BODY_TEXT_SIZE);
+    const appealLines = includeAppeal ? splitTextLines(appealReason, wOf(7), SMALL_BODY_TEXT_SIZE) : [];
     const baseRowH = includeAppeal ? 24 : 18;
-    const neededH = Math.max(
-      baseRowH,
-      TOPIC_ROW_PAD_Y + descriptionLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
-      TOPIC_ROW_PAD_Y + commentLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING),
-      includeAppeal ? TOPIC_ROW_PAD_Y + appealLines.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) : 0
-    );
-    let rowH = Math.min(neededH, bottom - top - 22);
 
-    if (y + rowH > bottom) newTopicPage();
-    if (y + rowH > bottom) rowH = Math.max(34, bottom - y);
+    let commentIndex = 0;
+    let appealIndex = 0;
+    let firstChunk = true;
 
-    const maxBodyLines = fitLinesForHeight(rowH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y);
-    const shortDescription = descriptionLines.length <= 2;
+    while (firstChunk || commentIndex < commentLines.length || appealIndex < appealLines.length) {
+      if (bottom - y < baseRowH) newTopicPage();
 
-    cell(0, y, 1, rowH, active.code || topic.code || "-", WHITE, {
-      bold: true,
-      size: 6.8,
-      align: "center",
-      valign: "middle",
-      maxLines: 2,
-    });
-    cell(1, y, 1, rowH, description, WHITE, {
-      size: BODY_TEXT_SIZE,
-      align: "center",
-      valign: shortDescription ? "middle" : "top",
-      maxLines: fitLinesForHeight(rowH, BODY_TEXT_SIZE, BODY_LINE_SPACING, 6),
-      leading: BODY_LINE_SPACING,
-    });
-    cell(2, y, 1, rowH, score.toFixed(0), WHITE, { size: 6.8, align: "center", valign: "middle" });
-    cell(3, y, 1, rowH, max.toFixed(0), SCORE_GREY, { size: 6.8, align: "center", valign: "middle" });
-    cell(4, y, 1, rowH, formatPct(pct), pctFill(pct), { size: 6.8, align: "center", valign: "middle" });
-    cell(5, y, 1, rowH, statusByPct(pct), WHITE, { size: 6.4, align: "center", valign: "middle", maxLines: 2 });
+      const availableH = Math.max(baseRowH, bottom - y);
+      const bodyFit = Math.max(1, fitLinesForHeight(availableH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y));
+      const commentChunk = commentLines.slice(commentIndex, commentIndex + bodyFit);
+      const appealChunk = includeAppeal ? appealLines.slice(appealIndex, appealIndex + bodyFit) : [];
+      const visibleComment = commentChunk.length > 0 ? commentChunk : [" "];
+      const visibleAppeal = includeAppeal ? (appealChunk.length > 0 ? appealChunk : [" "]) : [];
+      const descriptionText = firstChunk ? description : "ต่อจากหน้าก่อน";
+      const descriptionChunkLines = firstChunk ? descriptionLines : splitTextLines(descriptionText, wOf(1), BODY_TEXT_SIZE);
+      const rowH = Math.min(
+        bottom - y,
+        Math.max(
+          baseRowH,
+          TOPIC_ROW_PAD_Y + descriptionChunkLines.length * lineHeight(BODY_TEXT_SIZE, BODY_LINE_SPACING),
+          TOPIC_ROW_PAD_Y + visibleComment.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING),
+          includeAppeal ? TOPIC_ROW_PAD_Y + visibleAppeal.length * lineHeight(SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING) : 0
+        )
+      );
+      const shortDescription = descriptionChunkLines.length <= 2;
 
-    if (includeAppeal) {
-      cell(6, y, 1, rowH, comment, WHITE, {
+      cell(0, y, 1, rowH, firstChunk ? active.code || topic.code || "-" : `${active.code || topic.code || "-"}\n(cont.)`, WHITE, {
+        bold: true,
+        size: 6.8,
+        align: "center",
+        valign: "middle",
+        maxLines: 2,
+      });
+      cell(1, y, 1, rowH, descriptionText, WHITE, {
+        size: BODY_TEXT_SIZE,
+        align: "center",
+        valign: shortDescription ? "middle" : "top",
+        maxLines: Math.max(1, descriptionChunkLines.length),
+        leading: BODY_LINE_SPACING,
+      });
+      cell(2, y, 1, rowH, firstChunk ? score.toFixed(0) : "", WHITE, { size: 6.8, align: "center", valign: "middle" });
+      cell(3, y, 1, rowH, firstChunk ? max.toFixed(0) : "", SCORE_GREY, { size: 6.8, align: "center", valign: "middle" });
+      cell(4, y, 1, rowH, firstChunk ? formatPct(pct) : "", pctFill(pct), { size: 6.8, align: "center", valign: "middle" });
+      cell(5, y, 1, rowH, firstChunk ? statusByPct(pct) : "", WHITE, { size: 6.4, align: "center", valign: "middle", maxLines: 2 });
+
+      cell(6, y, 1, rowH, visibleComment.join("\n"), WHITE, {
         size: SMALL_BODY_TEXT_SIZE,
         align: "left",
         valign: "middle",
-        maxLines: maxBodyLines,
+        maxLines: visibleComment.length,
         leading: TOPIC_BODY_LINE_SPACING,
       });
-      cell(7, y, 1, rowH, appealReason, WHITE, {
-        size: SMALL_BODY_TEXT_SIZE,
-        align: "left",
-        valign: "middle",
-        maxLines: maxBodyLines,
-        leading: TOPIC_BODY_LINE_SPACING,
-      });
-    } else {
-      cell(6, y, 1, rowH, comment, WHITE, {
-        size: SMALL_BODY_TEXT_SIZE,
-        align: "left",
-        valign: "middle",
-        maxLines: maxBodyLines,
-        leading: TOPIC_BODY_LINE_SPACING,
-      });
+
+      if (includeAppeal) {
+        cell(7, y, 1, rowH, visibleAppeal.join("\n"), WHITE, {
+          size: SMALL_BODY_TEXT_SIZE,
+          align: "left",
+          valign: "middle",
+          maxLines: visibleAppeal.length,
+          leading: TOPIC_BODY_LINE_SPACING,
+        });
+      }
+
+      y += rowH;
+      commentIndex += commentChunk.length;
+      appealIndex += appealChunk.length;
+      firstChunk = false;
+
+      if (commentIndex < commentLines.length || appealIndex < appealLines.length) newTopicPage();
     }
-
-    y += rowH;
   });
 
   return {
