@@ -8,6 +8,7 @@ import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
 import { getIncentiveByScore, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
+import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -265,6 +266,8 @@ const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
   "Arisa Aiemrit": "2026-04",
 };
 
+type SummaryAccount = StoredUserProfile & Record<string, any>;
+
 function isSongkranThemeActive() {
   return false;
 }
@@ -334,6 +337,102 @@ function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {
   if (!matchedEntry) return false;
   const [, hideFromMonth] = matchedEntry;
   return selectedMonthKey >= hideFromMonth;
+}
+
+function buildAccountMatchValues(account: SummaryAccount) {
+  const email = String(account.email || account.registeredEmail || account.registered_email || "").trim();
+  const emailLocalPart = email.includes("@") ? email.split("@")[0] : "";
+  return [
+    account.displayName,
+    account.agentName,
+    account.username,
+    email,
+    emailLocalPart,
+    account.registeredEmail,
+    account.registered_email,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
+function getAccountStatus(agentName: string, accounts: SummaryAccount[]) {
+  return accounts.find((account) => buildAccountMatchValues(account).some((value) => isSameAgent(value, agentName)));
+}
+
+function parseSummaryDateOnly(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  const text = String(value || "").trim();
+  if (!text) return null;
+
+  const isoMatch = text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  }
+
+  const slashMatch = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    return new Date(Number(slashMatch[3]), Number(slashMatch[2]) - 1, Number(slashMatch[1]));
+  }
+
+  return null;
+}
+
+function formatSummaryDateOnly(date: Date | null) {
+  if (!date) return "";
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`;
+}
+
+function getSuspendedDate(account?: SummaryAccount | null) {
+  if (!account) return null;
+  const directFields = [
+    account.suspendedAt,
+    account.suspended_at,
+    account.suspendDate,
+    account.suspend_date,
+    account.terminatedAt,
+    account.terminated_at,
+    account.terminateDate,
+    account.terminate_date,
+  ];
+  for (const fieldValue of directFields) {
+    const parsed = parseSummaryDateOnly(fieldValue);
+    if (parsed) return parsed;
+  }
+
+  return parseSummaryDateOnly(
+    `${account.suspendReason || ""} ${account.statusReason || ""} ${account.reason || ""} ${account.note || ""}`
+  );
+}
+
+function isSuspendedAgent(agentName: string, accounts: SummaryAccount[]) {
+  const account = getAccountStatus(agentName, accounts);
+  return account?.status === "Suspended" || normalizeText(account?.accountStatus || account?.status).includes("suspend");
+}
+
+function hasCasesInCurrentScope(agentName: string, cases: CaseItem[]) {
+  return cases.some((item) => isSameAgent(item.agent, agentName));
+}
+
+function isCaseBeforeOrOnSuspendedDate(caseDate: Date | null, suspendedDate: Date | null) {
+  if (!caseDate || !suspendedDate) return true;
+  const caseOnly = new Date(caseDate.getFullYear(), caseDate.getMonth(), caseDate.getDate());
+  return caseOnly.getTime() <= suspendedDate.getTime();
+}
+
+function buildSuspendedAgentLabel(agentName: string, accounts: SummaryAccount[]) {
+  const account = getAccountStatus(agentName, accounts);
+  const suspendedDate = getSuspendedDate(account);
+  return isSuspendedAgent(agentName, accounts) && suspendedDate
+    ? `${agentName} (Suspended ${formatSummaryDateOnly(suspendedDate)})`
+    : agentName;
+}
+
+function shouldShowAgentInSummaryScope(agentName: string, cases: CaseItem[], accounts: SummaryAccount[]) {
+  if (!isSuspendedAgent(agentName, accounts)) return true;
+  return hasCasesInCurrentScope(agentName, cases);
 }
 
 function roundExcelLikeMinute(date: Date) {
@@ -740,9 +839,11 @@ function groupCases(cases: CaseItem[], groupBy: "week" | "month" | "year" | "age
 function buildAgentRowsWithMaster(
   agentNames: string[],
   cases: CaseItem[],
-  fallbackMonthKey: string
+  fallbackMonthKey: string,
+  accounts: SummaryAccount[] = []
 ): PeriodRow[] {
   return agentNames
+    .filter((agentName) => shouldShowAgentInSummaryScope(agentName, cases, accounts))
     .map((agentName) => {
       const grouped = cases.filter((item) => isSameAgent(item.agent, agentName));
 
@@ -759,7 +860,7 @@ function buildAgentRowsWithMaster(
 
       const summary = summarizeCases(grouped);
       return {
-        label: agentName,
+        label: buildSuspendedAgentLabel(agentName, accounts),
         caseCount: summary.caseCount,
         avgScore: summary.avgScore,
         revisedCount: summary.revisedCount,
@@ -1085,6 +1186,7 @@ export default function SummaryMockup({
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [accountProfiles, setAccountProfiles] = useState<SummaryAccount[]>([]);
   const [viewMode, setViewMode] = useState<SummaryView>("weekly-dashboard");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "all");
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
@@ -1098,6 +1200,21 @@ export default function SummaryMockup({
     () => getUniqueNormalizedAgents((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
     [roleScopedAgentNames]
   );
+
+  useEffect(() => {
+    let alive = true;
+    fetchStoredUserProfiles()
+      .then((profiles) => {
+        if (alive) setAccountProfiles(profiles as SummaryAccount[]);
+      })
+      .catch((error) => {
+        console.warn("[Summary] Unable to load user directory for suspended-agent labels.", error);
+        if (alive) setAccountProfiles([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -1513,9 +1630,19 @@ export default function SummaryMockup({
     loadWorkbook();
   }, [dataRefreshKey]);
 
+  const casesInCurrentScopeForAgentOptions = useMemo(() => {
+    return allCases.filter((item) => {
+      if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
+      if (selectedMonth !== "all" && item.monthKey !== selectedMonth) return false;
+      if (selectedWeek !== "all" && item.weekLabel !== selectedWeek) return false;
+      if (selectedYear !== "all" && item.yearKey !== selectedYear) return false;
+      return true;
+    });
+  }, [allCases, selectedMonth, selectedWeek, selectedYear, roleScopedAgentList]);
+
   const availableAgents = useMemo(() => {
-    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter(
-      (name) => (selectedMonth === "all" ? true : !shouldHideAgentByMonth(name, selectedMonth))
+    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter((name) =>
+      shouldShowAgentInSummaryScope(name, casesInCurrentScopeForAgentOptions, accountProfiles)
     );
 
     if (roleScopedAgentList.length) {
@@ -1523,7 +1650,7 @@ export default function SummaryMockup({
     }
 
     return names;
-  }, [allCases, selectedMonth, roleScopedAgentList]);
+  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList]);
 
   useEffect(() => {
     if (roleScopedAgentList.length) {
@@ -1535,7 +1662,7 @@ export default function SummaryMockup({
       return;
     }
 
-    if (roleScopedAgentList.length && selectedAgent !== "all" && !availableAgents.some((agent) => isSameAgent(agent, selectedAgent))) {
+    if (!roleScopedAgentList.length && selectedAgent !== "all" && !availableAgents.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("all");
       onSelectedAgentChange?.("all");
     }
@@ -1579,6 +1706,28 @@ export default function SummaryMockup({
       return true;
     });
   }, [allCases, effectiveSelectedAgent, selectedMonth, selectedWeek, selectedYear, roleScopedAgentList]);
+
+  useEffect(() => {
+    if (!accountProfiles.length || !allCases.length) return;
+
+    const casesAfterSuspendedDate = allCases.filter((item) => {
+      const account = getAccountStatus(item.agent, accountProfiles);
+      const suspendedDate = getSuspendedDate(account);
+      return isSuspendedAgent(item.agent, accountProfiles) && suspendedDate && !isCaseBeforeOrOnSuspendedDate(item.auditDateObj, suspendedDate);
+    });
+
+    if (casesAfterSuspendedDate.length) {
+      console.warn(
+        "[Summary] QA cases found after suspended date. Please review:",
+        casesAfterSuspendedDate.map((item) => ({
+          caseId: item.caseId,
+          agent: item.agent,
+          auditDate: item.auditDate,
+          suspendedDate: formatSummaryDateOnly(getSuspendedDate(getAccountStatus(item.agent, accountProfiles))),
+        }))
+      );
+    }
+  }, [allCases, accountProfiles]);
 
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
@@ -1627,8 +1776,8 @@ export default function SummaryMockup({
       return item.monthKey === analyticsMonthKey;
     });
 
-    return buildAgentRowsWithMaster(availableAgents, monthlyCases, analyticsMonthKey);
-  }, [allCases, analyticsMonthKey, availableAgents, effectiveSelectedAgent, roleScopedAgentList]);
+    return buildAgentRowsWithMaster(availableAgents, monthlyCases, analyticsMonthKey, accountProfiles);
+  }, [allCases, analyticsMonthKey, availableAgents, effectiveSelectedAgent, roleScopedAgentList, accountProfiles]);
 
   const agentMonthlyAnalyticsTitle =
     effectiveSelectedAgent === "all" ? "Agent Monthly Analytics" : `${effectiveSelectedAgent} Monthly Analytics`;
@@ -1650,7 +1799,7 @@ export default function SummaryMockup({
           selectedMonth !== "all"
             ? selectedMonth
             : getPolicyMonthKeyForCases(filteredCases);
-        return buildAgentRowsWithMaster(availableAgents, filteredCases, fallbackMonthKey);
+        return buildAgentRowsWithMaster(availableAgents, filteredCases, fallbackMonthKey, accountProfiles);
       }
       case "yearly-by-agent":
         return groupCases(filteredCases, "agent");
@@ -1659,7 +1808,7 @@ export default function SummaryMockup({
       default:
         return [];
     }
-  }, [filteredCases, viewMode, availableAgents, selectedMonth]);
+  }, [filteredCases, viewMode, availableAgents, selectedMonth, accountProfiles]);
 
   const summaryTableShowIncentive = viewMode === "monthly-team-summary";
 
@@ -1720,7 +1869,7 @@ export default function SummaryMockup({
         return {
           title: getViewLabel(targetView),
           firstColLabel: "Agent",
-          rows: buildAgentRowsWithMaster(availableAgents, filteredCases, fallbackMonthKey),
+          rows: buildAgentRowsWithMaster(availableAgents, filteredCases, fallbackMonthKey, accountProfiles),
         };
       }
       case "yearly-team-summary":
@@ -1768,7 +1917,7 @@ export default function SummaryMockup({
     const columns = [report.firstColLabel, "Cases", "Average Score", "Grade", "Revised"];
 
     const monthLabel = monthOptions.find((item) => item.value === selectedMonth)?.label || "All Months";
-    const agentLabel = effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent;
+    const agentLabel = effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles);
     const weekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
     const yearLabel = selectedYear === "all" ? "All Years" : selectedYear;
     const generatedByName = safe(
@@ -2086,7 +2235,7 @@ export default function SummaryMockup({
                     <div className="mt-2">
                       {roleScopedAgentList.length ? (
                         <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                          {effectiveSelectedAgent || "-"}
+                          {effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}
                         </div>
                       ) : (
                         <FilterSelect
@@ -2095,7 +2244,9 @@ export default function SummaryMockup({
                             setSelectedAgent(value);
                             onSelectedAgentChange?.(value);
                           }}
-                          options={[{ value: "all", label: "All Agents" }].concat(availableAgents.map((agent) => ({ value: agent, label: agent })))}
+                          options={[{ value: "all", label: "All Agents" }].concat(
+                            availableAgents.map((agent) => ({ value: agent, label: buildSuspendedAgentLabel(agent, accountProfiles) }))
+                          )}
                         />
                       )}
                     </div>
@@ -2123,7 +2274,7 @@ export default function SummaryMockup({
               <PanelBody>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">View</div><div className="mt-2 text-sm font-bold text-slate-900">{getViewLabel(viewMode)}</div></div>
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Agent</div><div className="mt-2 text-sm font-bold text-slate-900">{effectiveSelectedAgent || "All Agents"}</div></div>
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Agent</div><div className="mt-2 text-sm font-bold text-slate-900">{effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles)}</div></div>
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Month</div><div className="mt-2 text-sm font-bold text-slate-900">{monthOptions.find((item) => item.value === selectedMonth)?.label || "All Months"}</div></div>
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Week</div><div className="mt-2 text-sm font-bold text-slate-900">{selectedWeek === "all" ? "All Weeks" : selectedWeek}</div></div>
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4"><div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Merge Rows</div><div className="mt-2 text-sm font-bold text-slate-900">{appealMergeCount}</div></div>
