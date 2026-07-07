@@ -423,11 +423,7 @@ function isCaseBeforeOrOnSuspendedDate(caseDate: Date | null, suspendedDate: Dat
 }
 
 function buildSuspendedAgentLabel(agentName: string, accounts: SummaryAccount[]) {
-  const account = getAccountStatus(agentName, accounts);
-  const suspendedDate = getSuspendedDate(account);
-  return isSuspendedAgent(agentName, accounts) && suspendedDate
-    ? `${agentName} (Suspended ${formatSummaryDateOnly(suspendedDate)})`
-    : agentName;
+  return agentName;
 }
 
 function shouldShowAgentInSummaryScope(agentName: string, cases: CaseItem[], accounts: SummaryAccount[]) {
