@@ -1424,6 +1424,264 @@ function generatePaymentPdfFile(
     pdf.setFont("THSarabunNew", "normal");
   } catch {}
 
+  const qPageW = 297;
+  const qPageH = 210;
+  const qSidebarW = 34;
+  const qContentLeft = qSidebarW + 8;
+  const qContentRight = qPageW - 8;
+  const qAccent: [number, number, number] = [109, 40, 217];
+  const qDark: [number, number, number] = [20, 8, 49];
+
+  const qSetFont = (size: number, bold = false, color: [number, number, number] = [31, 41, 55]) => {
+    try {
+      pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
+    } catch {}
+    pdf.setFontSize(size);
+    pdf.setTextColor(color[0], color[1], color[2]);
+  };
+
+  const qText = (
+    value: string,
+    x: number,
+    yy: number,
+    size = 10,
+    bold = false,
+    color: [number, number, number] = [31, 41, 55],
+    options?: { align?: "left" | "center" | "right" }
+  ) => {
+    qSetFont(size, bold, color);
+    pdf.text(String(value ?? ""), x, yy, options);
+  };
+
+  const qWrap = (
+    value: string,
+    x: number,
+    yy: number,
+    width: number,
+    size = 8.5,
+    bold = false,
+    color: [number, number, number] = [31, 41, 55],
+    lineHeight = 3.5,
+    maxLines = 2
+  ) => {
+    qSetFont(size, bold, color);
+    const lines = pdf.splitTextToSize(String(value ?? ""), width).slice(0, maxLines);
+    lines.forEach((line: string, index: number) => pdf.text(line, x, yy + index * lineHeight));
+  };
+
+  const qRoundedBox = (
+    x: number,
+    yy: number,
+    width: number,
+    height: number,
+    fill: [number, number, number] = [255, 255, 255],
+    stroke: [number, number, number] = [226, 232, 240]
+  ) => {
+    pdf.setDrawColor(stroke[0], stroke[1], stroke[2]);
+    pdf.setFillColor(fill[0], fill[1], fill[2]);
+    pdf.roundedRect(x, yy, width, height, 3, 3, "FD");
+  };
+
+  const qChrome = (pageNo: number) => {
+    pdf.setFillColor(qDark[0], qDark[1], qDark[2]);
+    pdf.rect(0, 0, qSidebarW, qPageH, "F");
+    pdf.setFillColor(qAccent[0], qAccent[1], qAccent[2]);
+    pdf.roundedRect(5, 10, 24, 10, 2, 2, "F");
+    qText("Robinhood QA", 7, 16.8, 9, true, [255, 255, 255]);
+
+    ["Dashboard", "Signature", "Documents", "Reports"].forEach((item, index) => {
+      const navY = 36 + index * 13;
+      if (item === "Signature") {
+        pdf.setFillColor(qAccent[0], qAccent[1], qAccent[2]);
+        pdf.roundedRect(4, navY - 5.5, 26, 8, 2, 2, "F");
+      }
+      qText(item, 7, navY, 7.6, item === "Signature", [255, 255, 255]);
+    });
+
+    qText("Signature Workspace", qContentLeft, 15, 20, true, [15, 23, 42]);
+    qText("Monthly incentive document tracking and payment export", qContentLeft, 22, 10, false, [100, 116, 139]);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.line(qContentLeft, 28, qContentRight, 28);
+    qText(`Page ${pageNo}`, qContentRight, qPageH - 6, 8, false, [148, 163, 184], { align: "right" });
+  };
+
+  const qCard = (
+    x: number,
+    yy: number,
+    width: number,
+    label: string,
+    value: string,
+    tone: [number, number, number]
+  ) => {
+    qRoundedBox(x, yy, width, 23);
+    qText(label, x + 4, yy + 6, 8.2, true, [100, 116, 139]);
+    qText(value, x + 4, yy + 16, 16, true, tone);
+  };
+
+  const qStatusBadge = (status: string, x: number, yy: number) => {
+    const isSigned = /signed|complete|ready|พร้อมจ่าย/i.test(status);
+    const isLate = /late|expired|เลยกำหนด/i.test(status);
+    const isPending = /pending|รอ/i.test(status);
+    const bg: [number, number, number] = isSigned ? [220, 252, 231] : isLate ? [255, 228, 230] : isPending ? [254, 243, 199] : [219, 234, 254];
+    const fg: [number, number, number] = isSigned ? [22, 101, 52] : isLate ? [190, 18, 60] : isPending ? [180, 83, 9] : [29, 78, 216];
+    pdf.setFillColor(bg[0], bg[1], bg[2]);
+    pdf.roundedRect(x, yy - 4.5, 21, 7, 3, 3, "F");
+    qText(status.slice(0, 15), x + 10.5, yy, 7.2, true, fg, { align: "center" });
+  };
+
+  const qTableHeader = (x: number, yy: number, widths: number[]) => {
+    const headers = ["Document Ref.", "Agent", "Team", "Cases", "Avg", "Amount", "Status"];
+    pdf.setFillColor(qAccent[0], qAccent[1], qAccent[2]);
+    pdf.roundedRect(x, yy, widths.reduce((sum, width) => sum + width, 0), 9, 2, 2, "F");
+    let cx = x;
+    headers.forEach((header, index) => {
+      qText(header, cx + 2, yy + 6, 8, true, [255, 255, 255]);
+      cx += widths[index];
+    });
+  };
+
+  const qMonthLabel = getMonthLabel(monthKey);
+  const qReadyCount = sortedDocs.length;
+  const qPendingCount = Math.max(allMonthDocs.length - qReadyCount, 0);
+  const qDetailDoc = sortedDocs[0];
+  let qPageNo = 1;
+  qChrome(qPageNo);
+
+  qRoundedBox(qContentLeft, 34, qContentRight - qContentLeft - 57, 24);
+  qText("Month", qContentLeft + 5, 42, 8, true, [100, 116, 139]);
+  qText(qMonthLabel, qContentLeft + 5, 51, 13, true, qAccent);
+  qText("Export Rule", qContentLeft + 54, 42, 8, true, [100, 116, 139]);
+  qWrap(
+    exportsAllEvaluated ? "May 2026 exports all evaluated agents." : "Pay signed-complete agents by day 15 only.",
+    qContentLeft + 54,
+    49,
+    74,
+    8.5,
+    true
+  );
+  qText("Cutoff", qContentLeft + 138, 42, 8, true, [100, 116, 139]);
+  qWrap(paymentCutoff, qContentLeft + 138, 49, 56, 8.5, true);
+
+  qCard(qContentLeft, 65, 42, "Agents", String(qReadyCount), qAccent);
+  qCard(qContentLeft + 47, 65, 42, "Cases", String(totalCases), [37, 99, 235]);
+  qCard(qContentLeft + 94, 65, 42, "Average", avgScore.toFixed(2), [22, 163, 74]);
+  qCard(qContentLeft + 141, 65, 48, "Cash THB", formatBahtAmount(totalCashAmount), [217, 119, 6]);
+  qCard(qContentLeft + 194, 65, 42, "Pending", String(qPendingCount), [225, 29, 72]);
+
+  const qTableX = qContentLeft;
+  const qTableY = 97;
+  const qTableWidths = [34, 43, 34, 15, 16, 22, 24];
+  const qTableW = qTableWidths.reduce((sum, width) => sum + width, 0);
+  qTableHeader(qTableX, qTableY, qTableWidths);
+  let qRowY = qTableY + 9;
+  sortedDocs.slice(0, 10).forEach((doc, index) => {
+    const entries = effectiveEntriesForDoc(doc, signatures);
+    const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
+    const incentive = getDocumentIncentive(doc);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 245 : 255, index % 2 === 0 ? 255 : 255);
+    pdf.rect(qTableX, qRowY, qTableW, 11, "FD");
+    let cx = qTableX;
+    [
+      doc.documentHash || getDocumentPrimaryCaseId(doc),
+      doc.agentName,
+      doc.teamLeadName || doc.supervisorName || "-",
+      String(doc.caseCount),
+      doc.averageScore.toFixed(2),
+      formatBahtAmount(incentive.cash + incentive.promo),
+    ].forEach((cell, cellIndex) => {
+      qWrap(cell, cx + 2, qRowY + 5, qTableWidths[cellIndex] - 4, cellIndex < 3 ? 7.2 : 8, cellIndex < 2, [31, 41, 55], 3.2, 2);
+      cx += qTableWidths[cellIndex];
+    });
+    qStatusBadge(statusText, cx + 2, qRowY + 6.2);
+    qRowY += 11;
+  });
+  if (!sortedDocs.length) {
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setFillColor(248, 250, 252);
+    pdf.rect(qTableX, qRowY, qTableW, 16, "FD");
+    qText("No payment-ready documents for this filter.", qTableX + 4, qRowY + 9, 10, true, [100, 116, 139]);
+  }
+  if (sortedDocs.length > 10) {
+    qText(`Showing 1-10 of ${sortedDocs.length} agents. Full list continues on next pages.`, qTableX, 198, 8.2, true, [100, 116, 139]);
+  }
+
+  const qPanelX = 236;
+  qRoundedBox(qPanelX, 34, 51, 152);
+  qText("Case Detail", qPanelX + 5, 43, 12, true, [31, 41, 55]);
+  if (qDetailDoc) {
+    const entries = effectiveEntriesForDoc(qDetailDoc, signatures);
+    const statusText = getAgentSignedStatusText(qDetailDoc, entries, exportsAllEvaluated);
+    const incentive = getDocumentIncentive(qDetailDoc);
+    qText(qDetailDoc.documentHash || getDocumentPrimaryCaseId(qDetailDoc), qPanelX + 5, 55, 10, true, qAccent);
+    qStatusBadge(statusText, qPanelX + 27, 55);
+    const details: Array<[string, string]> = [
+      ["Month", qMonthLabel],
+      ["Agent", qDetailDoc.agentName],
+      ["Team", qDetailDoc.teamLeadName || qDetailDoc.supervisorName || "-"],
+      ["Document Type", "Monthly Incentive"],
+      ["Due Date", paymentCutoff],
+      ["Cash / Promo", `${formatBahtAmount(incentive.cash)} / ${formatBahtAmount(incentive.promo)}`],
+    ];
+    let detailY = 67;
+    details.forEach(([label, value]) => {
+      qText(label, qPanelX + 5, detailY, 7.4, true, [100, 116, 139]);
+      qWrap(value, qPanelX + 22, detailY, 23, 7.8, true, [31, 41, 55], 3.3, 2);
+      detailY += 11;
+    });
+    qText("Signature Timeline", qPanelX + 5, detailY + 4, 9.2, true, [31, 41, 55]);
+    detailY += 13;
+    SIGNATURE_FLOW.forEach((role, index) => {
+      const signed = getSignedEntry(entries, role);
+      pdf.setFillColor(signed ? 220 : 241, signed ? 252 : 245, signed ? 231 : 249);
+      pdf.circle(qPanelX + 7, detailY - 1, 2.4, "F");
+      qText(String(index + 1), qPanelX + 7, detailY, 6.2, true, signed ? [22, 101, 52] : qAccent, { align: "center" });
+      qText(roleThaiLabel(role), qPanelX + 12, detailY, 7.4, true, [31, 41, 55]);
+      qText(signed ? "Signed" : "Pending", qPanelX + 12, detailY + 4.2, 6.8, false, signed ? [22, 101, 52] : [180, 83, 9]);
+      detailY += 10;
+    });
+  } else {
+    qWrap("No document selected.", qPanelX + 5, 56, 40, 9, true, [100, 116, 139]);
+  }
+
+  if (sortedDocs.length > 10) {
+    const qFullWidths = [40, 58, 45, 18, 20, 28, 30];
+    sortedDocs.slice(10).forEach((doc, index) => {
+      if (index % 13 === 0) {
+        pdf.addPage("a4", "landscape");
+        qPageNo += 1;
+        qChrome(qPageNo);
+        qText(index === 0 ? "Full Agent List" : "Full Agent List (continued)", qContentLeft, 39, 15, true, [15, 23, 42]);
+        qTableHeader(qContentLeft, 48, qFullWidths);
+        qRowY = 57;
+      }
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
+      const incentive = getDocumentIncentive(doc);
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setFillColor(index % 2 === 0 ? 248 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
+      pdf.rect(qContentLeft, qRowY, qFullWidths.reduce((sum, width) => sum + width, 0), 10, "FD");
+      let cx = qContentLeft;
+      [
+        doc.documentHash || getDocumentPrimaryCaseId(doc),
+        doc.agentName,
+        doc.teamLeadName || doc.supervisorName || "-",
+        String(doc.caseCount),
+        doc.averageScore.toFixed(2),
+        formatBahtAmount(incentive.cash + incentive.promo),
+      ].forEach((cell, cellIndex) => {
+        qWrap(cell, cx + 2, qRowY + 5.5, qFullWidths[cellIndex] - 4, 7.6, cellIndex < 2, [31, 41, 55], 3.2, 1);
+        cx += qFullWidths[cellIndex];
+      });
+      qStatusBadge(statusText, cx + 2, qRowY + 6);
+      qRowY += 10;
+    });
+  }
+
+  const quickFileName = makePaymentPdfFileName(monthKey);
+  savePdfFile(pdf, quickFileName);
+  return quickFileName;
+
   const pageW = 297;
   const left = 12;
   const right = 285;
@@ -2966,12 +3224,57 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+      <div className="grid min-h-screen grid-cols-1 xl:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="hidden bg-gradient-to-b from-[#1c0b3d] via-[#271052] to-[#120827] px-5 py-7 text-white xl:block">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-xl font-black">QA</div>
+            <div>
+              <div className="text-lg font-black">Robinhood QA</div>
+              <div className="text-xs font-semibold text-violet-200">Operations Workspace</div>
+            </div>
+          </div>
+          <div className="mt-8 space-y-2 text-sm font-bold text-violet-100">
+            {["Dashboard", "Case Management", "Signature Workspace", "Reports & Analytics", "Documents", "Users & Teams", "Audit Logs"].map((label) => (
+              <div
+                key={label}
+                className={`rounded-2xl px-4 py-3 ${label === "Signature Workspace" ? "bg-violet-600 text-white shadow-[0_18px_40px_rgba(124,58,237,0.35)]" : "hover:bg-white/10"}`}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+          <div className="mt-10 rounded-3xl border border-white/15 bg-white/10 p-4">
+            <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">Access</div>
+            <div className="mt-2 text-sm font-black">{currentUser.displayName || currentUser.username}</div>
+            <div className="text-xs font-semibold text-violet-200">{currentUser.role}</div>
+          </div>
+        </aside>
+        <main className="min-w-0 space-y-5 p-4 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-4xl font-black tracking-tight text-slate-950">Signature Workspace</div>
+              <div className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-slate-500">
+                ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบและติดตามสถานะ
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-sm font-black text-violet-700">
+                {(currentUser.displayName || currentUser.username || "U").slice(0, 1).toUpperCase()}
+              </div>
+              <div>
+                <div className="text-sm font-black text-slate-950">{currentUser.displayName || currentUser.username}</div>
+                <div className="text-xs font-semibold text-slate-500">{currentUser.role}</div>
+              </div>
+            </div>
+          </div>
+      <div className="hidden">
       <PageHero
         eyebrow="Monthly Acknowledgement"
         title="Signature Workspace"
         subtitle="Preview คะแนนรายเดือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้นตอนเซ็นรับทราบ"
       />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-5">
         {[
@@ -3866,6 +4169,9 @@ export default function SignatureCenterMockup({
             ) : null}
           </div>
         ) : null}
+      </div>
+
+        </main>
       </div>
 
       {signingRole && selectedDocument ? (
