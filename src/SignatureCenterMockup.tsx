@@ -1035,14 +1035,24 @@ function getSignatureDueDate(monthKey: string) {
 }
 
 function getSignatureCreatedDate(doc: SignatureDocument) {
-  const firstCaseDate = parseExcelDate(doc.cases[0]?.auditDate);
-  if (firstCaseDate) return firstCaseDate;
+  const caseDates = doc.cases
+    .map((item) => parseExcelDate(item.auditDate))
+    .filter((date): date is Date => Boolean(date));
+  if (caseDates.length) return new Date(Math.max(...caseDates.map((date) => date.getTime())));
   if (/^\d{4}-\d{2}$/.test(doc.monthKey)) return new Date(`${doc.monthKey}-01T00:00:00`);
   return null;
 }
 
 function getDocumentPrimaryCaseId(doc: SignatureDocument) {
-  return doc.cases[0]?.caseId || doc.documentHash || doc.id;
+  return doc.documentHash || doc.cases[0]?.caseId || doc.id;
+}
+
+function getDocumentAuditSortTime(doc: SignatureDocument) {
+  const caseTimes = doc.cases
+    .map((item) => parseExcelDate(item.auditDate)?.getTime() || 0)
+    .filter((time) => time > 0);
+  if (caseTimes.length) return Math.max(...caseTimes);
+  return getSignatureCreatedDate(doc)?.getTime() || 0;
 }
 
 function getDocumentTypeLabel(doc: SignatureDocument) {
@@ -2166,6 +2176,7 @@ export default function SignatureCenterMockup({
       const keywordMatch =
         !keyword ||
         doc.agentName.toLowerCase().includes(keyword) ||
+        doc.documentHash.toLowerCase().includes(keyword) ||
         doc.monthKey.toLowerCase().includes(keyword) ||
         doc.monthLabel.toLowerCase().includes(keyword) ||
         doc.teamName.toLowerCase().includes(keyword) ||
@@ -2189,6 +2200,7 @@ export default function SignatureCenterMockup({
       const keywordMatch =
         !keyword ||
         doc.agentName.toLowerCase().includes(keyword) ||
+        doc.documentHash.toLowerCase().includes(keyword) ||
         doc.monthKey.toLowerCase().includes(keyword) ||
         doc.monthLabel.toLowerCase().includes(keyword) ||
         doc.teamName.toLowerCase().includes(keyword) ||
@@ -2212,6 +2224,10 @@ export default function SignatureCenterMockup({
       const yearMatch = selectedYear === "all" || doc.monthKey.startsWith(`${selectedYear}-`);
       const quickMatch = quickFilter === "all" || docStatus === quickFilter;
       return yearMatch && quickMatch;
+    }).sort((a, b) => {
+      const dateDiff = getDocumentAuditSortTime(b) - getDocumentAuditSortTime(a);
+      if (dateDiff) return dateDiff;
+      return a.agentName.localeCompare(b.agentName, "th");
     });
   }, [activeDocuments, quickFilter, selectedYear, signatures]);
 
@@ -3109,7 +3125,7 @@ export default function SignatureCenterMockup({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="ค้นหา Case ID / Agent / เดือน / ทีม"
+            placeholder="ค้นหา Document Ref. / Case ID / Agent / เดือน / ทีม"
             className="rounded-2xl border border-violet-100 bg-violet-50/40 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
           />
           <select
@@ -3191,15 +3207,15 @@ export default function SignatureCenterMockup({
         </div>
 
         <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
-          <div className="min-w-[1120px]">
-            <div className="grid grid-cols-[110px_130px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
+          <div className="min-w-[1280px]">
+            <div className="grid grid-cols-[110px_190px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
               <div>เดือน</div>
-              <div>เลขเคส</div>
+              <div>Document Ref.</div>
               <div>ผู้ถูกประเมิน</div>
               <div>ทีม</div>
               <div>ประเภทเอกสาร</div>
               <div>สถานะ</div>
-              <div>วันที่สร้าง</div>
+              <div>Audit Date</div>
               <div>กำหนดเซ็น</div>
               <div>ดำเนินการ</div>
             </div>
@@ -3228,12 +3244,12 @@ export default function SignatureCenterMockup({
                         key={doc.id}
                         type="button"
                         onClick={() => openWorkspaceDetail(doc.id)}
-                        className={`grid w-full grid-cols-[110px_130px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] items-center border-t px-4 py-3 text-left text-sm transition ${
+                        className={`grid w-full grid-cols-[110px_190px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] items-center border-t px-4 py-3 text-left text-sm transition ${
                           selected ? "border-violet-200 bg-violet-50" : "border-slate-100 bg-white hover:bg-slate-50"
                         }`}
                       >
                         <div><span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-700">{doc.monthLabel}</span></div>
-                        <div className="font-black text-violet-800">{getDocumentPrimaryCaseId(doc)}</div>
+                        <div className="truncate font-black text-violet-800" title={getDocumentPrimaryCaseId(doc)}>{getDocumentPrimaryCaseId(doc)}</div>
                         <div className="min-w-0">
                           <div className="truncate font-black text-slate-950">{doc.agentName}</div>
                           <div className="text-xs font-semibold text-slate-400">{doc.caseCount} cases / {doc.averageScore.toFixed(2)}</div>
@@ -3311,13 +3327,13 @@ export default function SignatureCenterMockup({
               <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="grid gap-3 md:grid-cols-2">
                   {[
-                    ["เลขเคส", getDocumentPrimaryCaseId(selectedDocument)],
+                    ["Document Ref.", getDocumentPrimaryCaseId(selectedDocument)],
                     ["เดือนเอกสาร", selectedDocument.monthLabel],
                     ["ผู้ถูกประเมิน", selectedDocument.agentName],
                     ["ทีม", selectedDocument.teamName || "-"],
                     ["ประเภทเอกสาร", getDocumentTypeLabel(selectedDocument)],
                     ["สถานะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
-                    ["วันที่สร้าง", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
+                    ["Audit Date ล่าสุด", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
                     ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
