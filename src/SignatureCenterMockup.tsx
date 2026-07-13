@@ -3330,19 +3330,19 @@ export default function SignatureCenterMockup({
       y += 16;
 
       drawSection("Monthly Case List");
-      const caseColWidths = [10, 22, 23, 77, 18, 12, 12];
+      const caseColWidths = [9, 21, 21, 91, 15, 8, 9];
       drawCellsByWidth(
         left,
         y,
         7.5,
-        ["Seq", "Case Date", "Case ID", "Inquiry", "Final Score", "Grade", "Critical"].map((label, index) => ({
+        ["Seq", "Case Date", "Case ID", "Inquiry", "Score", "Grade", "Critical"].map((label, index) => ({
           value: label,
           width: caseColWidths[index],
           fill: purple,
           options: {
             bold: true,
             color: [255, 255, 255],
-            size: 6.9,
+            size: 6.4,
             align: "center",
             maxLines: 1,
           },
@@ -3354,13 +3354,13 @@ export default function SignatureCenterMockup({
         const rowH = 7.6;
         const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
         drawCellsByWidth(left, y, rowH, [
-          { value: index + 1, width: caseColWidths[0], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 6.35, align: "left", bold: true, maxLines: 2 } },
-          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
-          { value: "NO", width: caseColWidths[6], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
+          { value: index + 1, width: caseColWidths[0], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 6.2, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 6.2, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 5.9, align: "left", bold: true, maxLines: 1 } },
+          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 6.4, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 6.4, align: "center", bold: true, maxLines: 1 } },
+          { value: "NO", width: caseColWidths[6], fill, options: { size: 6.2, align: "center", bold: true, maxLines: 1 } },
         ]);
         y += rowH;
       }
