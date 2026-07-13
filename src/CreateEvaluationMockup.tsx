@@ -146,6 +146,7 @@ const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slat
 const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
+const STICKY_NOTE_STORAGE_KEY = "qa-dashboard:create-evaluation:sticky-note";
 const REPORT_PAGE_SIZE = 12;
 const RAW_DATA_FILE_NAMES = ["QA_RawData_March-May2026.xlsx"];
 
@@ -785,6 +786,15 @@ export default function CreateEvaluationMockup({
   const [evaluationStatus, setEvaluationStatus] = useState<"Not Started" | "Draft" | "Submitted">("Not Started");
   const [draftSavedAt, setDraftSavedAt] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
+  const [stickyNote, setStickyNote] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return window.localStorage.getItem(STICKY_NOTE_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [stickyNoteMessage, setStickyNoteMessage] = useState("");
   const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState("");
   const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState("");
@@ -939,6 +949,14 @@ export default function CreateEvaluationMockup({
       setDraftMessage("History could not be loaded.");
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STICKY_NOTE_STORAGE_KEY, stickyNote);
+    } catch (error) {
+      console.warn("Sticky note could not be saved locally", error);
+    }
+  }, [stickyNote]);
 
   useEffect(() => {
     if (workspaceView === "report") {
@@ -1323,6 +1341,27 @@ export default function CreateEvaluationMockup({
     setDraftSavedAt(savedAt);
     setDraftMessage(`Draft saved for ${draft.caseId || "Untitled Case"} at ${savedAt}`);
     setWorkspaceView("drafts");
+  }
+
+  async function copyStickyNote() {
+    const text = stickyNote.trim();
+    if (!text) {
+      setStickyNoteMessage("ยังไม่มีข้อความให้คัดลอก");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setStickyNoteMessage("คัดลอกข้อความแล้ว");
+    } catch (error) {
+      console.warn("Sticky note copy failed", error);
+      setStickyNoteMessage("คัดลอกไม่สำเร็จ กรุณาเลือกข้อความแล้ว Copy เอง");
+    }
+  }
+
+  function clearStickyNote() {
+    setStickyNote("");
+    setStickyNoteMessage("ล้างข้อความแล้ว");
   }
 
   function updateWaitingTime(value: string) {
@@ -2463,6 +2502,45 @@ export default function CreateEvaluationMockup({
                 >
                   Save Draft
                 </button>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[24px] border border-amber-200 bg-white shadow-[0_18px_42px_rgba(217,119,6,0.12)]">
+              <div className="border-b border-amber-100 bg-gradient-to-r from-amber-50 via-yellow-50 to-white px-5 py-4">
+                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-700">Sticky Note</div>
+                <div className="mt-1 text-sm font-bold text-slate-600">พื้นที่วางข้อความชั่วคราว ใช้คัดลอกไปตอบเคสได้เร็วขึ้น</div>
+              </div>
+              <div className="space-y-3 p-5">
+                <textarea
+                  value={stickyNote}
+                  onChange={(event) => {
+                    setStickyNote(event.target.value);
+                    if (stickyNoteMessage) setStickyNoteMessage("");
+                  }}
+                  placeholder="วางข้อความที่ใช้บ่อย หรือร่างคำตอบไว้ตรงนี้..."
+                  className="min-h-[180px] w-full resize-y rounded-2xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm font-semibold leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={copyStickyNote}
+                    className="flex-1 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                  >
+                    Copy Note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearStickyNote}
+                    className="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {stickyNoteMessage ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                    {stickyNoteMessage}
+                  </div>
+                ) : null}
               </div>
             </div>
 
