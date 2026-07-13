@@ -2984,6 +2984,7 @@ export default function SignatureCenterMockup({
       pdf.setFont("THSarabunNew", "normal");
     } catch {}
 
+    if (false) {
     const docW = 210;
     const docH = 297;
     const qaDoc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
@@ -3179,6 +3180,7 @@ export default function SignatureCenterMockup({
     setPdfMessage(`Generated ${qaFileName}`);
     window.setTimeout(() => setPdfMessage(""), 3500);
     return;
+    }
 
     const pageWidth = 210;
     const left = 12;
@@ -3232,8 +3234,8 @@ export default function SignatureCenterMockup({
 
     pdf.setFillColor(95, 39, 159);
     pdf.rect(0, 0, pageWidth, 24, "F");
-    text("Monthly QA Dashboard", left, 10, 17, true, [255, 255, 255]);
-    text("Monthly dashboard for selected Agent and Month", left, 17, 11, false, [255, 255, 255]);
+    text("QA Score Monthly Report", left, 10, 17, true, [255, 255, 255]);
+    text("Official monthly QA acknowledgement form", left, 17, 11, false, [255, 255, 255]);
 
     y = 33;
     drawSectionTitle("Current View");
@@ -3354,7 +3356,7 @@ export default function SignatureCenterMockup({
     pdf.roundedRect(left, y, right - left, 13, 3, 3, "F");
     text("PDF จะแสดงชื่อเฉพาะผู้ที่ Signed แล้วเท่านั้น หากยังไม่ Signed จะแสดงเป็น -", left + 4, y + 8, 10, false, [71, 85, 105]);
 
-    const fileName = `Signature_${selectedDocument.monthKey}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
+    const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
     downloadBlob(pdf.output("blob"), fileName);
     setPdfMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPdfMessage(""), 3500);
