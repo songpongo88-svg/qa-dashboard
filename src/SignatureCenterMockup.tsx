@@ -59,6 +59,12 @@ type SignatureCaseDetail = {
   finalScore: number;
   grade: string;
   comment: string;
+  topics?: Array<{
+    code: string;
+    title: string;
+    max: number;
+    score: number;
+  }>;
 };
 
 type SignatureDocument = {
@@ -826,6 +832,7 @@ function buildDocumentsFromStoredEvaluations(
         finalScore,
         grade: scoreToGrade(finalScore, monthKey),
         comment,
+        topics: record.topics || [],
       });
     }
 
@@ -2983,6 +2990,474 @@ export default function SignatureCenterMockup({
       registerTHSarabunNew(pdf);
       pdf.setFont("THSarabunNew", "normal");
     } catch {}
+
+    {
+      const pageW = 210;
+      const pageH = 297;
+      const left = 12;
+      const tableW = 186;
+      const bottom = 284;
+      const purple: [number, number, number] = [112, 48, 160];
+      const purpleDark: [number, number, number] = [91, 44, 131];
+      const lightPurple: [number, number, number] = [204, 193, 218];
+      const palePurple: [number, number, number] = [248, 242, 251];
+      const border: [number, number, number] = [184, 184, 184];
+      const black: [number, number, number] = [18, 24, 38];
+      const muted: [number, number, number] = [71, 85, 105];
+      const good: [number, number, number] = [5, 150, 105];
+      const warn: [number, number, number] = [180, 83, 9];
+      const templateWidths = [15.36, 35.36, 12.27, 34.73, 19.91, 24.09, 30.36, 8, 25.36, 25.91];
+      const widthScale = tableW / templateWidths.reduce((sum, value) => sum + value, 0);
+      const colX = templateWidths.reduce<number[]>((acc, width) => {
+        acc.push(acc[acc.length - 1] + width * widthScale);
+        return acc;
+      }, [left]);
+      let y = 10;
+
+      const setTemplateFont = (
+        size: number,
+        bold = false,
+        color: [number, number, number] = black
+      ) => {
+        try {
+          pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
+        } catch {}
+        pdf.setFontSize(size);
+        pdf.setTextColor(color[0], color[1], color[2]);
+      };
+
+      const columnX = (startCol: number) => colX[Math.max(0, Math.min(startCol, colX.length - 1))];
+      const columnW = (startCol: number, endColExclusive: number) =>
+        colX[Math.max(0, Math.min(endColExclusive, colX.length - 1))] - columnX(startCol);
+
+      const fitLines = (value: unknown, width: number, fontSize: number, maxLines: number) => {
+        setTemplateFont(fontSize);
+        const rawLines = pdf.splitTextToSize(String(value ?? "-"), Math.max(4, width - 3));
+        if (rawLines.length <= maxLines) return rawLines;
+        const lines = rawLines.slice(0, maxLines);
+        const last = String(lines[lines.length - 1] || "");
+        lines[lines.length - 1] = last.length > 2 ? `${last.slice(0, Math.max(1, last.length - 2))}...` : "...";
+        return lines;
+      };
+
+      const drawCell = (
+        x: number,
+        cellY: number,
+        w: number,
+        h: number,
+        value: unknown,
+        fill: [number, number, number],
+        options: {
+          bold?: boolean;
+          color?: [number, number, number];
+          size?: number;
+          align?: "left" | "center" | "right";
+          valign?: "top" | "middle";
+          maxLines?: number;
+          lineHeight?: number;
+        } = {}
+      ) => {
+        const size = options.size ?? 8;
+        const align = options.align ?? "left";
+        const color = options.color ?? black;
+        const maxLines = options.maxLines ?? 2;
+        const lineHeight = options.lineHeight ?? size * 0.36 + 1.3;
+        pdf.setLineWidth(0.15);
+        pdf.setDrawColor(border[0], border[1], border[2]);
+        pdf.setFillColor(fill[0], fill[1], fill[2]);
+        pdf.rect(x, cellY, w, h, "FD");
+        setTemplateFont(size, options.bold ?? false, color);
+        const lines = fitLines(value, w, size, maxLines);
+        const textX = align === "center" ? x + w / 2 : align === "right" ? x + w - 2 : x + 2;
+        const textY =
+          options.valign === "top"
+            ? cellY + 4.2
+            : cellY + h / 2 - ((lines.length - 1) * lineHeight) / 2 + size * 0.22;
+        lines.forEach((lineText: string, index: number) => {
+          pdf.text(lineText, textX, textY + index * lineHeight, { align });
+        });
+      };
+
+      const drawCellCols = (
+        startCol: number,
+        endColExclusive: number,
+        cellY: number,
+        h: number,
+        value: unknown,
+        fill: [number, number, number],
+        options: Parameters<typeof drawCell>[6] = {}
+      ) => drawCell(columnX(startCol), cellY, columnW(startCol, endColExclusive), h, value, fill, options);
+
+      const drawHeader = (title: string, subtitle: string) => {
+        drawCell(left, y, tableW, 11, title, purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 17,
+          align: "left",
+          maxLines: 1,
+        });
+        y += 11;
+        drawCell(left, y, tableW, 9, subtitle, purple, {
+          color: [255, 255, 255],
+          size: 9,
+          align: "left",
+          maxLines: 1,
+        });
+        y += 14;
+      };
+
+      const drawSection = (title: string) => {
+        if (y + 10 > bottom) {
+          pdf.addPage();
+          y = 10;
+        }
+        drawCell(left, y, tableW, 8, title, purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 10,
+          align: "left",
+          maxLines: 1,
+        });
+        y += 10;
+      };
+
+      const drawLabelValue = (
+        labelStart: number,
+        labelEnd: number,
+        valueStart: number,
+        valueEnd: number,
+        label: string,
+        value: unknown,
+        rowY: number,
+        h: number,
+        valueOptions: Parameters<typeof drawCell>[6] = {}
+      ) => {
+        drawCellCols(labelStart, labelEnd, rowY, h, label, purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 8.2,
+          align: "center",
+          maxLines: 2,
+        });
+        drawCellCols(valueStart, valueEnd, rowY, h, value, lightPurple, {
+          bold: true,
+          size: 8.5,
+          align: "center",
+          maxLines: 2,
+          ...valueOptions,
+        });
+      };
+
+      const templateTopicRows = [
+        { code: "1", title: "Process & Policy Compliance", max: 30 },
+        { code: "2", title: "Answer Quality & Problem Analysis", max: 20 },
+        { code: "3", title: "Case Handling & Follow-up", max: 25 },
+        { code: "4", title: "Communication Skills", max: 25 },
+      ];
+
+      const topicStats = templateTopicRows.map((definition) => {
+        const matched = selectedDocument.cases.flatMap((item) =>
+          (item.topics || []).filter((topic) => {
+            const code = normalizeText(topic.code);
+            const title = normalizeKey(topic.title);
+            return code === definition.code || code.startsWith(`${definition.code}.`) || title.includes(normalizeKey(definition.title));
+          })
+        );
+        const count = matched.length;
+        const totalScore = matched.reduce((sum, topic) => sum + Number(topic.score || 0), 0);
+        const totalMax = matched.reduce((sum, topic) => sum + Number(topic.max || definition.max || 0), 0);
+        const avgScore = count ? totalScore / count : null;
+        const avgMax = count ? totalMax / count : definition.max;
+        const avgPercent = avgMax && avgScore !== null ? (avgScore / avgMax) * 100 : null;
+        return { ...definition, avgScore, avgPercent };
+      });
+      const topicRowsWithScore = topicStats.filter((item) => item.avgPercent !== null);
+      const bestTopic = topicRowsWithScore.length
+        ? [...topicRowsWithScore].sort((a, b) => Number(b.avgPercent) - Number(a.avgPercent))[0]
+        : null;
+      const lowestTopic = topicRowsWithScore.length
+        ? [...topicRowsWithScore].sort((a, b) => Number(a.avgPercent) - Number(b.avgPercent))[0]
+        : null;
+
+      const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+      const criticalCases = 0;
+      const documentStatus = isComplete ? "Completed Signature" : "Incomplete Signature";
+      const paymentStatus = readyForIncentive ? "Ready to Pay" : "Hold / Not Ready";
+
+      drawHeader(
+        "Monthly QA Dashboard",
+        "Monthly dashboard for the selected Agent and selected Month. Values are generated from the current QA system."
+      );
+
+      drawSection("Current View");
+      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 12, { maxLines: 2 });
+      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 12);
+      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 12);
+      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 12);
+      y += 15;
+
+      drawCellCols(0, 3, y, 9, "Cases Reviewed", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+      });
+      drawCellCols(3, 6, y, 9, "Need More to 10", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+      });
+      drawCellCols(6, 9, y, 9, "Average Score", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+      });
+      drawCellCols(9, 10, y, 9, "Monthly Grade", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+        maxLines: 2,
+      });
+      y += 9;
+      drawCellCols(0, 3, y, 12, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
+        bold: true,
+        size: 14,
+        align: "center",
+        maxLines: 1,
+      });
+      drawCellCols(3, 6, y, 12, needMoreToTarget, lightPurple, {
+        bold: true,
+        size: 14,
+        align: "center",
+        maxLines: 1,
+      });
+      drawCellCols(6, 9, y, 12, selectedDocument.averageScore.toFixed(2), lightPurple, {
+        bold: true,
+        size: 14,
+        align: "center",
+        color: selectedDocument.averageScore >= 80 ? good : warn,
+        maxLines: 1,
+      });
+      drawCellCols(9, 10, y, 12, selectedDocument.grade, lightPurple, {
+        bold: true,
+        size: 14,
+        align: "center",
+        maxLines: 1,
+      });
+      y += 17;
+
+      drawSection("Incentive Summary");
+      drawCellCols(0, 3, y, 8, "Incentive", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+      });
+      drawCellCols(3, 6, y, 8, "Best Topic", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+      });
+      drawCellCols(6, 10, y, 8, "Lowest Topic", purple, {
+        bold: true,
+        color: [255, 255, 255],
+        size: 8.5,
+        align: "center",
+      });
+      y += 8;
+      drawCellCols(0, 3, y, 14, `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`, lightPurple, {
+        bold: true,
+        size: 8,
+        align: "center",
+        maxLines: 2,
+      });
+      drawCellCols(3, 6, y, 14, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+        bold: true,
+        size: 8,
+        align: "center",
+        maxLines: 2,
+      });
+      drawCellCols(6, 10, y, 14, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+        bold: true,
+        size: 8,
+        align: "center",
+        maxLines: 2,
+      });
+      y += 19;
+
+      drawSection("Monthly Case List");
+      const caseHeaderY = y;
+      [
+        [0, 1, "Seq"],
+        [1, 2, "Case Date"],
+        [2, 3, "Case ID"],
+        [3, 6, "Inquiry"],
+        [6, 7, "Final Score"],
+        [7, 8, "Grade"],
+        [8, 9, "Critical"],
+        [9, 10, "Remark"],
+      ].forEach(([start, end, label]) => {
+        drawCellCols(Number(start), Number(end), caseHeaderY, 8, String(label), purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 7.5,
+          align: "center",
+          maxLines: 1,
+        });
+      });
+      y += 8;
+      for (let index = 0; index < CASE_TARGET; index += 1) {
+        const item = selectedDocument.cases[index];
+        const rowH = 8.5;
+        const fill = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253] as [number, number, number];
+        drawCellCols(0, 1, y, rowH, index + 1, fill, { size: 7.5, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(1, 2, y, rowH, item?.auditDate || "-", fill, { size: 7.2, align: "center", maxLines: 1 });
+        drawCellCols(2, 3, y, rowH, item?.caseId || "-", fill, { size: 7.2, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(3, 6, y, rowH, item?.inquiry || "-", fill, { size: 7.1, align: "left", maxLines: 2 });
+        drawCellCols(6, 7, y, rowH, item ? item.finalScore.toFixed(2) : "-", fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(7, 8, y, rowH, item?.grade || "-", fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(8, 9, y, rowH, "NO", fill, { size: 7.2, align: "center", maxLines: 1 });
+        drawCellCols(9, 10, y, rowH, item?.comment || "-", fill, { size: 6.8, align: "left", maxLines: 2 });
+        y += rowH;
+      }
+
+      y += 6;
+      drawSection("Monthly Topic Performance");
+      [
+        [0, 1, "Topic"],
+        [1, 4, "Description"],
+        [4, 6, "Avg Score"],
+        [6, 7, "Max"],
+        [7, 10, "Avg %"],
+      ].forEach(([start, end, label]) => {
+        drawCellCols(Number(start), Number(end), y, 8, String(label), purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 7.8,
+          align: "center",
+          maxLines: 1,
+        });
+      });
+      y += 8;
+      topicStats.forEach((item, index) => {
+        const fill = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253] as [number, number, number];
+        drawCellCols(0, 1, y, 8.5, item.code, fill, { size: 7.5, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(1, 4, y, 8.5, item.title, fill, { size: 7.3, align: "left", maxLines: 1 });
+        drawCellCols(4, 6, y, 8.5, item.avgScore === null ? "-" : item.avgScore.toFixed(2), fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(6, 7, y, 8.5, item.max, fill, { size: 7.4, align: "center", maxLines: 1 });
+        drawCellCols(7, 10, y, 8.5, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
+        y += 8.5;
+      });
+
+      drawCell(left, pageH - 10, tableW, 5, `Document Ref: ${selectedDocument.documentHash || selectedDocument.id} | Status: ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`, [255, 255, 255], {
+        size: 7,
+        align: "right",
+        color: muted,
+        maxLines: 1,
+      });
+
+      pdf.addPage();
+      y = 12;
+      drawHeader(
+        "Acknowledgement / Signature",
+        "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง"
+      );
+
+      const signerName = (role: SignRole) => {
+        const signed = getSignedEntry(entries, role);
+        return getRoleSigner(selectedDocument, role) || signed?.signerName || signed?.signedBy || "-";
+      };
+      const signerDate = (role: SignRole) => {
+        const signed = getSignedEntry(entries, role);
+        return signed ? formatDateTime(signed.signedAt) : "........................................";
+      };
+      const signatureData = (role: SignRole) => getSignedEntry(entries, role)?.signatureDataUrl || "";
+
+      const drawSignaturePanel = (
+        x: number,
+        panelY: number,
+        w: number,
+        role: SignRole,
+        roleTitle: string
+      ) => {
+        drawCell(x, panelY, w, 9, roleTitle, purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 9,
+          align: "center",
+          maxLines: 1,
+        });
+        drawCell(x, panelY + 9, w, 26, "", palePurple, { size: 8, align: "center" });
+        const signature = signatureData(role);
+        if (signature) {
+          try {
+            pdf.addImage(signature, "PNG", x + 9, panelY + 12, w - 18, 17);
+          } catch {
+            setTemplateFont(8, false, muted);
+            pdf.text("Signature image unavailable", x + w / 2, panelY + 24, { align: "center" });
+          }
+        } else {
+          setTemplateFont(9, false, muted);
+          pdf.text("ลงชื่อ ........................................................", x + w / 2, panelY + 24, { align: "center" });
+        }
+        drawCell(x, panelY + 35, w, 9, signerName(role), [255, 255, 255], {
+          bold: true,
+          size: 8.5,
+          align: "center",
+          maxLines: 1,
+        });
+        drawCell(x, panelY + 44, w, 9, roleTitle, [255, 255, 255], {
+          size: 8,
+          align: "center",
+          maxLines: 1,
+        });
+        drawCell(x, panelY + 53, w, 9, `วันที่ ${signerDate(role)}`, [255, 255, 255], {
+          size: 8,
+          align: "center",
+          maxLines: 1,
+        });
+      };
+
+      const halfW = tableW / 2 - 3;
+      drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
+      drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
+      y += 70;
+      drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
+      drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
+      y += 74;
+
+      drawSection("Document Summary");
+      drawLabelValue(0, 2, 2, 5, "Document Ref.", selectedDocument.documentHash || selectedDocument.id, y, 12, { maxLines: 1 });
+      drawLabelValue(5, 7, 7, 10, "Payment Status", paymentStatus, y, 12, {
+        color: readyForIncentive ? good : warn,
+        maxLines: 1,
+      });
+      y += 14;
+      drawLabelValue(0, 2, 2, 5, "Agent", selectedDocument.agentName, y, 12, { maxLines: 1 });
+      drawLabelValue(5, 7, 7, 10, "Average", selectedDocument.averageScore.toFixed(2), y, 12, {
+        color: selectedDocument.averageScore >= 80 ? good : warn,
+        maxLines: 1,
+      });
+
+      drawCell(left, pageH - 10, tableW, 5, `Generated: ${formatDateTime(new Date().toISOString())}`, [255, 255, 255], {
+        size: 7,
+        align: "right",
+        color: muted,
+        maxLines: 1,
+      });
+
+      const safeAgentFileName =
+        selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
+      const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}.pdf`;
+      downloadBlob(pdf.output("blob"), fileName);
+      setPdfMessage(`Generated ${fileName}`);
+      window.setTimeout(() => setPdfMessage(""), 3500);
+      return;
+    }
 
     {
     const officialPageW = 210;
