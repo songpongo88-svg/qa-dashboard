@@ -1046,7 +1046,7 @@ function getDocumentPrimaryCaseId(doc: SignatureDocument) {
 }
 
 function getDocumentTypeLabel(doc: SignatureDocument) {
-  return doc.eligibleByScore ? "Monthly Incentive" : "Monthly QA Acknowledgement";
+  return doc.eligibleByScore ? "เอกสารจ่าย Incentive รายเดือน" : "เอกสารรับทราบผล QA รายเดือน";
 }
 
 function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
@@ -1918,6 +1918,8 @@ export default function SignatureCenterMockup({
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [workspaceDetailOpen, setWorkspaceDetailOpen] = useState(false);
+  const workspaceDetailRef = useRef<HTMLDivElement | null>(null);
   const [documentView, setDocumentView] = useState<"queue" | "history">("queue");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -2263,6 +2265,14 @@ export default function SignatureCenterMockup({
     setStatusFilter("all");
     setQuickFilter("all");
     setCurrentPage(1);
+  };
+
+  const openWorkspaceDetail = (docId: string) => {
+    setSelectedDocumentId(docId);
+    setWorkspaceDetailOpen(true);
+    window.setTimeout(() => {
+      workspaceDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   };
 
   const isQaUser = currentUser.role === "Quality Assurance";
@@ -3183,15 +3193,15 @@ export default function SignatureCenterMockup({
         <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
           <div className="min-w-[1120px]">
             <div className="grid grid-cols-[110px_130px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
-              <div>Month</div>
-              <div>Case ID</div>
-              <div>Agent Name</div>
-              <div>Team</div>
-              <div>Document Type</div>
-              <div>Status</div>
-              <div>Created Date</div>
-              <div>Due Date</div>
-              <div>Action</div>
+              <div>เดือน</div>
+              <div>เลขเคส</div>
+              <div>ผู้ถูกประเมิน</div>
+              <div>ทีม</div>
+              <div>ประเภทเอกสาร</div>
+              <div>สถานะ</div>
+              <div>วันที่สร้าง</div>
+              <div>กำหนดเซ็น</div>
+              <div>ดำเนินการ</div>
             </div>
             {groupedWorkspaceDocuments.map((group) => {
               const expanded = expandedMonths[group.monthKey] !== false;
@@ -3217,7 +3227,7 @@ export default function SignatureCenterMockup({
                       <button
                         key={doc.id}
                         type="button"
-                        onClick={() => setSelectedDocumentId(doc.id)}
+                        onClick={() => openWorkspaceDetail(doc.id)}
                         className={`grid w-full grid-cols-[110px_130px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] items-center border-t px-4 py-3 text-left text-sm transition ${
                           selected ? "border-violet-200 bg-violet-50" : "border-slate-100 bg-white hover:bg-slate-50"
                         }`}
@@ -3234,7 +3244,7 @@ export default function SignatureCenterMockup({
                         <div className="font-black text-slate-600">{formatDateOnly(getSignatureCreatedDate(doc))}</div>
                         <div className={`font-black ${status === "expired" ? "text-rose-700" : "text-slate-600"}`}>{formatDateOnly(dueDate)}</div>
                         <div>
-                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">ดูรายละเอียด</span>
+                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">เปิดรายละเอียด</span>
                         </div>
                       </button>
                     );
@@ -3275,9 +3285,95 @@ export default function SignatureCenterMockup({
             </button>
           </div>
         </div>
+
+        {selectedDocument ? (
+          <div ref={workspaceDetailRef} className="mt-5 rounded-[26px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-4">
+            <button
+              type="button"
+              onClick={() => setWorkspaceDetailOpen((open) => !open)}
+              className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">รายละเอียดเอกสารที่เลือก</div>
+                <div className="mt-1 text-lg font-black text-slate-950">
+                  {getDocumentPrimaryCaseId(selectedDocument)} • {selectedDocument.agentName}
+                </div>
+                <div className="mt-1 text-xs font-semibold text-slate-500">
+                  {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / ผู้ลงนามปัจจุบัน: {getPendingRoles(selectedEntries)[0] ? roleThaiLabel(getPendingRoles(selectedEntries)[0]) : "ครบแล้ว"}
+                </div>
+              </div>
+              <span className="rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white">
+                {workspaceDetailOpen ? "ย่อรายละเอียด" : "เปิดรายละเอียด"}
+              </span>
+            </button>
+
+            {workspaceDetailOpen ? (
+              <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {[
+                    ["เลขเคส", getDocumentPrimaryCaseId(selectedDocument)],
+                    ["เดือนเอกสาร", selectedDocument.monthLabel],
+                    ["ผู้ถูกประเมิน", selectedDocument.agentName],
+                    ["ทีม", selectedDocument.teamName || "-"],
+                    ["ประเภทเอกสาร", getDocumentTypeLabel(selectedDocument)],
+                    ["สถานะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
+                    ["วันที่สร้าง", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
+                    ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
+                      <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{label}</div>
+                      <div className="mt-1 break-words text-sm font-black text-slate-900">{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-[22px] border border-white bg-white/90 p-4 shadow-sm">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">ลำดับการลงนาม</div>
+                  <div className="mt-3 space-y-3">
+                    {SIGNATURE_FLOW.map((role, index) => {
+                      const signedEntry = getSignedEntry(selectedEntries, role);
+                      const isCurrent = !signedEntry && getPendingRoles(selectedEntries)[0] === role;
+                      return (
+                        <div key={role} className="flex items-start gap-3">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                            signedEntry ? "bg-emerald-100 text-emerald-700" : isCurrent ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-black text-slate-900">{roleThaiLabel(role)}</div>
+                            <div className="text-xs font-semibold text-slate-500">
+                              {signedEntry ? `เซ็นแล้วโดย ${signedEntry.signedBy}` : isCurrent ? "รอดำเนินการขั้นนี้" : "ยังไม่ถึงขั้นตอน / ยังไม่เซ็น"}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("signature-workflow-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white"
+                    >
+                      ไปที่พื้นที่ลงนาม / ตรวจเอกสาร
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkspaceDetailOpen(false)}
+                      className="rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xs font-black text-violet-700"
+                    >
+                      ปิดแถบรายละเอียด
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div id="signature-workflow-detail" className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">
             {documentView === "history" ? (isQaUser ? "QA Signature Monitor" : "Signature History") : "Document Queue"}
