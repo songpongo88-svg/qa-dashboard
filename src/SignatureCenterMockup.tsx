@@ -102,6 +102,7 @@ type SignatureApprovedAppeal = {
   finalScore: number;
   previousScore: number;
   reviewedAt: string;
+  topics?: SignatureCaseDetail["topics"];
 };
 
 const RAW_DATA_FILES = [
@@ -570,9 +571,10 @@ function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
       const caseId = normalizeText(request.caseId);
       if (!caseId) return;
       const previousScore = Number(request.finalScore || 0);
-      const scoreDelta = request.topics
+      let scoreDelta = 0;
+      const revisedTopics = request.topics
         .filter(isSignatureAppealTopicChanged)
-        .reduce((sum, topic) => {
+        .map((topic) => {
           const originalScore = Number(topic.score || 0);
           const revisedScore =
             topic.revisedScore !== null &&
@@ -580,17 +582,54 @@ function buildSignatureApprovedAppealMap(logs: UsageLogEvent[]) {
             !Number.isNaN(Number(topic.revisedScore))
               ? Number(topic.revisedScore)
               : originalScore;
-          if (!Number.isFinite(originalScore) || !Number.isFinite(revisedScore)) return sum;
-          return sum + revisedScore - originalScore;
-        }, 0);
-      map.set(caseId, {
+          const max = Number(topic.max || 0);
+          if (!Number.isFinite(originalScore) || !Number.isFinite(revisedScore) || !Number.isFinite(max) || max <= 0) return null;
+          scoreDelta += revisedScore - originalScore;
+          return {
+            code: normalizeText(topic.code),
+            title: normalizeText((topic as any).title || topic.label),
+            max,
+            score: revisedScore,
+          };
+        })
+        .filter(Boolean) as SignatureCaseDetail["topics"];
+      const approvedAppeal = {
         caseId,
         previousScore,
         finalScore: Number((previousScore + scoreDelta).toFixed(2)),
         reviewedAt: request.reviewedAt || request.submittedAt || "",
-      });
+        topics: revisedTopics,
+      };
+      map.set(caseId, approvedAppeal);
+      const monthKey = getMonthKey(parseExcelDate(request.auditDate) || new Date(request.submittedAt || request.reviewedAt || ""));
+      if (/^20\d{2}-\d{2}$/.test(monthKey)) {
+        map.set(`${caseId}::${monthKey}`, approvedAppeal);
+      }
     });
   return map;
+}
+
+function applySignatureAppealTopics(
+  topics: SignatureCaseDetail["topics"],
+  appeal?: SignatureApprovedAppeal
+): SignatureCaseDetail["topics"] {
+  const revisedTopics = appeal?.topics || [];
+  if (!revisedTopics.length) return topics || [];
+
+  const revisedByCode = new Map(revisedTopics.map((topic) => [normalizeText(topic.code), topic]));
+  if (!topics?.length) return revisedTopics;
+
+  return topics.map((topic) => {
+    const revised = revisedByCode.get(normalizeText(topic.code));
+    return revised
+      ? {
+          ...topic,
+          title: revised.title || topic.title,
+          max: Number(revised.max || topic.max || 0),
+          score: Number(revised.score || 0),
+        }
+      : topic;
+  });
 }
 
 function getLastSignatureHeaderValue(
@@ -809,7 +848,8 @@ function buildDocumentsFromStoredEvaluations(
 
     const caseId = safeName(record.caseId || rawPreview["Case ID"], "");
     const rawFinalScore = Number(record.finalScore || rawPreview["Final Score"] || 0);
-    const appealScore = approvedAppealMap.get(caseId)?.finalScore;
+    const approvedAppeal = approvedAppealMap.get(`${caseId}::${monthKey}`) || approvedAppealMap.get(caseId);
+    const appealScore = approvedAppeal?.finalScore;
     const finalScore = Number.isFinite(Number(appealScore)) ? Number(appealScore) : rawFinalScore;
     if (!Number.isFinite(finalScore)) return;
 
@@ -852,7 +892,7 @@ function buildDocumentsFromStoredEvaluations(
         finalScore,
         grade: scoreToGrade(finalScore, monthKey),
         comment,
-        topics: record.topics || [],
+        topics: applySignatureAppealTopics(record.topics || [], approvedAppeal),
       });
     }
 
@@ -3188,29 +3228,62 @@ export default function SignatureCenterMockup({
         });
       };
 
-      const templateTopicRows = [
-        { code: "1", title: "Process & Policy Compliance", max: 30 },
-        { code: "2", title: "Answer Quality & Problem Analysis", max: 20 },
-        { code: "3", title: "Case Handling & Follow-up", max: 25 },
-        { code: "4", title: "Communication Skills", max: 25 },
-      ];
+      const topicMap = new Map<
+        string,
+        {
+          code: string;
+          title: string;
+          scoreSum: number;
+          maxSum: number;
+          count: number;
+          maxValues: Set<number>;
+        }
+      >();
 
-      const topicStats = templateTopicRows.map((definition) => {
-        const matched = selectedDocument.cases.flatMap((item) =>
-          (item.topics || []).filter((topic) => {
-            const code = normalizeText(topic.code);
-            const title = normalizeKey(topic.title);
-            return code === definition.code || code.startsWith(`${definition.code}.`) || title.includes(normalizeKey(definition.title));
-          })
-        );
-        const count = matched.length;
-        const totalScore = matched.reduce((sum, topic) => sum + Number(topic.score || 0), 0);
-        const totalMax = matched.reduce((sum, topic) => sum + Number(topic.max || definition.max || 0), 0);
-        const avgScore = count ? totalScore / count : null;
-        const avgMax = count ? totalMax / count : definition.max;
-        const avgPercent = avgMax && avgScore !== null ? (avgScore / avgMax) * 100 : null;
-        return { ...definition, avgScore, avgPercent };
+      selectedDocument.cases.forEach((item) => {
+        (item.topics || []).forEach((topic) => {
+          const code = normalizeText(topic.code);
+          const title = normalizeText(topic.title);
+          const score = Number(topic.score || 0);
+          const max = Number(topic.max || 0);
+          if (!code || !title || !Number.isFinite(score) || !Number.isFinite(max) || max <= 0) return;
+
+          const key = code || normalizeKey(title);
+          const current = topicMap.get(key) || {
+            code,
+            title,
+            scoreSum: 0,
+            maxSum: 0,
+            count: 0,
+            maxValues: new Set<number>(),
+          };
+          current.title = current.title || title;
+          current.scoreSum += score;
+          current.maxSum += max;
+          current.count += 1;
+          current.maxValues.add(max);
+          topicMap.set(key, current);
+        });
       });
+
+      const topicStats = Array.from(topicMap.values())
+        .map((item) => {
+          const avgScore = item.count ? item.scoreSum / item.count : null;
+          const avgMax = item.count ? item.maxSum / item.count : 0;
+          const max = item.maxValues.size === 1 ? Array.from(item.maxValues)[0] : avgMax;
+          const avgPercent = avgScore !== null && avgMax > 0 ? (avgScore / avgMax) * 100 : null;
+          return {
+            code: item.code,
+            title: item.title,
+            avgScore,
+            max,
+            avgPercent,
+          };
+        })
+        .sort((a, b) =>
+          a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: "base" }) ||
+          a.title.localeCompare(b.title, "th")
+        );
       const topicRowsWithScore = topicStats.filter((item) => item.avgPercent !== null);
       const bestTopic = topicRowsWithScore.length
         ? [...topicRowsWithScore].sort((a, b) => Number(b.avgPercent) - Number(a.avgPercent))[0]
@@ -3370,31 +3443,61 @@ export default function SignatureCenterMockup({
 
       y += 3;
       drawSection("Monthly Topic Performance");
-      [
-        [0, 1, "Topic"],
-        [1, 4, "Description"],
-        [4, 6, "Avg Score"],
-        [6, 7, "Max"],
-        [7, 10, "Avg %"],
-      ].forEach(([start, end, label]) => {
-        drawCellCols(Number(start), Number(end), y, 5.8, String(label), purple, {
-          bold: true,
-          color: [255, 255, 255],
+      const drawTopicHeader = () => {
+        [
+          [0, 1, "Topic"],
+          [1, 4, "Description"],
+          [4, 6, "Avg Score"],
+          [6, 7, "Max"],
+          [7, 10, "Avg %"],
+        ].forEach(([start, end, label]) => {
+          drawCellCols(Number(start), Number(end), y, 5.8, String(label), purple, {
+            bold: true,
+            color: [255, 255, 255],
+            size: 6.3,
+            align: "center",
+            maxLines: 1,
+          });
+        });
+        y += 5.8;
+      };
+      const formatMetric = (value: number | null) => (value === null || !Number.isFinite(value) ? "-" : value.toFixed(2));
+      const formatTopicMax = (value: number) =>
+        Number.isFinite(value) ? (Number.isInteger(value) ? String(value) : value.toFixed(2)) : "-";
+
+      drawTopicHeader();
+      if (!topicStats.length) {
+        drawCell(left, y, tableW, 7, "No topic score data for this document", [250, 247, 253], {
           size: 6.3,
           align: "center",
+          bold: true,
+          color: muted,
           maxLines: 1,
         });
-      });
-      y += 5.8;
-      topicStats.forEach((item, index) => {
-        const fill = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253] as [number, number, number];
-        drawCellCols(0, 1, y, 5.9, item.code, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(1, 4, y, 5.9, item.title, fill, { size: 5.95, align: "left", bold: true, maxLines: 1 });
-        drawCellCols(4, 6, y, 5.9, item.avgScore === null ? "-" : item.avgScore.toFixed(2), fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(6, 7, y, 5.9, item.max, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(7, 10, y, 5.9, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
-        y += 5.9;
-      });
+        y += 7;
+      } else {
+        topicStats.forEach((item, index) => {
+          const topicRowH = 5.9;
+          if (y + topicRowH > bottom - 4) {
+            pdf.addPage();
+            y = 10;
+            drawSection("Monthly Topic Performance (continued)");
+            drawTopicHeader();
+          }
+          const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
+          drawCellCols(0, 1, y, topicRowH, item.code, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+          drawCellCols(1, 4, y, topicRowH, item.title, fill, { size: 5.95, align: "left", bold: true, maxLines: 1 });
+          drawCellCols(4, 6, y, topicRowH, formatMetric(item.avgScore), fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+          drawCellCols(6, 7, y, topicRowH, formatTopicMax(item.max), fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+          drawCellCols(7, 10, y, topicRowH, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, {
+            size: 6.1,
+            align: "center",
+            bold: true,
+            maxLines: 1,
+          });
+          y += topicRowH;
+        });
+      }
 
       y += 3;
       drawSection("Acknowledgement / Signature");
