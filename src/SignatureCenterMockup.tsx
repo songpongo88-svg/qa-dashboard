@@ -2994,8 +2994,8 @@ export default function SignatureCenterMockup({
     {
       const pageW = 210;
       const pageH = 297;
-      const left = 12;
-      const tableW = 186;
+      const left = 18;
+      const tableW = 174;
       const bottom = 284;
       const purple: [number, number, number] = [112, 48, 160];
       const purpleDark: [number, number, number] = [91, 44, 131];
@@ -3066,8 +3066,8 @@ export default function SignatureCenterMockup({
         pdf.setDrawColor(border[0], border[1], border[2]);
         pdf.setFillColor(fill[0], fill[1], fill[2]);
         pdf.rect(x, cellY, w, h, "FD");
-        setTemplateFont(size, options.bold ?? false, color);
         const lines = fitLines(value, w, size, maxLines);
+        setTemplateFont(size, options.bold ?? false, color);
         const textX = align === "center" ? x + w / 2 : align === "right" ? x + w - 2 : x + 2;
         const textY =
           options.valign === "top"
@@ -3088,22 +3088,41 @@ export default function SignatureCenterMockup({
         options: Parameters<typeof drawCell>[6] = {}
       ) => drawCell(columnX(startCol), cellY, columnW(startCol, endColExclusive), h, value, fill, options);
 
+      const drawCellsByWidth = (
+        startX: number,
+        cellY: number,
+        h: number,
+        cells: Array<{
+          value: unknown;
+          width: number;
+          fill: [number, number, number];
+          options?: Parameters<typeof drawCell>[6];
+        }>
+      ) => {
+        let cursorX = startX;
+        cells.forEach((cell) => {
+          drawCell(cursorX, cellY, cell.width, h, cell.value, cell.fill, cell.options);
+          cursorX += cell.width;
+        });
+      };
+
       const drawHeader = (title: string, subtitle: string) => {
-        drawCell(left, y, tableW, 11, title, purple, {
+        drawCell(left, y, tableW, 9, title, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 17,
+          size: 14,
+          align: "left",
+          maxLines: 1,
+        });
+        y += 9;
+        drawCell(left, y, tableW, 7, subtitle, purple, {
+          bold: true,
+          color: [255, 255, 255],
+          size: 7.5,
           align: "left",
           maxLines: 1,
         });
         y += 11;
-        drawCell(left, y, tableW, 9, subtitle, purple, {
-          color: [255, 255, 255],
-          size: 9,
-          align: "left",
-          maxLines: 1,
-        });
-        y += 14;
       };
 
       const drawSection = (title: string) => {
@@ -3111,14 +3130,14 @@ export default function SignatureCenterMockup({
           pdf.addPage();
           y = 10;
         }
-        drawCell(left, y, tableW, 8, title, purple, {
+        drawCell(left, y, tableW, 6.8, title, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 10,
+          size: 8.4,
           align: "left",
           maxLines: 1,
         });
-        y += 10;
+        y += 8.4;
       };
 
       const drawLabelValue = (
@@ -3135,13 +3154,13 @@ export default function SignatureCenterMockup({
         drawCellCols(labelStart, labelEnd, rowY, h, label, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 8.2,
+          size: 7.2,
           align: "center",
           maxLines: 2,
         });
         drawCellCols(valueStart, valueEnd, rowY, h, value, lightPurple, {
           bold: true,
-          size: 8.5,
+          size: 7.4,
           align: "center",
           maxLines: 2,
           ...valueOptions,
@@ -3190,142 +3209,142 @@ export default function SignatureCenterMockup({
       );
 
       drawSection("Current View");
-      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 12, { maxLines: 2 });
-      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 12);
-      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 12);
-      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 12);
-      y += 15;
+      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 10, { maxLines: 2 });
+      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 10);
+      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 10);
+      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 10);
+      y += 12.5;
 
-      drawCellCols(0, 3, y, 9, "Cases Reviewed", purple, {
+      drawCellCols(0, 3, y, 7.5, "Cases Reviewed", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
       });
-      drawCellCols(3, 6, y, 9, "Need More to 10", purple, {
+      drawCellCols(3, 6, y, 7.5, "Need More to 10", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
       });
-      drawCellCols(6, 9, y, 9, "Average Score", purple, {
+      drawCellCols(6, 9, y, 7.5, "Average Score", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
       });
-      drawCellCols(9, 10, y, 9, "Monthly Grade", purple, {
+      drawCellCols(9, 10, y, 7.5, "Monthly Grade", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
         maxLines: 2,
       });
-      y += 9;
-      drawCellCols(0, 3, y, 12, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
+      y += 7.5;
+      drawCellCols(0, 3, y, 10, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
         bold: true,
-        size: 14,
+        size: 11.5,
         align: "center",
         maxLines: 1,
       });
-      drawCellCols(3, 6, y, 12, needMoreToTarget, lightPurple, {
+      drawCellCols(3, 6, y, 10, needMoreToTarget, lightPurple, {
         bold: true,
-        size: 14,
+        size: 11.5,
         align: "center",
         maxLines: 1,
       });
-      drawCellCols(6, 9, y, 12, selectedDocument.averageScore.toFixed(2), lightPurple, {
+      drawCellCols(6, 9, y, 10, selectedDocument.averageScore.toFixed(2), lightPurple, {
         bold: true,
-        size: 14,
+        size: 11.5,
         align: "center",
         color: selectedDocument.averageScore >= 80 ? good : warn,
         maxLines: 1,
       });
-      drawCellCols(9, 10, y, 12, selectedDocument.grade, lightPurple, {
+      drawCellCols(9, 10, y, 10, selectedDocument.grade, lightPurple, {
         bold: true,
-        size: 14,
+        size: 11.5,
         align: "center",
         maxLines: 1,
       });
-      y += 17;
+      y += 14;
 
       drawSection("Incentive Summary");
-      drawCellCols(0, 3, y, 8, "Incentive", purple, {
+      drawCellCols(0, 3, y, 7.5, "Incentive", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
       });
-      drawCellCols(3, 6, y, 8, "Best Topic", purple, {
+      drawCellCols(3, 6, y, 7.5, "Best Topic", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
       });
-      drawCellCols(6, 10, y, 8, "Lowest Topic", purple, {
+      drawCellCols(6, 10, y, 7.5, "Lowest Topic", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 8.5,
+        size: 7.4,
         align: "center",
       });
-      y += 8;
-      drawCellCols(0, 3, y, 14, `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`, lightPurple, {
+      y += 7.5;
+      drawCellCols(0, 3, y, 12, `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`, lightPurple, {
         bold: true,
-        size: 8,
+        size: 7.1,
         align: "center",
         maxLines: 2,
       });
-      drawCellCols(3, 6, y, 14, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+      drawCellCols(3, 6, y, 12, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
-        size: 8,
+        size: 7.1,
         align: "center",
         maxLines: 2,
       });
-      drawCellCols(6, 10, y, 14, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+      drawCellCols(6, 10, y, 12, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
-        size: 8,
+        size: 7.1,
         align: "center",
         maxLines: 2,
       });
-      y += 19;
+      y += 16;
 
       drawSection("Monthly Case List");
-      const caseHeaderY = y;
-      [
-        [0, 1, "Seq"],
-        [1, 2, "Case Date"],
-        [2, 3, "Case ID"],
-        [3, 6, "Inquiry"],
-        [6, 7, "Final Score"],
-        [7, 8, "Grade"],
-        [8, 9, "Critical"],
-        [9, 10, "Remark"],
-      ].forEach(([start, end, label]) => {
-        drawCellCols(Number(start), Number(end), caseHeaderY, 8, String(label), purple, {
-          bold: true,
-          color: [255, 255, 255],
-          size: 7.5,
-          align: "center",
-          maxLines: 1,
-        });
-      });
-      y += 8;
+      const caseColWidths = [10, 22, 23, 77, 18, 12, 12];
+      drawCellsByWidth(
+        left,
+        y,
+        7.5,
+        ["Seq", "Case Date", "Case ID", "Inquiry", "Final Score", "Grade", "Critical"].map((label, index) => ({
+          value: label,
+          width: caseColWidths[index],
+          fill: purple,
+          options: {
+            bold: true,
+            color: [255, 255, 255],
+            size: 6.9,
+            align: "center",
+            maxLines: 1,
+          },
+        }))
+      );
+      y += 7.5;
       for (let index = 0; index < CASE_TARGET; index += 1) {
         const item = selectedDocument.cases[index];
-        const rowH = 8.5;
-        const fill = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253] as [number, number, number];
-        drawCellCols(0, 1, y, rowH, index + 1, fill, { size: 7.5, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(1, 2, y, rowH, item?.auditDate || "-", fill, { size: 7.2, align: "center", maxLines: 1 });
-        drawCellCols(2, 3, y, rowH, item?.caseId || "-", fill, { size: 7.2, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(3, 6, y, rowH, item?.inquiry || "-", fill, { size: 7.1, align: "left", maxLines: 2 });
-        drawCellCols(6, 7, y, rowH, item ? item.finalScore.toFixed(2) : "-", fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(7, 8, y, rowH, item?.grade || "-", fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(8, 9, y, rowH, "NO", fill, { size: 7.2, align: "center", maxLines: 1 });
-        drawCellCols(9, 10, y, rowH, item?.comment || "-", fill, { size: 6.8, align: "left", maxLines: 2 });
+        const rowH = 7.6;
+        const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
+        drawCellsByWidth(left, y, rowH, [
+          { value: index + 1, width: caseColWidths[0], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 6.35, align: "left", bold: true, maxLines: 2 } },
+          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 6.8, align: "center", bold: true, maxLines: 1 } },
+          { value: "NO", width: caseColWidths[6], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
+        ]);
         y += rowH;
       }
 
-      y += 6;
+      y += 5;
       drawSection("Monthly Topic Performance");
       [
         [0, 1, "Topic"],
@@ -3334,23 +3353,23 @@ export default function SignatureCenterMockup({
         [6, 7, "Max"],
         [7, 10, "Avg %"],
       ].forEach(([start, end, label]) => {
-        drawCellCols(Number(start), Number(end), y, 8, String(label), purple, {
+        drawCellCols(Number(start), Number(end), y, 7.5, String(label), purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 7.8,
+          size: 7,
           align: "center",
           maxLines: 1,
         });
       });
-      y += 8;
+      y += 7.5;
       topicStats.forEach((item, index) => {
         const fill = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253] as [number, number, number];
-        drawCellCols(0, 1, y, 8.5, item.code, fill, { size: 7.5, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(1, 4, y, 8.5, item.title, fill, { size: 7.3, align: "left", maxLines: 1 });
-        drawCellCols(4, 6, y, 8.5, item.avgScore === null ? "-" : item.avgScore.toFixed(2), fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(6, 7, y, 8.5, item.max, fill, { size: 7.4, align: "center", maxLines: 1 });
-        drawCellCols(7, 10, y, 8.5, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 7.4, align: "center", bold: true, maxLines: 1 });
-        y += 8.5;
+        drawCellCols(0, 1, y, 7.8, item.code, fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(1, 4, y, 7.8, item.title, fill, { size: 6.8, align: "left", bold: true, maxLines: 1 });
+        drawCellCols(4, 6, y, 7.8, item.avgScore === null ? "-" : item.avgScore.toFixed(2), fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(6, 7, y, 7.8, item.max, fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(7, 10, y, 7.8, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
+        y += 7.8;
       });
 
       drawCell(left, pageH - 10, tableW, 5, `Document Ref: ${selectedDocument.documentHash || selectedDocument.id} | Status: ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`, [255, 255, 255], {
