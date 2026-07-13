@@ -186,6 +186,26 @@ function parseExcelDate(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function getSignatureCaseAuditSortTime(item: SignatureCaseDetail) {
+  const date = parseExcelDate(item.auditDate);
+  return date ? date.getTime() : Number.MAX_SAFE_INTEGER;
+}
+
+function sortSignatureCasesByAuditDate(cases: SignatureCaseDetail[]) {
+  return cases
+    .map((item, index) => ({ item, index, time: getSignatureCaseAuditSortTime(item) }))
+    .sort((a, b) => {
+      const timeDiff = a.time - b.time;
+      if (timeDiff) return timeDiff;
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
+}
+
+function sortSignatureDocumentCases(doc: SignatureDocument): SignatureDocument {
+  return { ...doc, cases: sortSignatureCasesByAuditDate(doc.cases) };
+}
+
 function parseMonthValueToDate(value: unknown): Date | null {
   const directDate = parseExcelDate(value);
   if (directDate) return new Date(directDate.getFullYear(), directDate.getMonth(), 1);
@@ -748,7 +768,7 @@ function buildDocuments(
         averageScore,
         grade: scoreToGrade(averageScore, item.monthKey),
         eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
-        cases: item.cases,
+        cases: sortSignatureCasesByAuditDate(item.cases),
       };
       return { ...base, documentHash: createDocumentHash(base) };
     })
@@ -858,7 +878,7 @@ function buildDocumentsFromStoredEvaluations(
         averageScore,
         grade: scoreToGrade(averageScore, item.monthKey),
         eligibleByScore: caseCount >= CASE_TARGET && averageScore >= 80,
-        cases: item.cases,
+        cases: sortSignatureCasesByAuditDate(item.cases),
       };
       return { ...base, documentHash: createDocumentHash(base) };
     })
@@ -869,7 +889,7 @@ function mergeSignatureDocuments(existing: SignatureDocument, incoming: Signatur
   const caseMap = new Map<string, SignatureCaseDetail>();
   existing.cases.forEach((item) => caseMap.set(item.caseId, item));
   incoming.cases.forEach((item) => caseMap.set(item.caseId, item));
-  const cases = Array.from(caseMap.values());
+  const cases = sortSignatureCasesByAuditDate(Array.from(caseMap.values()));
   const caseCount = cases.length || Math.max(existing.caseCount, incoming.caseCount);
   const averageScore = cases.length
     ? cases.reduce((sum, item) => sum + Number(item.finalScore || 0), 0) / cases.length
@@ -2301,7 +2321,7 @@ export default function SignatureCenterMockup({
         Array.from(docMap.values()).forEach((doc) => {
           const canonicalName = canonicalAgentName(doc.agentName);
           const canonicalId = `${doc.monthKey}::${canonicalName}`;
-          const normalizedDoc = { ...doc, id: canonicalId, agentName: canonicalName };
+          const normalizedDoc = sortSignatureDocumentCases({ ...doc, id: canonicalId, agentName: canonicalName });
           const existing = canonicalDocMap.get(canonicalId);
           if (!existing) {
             canonicalDocMap.set(canonicalId, normalizedDoc);
@@ -2310,7 +2330,7 @@ export default function SignatureCenterMockup({
           canonicalDocMap.set(canonicalId, mergeSignatureDocuments(existing, normalizedDoc));
         });
 
-        const nextDocs = Array.from(canonicalDocMap.values()).sort(
+        const nextDocs = Array.from(canonicalDocMap.values()).map(sortSignatureDocumentCases).sort(
           (a, b) => b.monthKey.localeCompare(a.monthKey) || a.agentName.localeCompare(b.agentName, "th")
         );
         if (!alive) return;
@@ -2490,7 +2510,7 @@ export default function SignatureCenterMockup({
       const quickMatch = quickFilter === "all" || docStatus === quickFilter;
       return yearMatch && quickMatch;
     }).sort((a, b) => {
-      const dateDiff = getDocumentAuditSortTime(b) - getDocumentAuditSortTime(a);
+      const dateDiff = getDocumentAuditSortTime(a) - getDocumentAuditSortTime(b);
       if (dateDiff) return dateDiff;
       return a.agentName.localeCompare(b.agentName, "th");
     });
@@ -2623,13 +2643,14 @@ export default function SignatureCenterMockup({
 
   const canGeneratePaymentExcel = selectedMonth !== "all";
 
-  const selectedDocument =
+  const selectedDocumentSource =
     workspaceDocuments.find((item) => item.id === selectedDocumentId) ||
     workspaceDocuments[0] ||
     activeDocuments[0] ||
     filteredDocuments[0] ||
     historyFilteredDocuments[0] ||
     null;
+  const selectedDocument = selectedDocumentSource ? sortSignatureDocumentCases(selectedDocumentSource) : null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
   const mySignedRoles = selectedDocument
     ? SIGNATURE_FLOW.filter((role) => {
