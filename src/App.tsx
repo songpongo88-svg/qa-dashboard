@@ -137,6 +137,43 @@ type BuildMeta = {
   timezone?: string;
 };
 
+class SignatureCenterErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { errorMessage: string }
+> {
+  state = { errorMessage: "" };
+
+  static getDerivedStateFromError(error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error || "Unknown error");
+    return { errorMessage };
+  }
+
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error("Signature Center crashed", error, info);
+  }
+
+  render() {
+    if (this.state.errorMessage) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-6">
+          <div className="mx-auto mt-10 max-w-3xl rounded-[28px] border border-rose-200 bg-white p-6 shadow-xl shadow-rose-100">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-600">Signature Center Error</p>
+            <h1 className="mt-2 text-2xl font-black text-slate-950">Signature Center เปิดไม่สำเร็จ</h1>
+            <p className="mt-2 text-sm font-semibold text-slate-600">
+              ระบบจับข้อผิดพลาดไว้แล้วเพื่อไม่ให้หน้าขาว กรุณา Refresh อีกครั้ง หรือส่งข้อความด้านล่างให้ผู้ดูแลระบบตรวจสอบ
+            </p>
+            <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-2xl bg-rose-50 p-4 text-xs font-semibold text-rose-700">
+              {this.state.errorMessage}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 type AppTab =
   | "dashboard"
   | "appeal"
@@ -5770,7 +5807,9 @@ export default function App() {
             onSelectedWeekChange={setSelectedWeekGlobal}
           />
         ) : activeTab === "signature-center" ? (
-          <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} />
+          <SignatureCenterErrorBoundary key="signature-center">
+            <SignatureCenterMockup currentUser={currentUser} accounts={effectiveUserAccounts} />
+          </SignatureCenterErrorBoundary>
         ) : activeTab === "presentation-builder" ? (
           <PresentationMockup
             currentUser={currentUser}
