@@ -397,8 +397,36 @@ function readSignatureStore(): Record<string, SignatureEntry[]> {
   }
 }
 
+function compactSignatureStore(value: Record<string, SignatureEntry[]>) {
+  return Object.fromEntries(
+    Object.entries(value).map(([docId, entries]) => [
+      docId,
+      entries.map(({ signatureDataUrl, ...entry }) => entry),
+    ])
+  ) as Record<string, SignatureEntry[]>;
+}
+
 function writeSignatureStore(value: Record<string, SignatureEntry[]>) {
-  window.localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(value));
+    return;
+  } catch (error) {
+    console.warn("Signature local cache exceeded quota; retrying with compact signature metadata.", error);
+  }
+
+  try {
+    window.localStorage.removeItem(SIGNATURE_STORAGE_KEY);
+    window.localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(compactSignatureStore(value)));
+    return;
+  } catch (error) {
+    console.warn("Signature compact local cache failed; continuing without local signature cache.", error);
+  }
+
+  try {
+    window.localStorage.removeItem(SIGNATURE_STORAGE_KEY);
+  } catch {
+    // Ignore storage cleanup failures so Signature Center can continue rendering.
+  }
 }
 
 function readConfirmedStore(): Record<string, string> {
@@ -410,7 +438,11 @@ function readConfirmedStore(): Record<string, string> {
 }
 
 function writeConfirmedStore(value: Record<string, string>) {
-  window.localStorage.setItem(SIGNATURE_CONFIRM_KEY, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(SIGNATURE_CONFIRM_KEY, JSON.stringify(value));
+  } catch (error) {
+    console.warn("Signature confirmed local cache failed; continuing with remote storage only.", error);
+  }
 }
 
 function readSignatureLibraryStore(): Record<string, string> {
@@ -422,7 +454,16 @@ function readSignatureLibraryStore(): Record<string, string> {
 }
 
 function writeSignatureLibraryStore(value: Record<string, string>) {
-  window.localStorage.setItem(SIGNATURE_LIBRARY_KEY, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(SIGNATURE_LIBRARY_KEY, JSON.stringify(value));
+  } catch (error) {
+    console.warn("Saved signature local cache exceeded quota; clearing saved local signature library.", error);
+    try {
+      window.localStorage.removeItem(SIGNATURE_LIBRARY_KEY);
+    } catch {
+      // Ignore storage cleanup failures.
+    }
+  }
 }
 
 function createDocumentHash(doc: Omit<SignatureDocument, "documentHash">) {
