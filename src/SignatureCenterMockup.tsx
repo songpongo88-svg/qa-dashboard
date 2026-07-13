@@ -3017,7 +3017,7 @@ export default function SignatureCenterMockup({
       const pageH = 297;
       const left = 18;
       const tableW = 174;
-      const bottom = 284;
+      const bottom = 289;
       const purple: [number, number, number] = [112, 48, 160];
       const purpleDark: [number, number, number] = [91, 44, 131];
       const lightPurple: [number, number, number] = [204, 193, 218];
@@ -3128,22 +3128,22 @@ export default function SignatureCenterMockup({
       };
 
       const drawHeader = (title: string, subtitle: string) => {
-        drawCell(left, y, tableW, 9, title, purple, {
+        drawCell(left, y, tableW, 7.2, title, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 14,
+          size: 12.5,
           align: "left",
           maxLines: 1,
         });
-        y += 9;
-        drawCell(left, y, tableW, 7, subtitle, purple, {
+        y += 7.2;
+        drawCell(left, y, tableW, 5.3, subtitle, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 7.5,
+          size: 7,
           align: "left",
           maxLines: 1,
         });
-        y += 11;
+        y += 7;
       };
 
       const drawSection = (title: string) => {
@@ -3151,14 +3151,14 @@ export default function SignatureCenterMockup({
           pdf.addPage();
           y = 10;
         }
-        drawCell(left, y, tableW, 6.8, title, purple, {
+        drawCell(left, y, tableW, 5.8, title, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 8.4,
+          size: 7.8,
           align: "left",
           maxLines: 1,
         });
-        y += 8.4;
+        y += 6.5;
       };
 
       const drawLabelValue = (
@@ -3175,13 +3175,13 @@ export default function SignatureCenterMockup({
         drawCellCols(labelStart, labelEnd, rowY, h, label, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 7.2,
+          size: 6.9,
           align: "center",
           maxLines: 2,
         });
         drawCellCols(valueStart, valueEnd, rowY, h, value, lightPurple, {
           bold: true,
-          size: 7.4,
+          size: 7.1,
           align: "center",
           maxLines: 2,
           ...valueOptions,
@@ -3222,7 +3222,10 @@ export default function SignatureCenterMockup({
       const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
       const criticalCases = 0;
       const documentStatus = isComplete ? "Completed Signature" : "Incomplete Signature";
-      const paymentStatus = readyForIncentive ? "Ready to Pay" : "Hold / Not Ready";
+      const incentiveText =
+        Number(individualIncentive.promo || 0) > 0
+          ? `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`
+          : `${individualIncentive.label || `${formatBahtAmount(individualIncentive.cash || 0)} THB`}`;
 
       drawHeader(
         "Monthly QA Dashboard",
@@ -3230,111 +3233,111 @@ export default function SignatureCenterMockup({
       );
 
       drawSection("Current View");
-      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 10, { maxLines: 2 });
-      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 10);
-      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 10);
-      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 10);
-      y += 12.5;
+      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 8.5, { maxLines: 2 });
+      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 8.5);
+      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 8.5);
+      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 8.5);
+      y += 9.5;
 
-      drawCellCols(0, 3, y, 7.5, "Cases Reviewed", purple, {
+      drawCellCols(0, 3, y, 6.2, "Cases Reviewed", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
       });
-      drawCellCols(3, 6, y, 7.5, "Need More to 10", purple, {
+      drawCellCols(3, 6, y, 6.2, "Need More to 10", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
       });
-      drawCellCols(6, 9, y, 7.5, "Average Score", purple, {
+      drawCellCols(6, 9, y, 6.2, "Average Score", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
       });
-      drawCellCols(9, 10, y, 7.5, "Monthly Grade", purple, {
+      drawCellCols(9, 10, y, 6.2, "Monthly Grade", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
         maxLines: 2,
       });
-      y += 7.5;
-      drawCellCols(0, 3, y, 10, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
+      y += 6.2;
+      drawCellCols(0, 3, y, 8.6, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
         bold: true,
-        size: 11.5,
+        size: 10.5,
         align: "center",
         maxLines: 1,
       });
-      drawCellCols(3, 6, y, 10, needMoreToTarget, lightPurple, {
+      drawCellCols(3, 6, y, 8.6, needMoreToTarget, lightPurple, {
         bold: true,
-        size: 11.5,
+        size: 10.5,
         align: "center",
         maxLines: 1,
       });
-      drawCellCols(6, 9, y, 10, selectedDocument.averageScore.toFixed(2), lightPurple, {
+      drawCellCols(6, 9, y, 8.6, selectedDocument.averageScore.toFixed(2), lightPurple, {
         bold: true,
-        size: 11.5,
+        size: 10.5,
         align: "center",
         color: selectedDocument.averageScore >= 80 ? good : warn,
         maxLines: 1,
       });
-      drawCellCols(9, 10, y, 10, selectedDocument.grade, lightPurple, {
+      drawCellCols(9, 10, y, 8.6, selectedDocument.grade, lightPurple, {
         bold: true,
-        size: 11.5,
+        size: 10.5,
         align: "center",
         maxLines: 1,
       });
-      y += 14;
+      y += 11;
 
       drawSection("Incentive Summary");
-      drawCellCols(0, 3, y, 7.5, "Incentive", purple, {
+      drawCellCols(0, 3, y, 6.2, "Incentive", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
       });
-      drawCellCols(3, 6, y, 7.5, "Best Topic", purple, {
+      drawCellCols(3, 6, y, 6.2, "Best Topic", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
       });
-      drawCellCols(6, 10, y, 7.5, "Lowest Topic", purple, {
+      drawCellCols(6, 10, y, 6.2, "Lowest Topic", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7.4,
+        size: 7,
         align: "center",
       });
-      y += 7.5;
-      drawCellCols(0, 3, y, 12, `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`, lightPurple, {
+      y += 6.2;
+      drawCellCols(0, 3, y, 9.8, incentiveText, lightPurple, {
         bold: true,
-        size: 7.1,
+        size: 7,
         align: "center",
         maxLines: 2,
       });
-      drawCellCols(3, 6, y, 12, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+      drawCellCols(3, 6, y, 9.8, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
-        size: 7.1,
+        size: 7,
         align: "center",
         maxLines: 2,
       });
-      drawCellCols(6, 10, y, 12, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+      drawCellCols(6, 10, y, 9.8, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
-        size: 7.1,
+        size: 7,
         align: "center",
         maxLines: 2,
       });
-      y += 16;
+      y += 12;
 
       drawSection("Monthly Case List");
       const caseColWidths = [9, 21, 21, 91, 15, 8, 9];
       drawCellsByWidth(
         left,
         y,
-        7.5,
+        5.8,
         ["Seq", "Case Date", "Case ID", "Inquiry", "Score", "Grade", "Critical"].map((label, index) => ({
           value: label,
           width: caseColWidths[index],
@@ -3342,30 +3345,30 @@ export default function SignatureCenterMockup({
           options: {
             bold: true,
             color: [255, 255, 255],
-            size: 6.4,
+            size: 5.9,
             align: "center",
             maxLines: 1,
           },
         }))
       );
-      y += 7.5;
+      y += 5.8;
       for (let index = 0; index < CASE_TARGET; index += 1) {
         const item = selectedDocument.cases[index];
-        const rowH = 7.6;
+        const rowH = 5.8;
         const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
         drawCellsByWidth(left, y, rowH, [
-          { value: index + 1, width: caseColWidths[0], fill, options: { size: 6.5, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 6.2, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 6.2, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 5.9, align: "left", bold: true, maxLines: 1 } },
-          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 6.4, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 6.4, align: "center", bold: true, maxLines: 1 } },
-          { value: "NO", width: caseColWidths[6], fill, options: { size: 6.2, align: "center", bold: true, maxLines: 1 } },
+          { value: index + 1, width: caseColWidths[0], fill, options: { size: 5.8, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 5.45, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 5.45, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 5.2, align: "left", bold: true, maxLines: 1 } },
+          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 5.7, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 5.7, align: "center", bold: true, maxLines: 1 } },
+          { value: "NO", width: caseColWidths[6], fill, options: { size: 5.45, align: "center", bold: true, maxLines: 1 } },
         ]);
         y += rowH;
       }
 
-      y += 5;
+      y += 3;
       drawSection("Monthly Topic Performance");
       [
         [0, 1, "Topic"],
@@ -3374,38 +3377,34 @@ export default function SignatureCenterMockup({
         [6, 7, "Max"],
         [7, 10, "Avg %"],
       ].forEach(([start, end, label]) => {
-        drawCellCols(Number(start), Number(end), y, 7.5, String(label), purple, {
+        drawCellCols(Number(start), Number(end), y, 5.8, String(label), purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 7,
+          size: 6.3,
           align: "center",
           maxLines: 1,
         });
       });
-      y += 7.5;
+      y += 5.8;
       topicStats.forEach((item, index) => {
         const fill = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253] as [number, number, number];
-        drawCellCols(0, 1, y, 7.8, item.code, fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(1, 4, y, 7.8, item.title, fill, { size: 6.8, align: "left", bold: true, maxLines: 1 });
-        drawCellCols(4, 6, y, 7.8, item.avgScore === null ? "-" : item.avgScore.toFixed(2), fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(6, 7, y, 7.8, item.max, fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
-        drawCellCols(7, 10, y, 7.8, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 6.9, align: "center", bold: true, maxLines: 1 });
-        y += 7.8;
+        drawCellCols(0, 1, y, 5.9, item.code, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(1, 4, y, 5.9, item.title, fill, { size: 5.95, align: "left", bold: true, maxLines: 1 });
+        drawCellCols(4, 6, y, 5.9, item.avgScore === null ? "-" : item.avgScore.toFixed(2), fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(6, 7, y, 5.9, item.max, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+        drawCellCols(7, 10, y, 5.9, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+        y += 5.9;
       });
 
-      drawCell(left, pageH - 10, tableW, 5, `Document Ref: ${selectedDocument.documentHash || selectedDocument.id} | Status: ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`, [255, 255, 255], {
-        size: 7,
-        align: "right",
+      y += 3;
+      drawSection("Acknowledgement / Signature");
+      drawCell(left, y, tableW, 4.6, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255, 255, 255], {
+        size: 6.2,
+        align: "left",
         color: muted,
         maxLines: 1,
       });
-
-      pdf.addPage();
-      y = 12;
-      drawHeader(
-        "Acknowledgement / Signature",
-        "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง"
-      );
+      y += 5.2;
 
       const signerName = (role: SignRole) => {
         const signed = getSignedEntry(entries, role);
@@ -3417,6 +3416,11 @@ export default function SignatureCenterMockup({
       };
       const signatureData = (role: SignRole) => getSignedEntry(entries, role)?.signatureDataUrl || "";
 
+      const signatureBlockHeight = 53;
+      if (y + signatureBlockHeight > pageH - 12) {
+        y = Math.max(y - 4, pageH - 12 - signatureBlockHeight);
+      }
+
       const drawSignaturePanel = (
         x: number,
         panelY: number,
@@ -3424,39 +3428,41 @@ export default function SignatureCenterMockup({
         role: SignRole,
         roleTitle: string
       ) => {
-        drawCell(x, panelY, w, 9, roleTitle, purple, {
+        drawCell(x, panelY, w, 4.6, roleTitle, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 9,
+          size: 6.4,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 9, w, 26, "", palePurple, { size: 8, align: "center" });
+        drawCell(x, panelY + 4.6, w, 9.8, "", palePurple, { size: 6, align: "center" });
         const signature = signatureData(role);
         if (signature) {
           try {
-            pdf.addImage(signature, "PNG", x + 9, panelY + 12, w - 18, 17);
+            const imageW = Math.min(w - 20, 48);
+            const imageH = 8.2;
+            pdf.addImage(signature, "PNG", x + (w - imageW) / 2, panelY + 5.3 + (9.8 - imageH) / 2, imageW, imageH);
           } catch {
-            setTemplateFont(8, false, muted);
-            pdf.text("Signature image unavailable", x + w / 2, panelY + 24, { align: "center" });
+            setTemplateFont(5.6, false, muted);
+            pdf.text("Signature image unavailable", x + w / 2, panelY + 11, { align: "center" });
           }
         } else {
-          setTemplateFont(9, false, muted);
-          pdf.text("ลงชื่อ ........................................................", x + w / 2, panelY + 24, { align: "center" });
+          setTemplateFont(5.8, false, muted);
+          pdf.text("ลงชื่อ ................................................", x + w / 2, panelY + 11, { align: "center" });
         }
-        drawCell(x, panelY + 35, w, 9, signerName(role), [255, 255, 255], {
+        drawCell(x, panelY + 14.4, w, 3.7, signerName(role), [255, 255, 255], {
           bold: true,
-          size: 8.5,
+          size: 5.6,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 44, w, 9, roleTitle, [255, 255, 255], {
-          size: 8,
+        drawCell(x, panelY + 18.1, w, 3.4, roleTitle, [255, 255, 255], {
+          size: 5.1,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 53, w, 9, `วันที่ ${signerDate(role)}`, [255, 255, 255], {
-          size: 8,
+        drawCell(x, panelY + 21.5, w, 3.6, `วันที่ ${signerDate(role)}`, [255, 255, 255], {
+          size: 5.1,
           align: "center",
           maxLines: 1,
         });
@@ -3465,26 +3471,12 @@ export default function SignatureCenterMockup({
       const halfW = tableW / 2 - 3;
       drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
       drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
-      y += 70;
+      y += 28.8;
       drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
       drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
-      y += 74;
 
-      drawSection("Document Summary");
-      drawLabelValue(0, 2, 2, 5, "Document Ref.", selectedDocument.documentHash || selectedDocument.id, y, 12, { maxLines: 1 });
-      drawLabelValue(5, 7, 7, 10, "Payment Status", paymentStatus, y, 12, {
-        color: readyForIncentive ? good : warn,
-        maxLines: 1,
-      });
-      y += 14;
-      drawLabelValue(0, 2, 2, 5, "Agent", selectedDocument.agentName, y, 12, { maxLines: 1 });
-      drawLabelValue(5, 7, 7, 10, "Average", selectedDocument.averageScore.toFixed(2), y, 12, {
-        color: selectedDocument.averageScore >= 80 ? good : warn,
-        maxLines: 1,
-      });
-
-      drawCell(left, pageH - 10, tableW, 5, `Generated: ${formatDateTime(new Date().toISOString())}`, [255, 255, 255], {
-        size: 7,
+      drawCell(left, pageH - 8, tableW, 4.5, `Generated: ${formatDateTime(new Date().toISOString())} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`, [255, 255, 255], {
+        size: 6.2,
         align: "right",
         color: muted,
         maxLines: 1,
