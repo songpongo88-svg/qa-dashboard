@@ -2984,6 +2984,202 @@ export default function SignatureCenterMockup({
       pdf.setFont("THSarabunNew", "normal");
     } catch {}
 
+    const docW = 210;
+    const docH = 297;
+    const qaDoc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+    try {
+      registerTHSarabunNew(qaDoc);
+      qaDoc.setFont("THSarabunNew", "normal");
+    } catch {}
+
+    const pageW = 297;
+    const pageH = 210;
+    const sidebarW = 36;
+    const leftX = sidebarW + 8;
+    const rightX = 288;
+    const accent: [number, number, number] = [109, 40, 217];
+    const dark: [number, number, number] = [20, 8, 49];
+    const muted: [number, number, number] = [100, 116, 139];
+
+    const setPdfText = (
+      size: number,
+      bold = false,
+      color: [number, number, number] = [31, 41, 55]
+    ) => {
+      try {
+        qaDoc.setFont("THSarabunNew", bold ? "bold" : "normal");
+      } catch {}
+      qaDoc.setFontSize(size);
+      qaDoc.setTextColor(color[0], color[1], color[2]);
+    };
+
+    const drawPdfText = (
+      value: string,
+      x: number,
+      yy: number,
+      size = 10,
+      bold = false,
+      color: [number, number, number] = [31, 41, 55],
+      options?: { align?: "left" | "center" | "right" }
+    ) => {
+      setPdfText(size, bold, color);
+      qaDoc.text(String(value ?? ""), x, yy, options);
+    };
+
+    const drawWrappedText = (
+      value: string,
+      x: number,
+      yy: number,
+      width: number,
+      size = 8,
+      bold = false,
+      color: [number, number, number] = [31, 41, 55],
+      maxLines = 2
+    ) => {
+      setPdfText(size, bold, color);
+      const lines = qaDoc.splitTextToSize(String(value ?? ""), width).slice(0, maxLines);
+      lines.forEach((lineText: string, index: number) => qaDoc.text(lineText, x, yy + index * 3.4));
+    };
+
+    const drawBox = (
+      x: number,
+      yy: number,
+      w: number,
+      h: number,
+      fill: [number, number, number] = [255, 255, 255],
+      stroke: [number, number, number] = [226, 232, 240]
+    ) => {
+      qaDoc.setDrawColor(stroke[0], stroke[1], stroke[2]);
+      qaDoc.setFillColor(fill[0], fill[1], fill[2]);
+      qaDoc.roundedRect(x, yy, w, h, 3, 3, "FD");
+    };
+
+    const drawStatusBadge = (label: string, x: number, yy: number) => {
+      const isReady = /complete|ready|signed/i.test(label);
+      const bg: [number, number, number] = isReady ? [220, 252, 231] : [254, 243, 199];
+      const fg: [number, number, number] = isReady ? [22, 101, 52] : [180, 83, 9];
+      qaDoc.setFillColor(bg[0], bg[1], bg[2]);
+      qaDoc.roundedRect(x, yy - 5, 26, 8, 3, 3, "F");
+      drawPdfText(label, x + 13, yy + 0.2, 7.5, true, fg, { align: "center" });
+    };
+
+    const drawTopChrome = (pageNo: number) => {
+      qaDoc.setFillColor(dark[0], dark[1], dark[2]);
+      qaDoc.rect(0, 0, sidebarW, pageH, "F");
+      qaDoc.setFillColor(accent[0], accent[1], accent[2]);
+      qaDoc.roundedRect(6, 10, 24, 11, 2, 2, "F");
+      drawPdfText("Robinhood QA", 8, 17.2, 9, true, [255, 255, 255]);
+      ["Dashboard", "Signature", "Documents", "Reports"].forEach((item, index) => {
+        const navY = 40 + index * 14;
+        if (item === "Signature") {
+          qaDoc.setFillColor(accent[0], accent[1], accent[2]);
+          qaDoc.roundedRect(5, navY - 6, 26, 9, 2, 2, "F");
+        }
+        drawPdfText(item, 8, navY, 7.8, item === "Signature", [255, 255, 255]);
+      });
+      drawPdfText("Signature Workspace", leftX, 15, 20, true, [15, 23, 42]);
+      drawPdfText("Monthly QA score acknowledgement", leftX, 22, 10, false, muted);
+      drawPdfText(`Page ${pageNo}`, rightX, pageH - 6, 8, false, [148, 163, 184], { align: "right" });
+    };
+
+    const drawSummaryCard = (
+      x: number,
+      yy: number,
+      w: number,
+      label: string,
+      value: string,
+      tone: [number, number, number]
+    ) => {
+      drawBox(x, yy, w, 23);
+      drawPdfText(label, x + 4, yy + 6, 8.2, true, muted);
+      drawPdfText(value, x + 4, yy + 16, 16, true, tone);
+    };
+
+    const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+    const documentStatus = isComplete ? "Signed" : "Pending";
+
+    drawTopChrome(1);
+    drawBox(leftX, 32, 158, 24);
+    drawPdfText("Document Ref.", leftX + 5, 40, 8, true, muted);
+    drawPdfText(selectedDocument.documentHash || selectedDocument.id, leftX + 5, 50, 12, true, accent);
+    drawPdfText("Agent", leftX + 55, 40, 8, true, muted);
+    drawWrappedText(selectedDocument.agentName, leftX + 55, 49, 45, 9, true);
+    drawPdfText("Month", leftX + 108, 40, 8, true, muted);
+    drawPdfText(selectedDocument.monthLabel, leftX + 108, 50, 10, true);
+
+    drawSummaryCard(leftX, 64, 42, "Cases", String(selectedDocument.caseCount), accent);
+    drawSummaryCard(leftX + 48, 64, 42, "Average", selectedDocument.averageScore.toFixed(2), [22, 163, 74]);
+    drawSummaryCard(leftX + 96, 64, 42, "Grade", selectedDocument.grade, [37, 99, 235]);
+    drawSummaryCard(leftX + 144, 64, 48, "Cash THB", formatBahtAmount(individualIncentive.cash || 0), [217, 119, 6]);
+    drawSummaryCard(leftX + 198, 64, 42, "Signed", `${signedRoles}/4`, isComplete ? [22, 163, 74] : [217, 119, 6]);
+
+    const tableX = leftX;
+    const tableY = 98;
+    const tableWidths = [12, 28, 33, 72, 22, 18];
+    const tableHeaders = ["No.", "Date", "Case ID", "Customer Inquiry", "Score", "Grade"];
+    qaDoc.setFillColor(accent[0], accent[1], accent[2]);
+    qaDoc.roundedRect(tableX, tableY, tableWidths.reduce((sum, width) => sum + width, 0), 9, 2, 2, "F");
+    let cellX = tableX;
+    tableHeaders.forEach((header, index) => {
+      drawPdfText(header, cellX + 2, tableY + 6, 8, true, [255, 255, 255]);
+      cellX += tableWidths[index];
+    });
+    let rowY = tableY + 9;
+    selectedDocument.cases.slice(0, 10).forEach((item, index) => {
+      qaDoc.setDrawColor(226, 232, 240);
+      qaDoc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 245 : 255, index % 2 === 0 ? 255 : 255);
+      qaDoc.rect(tableX, rowY, tableWidths.reduce((sum, width) => sum + width, 0), 11, "FD");
+      cellX = tableX;
+      [
+        String(index + 1),
+        item.auditDate || "-",
+        item.caseId || "-",
+        item.inquiry || "-",
+        item.finalScore.toFixed(2),
+        item.grade || "-",
+      ].forEach((cell, cellIndex) => {
+        drawWrappedText(cell, cellX + 2, rowY + 5.4, tableWidths[cellIndex] - 4, cellIndex === 3 ? 7.4 : 7.8, cellIndex === 0 || cellIndex === 2, [31, 41, 55], 2);
+        cellX += tableWidths[cellIndex];
+      });
+      rowY += 11;
+    });
+
+    const panelX = 238;
+    drawBox(panelX, 32, 51, 150);
+    drawPdfText("Case Detail", panelX + 5, 42, 12, true);
+    drawStatusBadge(documentStatus, panelX + 21, 42);
+    const panelRows: Array<[string, string]> = [
+      ["Agent", selectedDocument.agentName],
+      ["Team", selectedDocument.teamLeadName || selectedDocument.supervisorName || "-"],
+      ["Reviewed", `${selectedDocument.caseCount}/${CASE_TARGET}`],
+      ["Need More", String(needMoreToTarget)],
+      ["Incentive", individualIncentive.label || "-"],
+      ["Status", readyForIncentive ? "Ready to Pay" : "Hold"],
+    ];
+    let panelY = 56;
+    panelRows.forEach(([label, value]) => {
+      drawPdfText(label, panelX + 5, panelY, 7.5, true, muted);
+      drawWrappedText(value, panelX + 22, panelY, 23, 7.8, true, [31, 41, 55], 2);
+      panelY += 11;
+    });
+    drawPdfText("Signature Timeline", panelX + 5, panelY + 4, 9.5, true);
+    panelY += 13;
+    SIGNATURE_FLOW.forEach((role, index) => {
+      const signed = getSignedEntry(entries, role);
+      qaDoc.setFillColor(signed ? 220 : 241, signed ? 252 : 245, signed ? 231 : 249);
+      qaDoc.circle(panelX + 7, panelY - 1, 2.5, "F");
+      drawPdfText(String(index + 1), panelX + 7, panelY, 6.2, true, signed ? [22, 101, 52] : accent, { align: "center" });
+      drawPdfText(roleThaiLabel(role), panelX + 12, panelY, 7.4, true);
+      drawPdfText(signed ? "Signed" : "Pending", panelX + 12, panelY + 4.2, 6.8, false, signed ? [22, 101, 52] : [180, 83, 9]);
+      panelY += 10;
+    });
+
+    const qaFileName = `QA Score Monthly ${selectedDocument.monthLabel}_2026_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
+    downloadBlob(qaDoc.output("blob"), qaFileName);
+    setPdfMessage(`Generated ${qaFileName}`);
+    window.setTimeout(() => setPdfMessage(""), 3500);
+    return;
+
     const pageWidth = 210;
     const left = 12;
     const right = 198;
