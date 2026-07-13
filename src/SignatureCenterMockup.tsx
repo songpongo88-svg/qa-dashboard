@@ -37,6 +37,8 @@ type UserAccountSnapshot = {
 type SignRole = "QA" | "Supervisor" | "Senior" | "Agent";
 type SignStatus = "Signed" | "Pending";
 type SignatureStepStatus = "Signed" | "Pending" | "Waiting" | "Locked" | "Expired";
+type WorkspaceStatus = "pending" | "signed" | "in-progress" | "expired";
+type WorkspaceQuickFilter = "all" | WorkspaceStatus;
 
 type SignatureEntry = {
   role: SignRole;
@@ -112,6 +114,7 @@ const SIGNATURE_DEADLINE_RESET_NOTE = "Deadline reset by QA";
 const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 const DEFAULT_SUPERVISOR_SIGNER = "Phrommarin Thaithorn";
+const SIGNATURE_ROWS_PER_PAGE_OPTIONS = [10, 20, 50];
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -1018,6 +1021,64 @@ function formatDateTime(value: string) {
   return date.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
 }
 
+function formatDateOnly(value: Date | string | null | undefined) {
+  if (!value) return "-";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function getSignatureDueDate(monthKey: string) {
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) return null;
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(year, month, 15, 23, 59, 59);
+}
+
+function getSignatureCreatedDate(doc: SignatureDocument) {
+  const firstCaseDate = parseExcelDate(doc.cases[0]?.auditDate);
+  if (firstCaseDate) return firstCaseDate;
+  if (/^\d{4}-\d{2}$/.test(doc.monthKey)) return new Date(`${doc.monthKey}-01T00:00:00`);
+  return null;
+}
+
+function getDocumentPrimaryCaseId(doc: SignatureDocument) {
+  return doc.cases[0]?.caseId || doc.documentHash || doc.id;
+}
+
+function getDocumentTypeLabel(doc: SignatureDocument) {
+  return doc.eligibleByScore ? "Monthly Incentive" : "Monthly QA Acknowledgement";
+}
+
+function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
+  const signedComplete = SIGNATURE_FLOW.every((role) => Boolean(getSignedEntry(entries, role)));
+  if (signedComplete) return "signed" as const;
+  if (getTimelineStatus(doc.monthKey) === "Signature Deadline Passed") return "expired" as const;
+  if (getPendingRoles(entries).length) return "pending" as const;
+  return "in-progress" as const;
+}
+
+function getWorkspaceStatusLabel(status: WorkspaceStatus) {
+  if (status === "signed") return "เซ็นแล้ว";
+  if (status === "expired") return "เกินกำหนด";
+  if (status === "in-progress") return "ค้างดำเนินการ";
+  return "รอเซ็น";
+}
+
+function getWorkspaceStatusClass(status: WorkspaceStatus) {
+  if (status === "signed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "expired") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (status === "in-progress") return "border-sky-200 bg-sky-50 text-sky-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function WorkspaceStatusBadge({ status }: { status: WorkspaceStatus }) {
+  return (
+    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getWorkspaceStatusClass(status)}`}>
+      {getWorkspaceStatusLabel(status)}
+    </span>
+  );
+}
+
 function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -1851,7 +1912,12 @@ export default function SignatureCenterMockup({
   const [confirmedDocs, setConfirmedDocs] = useState<Record<string, string>>(() => readConfirmedStore());
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [quickFilter, setQuickFilter] = useState<WorkspaceQuickFilter>("all");
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [documentView, setDocumentView] = useState<"queue" | "history">("queue");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -2039,6 +2105,10 @@ export default function SignatureCenterMockup({
   }, [signatureLibrary]);
 
   const monthOptions = useMemo(() => Array.from(new Set(documents.map((item) => item.monthKey))).sort().reverse(), [documents]);
+  const yearOptions = useMemo(
+    () => Array.from(new Set(monthOptions.map((month) => month.slice(0, 4)).filter(Boolean))).sort().reverse(),
+    [monthOptions]
+  );
 
   useEffect(() => {
     if (shareLinkAppliedRef.current || !documents.length) return;
@@ -2094,8 +2164,16 @@ export default function SignatureCenterMockup({
       const keywordMatch =
         !keyword ||
         doc.agentName.toLowerCase().includes(keyword) ||
+        doc.monthKey.toLowerCase().includes(keyword) ||
+        doc.monthLabel.toLowerCase().includes(keyword) ||
+        doc.teamName.toLowerCase().includes(keyword) ||
         doc.seniorName.toLowerCase().includes(keyword) ||
-        doc.supervisorName.toLowerCase().includes(keyword);
+        doc.supervisorName.toLowerCase().includes(keyword) ||
+        doc.cases.some((item) =>
+          item.caseId.toLowerCase().includes(keyword) ||
+          item.inquiry.toLowerCase().includes(keyword) ||
+          item.comment.toLowerCase().includes(keyword)
+        );
       return statusMatch && monthMatch && keywordMatch;
     }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   }, [confirmedDocs, currentUser, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
@@ -2109,14 +2187,84 @@ export default function SignatureCenterMockup({
       const keywordMatch =
         !keyword ||
         doc.agentName.toLowerCase().includes(keyword) ||
+        doc.monthKey.toLowerCase().includes(keyword) ||
+        doc.monthLabel.toLowerCase().includes(keyword) ||
+        doc.teamName.toLowerCase().includes(keyword) ||
         doc.seniorName.toLowerCase().includes(keyword) ||
-        doc.supervisorName.toLowerCase().includes(keyword);
+        doc.supervisorName.toLowerCase().includes(keyword) ||
+        doc.cases.some((item) =>
+          item.caseId.toLowerCase().includes(keyword) ||
+          item.inquiry.toLowerCase().includes(keyword) ||
+          item.comment.toLowerCase().includes(keyword)
+        );
 
       return monthMatch && keywordMatch;
     }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
   }, [currentUser, documents, search, selectedMonth]);
 
   const activeDocuments = documentView === "history" ? historyFilteredDocuments : filteredDocuments;
+  const workspaceDocuments = useMemo(() => {
+    return activeDocuments.filter((doc) => {
+      const entries = effectiveEntriesForDoc(doc, signatures);
+      const docStatus = getWorkspaceStatus(doc, entries);
+      const yearMatch = selectedYear === "all" || doc.monthKey.startsWith(`${selectedYear}-`);
+      const quickMatch = quickFilter === "all" || docStatus === quickFilter;
+      return yearMatch && quickMatch;
+    });
+  }, [activeDocuments, quickFilter, selectedYear, signatures]);
+
+  const workspaceSummary = useMemo(() => {
+    const counts = {
+      total: workspaceDocuments.length,
+      pending: 0,
+      signed: 0,
+      expired: 0,
+      inProgress: 0,
+    };
+    workspaceDocuments.forEach((doc) => {
+      const status = getWorkspaceStatus(doc, effectiveEntriesForDoc(doc, signatures));
+      if (status === "pending") counts.pending += 1;
+      if (status === "signed") counts.signed += 1;
+      if (status === "expired") counts.expired += 1;
+      if (status === "in-progress") counts.inProgress += 1;
+    });
+    return counts;
+  }, [signatures, workspaceDocuments]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [documentView, quickFilter, search, selectedMonth, selectedYear, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(workspaceDocuments.length / rowsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedWorkspaceDocuments = useMemo(() => {
+    const start = (safeCurrentPage - 1) * rowsPerPage;
+    return workspaceDocuments.slice(start, start + rowsPerPage);
+  }, [rowsPerPage, safeCurrentPage, workspaceDocuments]);
+
+  const groupedWorkspaceDocuments = useMemo(() => {
+    const groups = new Map<string, SignatureDocument[]>();
+    pagedWorkspaceDocuments.forEach((doc) => {
+      const group = groups.get(doc.monthKey) || [];
+      group.push(doc);
+      groups.set(doc.monthKey, group);
+    });
+    return Array.from(groups.entries()).map(([monthKey, items]) => ({
+      monthKey,
+      monthLabel: getMonthLabel(monthKey),
+      items,
+    }));
+  }, [pagedWorkspaceDocuments]);
+
+  const clearWorkspaceFilters = () => {
+    setSearch("");
+    setSelectedMonth("all");
+    setSelectedYear("all");
+    setStatusFilter("all");
+    setQuickFilter("all");
+    setCurrentPage(1);
+  };
+
   const isQaUser = currentUser.role === "Quality Assurance";
   const monitorTitle = isQaUser ? "QA Monitor" : "ประวัติของฉัน";
   const monitorDescription = isQaUser
@@ -2184,7 +2332,13 @@ export default function SignatureCenterMockup({
 
   const canGeneratePaymentExcel = selectedMonth !== "all";
 
-  const selectedDocument = activeDocuments.find((item) => item.id === selectedDocumentId) || activeDocuments[0] || filteredDocuments[0] || historyFilteredDocuments[0] || null;
+  const selectedDocument =
+    workspaceDocuments.find((item) => item.id === selectedDocumentId) ||
+    workspaceDocuments[0] ||
+    activeDocuments[0] ||
+    filteredDocuments[0] ||
+    historyFilteredDocuments[0] ||
+    null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
   const mySignedRoles = selectedDocument
     ? SIGNATURE_FLOW.filter((role) => {
@@ -2789,7 +2943,7 @@ export default function SignatureCenterMockup({
     <div className="space-y-6">
       <PageHero
         eyebrow="Monthly Acknowledgement"
-        title="Signature Center"
+        title="Signature Workspace"
         subtitle="Preview คะแนนรายเดือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้นตอนเซ็นรับทราบ"
       />
 
@@ -2908,6 +3062,219 @@ export default function SignatureCenterMockup({
             </div>
           );
         })}
+      </div>
+
+      <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Signature Workspace</div>
+            <div className="mt-1 text-2xl font-black text-slate-950">รายการเอกสารลงนาม แยกตามเดือน</div>
+            <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+              ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบสถานะ คลิกที่แถวเพื่อเปิดรายละเอียดด้านล่าง
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:min-w-[320px]">
+            <button
+              type="button"
+              onClick={() => setDocumentView("queue")}
+              className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                documentView === "queue" ? "bg-violet-700 text-white" : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
+              }`}
+            >
+              คิวของฉัน ({filteredDocuments.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocumentView("history")}
+              className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
+                documentView === "history" ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_150px_180px_auto]">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="ค้นหา Case ID / Agent / เดือน / ทีม"
+            className="rounded-2xl border border-violet-100 bg-violet-50/40 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
+          />
+          <select
+            value={selectedMonth}
+            onChange={(event) => setSelectedMonth(event.target.value)}
+            className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
+          >
+            <option value="all">ทุกเดือน</option>
+            {monthOptions.map((month) => (
+              <option key={month} value={month}>{getMonthLabel(month)}</option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(event.target.value)}
+            className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
+          >
+            <option value="all">ทุกปี</option>
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>{Number(year) + 543}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
+          >
+            <option value="all">ทุกสถานะ</option>
+            <option value="preview">รอ Confirm Preview</option>
+            <option value="my-turn">รอฉันลงนาม</option>
+            <option value="pending">รอเซ็น</option>
+            <option value="ready">พร้อมจ่าย Incentive</option>
+            <option value="appeal-pending">มี Appeal รอ Approved</option>
+            <option value="expired">เกินกำหนด</option>
+          </select>
+          <button
+            type="button"
+            onClick={clearWorkspaceFilters}
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+          >
+            ล้างตัวกรอง
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([
+            ["all", "ทั้งหมด"],
+            ["pending", "รอเซ็น"],
+            ["signed", "เซ็นแล้ว"],
+            ["in-progress", "ค้างดำเนินการ"],
+            ["expired", "เกินกำหนด"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setQuickFilter(value)}
+              className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                quickFilter === value ? "bg-violet-700 text-white shadow-[0_10px_24px_rgba(109,40,217,0.22)]" : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-5">
+          {[
+            { label: "รายการทั้งหมด", value: workspaceSummary.total, tone: "text-slate-950" },
+            { label: "รอเซ็น", value: workspaceSummary.pending, tone: "text-amber-700" },
+            { label: "เซ็นแล้ว", value: workspaceSummary.signed, tone: "text-emerald-700" },
+            { label: "เกินกำหนด", value: workspaceSummary.expired, tone: "text-rose-700" },
+            { label: "ค้างดำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-[22px] border border-violet-100 bg-violet-50/30 px-4 py-3">
+              <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{item.label}</div>
+              <div className={`mt-1 text-2xl font-black ${item.tone}`}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
+          <div className="min-w-[1120px]">
+            <div className="grid grid-cols-[110px_130px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
+              <div>Month</div>
+              <div>Case ID</div>
+              <div>Agent Name</div>
+              <div>Team</div>
+              <div>Document Type</div>
+              <div>Status</div>
+              <div>Created Date</div>
+              <div>Due Date</div>
+              <div>Action</div>
+            </div>
+            {groupedWorkspaceDocuments.map((group) => {
+              const expanded = expandedMonths[group.monthKey] !== false;
+              return (
+                <div key={group.monthKey}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedMonths((previous) => ({ ...previous, [group.monthKey]: !expanded }))}
+                    className="flex w-full items-center justify-between border-t border-violet-100 bg-violet-50 px-4 py-3 text-left"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <span className="rounded-full bg-violet-700 px-3 py-1 text-xs font-black text-white">{group.monthLabel}</span>
+                      <span className="text-sm font-black text-slate-700">{group.items.length} รายการ</span>
+                    </span>
+                    <span className="text-xs font-black text-violet-700">{expanded ? "ย่อ" : "ขยาย"}</span>
+                  </button>
+                  {expanded ? group.items.map((doc) => {
+                    const entries = effectiveEntriesForDoc(doc, signatures);
+                    const status = getWorkspaceStatus(doc, entries);
+                    const dueDate = getSignatureDueDate(doc.monthKey);
+                    const selected = selectedDocument?.id === doc.id;
+                    return (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => setSelectedDocumentId(doc.id)}
+                        className={`grid w-full grid-cols-[110px_130px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] items-center border-t px-4 py-3 text-left text-sm transition ${
+                          selected ? "border-violet-200 bg-violet-50" : "border-slate-100 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <div><span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-700">{doc.monthLabel}</span></div>
+                        <div className="font-black text-violet-800">{getDocumentPrimaryCaseId(doc)}</div>
+                        <div className="min-w-0">
+                          <div className="truncate font-black text-slate-950">{doc.agentName}</div>
+                          <div className="text-xs font-semibold text-slate-400">{doc.caseCount} cases / {doc.averageScore.toFixed(2)}</div>
+                        </div>
+                        <div className="truncate font-bold text-slate-600">{doc.teamName || "-"}</div>
+                        <div className="font-bold text-slate-600">{getDocumentTypeLabel(doc)}</div>
+                        <div><WorkspaceStatusBadge status={status} /></div>
+                        <div className="font-black text-slate-600">{formatDateOnly(getSignatureCreatedDate(doc))}</div>
+                        <div className={`font-black ${status === "expired" ? "text-rose-700" : "text-slate-600"}`}>{formatDateOnly(dueDate)}</div>
+                        <div>
+                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">ดูรายละเอียด</span>
+                        </div>
+                      </button>
+                    );
+                  }) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {!workspaceDocuments.length ? (
+          <div className="mt-5 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+            <div className="text-base font-black text-slate-700">ไม่พบรายการเอกสารตามตัวกรองที่เลือก</div>
+            <div className="mt-1 text-sm font-semibold text-slate-500">ลองล้างตัวกรองหรือเลือกเดือนอื่น</div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={rowsPerPage}
+              onChange={(event) => setRowsPerPage(Number(event.target.value))}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+            >
+              {SIGNATURE_ROWS_PER_PAGE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option} / หน้า</option>
+              ))}
+            </select>
+            <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safeCurrentPage <= 1} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
+              ก่อนหน้า
+            </button>
+            <span className="text-xs font-black text-slate-500">{safeCurrentPage}/{totalPages}</span>
+            <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={safeCurrentPage >= totalPages} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
+              ถัดไป
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
