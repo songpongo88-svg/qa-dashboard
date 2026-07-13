@@ -21,6 +21,7 @@ export type StoredUserProfile = {
   teamName: string;
   status: "Active" | "Suspended";
   suspendReason: string;
+  suspendEffectiveDate?: string;
   password?: string;
   passwordKind?: string;
   passwordIssuedAt?: string;
@@ -121,6 +122,7 @@ function toUserProfile(row: any): StoredUserProfile {
     teamName: String(row.teamName || row.team_name || ""),
     status: row.status === "Suspended" ? "Suspended" : "Active",
     suspendReason: String(row.suspendReason || row.suspend_reason || ""),
+    suspendEffectiveDate: String(row.suspendEffectiveDate || row.suspend_effective_date || row.suspendDate || row.suspend_date || ""),
     password: String(row.password || ""),
     passwordKind: String(row.passwordKind || row.password_kind || ""),
     passwordIssuedAt: String(row.passwordIssuedAt || row.password_issued_at || ""),
@@ -139,6 +141,7 @@ function fromUserProfile(profile: StoredUserProfile) {
     teamName: profile.teamName,
     status: profile.status,
     suspendReason: profile.suspendReason,
+    suspendEffectiveDate: profile.suspendEffectiveDate || "",
     updatedAt: new Date().toISOString(),
     updatedAtServer: serverTimestamp(),
   };

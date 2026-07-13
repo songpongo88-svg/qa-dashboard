@@ -67,6 +67,7 @@ type UserAccount = {
   teamName?: string;
   status?: UserStatus;
   suspendReason?: string;
+  suspendEffectiveDate?: string;
 };
 
 type EditableUser = {
@@ -80,6 +81,7 @@ type EditableUser = {
   status: UserStatus;
   viewStatus?: UserStatus;
   suspendReason: string;
+  suspendEffectiveDate: string;
   temporaryPassword: string;
 };
 
@@ -468,6 +470,7 @@ function editableToStoredProfile(user: EditableUser) {
     teamName: user.teamName,
     status: user.status,
     suspendReason: user.suspendReason,
+    suspendEffectiveDate: user.suspendEffectiveDate,
   };
 }
 
@@ -543,6 +546,7 @@ function toEditableUser(account: UserAccount): EditableUser {
     status: account.status || "Active",
     viewStatus: account.status || "Active",
     suspendReason: account.suspendReason || "",
+    suspendEffectiveDate: account.suspendEffectiveDate || "",
     temporaryPassword: "",
   };
 }
@@ -588,6 +592,7 @@ function createBlankUser(): EditableUser {
     status: "Active",
     viewStatus: "Active",
     suspendReason: "",
+    suspendEffectiveDate: "",
     temporaryPassword: generateTemporaryPassword(),
   };
 }
@@ -1266,6 +1271,7 @@ export default function UserRoleAdminMockup({
       teamLead: newUserDraft.teamLead.trim(),
       teamName: newUserDraft.teamName.trim(),
       suspendReason: newUserDraft.suspendReason.trim(),
+      suspendEffectiveDate: newUserDraft.suspendEffectiveDate.trim(),
       temporaryPassword: newUserDraft.temporaryPassword || generateTemporaryPassword(),
     };
 
@@ -1337,6 +1343,7 @@ export default function UserRoleAdminMockup({
       teamLead: item.teamLead.trim(),
       teamName: item.teamName.trim(),
       suspendReason: item.suspendReason.trim(),
+      suspendEffectiveDate: item.suspendEffectiveDate.trim(),
     }));
 
     const invalidUser = cleanedUsers.find((item) => !item.username || !item.displayName);
@@ -1376,7 +1383,8 @@ export default function UserRoleAdminMockup({
         user.teamLead !== (original.teamLead || "") ||
         user.teamName !== (original.teamName || "") ||
         user.status !== (original.status || "Active") ||
-        user.suspendReason !== (original.suspendReason || "")
+        user.suspendReason !== (original.suspendReason || "") ||
+        user.suspendEffectiveDate !== (original.suspendEffectiveDate || "")
       );
     });
 
@@ -2266,6 +2274,7 @@ function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiv
                     <span className={`h-2 w-2 rounded-full ${row.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
                     {row.status}
                   </div>
+                  {row.suspendEffectiveDate ? <div className="mt-1 text-xs font-semibold text-rose-600">Suspend date: {row.suspendEffectiveDate}</div> : null}
                   {row.suspendReason ? <div className="mt-1 text-xs text-slate-500">{row.suspendReason}</div> : null}
                 </div>
 
@@ -3001,7 +3010,7 @@ function EditableDirectoryTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1260px] table-fixed border-collapse text-left text-xs">
+      <table className="w-full min-w-[1380px] table-fixed border-collapse text-left text-xs">
         <thead>
           <tr className="bg-slate-950 text-white">
             <th className="px-3 py-3 font-bold">Username</th>
@@ -3011,6 +3020,7 @@ function EditableDirectoryTable({
             <th className="px-3 py-3 font-bold">Team Name</th>
             <th className="px-3 py-3 font-bold">Role</th>
             <th className="px-3 py-3 font-bold">Status</th>
+            <th className="px-3 py-3 font-bold">Suspend Date / End Date</th>
             <th className="px-3 py-3 font-bold">Suspend Reason</th>
             <th className="px-3 py-3 font-bold">Access Password</th>
           </tr>
@@ -3062,6 +3072,12 @@ function EditableDirectoryTable({
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="px-3 py-3 align-top">
+                  <TextInput type="date" value={user.suspendEffectiveDate} disabled={saving} onChange={(value) => onChange(index, "suspendEffectiveDate", value)} />
+                  <div className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
+                    Leave blank if this user has no scheduled suspension.
+                  </div>
                 </td>
                 <td className="px-3 py-3 align-top">
                   <TextInput value={user.suspendReason} disabled={saving || user.status === "Active"} onChange={(value) => onChange(index, "suspendReason", value)} />
@@ -3165,6 +3181,15 @@ function CreateUserModal({
               ))}
             </select>
           </label>
+
+          <ModalField
+            label="Suspend Date / End Date"
+            type="date"
+            value={user.suspendEffectiveDate}
+            onChange={(value) => onChange("suspendEffectiveDate", value)}
+            placeholder="YYYY-MM-DD"
+            disabled={saving}
+          />
 
           <div className="md:col-span-2">
             <label className="block">
@@ -3352,19 +3377,21 @@ function ModalField({
   value,
   onChange,
   placeholder,
+  type = "text",
   disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  type?: string;
   disabled?: boolean;
 }) {
   return (
     <label className="block">
       <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">{label}</span>
       <input
-        type="text"
+        type={type}
         value={value}
         disabled={disabled}
         placeholder={placeholder}
@@ -3379,14 +3406,16 @@ function TextInput({
   value,
   disabled,
   onChange,
+  type = "text",
 }: {
   value: string;
   disabled: boolean;
   onChange: (value: string) => void;
+  type?: string;
 }) {
   return (
     <input
-      type="text"
+      type={type}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}

@@ -388,6 +388,8 @@ function formatSummaryDateOnly(date: Date | null) {
 function getSuspendedDate(account?: SummaryAccount | null) {
   if (!account) return null;
   const directFields = [
+    account.suspendEffectiveDate,
+    account.suspend_effective_date,
     account.suspendedAt,
     account.suspended_at,
     account.suspendDate,
@@ -407,9 +409,20 @@ function getSuspendedDate(account?: SummaryAccount | null) {
   );
 }
 
+function isSuspendedDateEffective(suspendedDate: Date | null) {
+  if (!suspendedDate) return false;
+  const today = new Date();
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return suspendedDate.getTime() <= todayOnly.getTime();
+}
+
 function isSuspendedAgent(agentName: string, accounts: SummaryAccount[]) {
   const account = getAccountStatus(agentName, accounts);
-  return account?.status === "Suspended" || normalizeText(account?.accountStatus || account?.status).includes("suspend");
+  return (
+    account?.status === "Suspended" ||
+    normalizeText(account?.accountStatus || account?.status).includes("suspend") ||
+    isSuspendedDateEffective(getSuspendedDate(account))
+  );
 }
 
 function hasCasesInCurrentScope(agentName: string, cases: CaseItem[]) {

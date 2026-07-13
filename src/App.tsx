@@ -96,6 +96,7 @@ type UserAccount = {
   teamName?: string;
   status?: "Active" | "Suspended";
   suspendReason?: string;
+  suspendEffectiveDate?: string;
 };
 
 type UserProfileSnapshot = {
@@ -108,6 +109,7 @@ type UserProfileSnapshot = {
   teamName?: string;
   status?: "Active" | "Suspended";
   suspendReason?: string;
+  suspendEffectiveDate?: string;
 };
 
 type CurrentUser = {
@@ -1086,6 +1088,39 @@ function isPastDate(value?: string) {
   return !Number.isNaN(date.getTime()) && date.getTime() < Date.now();
 }
 
+function parseDateOnly(value?: string) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  const slashMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) return new Date(Number(slashMatch[3]), Number(slashMatch[2]) - 1, Number(slashMatch[1]));
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function isSuspendDateEffective(value?: string) {
+  const suspendDate = parseDateOnly(value);
+  if (!suspendDate) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return suspendDate.getTime() <= today.getTime();
+}
+
+function isAccountSuspended(account?: { status?: string; accountStatus?: string; suspendEffectiveDate?: string; suspendDate?: string; suspend_date?: string } | null) {
+  if (!account) return false;
+  const statusText = String(account.status || account.accountStatus || "").trim().toLowerCase();
+  return statusText.includes("suspend") || isSuspendDateEffective(account.suspendEffectiveDate || account.suspendDate || account.suspend_date);
+}
+
+function buildSuspendedMessage(account?: { suspendReason?: string; suspendEffectiveDate?: string; suspendDate?: string; suspend_date?: string } | null) {
+  const reason = String(account?.suspendReason || "").trim();
+  const date = String(account?.suspendEffectiveDate || account?.suspendDate || account?.suspend_date || "").trim();
+  const details = [date ? `effective ${date}` : "", reason].filter(Boolean).join(" - ");
+  return details ? ` (${details})` : "";
+}
+
 function daysUntilDate(value?: string) {
   if (!value) return null;
   const date = new Date(value);
@@ -1240,6 +1275,7 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
       role,
       status,
       suspendReason: String(item.details?.suspendReason || ""),
+      suspendEffectiveDate: String(item.details?.suspendEffectiveDate || item.details?.suspendDate || ""),
     };
   });
 
@@ -1261,6 +1297,7 @@ function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
       role: normalizeRoleName(row.role || "Admin Live Chat"),
       status: row.status === "Suspended" ? "Suspended" : "Active",
       suspendReason: row.suspendReason || "",
+      suspendEffectiveDate: row.suspendEffectiveDate || "",
     };
   });
   return profiles;
@@ -1329,6 +1366,7 @@ function buildEffectiveUserAccounts(
       teamName: profile.teamName,
       status: profile.status,
       suspendReason: profile.suspendReason,
+      suspendEffectiveDate: profile.suspendEffectiveDate,
     });
   });
 
@@ -4539,14 +4577,12 @@ export default function App() {
       }
 
       if (firebaseProfileData) {
-        const profileStatus = String(firebaseProfileData.status || "Active");
         const profilePassword = String(firebaseProfileData.password || "");
         const profilePasswordKind = String(firebaseProfileData.passwordKind || firebaseProfileData.password_kind || "").toLowerCase();
         const profileExpiresAt = String(firebaseProfileData.passwordExpiresAt || firebaseProfileData.accessExpiresAt || "");
 
-        if (profileStatus === "Suspended") {
-          const reason = String(firebaseProfileData.suspendReason || "");
-          setLoginError(`This account has been suspended${reason ? ` (${reason})` : ""}. Please contact Songpon.`);
+        if (isAccountSuspended(firebaseProfileData)) {
+          setLoginError(`This account has been suspended${buildSuspendedMessage(firebaseProfileData)}. Please contact Songpon.`);
           return;
         }
 
@@ -4613,9 +4649,8 @@ export default function App() {
       (item) => item.username.trim().toLowerCase() === normalizedUsername
     );
 
-    if (matchedAccount?.status === "Suspended") {
-      const reason = matchedAccount.suspendReason ? ` (${matchedAccount.suspendReason})` : "";
-      setLoginError(`This account has been suspended${reason}. Please contact Supervisor.`);
+    if (isAccountSuspended(matchedAccount)) {
+      setLoginError(`This account has been suspended${buildSuspendedMessage(matchedAccount)}. Please contact Supervisor.`);
       return;
     }
 
@@ -4746,9 +4781,8 @@ export default function App() {
       return;
     }
 
-    if (account.status === "Suspended") {
-      const reason = account.suspendReason ? ` (${account.suspendReason})` : "";
-      setForgotPasswordError(`This account has been suspended${reason}. Password reset is not available.`);
+    if (isAccountSuspended(account)) {
+      setForgotPasswordError(`This account has been suspended${buildSuspendedMessage(account)}. Password reset is not available.`);
       setForgotPasswordSuccess("");
       return;
     }
@@ -4879,6 +4913,7 @@ export default function App() {
           teamName: account.teamName || "",
           status: account.status === "Suspended" ? "Suspended" : "Active",
           suspendReason: account.suspendReason || "",
+          suspendEffectiveDate: account.suspendEffectiveDate || "",
           password: newPasswordInput,
           passwordKind: "permanent",
           passwordIssuedAt: changedAt.toISOString(),
@@ -4953,6 +4988,7 @@ export default function App() {
         teamName: targetAccount.teamName || "",
         status: targetAccount.status === "Suspended" ? "Suspended" : "Active",
         suspendReason: targetAccount.suspendReason || "",
+        suspendEffectiveDate: targetAccount.suspendEffectiveDate || "",
         password: targetAccount.password,
         passwordKind: "temporary",
         passwordIssuedAt: issuedAt.toISOString(),
@@ -5009,6 +5045,7 @@ export default function App() {
         teamName: targetAccount?.teamName || "",
         status: targetAccount?.status === "Suspended" ? "Suspended" : "Active",
         suspendReason: targetAccount?.suspendReason || "",
+        suspendEffectiveDate: targetAccount?.suspendEffectiveDate || "",
         password: tempPassword,
         passwordKind: "temporary",
         passwordIssuedAt: issuedAt.toISOString(),
