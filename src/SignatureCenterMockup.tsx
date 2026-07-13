@@ -2984,6 +2984,313 @@ export default function SignatureCenterMockup({
       pdf.setFont("THSarabunNew", "normal");
     } catch {}
 
+    {
+    const officialPageW = 210;
+    const officialPageH = 297;
+    const officialLeft = 12;
+    const officialRight = 198;
+    const officialTableW = officialRight - officialLeft;
+    const officialBottom = 282;
+    const officialPurple: [number, number, number] = [95, 39, 159];
+    const officialPurpleDark: [number, number, number] = [88, 28, 135];
+    const officialLightPurple: [number, number, number] = [206, 193, 216];
+    const officialSoftPurple: [number, number, number] = [245, 240, 250];
+    const officialBorder: [number, number, number] = [190, 184, 198];
+    const officialBlack: [number, number, number] = [18, 24, 38];
+    const officialMuted: [number, number, number] = [83, 96, 124];
+    let officialY = 12;
+
+    const setOfficialFont = (
+      size: number,
+      bold = false,
+      color: [number, number, number] = officialBlack
+    ) => {
+      try {
+        pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
+      } catch {}
+      pdf.setFontSize(size);
+      pdf.setTextColor(color[0], color[1], color[2]);
+    };
+
+    const drawOfficialText = (
+      value: string,
+      x: number,
+      yy: number,
+      size = 9,
+      bold = false,
+      color: [number, number, number] = officialBlack,
+      options?: { align?: "left" | "center" | "right" }
+    ) => {
+      setOfficialFont(size, bold, color);
+      pdf.text(String(value ?? ""), x, yy, options);
+    };
+
+    const splitOfficialText = (value: unknown, width: number, size = 8) => {
+      setOfficialFont(size);
+      return pdf.splitTextToSize(String(value || "-"), Math.max(4, width));
+    };
+
+    const drawOfficialCell = (
+      x: number,
+      yy: number,
+      w: number,
+      h: number,
+      value: unknown,
+      fill: [number, number, number],
+      options: {
+        bold?: boolean;
+        color?: [number, number, number];
+        size?: number;
+        align?: "left" | "center" | "right";
+        valign?: "top" | "middle";
+        maxLines?: number;
+      } = {}
+    ) => {
+      const size = options.size ?? 7.5;
+      const align = options.align ?? "left";
+      const color = options.color ?? officialBlack;
+      const maxLines = options.maxLines ?? 2;
+      pdf.setDrawColor(officialBorder[0], officialBorder[1], officialBorder[2]);
+      pdf.setFillColor(fill[0], fill[1], fill[2]);
+      pdf.rect(x, yy, w, h, "FD");
+      setOfficialFont(size, options.bold ?? false, color);
+      const lines = splitOfficialText(value, w - 4, size).slice(0, maxLines);
+      const lineGap = size * 0.34 + 1.15;
+      const textY =
+        options.valign === "top"
+          ? yy + 4
+          : yy + h / 2 - ((lines.length - 1) * lineGap) / 2 + size * 0.22;
+      const textX = align === "center" ? x + w / 2 : align === "right" ? x + w - 2 : x + 2;
+      lines.forEach((lineText: string, index: number) => {
+        pdf.text(lineText, textX, textY + index * lineGap, { align });
+      });
+    };
+
+    const drawOfficialSection = (title: string, subtitle?: string) => {
+      if (officialY + 12 > officialBottom) {
+        pdf.addPage();
+        officialY = 12;
+      }
+      pdf.setFillColor(officialPurple[0], officialPurple[1], officialPurple[2]);
+      pdf.rect(officialLeft, officialY, officialTableW, 7, "F");
+      drawOfficialText(title, officialLeft + 3, officialY + 5, 9, true, [255, 255, 255]);
+      officialY += 7;
+      if (subtitle) {
+        pdf.setFillColor(officialSoftPurple[0], officialSoftPurple[1], officialSoftPurple[2]);
+        pdf.rect(officialLeft, officialY, officialTableW, 7, "F");
+        drawOfficialText(subtitle, officialLeft + 3, officialY + 5, 7.2, false, officialMuted);
+        officialY += 9;
+      } else {
+        officialY += 3;
+      }
+    };
+
+    const ensureOfficialSpace = (height: number) => {
+      if (officialY + height > officialBottom) {
+        pdf.addPage();
+        officialY = 12;
+      }
+    };
+
+    const drawOfficialInfoRow = (cells: Array<{ label: string; value: unknown; w?: number; maxLines?: number }>, height = 13) => {
+      ensureOfficialSpace(height);
+      let x = officialLeft;
+      const labelW = 24;
+      const valueWidths = cells.map((cell) => cell.w ?? (officialTableW - labelW * cells.length) / cells.length);
+      cells.forEach((cell, index) => {
+        drawOfficialCell(x, officialY, labelW, height, cell.label, officialPurpleDark, {
+          color: [255, 255, 255],
+          bold: true,
+          size: 7.2,
+          align: "center",
+          maxLines: 2,
+        });
+        x += labelW;
+        drawOfficialCell(x, officialY, valueWidths[index], height, cell.value, officialLightPurple, {
+          bold: true,
+          size: 7.5,
+          align: "center",
+          maxLines: cell.maxLines ?? 2,
+        });
+        x += valueWidths[index];
+      });
+      officialY += height;
+    };
+
+    const roleLabelForPdf = (role: SignRole) => {
+      if (role === "QA") return "QA Reviewer";
+      if (role === "Supervisor") return "Supervisor";
+      if (role === "Senior") return "Senior / Team Lead";
+      return "Agent";
+    };
+
+    const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
+    const safePdfName = (role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      return signed ? getRoleSigner(selectedDocument, role) || signed.signerName || signed.signedBy || "-" : "-";
+    };
+    const safePdfDate = (role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      return signed ? formatDateTime(signed.signedAt) : "-";
+    };
+    const safePdfSignature = (role: SignRole) => getSignedEntry(entries, role)?.signatureDataUrl || "";
+
+    pdf.setFillColor(officialPurple[0], officialPurple[1], officialPurple[2]);
+    pdf.rect(0, 0, officialPageW, 22, "F");
+    drawOfficialText("QA Score Monthly Report", officialLeft, 9, 16, true, [255, 255, 255]);
+    drawOfficialText("Monthly QA acknowledgement and incentive document", officialLeft, 16, 9, false, [255, 255, 255]);
+    drawOfficialText(`Generated: ${formatDateTime(new Date().toISOString())}`, officialRight, 16, 7.5, false, [255, 255, 255], { align: "right" });
+
+    officialY = 31;
+    drawOfficialSection("Current View", "Summary for selected Agent and Month");
+    drawOfficialInfoRow([
+      { label: "Agent", value: selectedDocument.agentName, w: 52, maxLines: 2 },
+      { label: "Month", value: selectedDocument.monthLabel, w: 28 },
+      { label: "Document Ref.", value: selectedDocument.documentHash || selectedDocument.id, w: 58, maxLines: 2 },
+    ], 15);
+    drawOfficialInfoRow([
+      { label: "Reviewed Cases", value: selectedDocument.caseCount, w: 28 },
+      { label: "Average Score", value: selectedDocument.averageScore.toFixed(2), w: 31 },
+      { label: "Grade", value: selectedDocument.grade, w: 20 },
+      { label: "Signed", value: `${signedRoles}/${SIGNATURE_FLOW.length}`, w: 11 },
+    ], 12);
+    drawOfficialInfoRow([
+      { label: "Team", value: selectedDocument.teamName || "-", w: 48, maxLines: 2 },
+      { label: "Supervisor", value: selectedDocument.supervisorName || "-", w: 34, maxLines: 2 },
+      { label: "Team Lead", value: selectedDocument.seniorName || "-", w: 32, maxLines: 2 },
+    ], 14);
+    drawOfficialInfoRow([
+      { label: "Status", value: isComplete ? "Completed Signature" : "Incomplete Signature", w: 52, maxLines: 2 },
+      { label: "Need More", value: needMoreToTarget, w: 28 },
+      { label: "Payment", value: readyForIncentive ? "Ready to Pay" : "Hold / Not Ready", w: 34, maxLines: 2 },
+    ], 13);
+
+    officialY += 5;
+    drawOfficialSection("Incentive Summary");
+    drawOfficialInfoRow([
+      { label: "Incentive", value: individualIncentive.label || "No Incentive", w: 66, maxLines: 2 },
+      { label: "Cash (THB)", value: formatBahtAmount(individualIncentive.cash || 0), w: 26 },
+      { label: "RBH Promo", value: formatBahtAmount(individualIncentive.promo || 0), w: 22 },
+    ], 13);
+    drawOfficialInfoRow([
+      { label: "Remark", value: individualIncentive.remark || "-", w: 66, maxLines: 2 },
+      { label: "Condition", value: readyForIncentive ? "Signature completed" : "Waiting signature completion", w: 48, maxLines: 2 },
+    ], 13);
+
+    officialY += 5;
+    drawOfficialSection("Monthly Case List", "Cases included in this monthly acknowledgement");
+    const caseColWidths = [11, 25, 29, 74, 25, 22];
+    const caseHeaders = ["Seq", "Audit Date", "Case ID", "Customer Inquiry", "Final Score", "Grade"];
+    let caseX = officialLeft;
+    caseHeaders.forEach((header, index) => {
+      drawOfficialCell(caseX, officialY, caseColWidths[index], 8, header, officialPurpleDark, {
+        color: [255, 255, 255],
+        bold: true,
+        size: 7,
+        align: "center",
+        maxLines: 1,
+      });
+      caseX += caseColWidths[index];
+    });
+    officialY += 8;
+
+    selectedDocument.cases.slice(0, 10).forEach((item, index) => {
+      const rowH = 9;
+      ensureOfficialSpace(rowH + 3);
+      const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
+      caseX = officialLeft;
+      const rowValues = [
+        String(index + 1),
+        item.auditDate || "-",
+        item.caseId || "-",
+        item.inquiry || "-",
+        item.finalScore.toFixed(2),
+        item.grade || "-",
+      ];
+      rowValues.forEach((cell, cellIndex) => {
+        drawOfficialCell(caseX, officialY, caseColWidths[cellIndex], rowH, cell, fill, {
+          bold: cellIndex === 0 || cellIndex === 2 || cellIndex === 4 || cellIndex === 5,
+          size: cellIndex === 3 ? 6.7 : 7,
+          align: cellIndex === 3 ? "left" : "center",
+          maxLines: cellIndex === 3 ? 2 : 1,
+        });
+        caseX += caseColWidths[cellIndex];
+      });
+      officialY += rowH;
+    });
+
+    pdf.addPage();
+    officialY = 12;
+    drawOfficialSection("Acknowledgement / Signature", "Only signed roles are shown with signature image and signed date");
+    drawOfficialText(
+      "This document confirms acknowledgement of the monthly QA score, case list, incentive condition, and signature status.",
+      officialLeft,
+      officialY + 1,
+      8.5,
+      false,
+      officialMuted
+    );
+    officialY += 10;
+
+    const drawSignatureBox = (x: number, yy: number, w: number, h: number, role: SignRole) => {
+      const signed = getSignedEntry(entries, role);
+      pdf.setDrawColor(officialBorder[0], officialBorder[1], officialBorder[2]);
+      pdf.setFillColor(255, 255, 255);
+      pdf.roundedRect(x, yy, w, h, 2, 2, "FD");
+      pdf.setFillColor(officialPurpleDark[0], officialPurpleDark[1], officialPurpleDark[2]);
+      pdf.rect(x, yy, w, 8, "F");
+      drawOfficialText(roleLabelForPdf(role), x + 3, yy + 5.7, 8.2, true, [255, 255, 255]);
+      const signatureImage = safePdfSignature(role);
+      if (signatureImage) {
+        try {
+          pdf.addImage(signatureImage, "PNG", x + 7, yy + 13, w - 14, 17);
+        } catch {
+          drawOfficialText("Signature image unavailable", x + w / 2, yy + 23, 8, false, officialMuted, { align: "center" });
+        }
+      } else {
+        pdf.setDrawColor(150, 145, 160);
+        pdf.line(x + 8, yy + 27, x + w - 8, yy + 27);
+        drawOfficialText("Unsigned", x + w / 2, yy + 24, 8, false, officialMuted, { align: "center" });
+      }
+      drawOfficialText(safePdfName(role), x + 4, yy + 36, 9, true);
+      drawOfficialText(`Date: ${safePdfDate(role)}`, x + 4, yy + 43, 7.8, false, officialMuted);
+      drawOfficialText(`Status: ${signed ? "Signed" : "Pending"}`, x + 4, yy + 50, 8, true, signed ? [5, 150, 105] : [180, 83, 9]);
+    };
+
+    const sigBoxW = 86;
+    const sigBoxH = 56;
+    drawSignatureBox(officialLeft, officialY, sigBoxW, sigBoxH, "QA");
+    drawSignatureBox(officialLeft + 100, officialY, sigBoxW, sigBoxH, "Supervisor");
+    officialY += sigBoxH + 9;
+    drawSignatureBox(officialLeft, officialY, sigBoxW, sigBoxH, "Senior");
+    drawSignatureBox(officialLeft + 100, officialY, sigBoxW, sigBoxH, "Agent");
+    officialY += sigBoxH + 10;
+
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(officialLeft, officialY, officialTableW, 14, 2, 2, "F");
+    drawOfficialText(
+      `Document Ref: ${selectedDocument.documentHash || selectedDocument.id} | Cases: ${selectedDocument.caseCount} | Average: ${selectedDocument.averageScore.toFixed(2)} | Grade: ${selectedDocument.grade}`,
+      officialLeft + 4,
+      officialY + 8.5,
+      8.2,
+      false,
+      officialMuted
+    );
+
+    pdf.setPage(1);
+    drawOfficialText("Page 1/2", officialRight, officialPageH - 7, 7.5, false, officialMuted, { align: "right" });
+    pdf.setPage(2);
+    drawOfficialText("Page 2/2", officialRight, officialPageH - 7, 7.5, false, officialMuted, { align: "right" });
+
+    const safeAgentFileName =
+      selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
+    const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}.pdf`;
+    downloadBlob(pdf.output("blob"), fileName);
+    setPdfMessage(`Generated ${fileName}`);
+    window.setTimeout(() => setPdfMessage(""), 3500);
+    return;
+    }
+
     if (false) {
     const docW = 210;
     const docH = 297;
