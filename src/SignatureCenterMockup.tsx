@@ -122,6 +122,61 @@ const SIGNATURE_RESET_WINDOW_DAYS = 3;
 const SIGNATURE_RESET_WINDOW_MS = SIGNATURE_RESET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 const DEFAULT_SUPERVISOR_SIGNER = "Phrommarin Thaithorn";
 const SIGNATURE_ROWS_PER_PAGE_OPTIONS = [10, 20, 50];
+const SIGNATURE_NEW_POLICY_START_MONTH_KEY = "2026-04";
+const SIGNATURE_JUNE_POLICY_START_MONTH_KEY = "2026-06";
+const SIGNATURE_TOPIC_MISSING = "__signature_topic_missing__";
+
+type SignatureTopicMasterItem = { code: string; label: string; max: number };
+
+const SIGNATURE_JAN_FEB_2026_TOPIC_MASTER = [
+  { code: "1", label: "เปิด-ปิดการสนทนา", max: 10 },
+  { code: "2", label: "วิเคราะห์/แก้ไข", max: 30 },
+  { code: "3", label: "ปฏิบัติตามขั้นตอน", max: 20 },
+  { code: "4", label: "ความสุภาพ", max: 10 },
+  { code: "5", label: "ภาษา", max: 20 },
+  { code: "6", label: "ระยะเวลา", max: 10 },
+] as const;
+
+const SIGNATURE_LEGACY_TOPIC_MASTER = [
+  { code: "1.1", label: "Greeting & Closing Standard", max: 10 },
+  { code: "1.2", label: "Accuracy of Information", max: 5 },
+  { code: "1.3", label: "PDPA & Policy", max: 5 },
+  { code: "2.1", label: "Case Accuracy", max: 5 },
+  { code: "2.2", label: "Completeness", max: 5 },
+  { code: "2.3", label: "Clear Actionable Guidance", max: 5 },
+  { code: "2.4", label: "Official Sources", max: 5 },
+  { code: "3.1", label: "Root Cause & Resolution", max: 10 },
+  { code: "3.2", label: "Case Ownership", max: 5 },
+  { code: "3.3", label: "Clear Next Step Guidance", max: 5 },
+  { code: "4.1", label: "Message Structure", max: 5 },
+  { code: "4.2", label: "Language Quality", max: 5 },
+  { code: "4.3", label: "Tone & Empathy", max: 5 },
+  { code: "4.4", label: "Adaptation to Context", max: 5 },
+  { code: "5.1", label: "Work Process Compliance", max: 10 },
+  { code: "5.2", label: "SLA Compliance", max: 5 },
+  { code: "5.3", label: "Case Logging / Status Accuracy", max: 5 },
+] as const;
+
+const SIGNATURE_APRIL_2026_TOPIC_MASTER = [
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
+  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
+  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+] as const;
+
+const SIGNATURE_JUNE_2026_TOPIC_MASTER = [
+  { code: "1", label: "Process & Policy Compliance", max: 30 },
+  { code: "2", label: "Answer Quality & Problem Analysis", max: 20 },
+  { code: "3", label: "Case Handling & Follow-up", max: 25 },
+  { code: "4", label: "Communication Skills", max: 25 },
+] as const;
 
 function normalizeText(value: unknown) {
   return String(value ?? "")
@@ -283,6 +338,48 @@ function buildHeaderMap(headerRow: unknown[]) {
   };
 
   return { get };
+}
+
+function getSignatureTopicMasterByMonth(monthKey: string): readonly SignatureTopicMasterItem[] {
+  if (monthKey !== "unknown" && monthKey >= SIGNATURE_JUNE_POLICY_START_MONTH_KEY) {
+    return SIGNATURE_JUNE_2026_TOPIC_MASTER;
+  }
+
+  if (monthKey === "2026-01" || monthKey === "2026-02") {
+    return SIGNATURE_JAN_FEB_2026_TOPIC_MASTER;
+  }
+
+  return monthKey !== "unknown" && monthKey >= SIGNATURE_NEW_POLICY_START_MONTH_KEY
+    ? SIGNATURE_APRIL_2026_TOPIC_MASTER
+    : SIGNATURE_LEGACY_TOPIC_MASTER;
+}
+
+function extractSignatureTopicsFromRow(
+  row: unknown[],
+  helper: ReturnType<typeof buildHeaderMap>,
+  monthKey: string
+): SignatureCaseDetail["topics"] {
+  const topicsWithPresence = getSignatureTopicMasterByMonth(monthKey).map((master) => {
+    const rawScore = helper.get(
+      row,
+      [`${master.code} Revised Score`, `${master.code} Score`, `${master.code} Final Score`, master.code],
+      SIGNATURE_TOPIC_MISSING
+    );
+    const hasScore = rawScore !== SIGNATURE_TOPIC_MISSING;
+    const score = hasScore && !Number.isNaN(Number(rawScore)) ? Number(rawScore) : 0;
+    return {
+      hasScore,
+      topic: {
+        code: master.code,
+        title: master.label,
+        max: master.max,
+        score,
+      },
+    };
+  });
+
+  if (!topicsWithPresence.some((item) => item.hasScore)) return [];
+  return topicsWithPresence.map((item) => item.topic);
 }
 
 function getMonthKeyFromRow(row: unknown[], helper: ReturnType<typeof buildHeaderMap>) {
@@ -741,9 +838,11 @@ function buildDocuments(
     const caseId = safeName(helper.get(row, ["Case ID", "CaseId", "Case"], ""));
     const auditDate = parseExcelDate(helper.get(row, ["Audit Date", "Case Date", "Timestamp", "Date"], ""));
     const rawFinalScore = Number(helper.get(row, ["Final Score", "Total Score", "QA Score", "Score"], ""));
-    const appealScore = (approvedAppealMap.get(`${caseId}::${monthKey}`) || approvedAppealMap.get(caseId))?.finalScore;
+    const approvedAppeal = approvedAppealMap.get(`${caseId}::${monthKey}`) || approvedAppealMap.get(caseId);
+    const appealScore = approvedAppeal?.finalScore;
     const finalScore = Number.isFinite(Number(appealScore)) ? Number(appealScore) : rawFinalScore;
     const score = Number.isFinite(finalScore) ? finalScore : 0;
+    const topics = applySignatureAppealTopics(extractSignatureTopicsFromRow(row, helper, monthKey), approvedAppeal);
 
     const seniorName = resolveSeniorNameForAgent(account, helper.get(row, ["Senior", "Team Lead", "Team Leader", "Leader"], ""));
     const supervisorName = resolveSupervisorName(helper.get(row, ["Supervisor", "Sup"], ""));
@@ -780,6 +879,7 @@ function buildDocuments(
         finalScore: score,
         grade: scoreToGrade(score, monthKey),
         comment,
+        topics,
       });
     } else if ((!caseId || caseId === "-") && Number.isFinite(finalScore)) {
       current.scores.push(score);
@@ -928,7 +1028,14 @@ function buildDocumentsFromStoredEvaluations(
 function mergeSignatureDocuments(existing: SignatureDocument, incoming: SignatureDocument): SignatureDocument {
   const caseMap = new Map<string, SignatureCaseDetail>();
   existing.cases.forEach((item) => caseMap.set(item.caseId, item));
-  incoming.cases.forEach((item) => caseMap.set(item.caseId, item));
+  incoming.cases.forEach((item) => {
+    const previous = caseMap.get(item.caseId);
+    if (previous?.topics?.length && (!item.topics?.length || previous.topics.length > item.topics.length)) {
+      caseMap.set(item.caseId, { ...item, topics: previous.topics });
+      return;
+    }
+    caseMap.set(item.caseId, item);
+  });
   const cases = sortSignatureCasesByAuditDate(Array.from(caseMap.values()));
   const caseCount = cases.length || Math.max(existing.caseCount, incoming.caseCount);
   const averageScore = cases.length
