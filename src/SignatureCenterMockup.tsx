@@ -244,6 +244,18 @@ const SIGNATURE_TOPIC_ENGLISH_LABELS: Record<string, Record<string, string>> = {
     "4.2": "Conciseness & Language Accuracy",
     "4.3": "Tone & Context Appropriateness",
   },
+  "2026-06": {
+    "1": "Process Compliance",
+    "2": "Answer Accuracy & Verification",
+    "3": "Case Handling & Follow-up",
+    "4": "Communication Skills",
+  },
+  "2026-07": {
+    "1": "Process Compliance",
+    "2": "Answer Accuracy & Verification",
+    "3": "Case Handling & Follow-up",
+    "4": "Communication Skills",
+  },
 };
 
 function getSignatureTopicEnglishLabel(
@@ -4482,15 +4494,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v11 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v14 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v11],
-          [data-signature-ui-v11] button,
-          [data-signature-ui-v11] input,
-          [data-signature-ui-v11] select,
-          [data-signature-ui-v11] textarea {
+          [data-signature-ui-v14],
+          [data-signature-ui-v14] button,
+          [data-signature-ui-v14] input,
+          [data-signature-ui-v14] select,
+          [data-signature-ui-v14] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4498,106 +4510,161 @@ export default function SignatureCenterMockup({
           <div
             className={`grid items-start gap-5 ${
               actionSidebarMode === "expanded"
-                ? "xl:grid-cols-[230px_minmax(0,1fr)]"
+                ? "xl:grid-cols-[minmax(0,1fr)_210px]"
                 : actionSidebarMode === "collapsed"
-                  ? "xl:grid-cols-[78px_minmax(0,1fr)]"
+                  ? "xl:grid-cols-[minmax(0,1fr)_64px]"
                   : "grid-cols-1"
             }`}
           >
             {actionSidebarMode === "hidden" ? (
-              <div className="flex justify-start xl:col-span-full">
+              <div className="order-2 flex justify-end xl:col-span-full">
                 <button
                   type="button"
                   onClick={() => setActionSidebarMode("expanded")}
-                  className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
+                  className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold">DA</span>
-                  Open Document Actions
+                  Show Document Actions
                 </button>
               </div>
             ) : (
-              <aside className="sticky top-4 z-20 rounded-[22px] border border-violet-100 bg-white p-3 shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
-                <div className="flex items-center justify-between gap-2">
+              <aside className="order-2 sticky top-4 z-30 rounded-[20px] border border-violet-100 bg-white p-2.5 shadow-[0_14px_34px_rgba(88,28,135,0.10)]">
+                <div className="flex items-center justify-between gap-2 px-1">
                   {actionSidebarMode === "expanded" ? (
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-500">Signature Workspace</div>
-                      <div className="mt-1 text-base font-semibold text-slate-950">Document Actions</div>
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-violet-500">
+                        Signature Workspace
+                      </div>
+                      <div className="mt-0.5 text-sm font-semibold text-slate-950">Document Actions</div>
                     </div>
                   ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700">DA</div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-[10px] font-bold text-violet-700">
+                      DA
+                    </div>
                   )}
+
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      title={actionSidebarMode === "expanded" ? "Collapse" : "Expand"}
+                      title={actionSidebarMode === "expanded" ? "Collapse actions" : "Expand actions"}
+                      aria-label={actionSidebarMode === "expanded" ? "Collapse Document Actions" : "Expand Document Actions"}
                       onClick={() =>
                         setActionSidebarMode((current) => (current === "expanded" ? "collapsed" : "expanded"))
                       }
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
                     >
-                      {actionSidebarMode === "expanded" ? "‹" : "›"}
+                      {actionSidebarMode === "expanded" ? "›" : "‹"}
                     </button>
                     <button
                       type="button"
-                      title="Close"
+                      title="Hide Document Actions"
+                      aria-label="Hide Document Actions"
                       onClick={() => setActionSidebarMode("hidden")}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                     >
                       ×
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-2">
-                  <button
-                    type="button"
-                    title="Generate Payment PDF"
-                    onClick={generatePaymentPdf}
-                    disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
-                    className={`flex items-center rounded-xl bg-violet-700 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${
-                      actionSidebarMode === "expanded" ? "gap-3 px-3.5 py-3 text-left" : "justify-center px-2 py-3"
-                    }`}
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15 text-[10px] font-bold">PDF</span>
-                    {actionSidebarMode === "expanded" ? <span>Generate Payment PDF</span> : null}
-                  </button>
+                <div className="mt-3 grid gap-2">
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      title="Monthly Payment PDF"
+                      aria-label="Monthly Payment PDF"
+                      onClick={generatePaymentPdf}
+                      disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
+                      className={`flex w-full items-center rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(124,58,237,0.20)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(124,58,237,0.28)] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none ${
+                        actionSidebarMode === "expanded"
+                          ? "gap-2.5 px-2.5 py-2.5 text-left"
+                          : "justify-center px-2 py-2.5"
+                      }`}
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/18 text-[9px] font-bold">
+                        PDF
+                      </span>
+                      {actionSidebarMode === "expanded" ? <span>Monthly Payment PDF</span> : null}
+                    </button>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute right-full top-1/2 z-50 mr-3 w-64 -translate-y-1/2 rounded-xl border border-violet-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                    >
+                      <div className="text-xs font-semibold text-white">Monthly Payment PDF</div>
+                      <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
+                        ส่งออกรายงานสรุป Incentive ของเดือนที่เลือกเป็นไฟล์ PDF
+                      </div>
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    title="Generate Excel"
-                    onClick={generatePaymentExcel}
-                    disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
-                    className={`flex items-center rounded-xl border border-violet-200 bg-white text-sm font-semibold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 ${
-                      actionSidebarMode === "expanded" ? "gap-3 px-3.5 py-3 text-left" : "justify-center px-2 py-3"
-                    }`}
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-[10px] font-bold">XLS</span>
-                    {actionSidebarMode === "expanded" ? <span>Generate Excel</span> : null}
-                  </button>
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      title="Monthly Payment Excel"
+                      aria-label="Monthly Payment Excel"
+                      onClick={generatePaymentExcel}
+                      disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
+                      className={`flex w-full items-center rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-xs font-semibold text-emerald-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-[0_8px_18px_rgba(16,185,129,0.14)] disabled:cursor-not-allowed disabled:border-slate-200 disabled:from-slate-100 disabled:to-slate-100 disabled:text-slate-400 disabled:shadow-none ${
+                        actionSidebarMode === "expanded"
+                          ? "gap-2.5 px-2.5 py-2.5 text-left"
+                          : "justify-center px-2 py-2.5"
+                      }`}
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-[9px] font-bold text-emerald-700">
+                        XLS
+                      </span>
+                      {actionSidebarMode === "expanded" ? <span>Monthly Payment Excel</span> : null}
+                    </button>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute right-full top-1/2 z-50 mr-3 w-64 -translate-y-1/2 rounded-xl border border-emerald-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                    >
+                      <div className="text-xs font-semibold text-white">Monthly Payment Excel</div>
+                      <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
+                        ส่งออกข้อมูล Incentive ของเดือนที่เลือกเป็นไฟล์ Excel
+                      </div>
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    title="Generate Final PDF"
-                    onClick={generatePdf}
-                    disabled={!selectedDocument}
-                    className={`flex items-center rounded-xl border border-slate-200 bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${
-                      actionSidebarMode === "expanded" ? "gap-3 px-3.5 py-3 text-left" : "justify-center px-2 py-3"
-                    }`}
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] font-bold">FINAL</span>
-                    {actionSidebarMode === "expanded" ? <span>Generate Final PDF</span> : null}
-                  </button>
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      title="Final Signed PDF"
+                      aria-label="Final Signed PDF"
+                      onClick={generatePdf}
+                      disabled={!selectedDocument}
+                      className={`flex w-full items-center rounded-xl bg-gradient-to-r from-slate-950 to-indigo-950 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(30,41,59,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(30,41,59,0.26)] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none ${
+                        actionSidebarMode === "expanded"
+                          ? "gap-2.5 px-2.5 py-2.5 text-left"
+                          : "justify-center px-2 py-2.5"
+                      }`}
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[8px] font-bold">
+                        FINAL
+                      </span>
+                      {actionSidebarMode === "expanded" ? <span>Final Signed PDF</span> : null}
+                    </button>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute right-full top-1/2 z-50 mr-3 w-64 -translate-y-1/2 rounded-xl border border-indigo-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                    >
+                      <div className="text-xs font-semibold text-white">Final Signed PDF</div>
+                      <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
+                        สร้างเอกสารฉบับสมบูรณ์ของผู้ถูกประเมินที่เลือก พร้อมข้อมูลการลงนาม
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {actionSidebarMode === "expanded" ? (
-                  <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[11px] font-normal leading-5 text-slate-500">
-                    ปุ่มสร้างไฟล์รวมไว้จุดเดียว และยังใช้เงื่อนไขการเปิดใช้งานเดิมของระบบ
+                  <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2 text-[10px] font-normal leading-4 text-slate-500">
+                    เลือกเดือนหรือเอกสารก่อน ระบบจะเปิดปุ่มที่พร้อมใช้งานโดยอัตโนมัติ
                   </div>
                 ) : null}
               </aside>
             )}
 
-            <div className="min-w-0 space-y-5">
+            <div className="order-1 min-w-0 space-y-5">
               <section data-signature-redesign className="space-y-5">
         <header className="rounded-[28px] border border-violet-100 bg-white px-5 py-5 shadow-[0_18px_50px_rgba(88,28,135,0.08)] sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -5341,29 +5408,33 @@ export default function SignatureCenterMockup({
 
                 return (
                   <div
-                    data-preview-table-v11
-                    className="mt-5 overflow-x-auto rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.05)]"
+                    data-preview-table-v13
+                    className="mt-5 overflow-x-auto rounded-[16px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
                   >
                     <table className="w-max min-w-full table-auto border-collapse">
-                      <thead>
-                        <tr className="bg-gradient-to-r from-violet-800 to-violet-700 text-white">
-                          <th className="whitespace-nowrap px-3 py-3 text-center text-xs font-semibold">#</th>
-                          <th className="whitespace-nowrap px-3 py-3 text-center text-xs font-semibold">Case ID</th>
-                          <th className="whitespace-nowrap px-3 py-3 text-center text-xs font-semibold">Date</th>
-                          <th className="min-w-[300px] px-4 py-3 text-center text-xs font-semibold">Intent</th>
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-gradient-to-r from-[#2e1065] via-violet-800 to-[#5b21b6] text-white">
+                          <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">#</th>
+                          <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Case ID</th>
+                          <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Date</th>
+                          <th className="min-w-[285px] px-4 py-2.5 text-center text-[11px] font-semibold">Intent</th>
                           {dynamicTopics.map((topic) => (
-                            <th key={`preview-head-${topic.key}`} className="min-w-[165px] px-3 py-3 text-center align-middle">
-                              <div className="mx-auto max-w-[190px] whitespace-normal text-[11px] font-semibold leading-4">
+                            <th
+                              key={`preview-head-${topic.key}`}
+                              className="min-w-[138px] px-2.5 py-2.5 text-center align-middle"
+                            >
+                              <div className="mx-auto max-w-[155px] whitespace-normal text-[10px] font-semibold leading-4">
                                 {topic.label}
                               </div>
-                              <div className="mt-1 text-[10px] font-medium text-violet-100">
+                              <div className="mx-auto mt-1.5 inline-flex rounded-full bg-white/12 px-2 py-0.5 text-[9px] font-medium text-violet-100">
                                 Max Score: {topic.max || "-"}
                               </div>
                             </th>
                           ))}
-                          <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold">Score</th>
+                          <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Score</th>
                         </tr>
                       </thead>
+
                       <tbody>
                         {previewCases.map((item, index) => {
                           const intentParts = splitSignatureIntent(item.inquiry);
@@ -5374,37 +5445,47 @@ export default function SignatureCenterMockup({
                             ])
                           );
 
+                          const finalScoreTone =
+                            item.finalScore >= 85
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : item.finalScore >= 75
+                                ? "border-amber-200 bg-amber-50 text-amber-700"
+                                : "border-rose-200 bg-rose-50 text-rose-700";
+
                           return (
                             <tr
                               key={`${item.caseId}-${index}`}
-                              className="border-t border-slate-100 transition hover:bg-violet-50/40"
+                              className="border-t border-slate-100 odd:bg-white even:bg-slate-50/45 transition hover:bg-violet-50/55"
                             >
-                              <td className="px-3 py-3 text-center align-middle text-sm font-medium text-slate-400">
+                              <td className="px-3 py-2.5 text-center align-middle text-xs font-medium text-slate-400">
                                 {index + 1}
                               </td>
-                              <td className="px-3 py-3 text-center align-middle">
+
+                              <td className="px-3 py-2.5 text-center align-middle">
                                 <button
                                   type="button"
                                   onClick={() => setPreviewCase(item)}
-                                  className="whitespace-nowrap font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                                  className="whitespace-nowrap text-sm font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
                                 >
                                   {item.caseId}
                                 </button>
                               </td>
-                              <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-normal text-slate-500">
+
+                              <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-xs font-normal text-slate-500">
                                 {item.auditDate}
                               </td>
-                              <td className="min-w-[300px] max-w-[460px] px-4 py-3 align-middle">
-                                <div className="font-medium leading-6 text-slate-900">
+
+                              <td className="min-w-[285px] max-w-[420px] px-4 py-2.5 align-middle">
+                                <div className="text-sm font-medium leading-5 text-slate-900">
                                   {intentParts.primary || "-"}
                                 </div>
                                 {intentParts.secondary ? (
-                                  <div className="mt-0.5 text-xs font-normal leading-5 text-slate-500">
+                                  <div className="mt-0.5 text-[11px] font-normal leading-4 text-slate-500">
                                     {intentParts.secondary}
                                   </div>
                                 ) : null}
                                 {pendingAppealCaseMap.has(item.caseId) ? (
-                                  <span className="mt-1.5 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                                  <span className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-medium text-rose-700">
                                     Appeal Pending
                                   </span>
                                 ) : null}
@@ -5418,6 +5499,7 @@ export default function SignatureCenterMockup({
                                   score !== null && max > 0
                                     ? Math.max(0, Math.min(100, (score / max) * 100))
                                     : 0;
+
                                 const barTone =
                                   score === null
                                     ? "bg-slate-300"
@@ -5426,21 +5508,25 @@ export default function SignatureCenterMockup({
                                       : percent >= 75
                                         ? "bg-amber-500"
                                         : "bg-rose-500";
+
                                 const scoreTone =
                                   score === null
-                                    ? "text-slate-400"
+                                    ? "border-slate-200 bg-slate-50 text-slate-400"
                                     : percent >= 85
-                                      ? "text-emerald-700"
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                                       : percent >= 75
-                                        ? "text-amber-700"
-                                        : "text-rose-700";
+                                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                                        : "border-rose-200 bg-rose-50 text-rose-700";
 
                                 return (
-                                  <td key={`${item.caseId}-${topic.key}`} className="min-w-[165px] px-3 py-3 text-center align-middle">
-                                    <div className={`text-base font-semibold ${scoreTone}`}>
+                                  <td
+                                    key={`${item.caseId}-${topic.key}`}
+                                    className="min-w-[138px] px-2.5 py-2.5 text-center align-middle"
+                                  >
+                                    <span className={`inline-flex h-7 min-w-[36px] items-center justify-center rounded-lg border px-2 text-sm font-semibold ${scoreTone}`}>
                                       {score === null ? "-" : score}
-                                    </div>
-                                    <div className="mx-auto mt-2 h-1.5 w-full max-w-[135px] overflow-hidden rounded-full bg-slate-200">
+                                    </span>
+                                    <div className="mx-auto mt-2 h-1 w-full max-w-[92px] overflow-hidden rounded-full bg-slate-200">
                                       <div
                                         className={`h-full rounded-full ${barTone}`}
                                         style={{ width: `${score === null ? 0 : percent}%` }}
@@ -5450,8 +5536,8 @@ export default function SignatureCenterMockup({
                                 );
                               })}
 
-                              <td className="px-4 py-3 text-center align-middle">
-                                <span className="inline-flex min-w-[72px] justify-center rounded-xl bg-violet-50 px-3 py-2 text-base font-semibold text-violet-700">
+                              <td className="px-3 py-2.5 text-center align-middle">
+                                <span className={`inline-flex min-w-[66px] justify-center rounded-xl border px-2.5 py-1.5 text-sm font-semibold ${finalScoreTone}`}>
                                   {item.finalScore.toFixed(2)}
                                 </span>
                               </td>
