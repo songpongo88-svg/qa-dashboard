@@ -5174,74 +5174,109 @@ export default function SignatureCenterMockup({
                 )}
               </div>
 
-              <div className="mt-5 overflow-hidden rounded-[20px] border border-slate-200">
-                <div className="grid grid-cols-[40px_108px_82px_72px_minmax(230px,1fr)_minmax(300px,1.1fr)] bg-violet-700 px-4 py-2.5 text-xs font-medium text-white">
-                  <div>#</div>
-                  <div>Case ID</div>
-                  <div>Date</div>
-                  <div>Score</div>
-                  <div>Intent</div>
-                  <div>Topic Scores</div>
+              <div
+                data-preview-table-v10
+                className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
+              >
+                <div className="grid grid-cols-[44px_118px_92px_minmax(280px,1fr)_minmax(360px,1.25fr)_96px] items-center bg-gradient-to-r from-violet-800 to-violet-700 px-4 py-3 text-xs font-semibold text-white">
+                  <div className="text-center">#</div>
+                  <div className="text-center">Case ID</div>
+                  <div className="text-center">Date</div>
+                  <div className="text-center">Intent</div>
+                  <div className="text-center">Topic Scores</div>
+                  <div className="text-center">Score</div>
                 </div>
+
                 {selectedDocument.cases.slice(0, 10).map((item, index) => {
                   const intentParts = splitSignatureIntent(item.inquiry);
                   return (
                     <div
                       key={`${item.caseId}-${index}`}
-                      className="grid grid-cols-[40px_108px_82px_72px_minmax(230px,1fr)_minmax(300px,1.1fr)] items-start gap-2 border-t border-slate-100 px-4 py-3 text-sm transition hover:bg-violet-50/40"
+                      className="grid grid-cols-[44px_118px_92px_minmax(280px,1fr)_minmax(360px,1.25fr)_96px] items-center gap-3 border-t border-slate-100 px-4 py-3.5 text-sm transition hover:bg-violet-50/40"
                     >
-                      <div className="pt-0.5 font-medium text-slate-400">{index + 1}</div>
+                      <div className="text-center font-medium text-slate-400">{index + 1}</div>
+
                       <button
                         type="button"
                         onClick={() => setPreviewCase(item)}
-                        className="truncate pt-0.5 text-left font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                        className="truncate text-center font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
                       >
                         {item.caseId}
                       </button>
-                      <div className="pt-0.5 font-normal text-slate-500">{item.auditDate}</div>
-                      <div className="pt-0.5 font-semibold text-violet-700">{item.finalScore.toFixed(2)}</div>
+
+                      <div className="text-center font-normal text-slate-500">{item.auditDate}</div>
+
                       <div className="min-w-0">
                         <div className="truncate font-medium text-slate-900" title={intentParts.primary}>
                           {intentParts.primary || "-"}
                         </div>
                         {intentParts.secondary ? (
-                          <div className="mt-0.5 truncate text-xs font-normal text-slate-500" title={intentParts.secondary}>
+                          <div
+                            className="mt-1 truncate text-xs font-normal text-slate-500"
+                            title={intentParts.secondary}
+                          >
                             {intentParts.secondary}
                           </div>
                         ) : null}
                         {pendingAppealCaseMap.has(item.caseId) ? (
-                          <span className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                          <span className="mt-1.5 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
                             Appeal Pending
                           </span>
                         ) : null}
                       </div>
-                      <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-2">
+
+                      <div className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-2.5">
                         {item.topics?.length ? (
                           item.topics.map((topic) => {
-                            const score = Number(topic.score) || 0;
-                            const max = Number(topic.max) || 0;
-                            const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
+                            const topicScore = Number(topic.score) || 0;
+                            const topicMax = Number(topic.max) || 0;
+                            const percent =
+                              topicMax > 0
+                                ? Math.max(0, Math.min(100, (topicScore / topicMax) * 100))
+                                : 0;
                             const barTone =
                               percent >= 85
                                 ? "bg-emerald-500"
                                 : percent >= 75
                                   ? "bg-amber-500"
                                   : "bg-rose-500";
+
                             return (
-                              <div key={`${item.caseId}-topic-${topic.code}-${topic.title}`} className="min-w-0">
+                              <div
+                                key={`${item.caseId}-topic-${topic.code}-${topic.title}`}
+                                className="min-w-0 rounded-xl bg-slate-50 px-2.5 py-2"
+                              >
                                 <div className="flex items-center justify-between gap-2 text-[10px] leading-4">
-                                  <span className="truncate font-medium text-slate-600" title={topic.title}>{topic.title}</span>
-                                  <span className="shrink-0 font-semibold text-slate-800">{score}/{max || "-"}</span>
+                                  <span
+                                    className="truncate font-medium text-slate-600"
+                                    title={topic.title}
+                                  >
+                                    {topic.title}
+                                  </span>
+                                  <span className="shrink-0 font-semibold text-slate-800">
+                                    {topicScore}/{topicMax || "-"}
+                                  </span>
                                 </div>
-                                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                                  <div className={`h-full rounded-full ${barTone}`} style={{ width: `${percent}%` }} />
+                                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                                  <div
+                                    className={`h-full rounded-full ${barTone}`}
+                                    style={{ width: `${percent}%` }}
+                                  />
                                 </div>
                               </div>
                             );
                           })
                         ) : (
-                          <div className="col-span-2 text-xs font-normal text-slate-400">-</div>
+                          <div className="col-span-2 text-center text-xs font-normal text-slate-400">
+                            -
+                          </div>
                         )}
+                      </div>
+
+                      <div className="text-center">
+                        <span className="inline-flex min-w-[72px] justify-center rounded-xl bg-violet-50 px-3 py-2 text-base font-semibold text-violet-700">
+                          {item.finalScore.toFixed(2)}
+                        </span>
                       </div>
                     </div>
                   );
