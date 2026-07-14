@@ -129,10 +129,10 @@ const SIGNATURE_TOPIC_MISSING = "__signature_topic_missing__";
 type SignatureTopicMasterItem = { code: string; label: string; max: number };
 
 const SIGNATURE_JAN_FEB_2026_TOPIC_MASTER = [
-  { code: "1", label: "เปิ�”-ปิ�”การสน�—นา", max: 10 },
+  { code: "1", label: "เปิด-ปิดการสนทนา", max: 10 },
   { code: "2", label: "วิเคราะห์/แก้ไข", max: 30 },
-  { code: "3", label: "ปฏิบั�•เธดเธ•ามขั้น�•อน", max: 20 },
-  { code: "4", label: "ความสุ� าพ", max: 10 },
+  { code: "3", label: "ปฏิบัติตามขั้นตอน", max: 20 },
+  { code: "4", label: "ความสุเธ าพ", max: 10 },
   { code: "5", label: "ภาษา", max: 20 },
   { code: "6", label: "ระยะเวลา", max: 10 },
 ] as const;
@@ -158,17 +158,17 @@ const SIGNATURE_LEGACY_TOPIC_MASTER = [
 ] as const;
 
 const SIGNATURE_APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "เธกเธฒเธ•รฐานการ�—ัก�—ายและปิ�”การสน�—นา", max: 10 },
-  { code: "1.2", label: "การปฏิบั�•เธดเธ•เธฒเธก PDPA / Policy / ข้อกำหน�”", max: 10 },
-  { code: "1.3", label: "การปฏิบั�•เธดเธ•ามกระบวนการและ SLA", max: 10 },
-  { code: "2.1", label: "ความ�–ูก�•้องของคำ�•อบ", max: 10 },
-  { code: "2.2", label: "ความครบ�–้วนของคำ�•อบ", max: 10 },
-  { code: "2.3", label: "ความชั�”เจนของขั้น�•อนและแหล่งอ้างอิง", max: 5 },
-  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาไ�”้�•รงจุ�”", max: 15 },
+  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
+  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
+  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
+  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
+  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
+  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
+  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
   { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
   { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
-  { code: "4.2", label: "ความกระชับและความ�–ูก�•้องของ� เธฒเธฉเธฒ", max: 5 },
-  { code: "4.3", label: "น้ำเสียงและความเหมาะสม�•เธฒเธกเธชเธ–านการ�“์", max: 10 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของเธ าษา", max: 5 },
+  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
 ] as const;
 
 const SIGNATURE_JUNE_2026_TOPIC_MASTER = [
@@ -279,20 +279,20 @@ function parseMonthValueToDate(value: unknown): Date | null {
   const yearMonthMatch = text.match(/^(20\d{2})[-/](\d{1,2})$/);
   if (yearMonthMatch) return new Date(Number(yearMonthMatch[1]), Number(yearMonthMatch[2]) - 1, 1);
 
-  const thaiMonthMatch = text.match(/(เธก\.ค\.|มกราคม|ก\.พ\.|กุม� าพันธ์|เธกเธต\.ค\.|มีนาคม|เม\.เธข\.|เมษายน|พ\.ค\.|พฤษ� าคม|เธกเธด\.เธข\.|เธกเธดเธ–ุนายน|ก\.ค\.|กรกฎาคม|เธช\.ค\.|สิงหาคม|ก\.เธข\.|กันยายน|เธ•\.ค\.|เธ•ุลาคม|พ\.เธข\.|พฤศจิกายน|ธ\.ค\.|ธันวาคม)\s*(\d{2,4})/);
+  const thaiMonthMatch = text.match(/(ม\.ค\.|มกราคม|ก\.พ\.|กุมเธ าพันธ์|มี\.ค\.|มีนาคม|เม\.ย\.|เมษายน|พ\.ค\.|พฤษเธ าคม|มิ\.ย\.|มิถุนายน|ก\.ค\.|กรกฎาคม|ส\.ค\.|สิงหาคม|ก\.ย\.|กันยายน|ต\.ค\.|ตุลาคม|พ\.ย\.|พฤศจิกายน|ธ\.ค\.|ธันวาคม)\s*(\d{2,4})/);
   if (thaiMonthMatch) {
     const map: Record<string, number> = {
-      "เธก.ค.": 0, "มกราคม": 0,
-      "ก.พ.": 1, "กุม� าพันธ์": 1,
-      "เธกเธต.ค.": 2, "มีนาคม": 2,
-      "เม.เธข.": 3, "เมษายน": 3,
-      "พ.ค.": 4, "พฤษ� าคม": 4,
-      "เธกเธด.เธข.": 5, "เธกเธดเธ–ุนายน": 5,
+      "ม.ค.": 0, "มกราคม": 0,
+      "ก.พ.": 1, "กุมเธ าพันธ์": 1,
+      "มี.ค.": 2, "มีนาคม": 2,
+      "เม.ย.": 3, "เมษายน": 3,
+      "พ.ค.": 4, "พฤษเธ าคม": 4,
+      "มิ.ย.": 5, "มิถุนายน": 5,
       "ก.ค.": 6, "กรกฎาคม": 6,
-      "เธช.ค.": 7, "สิงหาคม": 7,
-      "ก.เธข.": 8, "กันยายน": 8,
-      "เธ•.ค.": 9, "เธ•ุลาคม": 9,
-      "พ.เธข.": 10, "พฤศจิกายน": 10,
+      "ส.ค.": 7, "สิงหาคม": 7,
+      "ก.ย.": 8, "กันยายน": 8,
+      "ต.ค.": 9, "ตุลาคม": 9,
+      "พ.ย.": 10, "พฤศจิกายน": 10,
       "ธ.ค.": 11, "ธันวาคม": 11,
     };
     let year = Number(thaiMonthMatch[2]);
@@ -430,8 +430,8 @@ function getTimelineStatus(monthKey: string, now = new Date()) {
 function isSigningAllowedByDate(monthKey: string, now = new Date()) {
   if (isHistoricalPaidPeriod(monthKey)) return false;
   const window = getSignatureWindow(monthKey);
-  // เปิ�”ให้ลงนามไ�”้หลังปิ�”รอบ Appeal เป็น�•้นไป
-  // เธ–้าเซ็นหลัง Due Date จะ�–ือเป็น Late Signature และไม่เข้ารอบจ่ายเ�”ือนปัจจุบัน
+  // เปิดให้ลงนามได้หลังปิดรอบ Appeal เป็นต้นไป
+  // ถ้าเซ็นหลัง Due Date จะถือเป็น Late Signature และไม่เข้ารอบจ่ายเดือนปัจจุบัน
   return now >= window.openAt;
 }
 
@@ -1105,10 +1105,10 @@ function getPendingRoles(entries: SignatureEntry[]) {
 }
 
 function roleThaiLabel(role: SignRole) {
-  if (role === "QA") return "QA ผู้�•รวจสอบ";
+  if (role === "QA") return "QA ผู้ตรวจสอบ";
   if (role === "Supervisor") return "Supervisor";
   if (role === "Senior") return "Senior / Team Lead";
-  return "Agent ผู้�–ูกประเมิน";
+  return "Agent ผู้ถูกประเมิน";
 }
 
 function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
@@ -1332,7 +1332,7 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
 }
 
 function getDocumentTypeLabel(doc: SignatureDocument) {
-  return doc.eligibleByScore ? "เอกสารจ่าย Incentive รายเ�”ือน" : "เอกสารรับ�—ราบผล QA รายเ�”ือน";
+  return doc.eligibleByScore ? "เอกสารจ่าย Incentive รายเดือน" : "เอกสารรับทราบผล QA รายเดือน";
 }
 
 function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
@@ -1345,8 +1345,8 @@ function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
 
 function getWorkspaceStatusLabel(status: WorkspaceStatus) {
   if (status === "signed") return "เซ็นแล้ว";
-  if (status === "expired") return "เกินกำหน�”";
-  if (status === "in-progress") return "ค้าง�”ำเนินการ";
+  if (status === "expired") return "เกินกำหนด";
+  if (status === "in-progress") return "ค้างดำเนินการ";
   return "รอเซ็น";
 }
 
@@ -2103,7 +2103,7 @@ function SignaturePadModal({
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!hasDrawnRef.current) {
-      window.alert("กรุ�“เธฒเธงเธฒเธ”ลายเซ็นก่อนก�”ยืนยันเซ็นใหม่");
+      window.alert("กรุณาวาดลายเซ็นก่อนกดยืนยันเซ็นใหม่");
       return;
     }
     onSave(canvas.toDataURL("image/png"), saveToLibrary);
@@ -2123,15 +2123,15 @@ function SignaturePadModal({
             onClick={onCancel}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-50"
           >
-            ปิ�”
+            ปิด
           </button>
         </div>
 
         {savedSignatureDataUrl ? (
           <div className="mt-4 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4">
-            <div className="text-sm font-black text-emerald-800">มีลายเซ็นเ�”ิมของคุ�“ในระบบ</div>
+            <div className="text-sm font-black text-emerald-800">มีลายเซ็นเดิมของคุณในระบบ</div>
             <div className="mt-1 text-xs font-bold text-emerald-700">
-              หาก�•้องการใช้ลายเซ็นนี้ ให้ก�”ปุ่มยืนยัน�”้านล่าง ระบบจะบัน�—ึกการลงนาม�—ัน�—เธต
+              หากต้องการใช้ลายเซ็นนี้ ให้กดปุ่มยืนยันด้านล่าง ระบบจะบันทึกการลงนามทันที
             </div>
             <div className="mt-2 rounded-2xl border border-emerald-100 bg-white p-3">
               <img src={savedSignatureDataUrl} alt="Saved signature" className="h-16 max-w-full object-contain" />
@@ -2141,13 +2141,13 @@ function SignaturePadModal({
               onClick={onUseSavedSignature}
               className="mt-3 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
             >
-              ยืนยันใช้ลายเซ็นเ�”เธดเธก
+              ยืนยันใช้ลายเซ็นเดิม
             </button>
           </div>
         ) : null}
 
         <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">เธซเธฃเธทเธญเธงเธฒเธ”ลายเซ็นใหม่</div>
+          <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">หรือวาดลายเซ็นใหม่</div>
           <canvas
             ref={canvasRef}
             width={900}
@@ -2168,7 +2168,7 @@ function SignaturePadModal({
             onChange={(event) => setSaveToLibrary(event.target.checked)}
             className="h-4 w-4 accent-violet-700"
           />
-          บัน�—ึกลายเซ็นนี้ไว้ใช้ครั้ง�•่อไป
+          บันทึกลายเซ็นนี้ไว้ใช้ครั้งต่อไป
         </label>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -2337,7 +2337,7 @@ export default function SignatureCenterMockup({
         setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
       } catch (error) {
         if (!alive) return;
-        setLoadMessage(error instanceof Error ? error.message : "โหล�”ข้อมูล Signature ไม่สำเร็จ");
+        setLoadMessage(error instanceof Error ? error.message : "โหลดข้อมูล Signature ไม่สำเร็จ");
       } finally {
         if (alive) setLoading(false);
       }
@@ -2578,10 +2578,10 @@ export default function SignatureCenterMockup({
   };
 
   const isQaUser = currentUser.role === "Quality Assurance";
-  const monitorTitle = isQaUser ? "QA Monitor" : "ประวั�•ิของฉัน";
+  const monitorTitle = isQaUser ? "QA Monitor" : "ประวัติของฉัน";
   const monitorDescription = isQaUser
-    ? "แส�”งเอกสาร�—ี่ QA คนนี้รับผิ�”ชอบ พร้อมส�–านะว่าใครเซ็นแล้วและใครยังเหลือ"
-    : "แส�”งเฉพาะเอกสาร�—ี่เกี่ยวข้องกับสิ�—ธิ์ของคุ�“เ�—่านั้น";
+    ? "แสดงเอกสารที่ QA คนนี้รับผิดชอบ พร้อมสถานะว่าใครเซ็นแล้วและใครยังเหลือ"
+    : "แสดงเฉพาะเอกสารที่เกี่ยวข้องกับสิทธิ์ของคุณเท่านั้น";
 
   const selectedMonthAllDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -2684,11 +2684,11 @@ export default function SignatureCenterMockup({
   );
   const confirmBlockedReason = selectedDocument && !previewConfirmed
     ? hasPendingAppeal
-      ? "มีเคสยื่น Appeal เธ—ี่รอ Approved อยู่ จึงยังยืนยันรับ�—ราบไม่ไ�”้"
+      ? "มีเคสยื่น Appeal ที่รอ Approved อยู่ จึงยังยืนยันรับทราบไม่ได้"
       : !isAfterAppealPeriod(selectedDocument.monthKey)
-        ? "เปิ�”ให้ยืนยันรับ�—ราบหลังวัน�—ี่ 10 ของเ�”ือน�–เธฑเธ”ไป"
+        ? "เปิดให้ยืนยันรับทราบหลังวันที่ 10 ของเดือนถัดไป"
         : !canSignIdentity(currentUser, selectedDocument, "Agent")
-          ? "เฉพาะ Agent ผู้�–ูกประเมินเ�—่านั้น�—ี่ก�”ยืนยันรับ�—ราบไ�”้"
+          ? "เฉพาะ Agent ผู้ถูกประเมินเท่านั้นที่กดยืนยันรับทราบได้"
           : ""
     : "";
   const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
@@ -2740,14 +2740,14 @@ export default function SignatureCenterMockup({
       }));
     } catch (error) {
       console.warn("Save remote signature confirm failed", error);
-      window.alert("บัน�—ึกการยืนยันรับ�—ราบไม่สำเร็จ กรุ�“าลองใหม่อีกครั้ง");
+      window.alert("บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
     }
   };
 
   const saveDrawnSignature = async (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
     if (!selectedDocument) return false;
     if (!canSignIdentity(currentUser, selectedDocument, role)) {
-      window.alert("เซ็นแ�—นกันไม่ไ�”้ กรุ�“าให้เจ้าของลายเซ็น�•เธฒเธก Role เป็นผู้ลงนามเอง");
+      window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
       return false;
     }
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
@@ -2767,7 +2767,7 @@ export default function SignatureCenterMockup({
       await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
     } catch (error) {
       console.warn("Save remote signature failed", error);
-      window.alert("บัน�—ึกลายเซ็นไม่สำเร็จ กรุ�“าลองใหม่อีกครั้ง");
+      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       return false;
     }
 
@@ -2796,7 +2796,7 @@ export default function SignatureCenterMockup({
     if (!canSignRoleByDate(selectedDocument.monthKey, entries, role)) return false;
     if (getSignedEntry(entries, role)) return false;
     if (role === "Agent" && !previewConfirmed) {
-      window.alert("Agent เธ•้องก�”ยืนยันรับ�—ราบข้อมูลก่อน จึงจะสามาร�–ลงนามในเอกสารของ�•ัวเองไ�”้");
+      window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
       return false;
     }
 
@@ -2815,7 +2815,7 @@ export default function SignatureCenterMockup({
       await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
     } catch (error) {
       console.warn("Save remote signature failed", error);
-      window.alert("บัน�—ึกลายเซ็นไม่สำเร็จ กรุ�“าลองใหม่อีกครั้ง");
+      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       return false;
     }
 
@@ -2838,7 +2838,7 @@ export default function SignatureCenterMockup({
   const openSignaturePad = (role: SignRole) => {
     if (!selectedDocument) return;
     if (role === "Agent" && !previewConfirmed && !getSignedEntry(selectedEntries, "Agent")) {
-      window.alert("กรุ�“าก�”ยืนยันรับ�—ราบข้อมูลก่อน แล้วจึงก�”เซ็นในช่อง Agent ผู้�–ูกประเมิน");
+      window.alert("กรุณากดยืนยันรับทราบข้อมูลก่อน แล้วจึงกดเซ็นในช่อง Agent ผู้ถูกประเมิน");
       return;
     }
     setSigningRole(role);
@@ -2869,7 +2869,7 @@ export default function SignatureCenterMockup({
       }
     } catch (error) {
       console.warn("Reset role signature failed", error);
-      window.alert("รีเซ็�•ลายเซ็นไม่สำเร็จ กรุ�“าลองใหม่อีกครั้ง");
+      window.alert("รีเซ็ตลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
       return;
     }
 
@@ -2893,10 +2893,10 @@ export default function SignatureCenterMockup({
     const link = createSignatureShareLink(selectedDocument, null);
     try {
       await navigator.clipboard.writeText(link);
-      setShareMessage("คั�”ลอก Share Link แล้ว");
+      setShareMessage("คัดลอก Share Link แล้ว");
     } catch {
-      window.prompt("คั�”ลอก Share Link นี้", link);
-      setShareMessage("แส�”ง Share Link สำหรับคั�”ลอกแล้ว");
+      window.prompt("คัดลอก Share Link นี้", link);
+      setShareMessage("แสดง Share Link สำหรับคัดลอกแล้ว");
     }
     window.setTimeout(() => setShareMessage(""), 3000);
   };
@@ -2911,38 +2911,38 @@ export default function SignatureCenterMockup({
 
     const text = pendingRoles.length
       ? [
-          "แจ้งเ�•ือนลงนามเอกสาร QA Incentive",
+          "แจ้งเตือนลงนามเอกสาร QA Incentive",
           "",
-          `เ�”ือน: ${selectedDocument.monthLabel}`,
+          `เดือน: ${selectedDocument.monthLabel}`,
           `Agent: ${selectedDocument.agentName}`,
           "",
-          `เธชเธ–านะล่าสุ�”: ${latestStatus}`,
-          "ผู้�—ี่ยัง�•้องลงนาม:",
+          `สถานะล่าสุด: ${latestStatus}`,
+          "ผู้ที่ยังต้องลงนาม:",
           ...pendingRoles.map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`),
           "",
-          "ก�”ลิงก์นี้เพื่อเปิ�”เอกสาร:",
+          "กดลิงก์นี้เพื่อเปิดเอกสาร:",
           createSignatureShareLink(selectedDocument, null),
           "",
           "รบกวนเข้าระบบ Signature Center เพื่อลงนามค่ะ/ครับ",
         ].join("\n")
       : [
-          "แจ้งเ�•ือนลงนามเอกสาร QA Incentive",
+          "แจ้งเตือนลงนามเอกสาร QA Incentive",
           "",
-          `เ�”ือน: ${selectedDocument.monthLabel}`,
+          `เดือน: ${selectedDocument.monthLabel}`,
           `Agent: ${selectedDocument.agentName}`,
           "",
-          "เธชเธ–านะล่าสุ�”: เอกสารลงนามครบแล้ว",
+          "สถานะล่าสุด: เอกสารลงนามครบแล้ว",
           "",
-          "ก�”ลิงก์นี้เพื่อเปิ�”เอกสาร:",
+          "กดลิงก์นี้เพื่อเปิดเอกสาร:",
           createSignatureShareLink(selectedDocument, null),
         ].join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
-      setShareMessage("คั�”ลอกข้อความแจ้งเ�•ือนแล้ว");
+      setShareMessage("คัดลอกข้อความแจ้งเตือนแล้ว");
     } catch {
-      window.prompt("คั�”ลอกข้อความนี้เพื่อแจ้งเ�•ือน", text);
-      setShareMessage("แส�”งข้อความแจ้งเ�•ือนสำหรับคั�”ลอกแล้ว");
+      window.prompt("คัดลอกข้อความนี้เพื่อแจ้งเตือน", text);
+      setShareMessage("แสดงข้อความแจ้งเตือนสำหรับคัดลอกแล้ว");
     }
 
     window.setTimeout(() => setShareMessage(""), 3000);
@@ -2953,33 +2953,33 @@ export default function SignatureCenterMockup({
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const lines = SIGNATURE_FLOW.map((role) => {
       const signed = getSignedEntry(entries, role);
-      return `${signed ? "�…" : "❌"} ${roleThaiLabel(role)}: ${signed ? signed.signerName : "ยังไม่ลงนาม"}`;
+      return `${signed ? "ฅ" : "❌"} ${roleThaiLabel(role)}: ${signed ? signed.signerName : "ยังไม่ลงนาม"}`;
     });
     const pendingLines = SIGNATURE_FLOW
       .filter((role) => !getSignedEntry(entries, role))
       .map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`);
 
     const text = [
-      `เอกสาร Signature เ�”ือน ${selectedDocument.monthLabel}`,
+      `เอกสาร Signature เดือน ${selectedDocument.monthLabel}`,
       `Agent: ${selectedDocument.agentName}`,
       "",
-      "เธชเธ–านะการลงนาม:",
+      "สถานะการลงนาม:",
       ...lines,
       "",
-      pendingLines.length ? "ผู้�—ี่ยังไม่ลงนาม:" : "เธชเธ–านะ: ลงนามครบแล้ว",
+      pendingLines.length ? "ผู้ที่ยังไม่ลงนาม:" : "สถานะ: ลงนามครบแล้ว",
       ...(pendingLines.length ? pendingLines : []),
       "",
       pendingLines.length
-        ? "รบกวนผู้�—ี่ยังไม่ลงนาม เข้าระบบเพื่อเซ็นเอกสารให้เรียบร้อยค่ะ/ครับ"
+        ? "รบกวนผู้ที่ยังไม่ลงนาม เข้าระบบเพื่อเซ็นเอกสารให้เรียบร้อยค่ะ/ครับ"
         : "เอกสารนี้ลงนามครบแล้วค่ะ/ครับ",
     ].join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
-      setShareMessage("คั�”ลอกข้อความแชร์แล้ว");
+      setShareMessage("คัดลอกข้อความแชร์แล้ว");
     } catch {
-      window.prompt("คั�”ลอกข้อความนี้เพื่อแชร์", text);
-      setShareMessage("แส�”งข้อความสำหรับคั�”ลอกแล้ว");
+      window.prompt("คัดลอกข้อความนี้เพื่อแชร์", text);
+      setShareMessage("แสดงข้อความสำหรับคัดลอกแล้ว");
     }
 
     window.setTimeout(() => setShareMessage(""), 3000);
@@ -3464,7 +3464,7 @@ export default function SignatureCenterMockup({
 
       y += 3;
       drawSection("Acknowledgement / Signature");
-      drawCell(left, y, tableW, 5.4, "รับ�—ราบผลการประเมินประจำเ�”ือน โ�”ยลงนาม�•เธฒเธกเธ•ำแหน่ง�”้านล่าง", [255, 255, 255], {
+      drawCell(left, y, tableW, 5.4, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255, 255, 255], {
         size: 7.2,
         align: "left",
         color: muted,
@@ -3567,15 +3567,15 @@ export default function SignatureCenterMockup({
           maxLines: 1,
         });
         drawCell(x, panelY + 27.4, w, 4.6, "", [255, 255, 255], { size: 5.8, align: "center" });
-        drawSignedLine("วัน�—ี่", centerX, panelY + 30.3, signerDate(role));
+        drawSignedLine("วันที่", centerX, panelY + 30.3, signerDate(role));
       };
 
       const halfW = tableW / 2 - 3;
-      drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้�–ูกประเมิน");
-      drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้า�—ีมผู้�–ูกประเมิน");
+      drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
+      drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
       y += 35.5;
       drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
-      drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้�•รวจสอบ");
+      drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
 
       setTemplateFont(7.0, false, muted);
       pdf.text(
@@ -4195,10 +4195,10 @@ export default function SignatureCenterMockup({
     });
 
     if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
-      line("หมายเห�•เธธ: เ�”ือน Jan-Apr เป็นรอบประวั�•ิของเอกสาร ระบบแส�”งส�–านะ Completed เธญเธฑเธ•โนมั�•เธด", 10);
+      line("หมายเหตุ: เดือน Jan-Apr เป็นรอบประวัติของเอกสาร ระบบแสดงสถานะ Completed อัตโนมัติ", 10);
     }
     if (hasPendingAppeal) {
-      line(`หมายเห�•เธธ: เธกเธต ${selectedPendingAppeals.length} เคส�—ี่ยื่น Appeal และรอ Approved จึงยังไม่สามาร�–ยืนยันรับ�—ราบหรือเซ็นไ�”้`, 10);
+      line(`หมายเหตุ: มี ${selectedPendingAppeals.length} เคสที่ยื่น Appeal และรอ Approved จึงยังไม่สามารถยืนยันรับทราบหรือเซ็นได้`, 10);
     }
 
     y += 3;
@@ -4236,7 +4236,7 @@ export default function SignatureCenterMockup({
     pdf.addPage();
     y = 18;
     drawSectionTitle("Acknowledgement / Signature");
-    line("รับ�—ราบผลการประเมินประจำเ�”ือน โ�”ยลงนาม�•เธฒเธกเธ•ำแหน่ง�”้านล่าง", 11);
+    line("รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", 11);
 
     const drawSignatureBox = (x: number, yy: number, w: number, h: number, role: SignRole, label: string) => {
       pdf.setDrawColor(203, 213, 225);
@@ -4256,22 +4256,22 @@ export default function SignatureCenterMockup({
       }
       text(safePdfName(role), x + 4, yy + 29, 12, true, [31, 41, 55]);
       text(label, x + 4, yy + 37, 10, false, [100, 116, 139]);
-      text(`วัน�—ี่ ${safePdfDate(role)}`, x + 4, yy + 45, 10);
+      text(`วันที่ ${safePdfDate(role)}`, x + 4, yy + 45, 10);
       text(`Status: ${safePdfStatus(role)}`, x + 4, yy + 51, 10, true, safePdfStatus(role) === "Signed" ? [5, 150, 105] : [180, 83, 9]);
     };
 
     const boxW = 86;
     const boxH = 54;
-    drawSignatureBox(left, y, boxW, boxH, "Agent", "Agent ผู้�–ูกประเมิน");
-    drawSignatureBox(left + 98, y, boxW, boxH, "Senior", "Senior หัวหน้า�—ีมผู้�–ูกประเมิน");
+    drawSignatureBox(left, y, boxW, boxH, "Agent", "Agent ผู้ถูกประเมิน");
+    drawSignatureBox(left + 98, y, boxW, boxH, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
     y += boxH + 8;
     drawSignatureBox(left, y, boxW, boxH, "Supervisor", "Supervisor หัวหน้าแผนก");
-    drawSignatureBox(left + 98, y, boxW, boxH, "QA", "QA ผู้�•รวจสอบ");
+    drawSignatureBox(left + 98, y, boxW, boxH, "QA", "QA ผู้ตรวจสอบ");
 
     y += boxH + 8;
     pdf.setFillColor(248, 250, 252);
     pdf.roundedRect(left, y, right - left, 13, 3, 3, "F");
-    text("PDF จะแส�”งชื่อเฉพาะผู้�—ี่ Signed แล้วเ�—่านั้น หากยังไม่ Signed จะแส�”งเป็น -", left + 4, y + 8, 10, false, [71, 85, 105]);
+    text("PDF จะแสดงชื่อเฉพาะผู้ที่ Signed แล้วเท่านั้น หากยังไม่ Signed จะแสดงเป็น -", left + 4, y + 8, 10, false, [71, 85, 105]);
 
     const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
     downloadBlob(pdf.output("blob"), fileName);
@@ -4281,11 +4281,11 @@ export default function SignatureCenterMockup({
 
   const generatePaymentExcel = () => {
     if (selectedMonth === "all") {
-      window.alert("กรุ�“าเลือกเ�”ือนก่อน Generate Excel");
+      window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
       return;
     }
     if (!selectedMonthPaymentExportDocs.length) {
-      window.alert("ยังไม่มี Agent เธ—ี่เข้าเงื่อนไข Export ในเ�”ือนนี้");
+      window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
       return;
     }
     try {
@@ -4300,11 +4300,11 @@ export default function SignatureCenterMockup({
 
   const generatePaymentPdf = () => {
     if (selectedMonth === "all") {
-      window.alert("กรุ�“าเลือกเ�”ือนก่อน Generate Payment PDF");
+      window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
       return;
     }
     if (!selectedMonthPaymentExportDocs.length) {
-      window.alert("ยังไม่มี Agent เธ—ี่เข้าเงื่อนไข Export ในเ�”ือนนี้");
+      window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
       return;
     }
     try {
@@ -4321,9 +4321,9 @@ export default function SignatureCenterMockup({
     return (
       <div className="flex min-h-[45vh] items-center justify-center">
         <div className="rounded-[28px] border border-violet-200 bg-white px-8 py-7 text-center shadow-[0_24px_70px_rgba(109,40,217,0.12)]">
-          <div className="text-5xl">�–�️</div>
-          <div className="mt-3 text-lg font-black text-violet-800">กำลังโหล�” Signature Center</div>
-          <div className="mt-1 text-sm text-slate-500">ระบบกำลังเ�•รียมเอกสาร�—ี่�•้องรับ�—ราบ</div>
+          <div className="text-5xl">ถ️</div>
+          <div className="mt-3 text-lg font-black text-violet-800">กำลังโหลด Signature Center</div>
+          <div className="mt-1 text-sm text-slate-500">ระบบกำลังเตรียมเอกสารที่ต้องรับทราบ</div>
         </div>
       </div>
     );
@@ -4332,7 +4332,7 @@ export default function SignatureCenterMockup({
   if (loadMessage) {
     return (
       <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-6 text-rose-700">
-        <div className="text-lg font-black">โหล�”ข้อมูล Signature ไม่สำเร็จ</div>
+        <div className="text-lg font-black">โหลดข้อมูล Signature ไม่สำเร็จ</div>
         <div className="mt-2 text-sm">{loadMessage}</div>
       </div>
     );
@@ -4370,7 +4370,7 @@ export default function SignatureCenterMockup({
             <div>
               <div className="text-4xl font-black tracking-tight text-slate-950">Signature Workspace</div>
               <div className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-slate-500">
-                เธ•เธดเธ”เธ•ามรายการเอกสาร�—ี่�•้องลงนาม แยก�•ามเคสและเ�”ือน เพื่อให้ง่าย�•่อการ�•รวจสอบและ�•เธดเธ”เธ•เธฒเธกเธชเธ–านะ
+                ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบและติดตามสถานะ
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -4387,13 +4387,13 @@ export default function SignatureCenterMockup({
       <PageHero
         eyebrow="Monthly Acknowledgement"
         title="Signature Workspace"
-        subtitle="Preview คะแนนรายเ�”ือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้น�•อนเซ็นรับ�—ราบ"
+        subtitle="Preview คะแนนรายเดือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้นตอนเซ็นรับทราบ"
       />
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
         {[
-          { label: "เอกสาร�—ี่เห็นไ�”้", value: summary.total, tone: "text-slate-900" },
+          { label: "เอกสารที่เห็นได้", value: summary.total, tone: "text-slate-900" },
           { label: "รอฉันลงนาม", value: summary.myTurn, tone: "text-violet-700" },
           { label: "เซ็นครบแล้ว", value: summary.complete, tone: "text-emerald-700" },
           { label: "รอเซ็น", value: summary.pending, tone: "text-amber-700" },
@@ -4409,19 +4409,19 @@ export default function SignatureCenterMockup({
       <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
         <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">1. Preview Score + 10 Cases</span>
-          <span className="text-slate-300">�’</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">2. Confirm</span>
-          <span className="text-slate-300">�’</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">3. QA</span>
-          <span className="text-slate-300">�’</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">4. Supervisor</span>
-          <span className="text-slate-300">�’</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">5. Team Lead</span>
-          <span className="text-slate-300">�’</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
-          วัน�—ี่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับ�—ราบและเซ็นไม่ไ�”้ / หลังวัน�—ี่ 10 ผู้�–ูกประเมินเ�—่านั้น�—ี่ก�”ยืนยันไ�”้ / จ่ายรอบปัจจุบันเฉพาะคน�—ี่เซ็นครบ� ายในวัน�—ี่ 15 / เซ็นหลังจากนั้นไปรอบจ่าย�–เธฑเธ”ไป
+          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันได้ / จ่ายรอบปัจจุบันเฉพาะคนที่เซ็นครบเธ ายในวันที่ 15 / เซ็นหลังจากนั้นไปรอบจ่ายถัดไป
         </div>
       </div>
 
@@ -4429,9 +4429,9 @@ export default function SignatureCenterMockup({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Monthly Incentive Payment Export</div>
-            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเ�”ือน (PDF เธ•เธฒเธก Template)</div>
+            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน (PDF ตาม Template)</div>
             <div className="mt-1 text-sm leading-6 text-slate-500">
-              หลังวัน�—ี่ 15 ระบบจะออกไฟล์เฉพาะ Agent เธ—ี่เซ็นครบ�—ุก Role เธ ายในกำหน�”เ�—่านั้น คน�—ี่มาเซ็นหลังวัน�—ี่ 15 จะเข้ารอบจ่าย�–เธฑเธ”ไป
+              หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role เธ ายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
             </div>
           </div>
           <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
@@ -4443,10 +4443,10 @@ export default function SignatureCenterMockup({
             </div>
             <div className="mt-1 text-xs font-semibold text-slate-500">
               {selectedMonth === "all"
-                ? "กรุ�“าเลือกเ�”ือนก่อน"
+                ? "กรุณาเลือกเดือนก่อน"
                 : selectedMonthExportAllEvaluated
-                  ? `May export พิเศษ: เธฃเธงเธก Agent เธ—ี่�–ูกประเมิน�—ั้งหม�” ${selectedMonthExportDocs.length} คน / รวมบา�— ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บา�—`
-                  : `รายการ�—ั้งหม�” ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบา�—ในรอบนี้ ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บา�—`}
+                  ? `May export พิเศษ: รวม Agent ที่ถูกประเมินทั้งหมด ${selectedMonthExportDocs.length} คน / รวมบาท ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`
+                  : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -4473,11 +4473,11 @@ export default function SignatureCenterMockup({
         ) : null}
         {selectedMonth === "all" ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: เธ•้องเลือกเ�”ือน และ�•้องมีอย่างน้อย 1 Agent เธ—ี่เข้าเงื่อนไข Export
+            เงื่อนไขยังไม่ครบ: ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
           </div>
         ) : selectedMonthExportAllEvaluated ? (
           <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-800">
-            May 2026 เปิ�” Export พิเศษ: Generate ไ�”้�—ัน�—ีจาก Agent เธ—ุกคน�—ี่มีผลประเมิน โ�”ยไม่�•้องรอเซ็นครบ
+            May 2026 เปิด Export พิเศษ: Generate ได้ทันทีจาก Agent ทุกคนที่มีผลประเมิน โดยไม่ต้องรอเซ็นครบ
           </div>
         ) : null}
       </div>
@@ -4501,7 +4501,7 @@ export default function SignatureCenterMockup({
                 {pendingCount}
               </div>
               <div className="mt-1 text-xs font-semibold text-slate-500">
-                เฉพาะเอกสาร�—ี่ Role ของคุ�“ยัง�•้องลงนาม
+                เฉพาะเอกสารที่ Role ของคุณยังต้องลงนาม
               </div>
             </div>
           );
@@ -4512,9 +4512,9 @@ export default function SignatureCenterMockup({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Signature Workspace</div>
-            <div className="mt-1 text-2xl font-black text-slate-950">รายการเอกสารลงนาม แยก�•ามเ�”ือน</div>
+            <div className="mt-1 text-2xl font-black text-slate-950">รายการเอกสารลงนาม แยกตามเดือน</div>
             <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-              เธ•เธดเธ”เธ•ามรายการเอกสาร�—ี่�•้องลงนาม แยก�•ามเคสและเ�”ือน เพื่อให้ง่าย�•่อการ�•รวจสอบส�–านะ คลิก�—ี่แ�–วเพื่อเปิ�”รายละเอีย�”เธ”้านล่าง
+              ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบสถานะ คลิกที่แถวเพื่อเปิดรายละเอียดด้านล่าง
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:min-w-[320px]">
@@ -4534,7 +4534,7 @@ export default function SignatureCenterMockup({
                 documentView === "history" ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {isQaUser ? "QA Monitor" : "ประวั�•เธด"} ({historyFilteredDocuments.length})
+              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
             </button>
           </div>
         </div>
@@ -4543,7 +4543,7 @@ export default function SignatureCenterMockup({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="ค้นหา Document Ref. / Case ID / Agent / เ�”ือน / เธ—เธตเธก"
+            placeholder="ค้นหา Document Ref. / Case ID / Agent / เดือน / ทีม"
             className="rounded-2xl border border-violet-100 bg-violet-50/40 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
           />
           <select
@@ -4551,7 +4551,7 @@ export default function SignatureCenterMockup({
             onChange={(event) => setSelectedMonth(event.target.value)}
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
-            <option value="all">เธ—ุกเ�”ือน</option>
+            <option value="all">ทุกเดือน</option>
             {monthOptions.map((month) => (
               <option key={month} value={month}>{getMonthLabel(month)}</option>
             ))}
@@ -4561,7 +4561,7 @@ export default function SignatureCenterMockup({
             onChange={(event) => setSelectedYear(event.target.value)}
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
-            <option value="all">เธ—ุกปี</option>
+            <option value="all">ทุกปี</option>
             {yearOptions.map((year) => (
               <option key={year} value={year}>{Number(year) + 543}</option>
             ))}
@@ -4571,30 +4571,30 @@ export default function SignatureCenterMockup({
             onChange={(event) => setStatusFilter(event.target.value)}
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
-            <option value="all">เธ—ุกส�–านะ</option>
+            <option value="all">ทุกสถานะ</option>
             <option value="preview">รอ Confirm Preview</option>
             <option value="my-turn">รอฉันลงนาม</option>
             <option value="pending">รอเซ็น</option>
             <option value="ready">พร้อมจ่าย Incentive</option>
             <option value="appeal-pending">มี Appeal รอ Approved</option>
-            <option value="expired">เกินกำหน�”</option>
+            <option value="expired">เกินกำหนด</option>
           </select>
           <button
             type="button"
             onClick={clearWorkspaceFilters}
             className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
           >
-            ล้าง�•ัวกรอง
+            ล้างตัวกรอง
           </button>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {([
-            ["all", "เธ—ั้งหม�”"],
+            ["all", "ทั้งหมด"],
             ["pending", "รอเซ็น"],
             ["signed", "เซ็นแล้ว"],
-            ["in-progress", "ค้าง�”ำเนินการ"],
-            ["expired", "เกินกำหน�”"],
+            ["in-progress", "ค้างดำเนินการ"],
+            ["expired", "เกินกำหนด"],
           ] as const).map(([value, label]) => (
             <button
               key={value}
@@ -4611,11 +4611,11 @@ export default function SignatureCenterMockup({
 
         <div className="mt-5 grid gap-3 md:grid-cols-5">
           {[
-            { label: "รายการ�—ั้งหม�”", value: workspaceSummary.total, tone: "text-slate-950" },
+            { label: "รายการทั้งหมด", value: workspaceSummary.total, tone: "text-slate-950" },
             { label: "รอเซ็น", value: workspaceSummary.pending, tone: "text-amber-700" },
             { label: "เซ็นแล้ว", value: workspaceSummary.signed, tone: "text-emerald-700" },
-            { label: "เกินกำหน�”", value: workspaceSummary.expired, tone: "text-rose-700" },
-            { label: "ค้าง�”ำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700" },
+            { label: "เกินกำหนด", value: workspaceSummary.expired, tone: "text-rose-700" },
+            { label: "ค้างดำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700" },
           ].map((item) => (
             <div key={item.label} className="rounded-[22px] border border-violet-100 bg-violet-50/30 px-4 py-3">
               <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{item.label}</div>
@@ -4627,15 +4627,15 @@ export default function SignatureCenterMockup({
         <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
           <div className="min-w-[1280px]">
             <div className="grid grid-cols-[110px_190px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
-              <div>เ�”ือน</div>
+              <div>เดือน</div>
               <div>Document Ref.</div>
-              <div>ผู้�–ูกประเมิน</div>
+              <div>ผู้ถูกประเมิน</div>
               <div>ทีม</div>
-              <div>ประเ� เธ—เอกสาร</div>
-              <div>เธชเธ–านะ</div>
+              <div>ประเเธ ทเอกสาร</div>
+              <div>สถานะ</div>
               <div>Audit Date</div>
-              <div>กำหน�”เซ็น</div>
-              <div>เธ”ำเนินการ</div>
+              <div>กำหนดเซ็น</div>
+              <div>ดำเนินการ</div>
             </div>
             {groupedWorkspaceDocuments.map((group) => {
               const expanded = expandedMonths[group.monthKey] !== false;
@@ -4679,7 +4679,7 @@ export default function SignatureCenterMockup({
                         <div className="font-black text-slate-600">{formatDateOnly(getSignatureCreatedDate(doc))}</div>
                         <div className={`font-black ${status === "expired" ? "text-rose-700" : "text-slate-600"}`}>{formatDateOnly(dueDate)}</div>
                         <div>
-                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">เปิ�”รายละเอีย�”</span>
+                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">เปิดรายละเอียด</span>
                         </div>
                       </button>
                     );
@@ -4692,14 +4692,14 @@ export default function SignatureCenterMockup({
 
         {!workspaceDocuments.length ? (
           <div className="mt-5 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-            <div className="text-base font-black text-slate-700">ไม่พบรายการเอกสาร�•เธฒเธกเธ•ัวกรอง�—ี่เลือก</div>
-            <div className="mt-1 text-sm font-semibold text-slate-500">ลองล้าง�•ัวกรองหรือเลือกเ�”ือนอื่น</div>
+            <div className="text-base font-black text-slate-700">ไม่พบรายการเอกสารตามตัวกรองที่เลือก</div>
+            <div className="mt-1 text-sm font-semibold text-slate-500">ลองล้างตัวกรองหรือเลือกเดือนอื่น</div>
           </div>
         ) : null}
 
         <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            แส�”ง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
+            แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -4716,7 +4716,7 @@ export default function SignatureCenterMockup({
             </button>
             <span className="text-xs font-black text-slate-500">{safeCurrentPage}/{totalPages}</span>
             <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={safeCurrentPage >= totalPages} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
-              เธ–เธฑเธ”ไป
+              ถัดไป
             </button>
           </div>
         </div>
@@ -4729,7 +4729,7 @@ export default function SignatureCenterMockup({
               className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">รายละเอีย�”เอกสาร�—ี่เลือก</div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">รายละเอียดเอกสารที่เลือก</div>
                 <div className="mt-1 text-lg font-black text-slate-950">
                   {selectedDocumentRef} • {selectedDocument.agentName}
                 </div>
@@ -4738,7 +4738,7 @@ export default function SignatureCenterMockup({
                 </div>
               </div>
               <span className="rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white">
-                {workspaceDetailOpen ? "ย่อรายละเอีย�”" : "เปิ�”รายละเอีย�”"}
+                {workspaceDetailOpen ? "ย่อรายละเอียด" : "เปิดรายละเอียด"}
               </span>
             </button>
 
@@ -4747,13 +4747,13 @@ export default function SignatureCenterMockup({
                 <div className="grid gap-3 md:grid-cols-2">
                   {[
                     ["Document Ref.", selectedDocumentRef],
-                    ["เ�”ือนเอกสาร", selectedDocument.monthLabel],
-                    ["ผู้�–ูกประเมิน", selectedDocument.agentName],
+                    ["เดือนเอกสาร", selectedDocument.monthLabel],
+                    ["ผู้ถูกประเมิน", selectedDocument.agentName],
                     ["ทีม", selectedDocument.teamName || "-"],
-                    ["ประเ� เธ—เอกสาร", getDocumentTypeLabel(selectedDocument)],
-                    ["เธชเธ–านะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
-                    ["Audit Date ล่าสุ�”", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
-                    ["กำหน�”เซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
+                    ["ประเเธ ทเอกสาร", getDocumentTypeLabel(selectedDocument)],
+                    ["สถานะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
+                    ["Audit Date ล่าสุด", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
+                    ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
                       <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{label}</div>
@@ -4763,7 +4763,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="rounded-[22px] border border-white bg-white/90 p-4 shadow-sm">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">เธฅเธณเธ”ับการลงนาม</div>
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">ลำดับการลงนาม</div>
                   <div className="mt-3 space-y-3">
                     {SIGNATURE_FLOW.map((role, index) => {
                       const signedEntry = getSignedEntry(selectedEntries, role);
@@ -4778,7 +4778,7 @@ export default function SignatureCenterMockup({
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-black text-slate-900">{roleThaiLabel(role)}</div>
                             <div className="text-xs font-semibold text-slate-500">
-                              {signedEntry ? `เซ็นแล้วโ�”เธข ${signedEntry.signedBy}` : isCurrent ? "เธฃเธญเธ”ำเนินการขั้นนี้" : "ยังไม่�–ึงขั้น�•อน / ยังไม่เซ็น"}
+                              {signedEntry ? `เซ็นแล้วโดย ${signedEntry.signedBy}` : isCurrent ? "รอดำเนินการขั้นนี้" : "ยังไม่ถึงขั้นตอน / ยังไม่เซ็น"}
                             </div>
                           </div>
                         </div>
@@ -4791,14 +4791,14 @@ export default function SignatureCenterMockup({
                       onClick={() => document.getElementById("signature-workflow-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
                       className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white"
                     >
-                      ไป�—ี่พื้น�—ี่ลงนาม / เธ•รวจเอกสาร
+                      ไปที่พื้นที่ลงนาม / ตรวจเอกสาร
                     </button>
                     <button
                       type="button"
                       onClick={() => setWorkspaceDetailOpen(false)}
                       className="rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xs font-black text-violet-700"
                     >
-                      ปิ�”แ�–บรายละเอีย�”
+                      ปิดแถบรายละเอียด
                     </button>
                   </div>
                 </div>
@@ -4814,7 +4814,7 @@ export default function SignatureCenterMockup({
             {documentView === "history" ? (isQaUser ? "QA Signature Monitor" : "Signature History") : "Document Queue"}
           </div>
           <div className="mt-1 text-xl font-black text-slate-950">
-            {documentView === "history" ? monitorTitle : "คิว�—ี่�•้องเซ็นของฉัน"}
+            {documentView === "history" ? monitorTitle : "คิวที่ต้องเซ็นของฉัน"}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -4838,7 +4838,7 @@ export default function SignatureCenterMockup({
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {isQaUser ? "QA Monitor" : "ประวั�•เธด"} ({historyFilteredDocuments.length})
+              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
             </button>
           </div>
 
@@ -4854,7 +4854,7 @@ export default function SignatureCenterMockup({
               onChange={(event) => setSelectedMonth(event.target.value)}
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
-              <option value="all">เธ—ุกเ�”ือน</option>
+              <option value="all">ทุกเดือน</option>
               {monthOptions.map((month) => (
                 <option key={month} value={month}>{getMonthLabel(month)}</option>
               ))}
@@ -4862,25 +4862,25 @@ export default function SignatureCenterMockup({
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
               {documentView === "history"
                 ? monitorDescription
-                : "แส�”งเฉพาะเอกสาร�—ี่ Role ของคุ�“ยัง�•้องลงนามเ�—่านั้น"}
+                : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
             </div>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
               {isQaUser
-                ? "QA Monitor ใช้เช็กส�–านะรวมของเอกสาร QA เธ—ี่คุ�“รับผิ�”ชอบ โ�”ยไม่รวมเอกสารของ QA คนอื่น"
-                : "แส�”งเฉพาะเอกสาร�—ี่ Role ของคุ�“ยัง�•้องลงนามเ�—่านั้น"}
+                ? "QA Monitor ใช้เช็กสถานะรวมของเอกสาร QA ที่คุณรับผิดชอบ โดยไม่รวมเอกสารของ QA คนอื่น"
+                : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
             </div>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
-              <option value="all">เธ—ุกส�–านะ</option>
+              <option value="all">ทุกสถานะ</option>
               <option value="preview">รอ Confirm Preview</option>
               <option value="my-turn">รอฉันลงนาม</option>
               <option value="pending">รอเซ็น</option>
               <option value="ready">พร้อมจ่าย Incentive</option>
               <option value="appeal-pending">มี Appeal รอ Approved</option>
-              <option value="expired">เกินวัน�—ี่ 15 / ไม่ครบ</option>
+              <option value="expired">เกินวันที่ 15 / ไม่ครบ</option>
             </select>
           </div>
 
@@ -4945,8 +4945,8 @@ export default function SignatureCenterMockup({
             {!activeDocuments.length ? (
               <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
                 {documentView === "history"
-                  ? "ยังไม่มีประวั�•ิเอกสาร�•ามเงื่อนไข�—ี่เลือก"
-                  : "ยังไม่มีคิวเซ็นของคุ�“เธ•ามเงื่อนไข�—ี่เลือก"}
+                  ? "ยังไม่มีประวัติเอกสารตามเงื่อนไขที่เลือก"
+                  : "ยังไม่มีคิวเซ็นของคุณตามเงื่อนไขที่เลือก"}
               </div>
             ) : null}
           </div>
@@ -4991,8 +4991,8 @@ export default function SignatureCenterMockup({
                   : "border-amber-200 bg-amber-50 text-amber-800"
               }`}>
                 {mySignedRoles.length
-                  ? `เช็กแล้ว: คุ�“เซ็นเอกสารนี้แล้วใน Role ${mySignedRoles.map(roleThaiLabel).join(", ")}`
-                  : "เช็กแล้ว: ยังไม่พบลายเซ็นของคุ�“ในเอกสารนี้"}
+                  ? `เช็กแล้ว: คุณเซ็นเอกสารนี้แล้วใน Role ${mySignedRoles.map(roleThaiLabel).join(", ")}`
+                  : "เช็กแล้ว: ยังไม่พบลายเซ็นของคุณในเอกสารนี้"}
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -5019,9 +5019,9 @@ export default function SignatureCenterMockup({
 
             {hasPendingAppeal ? (
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-rose-800 shadow-[0_18px_40px_rgba(225,29,72,0.08)]">
-                <div className="text-base font-black">มีเคส Appeal เธฃเธญ Approved</div>
+                <div className="text-base font-black">มีเคส Appeal รอ Approved</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
-                  เอกสารยังโชว์ไ�”้และ Generate PDF ไ�”้ แ�•่ยังยืนยันรับ�—ราบไม่ไ�”้ และยังเซ็นไม่ไ�”้จนกว่า Appeal จะ�–ูก Approved เธซเธฃเธทเธญ Rejected ครบ�—ุกเคส
+                  เอกสารยังโชว์ได้และ Generate PDF ได้ แต่ยังยืนยันรับทราบไม่ได้ และยังเซ็นไม่ได้จนกว่า Appeal จะถูก Approved หรือ Rejected ครบทุกเคส
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedPendingAppeals.map((item) => (
@@ -5047,7 +5047,7 @@ export default function SignatureCenterMockup({
                       disabled={!confirmAvailable}
                       className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                      ยืนยันรับ�—ราบข้อมูล
+                      ยืนยันรับทราบข้อมูล
                     </button>
                     {confirmBlockedReason ? (
                       <div className="max-w-[260px] text-right text-xs font-bold leading-5 text-amber-600">{confirmBlockedReason}</div>
@@ -5091,10 +5091,10 @@ export default function SignatureCenterMockup({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
-                    <div className="mt-1 text-xl font-black text-slate-950">เปิ�”ให้�—ุก Role ลงนามไ�”้อิสระหลังปิ�” Appeal</div>
+                    <div className="mt-1 text-xl font-black text-slate-950">เปิดให้ทุก Role ลงนามได้อิสระหลังปิด Appeal</div>
                     {!previewConfirmed ? (
                       <div className="mt-1 text-xs font-bold text-amber-600">
-                        Agent เธ•้องก�”ยืนยันรับ�—ราบก่อนลงนามของ�•ัวเอง แ�•่ Role อื่นลงนามไ�”้โ�”ยไม่�•้องรอ Agent
+                        Agent ต้องกดยืนยันรับทราบก่อนลงนามของตัวเอง แต่ Role อื่นลงนามได้โดยไม่ต้องรอ Agent
                       </div>
                     ) : null}
                   </div>
@@ -5104,7 +5104,7 @@ export default function SignatureCenterMockup({
                       onClick={shareSignatureStatus}
                       className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
                     >
-                      แชร์ส�–านะผู้ยังไม่เซ็น
+                      แชร์สถานะผู้ยังไม่เซ็น
                     </button>
                     {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
                       <button
@@ -5138,7 +5138,7 @@ export default function SignatureCenterMockup({
                       <div className="mt-1 text-sm font-bold text-slate-600">
                         {pendingRoles.length
                           ? pendingRoles.map((role) => `${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`).join(" / ")
-                          : "ไม่เหลือ Role เธ—ี่�•้องเซ็น�•่อ"}
+                          : "ไม่เหลือ Role ที่ต้องเซ็นต่อ"}
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
@@ -5154,7 +5154,7 @@ export default function SignatureCenterMockup({
                         onClick={copyNextSignerAlert}
                         className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
                       >
-                        คั�”ลอกข้อความแจ้งเ�•ือน
+                        คัดลอกข้อความแจ้งเตือน
                       </button>
                     </div>
                   </div>
@@ -5216,16 +5216,16 @@ export default function SignatureCenterMockup({
                               Signed by {signed.signedBy} • {formatDateTime(signed.signedAt)}
                             </div>
                           ) : isAgentBlockedByConfirm ? (
-                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent เธ•้องก�”ยืนยันรับ�—ราบก่อนลงนาม</div>
+                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent ต้องกดยืนยันรับทราบก่อนลงนาม</div>
                           ) : status === "Locked" ? (
-                            <div className="mt-1 text-xs font-semibold text-slate-400">เปิ�”เซ็นหลังวัน�—ี่ 10 ของเ�”ือน�–เธฑเธ”ไป</div>
+                            <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
                           ) : activeResetAfterDeadline ? (
                             <div className="mt-1 text-xs font-semibold text-violet-600">
-                              รีเซ็�•แล้ว เซ็นไ�”้�–ึง {resetExpiresAt ? formatDateTime(resetExpiresAt.toISOString()) : `${SIGNATURE_RESET_WINDOW_DAYS} วัน`}
+                              รีเซ็ตแล้ว เซ็นได้ถึง {resetExpiresAt ? formatDateTime(resetExpiresAt.toISOString()) : `${SIGNATURE_RESET_WINDOW_DAYS} วัน`}
                             </div>
                           ) : resetWindowExpired ? (
                             <div className="mt-1 text-xs font-semibold text-rose-600">
-                              รอบรีเซ็�•เธซเธกเธ”อายุแล้ว ก�” Reset ใหม่ไ�”้
+                              รอบรีเซ็ตหมดอายุแล้ว กด Reset ใหม่ได้
                             </div>
                           ) : null}
                         </div>
@@ -5246,21 +5246,21 @@ export default function SignatureCenterMockup({
                                 ? "เอกสารลงนามแล้ว"
                                 : canAddFirstDrawnSignature
                                   ? savedSignatureDataUrl
-                                    ? "เธ•รวจสอบลายเซ็นเ�”เธดเธก"
+                                    ? "ตรวจสอบลายเซ็นเดิม"
                                     : "เพิ่มลายเซ็นจริง"
                                   : "เฉพาะเจ้าของลายเซ็น"
                               : allowSign
                                 ? isAgentBlockedByConfirm
-                                  ? "ก�”ยืนยันก่อนเซ็น"
+                                  ? "กดยืนยันก่อนเซ็น"
                                   : savedSignatureDataUrl
-                                  ? "เธ•รวจสอบลายเซ็นเ�”เธดเธก"
+                                  ? "ตรวจสอบลายเซ็นเดิม"
                                   : timeline === "Signature Deadline Passed"
-                                    ? "เธงเธฒเธ”และลงนามล่าช้า"
-                                    : "เธงเธฒเธ”และลงนาม"
+                                    ? "วาดและลงนามล่าช้า"
+                                    : "วาดและลงนาม"
                                 : status === "Locked"
-                                  ? "ยังไม่เปิ�”ให้เซ็น"
+                                  ? "ยังไม่เปิดให้เซ็น"
                                   : status === "Expired"
-                                    ? "เกินกำหน�”"
+                                    ? "เกินกำหนด"
                                     : "รอผู้เกี่ยวข้อง"}
                           </button>
                           {canResetRoleAfterDeadline ? (
@@ -5279,7 +5279,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                  PDF ออกไ�”้�—ุกส�–านะ แ�•่ลายเซ็นจริง�•้องให้เจ้าของ Role เซ็นเองเ�—่านั้น เมื่อบัน�—ึกลายเซ็นจริงแล้วจะกลับมาแก้เองไม่ไ�”้
+                  PDF ออกได้ทุกสถานะ แต่ลายเซ็นจริงต้องให้เจ้าของ Role เซ็นเองเท่านั้น เมื่อบันทึกลายเซ็นจริงแล้วจะกลับมาแก้เองไม่ได้
                 </div>
               </div>
             ) : null}
@@ -5300,7 +5300,7 @@ export default function SignatureCenterMockup({
             const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(signingRole)];
             if (!savedSignatureDataUrl) return;
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("เซ็นแ�—นกันไม่ไ�”้ กรุ�“าให้เจ้าของลายเซ็น�•เธฒเธก Role เป็นผู้ลงนามเอง");
+              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
               setSigningRole(null);
               return;
             }
@@ -5315,7 +5315,7 @@ export default function SignatureCenterMockup({
           }}
           onSave={async (dataUrl, saveToSavedLibrary) => {
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("เซ็นแ�—นกันไม่ไ�”้ กรุ�“าให้เจ้าของลายเซ็น�•เธฒเธก Role เป็นผู้ลงนามเอง");
+              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
               setSigningRole(null);
               return;
             }
