@@ -1385,10 +1385,10 @@ function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
 }
 
 function getWorkspaceStatusLabel(status: WorkspaceStatus) {
-  if (status === "signed") return "เซ็นแล้ว";
-  if (status === "expired") return "เกินกำหนด";
-  if (status === "in-progress") return "ค้างดำเนินการ";
-  return "รอเซ็น";
+  if (status === "signed") return "Signed";
+  if (status === "expired") return "Expired";
+  if (status === "in-progress") return "In Progress";
+  return "Pending";
 }
 
 function getWorkspaceStatusClass(status: WorkspaceStatus) {
@@ -2995,7 +2995,7 @@ export default function SignatureCenterMockup({
 
     try {
       await navigator.clipboard.writeText(text);
-      setShareMessage("คัดลอกข้อความแจ้งเตือนแล้ว");
+      setShareMessage("Copy Reminder Messageแล้ว");
     } catch {
       window.prompt("คัดลอกข้อความนี้เพื่อแจ้งเตือน", text);
       setShareMessage("แสดงข้อความแจ้งเตือนสำหรับคัดลอกแล้ว");
@@ -4395,15 +4395,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v5 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v7 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v5],
-          [data-signature-ui-v5] button,
-          [data-signature-ui-v5] input,
-          [data-signature-ui-v5] select,
-          [data-signature-ui-v5] textarea {
+          [data-signature-ui-v7],
+          [data-signature-ui-v7] button,
+          [data-signature-ui-v7] input,
+          [data-signature-ui-v7] select,
+          [data-signature-ui-v7] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4585,15 +4585,15 @@ export default function SignatureCenterMockup({
           ) : null}
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0 overflow-hidden rounded-[24px] border border-violet-100 bg-white shadow-[0_16px_42px_rgba(88,28,135,0.07)]">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">รายการเอกสารลงนาม</h2>
+                <h2 className="text-xl font-semibold text-slate-950">Document List</h2>
                 <p className="mt-0.5 text-xs font-normal text-slate-500">คลิกที่รายการเพื่อดูรายละเอียดด้านขวา</p>
               </div>
               <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700">
-                {workspaceDocuments.length} รายการ
+                {workspaceDocuments.length} Documents
               </span>
             </div>
 
@@ -4609,20 +4609,20 @@ export default function SignatureCenterMockup({
                     >
                       <span className="flex items-center gap-2.5">
                         <span className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white">{group.monthLabel}</span>
-                        <span className="text-sm font-medium text-slate-700">{group.items.length} รายการ</span>
+                        <span className="text-sm font-medium text-slate-700">{group.items.length} Documents</span>
                       </span>
-                      <span className="text-xs font-medium text-violet-700">{expanded ? "ซ่อน" : "แสดง"}</span>
+                      <span className="text-xs font-medium text-violet-700">{expanded ? "Hide" : "Show"}</span>
                     </button>
 
                     {expanded ? (
                       <>
-                        <div className="hidden grid-cols-[128px_minmax(150px,1fr)_112px_86px_146px_86px] items-center gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] font-medium text-slate-500 md:grid">
+                        <div className="hidden grid-cols-[120px_210px_minmax(160px,1fr)_92px_200px_108px] items-center gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] font-medium text-slate-500 md:grid">
                           <div>Document Ref.</div>
-                          <div>ผู้ถูกประเมิน</div>
-                          <div>ประเภทเอกสาร</div>
-                          <div>สถานะ</div>
-                          <div>Role ที่เหลือ</div>
-                          <div className="text-right">ดำเนินการ</div>
+                          <div>Assessed Agent</div>
+                          <div>Document Type</div>
+                          <div>Status</div>
+                          <div>Pending Roles</div>
+                          <div className="text-right">Action</div>
                         </div>
                         <div className="divide-y divide-slate-100">
                           {group.items.map((doc) => {
@@ -4632,14 +4632,16 @@ export default function SignatureCenterMockup({
                             const documentRef = getMonthlyDocumentRef(doc, documents);
                             const docPendingRoles = getPendingRoles(entries);
                             const pendingText = docPendingRoles.length
-                              ? `${docPendingRoles.length} Role • ${docPendingRoles.map(roleThaiLabel).join(", ")}`
-                              : "เซ็นครบแล้ว";
+                              ? `${docPendingRoles.length} Role${docPendingRoles.length > 1 ? "s" : ""}: ${docPendingRoles
+                                  .map((role) => (role === "Senior" ? "Senior / Team Lead" : role))
+                                  .join(", ")}`
+                              : "Completed";
                             return (
                               <button
                                 key={doc.id}
                                 type="button"
                                 onClick={() => openWorkspaceDetail(doc.id)}
-                                className={`grid w-full gap-2.5 px-4 py-3 text-left transition md:grid-cols-[128px_minmax(150px,1fr)_112px_86px_146px_86px] md:items-center md:gap-3 ${
+                                className={`grid w-full gap-2.5 px-4 py-2.5 text-left transition md:grid-cols-[120px_210px_minmax(160px,1fr)_92px_200px_108px] md:items-center md:gap-3 ${
                                   selected
                                     ? "bg-violet-50/80 shadow-[inset_3px_0_0_#7c3aed]"
                                     : "bg-white hover:bg-slate-50"
@@ -4661,8 +4663,8 @@ export default function SignatureCenterMockup({
                                   {pendingText}
                                 </div>
                                 <div className="text-right">
-                                  <span className="inline-flex min-w-[78px] justify-center rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-medium text-violet-700">
-                                    ดูรายละเอียด
+                                  <span className="inline-flex min-w-[96px] whitespace-nowrap justify-center rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-medium text-violet-700">
+                                    View Details
                                   </span>
                                 </div>
                               </button>
@@ -4723,7 +4725,7 @@ export default function SignatureCenterMockup({
               <>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-base font-semibold text-slate-950">รายละเอียดเอกสาร</div>
+                    <div className="text-base font-semibold text-slate-950">Document Details</div>
                     <div className="mt-2 inline-flex max-w-full rounded-xl bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-800">
                       <span className="truncate">{selectedDocumentRef}</span>
                     </div>
@@ -4731,7 +4733,7 @@ export default function SignatureCenterMockup({
                   <button
                     type="button"
                     onClick={() => setWorkspaceDetailOpen(false)}
-                    aria-label="ปิดรายละเอียด"
+                    aria-label="Close document details"
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-xl font-normal text-slate-500 transition hover:bg-slate-50"
                   >
                     ×
@@ -4745,12 +4747,16 @@ export default function SignatureCenterMockup({
 
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
                   {[
-                    ["เดือน", selectedDocument.monthLabel],
-                    ["ทีม", selectedDocument.teamName || "-"],
-                    ["ประเภทเอกสาร", getDocumentTypeLabel(selectedDocument)],
+                    ["Month", selectedDocument.monthLabel],
+                    ["Team", selectedDocument.teamName || "-"],
+                    ["Document Type", getDocumentTypeLabel(selectedDocument)],
                     ["Audit Date", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
-                    ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
-                    ["Role ที่เหลือ", getPendingRoleText(selectedDocument, selectedEntries)],
+                    ["Due Date", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
+                    ["Pending Roles", getPendingRoles(selectedEntries).length
+                      ? getPendingRoles(selectedEntries)
+                          .map((role) => (role === "Senior" ? "Senior / Team Lead" : role))
+                          .join(", ")
+                      : "Completed"],
                   ].map(([label, value], index, rows) => (
                     <div
                       key={label}
@@ -4765,7 +4771,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="mt-5">
-                  <div className="text-sm font-semibold text-slate-950">ลำดับการลงนาม</div>
+                  <div className="text-sm font-semibold text-slate-950">Signature Timeline</div>
                   <div className="relative mt-3 space-y-2">
                     <div className="absolute bottom-5 left-[15px] top-5 w-px bg-slate-200" />
                     {SIGNATURE_FLOW.map((role, index) => {
@@ -4791,7 +4797,7 @@ export default function SignatureCenterMockup({
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="text-sm font-semibold text-slate-900">{roleThaiLabel(role)}</div>
+                              <div className="text-sm font-semibold text-slate-900">{role === "Senior" ? "Senior / Team Lead" : role}</div>
                               <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-medium ${
                                 signedEntry
                                   ? "bg-emerald-50 text-emerald-700"
@@ -4799,11 +4805,11 @@ export default function SignatureCenterMockup({
                                     ? "bg-amber-50 text-amber-700"
                                     : "bg-slate-100 text-slate-500"
                               }`}>
-                                {signedEntry ? "เซ็นแล้ว" : isCurrent ? "กำลังรอ" : "รอดำเนินการ"}
+                                {signedEntry ? "Signed" : isCurrent ? "Current" : "Pending"}
                               </span>
                             </div>
                             <div className="mt-0.5 truncate text-xs font-normal text-slate-500">
-                              {signedEntry ? `เซ็นแล้วโดย ${signerName}` : signerName || "-"}
+                              {signedEntry ? `Signed by ${signerName}` : signerName || "-"}
                             </div>
                           </div>
                         </div>
@@ -4817,24 +4823,24 @@ export default function SignatureCenterMockup({
                   if (!currentRole) {
                     return (
                       <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                        <div className="text-xs font-normal text-emerald-700">สถานะปัจจุบัน</div>
-                        <div className="mt-1 text-sm font-semibold text-emerald-800">เอกสารลงนามครบแล้ว</div>
+                        <div className="text-xs font-normal text-emerald-700">Current Status</div>
+                        <div className="mt-1 text-sm font-semibold text-emerald-800">Completed</div>
                       </div>
                     );
                   }
                   const currentSigner = getRoleSigner(selectedDocument, currentRole) || "-";
                   return (
                     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-                      <div className="text-xs font-normal text-slate-500">ผู้ลงนามปัจจุบัน</div>
+                      <div className="text-xs font-normal text-slate-500">Current Signer</div>
                       <div className="mt-2 flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
                           {currentSigner.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-semibold text-slate-950">{roleThaiLabel(currentRole)}</div>
+                          <div className="truncate text-sm font-semibold text-slate-950">{currentRole === "Senior" ? "Senior / Team Lead" : currentRole}</div>
                           <div className="truncate text-xs font-normal text-slate-500">{currentSigner}</div>
                         </div>
-                        <span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-[10px] font-medium text-amber-700">รอการลงนาม</span>
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-[10px] font-medium text-amber-700">Waiting for Signature</span>
                       </div>
                     </div>
                   );
@@ -4844,16 +4850,16 @@ export default function SignatureCenterMockup({
                   <button
                     type="button"
                     onClick={() => document.getElementById("signature-workflow-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                    className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-800"
+                    className="whitespace-nowrap rounded-xl bg-violet-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-800"
                   >
-                    เปิดพื้นที่ลงนาม
+                    Open Signing Workspace
                   </button>
                   <button
                     type="button"
                     onClick={generatePdf}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    className="whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                   >
-                    สร้าง Final PDF
+                    Generate Final PDF
                   </button>
                 </div>
               </>
@@ -5032,7 +5038,7 @@ export default function SignatureCenterMockup({
                       onClick={resetDocument}
                       className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100"
                     >
-                      Reset เอกสารนี้
+                      Reset Document
                     </button>
                   ) : null}
                   <button
@@ -5162,7 +5168,7 @@ export default function SignatureCenterMockup({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
-                    <div className="mt-1 text-xl font-black text-slate-950">เปิดให้ทุก Role ลงนามได้อิสระหลังปิด Appeal</div>
+                    <div className="mt-1 text-xl font-black text-slate-950">Independent Role Signing After Appeal Closure</div>
                     {!previewConfirmed ? (
                       <div className="mt-1 text-xs font-bold text-amber-600">
                         Agent ต้องกดยืนยันรับทราบก่อนลงนามของตัวเอง แต่ Role อื่นลงนามได้โดยไม่ต้องรอ Agent
@@ -5173,17 +5179,17 @@ export default function SignatureCenterMockup({
                     <button
                       type="button"
                       onClick={shareSignatureStatus}
-                      className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
+                      className="whitespace-nowrap rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
                     >
-                      แชร์สถานะผู้ยังไม่เซ็น
+                      Share Signing Status
                     </button>
                     {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
                       <button
                         type="button"
                         onClick={resetDocument}
-                        className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                        className="whitespace-nowrap rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
                       >
-                        Reset เอกสารนี้
+                        Reset Document
                       </button>
                     ) : null}
                   </div>
@@ -5199,7 +5205,7 @@ export default function SignatureCenterMockup({
                       <div className={`text-xs font-black uppercase tracking-[0.18em] ${
                         pendingRoles.length ? "text-violet-600" : "text-emerald-700"
                       }`}>
-                        Pending Signers Alert
+                        Pending Signers
                       </div>
                       <div className="mt-1 text-lg font-black text-slate-950">
                         {pendingRoles.length
@@ -5216,14 +5222,14 @@ export default function SignatureCenterMockup({
                       <button
                         type="button"
                         onClick={copySelectedDocumentShareLink}
-                        className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50"
+                        className="whitespace-nowrap rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50"
                       >
                         Copy Share Link
                       </button>
                       <button
                         type="button"
                         onClick={copyNextSignerAlert}
-                        className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                        className="whitespace-nowrap rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
                       >
                         คัดลอกข้อความแจ้งเตือน
                       </button>
@@ -5279,7 +5285,7 @@ export default function SignatureCenterMockup({
                             {index + 1}
                           </span>
                         </div>
-                        <div className="font-black text-slate-950">{roleThaiLabel(role)}</div>
+                        <div className="font-black text-slate-950">{role === "Senior" ? "Senior / Team Lead" : role}</div>
                         <div>
                           <div className="font-bold text-slate-900">{signed ? signed.signerName : signerName}</div>
                           {signed ? (
