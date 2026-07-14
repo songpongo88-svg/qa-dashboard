@@ -1122,6 +1122,99 @@ function getDocumentAuditSortTime(doc: SignatureDocument) {
   return getSignatureCreatedDate(doc)?.getTime() || 0;
 }
 
+function getMonthlyDocumentRef(doc: SignatureDocument, allDocuments: SignatureDocument[]) {
+  const monthMatch = doc.monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!monthMatch) return doc.documentHash || doc.id;
+
+  const [, year, month] = monthMatch;
+  const sameMonthDocuments = allDocuments
+    .filter((item) => item.monthKey === doc.monthKey)
+    .slice()
+    .sort((a, b) => {
+      const auditDiff = getDocumentAuditSortTime(a) - getDocumentAuditSortTime(b);
+      if (auditDiff !== 0) return auditDiff;
+      const nameDiff = a.agentName.localeCompare(b.agentName, "th");
+      if (nameDiff !== 0) return nameDiff;
+      return a.id.localeCompare(b.id);
+    });
+
+  const index = sameMonthDocuments.findIndex((item) => item.id === doc.id);
+  const sequence = String(Math.max(0, index) + 1).padStart(5, "0");
+  return `${month}${year}${sequence}`;
+}
+
+async function normalizeSignatureDataUrl(dataUrl: string) {
+  if (!dataUrl || typeof window === "undefined") return dataUrl;
+
+  return new Promise<string>((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const sourceCanvas = document.createElement("canvas");
+        sourceCanvas.width = image.naturalWidth || image.width;
+        sourceCanvas.height = image.naturalHeight || image.height;
+        const sourceContext = sourceCanvas.getContext("2d");
+        if (!sourceContext || !sourceCanvas.width || !sourceCanvas.height) {
+          resolve(dataUrl);
+          return;
+        }
+
+        sourceContext.drawImage(image, 0, 0);
+        const imageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+        let minX = sourceCanvas.width;
+        let minY = sourceCanvas.height;
+        let maxX = 0;
+        let maxY = 0;
+        let hasInk = false;
+
+        for (let y = 0; y < sourceCanvas.height; y += 1) {
+          for (let x = 0; x < sourceCanvas.width; x += 1) {
+            const index = (y * sourceCanvas.width + x) * 4;
+            const alpha = imageData.data[index + 3];
+            const red = imageData.data[index];
+            const green = imageData.data[index + 1];
+            const blue = imageData.data[index + 2];
+            const isInk = alpha > 24 && (red < 244 || green < 244 || blue < 244);
+            if (!isInk) continue;
+            hasInk = true;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+
+        if (!hasInk) {
+          resolve(dataUrl);
+          return;
+        }
+
+        const padding = 18;
+        const cropX = Math.max(0, minX - padding);
+        const cropY = Math.max(0, minY - padding);
+        const cropW = Math.min(sourceCanvas.width - cropX, maxX - minX + 1 + padding * 2);
+        const cropH = Math.min(sourceCanvas.height - cropY, maxY - minY + 1 + padding * 2);
+        const outputCanvas = document.createElement("canvas");
+        outputCanvas.width = cropW;
+        outputCanvas.height = cropH;
+        const outputContext = outputCanvas.getContext("2d");
+        if (!outputContext) {
+          resolve(dataUrl);
+          return;
+        }
+
+        outputContext.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+        resolve(outputCanvas.toDataURL("image/png"));
+      } catch (error) {
+        console.warn("Signature image normalization failed", error);
+        resolve(dataUrl);
+      }
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
 function getDocumentTypeLabel(doc: SignatureDocument) {
   return doc.eligibleByScore ? "เอกสารจ่าย Incentive รายเดือน" : "เอกสารรับทราบผล QA รายเดือน";
 }
@@ -3040,7 +3133,7 @@ export default function SignatureCenterMockup({
     });
   };
 
-  const generatePdf = () => {
+  const generatePdf = async () => {
     if (!selectedDocument) return;
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const individualIncentive = getDocumentIncentive(selectedDocument);
@@ -3515,14 +3608,45 @@ export default function SignatureCenterMockup({
       };
       const signerDate = (role: SignRole) => {
         const signed = getSignedEntry(entries, role);
-        return signed ? formatDateTime(signed.signedAt) : "........................................";
+        return signed ? formatDateTime(signed.signedAt) : "";
       };
       const signatureData = (role: SignRole) => getSignedEntry(entries, role)?.signatureDataUrl || "";
-
-      const signatureBlockHeight = 53;
-      if (y + signatureBlockHeight > pageH - 12) {
-        y = Math.max(y - 4, pageH - 12 - signatureBlockHeight);
+      const normalizedSignatures = new Map<SignRole, string>();
+      for (const role of SIGNATURE_FLOW) {
+        const signature = signatureData(role);
+        normalizedSignatures.set(role, signature ? await normalizeSignatureDataUrl(signature) : "");
       }
+      const pdfDocumentRef = getMonthlyDocumentRef(selectedDocument, documents);
+
+      const signatureBlockHeight = 62;
+      if (y + signatureBlockHeight > bottom - 5) {
+        pdf.addPage();
+        y = 12;
+      }
+
+      const drawDottedLine = (x1: number, lineY: number, x2: number) => {
+        pdf.setDrawColor(108, 96, 128);
+        pdf.setLineWidth(0.12);
+        const dashedPdf = pdf as jsPDF & {
+          setLineDashPattern?: (dashArray: number[], dashPhase: number) => jsPDF;
+        };
+        dashedPdf.setLineDashPattern?.([0.55, 0.65], 0);
+        pdf.line(x1, lineY, x2, lineY);
+        dashedPdf.setLineDashPattern?.([], 0);
+      };
+
+      const drawSignedLine = (label: string, centerX: number, lineY: number, value = "") => {
+        const labelX = centerX - 20;
+        const lineStart = centerX - 18;
+        const lineEnd = centerX + 25;
+        setTemplateFont(5.25, false, muted);
+        pdf.text(label, labelX, lineY - 0.25, { align: "right" });
+        drawDottedLine(lineStart, lineY, lineEnd);
+        if (value) {
+          setTemplateFont(5.05, true, textColor);
+          pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });
+        }
+      };
 
       const drawSignaturePanel = (
         x: number,
@@ -3538,52 +3662,60 @@ export default function SignatureCenterMockup({
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 4.6, w, 9.8, "", palePurple, { size: 6, align: "center" });
-        const signature = signatureData(role);
+        const signatureAreaY = panelY + 4.6;
+        const signatureAreaH = 12.8;
+        const signLineY = signatureAreaY + 8.9;
+        const centerX = x + w / 2;
+        drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
+        drawSignedLine("ลงชื่อ", centerX, signLineY);
+        const signature = normalizedSignatures.get(role) || "";
         if (signature) {
           try {
-            const imageW = Math.min(w - 20, 48);
-            const imageH = 8.2;
-            pdf.addImage(signature, "PNG", x + (w - imageW) / 2, panelY + 5.3 + (9.8 - imageH) / 2, imageW, imageH);
+            const imageProps = pdf.getImageProperties(signature);
+            const ratio = imageProps.width && imageProps.height ? imageProps.width / imageProps.height : 4;
+            const maxImageW = Math.min(w - 38, 45);
+            const maxImageH = 8.8;
+            let imageW = maxImageW;
+            let imageH = imageW / ratio;
+            if (imageH > maxImageH) {
+              imageH = maxImageH;
+              imageW = imageH * ratio;
+            }
+            pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 0.9, imageW, imageH);
           } catch {
             setTemplateFont(5.6, false, muted);
-            pdf.text("Signature image unavailable", x + w / 2, panelY + 11, { align: "center" });
+            pdf.text("Signature image unavailable", centerX, signLineY - 1.5, { align: "center" });
           }
-        } else {
-          setTemplateFont(5.8, false, muted);
-          pdf.text("ลงชื่อ ................................................", x + w / 2, panelY + 11, { align: "center" });
         }
-        drawCell(x, panelY + 14.4, w, 3.7, signerName(role), [255, 255, 255], {
+        drawCell(x, panelY + 17.4, w, 3.8, signerName(role), [255, 255, 255], {
           bold: true,
           size: 5.6,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 18.1, w, 3.4, roleTitle, [255, 255, 255], {
+        drawCell(x, panelY + 21.2, w, 3.4, roleTitle, [255, 255, 255], {
           size: 5.1,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 21.5, w, 3.6, `วันที่ ${signerDate(role)}`, [255, 255, 255], {
-          size: 5.1,
-          align: "center",
-          maxLines: 1,
-        });
+        drawCell(x, panelY + 24.6, w, 4.0, "", [255, 255, 255], { size: 5.1, align: "center" });
+        drawSignedLine("วันที่", centerX, panelY + 27.15, signerDate(role));
       };
 
       const halfW = tableW / 2 - 3;
       drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
       drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
-      y += 28.8;
+      y += 32;
       drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
       drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
 
-      drawCell(left, pageH - 8, tableW, 4.5, `Generated: ${formatDateTime(new Date().toISOString())} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`, [255, 255, 255], {
-        size: 6.2,
-        align: "right",
-        color: muted,
-        maxLines: 1,
-      });
+      setTemplateFont(6.2, false, muted);
+      pdf.text(
+        `Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(new Date().toISOString())} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`,
+        left + tableW,
+        pageH - 5.4,
+        { align: "right" }
+      );
 
       const safeAgentFileName =
         selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
