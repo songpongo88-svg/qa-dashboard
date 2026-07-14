@@ -214,6 +214,50 @@ function splitSignatureIntent(value: unknown) {
   return primary ? { primary, secondary } : { primary: fullText, secondary: "" };
 }
 
+const SIGNATURE_TOPIC_ENGLISH_LABELS: Record<string, Record<string, string>> = {
+  "2026-01": {
+    "1": "Greeting & Closing",
+    "2": "Analysis & Resolution",
+    "3": "Process Compliance",
+    "4": "Courtesy",
+    "5": "Language Quality",
+    "6": "SLA & Response Time",
+  },
+  "2026-02": {
+    "1": "Greeting & Closing",
+    "2": "Analysis & Resolution",
+    "3": "Process Compliance",
+    "4": "Courtesy",
+    "5": "Language Quality",
+    "6": "SLA & Response Time",
+  },
+  "2026-04": {
+    "1.1": "Greeting & Closing Standard",
+    "1.2": "PDPA & Policy Compliance",
+    "1.3": "Process & SLA Compliance",
+    "2.1": "Answer Accuracy",
+    "2.2": "Answer Completeness",
+    "2.3": "Clear Guidance & References",
+    "3.1": "Root Cause & Resolution",
+    "3.2": "Ownership & Next Steps",
+    "4.1": "Message Structure & Readability",
+    "4.2": "Conciseness & Language Accuracy",
+    "4.3": "Tone & Context Appropriateness",
+  },
+};
+
+function getSignatureTopicEnglishLabel(
+  topic: { code?: unknown; title?: unknown },
+  monthKey: string
+) {
+  const code = normalizeText(topic.code);
+  const title = normalizeText(topic.title);
+  const mapped = SIGNATURE_TOPIC_ENGLISH_LABELS[monthKey]?.[code];
+  if (mapped) return mapped;
+  if (/[A-Za-z]/.test(title) && !/[ก-๙]/.test(title)) return title;
+  return code ? `Topic ${code}` : "Topic Score";
+}
+
 function normalizeKey(value: unknown) {
   return normalizeText(value).toLowerCase();
 }
@@ -2294,7 +2338,18 @@ export default function SignatureCenterMockup({
   const [signingRole, setSigningRole] = useState<SignRole | null>(null);
   const [previewCase, setPreviewCase] = useState<SignatureCaseDetail | null>(null);
   const [queuePreviewDocumentId, setQueuePreviewDocumentId] = useState("");
+  const [actionSidebarMode, setActionSidebarMode] = useState<"expanded" | "collapsed" | "hidden">(() => {
+    if (typeof window === "undefined") return "expanded";
+    const saved = window.sessionStorage.getItem("signature-document-actions-mode");
+    return saved === "collapsed" || saved === "hidden" ? saved : "expanded";
+  });
   const shareLinkAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("signature-document-actions-mode", actionSidebarMode);
+    }
+  }, [actionSidebarMode]);
 
   useEffect(() => {
     if (!previewCase) return;
@@ -4427,20 +4482,123 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v9 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v11 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v9],
-          [data-signature-ui-v9] button,
-          [data-signature-ui-v9] input,
-          [data-signature-ui-v9] select,
-          [data-signature-ui-v9] textarea {
+          [data-signature-ui-v11],
+          [data-signature-ui-v11] button,
+          [data-signature-ui-v11] input,
+          [data-signature-ui-v11] select,
+          [data-signature-ui-v11] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
-        <main className="min-w-0 space-y-5 p-4 sm:p-6">
-          <section data-signature-redesign className="space-y-5">
+        <main className="min-w-0 p-4 sm:p-6">
+          <div
+            className={`grid items-start gap-5 ${
+              actionSidebarMode === "expanded"
+                ? "xl:grid-cols-[230px_minmax(0,1fr)]"
+                : actionSidebarMode === "collapsed"
+                  ? "xl:grid-cols-[78px_minmax(0,1fr)]"
+                  : "grid-cols-1"
+            }`}
+          >
+            {actionSidebarMode === "hidden" ? (
+              <div className="flex justify-start xl:col-span-full">
+                <button
+                  type="button"
+                  onClick={() => setActionSidebarMode("expanded")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold">DA</span>
+                  Open Document Actions
+                </button>
+              </div>
+            ) : (
+              <aside className="sticky top-4 z-20 rounded-[22px] border border-violet-100 bg-white p-3 shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
+                <div className="flex items-center justify-between gap-2">
+                  {actionSidebarMode === "expanded" ? (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-500">Signature Workspace</div>
+                      <div className="mt-1 text-base font-semibold text-slate-950">Document Actions</div>
+                    </div>
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-700">DA</div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      title={actionSidebarMode === "expanded" ? "Collapse" : "Expand"}
+                      onClick={() =>
+                        setActionSidebarMode((current) => (current === "expanded" ? "collapsed" : "expanded"))
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      {actionSidebarMode === "expanded" ? "‹" : "›"}
+                    </button>
+                    <button
+                      type="button"
+                      title="Close"
+                      onClick={() => setActionSidebarMode("hidden")}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2">
+                  <button
+                    type="button"
+                    title="Generate Payment PDF"
+                    onClick={generatePaymentPdf}
+                    disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
+                    className={`flex items-center rounded-xl bg-violet-700 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${
+                      actionSidebarMode === "expanded" ? "gap-3 px-3.5 py-3 text-left" : "justify-center px-2 py-3"
+                    }`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15 text-[10px] font-bold">PDF</span>
+                    {actionSidebarMode === "expanded" ? <span>Generate Payment PDF</span> : null}
+                  </button>
+
+                  <button
+                    type="button"
+                    title="Generate Excel"
+                    onClick={generatePaymentExcel}
+                    disabled={selectedMonth === "all" || !selectedMonthPaymentExportDocs.length}
+                    className={`flex items-center rounded-xl border border-violet-200 bg-white text-sm font-semibold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 ${
+                      actionSidebarMode === "expanded" ? "gap-3 px-3.5 py-3 text-left" : "justify-center px-2 py-3"
+                    }`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-[10px] font-bold">XLS</span>
+                    {actionSidebarMode === "expanded" ? <span>Generate Excel</span> : null}
+                  </button>
+
+                  <button
+                    type="button"
+                    title="Generate Final PDF"
+                    onClick={generatePdf}
+                    disabled={!selectedDocument}
+                    className={`flex items-center rounded-xl border border-slate-200 bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${
+                      actionSidebarMode === "expanded" ? "gap-3 px-3.5 py-3 text-left" : "justify-center px-2 py-3"
+                    }`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] font-bold">FINAL</span>
+                    {actionSidebarMode === "expanded" ? <span>Generate Final PDF</span> : null}
+                  </button>
+                </div>
+
+                {actionSidebarMode === "expanded" ? (
+                  <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[11px] font-normal leading-5 text-slate-500">
+                    ปุ่มสร้างไฟล์รวมไว้จุดเดียว และยังใช้เงื่อนไขการเปิดใช้งานเดิมของระบบ
+                  </div>
+                ) : null}
+              </aside>
+            )}
+
+            <div className="min-w-0 space-y-5">
+              <section data-signature-redesign className="space-y-5">
         <header className="rounded-[28px] border border-violet-100 bg-white px-5 py-5 shadow-[0_18px_50px_rgba(88,28,135,0.08)] sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -4592,22 +4750,8 @@ export default function SignatureCenterMockup({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={generatePaymentPdf}
-                disabled={selectedMonth === "all"}
-                className="rounded-xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                สร้าง Payment PDF
-              </button>
-              <button
-                type="button"
-                onClick={generatePaymentExcel}
-                disabled={selectedMonth === "all"}
-                className="rounded-xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-              >
-                ส่งออก Excel
-              </button>
+
+
             </div>
           </div>
           {paymentMessage ? (
@@ -4901,13 +5045,7 @@ export default function SignatureCenterMockup({
                   >
                     Open Signing Workspace
                   </button>
-                  <button
-                    type="button"
-                    onClick={generatePdf}
-                    className="whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Generate Final PDF
-                  </button>
+
                 </div>
               </>
             ) : (
@@ -5088,13 +5226,7 @@ export default function SignatureCenterMockup({
                       Reset Document
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={generatePdf}
-                    className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
-                  >
-                    Generate Final PDF
-                  </button>
+
                 </div>
               </div>
 
@@ -5174,114 +5306,163 @@ export default function SignatureCenterMockup({
                 )}
               </div>
 
-              <div
-                data-preview-table-v10
-                className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.05)]"
-              >
-                <div className="grid grid-cols-[44px_118px_92px_minmax(280px,1fr)_minmax(360px,1.25fr)_96px] items-center bg-gradient-to-r from-violet-800 to-violet-700 px-4 py-3 text-xs font-semibold text-white">
-                  <div className="text-center">#</div>
-                  <div className="text-center">Case ID</div>
-                  <div className="text-center">Date</div>
-                  <div className="text-center">Intent</div>
-                  <div className="text-center">Topic Scores</div>
-                  <div className="text-center">Score</div>
-                </div>
+              {(() => {
+                const previewCases = selectedDocument.cases.slice(0, 10);
+                const topicMap = new Map<
+                  string,
+                  { code: string; title: string; label: string; max: number }
+                >();
 
-                {selectedDocument.cases.slice(0, 10).map((item, index) => {
-                  const intentParts = splitSignatureIntent(item.inquiry);
-                  return (
-                    <div
-                      key={`${item.caseId}-${index}`}
-                      className="grid grid-cols-[44px_118px_92px_minmax(280px,1fr)_minmax(360px,1.25fr)_96px] items-center gap-3 border-t border-slate-100 px-4 py-3.5 text-sm transition hover:bg-violet-50/40"
-                    >
-                      <div className="text-center font-medium text-slate-400">{index + 1}</div>
+                previewCases.forEach((caseItem) => {
+                  (caseItem.topics || []).forEach((topic) => {
+                    const code = normalizeText(topic.code);
+                    const title = normalizeText(topic.title);
+                    const key = code || normalizeKey(title);
+                    if (!key) return;
+                    const max = Number(topic.max) || 0;
+                    const current = topicMap.get(key);
+                    if (!current) {
+                      topicMap.set(key, {
+                        code,
+                        title,
+                        label: getSignatureTopicEnglishLabel(topic, selectedDocument.monthKey),
+                        max,
+                      });
+                    } else if (max > current.max) {
+                      current.max = max;
+                    }
+                  });
+                });
 
-                      <button
-                        type="button"
-                        onClick={() => setPreviewCase(item)}
-                        className="truncate text-center font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
-                      >
-                        {item.caseId}
-                      </button>
+                const dynamicTopics = Array.from(topicMap.entries()).map(([key, topic]) => ({
+                  key,
+                  ...topic,
+                }));
 
-                      <div className="text-center font-normal text-slate-500">{item.auditDate}</div>
-
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-slate-900" title={intentParts.primary}>
-                          {intentParts.primary || "-"}
-                        </div>
-                        {intentParts.secondary ? (
-                          <div
-                            className="mt-1 truncate text-xs font-normal text-slate-500"
-                            title={intentParts.secondary}
-                          >
-                            {intentParts.secondary}
-                          </div>
-                        ) : null}
-                        {pendingAppealCaseMap.has(item.caseId) ? (
-                          <span className="mt-1.5 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
-                            Appeal Pending
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-2.5">
-                        {item.topics?.length ? (
-                          item.topics.map((topic) => {
-                            const topicScore = Number(topic.score) || 0;
-                            const topicMax = Number(topic.max) || 0;
-                            const percent =
-                              topicMax > 0
-                                ? Math.max(0, Math.min(100, (topicScore / topicMax) * 100))
-                                : 0;
-                            const barTone =
-                              percent >= 85
-                                ? "bg-emerald-500"
-                                : percent >= 75
-                                  ? "bg-amber-500"
-                                  : "bg-rose-500";
-
-                            return (
-                              <div
-                                key={`${item.caseId}-topic-${topic.code}-${topic.title}`}
-                                className="min-w-0 rounded-xl bg-slate-50 px-2.5 py-2"
-                              >
-                                <div className="flex items-center justify-between gap-2 text-[10px] leading-4">
-                                  <span
-                                    className="truncate font-medium text-slate-600"
-                                    title={topic.title}
-                                  >
-                                    {topic.title}
-                                  </span>
-                                  <span className="shrink-0 font-semibold text-slate-800">
-                                    {topicScore}/{topicMax || "-"}
-                                  </span>
-                                </div>
-                                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                                  <div
-                                    className={`h-full rounded-full ${barTone}`}
-                                    style={{ width: `${percent}%` }}
-                                  />
-                                </div>
+                return (
+                  <div
+                    data-preview-table-v11
+                    className="mt-5 overflow-x-auto rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.05)]"
+                  >
+                    <table className="w-max min-w-full table-auto border-collapse">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-violet-800 to-violet-700 text-white">
+                          <th className="whitespace-nowrap px-3 py-3 text-center text-xs font-semibold">#</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-center text-xs font-semibold">Case ID</th>
+                          <th className="whitespace-nowrap px-3 py-3 text-center text-xs font-semibold">Date</th>
+                          <th className="min-w-[300px] px-4 py-3 text-center text-xs font-semibold">Intent</th>
+                          {dynamicTopics.map((topic) => (
+                            <th key={`preview-head-${topic.key}`} className="min-w-[165px] px-3 py-3 text-center align-middle">
+                              <div className="mx-auto max-w-[190px] whitespace-normal text-[11px] font-semibold leading-4">
+                                {topic.label}
                               </div>
-                            );
-                          })
-                        ) : (
-                          <div className="col-span-2 text-center text-xs font-normal text-slate-400">
-                            -
-                          </div>
-                        )}
-                      </div>
+                              <div className="mt-1 text-[10px] font-medium text-violet-100">
+                                Max Score: {topic.max || "-"}
+                              </div>
+                            </th>
+                          ))}
+                          <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold">Score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewCases.map((item, index) => {
+                          const intentParts = splitSignatureIntent(item.inquiry);
+                          const rowTopics = new Map(
+                            (item.topics || []).map((topic) => [
+                              normalizeText(topic.code) || normalizeKey(topic.title),
+                              topic,
+                            ])
+                          );
 
-                      <div className="text-center">
-                        <span className="inline-flex min-w-[72px] justify-center rounded-xl bg-violet-50 px-3 py-2 text-base font-semibold text-violet-700">
-                          {item.finalScore.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          return (
+                            <tr
+                              key={`${item.caseId}-${index}`}
+                              className="border-t border-slate-100 transition hover:bg-violet-50/40"
+                            >
+                              <td className="px-3 py-3 text-center align-middle text-sm font-medium text-slate-400">
+                                {index + 1}
+                              </td>
+                              <td className="px-3 py-3 text-center align-middle">
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewCase(item)}
+                                  className="whitespace-nowrap font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                                >
+                                  {item.caseId}
+                                </button>
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-normal text-slate-500">
+                                {item.auditDate}
+                              </td>
+                              <td className="min-w-[300px] max-w-[460px] px-4 py-3 align-middle">
+                                <div className="font-medium leading-6 text-slate-900">
+                                  {intentParts.primary || "-"}
+                                </div>
+                                {intentParts.secondary ? (
+                                  <div className="mt-0.5 text-xs font-normal leading-5 text-slate-500">
+                                    {intentParts.secondary}
+                                  </div>
+                                ) : null}
+                                {pendingAppealCaseMap.has(item.caseId) ? (
+                                  <span className="mt-1.5 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                                    Appeal Pending
+                                  </span>
+                                ) : null}
+                              </td>
+
+                              {dynamicTopics.map((topic) => {
+                                const scoreTopic = rowTopics.get(topic.key);
+                                const score = scoreTopic ? Number(scoreTopic.score) || 0 : null;
+                                const max = scoreTopic ? Number(scoreTopic.max) || topic.max : topic.max;
+                                const percent =
+                                  score !== null && max > 0
+                                    ? Math.max(0, Math.min(100, (score / max) * 100))
+                                    : 0;
+                                const barTone =
+                                  score === null
+                                    ? "bg-slate-300"
+                                    : percent >= 85
+                                      ? "bg-emerald-500"
+                                      : percent >= 75
+                                        ? "bg-amber-500"
+                                        : "bg-rose-500";
+                                const scoreTone =
+                                  score === null
+                                    ? "text-slate-400"
+                                    : percent >= 85
+                                      ? "text-emerald-700"
+                                      : percent >= 75
+                                        ? "text-amber-700"
+                                        : "text-rose-700";
+
+                                return (
+                                  <td key={`${item.caseId}-${topic.key}`} className="min-w-[165px] px-3 py-3 text-center align-middle">
+                                    <div className={`text-base font-semibold ${scoreTone}`}>
+                                      {score === null ? "-" : score}
+                                    </div>
+                                    <div className="mx-auto mt-2 h-1.5 w-full max-w-[135px] overflow-hidden rounded-full bg-slate-200">
+                                      <div
+                                        className={`h-full rounded-full ${barTone}`}
+                                        style={{ width: `${score === null ? 0 : percent}%` }}
+                                      />
+                                    </div>
+                                  </td>
+                                );
+                              })}
+
+                              <td className="px-4 py-3 text-center align-middle">
+                                <span className="inline-flex min-w-[72px] justify-center rounded-xl bg-violet-50 px-3 py-2 text-base font-semibold text-violet-700">
+                                  {item.finalScore.toFixed(2)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
 
             {workflowReadyToSign ? (
@@ -5485,6 +5666,8 @@ export default function SignatureCenterMockup({
         ) : null}
       </div>
 
+            </div>
+          </div>
         </main>
       </div>
 
