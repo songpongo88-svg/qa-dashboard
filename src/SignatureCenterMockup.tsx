@@ -2710,6 +2710,7 @@ export default function SignatureCenterMockup({
       const keywordMatch =
         !keyword ||
         doc.agentName.toLowerCase().includes(keyword) ||
+        getMonthlyDocumentRef(doc, documents).toLowerCase().includes(keyword) ||
         doc.documentHash.toLowerCase().includes(keyword) ||
         doc.monthKey.toLowerCase().includes(keyword) ||
         doc.monthLabel.toLowerCase().includes(keyword) ||
@@ -2723,7 +2724,7 @@ export default function SignatureCenterMockup({
         );
       return statusMatch && monthMatch && keywordMatch;
     }).sort((a, b) => a.agentName.localeCompare(b.agentName, "th"));
-  }, [confirmedDocs, currentUser, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
+  }, [confirmedDocs, currentUser, documents, pendingAppealCaseMap, search, selectedMonth, signatures, statusFilter, visibleDocuments]);
 
   const historyFilteredDocuments = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -2734,6 +2735,7 @@ export default function SignatureCenterMockup({
       const keywordMatch =
         !keyword ||
         doc.agentName.toLowerCase().includes(keyword) ||
+        getMonthlyDocumentRef(doc, documents).toLowerCase().includes(keyword) ||
         doc.documentHash.toLowerCase().includes(keyword) ||
         doc.monthKey.toLowerCase().includes(keyword) ||
         doc.monthLabel.toLowerCase().includes(keyword) ||
@@ -2901,6 +2903,7 @@ export default function SignatureCenterMockup({
     null;
   const selectedDocument = selectedDocumentSource ? sortSignatureDocumentCases(selectedDocumentSource) : null;
   const selectedEntries = selectedDocument ? effectiveEntriesForDoc(selectedDocument, signatures) : [];
+  const selectedDocumentRef = selectedDocument ? getMonthlyDocumentRef(selectedDocument, documents) : "";
   const mySignedRoles = selectedDocument
     ? SIGNATURE_FLOW.filter((role) => {
         const signed = getSignedEntry(selectedEntries, role);
@@ -3264,8 +3267,8 @@ export default function SignatureCenterMockup({
     {
       const pageW = 210;
       const pageH = 297;
-      const left = 18;
-      const tableW = 174;
+      const left = 12;
+      const tableW = 186;
       const bottom = 289;
       const purple: [number, number, number] = [112, 48, 160];
       const purpleDark: [number, number, number] = [91, 44, 131];
@@ -3331,7 +3334,7 @@ export default function SignatureCenterMockup({
         const align = options.align ?? "left";
         const color = options.color ?? black;
         const maxLines = options.maxLines ?? 2;
-        const lineHeight = options.lineHeight ?? size * 0.36 + 1.3;
+        const lineHeight = options.lineHeight ?? size * 0.42 + 1.35;
         pdf.setLineWidth(0.15);
         pdf.setDrawColor(border[0], border[1], border[2]);
         pdf.setFillColor(fill[0], fill[1], fill[2]);
@@ -3377,22 +3380,22 @@ export default function SignatureCenterMockup({
       };
 
       const drawHeader = (title: string, subtitle: string) => {
-        drawCell(left, y, tableW, 7.2, title, purple, {
+        drawCell(left, y, tableW, 9.2, title, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 12.5,
+          size: 15.6,
           align: "left",
           maxLines: 1,
         });
-        y += 7.2;
-        drawCell(left, y, tableW, 5.3, subtitle, purple, {
+        y += 9.2;
+        drawCell(left, y, tableW, 7.0, subtitle, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 7,
+          size: 9.0,
           align: "left",
           maxLines: 1,
         });
-        y += 7;
+        y += 8.2;
       };
 
       const drawSection = (title: string) => {
@@ -3400,14 +3403,14 @@ export default function SignatureCenterMockup({
           pdf.addPage();
           y = 10;
         }
-        drawCell(left, y, tableW, 5.8, title, purple, {
+        drawCell(left, y, tableW, 7.2, title, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 7.8,
+          size: 10.0,
           align: "left",
           maxLines: 1,
         });
-        y += 6.5;
+        y += 8.0;
       };
 
       const drawLabelValue = (
@@ -3424,13 +3427,13 @@ export default function SignatureCenterMockup({
         drawCellCols(labelStart, labelEnd, rowY, h, label, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 6.9,
+          size: 8.4,
           align: "center",
           maxLines: 2,
         });
         drawCellCols(valueStart, valueEnd, rowY, h, value, lightPurple, {
           bold: true,
-          size: 7.1,
+          size: 8.8,
           align: "center",
           maxLines: 2,
           ...valueOptions,
@@ -3504,6 +3507,7 @@ export default function SignatureCenterMockup({
       const signedRoles = SIGNATURE_FLOW.filter((role) => Boolean(getSignedEntry(entries, role))).length;
       const criticalCases = 0;
       const documentStatus = isComplete ? "Completed Signature" : "Incomplete Signature";
+      const pdfDocumentRef = getMonthlyDocumentRef(selectedDocument, documents);
       const incentiveText =
         Number(individualIncentive.promo || 0) > 0
           ? `${individualIncentive.label || "No Incentive"}\nCash ${formatBahtAmount(individualIncentive.cash || 0)} / Promo ${formatBahtAmount(individualIncentive.promo || 0)}`
@@ -3515,111 +3519,111 @@ export default function SignatureCenterMockup({
       );
 
       drawSection("Current View");
-      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 8.5, { maxLines: 2 });
-      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 8.5);
-      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 8.5);
-      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 8.5);
-      y += 9.5;
+      drawLabelValue(0, 1, 1, 3, "Agent", selectedDocument.agentName, y, 10.0, { maxLines: 2 });
+      drawLabelValue(3, 4, 4, 6, "Month", selectedDocument.monthLabel, y, 10.0);
+      drawLabelValue(6, 7, 7, 8, "Reviewed Cases", selectedDocument.caseCount, y, 10.0);
+      drawLabelValue(8, 9, 9, 10, "Critical Cases", criticalCases, y, 10.0);
+      y += 11.0;
 
-      drawCellCols(0, 3, y, 6.2, "Cases Reviewed", purple, {
+      drawCellCols(0, 3, y, 7.4, "Cases Reviewed", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
       });
-      drawCellCols(3, 6, y, 6.2, "Need More to 10", purple, {
+      drawCellCols(3, 6, y, 7.4, "Need More to 10", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
       });
-      drawCellCols(6, 9, y, 6.2, "Average Score", purple, {
+      drawCellCols(6, 9, y, 7.4, "Average Score", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
       });
-      drawCellCols(9, 10, y, 6.2, "Monthly Grade", purple, {
+      drawCellCols(9, 10, y, 7.4, "Monthly Grade", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
         maxLines: 2,
       });
-      y += 6.2;
-      drawCellCols(0, 3, y, 8.6, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
+      y += 7.4;
+      drawCellCols(0, 3, y, 10.8, `${selectedDocument.caseCount}/${CASE_TARGET}`, lightPurple, {
         bold: true,
-        size: 10.5,
+        size: 13.0,
         align: "center",
         maxLines: 1,
       });
-      drawCellCols(3, 6, y, 8.6, needMoreToTarget, lightPurple, {
+      drawCellCols(3, 6, y, 10.8, needMoreToTarget, lightPurple, {
         bold: true,
-        size: 10.5,
+        size: 13.0,
         align: "center",
         maxLines: 1,
       });
-      drawCellCols(6, 9, y, 8.6, selectedDocument.averageScore.toFixed(2), lightPurple, {
+      drawCellCols(6, 9, y, 10.8, selectedDocument.averageScore.toFixed(2), lightPurple, {
         bold: true,
-        size: 10.5,
+        size: 13.0,
         align: "center",
         color: selectedDocument.averageScore >= 80 ? good : warn,
         maxLines: 1,
       });
-      drawCellCols(9, 10, y, 8.6, selectedDocument.grade, lightPurple, {
+      drawCellCols(9, 10, y, 10.8, selectedDocument.grade, lightPurple, {
         bold: true,
-        size: 10.5,
+        size: 13.0,
         align: "center",
         maxLines: 1,
       });
-      y += 11;
+      y += 13.0;
 
       drawSection("Incentive Summary");
-      drawCellCols(0, 3, y, 6.2, "Incentive", purple, {
+      drawCellCols(0, 3, y, 7.4, "Incentive", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
       });
-      drawCellCols(3, 6, y, 6.2, "Best Topic", purple, {
+      drawCellCols(3, 6, y, 7.4, "Best Topic", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
       });
-      drawCellCols(6, 10, y, 6.2, "Lowest Topic", purple, {
+      drawCellCols(6, 10, y, 7.4, "Lowest Topic", purple, {
         bold: true,
         color: [255, 255, 255],
-        size: 7,
+        size: 8.7,
         align: "center",
       });
-      y += 6.2;
-      drawCellCols(0, 3, y, 9.8, incentiveText, lightPurple, {
+      y += 7.4;
+      drawCellCols(0, 3, y, 12.0, incentiveText, lightPurple, {
         bold: true,
-        size: 7,
+        size: 8.8,
         align: "center",
         maxLines: 2,
       });
-      drawCellCols(3, 6, y, 9.8, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+      drawCellCols(3, 6, y, 12.0, bestTopic ? `${bestTopic.title}\n${Number(bestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
-        size: 7,
+        size: 8.3,
         align: "center",
         maxLines: 2,
       });
-      drawCellCols(6, 10, y, 9.8, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
+      drawCellCols(6, 10, y, 12.0, lowestTopic ? `${lowestTopic.title}\n${Number(lowestTopic.avgPercent).toFixed(2)}%` : "-", lightPurple, {
         bold: true,
-        size: 7,
+        size: 8.3,
         align: "center",
         maxLines: 2,
       });
-      y += 12;
+      y += 14.0;
 
       drawSection("Monthly Case List");
-      const caseColWidths = [9, 21, 21, 91, 15, 8, 9];
+      const caseColWidths = [10, 23, 24, 96, 16, 8, 9];
       drawCellsByWidth(
         left,
         y,
-        5.8,
+        7.4,
         ["Seq", "Case Date", "Case ID", "Inquiry", "Score", "Grade", "Critical"].map((label, index) => ({
           value: label,
           width: caseColWidths[index],
@@ -3627,25 +3631,25 @@ export default function SignatureCenterMockup({
           options: {
             bold: true,
             color: [255, 255, 255],
-            size: 5.9,
+            size: 7.8,
             align: "center",
             maxLines: 1,
           },
         }))
       );
-      y += 5.8;
+      y += 7.4;
       for (let index = 0; index < CASE_TARGET; index += 1) {
         const item = selectedDocument.cases[index];
-        const rowH = 5.8;
+        const rowH = 8.4;
         const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
         drawCellsByWidth(left, y, rowH, [
-          { value: index + 1, width: caseColWidths[0], fill, options: { size: 5.8, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 5.45, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 5.45, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 5.2, align: "left", bold: true, maxLines: 1 } },
-          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 5.7, align: "center", bold: true, maxLines: 1 } },
-          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 5.7, align: "center", bold: true, maxLines: 1 } },
-          { value: "NO", width: caseColWidths[6], fill, options: { size: 5.45, align: "center", bold: true, maxLines: 1 } },
+          { value: index + 1, width: caseColWidths[0], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.auditDate || "-", width: caseColWidths[1], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.caseId || "-", width: caseColWidths[2], fill, options: { size: 7.1, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.inquiry || "-", width: caseColWidths[3], fill, options: { size: 7.0, align: "left", bold: true, maxLines: 2, lineHeight: 3.55 } },
+          { value: item ? item.finalScore.toFixed(2) : "-", width: caseColWidths[4], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
+          { value: item?.grade || "-", width: caseColWidths[5], fill, options: { size: 7.5, align: "center", bold: true, maxLines: 1 } },
+          { value: "NO", width: caseColWidths[6], fill, options: { size: 7.0, align: "center", bold: true, maxLines: 1 } },
         ]);
         y += rowH;
       }
@@ -3660,15 +3664,15 @@ export default function SignatureCenterMockup({
           [6, 7, "Max"],
           [7, 10, "Avg %"],
         ].forEach(([start, end, label]) => {
-          drawCellCols(Number(start), Number(end), y, 5.8, String(label), purple, {
+          drawCellCols(Number(start), Number(end), y, 7.4, String(label), purple, {
             bold: true,
             color: [255, 255, 255],
-            size: 6.3,
+            size: 8.0,
             align: "center",
             maxLines: 1,
           });
         });
-        y += 5.8;
+        y += 7.4;
       };
       const formatMetric = (value: number | null) => (value === null || !Number.isFinite(value) ? "-" : value.toFixed(2));
       const formatTopicMax = (value: number) =>
@@ -3676,17 +3680,17 @@ export default function SignatureCenterMockup({
 
       drawTopicHeader();
       if (!topicStats.length) {
-        drawCell(left, y, tableW, 7, "No topic score data for this document", [250, 247, 253], {
-          size: 6.3,
+        drawCell(left, y, tableW, 8.8, "No topic score data for this document", [250, 247, 253], {
+          size: 8.2,
           align: "center",
           bold: true,
           color: muted,
           maxLines: 1,
         });
-        y += 7;
+        y += 8.8;
       } else {
         topicStats.forEach((item, index) => {
-          const topicRowH = 5.9;
+          const topicRowH = 8.0;
           if (y + topicRowH > bottom - 4) {
             pdf.addPage();
             y = 10;
@@ -3694,12 +3698,12 @@ export default function SignatureCenterMockup({
             drawTopicHeader();
           }
           const fill: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : [250, 247, 253];
-          drawCellCols(0, 1, y, topicRowH, item.code, fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
-          drawCellCols(1, 4, y, topicRowH, item.title, fill, { size: 5.95, align: "left", bold: true, maxLines: 1 });
-          drawCellCols(4, 6, y, topicRowH, formatMetric(item.avgScore), fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
-          drawCellCols(6, 7, y, topicRowH, formatTopicMax(item.max), fill, { size: 6.1, align: "center", bold: true, maxLines: 1 });
+          drawCellCols(0, 1, y, topicRowH, item.code, fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
+          drawCellCols(1, 4, y, topicRowH, item.title, fill, { size: 7.4, align: "left", bold: true, maxLines: 1 });
+          drawCellCols(4, 6, y, topicRowH, formatMetric(item.avgScore), fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
+          drawCellCols(6, 7, y, topicRowH, formatTopicMax(item.max), fill, { size: 7.8, align: "center", bold: true, maxLines: 1 });
           drawCellCols(7, 10, y, topicRowH, item.avgPercent === null ? "-" : `${item.avgPercent.toFixed(2)}%`, fill, {
-            size: 6.1,
+            size: 7.8,
             align: "center",
             bold: true,
             maxLines: 1,
@@ -3710,13 +3714,13 @@ export default function SignatureCenterMockup({
 
       y += 3;
       drawSection("Acknowledgement / Signature");
-      drawCell(left, y, tableW, 4.6, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255, 255, 255], {
-        size: 6.2,
+      drawCell(left, y, tableW, 5.4, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255, 255, 255], {
+        size: 7.2,
         align: "left",
         color: muted,
         maxLines: 1,
       });
-      y += 5.2;
+      y += 6.2;
 
       const signerName = (role: SignRole) => {
         const signed = getSignedEntry(entries, role);
@@ -3732,9 +3736,7 @@ export default function SignatureCenterMockup({
         const signature = signatureData(role);
         normalizedSignatures.set(role, signature ? await normalizeSignatureDataUrl(signature) : "");
       }
-      const pdfDocumentRef = getMonthlyDocumentRef(selectedDocument, documents);
-
-      const signatureBlockHeight = 62;
+      const signatureBlockHeight = 74;
       if (y + signatureBlockHeight > bottom - 5) {
         pdf.addPage();
         y = 12;
@@ -3755,11 +3757,11 @@ export default function SignatureCenterMockup({
         const labelX = centerX - 20;
         const lineStart = centerX - 18;
         const lineEnd = centerX + 25;
-        setTemplateFont(5.25, false, muted);
+        setTemplateFont(6.0, false, muted);
         pdf.text(label, labelX, lineY - 0.25, { align: "right" });
         drawDottedLine(lineStart, lineY, lineEnd);
         if (value) {
-          setTemplateFont(5.05, true, black);
+          setTemplateFont(5.9, true, black);
           pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });
         }
       };
@@ -3771,16 +3773,16 @@ export default function SignatureCenterMockup({
         role: SignRole,
         roleTitle: string
       ) => {
-        drawCell(x, panelY, w, 4.6, roleTitle, purple, {
+        drawCell(x, panelY, w, 5.2, roleTitle, purple, {
           bold: true,
           color: [255, 255, 255],
-          size: 6.4,
+          size: 7.0,
           align: "center",
           maxLines: 1,
         });
-        const signatureAreaY = panelY + 4.6;
-        const signatureAreaH = 12.8;
-        const signLineY = signatureAreaY + 8.9;
+        const signatureAreaY = panelY + 5.2;
+        const signatureAreaH = 14.2;
+        const signLineY = signatureAreaY + 9.9;
         const centerX = x + w / 2;
         drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
         drawSignedLine("ลงชื่อ", centerX, signLineY);
@@ -3789,8 +3791,8 @@ export default function SignatureCenterMockup({
           try {
             const imageProps = pdf.getImageProperties(signature);
             const ratio = imageProps.width && imageProps.height ? imageProps.width / imageProps.height : 4;
-            const maxImageW = Math.min(w - 38, 45);
-            const maxImageH = 8.8;
+            const maxImageW = Math.min(w - 38, 46);
+            const maxImageH = 9.6;
             let imageW = maxImageW;
             let imageH = imageW / ratio;
             if (imageH > maxImageH) {
@@ -3799,33 +3801,33 @@ export default function SignatureCenterMockup({
             }
             pdf.addImage(signature, "PNG", centerX - imageW / 2, signLineY - imageH + 0.9, imageW, imageH);
           } catch {
-            setTemplateFont(5.6, false, muted);
+            setTemplateFont(6.0, false, muted);
             pdf.text("Signature image unavailable", centerX, signLineY - 1.5, { align: "center" });
           }
         }
-        drawCell(x, panelY + 17.4, w, 3.8, signerName(role), [255, 255, 255], {
+        drawCell(x, panelY + 19.4, w, 4.2, signerName(role), [255, 255, 255], {
           bold: true,
-          size: 5.6,
+          size: 6.4,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 21.2, w, 3.4, roleTitle, [255, 255, 255], {
-          size: 5.1,
+        drawCell(x, panelY + 23.6, w, 3.8, roleTitle, [255, 255, 255], {
+          size: 5.8,
           align: "center",
           maxLines: 1,
         });
-        drawCell(x, panelY + 24.6, w, 4.0, "", [255, 255, 255], { size: 5.1, align: "center" });
-        drawSignedLine("วันที่", centerX, panelY + 27.15, signerDate(role));
+        drawCell(x, panelY + 27.4, w, 4.6, "", [255, 255, 255], { size: 5.8, align: "center" });
+        drawSignedLine("วันที่", centerX, panelY + 30.3, signerDate(role));
       };
 
       const halfW = tableW / 2 - 3;
       drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
       drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
-      y += 32;
+      y += 35.5;
       drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
       drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
 
-      setTemplateFont(6.2, false, muted);
+      setTemplateFont(7.0, false, muted);
       pdf.text(
         `Document Ref. ${pdfDocumentRef} | Generated: ${formatDateTime(new Date().toISOString())} | ${documentStatus} | Signed: ${signedRoles}/${SIGNATURE_FLOW.length}`,
         left + tableW,
@@ -3835,7 +3837,7 @@ export default function SignatureCenterMockup({
 
       const safeAgentFileName =
         selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
-      const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}.pdf`;
+      const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}_${pdfDocumentRef}.pdf`;
       downloadBlob(pdf.output("blob"), fileName);
       setPdfMessage(`Generated ${fileName}`);
       window.setTimeout(() => setPdfMessage(""), 3500);
@@ -4905,6 +4907,7 @@ export default function SignatureCenterMockup({
                     const status = getWorkspaceStatus(doc, entries);
                     const dueDate = getSignatureDueDate(doc.monthKey);
                     const selected = selectedDocument?.id === doc.id;
+                    const documentRef = getMonthlyDocumentRef(doc, documents);
                     return (
                       <button
                         key={doc.id}
@@ -4915,7 +4918,7 @@ export default function SignatureCenterMockup({
                         }`}
                       >
                         <div><span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-700">{doc.monthLabel}</span></div>
-                        <div className="truncate font-black text-violet-800" title={getDocumentPrimaryCaseId(doc)}>{getDocumentPrimaryCaseId(doc)}</div>
+                        <div className="truncate font-black text-violet-800" title={documentRef}>{documentRef}</div>
                         <div className="min-w-0">
                           <div className="truncate font-black text-slate-950">{doc.agentName}</div>
                           <div className="text-xs font-semibold text-slate-400">{doc.caseCount} cases / {doc.averageScore.toFixed(2)}</div>
@@ -4978,7 +4981,7 @@ export default function SignatureCenterMockup({
               <div>
                 <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">รายละเอียดเอกสารที่เลือก</div>
                 <div className="mt-1 text-lg font-black text-slate-950">
-                  {getDocumentPrimaryCaseId(selectedDocument)} • {selectedDocument.agentName}
+                  {selectedDocumentRef} • {selectedDocument.agentName}
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">
                   {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / ผู้ลงนามปัจจุบัน: {getPendingRoles(selectedEntries)[0] ? roleThaiLabel(getPendingRoles(selectedEntries)[0]) : "ครบแล้ว"}
@@ -4993,7 +4996,7 @@ export default function SignatureCenterMockup({
               <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="grid gap-3 md:grid-cols-2">
                   {[
-                    ["Document Ref.", getDocumentPrimaryCaseId(selectedDocument)],
+                    ["Document Ref.", selectedDocumentRef],
                     ["เดือนเอกสาร", selectedDocument.monthLabel],
                     ["ผู้ถูกประเมิน", selectedDocument.agentName],
                     ["ทีม", selectedDocument.teamName || "-"],
