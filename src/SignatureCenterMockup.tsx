@@ -1666,7 +1666,7 @@ function generatePaymentExcelFile(
       getSignatureValidationRoleText(doc, entries, "Supervisor"),
       getSignatureValidationRoleText(doc, entries, "Senior"),
       getSignatureValidationRoleText(doc, entries, "Agent"),
-      doc.documentHash.slice(0, 10),
+      getMonthlyDocumentRef(doc, allMonthDocs.length ? allMonthDocs : sortedDocs),
       getSignatureValidationStatus(doc, entries, exportsAllEvaluated),
     ]);
   });
@@ -1817,7 +1817,7 @@ function generatePaymentPdfFile(
     pdf.rect(left, y, right - left, 8, "FD");
     let cx = left;
     headers.forEach(([label, width]) => {
-      const align = label === "Seq" || label === "Cases" || label === "Avg" || label === "Grade" || label === "Critical" ? "center" : "left";
+      const align = label === "Seq" || label === "Cases" || label === "Avg" || label === "Grade" ? "center" : "left";
       drawColText(label, cx, y + 5.6, width, 7.6, true, [88, 28, 135], align);
       cx += width;
     });
@@ -1926,7 +1926,7 @@ function generatePaymentPdfFile(
     let cx = left;
     row.forEach((value, colIndex) => {
       const [label, width] = rankingHeaders[colIndex];
-      const align = label === "Seq" || label === "Cases" || label === "Avg" || label === "Grade" || label === "Critical" ? "center" : "left";
+      const align = label === "Seq" || label === "Cases" || label === "Avg" || label === "Grade" ? "center" : "left";
       drawColText(value, cx, y + 5.4, width, label === "Status" ? 6.8 : 7.3, colIndex === 1 || label === "Incentive", [31, 41, 55], align);
       cx += width;
     });
@@ -4632,13 +4632,13 @@ export default function SignatureCenterMockup({
         </div>
 
         <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
-          <div className="min-w-[1280px]">
-            <div className="grid grid-cols-[110px_190px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
+          <div className="min-w-[1260px]">
+            <div className="grid grid-cols-[86px_150px_minmax(160px,1fr)_120px_130px_105px_190px_105px_110px_112px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
               <div>เดือน</div>
               <div>Document Ref.</div>
               <div>ผู้ถูกประเมิน</div>
               <div>ทีม</div>
-              <div>ประเเธ ทเอกสาร</div>
+              <div>ประเภทเอกสาร</div>
               <div>สถานะ</div>
               <div>Audit Date</div>
               <div>กำหนดเซ็น</div>
@@ -4670,7 +4670,7 @@ export default function SignatureCenterMockup({
                         key={doc.id}
                         type="button"
                         onClick={() => openWorkspaceDetail(doc.id)}
-                        className={`grid w-full grid-cols-[110px_190px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] items-center border-t px-4 py-3 text-left text-sm transition ${
+                        className={`grid w-full grid-cols-[86px_150px_minmax(160px,1fr)_120px_130px_105px_190px_105px_110px_112px] items-center border-t px-4 py-3 text-left text-sm transition ${
                           selected ? "border-violet-200 bg-violet-50" : "border-slate-100 bg-white hover:bg-slate-50"
                         }`}
                       >
@@ -4741,7 +4741,7 @@ export default function SignatureCenterMockup({
                   {selectedDocumentRef} • {selectedDocument.agentName}
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / ผู้ลงนามปัจจุบัน: {getPendingRoles(selectedEntries)[0] ? roleThaiLabel(getPendingRoles(selectedEntries)[0]) : "ครบแล้ว"}
+                  {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / เหลือ Role ที่ต้องเซ็น: {getPendingRoleText(selectedDocument, selectedEntries)}
                 </div>
               </div>
               <span className="rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white">
@@ -4757,7 +4757,7 @@ export default function SignatureCenterMockup({
                     ["เดือนเอกสาร", selectedDocument.monthLabel],
                     ["ผู้ถูกประเมิน", selectedDocument.agentName],
                     ["ทีม", selectedDocument.teamName || "-"],
-                    ["ประเเธ ทเอกสาร", getDocumentTypeLabel(selectedDocument)],
+                    ["ประเภทเอกสาร", getDocumentTypeLabel(selectedDocument)],
                     ["สถานะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
                     ["Audit Date ล่าสุด", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
                     ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
