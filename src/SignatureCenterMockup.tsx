@@ -3910,7 +3910,7 @@ export default function SignatureCenterMockup({
       qaDoc.setFont("THSarabunNew", "normal");
     } catch {}
 
-    const pageW = 297;
+    const pageW = 210;
     const pageH = 210;
     const sidebarW = 36;
     const leftX = sidebarW + 8;
