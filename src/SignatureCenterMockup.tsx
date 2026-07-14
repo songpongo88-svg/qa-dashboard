@@ -132,7 +132,7 @@ const SIGNATURE_JAN_FEB_2026_TOPIC_MASTER = [
   { code: "1", label: "เปิด-ปิดการสนทนา", max: 10 },
   { code: "2", label: "วิเคราะห์/แก้ไข", max: 30 },
   { code: "3", label: "ปฏิบัติตามขั้นตอน", max: 20 },
-  { code: "4", label: "ความสุเธ าพ", max: 10 },
+  { code: "4", label: "ความสุภาพ", max: 10 },
   { code: "5", label: "ภาษา", max: 20 },
   { code: "6", label: "ระยะเวลา", max: 10 },
 ] as const;
@@ -167,7 +167,7 @@ const SIGNATURE_APRIL_2026_TOPIC_MASTER = [
   { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
   { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
   { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
-  { code: "4.2", label: "ความกระชับและความถูกต้องของเธ าษา", max: 5 },
+  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
   { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
 ] as const;
 
@@ -4353,7 +4353,7 @@ export default function SignatureCenterMockup({
                 <div className="text-xs font-black uppercase tracking-[0.32em] text-violet-100">QA Operations</div>
                 <div className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">Signature Workspace</div>
                 <div className="mt-3 text-sm font-semibold leading-6 text-violet-100">
-                  เธ•เธดเธ”เธ•เธฒเธกเนเธฅเธฐเธเธฑเธ”เธเธฒเธฃเน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธกเธเธญเธเธ—เธตเธก เนเธขเธเธ•เธฒเธกเน€เธ”เธทเธญเธ เธชเธ–เธฒเธเธฐ เนเธฅเธฐเธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธเนเธ”เนเนเธเธ—เธตเนเน€เธ”เธตเธขเธง
+                  ติดตามและจัดการเอกสารลงนามของทีม แยกตามเดือน สถานะ และผู้รับผิดชอบได้ในที่เดียว
                 </div>
               </div>
             </div>
@@ -4384,19 +4384,19 @@ export default function SignatureCenterMockup({
       <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
         <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">1. Preview Score + 10 Cases</span>
-          <span className="text-slate-300">{' > '}</span>
+          <span className="text-slate-300">{'>'}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">2. Confirm</span>
-          <span className="text-slate-300">{' > '}</span>
+          <span className="text-slate-300">{'>'}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">3. QA</span>
-          <span className="text-slate-300">{' > '}</span>
+          <span className="text-slate-300">{'>'}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">4. Supervisor</span>
-          <span className="text-slate-300">{' > '}</span>
+          <span className="text-slate-300">{'>'}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">5. Team Lead</span>
-          <span className="text-slate-300">{' > '}</span>
+          <span className="text-slate-300">{'>'}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
-          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันได้ / จ่ายรอบปัจจุบันเฉพาะคนที่เซ็นครบเธ ายในวันที่ 15 / เซ็นหลังจากนั้นไปรอบจ่ายถัดไป
+          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันได้ / จ่ายรอบปัจจุบันเฉพาะคนที่เซ็นครบภายในวันที่ 15 / เซ็นหลังจากนั้นไปรอบจ่ายถัดไป
         </div>
       </div>
 
@@ -4406,7 +4406,7 @@ export default function SignatureCenterMockup({
             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Monthly Incentive Payment Export</div>
             <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน (PDF ตาม Template)</div>
             <div className="mt-1 text-sm leading-6 text-slate-500">
-              หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role เธ ายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
+              หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role ภายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
             </div>
           </div>
           <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
