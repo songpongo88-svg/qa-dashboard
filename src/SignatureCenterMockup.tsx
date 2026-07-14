@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
@@ -129,12 +129,12 @@ const SIGNATURE_TOPIC_MISSING = "__signature_topic_missing__";
 type SignatureTopicMasterItem = { code: string; label: string; max: number };
 
 const SIGNATURE_JAN_FEB_2026_TOPIC_MASTER = [
-  { code: "1", label: "เปิด-ปิดการสนทนา", max: 10 },
-  { code: "2", label: "วิเคราะห์/แก้ไข", max: 30 },
-  { code: "3", label: "ปฏิบัติตามขั้นตอน", max: 20 },
-  { code: "4", label: "ความสุภาพ", max: 10 },
-  { code: "5", label: "ภาษา", max: 20 },
-  { code: "6", label: "ระยะเวลา", max: 10 },
+  { code: "1", label: "เน€เธเธดเธ”-เธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
+  { code: "2", label: "เธงเธดเน€เธเธฃเธฒเธฐเธซเน/เนเธเนเนเธ", max: 30 },
+  { code: "3", label: "เธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฑเนเธเธ•เธญเธ", max: 20 },
+  { code: "4", label: "เธเธงเธฒเธกเธชเธธเธ เธฒเธ", max: 10 },
+  { code: "5", label: "เธ เธฒเธฉเธฒ", max: 20 },
+  { code: "6", label: "เธฃเธฐเธขเธฐเน€เธงเธฅเธฒ", max: 10 },
 ] as const;
 
 const SIGNATURE_LEGACY_TOPIC_MASTER = [
@@ -158,17 +158,17 @@ const SIGNATURE_LEGACY_TOPIC_MASTER = [
 ] as const;
 
 const SIGNATURE_APRIL_2026_TOPIC_MASTER = [
-  { code: "1.1", label: "มาตรฐานการทักทายและปิดการสนทนา", max: 10 },
-  { code: "1.2", label: "การปฏิบัติตาม PDPA / Policy / ข้อกำหนด", max: 10 },
-  { code: "1.3", label: "การปฏิบัติตามกระบวนการและ SLA", max: 10 },
-  { code: "2.1", label: "ความถูกต้องของคำตอบ", max: 10 },
-  { code: "2.2", label: "ความครบถ้วนของคำตอบ", max: 10 },
-  { code: "2.3", label: "ความชัดเจนของขั้นตอนและแหล่งอ้างอิง", max: 5 },
-  { code: "3.1", label: "การวิเคราะห์และแก้ไขปัญหาได้ตรงจุด", max: 15 },
-  { code: "3.2", label: "Ownership และการแจ้ง Next Step", max: 10 },
-  { code: "4.1", label: "โครงสร้างข้อความและความอ่านง่าย", max: 5 },
-  { code: "4.2", label: "ความกระชับและความถูกต้องของภาษา", max: 5 },
-  { code: "4.3", label: "น้ำเสียงและความเหมาะสมตามสถานการณ์", max: 10 },
+  { code: "1.1", label: "เธกเธฒเธ•เธฃเธเธฒเธเธเธฒเธฃเธ—เธฑเธเธ—เธฒเธขเนเธฅเธฐเธเธดเธ”เธเธฒเธฃเธชเธเธ—เธเธฒ", max: 10 },
+  { code: "1.2", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธก PDPA / Policy / เธเนเธญเธเธณเธซเธเธ”", max: 10 },
+  { code: "1.3", label: "เธเธฒเธฃเธเธเธดเธเธฑเธ•เธดเธ•เธฒเธกเธเธฃเธฐเธเธงเธเธเธฒเธฃเนเธฅเธฐ SLA", max: 10 },
+  { code: "2.1", label: "เธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
+  { code: "2.2", label: "เธเธงเธฒเธกเธเธฃเธเธ–เนเธงเธเธเธญเธเธเธณเธ•เธญเธ", max: 10 },
+  { code: "2.3", label: "เธเธงเธฒเธกเธเธฑเธ”เน€เธเธเธเธญเธเธเธฑเนเธเธ•เธญเธเนเธฅเธฐเนเธซเธฅเนเธเธญเนเธฒเธเธญเธดเธ", max: 5 },
+  { code: "3.1", label: "เธเธฒเธฃเธงเธดเน€เธเธฃเธฒเธฐเธซเนเนเธฅเธฐเนเธเนเนเธเธเธฑเธเธซเธฒเนเธ”เนเธ•เธฃเธเธเธธเธ”", max: 15 },
+  { code: "3.2", label: "Ownership เนเธฅเธฐเธเธฒเธฃเนเธเนเธ Next Step", max: 10 },
+  { code: "4.1", label: "เนเธเธฃเธเธชเธฃเนเธฒเธเธเนเธญเธเธงเธฒเธกเนเธฅเธฐเธเธงเธฒเธกเธญเนเธฒเธเธเนเธฒเธข", max: 5 },
+  { code: "4.2", label: "เธเธงเธฒเธกเธเธฃเธฐเธเธฑเธเนเธฅเธฐเธเธงเธฒเธกเธ–เธนเธเธ•เนเธญเธเธเธญเธเธ เธฒเธฉเธฒ", max: 5 },
+  { code: "4.3", label: "เธเนเธณเน€เธชเธตเธขเธเนเธฅเธฐเธเธงเธฒเธกเน€เธซเธกเธฒเธฐเธชเธกเธ•เธฒเธกเธชเธ–เธฒเธเธเธฒเธฃเธ“เน", max: 10 },
 ] as const;
 
 const SIGNATURE_JUNE_2026_TOPIC_MASTER = [
@@ -190,7 +190,7 @@ function normalizeKey(value: unknown) {
 }
 
 function compactPerson(value: unknown) {
-  return normalizeText(value).toLowerCase().replace(/[^a-z0-9ก-๙]/g, "");
+  return normalizeText(value).toLowerCase().replace(/[^a-z0-9เธ-เน]/g, "");
 }
 
 function isSamePerson(a: unknown, b: unknown) {
@@ -279,21 +279,21 @@ function parseMonthValueToDate(value: unknown): Date | null {
   const yearMonthMatch = text.match(/^(20\d{2})[-/](\d{1,2})$/);
   if (yearMonthMatch) return new Date(Number(yearMonthMatch[1]), Number(yearMonthMatch[2]) - 1, 1);
 
-  const thaiMonthMatch = text.match(/(ม\.ค\.|มกราคม|ก\.พ\.|กุมภาพันธ์|มี\.ค\.|มีนาคม|เม\.ย\.|เมษายน|พ\.ค\.|พฤษภาคม|มิ\.ย\.|มิถุนายน|ก\.ค\.|กรกฎาคม|ส\.ค\.|สิงหาคม|ก\.ย\.|กันยายน|ต\.ค\.|ตุลาคม|พ\.ย\.|พฤศจิกายน|ธ\.ค\.|ธันวาคม)\s*(\d{2,4})/);
+  const thaiMonthMatch = text.match(/(เธก\.เธ\.|เธกเธเธฃเธฒเธเธก|เธ\.เธ\.|เธเธธเธกเธ เธฒเธเธฑเธเธเน|เธกเธต\.เธ\.|เธกเธตเธเธฒเธเธก|เน€เธก\.เธข\.|เน€เธกเธฉเธฒเธขเธ|เธ\.เธ\.|เธเธคเธฉเธ เธฒเธเธก|เธกเธด\.เธข\.|เธกเธดเธ–เธธเธเธฒเธขเธ|เธ\.เธ\.|เธเธฃเธเธเธฒเธเธก|เธช\.เธ\.|เธชเธดเธเธซเธฒเธเธก|เธ\.เธข\.|เธเธฑเธเธขเธฒเธขเธ|เธ•\.เธ\.|เธ•เธธเธฅเธฒเธเธก|เธ\.เธข\.|เธเธคเธจเธเธดเธเธฒเธขเธ|เธ\.เธ\.|เธเธฑเธเธงเธฒเธเธก)\s*(\d{2,4})/);
   if (thaiMonthMatch) {
     const map: Record<string, number> = {
-      "ม.ค.": 0, "มกราคม": 0,
-      "ก.พ.": 1, "กุมภาพันธ์": 1,
-      "มี.ค.": 2, "มีนาคม": 2,
-      "เม.ย.": 3, "เมษายน": 3,
-      "พ.ค.": 4, "พฤษภาคม": 4,
-      "มิ.ย.": 5, "มิถุนายน": 5,
-      "ก.ค.": 6, "กรกฎาคม": 6,
-      "ส.ค.": 7, "สิงหาคม": 7,
-      "ก.ย.": 8, "กันยายน": 8,
-      "ต.ค.": 9, "ตุลาคม": 9,
-      "พ.ย.": 10, "พฤศจิกายน": 10,
-      "ธ.ค.": 11, "ธันวาคม": 11,
+      "เธก.เธ.": 0, "เธกเธเธฃเธฒเธเธก": 0,
+      "เธ.เธ.": 1, "เธเธธเธกเธ เธฒเธเธฑเธเธเน": 1,
+      "เธกเธต.เธ.": 2, "เธกเธตเธเธฒเธเธก": 2,
+      "เน€เธก.เธข.": 3, "เน€เธกเธฉเธฒเธขเธ": 3,
+      "เธ.เธ.": 4, "เธเธคเธฉเธ เธฒเธเธก": 4,
+      "เธกเธด.เธข.": 5, "เธกเธดเธ–เธธเธเธฒเธขเธ": 5,
+      "เธ.เธ.": 6, "เธเธฃเธเธเธฒเธเธก": 6,
+      "เธช.เธ.": 7, "เธชเธดเธเธซเธฒเธเธก": 7,
+      "เธ.เธข.": 8, "เธเธฑเธเธขเธฒเธขเธ": 8,
+      "เธ•.เธ.": 9, "เธ•เธธเธฅเธฒเธเธก": 9,
+      "เธ.เธข.": 10, "เธเธคเธจเธเธดเธเธฒเธขเธ": 10,
+      "เธ.เธ.": 11, "เธเธฑเธเธงเธฒเธเธก": 11,
     };
     let year = Number(thaiMonthMatch[2]);
     if (year < 100) year += 2500;
@@ -430,8 +430,8 @@ function getTimelineStatus(monthKey: string, now = new Date()) {
 function isSigningAllowedByDate(monthKey: string, now = new Date()) {
   if (isHistoricalPaidPeriod(monthKey)) return false;
   const window = getSignatureWindow(monthKey);
-  // เปิดให้ลงนามได้หลังปิดรอบ Appeal เป็นต้นไป
-  // ถ้าเซ็นหลัง Due Date จะถือเป็น Late Signature และไม่เข้ารอบจ่ายเดือนปัจจุบัน
+  // เน€เธเธดเธ”เนเธซเนเธฅเธเธเธฒเธกเนเธ”เนเธซเธฅเธฑเธเธเธดเธ”เธฃเธญเธ Appeal เน€เธเนเธเธ•เนเธเนเธ
+  // เธ–เนเธฒเน€เธเนเธเธซเธฅเธฑเธ Due Date เธเธฐเธ–เธทเธญเน€เธเนเธ Late Signature เนเธฅเธฐเนเธกเนเน€เธเนเธฒเธฃเธญเธเธเนเธฒเธขเน€เธ”เธทเธญเธเธเธฑเธเธเธธเธเธฑเธ
   return now >= window.openAt;
 }
 
@@ -848,7 +848,7 @@ function buildDocuments(
     const supervisorName = resolveSupervisorName(helper.get(row, ["Supervisor", "Sup"], ""));
     const qaName = safeName(helper.get(row, ["QA", "QA Name", "Auditor", "Evaluator", "Audit By"], ""), "Quality Assurance");
     const teamName = safeName(account?.teamName || helper.get(row, ["Team", "Team Name"], ""), "-");
-    const inquiry = safeName(helper.get(row, ["Customer Inquiry", "Intent", "Inquiry", "หัวข้อ"], ""), "-");
+    const inquiry = safeName(helper.get(row, ["Customer Inquiry", "Intent", "Inquiry", "เธซเธฑเธงเธเนเธญ"], ""), "-");
     const comment = safeName(helper.get(row, ["Final Comment", "Comment", "QA Comment", "Case Description"], ""), "-");
 
     const key = `${monthKey}::${agentName}`;
@@ -961,7 +961,7 @@ function buildDocumentsFromStoredEvaluations(
       getQaSignerNameByMonth(monthKey)
     );
     const teamName = safeName(account?.teamName || rawPreview["Team"] || rawPreview["Team Name"], "-");
-    const inquiry = safeName(record.inquiry || rawPreview["Customer Inquiry"] || rawPreview["Inquiry"] || rawPreview["หัวข้อ"], "-");
+    const inquiry = safeName(record.inquiry || rawPreview["Customer Inquiry"] || rawPreview["Inquiry"] || rawPreview["เธซเธฑเธงเธเนเธญ"], "-");
     const comment = safeName(record.caseDescription || rawPreview["Final Comment"] || rawPreview["Comment"] || rawPreview["QA Comment"], "-");
 
     const key = `${monthKey}::${agentName}`;
@@ -1105,10 +1105,10 @@ function getPendingRoles(entries: SignatureEntry[]) {
 }
 
 function roleThaiLabel(role: SignRole) {
-  if (role === "QA") return "QA ผู้ตรวจสอบ";
+  if (role === "QA") return "QA เธเธนเนเธ•เธฃเธงเธเธชเธญเธ";
   if (role === "Supervisor") return "Supervisor";
   if (role === "Senior") return "Senior / Team Lead";
-  return "Agent ผู้ถูกประเมิน";
+  return "Agent เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ";
 }
 
 function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
@@ -1332,7 +1332,7 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
 }
 
 function getDocumentTypeLabel(doc: SignatureDocument) {
-  return doc.eligibleByScore ? "เอกสารจ่าย Incentive รายเดือน" : "เอกสารรับทราบผล QA รายเดือน";
+  return doc.eligibleByScore ? "เน€เธญเธเธชเธฒเธฃเธเนเธฒเธข Incentive เธฃเธฒเธขเน€เธ”เธทเธญเธ" : "เน€เธญเธเธชเธฒเธฃเธฃเธฑเธเธ—เธฃเธฒเธเธเธฅ QA เธฃเธฒเธขเน€เธ”เธทเธญเธ";
 }
 
 function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
@@ -1344,10 +1344,10 @@ function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
 }
 
 function getWorkspaceStatusLabel(status: WorkspaceStatus) {
-  if (status === "signed") return "เซ็นแล้ว";
-  if (status === "expired") return "เกินกำหนด";
-  if (status === "in-progress") return "ค้างดำเนินการ";
-  return "รอเซ็น";
+  if (status === "signed") return "เน€เธเนเธเนเธฅเนเธง";
+  if (status === "expired") return "เน€เธเธดเธเธเธณเธซเธเธ”";
+  if (status === "in-progress") return "เธเนเธฒเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ";
+  return "เธฃเธญเน€เธเนเธ";
 }
 
 function getWorkspaceStatusClass(status: WorkspaceStatus) {
@@ -1476,7 +1476,7 @@ function getAgentSignedStatusText(
 
 
 function makePaymentFileName(monthKey: string) {
-  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
+  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_เธ-เน]+/g, "");
   return `Incentive_QA_Monthly_${label || monthKey}.xlsx`;
 }
 
@@ -1487,7 +1487,7 @@ function getDocumentIncentive(doc: SignatureDocument) {
       cash: 0,
       promo: 0,
       label: "0 THB / No Incentive",
-      remark: "ยังประเมินไม่ครบ 10 เคส",
+      remark: "เธขเธฑเธเธเธฃเธฐเน€เธกเธดเธเนเธกเนเธเธฃเธ 10 เน€เธเธช",
     };
   }
   return getIncentiveByGrade(doc.grade as any, doc.monthKey);
@@ -1670,7 +1670,7 @@ function generatePaymentExcelFile(
 }
 
 function makePaymentPdfFileName(monthKey: string) {
-  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_ก-๙]+/g, "");
+  const label = getMonthLabel(monthKey).replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_เธ-เน]+/g, "");
   return `Incentive_QA_Monthly_${label || monthKey}.pdf`;
 }
 
@@ -1693,271 +1693,15 @@ function generatePaymentPdfFile(
   const year = /^\d{4}-\d{2}$/.test(monthKey) ? monthKey.slice(0, 4) : "";
   const paymentCutoff = formatDateTime(getSignatureWindow(monthKey).dueAt.toISOString());
 
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  let pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
 
   try {
     registerTHSarabunNew(pdf);
     pdf.setFont("THSarabunNew", "normal");
   } catch {}
 
-  const qPageW = 297;
-  const qPageH = 210;
-  const qSidebarW = 34;
-  const qContentLeft = qSidebarW + 8;
-  const qContentRight = qPageW - 8;
-  const qAccent: [number, number, number] = [109, 40, 217];
-  const qDark: [number, number, number] = [20, 8, 49];
-
-  const qSetFont = (size: number, bold = false, color: [number, number, number] = [31, 41, 55]) => {
-    try {
-      pdf.setFont("THSarabunNew", bold ? "bold" : "normal");
-    } catch {}
-    pdf.setFontSize(size);
-    pdf.setTextColor(color[0], color[1], color[2]);
-  };
-
-  const qText = (
-    value: string,
-    x: number,
-    yy: number,
-    size = 10,
-    bold = false,
-    color: [number, number, number] = [31, 41, 55],
-    options?: { align?: "left" | "center" | "right" }
-  ) => {
-    qSetFont(size, bold, color);
-    pdf.text(String(value ?? ""), x, yy, options);
-  };
-
-  const qWrap = (
-    value: string,
-    x: number,
-    yy: number,
-    width: number,
-    size = 8.5,
-    bold = false,
-    color: [number, number, number] = [31, 41, 55],
-    lineHeight = 3.5,
-    maxLines = 2
-  ) => {
-    qSetFont(size, bold, color);
-    const lines = pdf.splitTextToSize(String(value ?? ""), width).slice(0, maxLines);
-    lines.forEach((line: string, index: number) => pdf.text(line, x, yy + index * lineHeight));
-  };
-
-  const qRoundedBox = (
-    x: number,
-    yy: number,
-    width: number,
-    height: number,
-    fill: [number, number, number] = [255, 255, 255],
-    stroke: [number, number, number] = [226, 232, 240]
-  ) => {
-    pdf.setDrawColor(stroke[0], stroke[1], stroke[2]);
-    pdf.setFillColor(fill[0], fill[1], fill[2]);
-    pdf.roundedRect(x, yy, width, height, 3, 3, "FD");
-  };
-
-  const qChrome = (pageNo: number) => {
-    pdf.setFillColor(qDark[0], qDark[1], qDark[2]);
-    pdf.rect(0, 0, qSidebarW, qPageH, "F");
-    pdf.setFillColor(qAccent[0], qAccent[1], qAccent[2]);
-    pdf.roundedRect(5, 10, 24, 10, 2, 2, "F");
-    qText("Robinhood QA", 7, 16.8, 9, true, [255, 255, 255]);
-
-    ["Dashboard", "Signature", "Documents", "Reports"].forEach((item, index) => {
-      const navY = 36 + index * 13;
-      if (item === "Signature") {
-        pdf.setFillColor(qAccent[0], qAccent[1], qAccent[2]);
-        pdf.roundedRect(4, navY - 5.5, 26, 8, 2, 2, "F");
-      }
-      qText(item, 7, navY, 7.6, item === "Signature", [255, 255, 255]);
-    });
-
-    qText("Signature Workspace", qContentLeft, 15, 20, true, [15, 23, 42]);
-    qText("Monthly incentive document tracking and payment export", qContentLeft, 22, 10, false, [100, 116, 139]);
-    pdf.setDrawColor(226, 232, 240);
-    pdf.line(qContentLeft, 28, qContentRight, 28);
-    qText(`Page ${pageNo}`, qContentRight, qPageH - 6, 8, false, [148, 163, 184], { align: "right" });
-  };
-
-  const qCard = (
-    x: number,
-    yy: number,
-    width: number,
-    label: string,
-    value: string,
-    tone: [number, number, number]
-  ) => {
-    qRoundedBox(x, yy, width, 23);
-    qText(label, x + 4, yy + 6, 8.2, true, [100, 116, 139]);
-    qText(value, x + 4, yy + 16, 16, true, tone);
-  };
-
-  const qStatusBadge = (status: string, x: number, yy: number) => {
-    const isSigned = /signed|complete|ready|พร้อมจ่าย/i.test(status);
-    const isLate = /late|expired|เลยกำหนด/i.test(status);
-    const isPending = /pending|รอ/i.test(status);
-    const bg: [number, number, number] = isSigned ? [220, 252, 231] : isLate ? [255, 228, 230] : isPending ? [254, 243, 199] : [219, 234, 254];
-    const fg: [number, number, number] = isSigned ? [22, 101, 52] : isLate ? [190, 18, 60] : isPending ? [180, 83, 9] : [29, 78, 216];
-    pdf.setFillColor(bg[0], bg[1], bg[2]);
-    pdf.roundedRect(x, yy - 4.5, 21, 7, 3, 3, "F");
-    qText(status.slice(0, 15), x + 10.5, yy, 7.2, true, fg, { align: "center" });
-  };
-
-  const qTableHeader = (x: number, yy: number, widths: number[]) => {
-    const headers = ["Document Ref.", "Agent", "Team", "Cases", "Avg", "Amount", "Status"];
-    pdf.setFillColor(qAccent[0], qAccent[1], qAccent[2]);
-    pdf.roundedRect(x, yy, widths.reduce((sum, width) => sum + width, 0), 9, 2, 2, "F");
-    let cx = x;
-    headers.forEach((header, index) => {
-      qText(header, cx + 2, yy + 6, 8, true, [255, 255, 255]);
-      cx += widths[index];
-    });
-  };
-
-  const qMonthLabel = getMonthLabel(monthKey);
-  const qReadyCount = sortedDocs.length;
-  const qPendingCount = Math.max(allMonthDocs.length - qReadyCount, 0);
-  const qDetailDoc = sortedDocs[0];
-  let qPageNo = 1;
-  qChrome(qPageNo);
-
-  qRoundedBox(qContentLeft, 34, qContentRight - qContentLeft - 57, 24);
-  qText("Month", qContentLeft + 5, 42, 8, true, [100, 116, 139]);
-  qText(qMonthLabel, qContentLeft + 5, 51, 13, true, qAccent);
-  qText("Export Rule", qContentLeft + 54, 42, 8, true, [100, 116, 139]);
-  qWrap(
-    exportsAllEvaluated ? "May 2026 exports all evaluated agents." : "Pay signed-complete agents by day 15 only.",
-    qContentLeft + 54,
-    49,
-    74,
-    8.5,
-    true
-  );
-  qText("Cutoff", qContentLeft + 138, 42, 8, true, [100, 116, 139]);
-  qWrap(paymentCutoff, qContentLeft + 138, 49, 56, 8.5, true);
-
-  qCard(qContentLeft, 65, 42, "Agents", String(qReadyCount), qAccent);
-  qCard(qContentLeft + 47, 65, 42, "Cases", String(totalCases), [37, 99, 235]);
-  qCard(qContentLeft + 94, 65, 42, "Average", avgScore.toFixed(2), [22, 163, 74]);
-  qCard(qContentLeft + 141, 65, 48, "Cash THB", formatBahtAmount(totalCashAmount), [217, 119, 6]);
-  qCard(qContentLeft + 194, 65, 42, "Pending", String(qPendingCount), [225, 29, 72]);
-
-  const qTableX = qContentLeft;
-  const qTableY = 97;
-  const qTableWidths = [34, 43, 34, 15, 16, 22, 24];
-  const qTableW = qTableWidths.reduce((sum, width) => sum + width, 0);
-  qTableHeader(qTableX, qTableY, qTableWidths);
-  let qRowY = qTableY + 9;
-  sortedDocs.slice(0, 10).forEach((doc, index) => {
-    const entries = effectiveEntriesForDoc(doc, signatures);
-    const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
-    const incentive = getDocumentIncentive(doc);
-    pdf.setDrawColor(226, 232, 240);
-    pdf.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 245 : 255, index % 2 === 0 ? 255 : 255);
-    pdf.rect(qTableX, qRowY, qTableW, 11, "FD");
-    let cx = qTableX;
-    [
-      doc.documentHash || getDocumentPrimaryCaseId(doc),
-      doc.agentName,
-      doc.teamLeadName || doc.supervisorName || "-",
-      String(doc.caseCount),
-      doc.averageScore.toFixed(2),
-      formatBahtAmount(incentive.cash + incentive.promo),
-    ].forEach((cell, cellIndex) => {
-      qWrap(cell, cx + 2, qRowY + 5, qTableWidths[cellIndex] - 4, cellIndex < 3 ? 7.2 : 8, cellIndex < 2, [31, 41, 55], 3.2, 2);
-      cx += qTableWidths[cellIndex];
-    });
-    qStatusBadge(statusText, cx + 2, qRowY + 6.2);
-    qRowY += 11;
-  });
-  if (!sortedDocs.length) {
-    pdf.setDrawColor(226, 232, 240);
-    pdf.setFillColor(248, 250, 252);
-    pdf.rect(qTableX, qRowY, qTableW, 16, "FD");
-    qText("No payment-ready documents for this filter.", qTableX + 4, qRowY + 9, 10, true, [100, 116, 139]);
-  }
-  if (sortedDocs.length > 10) {
-    qText(`Showing 1-10 of ${sortedDocs.length} agents. Full list continues on next pages.`, qTableX, 198, 8.2, true, [100, 116, 139]);
-  }
-
-  const qPanelX = 236;
-  qRoundedBox(qPanelX, 34, 51, 152);
-  qText("Case Detail", qPanelX + 5, 43, 12, true, [31, 41, 55]);
-  if (qDetailDoc) {
-    const entries = effectiveEntriesForDoc(qDetailDoc, signatures);
-    const statusText = getAgentSignedStatusText(qDetailDoc, entries, exportsAllEvaluated);
-    const incentive = getDocumentIncentive(qDetailDoc);
-    qText(qDetailDoc.documentHash || getDocumentPrimaryCaseId(qDetailDoc), qPanelX + 5, 55, 10, true, qAccent);
-    qStatusBadge(statusText, qPanelX + 27, 55);
-    const details: Array<[string, string]> = [
-      ["Month", qMonthLabel],
-      ["Agent", qDetailDoc.agentName],
-      ["Team", qDetailDoc.teamLeadName || qDetailDoc.supervisorName || "-"],
-      ["Document Type", "Monthly Incentive"],
-      ["Due Date", paymentCutoff],
-      ["Cash / Promo", `${formatBahtAmount(incentive.cash)} / ${formatBahtAmount(incentive.promo)}`],
-    ];
-    let detailY = 67;
-    details.forEach(([label, value]) => {
-      qText(label, qPanelX + 5, detailY, 7.4, true, [100, 116, 139]);
-      qWrap(value, qPanelX + 22, detailY, 23, 7.8, true, [31, 41, 55], 3.3, 2);
-      detailY += 11;
-    });
-    qText("Signature Timeline", qPanelX + 5, detailY + 4, 9.2, true, [31, 41, 55]);
-    detailY += 13;
-    SIGNATURE_FLOW.forEach((role, index) => {
-      const signed = getSignedEntry(entries, role);
-      pdf.setFillColor(signed ? 220 : 241, signed ? 252 : 245, signed ? 231 : 249);
-      pdf.circle(qPanelX + 7, detailY - 1, 2.4, "F");
-      qText(String(index + 1), qPanelX + 7, detailY, 6.2, true, signed ? [22, 101, 52] : qAccent, { align: "center" });
-      qText(roleThaiLabel(role), qPanelX + 12, detailY, 7.4, true, [31, 41, 55]);
-      qText(signed ? "Signed" : "Pending", qPanelX + 12, detailY + 4.2, 6.8, false, signed ? [22, 101, 52] : [180, 83, 9]);
-      detailY += 10;
-    });
-  } else {
-    qWrap("No document selected.", qPanelX + 5, 56, 40, 9, true, [100, 116, 139]);
-  }
-
-  if (sortedDocs.length > 10) {
-    const qFullWidths = [40, 58, 45, 18, 20, 28, 30];
-    sortedDocs.slice(10).forEach((doc, index) => {
-      if (index % 13 === 0) {
-        pdf.addPage("a4", "landscape");
-        qPageNo += 1;
-        qChrome(qPageNo);
-        qText(index === 0 ? "Full Agent List" : "Full Agent List (continued)", qContentLeft, 39, 15, true, [15, 23, 42]);
-        qTableHeader(qContentLeft, 48, qFullWidths);
-        qRowY = 57;
-      }
-      const entries = effectiveEntriesForDoc(doc, signatures);
-      const statusText = getAgentSignedStatusText(doc, entries, exportsAllEvaluated);
-      const incentive = getDocumentIncentive(doc);
-      pdf.setDrawColor(226, 232, 240);
-      pdf.setFillColor(index % 2 === 0 ? 248 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
-      pdf.rect(qContentLeft, qRowY, qFullWidths.reduce((sum, width) => sum + width, 0), 10, "FD");
-      let cx = qContentLeft;
-      [
-        doc.documentHash || getDocumentPrimaryCaseId(doc),
-        doc.agentName,
-        doc.teamLeadName || doc.supervisorName || "-",
-        String(doc.caseCount),
-        doc.averageScore.toFixed(2),
-        formatBahtAmount(incentive.cash + incentive.promo),
-      ].forEach((cell, cellIndex) => {
-        qWrap(cell, cx + 2, qRowY + 5.5, qFullWidths[cellIndex] - 4, 7.6, cellIndex < 2, [31, 41, 55], 3.2, 1);
-        cx += qFullWidths[cellIndex];
-      });
-      qStatusBadge(statusText, cx + 2, qRowY + 6);
-      qRowY += 10;
-    });
-  }
-
-  const quickFileName = makePaymentPdfFileName(monthKey);
-  savePdfFile(pdf, quickFileName);
-  return quickFileName;
-
+  // Payment PDF now uses the Monthly Team Summary template below.
+  // The previous Signature Workspace / sidebar-style PDF block was removed.
   const pageW = 297;
   const left = 12;
   const right = 285;
@@ -2155,7 +1899,7 @@ function generatePaymentPdfFile(
     pdf.setDrawColor(226, 232, 240);
     pdf.setFillColor(248, 250, 252);
     pdf.rect(left, y, right - left, 12, "FD");
-    drawText("ยังไม่มี Agent ที่เข้าเงื่อนไขจ่ายในรอบนี้", left + 4, y + 7.5, 11, true, [180, 83, 9]);
+    drawText("เธขเธฑเธเนเธกเนเธกเธต Agent เธ—เธตเนเน€เธเนเธฒเน€เธเธทเนเธญเธเนเธเธเนเธฒเธขเนเธเธฃเธญเธเธเธตเน", left + 4, y + 7.5, 11, true, [180, 83, 9]);
     y += 14;
   }
 
@@ -2353,7 +2097,7 @@ function SignaturePadModal({
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!hasDrawnRef.current) {
-      window.alert("กรุณาวาดลายเซ็นก่อนกดยืนยันเซ็นใหม่");
+      window.alert("เธเธฃเธธเธ“เธฒเธงเธฒเธ”เธฅเธฒเธขเน€เธเนเธเธเนเธญเธเธเธ”เธขเธทเธเธขเธฑเธเน€เธเนเธเนเธซเธกเน");
       return;
     }
     onSave(canvas.toDataURL("image/png"), saveToLibrary);
@@ -2373,15 +2117,15 @@ function SignaturePadModal({
             onClick={onCancel}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-50"
           >
-            ปิด
+            เธเธดเธ”
           </button>
         </div>
 
         {savedSignatureDataUrl ? (
           <div className="mt-4 rounded-[22px] border border-emerald-200 bg-emerald-50 p-4">
-            <div className="text-sm font-black text-emerald-800">มีลายเซ็นเดิมของคุณในระบบ</div>
+            <div className="text-sm font-black text-emerald-800">เธกเธตเธฅเธฒเธขเน€เธเนเธเน€เธ”เธดเธกเธเธญเธเธเธธเธ“เนเธเธฃเธฐเธเธ</div>
             <div className="mt-1 text-xs font-bold text-emerald-700">
-              หากต้องการใช้ลายเซ็นนี้ ให้กดปุ่มยืนยันด้านล่าง ระบบจะบันทึกการลงนามทันที
+              เธซเธฒเธเธ•เนเธญเธเธเธฒเธฃเนเธเนเธฅเธฒเธขเน€เธเนเธเธเธตเน เนเธซเนเธเธ”เธเธธเนเธกเธขเธทเธเธขเธฑเธเธ”เนเธฒเธเธฅเนเธฒเธ เธฃเธฐเธเธเธเธฐเธเธฑเธเธ—เธถเธเธเธฒเธฃเธฅเธเธเธฒเธกเธ—เธฑเธเธ—เธต
             </div>
             <div className="mt-2 rounded-2xl border border-emerald-100 bg-white p-3">
               <img src={savedSignatureDataUrl} alt="Saved signature" className="h-16 max-w-full object-contain" />
@@ -2391,13 +2135,13 @@ function SignaturePadModal({
               onClick={onUseSavedSignature}
               className="mt-3 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
             >
-              ยืนยันใช้ลายเซ็นเดิม
+              เธขเธทเธเธขเธฑเธเนเธเนเธฅเธฒเธขเน€เธเนเธเน€เธ”เธดเธก
             </button>
           </div>
         ) : null}
 
         <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">หรือวาดลายเซ็นใหม่</div>
+          <div className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">เธซเธฃเธทเธญเธงเธฒเธ”เธฅเธฒเธขเน€เธเนเธเนเธซเธกเน</div>
           <canvas
             ref={canvasRef}
             width={900}
@@ -2418,7 +2162,7 @@ function SignaturePadModal({
             onChange={(event) => setSaveToLibrary(event.target.checked)}
             className="h-4 w-4 accent-violet-700"
           />
-          บันทึกลายเซ็นนี้ไว้ใช้ครั้งต่อไป
+          เธเธฑเธเธ—เธถเธเธฅเธฒเธขเน€เธเนเธเธเธตเนเนเธงเนเนเธเนเธเธฃเธฑเนเธเธ•เนเธญเนเธ
         </label>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -2434,7 +2178,7 @@ function SignaturePadModal({
             onClick={saveSignature}
             className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800"
           >
-            ยืนยันเซ็นใหม่
+            เธขเธทเธเธขเธฑเธเน€เธเนเธเนเธซเธกเน
           </button>
         </div>
       </div>
@@ -2538,7 +2282,7 @@ export default function SignatureCenterMockup({
             (doc) => !rawMonthKeys.has(doc.monthKey)
           )
         );
-        if (!loadedDocs.length) throw new Error("ไม่พบข้อมูลจากไฟล์ QA Raw Data");
+        if (!loadedDocs.length) throw new Error("เนเธกเนเธเธเธเนเธญเธกเธนเธฅเธเธฒเธเนเธเธฅเน QA Raw Data");
         const docMap = new Map<string, SignatureDocument>();
         loadedDocs.forEach((doc) => {
           const existing = docMap.get(doc.id);
@@ -2587,7 +2331,7 @@ export default function SignatureCenterMockup({
         setSelectedDocumentId((current) => current || nextDocs[0]?.id || "");
       } catch (error) {
         if (!alive) return;
-        setLoadMessage(error instanceof Error ? error.message : "โหลดข้อมูล Signature ไม่สำเร็จ");
+        setLoadMessage(error instanceof Error ? error.message : "เนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ Signature เนเธกเนเธชเธณเน€เธฃเนเธ");
       } finally {
         if (alive) setLoading(false);
       }
@@ -2828,10 +2572,10 @@ export default function SignatureCenterMockup({
   };
 
   const isQaUser = currentUser.role === "Quality Assurance";
-  const monitorTitle = isQaUser ? "QA Monitor" : "ประวัติของฉัน";
+  const monitorTitle = isQaUser ? "QA Monitor" : "เธเธฃเธฐเธงเธฑเธ•เธดเธเธญเธเธเธฑเธ";
   const monitorDescription = isQaUser
-    ? "แสดงเอกสารที่ QA คนนี้รับผิดชอบ พร้อมสถานะว่าใครเซ็นแล้วและใครยังเหลือ"
-    : "แสดงเฉพาะเอกสารที่เกี่ยวข้องกับสิทธิ์ของคุณเท่านั้น";
+    ? "เนเธชเธ”เธเน€เธญเธเธชเธฒเธฃเธ—เธตเน QA เธเธเธเธตเนเธฃเธฑเธเธเธดเธ”เธเธญเธ เธเธฃเนเธญเธกเธชเธ–เธฒเธเธฐเธงเนเธฒเนเธเธฃเน€เธเนเธเนเธฅเนเธงเนเธฅเธฐเนเธเธฃเธขเธฑเธเน€เธซเธฅเธทเธญ"
+    : "เนเธชเธ”เธเน€เธเธเธฒเธฐเน€เธญเธเธชเธฒเธฃเธ—เธตเนเน€เธเธตเนเธขเธงเธเนเธญเธเธเธฑเธเธชเธดเธ—เธเธดเนเธเธญเธเธเธธเธ“เน€เธ—เนเธฒเธเธฑเนเธ";
 
   const selectedMonthAllDocs = useMemo(() => {
     if (selectedMonth === "all") return [];
@@ -2934,11 +2678,11 @@ export default function SignatureCenterMockup({
   );
   const confirmBlockedReason = selectedDocument && !previewConfirmed
     ? hasPendingAppeal
-      ? "มีเคสยื่น Appeal ที่รอ Approved อยู่ จึงยังยืนยันรับทราบไม่ได้"
+      ? "เธกเธตเน€เธเธชเธขเธทเนเธ Appeal เธ—เธตเนเธฃเธญ Approved เธญเธขเธนเน เธเธถเธเธขเธฑเธเธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเนเธกเนเนเธ”เน"
       : !isAfterAppealPeriod(selectedDocument.monthKey)
-        ? "เปิดให้ยืนยันรับทราบหลังวันที่ 10 ของเดือนถัดไป"
+        ? "เน€เธเธดเธ”เนเธซเนเธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธซเธฅเธฑเธเธงเธฑเธเธ—เธตเน 10 เธเธญเธเน€เธ”เธทเธญเธเธ–เธฑเธ”เนเธ"
         : !canSignIdentity(currentUser, selectedDocument, "Agent")
-          ? "เฉพาะ Agent ผู้ถูกประเมินเท่านั้นที่กดยืนยันรับทราบได้"
+          ? "เน€เธเธเธฒเธฐ Agent เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธเน€เธ—เนเธฒเธเธฑเนเธเธ—เธตเนเธเธ”เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเนเธ”เน"
           : ""
     : "";
   const timeline = selectedDocument ? getTimelineStatus(selectedDocument.monthKey) : "-";
@@ -2990,14 +2734,14 @@ export default function SignatureCenterMockup({
       }));
     } catch (error) {
       console.warn("Save remote signature confirm failed", error);
-      window.alert("บันทึกการยืนยันรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert("เธเธฑเธเธ—เธถเธเธเธฒเธฃเธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
     }
   };
 
   const saveDrawnSignature = async (role: SignRole, signatureDataUrl: string, saveToSavedLibrary = false) => {
     if (!selectedDocument) return false;
     if (!canSignIdentity(currentUser, selectedDocument, role)) {
-      window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+      window.alert("เน€เธเนเธเนเธ—เธเธเธฑเธเนเธกเนเนเธ”เน เธเธฃเธธเธ“เธฒเนเธซเนเน€เธเนเธฒเธเธญเธเธฅเธฒเธขเน€เธเนเธเธ•เธฒเธก Role เน€เธเนเธเธเธนเนเธฅเธเธเธฒเธกเน€เธญเธ");
       return false;
     }
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
@@ -3017,7 +2761,7 @@ export default function SignatureCenterMockup({
       await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
     } catch (error) {
       console.warn("Save remote signature failed", error);
-      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert("เธเธฑเธเธ—เธถเธเธฅเธฒเธขเน€เธเนเธเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
       return false;
     }
 
@@ -3046,7 +2790,7 @@ export default function SignatureCenterMockup({
     if (!canSignRoleByDate(selectedDocument.monthKey, entries, role)) return false;
     if (getSignedEntry(entries, role)) return false;
     if (role === "Agent" && !previewConfirmed) {
-      window.alert("Agent ต้องกดยืนยันรับทราบข้อมูลก่อน จึงจะสามารถลงนามในเอกสารของตัวเองได้");
+      window.alert("Agent เธ•เนเธญเธเธเธ”เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธเนเธญเธกเธนเธฅเธเนเธญเธ เธเธถเธเธเธฐเธชเธฒเธกเธฒเธฃเธ–เธฅเธเธเธฒเธกเนเธเน€เธญเธเธชเธฒเธฃเธเธญเธเธ•เธฑเธงเน€เธญเธเนเธ”เน");
       return false;
     }
 
@@ -3065,7 +2809,7 @@ export default function SignatureCenterMockup({
       await persistDocumentSignatures(selectedDocument.id, nextEntries, confirmedDocs[selectedDocument.id] || "");
     } catch (error) {
       console.warn("Save remote signature failed", error);
-      window.alert("บันทึกลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert("เธเธฑเธเธ—เธถเธเธฅเธฒเธขเน€เธเนเธเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
       return false;
     }
 
@@ -3088,7 +2832,7 @@ export default function SignatureCenterMockup({
   const openSignaturePad = (role: SignRole) => {
     if (!selectedDocument) return;
     if (role === "Agent" && !previewConfirmed && !getSignedEntry(selectedEntries, "Agent")) {
-      window.alert("กรุณากดยืนยันรับทราบข้อมูลก่อน แล้วจึงกดเซ็นในช่อง Agent ผู้ถูกประเมิน");
+      window.alert("เธเธฃเธธเธ“เธฒเธเธ”เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธเนเธญเธกเธนเธฅเธเนเธญเธ เนเธฅเนเธงเธเธถเธเธเธ”เน€เธเนเธเนเธเธเนเธญเธ Agent เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ");
       return;
     }
     setSigningRole(role);
@@ -3119,7 +2863,7 @@ export default function SignatureCenterMockup({
       }
     } catch (error) {
       console.warn("Reset role signature failed", error);
-      window.alert("รีเซ็ตลายเซ็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      window.alert("เธฃเธตเน€เธเนเธ•เธฅเธฒเธขเน€เธเนเธเนเธกเนเธชเธณเน€เธฃเนเธ เธเธฃเธธเธ“เธฒเธฅเธญเธเนเธซเธกเนเธญเธตเธเธเธฃเธฑเนเธ");
       return;
     }
 
@@ -3143,10 +2887,10 @@ export default function SignatureCenterMockup({
     const link = createSignatureShareLink(selectedDocument, null);
     try {
       await navigator.clipboard.writeText(link);
-      setShareMessage("คัดลอก Share Link แล้ว");
+      setShareMessage("เธเธฑเธ”เธฅเธญเธ Share Link เนเธฅเนเธง");
     } catch {
-      window.prompt("คัดลอก Share Link นี้", link);
-      setShareMessage("แสดง Share Link สำหรับคัดลอกแล้ว");
+      window.prompt("เธเธฑเธ”เธฅเธญเธ Share Link เธเธตเน", link);
+      setShareMessage("เนเธชเธ”เธ Share Link เธชเธณเธซเธฃเธฑเธเธเธฑเธ”เธฅเธญเธเนเธฅเนเธง");
     }
     window.setTimeout(() => setShareMessage(""), 3000);
   };
@@ -3156,43 +2900,43 @@ export default function SignatureCenterMockup({
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const pendingRoles = getPendingRoles(entries);
     const latestStatus = pendingRoles.length
-      ? `${SIGNATURE_FLOW.length - pendingRoles.length}/4 role ลงนามแล้ว`
-      : "เอกสารลงนามครบแล้ว";
+      ? `${SIGNATURE_FLOW.length - pendingRoles.length}/4 role เธฅเธเธเธฒเธกเนเธฅเนเธง`
+      : "เน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธกเธเธฃเธเนเธฅเนเธง";
 
     const text = pendingRoles.length
       ? [
-          "แจ้งเตือนลงนามเอกสาร QA Incentive",
+          "เนเธเนเธเน€เธ•เธทเธญเธเธฅเธเธเธฒเธกเน€เธญเธเธชเธฒเธฃ QA Incentive",
           "",
-          `เดือน: ${selectedDocument.monthLabel}`,
+          `เน€เธ”เธทเธญเธ: ${selectedDocument.monthLabel}`,
           `Agent: ${selectedDocument.agentName}`,
           "",
-          `สถานะล่าสุด: ${latestStatus}`,
-          "ผู้ที่ยังต้องลงนาม:",
+          `เธชเธ–เธฒเธเธฐเธฅเนเธฒเธชเธธเธ”: ${latestStatus}`,
+          "เธเธนเนเธ—เธตเนเธขเธฑเธเธ•เนเธญเธเธฅเธเธเธฒเธก:",
           ...pendingRoles.map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`),
           "",
-          "กดลิงก์นี้เพื่อเปิดเอกสาร:",
+          "เธเธ”เธฅเธดเธเธเนเธเธตเนเน€เธเธทเนเธญเน€เธเธดเธ”เน€เธญเธเธชเธฒเธฃ:",
           createSignatureShareLink(selectedDocument, null),
           "",
-          "รบกวนเข้าระบบ Signature Center เพื่อลงนามค่ะ/ครับ",
+          "เธฃเธเธเธงเธเน€เธเนเธฒเธฃเธฐเธเธ Signature Center เน€เธเธทเนเธญเธฅเธเธเธฒเธกเธเนเธฐ/เธเธฃเธฑเธ",
         ].join("\n")
       : [
-          "แจ้งเตือนลงนามเอกสาร QA Incentive",
+          "เนเธเนเธเน€เธ•เธทเธญเธเธฅเธเธเธฒเธกเน€เธญเธเธชเธฒเธฃ QA Incentive",
           "",
-          `เดือน: ${selectedDocument.monthLabel}`,
+          `เน€เธ”เธทเธญเธ: ${selectedDocument.monthLabel}`,
           `Agent: ${selectedDocument.agentName}`,
           "",
-          "สถานะล่าสุด: เอกสารลงนามครบแล้ว",
+          "เธชเธ–เธฒเธเธฐเธฅเนเธฒเธชเธธเธ”: เน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธกเธเธฃเธเนเธฅเนเธง",
           "",
-          "กดลิงก์นี้เพื่อเปิดเอกสาร:",
+          "เธเธ”เธฅเธดเธเธเนเธเธตเนเน€เธเธทเนเธญเน€เธเธดเธ”เน€เธญเธเธชเธฒเธฃ:",
           createSignatureShareLink(selectedDocument, null),
         ].join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
-      setShareMessage("คัดลอกข้อความแจ้งเตือนแล้ว");
+      setShareMessage("เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเนเธเนเธเน€เธ•เธทเธญเธเนเธฅเนเธง");
     } catch {
-      window.prompt("คัดลอกข้อความนี้เพื่อแจ้งเตือน", text);
-      setShareMessage("แสดงข้อความแจ้งเตือนสำหรับคัดลอกแล้ว");
+      window.prompt("เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเธเธตเนเน€เธเธทเนเธญเนเธเนเธเน€เธ•เธทเธญเธ", text);
+      setShareMessage("เนเธชเธ”เธเธเนเธญเธเธงเธฒเธกเนเธเนเธเน€เธ•เธทเธญเธเธชเธณเธซเธฃเธฑเธเธเธฑเธ”เธฅเธญเธเนเธฅเนเธง");
     }
 
     window.setTimeout(() => setShareMessage(""), 3000);
@@ -3203,33 +2947,33 @@ export default function SignatureCenterMockup({
     const entries = effectiveEntriesForDoc(selectedDocument, signatures);
     const lines = SIGNATURE_FLOW.map((role) => {
       const signed = getSignedEntry(entries, role);
-      return `${signed ? "✅" : "❌"} ${roleThaiLabel(role)}: ${signed ? signed.signerName : "ยังไม่ลงนาม"}`;
+      return `${signed ? "โ…" : "โ"} ${roleThaiLabel(role)}: ${signed ? signed.signerName : "เธขเธฑเธเนเธกเนเธฅเธเธเธฒเธก"}`;
     });
     const pendingLines = SIGNATURE_FLOW
       .filter((role) => !getSignedEntry(entries, role))
       .map((role) => `- ${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`);
 
     const text = [
-      `เอกสาร Signature เดือน ${selectedDocument.monthLabel}`,
+      `เน€เธญเธเธชเธฒเธฃ Signature เน€เธ”เธทเธญเธ ${selectedDocument.monthLabel}`,
       `Agent: ${selectedDocument.agentName}`,
       "",
-      "สถานะการลงนาม:",
+      "เธชเธ–เธฒเธเธฐเธเธฒเธฃเธฅเธเธเธฒเธก:",
       ...lines,
       "",
-      pendingLines.length ? "ผู้ที่ยังไม่ลงนาม:" : "สถานะ: ลงนามครบแล้ว",
+      pendingLines.length ? "เธเธนเนเธ—เธตเนเธขเธฑเธเนเธกเนเธฅเธเธเธฒเธก:" : "เธชเธ–เธฒเธเธฐ: เธฅเธเธเธฒเธกเธเธฃเธเนเธฅเนเธง",
       ...(pendingLines.length ? pendingLines : []),
       "",
       pendingLines.length
-        ? "รบกวนผู้ที่ยังไม่ลงนาม เข้าระบบเพื่อเซ็นเอกสารให้เรียบร้อยค่ะ/ครับ"
-        : "เอกสารนี้ลงนามครบแล้วค่ะ/ครับ",
+        ? "เธฃเธเธเธงเธเธเธนเนเธ—เธตเนเธขเธฑเธเนเธกเนเธฅเธเธเธฒเธก เน€เธเนเธฒเธฃเธฐเธเธเน€เธเธทเนเธญเน€เธเนเธเน€เธญเธเธชเธฒเธฃเนเธซเนเน€เธฃเธตเธขเธเธฃเนเธญเธขเธเนเธฐ/เธเธฃเธฑเธ"
+        : "เน€เธญเธเธชเธฒเธฃเธเธตเนเธฅเธเธเธฒเธกเธเธฃเธเนเธฅเนเธงเธเนเธฐ/เธเธฃเธฑเธ",
     ].join("\n");
 
     try {
       await navigator.clipboard.writeText(text);
-      setShareMessage("คัดลอกข้อความแชร์แล้ว");
+      setShareMessage("เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเนเธเธฃเนเนเธฅเนเธง");
     } catch {
-      window.prompt("คัดลอกข้อความนี้เพื่อแชร์", text);
-      setShareMessage("แสดงข้อความสำหรับคัดลอกแล้ว");
+      window.prompt("เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเธเธตเนเน€เธเธทเนเธญเนเธเธฃเน", text);
+      setShareMessage("เนเธชเธ”เธเธเนเธญเธเธงเธฒเธกเธชเธณเธซเธฃเธฑเธเธเธฑเธ”เธฅเธญเธเนเธฅเนเธง");
     }
 
     window.setTimeout(() => setShareMessage(""), 3000);
@@ -3714,7 +3458,7 @@ export default function SignatureCenterMockup({
 
       y += 3;
       drawSection("Acknowledgement / Signature");
-      drawCell(left, y, tableW, 5.4, "รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", [255, 255, 255], {
+      drawCell(left, y, tableW, 5.4, "เธฃเธฑเธเธ—เธฃเธฒเธเธเธฅเธเธฒเธฃเธเธฃเธฐเน€เธกเธดเธเธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ เนเธ”เธขเธฅเธเธเธฒเธกเธ•เธฒเธกเธ•เธณเนเธซเธเนเธเธ”เนเธฒเธเธฅเนเธฒเธ", [255, 255, 255], {
         size: 7.2,
         align: "left",
         color: muted,
@@ -3785,7 +3529,7 @@ export default function SignatureCenterMockup({
         const signLineY = signatureAreaY + 9.9;
         const centerX = x + w / 2;
         drawCell(x, signatureAreaY, w, signatureAreaH, "", palePurple, { size: 6, align: "center" });
-        drawSignedLine("ลงชื่อ", centerX, signLineY);
+        drawSignedLine("เธฅเธเธเธทเนเธญ", centerX, signLineY);
         const signature = normalizedSignatures.get(role) || "";
         if (signature) {
           try {
@@ -3817,15 +3561,15 @@ export default function SignatureCenterMockup({
           maxLines: 1,
         });
         drawCell(x, panelY + 27.4, w, 4.6, "", [255, 255, 255], { size: 5.8, align: "center" });
-        drawSignedLine("วันที่", centerX, panelY + 30.3, signerDate(role));
+        drawSignedLine("เธงเธฑเธเธ—เธตเน", centerX, panelY + 30.3, signerDate(role));
       };
 
       const halfW = tableW / 2 - 3;
-      drawSignaturePanel(left, y, halfW, "Agent", "Agent ผู้ถูกประเมิน");
-      drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
+      drawSignaturePanel(left, y, halfW, "Agent", "Agent เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ");
+      drawSignaturePanel(left + halfW + 6, y, halfW, "Senior", "Senior เธซเธฑเธงเธซเธเนเธฒเธ—เธตเธกเธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ");
       y += 35.5;
-      drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor หัวหน้าแผนก");
-      drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA ผู้ตรวจสอบ");
+      drawSignaturePanel(left, y, halfW, "Supervisor", "Supervisor เธซเธฑเธงเธซเธเนเธฒเนเธเธเธ");
+      drawSignaturePanel(left + halfW + 6, y, halfW, "QA", "QA เธเธนเนเธ•เธฃเธงเธเธชเธญเธ");
 
       setTemplateFont(7.0, false, muted);
       pdf.text(
@@ -3836,7 +3580,7 @@ export default function SignatureCenterMockup({
       );
 
       const safeAgentFileName =
-        selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
+        selectedDocument.agentName.replace(/[^a-zA-Z0-9เธ-เน]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
       const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}_${pdfDocumentRef}.pdf`;
       downloadBlob(pdf.output("blob"), fileName);
       setPdfMessage(`Generated ${fileName}`);
@@ -4143,7 +3887,7 @@ export default function SignatureCenterMockup({
     drawOfficialText("Page 2/2", officialRight, officialPageH - 7, 7.5, false, officialMuted, { align: "right" });
 
     const safeAgentFileName =
-      selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
+      selectedDocument.agentName.replace(/[^a-zA-Z0-9เธ-เน]+/g, "_").replace(/^_+|_+$/g, "") || "Agent";
     const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${safeAgentFileName}.pdf`;
     downloadBlob(pdf.output("blob"), fileName);
     setPdfMessage(`Generated ${fileName}`);
@@ -4342,7 +4086,7 @@ export default function SignatureCenterMockup({
       panelY += 10;
     });
 
-    const qaFileName = `QA Score Monthly ${selectedDocument.monthLabel}_2026_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
+    const qaFileName = `QA Score Monthly ${selectedDocument.monthLabel}_2026_${selectedDocument.agentName.replace(/[^a-zA-Z0-9เธ-เน]+/g, "_")}.pdf`;
     downloadBlob(qaDoc.output("blob"), qaFileName);
     setPdfMessage(`Generated ${qaFileName}`);
     window.setTimeout(() => setPdfMessage(""), 3500);
@@ -4445,10 +4189,10 @@ export default function SignatureCenterMockup({
     });
 
     if (isHistoricalPaidPeriod(selectedDocument.monthKey)) {
-      line("หมายเหตุ: เดือน Jan-Apr เป็นรอบประวัติของเอกสาร ระบบแสดงสถานะ Completed อัตโนมัติ", 10);
+      line("เธซเธกเธฒเธขเน€เธซเธ•เธธ: เน€เธ”เธทเธญเธ Jan-Apr เน€เธเนเธเธฃเธญเธเธเธฃเธฐเธงเธฑเธ•เธดเธเธญเธเน€เธญเธเธชเธฒเธฃ เธฃเธฐเธเธเนเธชเธ”เธเธชเธ–เธฒเธเธฐ Completed เธญเธฑเธ•เนเธเธกเธฑเธ•เธด", 10);
     }
     if (hasPendingAppeal) {
-      line(`หมายเหตุ: มี ${selectedPendingAppeals.length} เคสที่ยื่น Appeal และรอ Approved จึงยังไม่สามารถยืนยันรับทราบหรือเซ็นได้`, 10);
+      line(`เธซเธกเธฒเธขเน€เธซเธ•เธธ: เธกเธต ${selectedPendingAppeals.length} เน€เธเธชเธ—เธตเนเธขเธทเนเธ Appeal เนเธฅเธฐเธฃเธญ Approved เธเธถเธเธขเธฑเธเนเธกเนเธชเธฒเธกเธฒเธฃเธ–เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธซเธฃเธทเธญเน€เธเนเธเนเธ”เน`, 10);
     }
 
     y += 3;
@@ -4486,7 +4230,7 @@ export default function SignatureCenterMockup({
     pdf.addPage();
     y = 18;
     drawSectionTitle("Acknowledgement / Signature");
-    line("รับทราบผลการประเมินประจำเดือน โดยลงนามตามตำแหน่งด้านล่าง", 11);
+    line("เธฃเธฑเธเธ—เธฃเธฒเธเธเธฅเธเธฒเธฃเธเธฃเธฐเน€เธกเธดเธเธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ เนเธ”เธขเธฅเธเธเธฒเธกเธ•เธฒเธกเธ•เธณเนเธซเธเนเธเธ”เนเธฒเธเธฅเนเธฒเธ", 11);
 
     const drawSignatureBox = (x: number, yy: number, w: number, h: number, role: SignRole, label: string) => {
       pdf.setDrawColor(203, 213, 225);
@@ -4499,31 +4243,31 @@ export default function SignatureCenterMockup({
         try {
           pdf.addImage(signatureImage, "PNG", x + 4, yy + 10, 50, 15);
         } catch {
-          text("ลงชื่อ ........................................................", x + 4, yy + 17, 11);
+          text("เธฅเธเธเธทเนเธญ ........................................................", x + 4, yy + 17, 11);
         }
       } else {
-        text("ลงชื่อ ........................................................", x + 4, yy + 17, 11);
+        text("เธฅเธเธเธทเนเธญ ........................................................", x + 4, yy + 17, 11);
       }
       text(safePdfName(role), x + 4, yy + 29, 12, true, [31, 41, 55]);
       text(label, x + 4, yy + 37, 10, false, [100, 116, 139]);
-      text(`วันที่ ${safePdfDate(role)}`, x + 4, yy + 45, 10);
+      text(`เธงเธฑเธเธ—เธตเน ${safePdfDate(role)}`, x + 4, yy + 45, 10);
       text(`Status: ${safePdfStatus(role)}`, x + 4, yy + 51, 10, true, safePdfStatus(role) === "Signed" ? [5, 150, 105] : [180, 83, 9]);
     };
 
     const boxW = 86;
     const boxH = 54;
-    drawSignatureBox(left, y, boxW, boxH, "Agent", "Agent ผู้ถูกประเมิน");
-    drawSignatureBox(left + 98, y, boxW, boxH, "Senior", "Senior หัวหน้าทีมผู้ถูกประเมิน");
+    drawSignatureBox(left, y, boxW, boxH, "Agent", "Agent เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ");
+    drawSignatureBox(left + 98, y, boxW, boxH, "Senior", "Senior เธซเธฑเธงเธซเธเนเธฒเธ—เธตเธกเธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ");
     y += boxH + 8;
-    drawSignatureBox(left, y, boxW, boxH, "Supervisor", "Supervisor หัวหน้าแผนก");
-    drawSignatureBox(left + 98, y, boxW, boxH, "QA", "QA ผู้ตรวจสอบ");
+    drawSignatureBox(left, y, boxW, boxH, "Supervisor", "Supervisor เธซเธฑเธงเธซเธเนเธฒเนเธเธเธ");
+    drawSignatureBox(left + 98, y, boxW, boxH, "QA", "QA เธเธนเนเธ•เธฃเธงเธเธชเธญเธ");
 
     y += boxH + 8;
     pdf.setFillColor(248, 250, 252);
     pdf.roundedRect(left, y, right - left, 13, 3, 3, "F");
-    text("PDF จะแสดงชื่อเฉพาะผู้ที่ Signed แล้วเท่านั้น หากยังไม่ Signed จะแสดงเป็น -", left + 4, y + 8, 10, false, [71, 85, 105]);
+    text("PDF เธเธฐเนเธชเธ”เธเธเธทเนเธญเน€เธเธเธฒเธฐเธเธนเนเธ—เธตเน Signed เนเธฅเนเธงเน€เธ—เนเธฒเธเธฑเนเธ เธซเธฒเธเธขเธฑเธเนเธกเน Signed เธเธฐเนเธชเธ”เธเน€เธเนเธ -", left + 4, y + 8, 10, false, [71, 85, 105]);
 
-    const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9ก-๙]+/g, "_")}.pdf`;
+    const fileName = `QA Score Monthly ${selectedDocument.monthLabel}_${selectedDocument.agentName.replace(/[^a-zA-Z0-9เธ-เน]+/g, "_")}.pdf`;
     downloadBlob(pdf.output("blob"), fileName);
     setPdfMessage(`Generated ${fileName}`);
     window.setTimeout(() => setPdfMessage(""), 3500);
@@ -4531,11 +4275,11 @@ export default function SignatureCenterMockup({
 
   const generatePaymentExcel = () => {
     if (selectedMonth === "all") {
-      window.alert("กรุณาเลือกเดือนก่อน Generate Excel");
+      window.alert("เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธเธเนเธญเธ Generate Excel");
       return;
     }
     if (!selectedMonthPaymentExportDocs.length) {
-      window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
+      window.alert("เธขเธฑเธเนเธกเนเธกเธต Agent เธ—เธตเนเน€เธเนเธฒเน€เธเธทเนเธญเธเนเธ Export เนเธเน€เธ”เธทเธญเธเธเธตเน");
       return;
     }
     try {
@@ -4550,11 +4294,11 @@ export default function SignatureCenterMockup({
 
   const generatePaymentPdf = () => {
     if (selectedMonth === "all") {
-      window.alert("กรุณาเลือกเดือนก่อน Generate Payment PDF");
+      window.alert("เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธเธเนเธญเธ Generate Payment PDF");
       return;
     }
     if (!selectedMonthPaymentExportDocs.length) {
-      window.alert("ยังไม่มี Agent ที่เข้าเงื่อนไข Export ในเดือนนี้");
+      window.alert("เธขเธฑเธเนเธกเนเธกเธต Agent เธ—เธตเนเน€เธเนเธฒเน€เธเธทเนเธญเธเนเธ Export เนเธเน€เธ”เธทเธญเธเธเธตเน");
       return;
     }
     try {
@@ -4571,9 +4315,9 @@ export default function SignatureCenterMockup({
     return (
       <div className="flex min-h-[45vh] items-center justify-center">
         <div className="rounded-[28px] border border-violet-200 bg-white px-8 py-7 text-center shadow-[0_24px_70px_rgba(109,40,217,0.12)]">
-          <div className="text-5xl">🖊️</div>
-          <div className="mt-3 text-lg font-black text-violet-800">กำลังโหลด Signature Center</div>
-          <div className="mt-1 text-sm text-slate-500">ระบบกำลังเตรียมเอกสารที่ต้องรับทราบ</div>
+          <div className="text-5xl">๐–๏ธ</div>
+          <div className="mt-3 text-lg font-black text-violet-800">เธเธณเธฅเธฑเธเนเธซเธฅเธ” Signature Center</div>
+          <div className="mt-1 text-sm text-slate-500">เธฃเธฐเธเธเธเธณเธฅเธฑเธเน€เธ•เธฃเธตเธขเธกเน€เธญเธเธชเธฒเธฃเธ—เธตเนเธ•เนเธญเธเธฃเธฑเธเธ—เธฃเธฒเธ</div>
         </div>
       </div>
     );
@@ -4582,7 +4326,7 @@ export default function SignatureCenterMockup({
   if (loadMessage) {
     return (
       <div className="rounded-[30px] border border-rose-200 bg-rose-50 p-6 text-rose-700">
-        <div className="text-lg font-black">โหลดข้อมูล Signature ไม่สำเร็จ</div>
+        <div className="text-lg font-black">เนเธซเธฅเธ”เธเนเธญเธกเธนเธฅ Signature เนเธกเนเธชเธณเน€เธฃเนเธ</div>
         <div className="mt-2 text-sm">{loadMessage}</div>
       </div>
     );
@@ -4620,7 +4364,7 @@ export default function SignatureCenterMockup({
             <div>
               <div className="text-4xl font-black tracking-tight text-slate-950">Signature Workspace</div>
               <div className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-slate-500">
-                ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบและติดตามสถานะ
+                เธ•เธดเธ”เธ•เธฒเธกเธฃเธฒเธขเธเธฒเธฃเน€เธญเธเธชเธฒเธฃเธ—เธตเนเธ•เนเธญเธเธฅเธเธเธฒเธก เนเธขเธเธ•เธฒเธกเน€เธเธชเนเธฅเธฐเน€เธ”เธทเธญเธ เน€เธเธทเนเธญเนเธซเนเธเนเธฒเธขเธ•เนเธญเธเธฒเธฃเธ•เธฃเธงเธเธชเธญเธเนเธฅเธฐเธ•เธดเธ”เธ•เธฒเธกเธชเธ–เธฒเธเธฐ
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -4637,17 +4381,17 @@ export default function SignatureCenterMockup({
       <PageHero
         eyebrow="Monthly Acknowledgement"
         title="Signature Workspace"
-        subtitle="Preview คะแนนรายเดือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้นตอนเซ็นรับทราบ"
+        subtitle="Preview เธเธฐเนเธเธเธฃเธฒเธขเน€เธ”เธทเธญเธเนเธฅเธฐ Case Detail 10 เน€เธเธช เธเนเธญเธเน€เธเนเธฒเธชเธนเนเธเธฑเนเธเธ•เธญเธเน€เธเนเธเธฃเธฑเธเธ—เธฃเธฒเธ"
       />
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
         {[
-          { label: "เอกสารที่เห็นได้", value: summary.total, tone: "text-slate-900" },
-          { label: "รอฉันลงนาม", value: summary.myTurn, tone: "text-violet-700" },
-          { label: "เซ็นครบแล้ว", value: summary.complete, tone: "text-emerald-700" },
-          { label: "รอเซ็น", value: summary.pending, tone: "text-amber-700" },
-          { label: "พร้อมจ่าย Incentive", value: summary.ready, tone: "text-violet-700" },
+          { label: "เน€เธญเธเธชเธฒเธฃเธ—เธตเนเน€เธซเนเธเนเธ”เน", value: summary.total, tone: "text-slate-900" },
+          { label: "เธฃเธญเธเธฑเธเธฅเธเธเธฒเธก", value: summary.myTurn, tone: "text-violet-700" },
+          { label: "เน€เธเนเธเธเธฃเธเนเธฅเนเธง", value: summary.complete, tone: "text-emerald-700" },
+          { label: "เธฃเธญเน€เธเนเธ", value: summary.pending, tone: "text-amber-700" },
+          { label: "เธเธฃเนเธญเธกเธเนเธฒเธข Incentive", value: summary.ready, tone: "text-violet-700" },
         ].map((item) => (
           <div key={item.label} className="rounded-[26px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
             <div className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{item.label}</div>
@@ -4659,19 +4403,19 @@ export default function SignatureCenterMockup({
       <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
         <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">1. Preview Score + 10 Cases</span>
-          <span className="text-slate-300">→</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">2. Confirm</span>
-          <span className="text-slate-300">→</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">3. QA</span>
-          <span className="text-slate-300">→</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">4. Supervisor</span>
-          <span className="text-slate-300">→</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">5. Team Lead</span>
-          <span className="text-slate-300">→</span>
+          <span className="text-slate-300">โ’</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
-          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันได้ / จ่ายรอบปัจจุบันเฉพาะคนที่เซ็นครบภายในวันที่ 15 / เซ็นหลังจากนั้นไปรอบจ่ายถัดไป
+          เธงเธฑเธเธ—เธตเน 1-10 เธขเธฑเธเธญเธขเธนเนเธเนเธงเธ Appeal เธเธถเธเธขเธฑเธเธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเนเธฅเธฐเน€เธเนเธเนเธกเนเนเธ”เน / เธซเธฅเธฑเธเธงเธฑเธเธ—เธตเน 10 เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธเน€เธ—เนเธฒเธเธฑเนเธเธ—เธตเนเธเธ”เธขเธทเธเธขเธฑเธเนเธ”เน / เธเนเธฒเธขเธฃเธญเธเธเธฑเธเธเธธเธเธฑเธเน€เธเธเธฒเธฐเธเธเธ—เธตเนเน€เธเนเธเธเธฃเธเธ เธฒเธขเนเธเธงเธฑเธเธ—เธตเน 15 / เน€เธเนเธเธซเธฅเธฑเธเธเธฒเธเธเธฑเนเธเนเธเธฃเธญเธเธเนเธฒเธขเธ–เธฑเธ”เนเธ
         </div>
       </div>
 
@@ -4679,9 +4423,9 @@ export default function SignatureCenterMockup({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Monthly Incentive Payment Export</div>
-            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน (PDF ตาม Template)</div>
+            <div className="mt-1 text-xl font-black text-slate-950">เน€เธญเธเธชเธฒเธฃเธชเนเธเธเนเธฒเธข Incentive เธฃเธฒเธขเน€เธ”เธทเธญเธ (PDF เธ•เธฒเธก Template)</div>
             <div className="mt-1 text-sm leading-6 text-slate-500">
-              หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role ภายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
+              เธซเธฅเธฑเธเธงเธฑเธเธ—เธตเน 15 เธฃเธฐเธเธเธเธฐเธญเธญเธเนเธเธฅเนเน€เธเธเธฒเธฐ Agent เธ—เธตเนเน€เธเนเธเธเธฃเธเธ—เธธเธ Role เธ เธฒเธขเนเธเธเธณเธซเธเธ”เน€เธ—เนเธฒเธเธฑเนเธ เธเธเธ—เธตเนเธกเธฒเน€เธเนเธเธซเธฅเธฑเธเธงเธฑเธเธ—เธตเน 15 เธเธฐเน€เธเนเธฒเธฃเธญเธเธเนเธฒเธขเธ–เธฑเธ”เนเธ
             </div>
           </div>
           <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
@@ -4689,14 +4433,14 @@ export default function SignatureCenterMockup({
               {selectedMonthExportAllEvaluated ? "Evaluated Agents" : "Signed Complete Agents"}
             </div>
             <div className="mt-1 text-2xl font-black text-violet-700">
-              {selectedMonth === "all" ? "-" : `${selectedMonthPaymentExportDocs.length} คน`}
+              {selectedMonth === "all" ? "-" : `${selectedMonthPaymentExportDocs.length} เธเธ`}
             </div>
             <div className="mt-1 text-xs font-semibold text-slate-500">
               {selectedMonth === "all"
-                ? "กรุณาเลือกเดือนก่อน"
+                ? "เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธเธเนเธญเธ"
                 : selectedMonthExportAllEvaluated
-                  ? `May export พิเศษ: รวม Agent ที่ถูกประเมินทั้งหมด ${selectedMonthExportDocs.length} คน / รวมบาท ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`
-                  : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
+                  ? `May export เธเธดเน€เธจเธฉ: เธฃเธงเธก Agent เธ—เธตเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธเธ—เธฑเนเธเธซเธกเธ” ${selectedMonthExportDocs.length} เธเธ / เธฃเธงเธกเธเธฒเธ— ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} เธเธฒเธ—`
+                  : `เธฃเธฒเธขเธเธฒเธฃเธ—เธฑเนเธเธซเธกเธ” ${selectedMonthTotalDocs} เธเธ / เน€เธเนเธเธฅเนเธฒเธเนเธฒ ${selectedMonthLateSignedDocs.length} เธเธ / เธฃเธงเธกเธเธฒเธ—เนเธเธฃเธญเธเธเธตเน ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} เธเธฒเธ—`}
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -4723,11 +4467,11 @@ export default function SignatureCenterMockup({
         ) : null}
         {selectedMonth === "all" ? (
           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
+            เน€เธเธทเนเธญเธเนเธเธขเธฑเธเนเธกเนเธเธฃเธ: เธ•เนเธญเธเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธ เนเธฅเธฐเธ•เนเธญเธเธกเธตเธญเธขเนเธฒเธเธเนเธญเธข 1 Agent เธ—เธตเนเน€เธเนเธฒเน€เธเธทเนเธญเธเนเธ Export
           </div>
         ) : selectedMonthExportAllEvaluated ? (
           <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-800">
-            May 2026 เปิด Export พิเศษ: Generate ได้ทันทีจาก Agent ทุกคนที่มีผลประเมิน โดยไม่ต้องรอเซ็นครบ
+            May 2026 เน€เธเธดเธ” Export เธเธดเน€เธจเธฉ: Generate เนเธ”เนเธ—เธฑเธเธ—เธตเธเธฒเธ Agent เธ—เธธเธเธเธเธ—เธตเนเธกเธตเธเธฅเธเธฃเธฐเน€เธกเธดเธ เนเธ”เธขเนเธกเนเธ•เนเธญเธเธฃเธญเน€เธเนเธเธเธฃเธ
           </div>
         ) : null}
       </div>
@@ -4751,7 +4495,7 @@ export default function SignatureCenterMockup({
                 {pendingCount}
               </div>
               <div className="mt-1 text-xs font-semibold text-slate-500">
-                เฉพาะเอกสารที่ Role ของคุณยังต้องลงนาม
+                เน€เธเธเธฒเธฐเน€เธญเธเธชเธฒเธฃเธ—เธตเน Role เธเธญเธเธเธธเธ“เธขเธฑเธเธ•เนเธญเธเธฅเธเธเธฒเธก
               </div>
             </div>
           );
@@ -4762,9 +4506,9 @@ export default function SignatureCenterMockup({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Signature Workspace</div>
-            <div className="mt-1 text-2xl font-black text-slate-950">รายการเอกสารลงนาม แยกตามเดือน</div>
+            <div className="mt-1 text-2xl font-black text-slate-950">เธฃเธฒเธขเธเธฒเธฃเน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธก เนเธขเธเธ•เธฒเธกเน€เธ”เธทเธญเธ</div>
             <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-              ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบสถานะ คลิกที่แถวเพื่อเปิดรายละเอียดด้านล่าง
+              เธ•เธดเธ”เธ•เธฒเธกเธฃเธฒเธขเธเธฒเธฃเน€เธญเธเธชเธฒเธฃเธ—เธตเนเธ•เนเธญเธเธฅเธเธเธฒเธก เนเธขเธเธ•เธฒเธกเน€เธเธชเนเธฅเธฐเน€เธ”เธทเธญเธ เน€เธเธทเนเธญเนเธซเนเธเนเธฒเธขเธ•เนเธญเธเธฒเธฃเธ•เธฃเธงเธเธชเธญเธเธชเธ–เธฒเธเธฐ เธเธฅเธดเธเธ—เธตเนเนเธ–เธงเน€เธเธทเนเธญเน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เธ”เนเธฒเธเธฅเนเธฒเธ
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:min-w-[320px]">
@@ -4775,7 +4519,7 @@ export default function SignatureCenterMockup({
                 documentView === "queue" ? "bg-violet-700 text-white" : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
               }`}
             >
-              คิวของฉัน ({filteredDocuments.length})
+              เธเธดเธงเธเธญเธเธเธฑเธ ({filteredDocuments.length})
             </button>
             <button
               type="button"
@@ -4784,7 +4528,7 @@ export default function SignatureCenterMockup({
                 documentView === "history" ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
+              {isQaUser ? "QA Monitor" : "เธเธฃเธฐเธงเธฑเธ•เธด"} ({historyFilteredDocuments.length})
             </button>
           </div>
         </div>
@@ -4793,7 +4537,7 @@ export default function SignatureCenterMockup({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="ค้นหา Document Ref. / Case ID / Agent / เดือน / ทีม"
+            placeholder="เธเนเธเธซเธฒ Document Ref. / Case ID / Agent / เน€เธ”เธทเธญเธ / เธ—เธตเธก"
             className="rounded-2xl border border-violet-100 bg-violet-50/40 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
           />
           <select
@@ -4801,7 +4545,7 @@ export default function SignatureCenterMockup({
             onChange={(event) => setSelectedMonth(event.target.value)}
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
-            <option value="all">ทุกเดือน</option>
+            <option value="all">เธ—เธธเธเน€เธ”เธทเธญเธ</option>
             {monthOptions.map((month) => (
               <option key={month} value={month}>{getMonthLabel(month)}</option>
             ))}
@@ -4811,7 +4555,7 @@ export default function SignatureCenterMockup({
             onChange={(event) => setSelectedYear(event.target.value)}
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
-            <option value="all">ทุกปี</option>
+            <option value="all">เธ—เธธเธเธเธต</option>
             {yearOptions.map((year) => (
               <option key={year} value={year}>{Number(year) + 543}</option>
             ))}
@@ -4821,30 +4565,30 @@ export default function SignatureCenterMockup({
             onChange={(event) => setStatusFilter(event.target.value)}
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
-            <option value="all">ทุกสถานะ</option>
-            <option value="preview">รอ Confirm Preview</option>
-            <option value="my-turn">รอฉันลงนาม</option>
-            <option value="pending">รอเซ็น</option>
-            <option value="ready">พร้อมจ่าย Incentive</option>
-            <option value="appeal-pending">มี Appeal รอ Approved</option>
-            <option value="expired">เกินกำหนด</option>
+            <option value="all">เธ—เธธเธเธชเธ–เธฒเธเธฐ</option>
+            <option value="preview">เธฃเธญ Confirm Preview</option>
+            <option value="my-turn">เธฃเธญเธเธฑเธเธฅเธเธเธฒเธก</option>
+            <option value="pending">เธฃเธญเน€เธเนเธ</option>
+            <option value="ready">เธเธฃเนเธญเธกเธเนเธฒเธข Incentive</option>
+            <option value="appeal-pending">เธกเธต Appeal เธฃเธญ Approved</option>
+            <option value="expired">เน€เธเธดเธเธเธณเธซเธเธ”</option>
           </select>
           <button
             type="button"
             onClick={clearWorkspaceFilters}
             className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
           >
-            ล้างตัวกรอง
+            เธฅเนเธฒเธเธ•เธฑเธงเธเธฃเธญเธ
           </button>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {([
-            ["all", "ทั้งหมด"],
-            ["pending", "รอเซ็น"],
-            ["signed", "เซ็นแล้ว"],
-            ["in-progress", "ค้างดำเนินการ"],
-            ["expired", "เกินกำหนด"],
+            ["all", "เธ—เธฑเนเธเธซเธกเธ”"],
+            ["pending", "เธฃเธญเน€เธเนเธ"],
+            ["signed", "เน€เธเนเธเนเธฅเนเธง"],
+            ["in-progress", "เธเนเธฒเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ"],
+            ["expired", "เน€เธเธดเธเธเธณเธซเธเธ”"],
           ] as const).map(([value, label]) => (
             <button
               key={value}
@@ -4861,11 +4605,11 @@ export default function SignatureCenterMockup({
 
         <div className="mt-5 grid gap-3 md:grid-cols-5">
           {[
-            { label: "รายการทั้งหมด", value: workspaceSummary.total, tone: "text-slate-950" },
-            { label: "รอเซ็น", value: workspaceSummary.pending, tone: "text-amber-700" },
-            { label: "เซ็นแล้ว", value: workspaceSummary.signed, tone: "text-emerald-700" },
-            { label: "เกินกำหนด", value: workspaceSummary.expired, tone: "text-rose-700" },
-            { label: "ค้างดำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700" },
+            { label: "เธฃเธฒเธขเธเธฒเธฃเธ—เธฑเนเธเธซเธกเธ”", value: workspaceSummary.total, tone: "text-slate-950" },
+            { label: "เธฃเธญเน€เธเนเธ", value: workspaceSummary.pending, tone: "text-amber-700" },
+            { label: "เน€เธเนเธเนเธฅเนเธง", value: workspaceSummary.signed, tone: "text-emerald-700" },
+            { label: "เน€เธเธดเธเธเธณเธซเธเธ”", value: workspaceSummary.expired, tone: "text-rose-700" },
+            { label: "เธเนเธฒเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ", value: workspaceSummary.inProgress, tone: "text-sky-700" },
           ].map((item) => (
             <div key={item.label} className="rounded-[22px] border border-violet-100 bg-violet-50/30 px-4 py-3">
               <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{item.label}</div>
@@ -4877,15 +4621,15 @@ export default function SignatureCenterMockup({
         <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
           <div className="min-w-[1280px]">
             <div className="grid grid-cols-[110px_190px_minmax(170px,1fr)_130px_150px_140px_120px_120px_120px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
-              <div>เดือน</div>
+              <div>เน€เธ”เธทเธญเธ</div>
               <div>Document Ref.</div>
-              <div>ผู้ถูกประเมิน</div>
-              <div>ทีม</div>
-              <div>ประเภทเอกสาร</div>
-              <div>สถานะ</div>
+              <div>เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ</div>
+              <div>เธ—เธตเธก</div>
+              <div>เธเธฃเธฐเน€เธ เธ—เน€เธญเธเธชเธฒเธฃ</div>
+              <div>เธชเธ–เธฒเธเธฐ</div>
               <div>Audit Date</div>
-              <div>กำหนดเซ็น</div>
-              <div>ดำเนินการ</div>
+              <div>เธเธณเธซเธเธ”เน€เธเนเธ</div>
+              <div>เธ”เธณเน€เธเธดเธเธเธฒเธฃ</div>
             </div>
             {groupedWorkspaceDocuments.map((group) => {
               const expanded = expandedMonths[group.monthKey] !== false;
@@ -4898,9 +4642,9 @@ export default function SignatureCenterMockup({
                   >
                     <span className="inline-flex items-center gap-2">
                       <span className="rounded-full bg-violet-700 px-3 py-1 text-xs font-black text-white">{group.monthLabel}</span>
-                      <span className="text-sm font-black text-slate-700">{group.items.length} รายการ</span>
+                      <span className="text-sm font-black text-slate-700">{group.items.length} เธฃเธฒเธขเธเธฒเธฃ</span>
                     </span>
-                    <span className="text-xs font-black text-violet-700">{expanded ? "ย่อ" : "ขยาย"}</span>
+                    <span className="text-xs font-black text-violet-700">{expanded ? "เธขเนเธญ" : "เธเธขเธฒเธข"}</span>
                   </button>
                   {expanded ? group.items.map((doc) => {
                     const entries = effectiveEntriesForDoc(doc, signatures);
@@ -4929,7 +4673,7 @@ export default function SignatureCenterMockup({
                         <div className="font-black text-slate-600">{formatDateOnly(getSignatureCreatedDate(doc))}</div>
                         <div className={`font-black ${status === "expired" ? "text-rose-700" : "text-slate-600"}`}>{formatDateOnly(dueDate)}</div>
                         <div>
-                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">เปิดรายละเอียด</span>
+                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">เน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”</span>
                         </div>
                       </button>
                     );
@@ -4942,14 +4686,14 @@ export default function SignatureCenterMockup({
 
         {!workspaceDocuments.length ? (
           <div className="mt-5 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-            <div className="text-base font-black text-slate-700">ไม่พบรายการเอกสารตามตัวกรองที่เลือก</div>
-            <div className="mt-1 text-sm font-semibold text-slate-500">ลองล้างตัวกรองหรือเลือกเดือนอื่น</div>
+            <div className="text-base font-black text-slate-700">เนเธกเนเธเธเธฃเธฒเธขเธเธฒเธฃเน€เธญเธเธชเธฒเธฃเธ•เธฒเธกเธ•เธฑเธงเธเธฃเธญเธเธ—เธตเนเน€เธฅเธทเธญเธ</div>
+            <div className="mt-1 text-sm font-semibold text-slate-500">เธฅเธญเธเธฅเนเธฒเธเธ•เธฑเธงเธเธฃเธญเธเธซเธฃเธทเธญเน€เธฅเธทเธญเธเน€เธ”เธทเธญเธเธญเธทเนเธ</div>
           </div>
         ) : null}
 
         <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
+            เนเธชเธ”เธ {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} เธเธฒเธ {workspaceDocuments.length} เธฃเธฒเธขเธเธฒเธฃ
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -4958,15 +4702,15 @@ export default function SignatureCenterMockup({
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700"
             >
               {SIGNATURE_ROWS_PER_PAGE_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option} / หน้า</option>
+                <option key={option} value={option}>{option} / เธซเธเนเธฒ</option>
               ))}
             </select>
             <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safeCurrentPage <= 1} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
-              ก่อนหน้า
+              เธเนเธญเธเธซเธเนเธฒ
             </button>
             <span className="text-xs font-black text-slate-500">{safeCurrentPage}/{totalPages}</span>
             <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={safeCurrentPage >= totalPages} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
-              ถัดไป
+              เธ–เธฑเธ”เนเธ
             </button>
           </div>
         </div>
@@ -4979,16 +4723,16 @@ export default function SignatureCenterMockup({
               className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">รายละเอียดเอกสารที่เลือก</div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธญเธเธชเธฒเธฃเธ—เธตเนเน€เธฅเธทเธญเธ</div>
                 <div className="mt-1 text-lg font-black text-slate-950">
-                  {selectedDocumentRef} • {selectedDocument.agentName}
+                  {selectedDocumentRef} โ€ข {selectedDocument.agentName}
                 </div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / ผู้ลงนามปัจจุบัน: {getPendingRoles(selectedEntries)[0] ? roleThaiLabel(getPendingRoles(selectedEntries)[0]) : "ครบแล้ว"}
+                  {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / เธเธนเนเธฅเธเธเธฒเธกเธเธฑเธเธเธธเธเธฑเธ: {getPendingRoles(selectedEntries)[0] ? roleThaiLabel(getPendingRoles(selectedEntries)[0]) : "เธเธฃเธเนเธฅเนเธง"}
                 </div>
               </div>
               <span className="rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white">
-                {workspaceDetailOpen ? "ย่อรายละเอียด" : "เปิดรายละเอียด"}
+                {workspaceDetailOpen ? "เธขเนเธญเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”" : "เน€เธเธดเธ”เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”"}
               </span>
             </button>
 
@@ -4997,13 +4741,13 @@ export default function SignatureCenterMockup({
                 <div className="grid gap-3 md:grid-cols-2">
                   {[
                     ["Document Ref.", selectedDocumentRef],
-                    ["เดือนเอกสาร", selectedDocument.monthLabel],
-                    ["ผู้ถูกประเมิน", selectedDocument.agentName],
-                    ["ทีม", selectedDocument.teamName || "-"],
-                    ["ประเภทเอกสาร", getDocumentTypeLabel(selectedDocument)],
-                    ["สถานะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
-                    ["Audit Date ล่าสุด", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
-                    ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
+                    ["เน€เธ”เธทเธญเธเน€เธญเธเธชเธฒเธฃ", selectedDocument.monthLabel],
+                    ["เธเธนเนเธ–เธนเธเธเธฃเธฐเน€เธกเธดเธ", selectedDocument.agentName],
+                    ["เธ—เธตเธก", selectedDocument.teamName || "-"],
+                    ["เธเธฃเธฐเน€เธ เธ—เน€เธญเธเธชเธฒเธฃ", getDocumentTypeLabel(selectedDocument)],
+                    ["เธชเธ–เธฒเธเธฐ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
+                    ["Audit Date เธฅเนเธฒเธชเธธเธ”", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
+                    ["เธเธณเธซเธเธ”เน€เธเนเธ", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
                       <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{label}</div>
@@ -5013,7 +4757,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="rounded-[22px] border border-white bg-white/90 p-4 shadow-sm">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">ลำดับการลงนาม</div>
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">เธฅเธณเธ”เธฑเธเธเธฒเธฃเธฅเธเธเธฒเธก</div>
                   <div className="mt-3 space-y-3">
                     {SIGNATURE_FLOW.map((role, index) => {
                       const signedEntry = getSignedEntry(selectedEntries, role);
@@ -5028,7 +4772,7 @@ export default function SignatureCenterMockup({
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-black text-slate-900">{roleThaiLabel(role)}</div>
                             <div className="text-xs font-semibold text-slate-500">
-                              {signedEntry ? `เซ็นแล้วโดย ${signedEntry.signedBy}` : isCurrent ? "รอดำเนินการขั้นนี้" : "ยังไม่ถึงขั้นตอน / ยังไม่เซ็น"}
+                              {signedEntry ? `เน€เธเนเธเนเธฅเนเธงเนเธ”เธข ${signedEntry.signedBy}` : isCurrent ? "เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃเธเธฑเนเธเธเธตเน" : "เธขเธฑเธเนเธกเนเธ–เธถเธเธเธฑเนเธเธ•เธญเธ / เธขเธฑเธเนเธกเนเน€เธเนเธ"}
                             </div>
                           </div>
                         </div>
@@ -5041,14 +4785,14 @@ export default function SignatureCenterMockup({
                       onClick={() => document.getElementById("signature-workflow-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
                       className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white"
                     >
-                      ไปที่พื้นที่ลงนาม / ตรวจเอกสาร
+                      เนเธเธ—เธตเนเธเธทเนเธเธ—เธตเนเธฅเธเธเธฒเธก / เธ•เธฃเธงเธเน€เธญเธเธชเธฒเธฃ
                     </button>
                     <button
                       type="button"
                       onClick={() => setWorkspaceDetailOpen(false)}
                       className="rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xs font-black text-violet-700"
                     >
-                      ปิดแถบรายละเอียด
+                      เธเธดเธ”เนเธ–เธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”
                     </button>
                   </div>
                 </div>
@@ -5064,7 +4808,7 @@ export default function SignatureCenterMockup({
             {documentView === "history" ? (isQaUser ? "QA Signature Monitor" : "Signature History") : "Document Queue"}
           </div>
           <div className="mt-1 text-xl font-black text-slate-950">
-            {documentView === "history" ? monitorTitle : "คิวที่ต้องเซ็นของฉัน"}
+            {documentView === "history" ? monitorTitle : "เธเธดเธงเธ—เธตเนเธ•เนเธญเธเน€เธเนเธเธเธญเธเธเธฑเธ"}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -5077,7 +4821,7 @@ export default function SignatureCenterMockup({
                   : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
               }`}
             >
-              คิวของฉัน ({filteredDocuments.length})
+              เธเธดเธงเธเธญเธเธเธฑเธ ({filteredDocuments.length})
             </button>
             <button
               type="button"
@@ -5088,7 +4832,7 @@ export default function SignatureCenterMockup({
                   : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
+              {isQaUser ? "QA Monitor" : "เธเธฃเธฐเธงเธฑเธ•เธด"} ({historyFilteredDocuments.length})
             </button>
           </div>
 
@@ -5096,7 +4840,7 @@ export default function SignatureCenterMockup({
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="ค้นหา Agent / Senior / Supervisor"
+              placeholder="เธเนเธเธซเธฒ Agent / Senior / Supervisor"
               className="rounded-2xl border border-violet-100 bg-violet-50/40 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
             />
             <select
@@ -5104,7 +4848,7 @@ export default function SignatureCenterMockup({
               onChange={(event) => setSelectedMonth(event.target.value)}
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
-              <option value="all">ทุกเดือน</option>
+              <option value="all">เธ—เธธเธเน€เธ”เธทเธญเธ</option>
               {monthOptions.map((month) => (
                 <option key={month} value={month}>{getMonthLabel(month)}</option>
               ))}
@@ -5112,25 +4856,25 @@ export default function SignatureCenterMockup({
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
               {documentView === "history"
                 ? monitorDescription
-                : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
+                : "เนเธชเธ”เธเน€เธเธเธฒเธฐเน€เธญเธเธชเธฒเธฃเธ—เธตเน Role เธเธญเธเธเธธเธ“เธขเธฑเธเธ•เนเธญเธเธฅเธเธเธฒเธกเน€เธ—เนเธฒเธเธฑเนเธ"}
             </div>
             <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold leading-5 text-rose-700">
               {isQaUser
-                ? "QA Monitor ใช้เช็กสถานะรวมของเอกสาร QA ที่คุณรับผิดชอบ โดยไม่รวมเอกสารของ QA คนอื่น"
-                : "แสดงเฉพาะเอกสารที่ Role ของคุณยังต้องลงนามเท่านั้น"}
+                ? "QA Monitor เนเธเนเน€เธเนเธเธชเธ–เธฒเธเธฐเธฃเธงเธกเธเธญเธเน€เธญเธเธชเธฒเธฃ QA เธ—เธตเนเธเธธเธ“เธฃเธฑเธเธเธดเธ”เธเธญเธ เนเธ”เธขเนเธกเนเธฃเธงเธกเน€เธญเธเธชเธฒเธฃเธเธญเธ QA เธเธเธญเธทเนเธ"
+                : "เนเธชเธ”เธเน€เธเธเธฒเธฐเน€เธญเธเธชเธฒเธฃเธ—เธตเน Role เธเธญเธเธเธธเธ“เธขเธฑเธเธ•เนเธญเธเธฅเธเธเธฒเธกเน€เธ—เนเธฒเธเธฑเนเธ"}
             </div>
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
-              <option value="all">ทุกสถานะ</option>
-              <option value="preview">รอ Confirm Preview</option>
-              <option value="my-turn">รอฉันลงนาม</option>
-              <option value="pending">รอเซ็น</option>
-              <option value="ready">พร้อมจ่าย Incentive</option>
-              <option value="appeal-pending">มี Appeal รอ Approved</option>
-              <option value="expired">เกินวันที่ 15 / ไม่ครบ</option>
+              <option value="all">เธ—เธธเธเธชเธ–เธฒเธเธฐ</option>
+              <option value="preview">เธฃเธญ Confirm Preview</option>
+              <option value="my-turn">เธฃเธญเธเธฑเธเธฅเธเธเธฒเธก</option>
+              <option value="pending">เธฃเธญเน€เธเนเธ</option>
+              <option value="ready">เธเธฃเนเธญเธกเธเนเธฒเธข Incentive</option>
+              <option value="appeal-pending">เธกเธต Appeal เธฃเธญ Approved</option>
+              <option value="expired">เน€เธเธดเธเธงเธฑเธเธ—เธตเน 15 / เนเธกเนเธเธฃเธ</option>
             </select>
           </div>
 
@@ -5167,7 +4911,7 @@ export default function SignatureCenterMockup({
                         <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-black ${
                           isMyPendingTurn ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"
                         }`}>
-                          รอเซ็น {docPendingRoles.length} role
+                          เธฃเธญเน€เธเนเธ {docPendingRoles.length} role
                         </div>
                       ) : null}
                     </div>
@@ -5181,10 +4925,10 @@ export default function SignatureCenterMockup({
                   {documentView === "history" ? (
                     <div className="mt-3 space-y-1 text-xs font-bold leading-5">
                       <div className="text-emerald-700">
-                        เซ็นแล้ว: {docSignedRoles.length ? docSignedRoles.map(roleThaiLabel).join(", ") : "-"}
+                        เน€เธเนเธเนเธฅเนเธง: {docSignedRoles.length ? docSignedRoles.map(roleThaiLabel).join(", ") : "-"}
                       </div>
                       <div className="text-rose-700">
-                        ยังเหลือ: {docPendingRoles.length ? docPendingRoles.map((role) => `${roleThaiLabel(role)} (${getRoleSigner(doc, role)})`).join(", ") : "ครบแล้ว"}
+                        เธขเธฑเธเน€เธซเธฅเธทเธญ: {docPendingRoles.length ? docPendingRoles.map((role) => `${roleThaiLabel(role)} (${getRoleSigner(doc, role)})`).join(", ") : "เธเธฃเธเนเธฅเนเธง"}
                       </div>
                     </div>
                   ) : null}
@@ -5195,8 +4939,8 @@ export default function SignatureCenterMockup({
             {!activeDocuments.length ? (
               <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
                 {documentView === "history"
-                  ? "ยังไม่มีประวัติเอกสารตามเงื่อนไขที่เลือก"
-                  : "ยังไม่มีคิวเซ็นของคุณตามเงื่อนไขที่เลือก"}
+                  ? "เธขเธฑเธเนเธกเนเธกเธตเธเธฃเธฐเธงเธฑเธ•เธดเน€เธญเธเธชเธฒเธฃเธ•เธฒเธกเน€เธเธทเนเธญเธเนเธเธ—เธตเนเน€เธฅเธทเธญเธ"
+                  : "เธขเธฑเธเนเธกเนเธกเธตเธเธดเธงเน€เธเนเธเธเธญเธเธเธธเธ“เธ•เธฒเธกเน€เธเธทเนเธญเธเนเธเธ—เธตเนเน€เธฅเธทเธญเธ"}
               </div>
             ) : null}
           </div>
@@ -5210,7 +4954,7 @@ export default function SignatureCenterMockup({
                   <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Preview Before Signature</div>
                   <div className="mt-1 text-2xl font-black text-slate-950">{selectedDocument.agentName}</div>
                   <div className="mt-1 text-sm font-semibold text-slate-500">
-                    {selectedDocument.monthLabel} • Team: {selectedDocument.teamName} • Team Lead: {selectedDocument.seniorName}
+                    {selectedDocument.monthLabel} โ€ข Team: {selectedDocument.teamName} โ€ข Team Lead: {selectedDocument.seniorName}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -5220,7 +4964,7 @@ export default function SignatureCenterMockup({
                       onClick={resetDocument}
                       className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-black text-rose-700 transition hover:bg-rose-100"
                     >
-                      Reset เอกสารนี้
+                      Reset เน€เธญเธเธชเธฒเธฃเธเธตเน
                     </button>
                   ) : null}
                   <button
@@ -5241,8 +4985,8 @@ export default function SignatureCenterMockup({
                   : "border-amber-200 bg-amber-50 text-amber-800"
               }`}>
                 {mySignedRoles.length
-                  ? `เช็กแล้ว: คุณเซ็นเอกสารนี้แล้วใน Role ${mySignedRoles.map(roleThaiLabel).join(", ")}`
-                  : "เช็กแล้ว: ยังไม่พบลายเซ็นของคุณในเอกสารนี้"}
+                  ? `เน€เธเนเธเนเธฅเนเธง: เธเธธเธ“เน€เธเนเธเน€เธญเธเธชเธฒเธฃเธเธตเนเนเธฅเนเธงเนเธ Role ${mySignedRoles.map(roleThaiLabel).join(", ")}`
+                  : "เน€เธเนเธเนเธฅเนเธง: เธขเธฑเธเนเธกเนเธเธเธฅเธฒเธขเน€เธเนเธเธเธญเธเธเธธเธ“เนเธเน€เธญเธเธชเธฒเธฃเธเธตเน"}
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -5269,9 +5013,9 @@ export default function SignatureCenterMockup({
 
             {hasPendingAppeal ? (
               <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-rose-800 shadow-[0_18px_40px_rgba(225,29,72,0.08)]">
-                <div className="text-base font-black">มีเคส Appeal รอ Approved</div>
+                <div className="text-base font-black">เธกเธตเน€เธเธช Appeal เธฃเธญ Approved</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
-                  เอกสารยังโชว์ได้และ Generate PDF ได้ แต่ยังยืนยันรับทราบไม่ได้ และยังเซ็นไม่ได้จนกว่า Appeal จะถูก Approved หรือ Rejected ครบทุกเคส
+                  เน€เธญเธเธชเธฒเธฃเธขเธฑเธเนเธเธงเนเนเธ”เนเนเธฅเธฐ Generate PDF เนเธ”เน เนเธ•เนเธขเธฑเธเธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเนเธกเนเนเธ”เน เนเธฅเธฐเธขเธฑเธเน€เธเนเธเนเธกเนเนเธ”เนเธเธเธเธงเนเธฒ Appeal เธเธฐเธ–เธนเธ Approved เธซเธฃเธทเธญ Rejected เธเธฃเธเธ—เธธเธเน€เธเธช
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedPendingAppeals.map((item) => (
@@ -5287,7 +5031,7 @@ export default function SignatureCenterMockup({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Case Detail Preview</div>
-                  <div className="mt-1 text-xl font-black text-slate-950">Preview 10 เคสก่อนเซ็น</div>
+                  <div className="mt-1 text-xl font-black text-slate-950">Preview 10 เน€เธเธชเธเนเธญเธเน€เธเนเธ</div>
                 </div>
                 {!previewConfirmed ? (
                   <div className="flex flex-col items-end gap-2">
@@ -5297,7 +5041,7 @@ export default function SignatureCenterMockup({
                       disabled={!confirmAvailable}
                       className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                      ยืนยันรับทราบข้อมูล
+                      เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธเนเธญเธกเธนเธฅ
                     </button>
                     {confirmBlockedReason ? (
                       <div className="max-w-[260px] text-right text-xs font-bold leading-5 text-amber-600">{confirmBlockedReason}</div>
@@ -5327,7 +5071,7 @@ export default function SignatureCenterMockup({
                       <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.comment}</div>
                       {pendingAppealCaseMap.has(item.caseId) ? (
                         <div className="mt-2 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-700">
-                          Appeal Pending / รอ Approved
+                          Appeal Pending / เธฃเธญ Approved
                         </div>
                       ) : null}
                     </div>
@@ -5341,10 +5085,10 @@ export default function SignatureCenterMockup({
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-500">Signature Workflow</div>
-                    <div className="mt-1 text-xl font-black text-slate-950">เปิดให้ทุก Role ลงนามได้อิสระหลังปิด Appeal</div>
+                    <div className="mt-1 text-xl font-black text-slate-950">เน€เธเธดเธ”เนเธซเนเธ—เธธเธ Role เธฅเธเธเธฒเธกเนเธ”เนเธญเธดเธชเธฃเธฐเธซเธฅเธฑเธเธเธดเธ” Appeal</div>
                     {!previewConfirmed ? (
                       <div className="mt-1 text-xs font-bold text-amber-600">
-                        Agent ต้องกดยืนยันรับทราบก่อนลงนามของตัวเอง แต่ Role อื่นลงนามได้โดยไม่ต้องรอ Agent
+                        Agent เธ•เนเธญเธเธเธ”เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธเนเธญเธเธฅเธเธเธฒเธกเธเธญเธเธ•เธฑเธงเน€เธญเธ เนเธ•เน Role เธญเธทเนเธเธฅเธเธเธฒเธกเนเธ”เนเนเธ”เธขเนเธกเนเธ•เนเธญเธเธฃเธญ Agent
                       </div>
                     ) : null}
                   </div>
@@ -5354,7 +5098,7 @@ export default function SignatureCenterMockup({
                       onClick={shareSignatureStatus}
                       className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-100"
                     >
-                      แชร์สถานะผู้ยังไม่เซ็น
+                      เนเธเธฃเนเธชเธ–เธฒเธเธฐเธเธนเนเธขเธฑเธเนเธกเนเน€เธเนเธ
                     </button>
                     {currentUser.role === "Quality Assurance" && !isHistoricalPaidPeriod(selectedDocument.monthKey) ? (
                       <button
@@ -5362,7 +5106,7 @@ export default function SignatureCenterMockup({
                         onClick={resetDocument}
                         className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
                       >
-                        Reset เอกสารนี้
+                        Reset เน€เธญเธเธชเธฒเธฃเธเธตเน
                       </button>
                     ) : null}
                   </div>
@@ -5382,13 +5126,13 @@ export default function SignatureCenterMockup({
                       </div>
                       <div className="mt-1 text-lg font-black text-slate-950">
                         {pendingRoles.length
-                          ? `ยังรอลงนาม ${pendingRoles.length} role`
-                          : "เอกสารลงนามครบแล้ว"}
+                          ? `เธขเธฑเธเธฃเธญเธฅเธเธเธฒเธก ${pendingRoles.length} role`
+                          : "เน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธกเธเธฃเธเนเธฅเนเธง"}
                       </div>
                       <div className="mt-1 text-sm font-bold text-slate-600">
                         {pendingRoles.length
                           ? pendingRoles.map((role) => `${roleThaiLabel(role)}: ${getRoleSigner(selectedDocument, role)}`).join(" / ")
-                          : "ไม่เหลือ Role ที่ต้องเซ็นต่อ"}
+                          : "เนเธกเนเน€เธซเธฅเธทเธญ Role เธ—เธตเนเธ•เนเธญเธเน€เธเนเธเธ•เนเธญ"}
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
@@ -5404,7 +5148,7 @@ export default function SignatureCenterMockup({
                         onClick={copyNextSignerAlert}
                         className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
                       >
-                        คัดลอกข้อความแจ้งเตือน
+                        เธเธฑเธ”เธฅเธญเธเธเนเธญเธเธงเธฒเธกเนเธเนเธเน€เธ•เธทเธญเธ
                       </button>
                     </div>
                   </div>
@@ -5463,19 +5207,19 @@ export default function SignatureCenterMockup({
                           <div className="font-bold text-slate-900">{signed ? signed.signerName : signerName}</div>
                           {signed ? (
                             <div className="mt-1 text-xs font-semibold text-slate-400">
-                              Signed by {signed.signedBy} • {formatDateTime(signed.signedAt)}
+                              Signed by {signed.signedBy} โ€ข {formatDateTime(signed.signedAt)}
                             </div>
                           ) : isAgentBlockedByConfirm ? (
-                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent ต้องกดยืนยันรับทราบก่อนลงนาม</div>
+                            <div className="mt-1 text-xs font-semibold text-amber-600">Agent เธ•เนเธญเธเธเธ”เธขเธทเธเธขเธฑเธเธฃเธฑเธเธ—เธฃเธฒเธเธเนเธญเธเธฅเธเธเธฒเธก</div>
                           ) : status === "Locked" ? (
-                            <div className="mt-1 text-xs font-semibold text-slate-400">เปิดเซ็นหลังวันที่ 10 ของเดือนถัดไป</div>
+                            <div className="mt-1 text-xs font-semibold text-slate-400">เน€เธเธดเธ”เน€เธเนเธเธซเธฅเธฑเธเธงเธฑเธเธ—เธตเน 10 เธเธญเธเน€เธ”เธทเธญเธเธ–เธฑเธ”เนเธ</div>
                           ) : activeResetAfterDeadline ? (
                             <div className="mt-1 text-xs font-semibold text-violet-600">
-                              รีเซ็ตแล้ว เซ็นได้ถึง {resetExpiresAt ? formatDateTime(resetExpiresAt.toISOString()) : `${SIGNATURE_RESET_WINDOW_DAYS} วัน`}
+                              เธฃเธตเน€เธเนเธ•เนเธฅเนเธง เน€เธเนเธเนเธ”เนเธ–เธถเธ {resetExpiresAt ? formatDateTime(resetExpiresAt.toISOString()) : `${SIGNATURE_RESET_WINDOW_DAYS} เธงเธฑเธ`}
                             </div>
                           ) : resetWindowExpired ? (
                             <div className="mt-1 text-xs font-semibold text-rose-600">
-                              รอบรีเซ็ตหมดอายุแล้ว กด Reset ใหม่ได้
+                              เธฃเธญเธเธฃเธตเน€เธเนเธ•เธซเธกเธ”เธญเธฒเธขเธธเนเธฅเนเธง เธเธ” Reset เนเธซเธกเนเนเธ”เน
                             </div>
                           ) : null}
                         </div>
@@ -5493,25 +5237,25 @@ export default function SignatureCenterMockup({
                           >
                             {signed
                               ? signed.signatureDataUrl
-                                ? "เอกสารลงนามแล้ว"
+                                ? "เน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธกเนเธฅเนเธง"
                                 : canAddFirstDrawnSignature
                                   ? savedSignatureDataUrl
-                                    ? "ตรวจสอบลายเซ็นเดิม"
-                                    : "เพิ่มลายเซ็นจริง"
-                                  : "เฉพาะเจ้าของลายเซ็น"
+                                    ? "เธ•เธฃเธงเธเธชเธญเธเธฅเธฒเธขเน€เธเนเธเน€เธ”เธดเธก"
+                                    : "เน€เธเธดเนเธกเธฅเธฒเธขเน€เธเนเธเธเธฃเธดเธ"
+                                  : "เน€เธเธเธฒเธฐเน€เธเนเธฒเธเธญเธเธฅเธฒเธขเน€เธเนเธ"
                               : allowSign
                                 ? isAgentBlockedByConfirm
-                                  ? "กดยืนยันก่อนเซ็น"
+                                  ? "เธเธ”เธขเธทเธเธขเธฑเธเธเนเธญเธเน€เธเนเธ"
                                   : savedSignatureDataUrl
-                                  ? "ตรวจสอบลายเซ็นเดิม"
+                                  ? "เธ•เธฃเธงเธเธชเธญเธเธฅเธฒเธขเน€เธเนเธเน€เธ”เธดเธก"
                                   : timeline === "Signature Deadline Passed"
-                                    ? "วาดและลงนามล่าช้า"
-                                    : "วาดและลงนาม"
+                                    ? "เธงเธฒเธ”เนเธฅเธฐเธฅเธเธเธฒเธกเธฅเนเธฒเธเนเธฒ"
+                                    : "เธงเธฒเธ”เนเธฅเธฐเธฅเธเธเธฒเธก"
                                 : status === "Locked"
-                                  ? "ยังไม่เปิดให้เซ็น"
+                                  ? "เธขเธฑเธเนเธกเนเน€เธเธดเธ”เนเธซเนเน€เธเนเธ"
                                   : status === "Expired"
-                                    ? "เกินกำหนด"
-                                    : "รอผู้เกี่ยวข้อง"}
+                                    ? "เน€เธเธดเธเธเธณเธซเธเธ”"
+                                    : "เธฃเธญเธเธนเนเน€เธเธตเนเธขเธงเธเนเธญเธ"}
                           </button>
                           {canResetRoleAfterDeadline ? (
                             <button
@@ -5519,7 +5263,7 @@ export default function SignatureCenterMockup({
                               onClick={() => void resetSignatureRole(role)}
                               className="mt-2 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
                             >
-                              Reset คนนี้
+                              Reset เธเธเธเธตเน
                             </button>
                           ) : null}
                         </div>
@@ -5529,7 +5273,7 @@ export default function SignatureCenterMockup({
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                  PDF ออกได้ทุกสถานะ แต่ลายเซ็นจริงต้องให้เจ้าของ Role เซ็นเองเท่านั้น เมื่อบันทึกลายเซ็นจริงแล้วจะกลับมาแก้เองไม่ได้
+                  PDF เธญเธญเธเนเธ”เนเธ—เธธเธเธชเธ–เธฒเธเธฐ เนเธ•เนเธฅเธฒเธขเน€เธเนเธเธเธฃเธดเธเธ•เนเธญเธเนเธซเนเน€เธเนเธฒเธเธญเธ Role เน€เธเนเธเน€เธญเธเน€เธ—เนเธฒเธเธฑเนเธ เน€เธกเธทเนเธญเธเธฑเธเธ—เธถเธเธฅเธฒเธขเน€เธเนเธเธเธฃเธดเธเนเธฅเนเธงเธเธฐเธเธฅเธฑเธเธกเธฒเนเธเนเน€เธญเธเนเธกเนเนเธ”เน
                 </div>
               </div>
             ) : null}
@@ -5550,7 +5294,7 @@ export default function SignatureCenterMockup({
             const savedSignatureDataUrl = signatureLibrary[getSavedSignatureKey(signingRole)];
             if (!savedSignatureDataUrl) return;
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+              window.alert("เน€เธเนเธเนเธ—เธเธเธฑเธเนเธกเนเนเธ”เน เธเธฃเธธเธ“เธฒเนเธซเนเน€เธเนเธฒเธเธญเธเธฅเธฒเธขเน€เธเนเธเธ•เธฒเธก Role เน€เธเนเธเธเธนเนเธฅเธเธเธฒเธกเน€เธญเธ");
               setSigningRole(null);
               return;
             }
@@ -5565,7 +5309,7 @@ export default function SignatureCenterMockup({
           }}
           onSave={async (dataUrl, saveToSavedLibrary) => {
             if (!canSignIdentity(currentUser, selectedDocument, signingRole)) {
-              window.alert("เซ็นแทนกันไม่ได้ กรุณาให้เจ้าของลายเซ็นตาม Role เป็นผู้ลงนามเอง");
+              window.alert("เน€เธเนเธเนเธ—เธเธเธฑเธเนเธกเนเนเธ”เน เธเธฃเธธเธ“เธฒเนเธซเนเน€เธเนเธฒเธเธญเธเธฅเธฒเธขเน€เธเนเธเธ•เธฒเธก Role เน€เธเนเธเธเธนเนเธฅเธเธเธฒเธกเน€เธญเธ");
               setSigningRole(null);
               return;
             }
@@ -5583,4 +5327,5 @@ export default function SignatureCenterMockup({
     </div>
   );
 }
+
 
