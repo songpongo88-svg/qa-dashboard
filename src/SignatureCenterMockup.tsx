@@ -3904,7 +3904,7 @@ export default function SignatureCenterMockup({
     if (false) {
     const docW = 210;
     const docH = 297;
-    const qaDoc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+    const qaDoc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     try {
       registerTHSarabunNew(qaDoc);
       qaDoc.setFont("THSarabunNew", "normal");
@@ -4340,49 +4340,24 @@ export default function SignatureCenterMockup({
 
   return (
     <div className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
-      <div className="grid min-h-screen grid-cols-1 xl:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden bg-gradient-to-b from-[#1c0b3d] via-[#271052] to-[#120827] px-5 py-7 text-white xl:block">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-xl font-black">QA</div>
-            <div>
-              <div className="text-lg font-black">Robinhood QA</div>
-              <div className="text-xs font-semibold text-violet-200">Operations Workspace</div>
-            </div>
-          </div>
-          <div className="mt-8 space-y-2 text-sm font-bold text-violet-100">
-            {["Dashboard", "Case Management", "Signature Workspace", "Reports & Analytics", "Documents", "Users & Teams", "Audit Logs"].map((label) => (
-              <div
-                key={label}
-                className={`rounded-2xl px-4 py-3 ${label === "Signature Workspace" ? "bg-violet-600 text-white shadow-[0_18px_40px_rgba(124,58,237,0.35)]" : "hover:bg-white/10"}`}
-              >
-                {label}
+      <div className="min-h-screen">
+        <main className="min-w-0 space-y-6 p-4 sm:p-6">
+          <section data-signature-modern-hero className="overflow-hidden rounded-[34px] border border-violet-200 bg-gradient-to-r from-[#2b0b57] via-[#6d28d9] to-[#b31cc7] px-7 py-7 text-white shadow-[0_28px_80px_rgba(88,28,135,0.25)]">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="rounded-[26px] border border-white/20 bg-white/10 px-5 py-4 backdrop-blur">
+                <div className="text-xs font-black uppercase tracking-[0.28em] text-violet-100">Robinhood QA</div>
+                <div className="mt-2 text-2xl font-black">Signature Workflow</div>
+                <div className="mt-1 text-sm font-semibold text-violet-100">Monthly acknowledgement and incentive tracking</div>
               </div>
-            ))}
-          </div>
-          <div className="mt-10 rounded-3xl border border-white/15 bg-white/10 p-4">
-            <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">Access</div>
-            <div className="mt-2 text-sm font-black">{currentUser.displayName || currentUser.username}</div>
-            <div className="text-xs font-semibold text-violet-200">{currentUser.role}</div>
-          </div>
-        </aside>
-        <main className="min-w-0 space-y-5 p-4 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="text-4xl font-black tracking-tight text-slate-950">Signature Workspace</div>
-              <div className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-slate-500">
-                ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบและติดตามสถานะ
+              <div className="max-w-2xl lg:text-right">
+                <div className="text-xs font-black uppercase tracking-[0.32em] text-violet-100">QA Operations</div>
+                <div className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">Signature Workspace</div>
+                <div className="mt-3 text-sm font-semibold leading-6 text-violet-100">
+                  เธ•เธดเธ”เธ•เธฒเธกเนเธฅเธฐเธเธฑเธ”เธเธฒเธฃเน€เธญเธเธชเธฒเธฃเธฅเธเธเธฒเธกเธเธญเธเธ—เธตเธก เนเธขเธเธ•เธฒเธกเน€เธ”เธทเธญเธ เธชเธ–เธฒเธเธฐ เนเธฅเธฐเธเธนเนเธฃเธฑเธเธเธดเธ”เธเธญเธเนเธ”เนเนเธเธ—เธตเนเน€เธ”เธตเธขเธง
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-sm font-black text-violet-700">
-                {(currentUser.displayName || currentUser.username || "U").slice(0, 1).toUpperCase()}
-              </div>
-              <div>
-                <div className="text-sm font-black text-slate-950">{currentUser.displayName || currentUser.username}</div>
-                <div className="text-xs font-semibold text-slate-500">{currentUser.role}</div>
-              </div>
-            </div>
-          </div>
+          </section>
       <div className="hidden">
       <PageHero
         eyebrow="Monthly Acknowledgement"
