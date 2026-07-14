@@ -185,6 +185,35 @@ function normalizeText(value: unknown) {
     .trim();
 }
 
+function splitSignatureIntent(value: unknown) {
+  const fullText = normalizeText(value);
+  if (!fullText || !fullText.endsWith(")")) {
+    return { primary: fullText, secondary: "" };
+  }
+
+  let depth = 0;
+  let openingIndex = -1;
+  for (let index = fullText.length - 1; index >= 0; index -= 1) {
+    const char = fullText[index];
+    if (char === ")") depth += 1;
+    if (char === "(") {
+      depth -= 1;
+      if (depth === 0) {
+        openingIndex = index;
+        break;
+      }
+    }
+  }
+
+  if (openingIndex <= 0) {
+    return { primary: fullText, secondary: "" };
+  }
+
+  const primary = fullText.slice(0, openingIndex).trim();
+  const secondary = fullText.slice(openingIndex).trim();
+  return primary ? { primary, secondary } : { primary: fullText, secondary: "" };
+}
+
 function normalizeKey(value: unknown) {
   return normalizeText(value).toLowerCase();
 }
@@ -2264,6 +2293,7 @@ export default function SignatureCenterMockup({
   const [shareMessage, setShareMessage] = useState("");
   const [signingRole, setSigningRole] = useState<SignRole | null>(null);
   const [previewCase, setPreviewCase] = useState<SignatureCaseDetail | null>(null);
+  const [queuePreviewDocumentId, setQueuePreviewDocumentId] = useState("");
   const shareLinkAppliedRef = useRef(false);
 
   useEffect(() => {
@@ -2470,6 +2500,7 @@ export default function SignatureCenterMockup({
     if (monthParam) setSelectedMonth(monthParam);
     if (docParam && documents.some((doc) => doc.id === docParam)) {
       setSelectedDocumentId(docParam);
+      setQueuePreviewDocumentId(docParam);
       setStatusFilter("all");
     }
     if (monthParam || docParam) shareLinkAppliedRef.current = true;
@@ -2627,6 +2658,7 @@ export default function SignatureCenterMockup({
 
   const openWorkspaceDetail = (docId: string) => {
     setSelectedDocumentId(docId);
+    if (documentView === "queue") setQueuePreviewDocumentId(docId);
     setWorkspaceDetailOpen(true);
     window.setTimeout(() => {
       workspaceDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4395,15 +4427,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v7 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v9 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v7],
-          [data-signature-ui-v7] button,
-          [data-signature-ui-v7] input,
-          [data-signature-ui-v7] select,
-          [data-signature-ui-v7] textarea {
+          [data-signature-ui-v9],
+          [data-signature-ui-v9] button,
+          [data-signature-ui-v9] input,
+          [data-signature-ui-v9] select,
+          [data-signature-ui-v9] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4616,12 +4648,13 @@ export default function SignatureCenterMockup({
 
                     {expanded ? (
                       <>
-                        <div className="hidden grid-cols-[120px_210px_minmax(160px,1fr)_92px_200px_108px] items-center gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] font-medium text-slate-500 md:grid">
+                        <div className="hidden grid-cols-[112px_minmax(175px,1fr)_minmax(160px,1fr)_88px_145px_170px_108px] items-center gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] font-medium text-slate-500 md:grid">
                           <div>Document Ref.</div>
                           <div>Assessed Agent</div>
                           <div>Document Type</div>
                           <div>Status</div>
                           <div>Pending Roles</div>
+                          <div>Pending Signers</div>
                           <div className="text-right">Action</div>
                         </div>
                         <div className="divide-y divide-slate-100">
@@ -4631,17 +4664,12 @@ export default function SignatureCenterMockup({
                             const selected = selectedDocument?.id === doc.id;
                             const documentRef = getMonthlyDocumentRef(doc, documents);
                             const docPendingRoles = getPendingRoles(entries);
-                            const pendingText = docPendingRoles.length
-                              ? `${docPendingRoles.length} Role${docPendingRoles.length > 1 ? "s" : ""}: ${docPendingRoles
-                                  .map((role) => (role === "Senior" ? "Senior / Team Lead" : role))
-                                  .join(", ")}`
-                              : "Completed";
                             return (
                               <button
                                 key={doc.id}
                                 type="button"
                                 onClick={() => openWorkspaceDetail(doc.id)}
-                                className={`grid w-full gap-2.5 px-4 py-2.5 text-left transition md:grid-cols-[120px_210px_minmax(160px,1fr)_92px_200px_108px] md:items-center md:gap-3 ${
+                                className={`grid w-full gap-2.5 px-4 py-2.5 text-left transition md:grid-cols-[112px_minmax(175px,1fr)_minmax(160px,1fr)_88px_145px_170px_108px] md:items-center md:gap-3 ${
                                   selected
                                     ? "bg-violet-50/80 shadow-[inset_3px_0_0_#7c3aed]"
                                     : "bg-white hover:bg-slate-50"
@@ -4659,8 +4687,27 @@ export default function SignatureCenterMockup({
                                 </div>
                                 <div className="line-clamp-2 text-xs font-medium leading-5 text-slate-600">{getDocumentTypeLabel(doc)}</div>
                                 <div><WorkspaceStatusBadge status={status} /></div>
-                                <div className={`text-xs font-medium leading-5 ${docPendingRoles.length ? "text-slate-700" : "text-emerald-700"}`}>
-                                  {pendingText}
+                                <div className={`space-y-1 text-xs font-medium leading-5 ${docPendingRoles.length ? "text-slate-700" : "text-emerald-700"}`}>
+                                  {docPendingRoles.length ? (
+                                    docPendingRoles.map((role) => (
+                                      <div key={`${doc.id}-pending-role-${role}`}>
+                                        {role === "Senior" ? "Senior / Team Lead" : role}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div>Completed</div>
+                                  )}
+                                </div>
+                                <div className="space-y-1 text-xs font-medium leading-5 text-slate-700">
+                                  {docPendingRoles.length ? (
+                                    docPendingRoles.map((role) => (
+                                      <div key={`${doc.id}-pending-signer-${role}`} className="truncate" title={getRoleSigner(doc, role)}>
+                                        {getRoleSigner(doc, role) || "-"}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div>-</div>
+                                  )}
                                 </div>
                                 <div className="text-right">
                                   <span className="inline-flex min-w-[96px] whitespace-nowrap justify-center rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-medium text-violet-700">
@@ -4967,7 +5014,7 @@ export default function SignatureCenterMockup({
                 <button
                   key={doc.id}
                   type="button"
-                  onClick={() => setSelectedDocumentId(doc.id)}
+                  onClick={() => openWorkspaceDetail(doc.id)}
                   className={`w-full rounded-[24px] border p-4 text-left transition ${
                     selected
                       ? "border-violet-400 bg-violet-50 shadow-[0_16px_34px_rgba(109,40,217,0.14)]"
@@ -5020,7 +5067,7 @@ export default function SignatureCenterMockup({
           </div>
         </div>
 
-        {selectedDocument ? (
+        {selectedDocument && (documentView === "history" || (queuePreviewDocumentId === selectedDocument.id && filteredDocuments.some((doc) => doc.id === selectedDocument.id))) ? (
           <div className="space-y-5">
             <div className="rounded-[30px] border border-violet-100 bg-white p-6 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -5128,38 +5175,77 @@ export default function SignatureCenterMockup({
               </div>
 
               <div className="mt-5 overflow-hidden rounded-[20px] border border-slate-200">
-                <div className="grid grid-cols-[44px_116px_86px_76px_minmax(0,1fr)] bg-violet-700 px-4 py-2.5 text-xs font-medium text-white">
+                <div className="grid grid-cols-[40px_108px_82px_72px_minmax(230px,1fr)_minmax(300px,1.1fr)] bg-violet-700 px-4 py-2.5 text-xs font-medium text-white">
                   <div>#</div>
                   <div>Case ID</div>
-                  <div>วันที่</div>
-                  <div>คะแนน</div>
+                  <div>Date</div>
+                  <div>Score</div>
                   <div>Intent</div>
+                  <div>Topic Scores</div>
                 </div>
-                {selectedDocument.cases.slice(0, 10).map((item, index) => (
-                  <div
-                    key={`${item.caseId}-${index}`}
-                    className="grid grid-cols-[44px_116px_86px_76px_minmax(0,1fr)] items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-sm transition hover:bg-violet-50/40"
-                  >
-                    <div className="font-medium text-slate-400">{index + 1}</div>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewCase(item)}
-                      className="truncate text-left font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                {selectedDocument.cases.slice(0, 10).map((item, index) => {
+                  const intentParts = splitSignatureIntent(item.inquiry);
+                  return (
+                    <div
+                      key={`${item.caseId}-${index}`}
+                      className="grid grid-cols-[40px_108px_82px_72px_minmax(230px,1fr)_minmax(300px,1.1fr)] items-start gap-2 border-t border-slate-100 px-4 py-3 text-sm transition hover:bg-violet-50/40"
                     >
-                      {item.caseId}
-                    </button>
-                    <div className="font-normal text-slate-500">{item.auditDate}</div>
-                    <div className="font-semibold text-violet-700">{item.finalScore.toFixed(2)}</div>
-                    <div className="min-w-0">
-                      <div className="truncate font-medium text-slate-800" title={item.inquiry}>{item.inquiry}</div>
-                      {pendingAppealCaseMap.has(item.caseId) ? (
-                        <span className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
-                          Appeal Pending
-                        </span>
-                      ) : null}
+                      <div className="pt-0.5 font-medium text-slate-400">{index + 1}</div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewCase(item)}
+                        className="truncate pt-0.5 text-left font-semibold text-violet-700 underline-offset-2 transition hover:text-violet-900 hover:underline"
+                      >
+                        {item.caseId}
+                      </button>
+                      <div className="pt-0.5 font-normal text-slate-500">{item.auditDate}</div>
+                      <div className="pt-0.5 font-semibold text-violet-700">{item.finalScore.toFixed(2)}</div>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-slate-900" title={intentParts.primary}>
+                          {intentParts.primary || "-"}
+                        </div>
+                        {intentParts.secondary ? (
+                          <div className="mt-0.5 truncate text-xs font-normal text-slate-500" title={intentParts.secondary}>
+                            {intentParts.secondary}
+                          </div>
+                        ) : null}
+                        {pendingAppealCaseMap.has(item.caseId) ? (
+                          <span className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                            Appeal Pending
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-2">
+                        {item.topics?.length ? (
+                          item.topics.map((topic) => {
+                            const score = Number(topic.score) || 0;
+                            const max = Number(topic.max) || 0;
+                            const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
+                            const barTone =
+                              percent >= 85
+                                ? "bg-emerald-500"
+                                : percent >= 75
+                                  ? "bg-amber-500"
+                                  : "bg-rose-500";
+                            return (
+                              <div key={`${item.caseId}-topic-${topic.code}-${topic.title}`} className="min-w-0">
+                                <div className="flex items-center justify-between gap-2 text-[10px] leading-4">
+                                  <span className="truncate font-medium text-slate-600" title={topic.title}>{topic.title}</span>
+                                  <span className="shrink-0 font-semibold text-slate-800">{score}/{max || "-"}</span>
+                                </div>
+                                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                                  <div className={`h-full rounded-full ${barTone}`} style={{ width: `${percent}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="col-span-2 text-xs font-normal text-slate-400">-</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -5412,7 +5498,17 @@ export default function SignatureCenterMockup({
 
               <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
                 <div className="text-xs font-medium text-violet-600">Intent</div>
-                <div className="mt-2 text-base font-medium leading-7 text-slate-900">{previewCase.inquiry || "-"}</div>
+                {(() => {
+                  const intentParts = splitSignatureIntent(previewCase.inquiry);
+                  return (
+                    <div className="mt-2">
+                      <div className="text-base font-semibold leading-7 text-slate-900">{intentParts.primary || "-"}</div>
+                      {intentParts.secondary ? (
+                        <div className="mt-1 text-sm font-normal leading-6 text-slate-500">{intentParts.secondary}</div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
@@ -5426,12 +5522,28 @@ export default function SignatureCenterMockup({
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-xs font-medium text-slate-500">คะแนนรายหัวข้อ</div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {previewCase.topics.map((topic) => (
-                      <div key={`${topic.code}-${topic.title}`} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5">
-                        <div className="min-w-0 truncate text-sm font-normal text-slate-700">{topic.title}</div>
-                        <div className="shrink-0 text-sm font-semibold text-violet-700">{topic.score}/{topic.max}</div>
-                      </div>
-                    ))}
+                    {previewCase.topics.map((topic) => {
+                      const score = Number(topic.score) || 0;
+                      const max = Number(topic.max) || 0;
+                      const percent = max > 0 ? Math.max(0, Math.min(100, (score / max) * 100)) : 0;
+                      const barTone =
+                        percent >= 85
+                          ? "bg-emerald-500"
+                          : percent >= 75
+                            ? "bg-amber-500"
+                            : "bg-rose-500";
+                      return (
+                        <div key={`${topic.code}-${topic.title}`} className="rounded-xl bg-white px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 truncate text-sm font-normal text-slate-700">{topic.title}</div>
+                            <div className="shrink-0 text-sm font-semibold text-violet-700">{score}/{max || "-"}</div>
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div className={`h-full rounded-full ${barTone}`} style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
