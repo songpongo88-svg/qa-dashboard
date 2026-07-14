@@ -133,7 +133,7 @@ const SIGNATURE_JAN_FEB_2026_TOPIC_MASTER = [
   { code: "2", label: "วิเคราะห์/แก้ไข", max: 30 },
   { code: "3", label: "ปฏิบั�•เธดเธ•ามขั้น�•อน", max: 20 },
   { code: "4", label: "ความสุ� าพ", max: 10 },
-  { code: "5", label: "เธ เธฒเธฉเธฒ", max: 20 },
+  { code: "5", label: "ภาษา", max: 20 },
   { code: "6", label: "ระยะเวลา", max: 10 },
 ] as const;
 
@@ -3017,7 +3017,7 @@ export default function SignatureCenterMockup({
     {
       const pageW = 210;
       const pageH = 297;
-      const left = 12;
+      const left = 10;
       const tableW = 186;
       const bottom = 289;
       const purple: [number, number, number] = [112, 48, 160];
@@ -4100,7 +4100,7 @@ export default function SignatureCenterMockup({
     }
 
     const pageWidth = 210;
-    const left = 12;
+    const left = 10;
     const right = 198;
     let y = 12;
 
@@ -4572,11 +4572,11 @@ export default function SignatureCenterMockup({
             className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
           >
             <option value="all">เธ—ุกส�–านะ</option>
-            <option value="preview">เธฃเธญ Confirm Preview</option>
+            <option value="preview">รอ Confirm Preview</option>
             <option value="my-turn">รอฉันลงนาม</option>
             <option value="pending">รอเซ็น</option>
             <option value="ready">พร้อมจ่าย Incentive</option>
-            <option value="appeal-pending">เธกเธต Appeal เธฃเธญ Approved</option>
+            <option value="appeal-pending">มี Appeal รอ Approved</option>
             <option value="expired">เกินกำหน�”</option>
           </select>
           <button
@@ -4630,7 +4630,7 @@ export default function SignatureCenterMockup({
               <div>เ�”ือน</div>
               <div>Document Ref.</div>
               <div>ผู้�–ูกประเมิน</div>
-              <div>เธ—เธตเธก</div>
+              <div>ทีม</div>
               <div>ประเ� เธ—เอกสาร</div>
               <div>เธชเธ–านะ</div>
               <div>Audit Date</div>
@@ -4749,7 +4749,7 @@ export default function SignatureCenterMockup({
                     ["Document Ref.", selectedDocumentRef],
                     ["เ�”ือนเอกสาร", selectedDocument.monthLabel],
                     ["ผู้�–ูกประเมิน", selectedDocument.agentName],
-                    ["เธ—เธตเธก", selectedDocument.teamName || "-"],
+                    ["ทีม", selectedDocument.teamName || "-"],
                     ["ประเ� เธ—เอกสาร", getDocumentTypeLabel(selectedDocument)],
                     ["เธชเธ–านะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
                     ["Audit Date ล่าสุ�”", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
@@ -4875,11 +4875,11 @@ export default function SignatureCenterMockup({
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
               <option value="all">เธ—ุกส�–านะ</option>
-              <option value="preview">เธฃเธญ Confirm Preview</option>
+              <option value="preview">รอ Confirm Preview</option>
               <option value="my-turn">รอฉันลงนาม</option>
               <option value="pending">รอเซ็น</option>
               <option value="ready">พร้อมจ่าย Incentive</option>
-              <option value="appeal-pending">เธกเธต Appeal เธฃเธญ Approved</option>
+              <option value="appeal-pending">มี Appeal รอ Approved</option>
               <option value="expired">เกินวัน�—ี่ 15 / ไม่ครบ</option>
             </select>
           </div>
@@ -5077,7 +5077,7 @@ export default function SignatureCenterMockup({
                       <div className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.comment}</div>
                       {pendingAppealCaseMap.has(item.caseId) ? (
                         <div className="mt-2 inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-700">
-                          Appeal Pending / เธฃเธญ Approved
+                          Appeal Pending / รอ Approved
                         </div>
                       ) : null}
                     </div>
