@@ -4384,15 +4384,15 @@ export default function SignatureCenterMockup({
       <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
         <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">1. Preview Score + 10 Cases</span>
-          <span className="text-slate-300">{'>'}</span>
+          <span className="text-slate-300">{' > '}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">2. Confirm</span>
-          <span className="text-slate-300">{'>'}</span>
+          <span className="text-slate-300">{' > '}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">3. QA</span>
-          <span className="text-slate-300">{'>'}</span>
+          <span className="text-slate-300">{' > '}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">4. Supervisor</span>
-          <span className="text-slate-300">{'>'}</span>
+          <span className="text-slate-300">{' > '}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">5. Team Lead</span>
-          <span className="text-slate-300">{'>'}</span>
+          <span className="text-slate-300">{' > '}</span>
           <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
         </div>
         <div className="mt-3 text-sm leading-6 text-slate-500">
