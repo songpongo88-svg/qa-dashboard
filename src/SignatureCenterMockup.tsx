@@ -1254,6 +1254,15 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
   if (!dataUrl || typeof window === "undefined") return dataUrl;
 
   return new Promise<string>((resolve) => {
+    let resolved = false;
+    let timeoutId = 0;
+    const finish = (value: string) => {
+      if (resolved) return;
+      resolved = true;
+      window.clearTimeout(timeoutId);
+      resolve(value);
+    };
+    timeoutId = window.setTimeout(() => finish(dataUrl), 2500);
     const image = new Image();
     image.onload = () => {
       try {
@@ -1262,7 +1271,7 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
         sourceCanvas.height = image.naturalHeight || image.height;
         const sourceContext = sourceCanvas.getContext("2d");
         if (!sourceContext || !sourceCanvas.width || !sourceCanvas.height) {
-          resolve(dataUrl);
+          finish(dataUrl);
           return;
         }
 
@@ -1292,7 +1301,7 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
         }
 
         if (!hasInk) {
-          resolve(dataUrl);
+          finish(dataUrl);
           return;
         }
 
@@ -1306,18 +1315,18 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
         outputCanvas.height = cropH;
         const outputContext = outputCanvas.getContext("2d");
         if (!outputContext) {
-          resolve(dataUrl);
+          finish(dataUrl);
           return;
         }
 
         outputContext.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-        resolve(outputCanvas.toDataURL("image/png"));
+        finish(outputCanvas.toDataURL("image/png"));
       } catch (error) {
         console.warn("Signature image normalization failed", error);
-        resolve(dataUrl);
+        finish(dataUrl);
       }
     };
-    image.onerror = () => resolve(dataUrl);
+    image.onerror = () => finish(dataUrl);
     image.src = dataUrl;
   });
 }
@@ -3750,7 +3759,7 @@ export default function SignatureCenterMockup({
         pdf.text(label, labelX, lineY - 0.25, { align: "right" });
         drawDottedLine(lineStart, lineY, lineEnd);
         if (value) {
-          setTemplateFont(5.05, true, textColor);
+          setTemplateFont(5.05, true, black);
           pdf.text(value, (lineStart + lineEnd) / 2, lineY - 0.35, { align: "center" });
         }
       };
