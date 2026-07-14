@@ -4383,449 +4383,393 @@ export default function SignatureCenterMockup({
     <div className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <main className="min-w-0 space-y-6 p-4 sm:p-6">
-          <section data-signature-modern-hero className="overflow-hidden rounded-[34px] border border-violet-200 bg-gradient-to-r from-[#2b0b57] via-[#6d28d9] to-[#b31cc7] px-7 py-7 text-white shadow-[0_28px_80px_rgba(88,28,135,0.25)]">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="rounded-[26px] border border-white/20 bg-white/10 px-5 py-4 backdrop-blur">
-                <div className="text-xs font-black uppercase tracking-[0.28em] text-violet-100">Robinhood QA</div>
-                <div className="mt-2 text-2xl font-black">Signature Workflow</div>
-                <div className="mt-1 text-sm font-semibold text-violet-100">Monthly acknowledgement and incentive tracking</div>
-              </div>
-              <div className="max-w-2xl lg:text-right">
-                <div className="text-xs font-black uppercase tracking-[0.32em] text-violet-100">QA Operations</div>
-                <div className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">Signature Workspace</div>
-                <div className="mt-3 text-sm font-semibold leading-6 text-violet-100">
-                  ติดตามและจัดการเอกสารลงนามของทีม แยกตามเดือน สถานะ และผู้รับผิดชอบได้ในที่เดียว
-                </div>
-              </div>
+          <section data-signature-redesign className="space-y-5">
+        <header className="rounded-[28px] border border-violet-100 bg-white px-5 py-5 shadow-[0_18px_50px_rgba(88,28,135,0.08)] sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-600">Signature Management</div>
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Signature Workspace</h1>
+              <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
+                ติดตามเอกสารลงนาม แยกตามเดือนและสถานะ พร้อมตรวจสอบผู้ที่ยังต้องดำเนินการได้ในหน้าเดียว
+              </p>
             </div>
-          </section>
-      <div className="hidden">
-      <PageHero
-        eyebrow="Monthly Acknowledgement"
-        title="Signature Workspace"
-        subtitle="Preview คะแนนรายเดือนและ Case Detail 10 เคส ก่อนเข้าสู่ขั้นตอนเซ็นรับทราบ"
-      />
-      </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setDocumentView("queue")}
+                className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${
+                  documentView === "queue"
+                    ? "bg-violet-700 text-white shadow-[0_10px_24px_rgba(109,40,217,0.22)]"
+                    : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
+                }`}
+              >
+                คิวของฉัน ({filteredDocuments.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocumentView("history")}
+                className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${
+                  documentView === "history"
+                    ? "bg-slate-950 text-white"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {isQaUser ? "ติดตามเอกสาร" : "ประวัติ"} ({historyFilteredDocuments.length})
+              </button>
+            </div>
+          </div>
+        </header>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        {[
-          { label: "เอกสารที่เห็นได้", value: summary.total, tone: "text-slate-900" },
-          { label: "รอฉันลงนาม", value: summary.myTurn, tone: "text-violet-700" },
-          { label: "เซ็นครบแล้ว", value: summary.complete, tone: "text-emerald-700" },
-          { label: "รอเซ็น", value: summary.pending, tone: "text-amber-700" },
-          { label: "พร้อมจ่าย Incentive", value: summary.ready, tone: "text-violet-700" },
-        ].map((item) => (
-          <div key={item.label} className="rounded-[26px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
-            <div className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{item.label}</div>
-            <div className={`mt-2 text-3xl font-black ${item.tone}`}>{item.value}</div>
+        <section className="rounded-[26px] border border-violet-100 bg-white p-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_135px_165px_auto]">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">ค้นหา</span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Document Ref. / Case ID / Agent / ทีม"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">เดือน</span>
+              <select
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+              >
+                <option value="all">ทุกเดือน</option>
+                {monthOptions.map((month) => (
+                  <option key={month} value={month}>{getMonthLabel(month)}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">ปี</span>
+              <select
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+              >
+                <option value="all">ทุกปี</option>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>{Number(year) + 543}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">สถานะ</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
+              >
+                <option value="all">ทุกสถานะ</option>
+                <option value="preview">รอยืนยันผล</option>
+                <option value="my-turn">รอฉันลงนาม</option>
+                <option value="pending">รอเซ็น</option>
+                <option value="ready">พร้อมจ่าย Incentive</option>
+                <option value="appeal-pending">รออนุมัติ Appeal</option>
+                <option value="expired">เกินกำหนด</option>
+              </select>
+            </label>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={clearWorkspaceFilters}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+              >
+                ล้างตัวกรอง
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
 
-      <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
-        <div className="flex flex-wrap items-center gap-2 text-sm font-black text-slate-700">
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">1. Preview Score + 10 Cases</span>
-          <span className="text-slate-300">{'>'}</span>
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">2. Confirm</span>
-          <span className="text-slate-300">{'>'}</span>
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">3. QA</span>
-          <span className="text-slate-300">{'>'}</span>
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">4. Supervisor</span>
-          <span className="text-slate-300">{'>'}</span>
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">5. Team Lead</span>
-          <span className="text-slate-300">{'>'}</span>
-          <span className="rounded-full bg-violet-100 px-3 py-1 text-violet-700">6. Agent</span>
-        </div>
-        <div className="mt-3 text-sm leading-6 text-slate-500">
-          วันที่ 1-10 ยังอยู่ช่วง Appeal จึงยังยืนยันรับทราบและเซ็นไม่ได้ / หลังวันที่ 10 ผู้ถูกประเมินเท่านั้นที่กดยืนยันได้ / จ่ายรอบปัจจุบันเฉพาะคนที่เซ็นครบภายในวันที่ 15 / เซ็นหลังจากนั้นไปรอบจ่ายถัดไป
-        </div>
-      </div>
-
-      <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_16px_40px_rgba(88,28,135,0.06)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Monthly Incentive Payment Export</div>
-            <div className="mt-1 text-xl font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน (PDF ตาม Template)</div>
-            <div className="mt-1 text-sm leading-6 text-slate-500">
-              หลังวันที่ 15 ระบบจะออกไฟล์เฉพาะ Agent ที่เซ็นครบทุก Role ภายในกำหนดเท่านั้น คนที่มาเซ็นหลังวันที่ 15 จะเข้ารอบจ่ายถัดไป
-            </div>
-          </div>
-          <div className="min-w-[280px] rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-              {selectedMonthExportAllEvaluated ? "Evaluated Agents" : "Signed Complete Agents"}
-            </div>
-            <div className="mt-1 text-2xl font-black text-violet-700">
-              {selectedMonth === "all" ? "-" : `${selectedMonthPaymentExportDocs.length} คน`}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-500">
-              {selectedMonth === "all"
-                ? "กรุณาเลือกเดือนก่อน"
-                : selectedMonthExportAllEvaluated
-                  ? `May export พิเศษ: รวม Agent ที่ถูกประเมินทั้งหมด ${selectedMonthExportDocs.length} คน / รวมบาท ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`
-                  : `รายการทั้งหมด ${selectedMonthTotalDocs} คน / เซ็นล่าช้า ${selectedMonthLateSignedDocs.length} คน / รวมบาทในรอบนี้ ${formatBahtAmount(selectedMonthPaymentExportDocs.reduce((sum, doc) => sum + getDocumentIncentive(doc).cash, 0))} บาท`}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={generatePaymentPdf}
-              disabled={selectedMonth === "all"}
-              className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              Generate Payment PDF
-            </button>
-            <button
-              type="button"
-              onClick={generatePaymentExcel}
-              disabled={selectedMonth === "all"}
-              className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-            >
-              Generate Excel
-            </button>
-          </div>
-        </div>
-        {paymentMessage ? (
-          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{paymentMessage}</div>
-        ) : null}
-        {selectedMonth === "all" ? (
-          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800">
-            เงื่อนไขยังไม่ครบ: ต้องเลือกเดือน และต้องมีอย่างน้อย 1 Agent ที่เข้าเงื่อนไข Export
-          </div>
-        ) : selectedMonthExportAllEvaluated ? (
-          <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-800">
-            May 2026 เปิด Export พิเศษ: Generate ได้ทันทีจาก Agent ทุกคนที่มีผลประเมิน โดยไม่ต้องรอเซ็นครบ
-          </div>
-        ) : null}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {SIGNATURE_FLOW.map((role) => {
-          const pendingCount = rolePendingCounts[role] || 0;
-          return (
-            <div
-              key={role}
-              className="relative rounded-[24px] border border-violet-100 bg-white p-4 shadow-[0_14px_34px_rgba(88,28,135,0.06)]"
-            >
-              {pendingCount > 0 ? (
-                <span className="absolute right-4 top-4 flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-600 px-2 text-xs font-black text-white">
-                  {pendingCount}
-                </span>
-              ) : null}
-              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Pending Queue</div>
-              <div className="mt-1 pr-12 text-base font-black text-slate-950">{roleThaiLabel(role)}</div>
-              <div className={`mt-2 text-2xl font-black ${pendingCount > 0 ? "text-rose-600" : "text-slate-300"}`}>
-                {pendingCount}
-              </div>
-              <div className="mt-1 text-xs font-semibold text-slate-500">
-                เฉพาะเอกสารที่ Role ของคุณยังต้องลงนาม
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">Signature Workspace</div>
-            <div className="mt-1 text-2xl font-black text-slate-950">รายการเอกสารลงนาม แยกตามเดือน</div>
-            <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-              ติดตามรายการเอกสารที่ต้องลงนาม แยกตามเคสและเดือน เพื่อให้ง่ายต่อการตรวจสอบสถานะ คลิกที่แถวเพื่อเปิดรายละเอียดด้านล่าง
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:min-w-[320px]">
-            <button
-              type="button"
-              onClick={() => setDocumentView("queue")}
-              className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
-                documentView === "queue" ? "bg-violet-700 text-white" : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
-              }`}
-            >
-              คิวของฉัน ({filteredDocuments.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setDocumentView("history")}
-              className={`rounded-2xl px-4 py-3 text-xs font-black transition ${
-                documentView === "history" ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {isQaUser ? "QA Monitor" : "ประวัติ"} ({historyFilteredDocuments.length})
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_150px_180px_auto]">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="ค้นหา Document Ref. / Case ID / Agent / เดือน / ทีม"
-            className="rounded-2xl border border-violet-100 bg-violet-50/40 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
-          />
-          <select
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
-            className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
-          >
-            <option value="all">ทุกเดือน</option>
-            {monthOptions.map((month) => (
-              <option key={month} value={month}>{getMonthLabel(month)}</option>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {([
+              ["all", "ทั้งหมด"],
+              ["pending", "รอเซ็น"],
+              ["signed", "เซ็นแล้ว"],
+              ["in-progress", "ค้างดำเนินการ"],
+              ["expired", "เกินกำหนด"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setQuickFilter(value)}
+                className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                  quickFilter === value
+                    ? "bg-violet-700 text-white"
+                    : "border border-violet-100 bg-violet-50/40 text-violet-700 hover:bg-violet-50"
+                }`}
+              >
+                {label}
+              </button>
             ))}
-          </select>
-          <select
-            value={selectedYear}
-            onChange={(event) => setSelectedYear(event.target.value)}
-            className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
-          >
-            <option value="all">ทุกปี</option>
-            {yearOptions.map((year) => (
-              <option key={year} value={year}>{Number(year) + 543}</option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
-          >
-            <option value="all">ทุกสถานะ</option>
-            <option value="preview">รอ Confirm Preview</option>
-            <option value="my-turn">รอฉันลงนาม</option>
-            <option value="pending">รอเซ็น</option>
-            <option value="ready">พร้อมจ่าย Incentive</option>
-            <option value="appeal-pending">มี Appeal รอ Approved</option>
-            <option value="expired">เกินกำหนด</option>
-          </select>
-          <button
-            type="button"
-            onClick={clearWorkspaceFilters}
-            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-          >
-            ล้างตัวกรอง
-          </button>
-        </div>
+          </div>
+        </section>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {([
-            ["all", "ทั้งหมด"],
-            ["pending", "รอเซ็น"],
-            ["signed", "เซ็นแล้ว"],
-            ["in-progress", "ค้างดำเนินการ"],
-            ["expired", "เกินกำหนด"],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setQuickFilter(value)}
-              className={`rounded-full px-4 py-2 text-xs font-black transition ${
-                quickFilter === value ? "bg-violet-700 text-white shadow-[0_10px_24px_rgba(109,40,217,0.22)]" : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-5">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
-            { label: "รายการทั้งหมด", value: workspaceSummary.total, tone: "text-slate-950" },
-            { label: "รอเซ็น", value: workspaceSummary.pending, tone: "text-amber-700" },
-            { label: "เซ็นแล้ว", value: workspaceSummary.signed, tone: "text-emerald-700" },
-            { label: "เกินกำหนด", value: workspaceSummary.expired, tone: "text-rose-700" },
-            { label: "ค้างดำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700" },
+            { label: "เอกสารทั้งหมด", value: workspaceSummary.total, tone: "text-slate-950", surface: "bg-slate-50" },
+            { label: "รอเซ็น", value: workspaceSummary.pending, tone: "text-amber-700", surface: "bg-amber-50/60" },
+            { label: "เซ็นแล้ว", value: workspaceSummary.signed, tone: "text-emerald-700", surface: "bg-emerald-50/60" },
+            { label: "เกินกำหนด", value: workspaceSummary.expired, tone: "text-rose-700", surface: "bg-rose-50/60" },
+            { label: "ค้างดำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700", surface: "bg-sky-50/60" },
           ].map((item) => (
-            <div key={item.label} className="rounded-[22px] border border-violet-100 bg-violet-50/30 px-4 py-3">
-              <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{item.label}</div>
-              <div className={`mt-1 text-2xl font-black ${item.tone}`}>{item.value}</div>
+            <div key={item.label} className={`rounded-[22px] border border-slate-100 px-4 py-4 ${item.surface}`}>
+              <div className="text-xs font-black text-slate-500">{item.label}</div>
+              <div className={`mt-1 text-3xl font-black ${item.tone}`}>{item.value}</div>
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
-          <div className="min-w-[1260px]">
-            <div className="grid grid-cols-[86px_150px_minmax(160px,1fr)_120px_130px_105px_190px_105px_110px_112px] bg-violet-700 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white">
-              <div>เดือน</div>
-              <div>Document Ref.</div>
-              <div>ผู้ถูกประเมิน</div>
-              <div>ทีม</div>
-              <div>ประเภทเอกสาร</div>
-              <div>สถานะ</div>
-              <div>Audit Date</div>
-              <div>กำหนดเซ็น</div>
-              <div>ดำเนินการ</div>
-            </div>
-            {groupedWorkspaceDocuments.map((group) => {
-              const expanded = expandedMonths[group.monthKey] !== false;
-              return (
-                <div key={group.monthKey}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedMonths((previous) => ({ ...previous, [group.monthKey]: !expanded }))}
-                    className="flex w-full items-center justify-between border-t border-violet-100 bg-violet-50 px-4 py-3 text-left"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <span className="rounded-full bg-violet-700 px-3 py-1 text-xs font-black text-white">{group.monthLabel}</span>
-                      <span className="text-sm font-black text-slate-700">{group.items.length} รายการ</span>
-                    </span>
-                    <span className="text-xs font-black text-violet-700">{expanded ? "ย่อ" : "ขยาย"}</span>
-                  </button>
-                  {expanded ? group.items.map((doc) => {
-                    const entries = effectiveEntriesForDoc(doc, signatures);
-                    const status = getWorkspaceStatus(doc, entries);
-                    const dueDate = getSignatureDueDate(doc.monthKey);
-                    const selected = selectedDocument?.id === doc.id;
-                    const documentRef = getMonthlyDocumentRef(doc, documents);
-                    return (
-                      <button
-                        key={doc.id}
-                        type="button"
-                        onClick={() => openWorkspaceDetail(doc.id)}
-                        className={`grid w-full grid-cols-[86px_150px_minmax(160px,1fr)_120px_130px_105px_190px_105px_110px_112px] items-center border-t px-4 py-3 text-left text-sm transition ${
-                          selected ? "border-violet-200 bg-violet-50" : "border-slate-100 bg-white hover:bg-slate-50"
-                        }`}
-                      >
-                        <div><span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-700">{doc.monthLabel}</span></div>
-                        <div className="truncate font-black text-violet-800" title={documentRef}>{documentRef}</div>
-                        <div className="min-w-0">
-                          <div className="truncate font-black text-slate-950">{doc.agentName}</div>
-                          <div className="text-xs font-semibold text-slate-400">{doc.caseCount} cases / {doc.averageScore.toFixed(2)}</div>
-                        </div>
-                        <div className="truncate font-bold text-slate-600">{doc.teamName || "-"}</div>
-                        <div className="font-bold text-slate-600">{getDocumentTypeLabel(doc)}</div>
-                        <div><WorkspaceStatusBadge status={status} /></div>
-                        <div className="font-black text-slate-600">{formatDateOnly(getSignatureCreatedDate(doc))}</div>
-                        <div className={`font-black ${status === "expired" ? "text-rose-700" : "text-slate-600"}`}>{formatDateOnly(dueDate)}</div>
-                        <div>
-                          <span className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">เปิดรายละเอียด</span>
-                        </div>
-                      </button>
-                    );
-                  }) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {!workspaceDocuments.length ? (
-          <div className="mt-5 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-            <div className="text-base font-black text-slate-700">ไม่พบรายการเอกสารตามตัวกรองที่เลือก</div>
-            <div className="mt-1 text-sm font-semibold text-slate-500">ลองล้างตัวกรองหรือเลือกเดือนอื่น</div>
-          </div>
-        ) : null}
-
-        <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 text-sm font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={rowsPerPage}
-              onChange={(event) => setRowsPerPage(Number(event.target.value))}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700"
-            >
-              {SIGNATURE_ROWS_PER_PAGE_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option} / หน้า</option>
-              ))}
-            </select>
-            <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={safeCurrentPage <= 1} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
-              ก่อนหน้า
-            </button>
-            <span className="text-xs font-black text-slate-500">{safeCurrentPage}/{totalPages}</span>
-            <button type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={safeCurrentPage >= totalPages} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40">
-              ถัดไป
-            </button>
-          </div>
-        </div>
-
-        {selectedDocument ? (
-          <div ref={workspaceDetailRef} className="mt-5 rounded-[26px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-4">
-            <button
-              type="button"
-              onClick={() => setWorkspaceDetailOpen((open) => !open)}
-              className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">รายละเอียดเอกสารที่เลือก</div>
-                <div className="mt-1 text-lg font-black text-slate-950">
-                  {selectedDocumentRef} • {selectedDocument.agentName}
-                </div>
-                <div className="mt-1 text-xs font-semibold text-slate-500">
-                  {selectedDocument.monthLabel} / {getDocumentTypeLabel(selectedDocument)} / เหลือ Role ที่ต้องเซ็น: {getPendingRoleText(selectedDocument, selectedEntries)}
-                </div>
+        <section className="rounded-[26px] border border-violet-100 bg-white px-5 py-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">Monthly Incentive Export</div>
+              <div className="mt-1 text-lg font-black text-slate-950">เอกสารส่งจ่าย Incentive รายเดือน</div>
+              <div className="mt-1 text-sm font-semibold text-slate-500">
+                {selectedMonth === "all"
+                  ? "เลือกเดือนเพื่อสร้างเอกสารส่งจ่าย"
+                  : `${getMonthLabel(selectedMonth)} • พร้อมส่งออก ${selectedMonthPaymentExportDocs.length} คน`}
               </div>
-              <span className="rounded-2xl bg-violet-700 px-4 py-2 text-xs font-black text-white">
-                {workspaceDetailOpen ? "ย่อรายละเอียด" : "เปิดรายละเอียด"}
-              </span>
-            </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={generatePaymentPdf}
+                disabled={selectedMonth === "all"}
+                className="rounded-xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                สร้าง Payment PDF
+              </button>
+              <button
+                type="button"
+                onClick={generatePaymentExcel}
+                disabled={selectedMonth === "all"}
+                className="rounded-xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                ส่งออก Excel
+              </button>
+            </div>
+          </div>
+          {paymentMessage ? (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">
+              {paymentMessage}
+            </div>
+          ) : null}
+        </section>
 
-            {workspaceDetailOpen ? (
-              <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                <div className="grid gap-3 md:grid-cols-2">
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 rounded-[28px] border border-violet-100 bg-white shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
+            <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">Document List</div>
+                <h2 className="mt-1 text-xl font-black text-slate-950">รายการเอกสารลงนาม</h2>
+              </div>
+              <div className="text-sm font-bold text-slate-500">{workspaceDocuments.length} รายการ</div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {groupedWorkspaceDocuments.map((group) => {
+                const expanded = expandedMonths[group.monthKey] !== false;
+                return (
+                  <div key={group.monthKey}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedMonths((previous) => ({ ...previous, [group.monthKey]: !expanded }))}
+                      className="flex w-full items-center justify-between bg-slate-50 px-5 py-3 text-left transition hover:bg-violet-50"
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-black text-white">{group.monthLabel}</span>
+                        <span className="text-sm font-black text-slate-700">{group.items.length} รายการ</span>
+                      </span>
+                      <span className="text-xs font-black text-violet-700">{expanded ? "ซ่อน" : "แสดง"}</span>
+                    </button>
+
+                    {expanded ? (
+                      <div className="divide-y divide-slate-100">
+                        {group.items.map((doc) => {
+                          const entries = effectiveEntriesForDoc(doc, signatures);
+                          const status = getWorkspaceStatus(doc, entries);
+                          const selected = selectedDocument?.id === doc.id;
+                          const documentRef = getMonthlyDocumentRef(doc, documents);
+                          return (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => openWorkspaceDetail(doc.id)}
+                              className={`grid w-full gap-3 px-5 py-4 text-left transition md:grid-cols-[145px_minmax(0,1fr)_130px_120px_165px_90px] md:items-center ${
+                                selected ? "bg-violet-50 ring-1 ring-inset ring-violet-200" : "bg-white hover:bg-slate-50"
+                              }`}
+                            >
+                              <div>
+                                <div className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">Document Ref.</div>
+                                <div className="mt-1 truncate text-sm font-black text-violet-800" title={documentRef}>{documentRef}</div>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-black text-slate-950">{doc.agentName}</div>
+                                <div className="mt-0.5 truncate text-xs font-semibold text-slate-500">
+                                  {doc.teamName || "-"} • {doc.caseCount} เคส • {doc.averageScore.toFixed(2)}
+                                </div>
+                              </div>
+                              <div className="text-xs font-bold leading-5 text-slate-600">{getDocumentTypeLabel(doc)}</div>
+                              <div><WorkspaceStatusBadge status={status} /></div>
+                              <div>
+                                <div className="text-[11px] font-black text-slate-400">เหลือ Role ที่ต้องเซ็น</div>
+                                <div className="mt-1 line-clamp-2 text-xs font-black leading-5 text-slate-700">
+                                  {getPendingRoleText(doc, entries)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="inline-flex rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700">
+                                  ดูรายละเอียด
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {!workspaceDocuments.length ? (
+              <div className="px-5 py-12 text-center">
+                <div className="text-base font-black text-slate-700">ไม่พบรายการเอกสารตามตัวกรองที่เลือก</div>
+                <div className="mt-1 text-sm font-semibold text-slate-500">ลองล้างตัวกรองหรือเลือกเดือนอื่น</div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 text-sm font-bold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={rowsPerPage}
+                  onChange={(event) => setRowsPerPage(Number(event.target.value))}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+                >
+                  {SIGNATURE_ROWS_PER_PAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option} / หน้า</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40"
+                >
+                  ก่อนหน้า
+                </button>
+                <span className="text-xs font-black text-slate-500">{safeCurrentPage}/{totalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-40"
+                >
+                  ถัดไป
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <aside className="self-start rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)] xl:sticky xl:top-4">
+            {selectedDocument ? (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">รายละเอียดเอกสาร</div>
+                    <div className="mt-2 break-all text-xl font-black text-slate-950">{selectedDocumentRef}</div>
+                    <div className="mt-1 truncate text-sm font-bold text-slate-600">{selectedDocument.agentName}</div>
+                  </div>
+                  <WorkspaceStatusBadge status={getWorkspaceStatus(selectedDocument, selectedEntries)} />
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
                   {[
-                    ["Document Ref.", selectedDocumentRef],
-                    ["เดือนเอกสาร", selectedDocument.monthLabel],
-                    ["ผู้ถูกประเมิน", selectedDocument.agentName],
+                    ["เดือน", selectedDocument.monthLabel],
                     ["ทีม", selectedDocument.teamName || "-"],
                     ["ประเภทเอกสาร", getDocumentTypeLabel(selectedDocument)],
-                    ["สถานะ", getWorkspaceStatusLabel(getWorkspaceStatus(selectedDocument, selectedEntries))],
-                    ["Audit Date ล่าสุด", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
+                    ["Audit Date", formatDateOnly(getSignatureCreatedDate(selectedDocument))],
                     ["กำหนดเซ็น", formatDateOnly(getSignatureDueDate(selectedDocument.monthKey))],
+                    ["เหลือ Role", getPendingRoleText(selectedDocument, selectedEntries)],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-2xl border border-white bg-white/80 px-4 py-3 shadow-sm">
-                      <div className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{label}</div>
-                      <div className="mt-1 break-words text-sm font-black text-slate-900">{value}</div>
+                    <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+                      <div className="text-[11px] font-black text-slate-400">{label}</div>
+                      <div className="mt-1 break-words text-sm font-black text-slate-800">{value}</div>
                     </div>
                   ))}
                 </div>
 
-                <div className="rounded-[22px] border border-white bg-white/90 p-4 shadow-sm">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">ลำดับการลงนาม</div>
-                  <div className="mt-3 space-y-3">
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">ลำดับการลงนาม</div>
+                  <div className="mt-4 space-y-4">
                     {SIGNATURE_FLOW.map((role, index) => {
                       const signedEntry = getSignedEntry(selectedEntries, role);
                       const isCurrent = !signedEntry && getPendingRoles(selectedEntries)[0] === role;
                       return (
-                        <div key={role} className="flex items-start gap-3">
+                        <div key={role} className="flex gap-3">
                           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                            signedEntry ? "bg-emerald-100 text-emerald-700" : isCurrent ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                            signedEntry
+                              ? "bg-emerald-100 text-emerald-700"
+                              : isCurrent
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-500"
                           }`}>
                             {index + 1}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-black text-slate-900">{roleThaiLabel(role)}</div>
-                            <div className="text-xs font-semibold text-slate-500">
-                              {signedEntry ? `เซ็นแล้วโดย ${signedEntry.signedBy}` : isCurrent ? "รอดำเนินการขั้นนี้" : "ยังไม่ถึงขั้นตอน / ยังไม่เซ็น"}
+                            <div className="mt-0.5 text-xs font-semibold leading-5 text-slate-500">
+                              {signedEntry
+                                ? `เซ็นแล้วโดย ${signedEntry.signedBy}`
+                                : isCurrent
+                                  ? "รอดำเนินการขั้นนี้"
+                                  : "ยังไม่ถึงขั้นตอน / ยังไม่เซ็น"}
                             </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="mt-4 grid gap-2">
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById("signature-workflow-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      className="rounded-2xl bg-slate-950 px-4 py-3 text-xs font-black text-white"
-                    >
-                      ไปที่พื้นที่ลงนาม / ตรวจเอกสาร
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWorkspaceDetailOpen(false)}
-                      className="rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xs font-black text-violet-700"
-                    >
-                      ปิดแถบรายละเอียด
-                    </button>
-                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-2 border-t border-slate-100 pt-5">
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("signature-workflow-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-800"
+                  >
+                    เปิดพื้นที่ลงนาม
+                  </button>
+                  <button
+                    type="button"
+                    onClick={generatePdf}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                  >
+                    สร้าง Final PDF
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="py-10 text-center">
+                <div className="text-base font-black text-slate-700">เลือกรายการเอกสาร</div>
+                <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                  คลิกรายการด้านซ้ายเพื่อดูรายละเอียดและลำดับการลงนาม
                 </div>
               </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+            )}
+          </aside>
+        </section>
+      </section>
 
-      <div id="signature-workflow-detail" className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
+      <div id="signature-workflow-detail" className="grid gap-6">
+        <div className="hidden">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-500">
             {documentView === "history" ? (isQaUser ? "QA Signature Monitor" : "Signature History") : "Document Queue"}
           </div>
