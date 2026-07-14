@@ -1130,6 +1130,14 @@ function getPendingRoles(entries: SignatureEntry[]) {
   return SIGNATURE_FLOW.filter((role) => !getSignedEntry(entries, role));
 }
 
+
+function getPendingRoleText(_doc: SignatureDocument, entries: SignatureEntry[]) {
+  const pendingRoles = getPendingRoles(entries);
+  return pendingRoles.length
+    ? pendingRoles.map(roleThaiLabel).join(", ")
+    : "เซ็นครบแล้ว";
+}
+
 function roleThaiLabel(role: SignRole) {
   if (role === "QA") return "QA ผู้ตรวจสอบ";
   if (role === "Supervisor") return "Supervisor";
@@ -1266,10 +1274,11 @@ function getMonthlyDocumentRef(doc: SignatureDocument, allDocuments: SignatureDo
   if (!monthMatch) return doc.documentHash || doc.id;
 
   const [, year, month] = monthMatch;
-  const sameMonthDocuments = allDocuments
-    .filter((item) => item.monthKey === doc.monthKey)
+  const sortedDocuments = allDocuments
     .slice()
     .sort((a, b) => {
+      const monthDiff = a.monthKey.localeCompare(b.monthKey);
+      if (monthDiff !== 0) return monthDiff;
       const auditDiff = getDocumentAuditSortTime(a) - getDocumentAuditSortTime(b);
       if (auditDiff !== 0) return auditDiff;
       const nameDiff = a.agentName.localeCompare(b.agentName, "th");
@@ -1277,7 +1286,7 @@ function getMonthlyDocumentRef(doc: SignatureDocument, allDocuments: SignatureDo
       return a.id.localeCompare(b.id);
     });
 
-  const index = sameMonthDocuments.findIndex((item) => item.id === doc.id);
+  const index = sortedDocuments.findIndex((item) => item.id === doc.id);
   const sequence = String(Math.max(0, index) + 1).padStart(5, "0");
   return `${month}${year}${sequence}`;
 }
