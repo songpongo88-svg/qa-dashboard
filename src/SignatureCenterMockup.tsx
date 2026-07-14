@@ -209,9 +209,35 @@ function currentUserMatchesName(currentUser: CurrentUser, name: unknown) {
 }
 
 function currentUserHasRole(currentUser: CurrentUser, role: SignRole) {
-  if (role === "QA") return currentUser.role === "Quality Assurance" || currentUser.role === "Admin";
-  if (role === "Supervisor") return currentUser.role === "Supervisor";
-  if (role === "Senior") return currentUser.role === "Senior";
+  const roleText = normalizeText(currentUser.role).toLowerCase();
+  const compactRole = compactPerson(currentUser.role);
+
+  if (role === "QA") {
+    return (
+      roleText === "quality assurance" ||
+      roleText === "admin" ||
+      compactRole === "qa" ||
+      compactRole === "qualityassurance"
+    );
+  }
+
+  if (role === "Supervisor") {
+    return roleText.includes("supervisor") || compactRole.includes("supervisor");
+  }
+
+  if (role === "Senior") {
+    return (
+      roleText === "senior" ||
+      roleText.includes("senior") ||
+      roleText.includes("team lead") ||
+      roleText.includes("teamlead") ||
+      roleText.includes("lead") ||
+      compactRole.includes("senior") ||
+      compactRole.includes("teamlead") ||
+      compactRole.includes("lead")
+    );
+  }
+
   return true;
 }
 
@@ -1113,13 +1139,19 @@ function roleThaiLabel(role: SignRole) {
 
 function canSignIdentity(currentUser: CurrentUser, doc: SignatureDocument, role: SignRole) {
   const signerName = getRoleSigner(doc, role);
+
   if (role === "Agent") {
     return currentUserMatchesName(currentUser, doc.agentName);
   }
 
-  if (!currentUserHasRole(currentUser, role)) return false;
-  if (role === "QA" && compactPerson(signerName) === compactPerson("Quality Assurance")) return true;
-  return currentUserMatchesName(currentUser, signerName);
+  if (role === "QA" && compactPerson(signerName) === compactPerson("Quality Assurance")) {
+    return currentUserHasRole(currentUser, role);
+  }
+
+  const isAssignedSigner = currentUserMatchesName(currentUser, signerName);
+  if (isAssignedSigner) return true;
+
+  return currentUserHasRole(currentUser, role) && currentUserMatchesName(currentUser, signerName);
 }
 
 function autoHistoricalEntries(doc: SignatureDocument): SignatureEntry[] {
