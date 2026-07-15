@@ -4542,19 +4542,19 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v21 className="-m-4 min-h-screen bg-transparent text-slate-950 sm:-m-6">
-      <div className="min-h-screen bg-transparent">
+    <div data-signature-ui-v22 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
+      <div className="min-h-screen bg-[#f3f0fa]">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v21],
-          [data-signature-ui-v21] button,
-          [data-signature-ui-v21] input,
-          [data-signature-ui-v21] select,
-          [data-signature-ui-v21] textarea {
+          [data-signature-ui-v22],
+          [data-signature-ui-v22] button,
+          [data-signature-ui-v22] input,
+          [data-signature-ui-v22] select,
+          [data-signature-ui-v22] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
-        <main className="min-w-0 bg-transparent p-4 sm:p-6">
+        <main className="min-w-0 bg-[#f3f0fa] p-4 sm:p-6">
           <div
             className={`grid items-start gap-5 ${
               actionSidebarMode === "expanded"
@@ -4920,7 +4920,7 @@ export default function SignatureCenterMockup({
         </section>
 
         <section className="grid items-start gap-5 px-1.5 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div data-document-list-v21 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-white shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
+          <div data-document-list-v22 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-[#faf9fd] shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
             <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Document List</h2>
@@ -4972,7 +4972,7 @@ export default function SignatureCenterMockup({
 
                     {expanded ? (
                       <>
-                        <div className="hidden grid-cols-[minmax(0,0.9fr)_minmax(0,1.65fr)_minmax(0,1.8fr)_minmax(0,0.72fr)_minmax(0,0.95fr)_minmax(0,1.08fr)] items-stretch gap-1 overflow-hidden border-y border-slate-100 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.04em] md:grid">
+                        <div className="mx-3 hidden grid-cols-[minmax(0,0.92fr)_minmax(0,1.6fr)_minmax(0,1.35fr)_minmax(0,0.68fr)_minmax(0,0.82fr)_minmax(0,0.92fr)] items-stretch gap-1 overflow-hidden rounded-xl border border-violet-100 bg-white p-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] shadow-sm md:grid">
                           <div className="flex min-w-0 items-center justify-center rounded-lg bg-violet-100/80 px-2 py-2 text-center text-violet-700">
                             Document Ref.
                           </div>
@@ -5004,10 +5004,10 @@ export default function SignatureCenterMockup({
                                 key={doc.id}
                                 type="button"
                                 onClick={() => openWorkspaceDetail(doc.id)}
-                                className={`grid w-full cursor-pointer gap-2 overflow-hidden px-5 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.65fr)_minmax(0,1.8fr)_minmax(0,0.72fr)_minmax(0,0.95fr)_minmax(0,1.08fr)] md:items-center md:gap-1 ${
+                                className={`mx-3 my-1.5 grid w-[calc(100%-1.5rem)] cursor-pointer gap-2 overflow-hidden rounded-xl border px-4 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 md:grid-cols-[minmax(0,0.92fr)_minmax(0,1.6fr)_minmax(0,1.35fr)_minmax(0,0.68fr)_minmax(0,0.82fr)_minmax(0,0.92fr)] md:items-center md:gap-1 ${
                                   selected
-                                    ? "bg-violet-50/80 shadow-[inset_3px_0_0_#7c3aed]"
-                                    : "bg-white hover:bg-violet-50/40"
+                                    ? "border-violet-300 bg-violet-50 shadow-[0_8px_20px_rgba(124,58,237,0.12)]"
+                                    : "border-slate-100 bg-white shadow-sm hover:border-violet-200 hover:bg-white hover:shadow-[0_8px_18px_rgba(88,28,135,0.08)]"
                                 }`}
                               >
                                 <div className="min-w-0">
@@ -5022,17 +5022,20 @@ export default function SignatureCenterMockup({
                                 </div>
                                 <div className="min-w-0 overflow-hidden">
                                   <div className="md:hidden text-[10px] font-medium text-slate-400">Document Type</div>
-                                  <div className="w-full min-w-0 truncate rounded-xl border border-sky-100 bg-sky-50/55 px-2.5 py-1.5 text-xs font-medium leading-5 text-slate-700" title={getDocumentTypeLabel(doc)}>
-                                    {getDocumentTypeLabel(doc)}
-                                  </div>
+                                  <span
+                                    className="inline-flex max-w-full items-center rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold leading-4 text-sky-800"
+                                    title={getDocumentTypeLabel(doc)}
+                                  >
+                                    <span className="truncate">{getDocumentTypeLabel(doc)}</span>
+                                  </span>
                                 </div>
-                                <div className="flex min-w-0 items-center justify-center text-center"><WorkspaceStatusBadge status={status} /></div>
-                                <div className="flex min-w-0 flex-col items-center justify-center gap-1 text-center">
+                                <div className="flex min-w-0 items-center justify-center text-center md:justify-self-center"><WorkspaceStatusBadge status={status} /></div>
+                                <div className="flex min-w-0 flex-col items-center justify-center gap-1 text-center md:justify-self-center">
                                   {docPendingRoles.length ? (
                                     docPendingRoles.map((role) => (
                                       <span
                                         key={`${doc.id}-pending-role-${role}`}
-                                        className="inline-flex max-w-full items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold leading-4 text-amber-700"
+                                        className="inline-flex w-fit max-w-full items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold leading-4 text-amber-700"
                                         title={role === "Senior" ? "Senior / Team Lead" : role}
                                       >
                                         <span className="max-w-full truncate">
@@ -5041,19 +5044,19 @@ export default function SignatureCenterMockup({
                                       </span>
                                     ))
                                   ) : (
-                                    <span className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold leading-4 text-emerald-700">
+                                    <span className="inline-flex w-fit items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold leading-4 text-emerald-700">
                                       Completed
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex min-w-0 flex-col items-center justify-center gap-1 overflow-hidden text-center">
+                                <div className="flex min-w-0 flex-col items-center justify-center gap-1 overflow-hidden text-center md:justify-self-center">
                                   {docPendingRoles.length ? (
                                     docPendingRoles.map((role) => {
                                       const signerName = getRoleSigner(doc, role) || "-";
                                       return (
                                         <span
                                           key={`${doc.id}-pending-signer-${role}`}
-                                          className="inline-flex w-full min-w-0 max-w-full items-center justify-center rounded-full border border-indigo-100 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-medium leading-4 text-indigo-800"
+                                          className="inline-flex w-fit min-w-0 max-w-full items-center justify-center rounded-full border border-indigo-100 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-medium leading-4 text-indigo-800"
                                           title={signerName}
                                         >
                                           <span className="block min-w-0 max-w-full truncate">{signerName}</span>
@@ -5085,7 +5088,7 @@ export default function SignatureCenterMockup({
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3.5 text-sm font-normal text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-2 flex flex-col gap-3 border-t border-slate-100 px-5 py-3 text-sm font-normal text-slate-500 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
               </div>
