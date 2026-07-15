@@ -1324,7 +1324,11 @@ function formatDateOnly(value: Date | string | null | undefined) {
   if (!value) return "-";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
 }
 
 function getSignatureDueDate(monthKey: string) {
@@ -1458,7 +1462,9 @@ async function normalizeSignatureDataUrl(dataUrl: string) {
 }
 
 function getDocumentTypeLabel(doc: SignatureDocument) {
-  return doc.eligibleByScore ? "เอกสารจ่าย Incentive รายเดือน" : "เอกสารรับทราบผล QA รายเดือน";
+  return doc.eligibleByScore
+    ? "Monthly Incentive Payment Document"
+    : "Monthly QA Acknowledgement Document";
 }
 
 function getWorkspaceStatus(doc: SignatureDocument, entries: SignatureEntry[]) {
@@ -4494,15 +4500,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v16 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v19 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v16],
-          [data-signature-ui-v16] button,
-          [data-signature-ui-v16] input,
-          [data-signature-ui-v16] select,
-          [data-signature-ui-v16] textarea {
+          [data-signature-ui-v19],
+          [data-signature-ui-v19] button,
+          [data-signature-ui-v19] input,
+          [data-signature-ui-v19] select,
+          [data-signature-ui-v19] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4705,37 +4711,37 @@ export default function SignatureCenterMockup({
         <section className="rounded-[26px] border border-violet-100 bg-white p-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
           <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_135px_165px_auto]">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-black text-slate-500">ค้นหา</span>
+              <span className="mb-1.5 block text-xs font-black text-slate-500">Search</span>
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Document Ref. / Case ID / Agent / ทีม"
+                placeholder="Document Ref. / Case ID / Agent / Team"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
               />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-black text-slate-500">เดือน</span>
+              <span className="mb-1.5 block text-xs font-black text-slate-500">Month</span>
               <select
                 value={selectedMonth}
                 onChange={(event) => setSelectedMonth(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
               >
-                <option value="all">ทุกเดือน</option>
+                <option value="all">All Months</option>
                 {monthOptions.map((month) => (
                   <option key={month} value={month}>{getMonthLabel(month)}</option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-black text-slate-500">ปี</span>
+              <span className="mb-1.5 block text-xs font-black text-slate-500">Year</span>
               <select
                 value={selectedYear}
                 onChange={(event) => setSelectedYear(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
               >
-                <option value="all">ทุกปี</option>
+                <option value="all">All Years</option>
                 {yearOptions.map((year) => (
-                  <option key={year} value={year}>{Number(year) + 543}</option>
+                  <option key={year} value={year}>{year}</option>
                 ))}
               </select>
             </label>
@@ -4746,13 +4752,13 @@ export default function SignatureCenterMockup({
                 onChange={(event) => setStatusFilter(event.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
               >
-                <option value="all">ทุกสถานะ</option>
-                <option value="preview">รอยืนยันผล</option>
-                <option value="my-turn">รอฉันลงนาม</option>
-                <option value="pending">รอเซ็น</option>
-                <option value="ready">พร้อมจ่าย Incentive</option>
-                <option value="appeal-pending">รออนุมัติ Appeal</option>
-                <option value="expired">เกินกำหนด</option>
+                <option value="all">All Workflow Statuses</option>
+                <option value="preview">Awaiting Preview Confirmation</option>
+                <option value="my-turn">My Signature Pending</option>
+                <option value="pending">Pending Signature</option>
+                <option value="ready">Ready for Incentive Payment</option>
+                <option value="appeal-pending">Appeal Approval Pending</option>
+                <option value="expired">Overdue</option>
               </select>
             </label>
             <div className="flex items-end">
@@ -4761,7 +4767,7 @@ export default function SignatureCenterMockup({
                 onClick={clearWorkspaceFilters}
                 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
               >
-                ล้างตัวกรอง
+                Clear Filters
               </button>
             </div>
           </div>
@@ -4963,7 +4969,7 @@ export default function SignatureCenterMockup({
             {!workspaceDocuments.length ? (
               <div className="px-5 py-12 text-center">
                 <div className="text-base font-semibold text-slate-700">ไม่พบรายการเอกสารตามตัวกรองที่เลือก</div>
-                <div className="mt-1 text-sm font-normal text-slate-500">ลองล้างตัวกรองหรือเลือกเดือนอื่น</div>
+                <div className="mt-1 text-sm font-normal text-slate-500">ลองClear Filtersหรือเลือกเดือนอื่น</div>
               </div>
             ) : null}
 
@@ -5198,7 +5204,7 @@ export default function SignatureCenterMockup({
               onChange={(event) => setSelectedMonth(event.target.value)}
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
-              <option value="all">ทุกเดือน</option>
+              <option value="all">All Months</option>
               {monthOptions.map((month) => (
                 <option key={month} value={month}>{getMonthLabel(month)}</option>
               ))}
@@ -5218,11 +5224,11 @@ export default function SignatureCenterMockup({
               onChange={(event) => setStatusFilter(event.target.value)}
               className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400"
             >
-              <option value="all">ทุกสถานะ</option>
+              <option value="all">All Workflow Statuses</option>
               <option value="preview">รอ Confirm Preview</option>
-              <option value="my-turn">รอฉันลงนาม</option>
-              <option value="pending">รอเซ็น</option>
-              <option value="ready">พร้อมจ่าย Incentive</option>
+              <option value="my-turn">My Signature Pending</option>
+              <option value="pending">Pending Signature</option>
+              <option value="ready">Ready for Incentive Payment</option>
               <option value="appeal-pending">มี Appeal รอ Approved</option>
               <option value="expired">เกินวันที่ 15 / ไม่ครบ</option>
             </select>
@@ -5379,7 +5385,7 @@ export default function SignatureCenterMockup({
                   <div className="mt-1 text-xs font-normal text-slate-500">คลิก Case ID เพื่อเปิดรายละเอียดใน Popup โดยไม่ออกจากหน้านี้</div>
                 </div>
                 {!previewConfirmed ? (
-                  <div className="flex flex-col items-end gap-2">
+                  <div className="flex max-w-[430px] shrink-0 flex-col items-end gap-2">
                     <button
                       type="button"
                       onClick={confirmPreview}
@@ -5389,7 +5395,7 @@ export default function SignatureCenterMockup({
                       ยืนยันรับทราบข้อมูล
                     </button>
                     {confirmBlockedReason ? (
-                      <div className="max-w-[260px] text-right text-xs font-bold leading-5 text-amber-600">{confirmBlockedReason}</div>
+                      <div className="max-w-[360px] break-words text-right text-xs font-semibold leading-5 text-amber-600 sm:max-w-none sm:whitespace-nowrap">{confirmBlockedReason}</div>
                     ) : null}
                   </div>
                 ) : (
