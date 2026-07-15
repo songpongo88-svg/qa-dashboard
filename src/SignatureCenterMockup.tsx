@@ -4494,15 +4494,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v14 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v15 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v14],
-          [data-signature-ui-v14] button,
-          [data-signature-ui-v14] input,
-          [data-signature-ui-v14] select,
-          [data-signature-ui-v14] textarea {
+          [data-signature-ui-v15],
+          [data-signature-ui-v15] button,
+          [data-signature-ui-v15] input,
+          [data-signature-ui-v15] select,
+          [data-signature-ui-v15] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4510,14 +4510,14 @@ export default function SignatureCenterMockup({
           <div
             className={`grid items-start gap-5 ${
               actionSidebarMode === "expanded"
-                ? "xl:grid-cols-[minmax(0,1fr)_210px]"
+                ? "lg:grid-cols-[200px_minmax(0,1fr)]"
                 : actionSidebarMode === "collapsed"
-                  ? "xl:grid-cols-[minmax(0,1fr)_64px]"
+                  ? "lg:grid-cols-[60px_minmax(0,1fr)]"
                   : "grid-cols-1"
             }`}
           >
             {actionSidebarMode === "hidden" ? (
-              <div className="order-2 flex justify-end xl:col-span-full">
+              <div className="order-1 flex justify-start lg:col-span-full">
                 <button
                   type="button"
                   onClick={() => setActionSidebarMode("expanded")}
@@ -4528,7 +4528,7 @@ export default function SignatureCenterMockup({
                 </button>
               </div>
             ) : (
-              <aside className="order-2 sticky top-4 z-30 rounded-[20px] border border-violet-100 bg-white p-2.5 shadow-[0_14px_34px_rgba(88,28,135,0.10)]">
+              <aside className="order-1 sticky top-4 z-30 rounded-[20px] border border-violet-100 bg-white p-2.5 shadow-[0_14px_34px_rgba(88,28,135,0.10)]">
                 <div className="flex items-center justify-between gap-2 px-1">
                   {actionSidebarMode === "expanded" ? (
                     <div className="min-w-0">
@@ -4553,7 +4553,7 @@ export default function SignatureCenterMockup({
                       }
                       className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
                     >
-                      {actionSidebarMode === "expanded" ? "›" : "‹"}
+                      {actionSidebarMode === "expanded" ? "‹" : "›"}
                     </button>
                     <button
                       type="button"
@@ -4588,7 +4588,7 @@ export default function SignatureCenterMockup({
                     </button>
                     <div
                       role="tooltip"
-                      className="pointer-events-none invisible absolute right-full top-1/2 z-50 mr-3 w-64 -translate-y-1/2 rounded-xl border border-violet-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                      className="pointer-events-none invisible absolute left-full top-1/2 z-50 ml-3 w-64 -translate-y-1/2 rounded-xl border border-violet-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
                     >
                       <div className="text-xs font-semibold text-white">Monthly Payment PDF</div>
                       <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
@@ -4617,7 +4617,7 @@ export default function SignatureCenterMockup({
                     </button>
                     <div
                       role="tooltip"
-                      className="pointer-events-none invisible absolute right-full top-1/2 z-50 mr-3 w-64 -translate-y-1/2 rounded-xl border border-emerald-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                      className="pointer-events-none invisible absolute left-full top-1/2 z-50 ml-3 w-64 -translate-y-1/2 rounded-xl border border-emerald-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
                     >
                       <div className="text-xs font-semibold text-white">Monthly Payment Excel</div>
                       <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
@@ -4646,7 +4646,7 @@ export default function SignatureCenterMockup({
                     </button>
                     <div
                       role="tooltip"
-                      className="pointer-events-none invisible absolute right-full top-1/2 z-50 mr-3 w-64 -translate-y-1/2 rounded-xl border border-indigo-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                      className="pointer-events-none invisible absolute left-full top-1/2 z-50 ml-3 w-64 -translate-y-1/2 rounded-xl border border-indigo-100 bg-slate-950 px-3 py-2.5 text-left opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
                     >
                       <div className="text-xs font-semibold text-white">Final Signed PDF</div>
                       <div className="mt-1 text-[11px] font-normal leading-5 text-slate-300">
@@ -4664,7 +4664,7 @@ export default function SignatureCenterMockup({
               </aside>
             )}
 
-            <div className="order-1 min-w-0 space-y-5">
+            <div className="order-2 min-w-0 space-y-5">
               <section data-signature-redesign className="space-y-5">
         <header className="rounded-[28px] border border-violet-100 bg-white px-5 py-5 shadow-[0_18px_50px_rgba(88,28,135,0.08)] sm:px-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -4859,14 +4859,13 @@ export default function SignatureCenterMockup({
 
                     {expanded ? (
                       <>
-                        <div className="hidden grid-cols-[112px_minmax(175px,1fr)_minmax(160px,1fr)_88px_145px_170px_108px] items-center gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] font-medium text-slate-500 md:grid">
+                        <div className="hidden grid-cols-[112px_minmax(190px,1.2fr)_minmax(160px,1fr)_88px_145px_170px] items-center gap-3 border-t border-slate-100 bg-slate-50/80 px-4 py-2 text-[11px] font-medium text-slate-500 md:grid">
                           <div>Document Ref.</div>
                           <div>Assessed Agent</div>
                           <div>Document Type</div>
                           <div>Status</div>
                           <div>Pending Roles</div>
                           <div>Pending Signers</div>
-                          <div className="text-right">Action</div>
                         </div>
                         <div className="divide-y divide-slate-100">
                           {group.items.map((doc) => {
@@ -4880,7 +4879,7 @@ export default function SignatureCenterMockup({
                                 key={doc.id}
                                 type="button"
                                 onClick={() => openWorkspaceDetail(doc.id)}
-                                className={`grid w-full gap-2.5 px-4 py-2.5 text-left transition md:grid-cols-[112px_minmax(175px,1fr)_minmax(160px,1fr)_88px_145px_170px_108px] md:items-center md:gap-3 ${
+                                className={`grid w-full cursor-pointer gap-2.5 px-4 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 md:grid-cols-[112px_minmax(190px,1.2fr)_minmax(160px,1fr)_88px_145px_170px] md:items-center md:gap-3 ${
                                   selected
                                     ? "bg-violet-50/80 shadow-[inset_3px_0_0_#7c3aed]"
                                     : "bg-white hover:bg-slate-50"
@@ -4920,11 +4919,7 @@ export default function SignatureCenterMockup({
                                     <div>-</div>
                                   )}
                                 </div>
-                                <div className="text-right">
-                                  <span className="inline-flex min-w-[96px] whitespace-nowrap justify-center rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-medium text-violet-700">
-                                    View Details
-                                  </span>
-                                </div>
+
                               </button>
                             );
                           })}
@@ -5406,27 +5401,49 @@ export default function SignatureCenterMockup({
                   ...topic,
                 }));
 
+                const standardFourTopicLabels = [
+                  "Process Compliance",
+                  "Answer Accuracy & Verification",
+                  "Case Handling & Follow-up",
+                  "Communication Skills",
+                ];
+                const standardFourTopicMaxScores = [30, 20, 25, 25];
+                const isJuneOrJuly =
+                  /june|july/i.test(normalizeText(selectedDocument.monthLabel)) ||
+                  /(?:^|[-/])(0?6|0?7)(?:$|[-/])/.test(normalizeText(selectedDocument.monthKey));
+                const matchesStandardFourTopicScores =
+                  dynamicTopics.length === 4 &&
+                  dynamicTopics.every(
+                    (topic, topicIndex) =>
+                      Number(topic.max) === standardFourTopicMaxScores[topicIndex]
+                  );
+                const useStandardFourTopicLabels =
+                  dynamicTopics.length === 4 &&
+                  (isJuneOrJuly || matchesStandardFourTopicScores);
+
                 return (
                   <div
-                    data-preview-table-v13
+                    data-preview-table-v15
                     className="mt-5 overflow-x-auto rounded-[16px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
                   >
                     <table className="w-max min-w-full table-auto border-collapse">
                       <thead className="sticky top-0 z-10">
-                        <tr className="bg-gradient-to-r from-[#2e1065] via-violet-800 to-[#5b21b6] text-white">
+                        <tr className="bg-gradient-to-r from-[#3b0764] via-violet-800 to-[#6d28d9] text-white">
                           <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">#</th>
                           <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Case ID</th>
                           <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Date</th>
-                          <th className="min-w-[285px] px-4 py-2.5 text-center text-[11px] font-semibold">Intent</th>
-                          {dynamicTopics.map((topic) => (
+                          <th className="min-w-[300px] px-4 py-2.5 text-center text-[11px] font-semibold">Intent</th>
+                          {dynamicTopics.map((topic, topicIndex) => (
                             <th
                               key={`preview-head-${topic.key}`}
-                              className="min-w-[138px] px-2.5 py-2.5 text-center align-middle"
+                              className="min-w-[142px] px-3 py-2.5 text-center align-middle"
                             >
-                              <div className="mx-auto max-w-[155px] whitespace-normal text-[10px] font-semibold leading-4">
-                                {topic.label}
+                              <div className="mx-auto max-w-[160px] whitespace-normal text-[10px] font-semibold leading-4">
+                                {useStandardFourTopicLabels
+                                  ? standardFourTopicLabels[topicIndex]
+                                  : topic.label}
                               </div>
-                              <div className="mx-auto mt-1.5 inline-flex rounded-full bg-white/12 px-2 py-0.5 text-[9px] font-medium text-violet-100">
+                              <div className="mt-1 text-[9px] font-medium text-violet-100">
                                 Max Score: {topic.max || "-"}
                               </div>
                             </th>
@@ -5447,10 +5464,10 @@ export default function SignatureCenterMockup({
 
                           const finalScoreTone =
                             item.finalScore >= 85
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              ? "bg-violet-100 text-violet-700"
                               : item.finalScore >= 75
-                                ? "border-amber-200 bg-amber-50 text-amber-700"
-                                : "border-rose-200 bg-rose-50 text-rose-700";
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-rose-100 text-rose-700";
 
                           return (
                             <tr
@@ -5475,7 +5492,7 @@ export default function SignatureCenterMockup({
                                 {item.auditDate}
                               </td>
 
-                              <td className="min-w-[285px] max-w-[420px] px-4 py-2.5 align-middle">
+                              <td className="min-w-[300px] max-w-[460px] px-4 py-2.5 align-middle">
                                 <div className="text-sm font-medium leading-5 text-slate-900">
                                   {intentParts.primary || "-"}
                                 </div>
@@ -5494,50 +5511,41 @@ export default function SignatureCenterMockup({
                               {dynamicTopics.map((topic) => {
                                 const scoreTopic = rowTopics.get(topic.key);
                                 const score = scoreTopic ? Number(scoreTopic.score) || 0 : null;
-                                const max = scoreTopic ? Number(scoreTopic.max) || topic.max : topic.max;
+                                const max = scoreTopic
+                                  ? Number(scoreTopic.max) || topic.max
+                                  : topic.max;
                                 const percent =
                                   score !== null && max > 0
                                     ? Math.max(0, Math.min(100, (score / max) * 100))
                                     : 0;
 
-                                const barTone =
-                                  score === null
-                                    ? "bg-slate-300"
-                                    : percent >= 85
-                                      ? "bg-emerald-500"
-                                      : percent >= 75
-                                        ? "bg-amber-500"
-                                        : "bg-rose-500";
-
                                 const scoreTone =
                                   score === null
-                                    ? "border-slate-200 bg-slate-50 text-slate-400"
+                                    ? "bg-slate-100 text-slate-400"
                                     : percent >= 85
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                      ? "bg-emerald-100 text-emerald-700"
                                       : percent >= 75
-                                        ? "border-amber-200 bg-amber-50 text-amber-700"
-                                        : "border-rose-200 bg-rose-50 text-rose-700";
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-rose-100 text-rose-700";
 
                                 return (
                                   <td
                                     key={`${item.caseId}-${topic.key}`}
-                                    className="min-w-[138px] px-2.5 py-2.5 text-center align-middle"
+                                    className="min-w-[142px] px-3 py-2.5 text-center align-middle"
                                   >
-                                    <span className={`inline-flex h-7 min-w-[36px] items-center justify-center rounded-lg border px-2 text-sm font-semibold ${scoreTone}`}>
+                                    <span
+                                      className={`inline-flex min-w-[38px] items-center justify-center rounded-full px-2.5 py-1 text-sm font-semibold ${scoreTone}`}
+                                    >
                                       {score === null ? "-" : score}
                                     </span>
-                                    <div className="mx-auto mt-2 h-1 w-full max-w-[92px] overflow-hidden rounded-full bg-slate-200">
-                                      <div
-                                        className={`h-full rounded-full ${barTone}`}
-                                        style={{ width: `${score === null ? 0 : percent}%` }}
-                                      />
-                                    </div>
                                   </td>
                                 );
                               })}
 
                               <td className="px-3 py-2.5 text-center align-middle">
-                                <span className={`inline-flex min-w-[66px] justify-center rounded-xl border px-2.5 py-1.5 text-sm font-semibold ${finalScoreTone}`}>
+                                <span
+                                  className={`inline-flex min-w-[62px] justify-center rounded-full px-3 py-1.5 text-sm font-semibold ${finalScoreTone}`}
+                                >
                                   {item.finalScore.toFixed(2)}
                                 </span>
                               </td>
