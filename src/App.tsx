@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
@@ -42,6 +42,16 @@ import {
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
 import { clearStoredProfilePhoto, fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
+import {
+  createStoredUserSession,
+  revokeAllStoredUserSessions,
+  SESSION_INACTIVITY_MS,
+  SESSION_POLICY_VERSION,
+  touchStoredUserSession,
+  validateStoredUserSession,
+} from "./sessionStore";
+
+// data-session-policy-v1
 
 type UserRole = string;
 type RolePermissionKey =
@@ -119,6 +129,9 @@ type CurrentUser = {
   agentName: string;
   email?: string;
   loginAt: string;
+  sessionId?: string;
+  sessionPolicyVersion?: string;
+  sessionExpiresAt?: string;
 };
 
 type BuildMeta = {
@@ -214,9 +227,11 @@ const USER_ACCOUNTS: UserAccount[] = [
 const STORAGE_KEY = "qa_current_user";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
-const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
+const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
+const SESSION_CHECK_INTERVAL_MS = 30 * 1000;
+const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
 const TEMP_PASSWORD_VALID_DAYS = 15;
 const PERMANENT_PASSWORD_VALID_MONTHS = 6;
 
@@ -995,6 +1010,11 @@ function readStoredUser(): CurrentUser | null {
       agentName: parsed.agentName,
       email: typeof parsed.email === "string" ? parsed.email : "",
       loginAt: typeof parsed.loginAt === "string" ? parsed.loginAt : new Date().toISOString(),
+      sessionId: typeof parsed.sessionId === "string" ? parsed.sessionId : "",
+      sessionPolicyVersion:
+        typeof parsed.sessionPolicyVersion === "string" ? parsed.sessionPolicyVersion : "",
+      sessionExpiresAt:
+        typeof parsed.sessionExpiresAt === "string" ? parsed.sessionExpiresAt : "",
     };
   } catch {
     return null;
@@ -1995,7 +2015,7 @@ function SessionWarningModal({
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-lg font-bold text-slate-900">Session Timeout Warning</div>
         <div className="mt-3 text-sm leading-6 text-slate-600">
-          You have been inactive for a while. Your session will be logged out automatically in 1 minute unless you choose to stay signed in.
+          You have been inactive for almost 2 hours. Your session will be logged out automatically in 1 minute unless you choose to stay signed in.
         </div>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button type="button" onClick={onLogoutNow} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100">Log Out Now</button>
@@ -2851,7 +2871,11 @@ function FloatingChatWidget({
 }
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => readStoredUser());
+  const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [sessionValidationPending, setSessionValidationPending] = useState(
+    () => Boolean(storedUserCandidate)
+  );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -2921,8 +2945,122 @@ export default function App() {
   const latestIncomingChatRef = useRef("");
   const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const loginAgentScopeSeededRef = useRef(false);
-  const currentUserWasRestoredRef = useRef(Boolean(currentUser));
+  const currentUserWasRestoredRef = useRef(Boolean(storedUserCandidate));
   const restoredLoginLoggedRef = useRef(false);
+  const lastSessionTouchRef = useRef(0);
+
+  const activateUserSession = async (user: CurrentUser) => {
+    try {
+      const session = await createStoredUserSession(user);
+      const authenticatedUser: CurrentUser = {
+        ...user,
+        sessionId: session.sessionId,
+        sessionPolicyVersion: SESSION_POLICY_VERSION,
+        sessionExpiresAt: session.expiresAt,
+      };
+
+      currentUserWasRestoredRef.current = false;
+      restoredLoginLoggedRef.current = true;
+      lastSessionTouchRef.current = Date.now();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));
+      setCurrentUser(authenticatedUser);
+      return authenticatedUser;
+    } catch (error) {
+      console.error("Secure session creation failed", error);
+      setLoginError("Unable to create a secure session. Please try signing in again.");
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSecureSession() {
+      const storedUser = storedUserCandidate;
+      if (!storedUser) {
+        setSessionValidationPending(false);
+        return;
+      }
+
+      const isQualityAssurance =
+        normalizeRoleName(storedUser.role) === "Quality Assurance";
+
+      try {
+        let restoredUser = storedUser;
+
+        if (
+          !storedUser.sessionId ||
+          storedUser.sessionPolicyVersion !== SESSION_POLICY_VERSION
+        ) {
+          if (!isQualityAssurance) {
+            localStorage.removeItem(STORAGE_KEY);
+            if (!cancelled) {
+              setCurrentUser(null);
+              setLoginError(
+                "The security session was updated. Please sign in again."
+              );
+            }
+            return;
+          }
+
+          const migratedSession = await createStoredUserSession(storedUser);
+          restoredUser = {
+            ...storedUser,
+            sessionId: migratedSession.sessionId,
+            sessionPolicyVersion: SESSION_POLICY_VERSION,
+            sessionExpiresAt: migratedSession.expiresAt,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
+        } else {
+          const validation = await validateStoredUserSession(
+            storedUser.sessionId,
+            storedUser.username
+          );
+
+          if (!validation.valid) {
+            localStorage.removeItem(STORAGE_KEY);
+            if (!cancelled) {
+              setCurrentUser(null);
+              setLoginError(
+                validation.reason === "expired"
+                  ? "Your session expired after 2 hours of inactivity. Please sign in again."
+                  : "Your session is no longer active. Please sign in again."
+              );
+            }
+            return;
+          }
+
+          restoredUser = {
+            ...storedUser,
+            sessionExpiresAt: validation.session.expiresAt,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredUser));
+        }
+
+        if (!cancelled) {
+          lastSessionTouchRef.current = Date.now();
+          setCurrentUser(restoredUser);
+        }
+      } catch (error) {
+        console.error("Secure session restore failed", error);
+        localStorage.removeItem(STORAGE_KEY);
+        if (!cancelled) {
+          setCurrentUser(null);
+          setLoginError(
+            "The secure session could not be verified. Please sign in again."
+          );
+        }
+      } finally {
+        if (!cancelled) setSessionValidationPending(false);
+      }
+    }
+
+    void restoreSecureSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storedUserCandidate]);
 
   const welcomeName = useMemo(() => {
     if (!currentUser) return "";
@@ -4461,17 +4599,17 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
-    if (currentUser && !maintenanceBlocked) {
-      void logUsageEvent(currentUser, "logout", { tab: activeTab });
-    }
+  const clearLocalSession = (message = "") => {
     clearSessionTimers();
     setShowSessionWarning(false);
     setCurrentUser(null);
     setUsername("");
     setPassword("");
-    setLoginError("");
-    navigateToTab("dashboard", { replace: true, params: { subTab: "", caseId: "", agent: "", rubricCode: "" } });
+    setLoginError(message);
+    navigateToTab("dashboard", {
+      replace: true,
+      params: { subTab: "", caseId: "", agent: "", rubricCode: "" },
+    });
     setDashboardSubTab("overview");
     loginAgentScopeSeededRef.current = false;
     setSelectedAgentGlobal("");
@@ -4486,6 +4624,98 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  const endSessionEverywhere = (reason: "manual" | "inactivity") => {
+    const logoutUser = currentUser;
+
+    if (logoutUser && !maintenanceBlocked) {
+      void logUsageEvent(logoutUser, "logout", {
+        tab: activeTab,
+        details: { reason },
+      });
+    }
+
+    if (logoutUser?.username) {
+      void revokeAllStoredUserSessions(
+        logoutUser.username,
+        logoutUser.sessionId || "",
+        reason
+      ).catch((error) => {
+        console.error("Central session revoke failed", error);
+      });
+    }
+
+    clearLocalSession(
+      reason === "inactivity"
+        ? "You were logged out after 2 hours of inactivity."
+        : ""
+    );
+  };
+
+  const handleLogout = () => {
+    endSessionEverywhere("manual");
+  };
+
+  const handleInactivityLogout = () => {
+    endSessionEverywhere("inactivity");
+  };
+
+  useEffect(() => {
+    if (!currentUser?.sessionId || !currentUser.username) return;
+
+    let cancelled = false;
+
+    const checkCentralSession = async () => {
+      try {
+        const validation = await validateStoredUserSession(
+          currentUser.sessionId || "",
+          currentUser.username
+        );
+
+        if (!validation.valid && !cancelled) {
+          clearLocalSession(
+            validation.reason === "expired"
+              ? "Your session expired after 2 hours of inactivity. Please sign in again."
+              : "This session was logged out from another browser. Please sign in again."
+          );
+        }
+      } catch (error) {
+        console.warn("Central session check failed; will retry.", error);
+      }
+    };
+
+    const handleVisibilityCheck = () => {
+      if (document.visibilityState === "visible") {
+        void checkCentralSession();
+      }
+    };
+
+    const handleStoredSessionChange = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY && !event.newValue) {
+        clearLocalSession(
+          "This session was logged out in another tab. Please sign in again."
+        );
+      }
+    };
+
+    void checkCentralSession();
+    const interval = window.setInterval(
+      () => void checkCentralSession(),
+      SESSION_CHECK_INTERVAL_MS
+    );
+
+    window.addEventListener("focus", checkCentralSession);
+    window.addEventListener("storage", handleStoredSessionChange);
+    document.addEventListener("visibilitychange", handleVisibilityCheck);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", checkCentralSession);
+      window.removeEventListener("storage", handleStoredSessionChange);
+      document.removeEventListener("visibilitychange", handleVisibilityCheck);
+    };
+  }, [currentUser?.sessionId, currentUser?.username]);
+
   const startSessionTimers = () => {
     clearSessionTimers();
     setShowSessionWarning(false);
@@ -4495,13 +4725,28 @@ export default function App() {
     }, WARNING_TIME_MS);
 
     inactivityTimerRef.current = setTimeout(() => {
-      handleLogout();
-      window.alert("You have been logged out due to 30 minutes of inactivity.");
+      handleInactivityLogout();
+      window.alert("You have been logged out due to 2 hours of inactivity.");
     }, INACTIVITY_LIMIT_MS);
   };
 
   const resetInactivityTimer = () => {
     if (!currentUser) return;
+
+    const now = Date.now();
+    if (
+      currentUser.sessionId &&
+      now - lastSessionTouchRef.current >= SESSION_TOUCH_INTERVAL_MS
+    ) {
+      lastSessionTouchRef.current = now;
+      void touchStoredUserSession(
+        currentUser.sessionId,
+        currentUser.username
+      ).catch((error) => {
+        console.warn("Central session activity update failed", error);
+      });
+    }
+
     startSessionTimers();
   };
 
@@ -4575,8 +4820,8 @@ export default function App() {
         loginAt: new Date().toISOString(),
       };
 
-      setCurrentUser(nextUser);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+      const activatedUser = await activateUserSession(nextUser);
+      if (!activatedUser) return;
       void logUsageEvent(nextUser, "login", { tab: "dashboard" });
       setLoginError("");
       setUsername("");
@@ -4652,8 +4897,8 @@ export default function App() {
           return;
         }
 
-        setCurrentUser(nextUser);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+        const activatedUser = await activateUserSession(nextUser);
+        if (!activatedUser) return;
         void logUsageEvent(nextUser, "login", { tab: "dashboard" });
         setLoginError("");
         setUsername("");
@@ -4733,8 +4978,8 @@ export default function App() {
       return;
     }
 
-    setCurrentUser(nextUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+    const activatedUser = await activateUserSession(nextUser);
+    if (!activatedUser) return;
     if (!maintenanceState.enabled || canBypassMaintenance(nextUser)) {
       void logUsageEvent(nextUser, "login", { tab: "dashboard" });
     }
@@ -4863,6 +5108,15 @@ export default function App() {
   };
 
   const handleStayLoggedIn = () => {
+    if (currentUser?.sessionId) {
+      lastSessionTouchRef.current = Date.now();
+      void touchStoredUserSession(
+        currentUser.sessionId,
+        currentUser.username
+      ).catch((error) => {
+        console.warn("Stay signed in update failed", error);
+      });
+    }
     startSessionTimers();
   };
 
@@ -5119,6 +5373,18 @@ export default function App() {
     setResetResultMessage(`Rejected reset request for ${request.displayName || request.username}.`);
     await loadPasswordResetRequests();
   };
+
+  if (sessionValidationPending) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4">
+        <div className="rounded-[28px] border border-violet-100 bg-white px-8 py-7 text-center shadow-[0_20px_60px_rgba(88,28,135,0.12)]">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-violet-100 border-t-violet-700" />
+          <div className="mt-4 text-base font-bold text-slate-900">Checking secure session</div>
+          <div className="mt-1 text-sm text-slate-500">Please wait while access is verified.</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
