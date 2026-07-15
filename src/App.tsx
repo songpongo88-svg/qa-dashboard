@@ -2920,7 +2920,10 @@ export default function App() {
   const [roleOverrides, setRoleOverrides] = useState<Record<string, UserRole>>({});
   const [profileOverrides, setProfileOverrides] = useState<Record<string, UserProfileSnapshot>>({});
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>(() => buildRolePermissionOverrides([]));
+  const [accessRulesReady, setAccessRulesReady] = useState(false);
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
+
+  // data-create-evaluation-multitab-v5
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
@@ -3435,7 +3438,7 @@ export default function App() {
   }
 
   const getTabBlockedReason = useCallback((tab: AppTab) => {
-    if (!currentUser) return "";
+    if (!currentUser || sessionValidationPending || !accessRulesReady) return "";
     if (tab === "coaching" && !coachingAllowed) return "missing viewCoaching permission";
     if (tab === "usage-log" && !usageLogAllowed) return "missing viewUsageLog permission";
     if (tab === "appeal-requests" && !appealRequestsAllowed) return "missing reviewAppeals permission";
@@ -3447,11 +3450,13 @@ export default function App() {
     if ((tab === "team-chat" || tab === "call-history") && !teamChatAllowed) return "missing useTeamChat permission";
     return "";
   }, [
+    accessRulesReady,
     appealOverrideAllowed,
     appealRequestsAllowed,
     coachingAllowed,
     createEvaluationAllowed,
     currentUser,
+    sessionValidationPending,
     preTestAllowed,
     roleAdminAllowed,
     teamChatAllowed,
@@ -3628,14 +3633,7 @@ export default function App() {
     if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "create-evaluation") {
       const evaluationUrl = buildWorkspaceUrl({ tab: "create-evaluation" });
-      const evaluationWindow = window.open(
-        evaluationUrl,
-        "_blank",
-        "noopener,noreferrer"
-      );
-      if (!evaluationWindow) {
-        navigateToTab("create-evaluation");
-      }
+      window.open(evaluationUrl, "_blank", "noopener,noreferrer");
       return;
     }
     if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "training-attendance" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
@@ -4360,6 +4358,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!currentUser || sessionValidationPending || !accessRulesReady) return;
+
     if (activeTab === "coaching" && !coachingAllowed) {
       navigateToTab("dashboard", { replace: true });
     }
@@ -4387,16 +4387,33 @@ export default function App() {
     if ((activeTab === "team-chat" || activeTab === "call-history") && !teamChatAllowed) {
       navigateToTab("dashboard", { replace: true });
     }
-  }, [activeTab, appealOverrideAllowed, appealRequestsAllowed, coachingAllowed, createEvaluationAllowed, navigateToTab, preTestAllowed, roleAdminAllowed, teamChatAllowed, trainingAttendanceAllowed, usageLogAllowed]);
+  }, [accessRulesReady, activeTab, appealOverrideAllowed, appealRequestsAllowed, coachingAllowed, createEvaluationAllowed, currentUser, navigateToTab, preTestAllowed, roleAdminAllowed, sessionValidationPending, teamChatAllowed, trainingAttendanceAllowed, usageLogAllowed]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!currentUser) {
       setRoleOverrides({});
       setProfileOverrides({});
-      return;
+      setAccessRulesReady(false);
+      return () => {
+        cancelled = true;
+      };
     }
 
-    void loadRoleOverrides();
+    setAccessRulesReady(false);
+
+    void (async () => {
+      try {
+        await loadRoleOverrides();
+      } finally {
+        if (!cancelled) setAccessRulesReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser?.username]);
 
   useEffect(() => {
