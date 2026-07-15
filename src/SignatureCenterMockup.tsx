@@ -2366,6 +2366,14 @@ function getSigningStageOption(value: string) {
   return SIGNING_STAGE_OPTIONS.find((option) => option.value === value) || SIGNING_STAGE_OPTIONS[0];
 }
 
+function closeOtherSignatureFilterDropdowns(current: HTMLDetailsElement) {
+  document
+    .querySelectorAll<HTMLDetailsElement>('details[data-signature-filter-dropdown="true"][open]')
+    .forEach((detail) => {
+      if (detail !== current) detail.removeAttribute("open");
+    });
+}
+
 export default function SignatureCenterMockup({
   currentUser,
   accounts = [],
@@ -4542,15 +4550,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v23 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v24 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
       <div className="min-h-screen bg-[#f3f0fa]">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v23],
-          [data-signature-ui-v23] button,
-          [data-signature-ui-v23] input,
-          [data-signature-ui-v23] select,
-          [data-signature-ui-v23] textarea {
+          [data-signature-ui-v24],
+          [data-signature-ui-v24] button,
+          [data-signature-ui-v24] input,
+          [data-signature-ui-v24] select,
+          [data-signature-ui-v24] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4788,14 +4796,28 @@ export default function SignatureCenterMockup({
             </div>
             <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Month</span>
-              <details className="group relative">
+              <details
+                data-signature-filter-dropdown="true"
+                className="group relative"
+                onToggle={(event) => {
+                  if (event.currentTarget.open) {
+                    closeOtherSignatureFilterDropdowns(event.currentTarget);
+                  }
+                }}
+                onBlur={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+                    event.currentTarget.removeAttribute("open");
+                  }
+                }}
+              >
                 <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden">
                   <span className="truncate">
                     {selectedMonth === "all" ? "All Months" : getMonthLabel(selectedMonth)}
                   </span>
                   <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
                 </summary>
-                <div className="absolute left-0 top-[calc(100%+8px)] z-[70] w-[260px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                <div className="absolute left-0 top-[calc(100%+8px)] z-[90] w-[260px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
                   <div className="px-3 pb-2 pt-1">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Month</div>
                     <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกเดือนของเอกสารที่ต้องการแสดง</div>
@@ -4846,12 +4868,26 @@ export default function SignatureCenterMockup({
             </div>
             <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Year</span>
-              <details className="group relative">
+              <details
+                data-signature-filter-dropdown="true"
+                className="group relative"
+                onToggle={(event) => {
+                  if (event.currentTarget.open) {
+                    closeOtherSignatureFilterDropdowns(event.currentTarget);
+                  }
+                }}
+                onBlur={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+                    event.currentTarget.removeAttribute("open");
+                  }
+                }}
+              >
                 <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden">
                   <span className="truncate">{selectedYear === "all" ? "All Years" : selectedYear}</span>
                   <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
                 </summary>
-                <div className="absolute left-0 top-[calc(100%+8px)] z-[70] w-[220px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                <div className="absolute left-0 top-[calc(100%+8px)] z-[90] w-[220px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
                   <div className="px-3 pb-2 pt-1">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Year</div>
                     <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกปี ค.ศ. ของเอกสาร</div>
@@ -4884,7 +4920,21 @@ export default function SignatureCenterMockup({
             </div>
             <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Signing Stage</span>
-              <details className="group relative">
+              <details
+                data-signature-filter-dropdown="true"
+                className="group relative"
+                onToggle={(event) => {
+                  if (event.currentTarget.open) {
+                    closeOtherSignatureFilterDropdowns(event.currentTarget);
+                  }
+                }}
+                onBlur={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+                    event.currentTarget.removeAttribute("open");
+                  }
+                }}
+              >
                 <summary
                   title={getSigningStageOption(statusFilter).description}
                   className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden"
@@ -4893,7 +4943,7 @@ export default function SignatureCenterMockup({
                   <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
                 </summary>
 
-                <div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-[310px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                <div className="absolute right-0 top-[calc(100%+8px)] z-[90] w-[310px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
                   <div className="px-3 pb-2 pt-1">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">
                       Signing Stage
@@ -5000,7 +5050,7 @@ export default function SignatureCenterMockup({
         </section>
 
         <section className="grid items-start gap-5 px-1.5 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div data-document-list-v23 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-[#faf9fd] shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
+          <div data-document-list-v24 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-[#faf9fd] shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
             <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Document List</h2>
@@ -5010,7 +5060,21 @@ export default function SignatureCenterMockup({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <details className="group relative">
+                <details
+                data-signature-filter-dropdown="true"
+                className="group relative"
+                onToggle={(event) => {
+                  if (event.currentTarget.open) {
+                    closeOtherSignatureFilterDropdowns(event.currentTarget);
+                  }
+                }}
+                onBlur={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+                    event.currentTarget.removeAttribute("open");
+                  }
+                }}
+              >
                   <summary className="flex min-w-[190px] cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 [&::-webkit-details-marker]:hidden">
                     <span>
                       <span className="block text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">Document Status</span>
@@ -5020,7 +5084,7 @@ export default function SignatureCenterMockup({
                     </span>
                     <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
                   </summary>
-                  <div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-[280px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-[90] w-[280px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
                     <div className="px-3 pb-2 pt-1">
                       <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Document Status</div>
                       <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกสถานะโดยรวมของเอกสาร</div>
