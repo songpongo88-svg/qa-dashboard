@@ -4550,15 +4550,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v24 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v26 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
       <div className="min-h-screen bg-[#f3f0fa]">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v24],
-          [data-signature-ui-v24] button,
-          [data-signature-ui-v24] input,
-          [data-signature-ui-v24] select,
-          [data-signature-ui-v24] textarea {
+          [data-signature-ui-v26],
+          [data-signature-ui-v26] button,
+          [data-signature-ui-v26] input,
+          [data-signature-ui-v26] select,
+          [data-signature-ui-v26] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4993,11 +4993,11 @@ export default function SignatureCenterMockup({
                 </div>
               </details>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end justify-end">
               <button
                 type="button"
                 onClick={clearWorkspaceFilters}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex h-[46px] w-auto min-w-[118px] items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
               >
                 Clear Filters
               </button>
@@ -5775,20 +5775,33 @@ export default function SignatureCenterMockup({
 
                 return (
                   <div
-                    data-preview-table-v15
+                    data-preview-table-v25
                     className="mt-5 overflow-x-auto rounded-[16px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
                   >
-                    <table className="w-max min-w-full table-auto border-collapse">
+                    <table className="w-full min-w-[1180px] table-fixed border-collapse">
+                      <colgroup>
+                        <col style={{ width: "3%" }} />
+                        <col style={{ width: "9%" }} />
+                        <col style={{ width: "8%" }} />
+                        <col style={{ width: "28%" }} />
+                        {dynamicTopics.map((topic) => (
+                          <col
+                            key={`preview-col-${topic.key}`}
+                            style={{ width: `${42 / Math.max(dynamicTopics.length, 1)}%` }}
+                          />
+                        ))}
+                        <col style={{ width: "10%" }} />
+                      </colgroup>
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-gradient-to-r from-[#3b0764] via-violet-800 to-[#6d28d9] text-white">
                           <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">#</th>
                           <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Case ID</th>
                           <th className="whitespace-nowrap px-3 py-2.5 text-center text-[11px] font-semibold">Date</th>
-                          <th className="min-w-[300px] px-4 py-2.5 text-center text-[11px] font-semibold">Intent</th>
+                          <th className="px-3 py-2.5 text-center text-[11px] font-semibold">Intent</th>
                           {dynamicTopics.map((topic, topicIndex) => (
                             <th
                               key={`preview-head-${topic.key}`}
-                              className="min-w-[142px] px-3 py-2.5 text-center align-middle"
+                              className="px-2 py-2.5 text-center align-middle"
                             >
                               <div className="mx-auto max-w-[160px] whitespace-normal text-[10px] font-semibold leading-4">
                                 {useStandardFourTopicLabels
@@ -5844,8 +5857,8 @@ export default function SignatureCenterMockup({
                                 {item.auditDate}
                               </td>
 
-                              <td className="min-w-[300px] max-w-[460px] px-4 py-2.5 align-middle">
-                                <div className="text-sm font-medium leading-5 text-slate-900">
+                              <td className="px-3 py-2.5 align-middle">
+                                <div className="break-words text-sm font-medium leading-5 text-slate-900">
                                   {intentParts.primary || "-"}
                                 </div>
                                 {intentParts.secondary ? (
@@ -5883,7 +5896,7 @@ export default function SignatureCenterMockup({
                                 return (
                                   <td
                                     key={`${item.caseId}-${topic.key}`}
-                                    className="min-w-[142px] px-3 py-2.5 text-center align-middle"
+                                    className="px-2 py-2.5 text-center align-middle"
                                   >
                                     <span
                                       className={`inline-flex min-w-[38px] items-center justify-center rounded-full px-2.5 py-1 text-sm font-semibold ${scoreTone}`}
