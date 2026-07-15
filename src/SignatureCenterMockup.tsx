@@ -2324,6 +2324,48 @@ function SignaturePadModal({
   );
 }
 
+const SIGNING_STAGE_OPTIONS = [
+  {
+    value: "all",
+    label: "All Stages",
+    description: "แสดงเอกสารทุกขั้นตอนในกระบวนการลงนาม",
+  },
+  {
+    value: "preview",
+    label: "Awaiting Confirmation",
+    description: "รอ Agent ผู้ถูกประเมินยืนยันรับทราบผลก่อนเริ่มลงนาม",
+  },
+  {
+    value: "my-turn",
+    label: "My Turn to Sign",
+    description: "แสดงเฉพาะเอกสารที่ถึงคิวของคุณลงนามแล้ว",
+  },
+  {
+    value: "pending",
+    label: "Awaiting Signatures",
+    description: "เอกสารยังมีอย่างน้อยหนึ่ง Role ที่ต้องลงนาม",
+  },
+  {
+    value: "ready",
+    label: "Ready for Payment",
+    description: "เอกสารลงนามครบและผ่านเงื่อนไขพร้อมจ่าย Incentive",
+  },
+  {
+    value: "appeal-pending",
+    label: "Appeal Pending",
+    description: "เอกสารมีเคส Appeal ที่ยังรอผลอนุมัติหรือปฏิเสธ",
+  },
+  {
+    value: "expired",
+    label: "Overdue",
+    description: "เอกสารเลยกำหนดลงนามและยังดำเนินการไม่ครบ",
+  },
+] as const;
+
+function getSigningStageOption(value: string) {
+  return SIGNING_STAGE_OPTIONS.find((option) => option.value === value) || SIGNING_STAGE_OPTIONS[0];
+}
+
 export default function SignatureCenterMockup({
   currentUser,
   accounts = [],
@@ -4500,15 +4542,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v19 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v20 className="-m-4 min-h-screen bg-[#f7f8fb] text-slate-950 sm:-m-6">
       <div className="min-h-screen">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v19],
-          [data-signature-ui-v19] button,
-          [data-signature-ui-v19] input,
-          [data-signature-ui-v19] select,
-          [data-signature-ui-v19] textarea {
+          [data-signature-ui-v20],
+          [data-signature-ui-v20] button,
+          [data-signature-ui-v20] input,
+          [data-signature-ui-v20] select,
+          [data-signature-ui-v20] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4709,7 +4751,7 @@ export default function SignatureCenterMockup({
         </header>
 
         <section className="rounded-[26px] border border-violet-100 bg-white p-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
-          <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_135px_165px_auto]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_160px_120px_190px_auto]">
             <label className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Search</span>
               <input
@@ -4745,22 +4787,67 @@ export default function SignatureCenterMockup({
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-black text-slate-500">Workflow</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
-              >
-                <option value="all">All Workflow Statuses</option>
-                <option value="preview">Awaiting Preview Confirmation</option>
-                <option value="my-turn">My Signature Pending</option>
-                <option value="pending">Pending Signature</option>
-                <option value="ready">Ready for Incentive Payment</option>
-                <option value="appeal-pending">Appeal Approval Pending</option>
-                <option value="expired">Overdue</option>
-              </select>
-            </label>
+            <div className="block">
+              <span className="mb-1.5 block text-xs font-black text-slate-500">Signing Stage</span>
+              <details className="group relative">
+                <summary
+                  title={getSigningStageOption(statusFilter).description}
+                  className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden"
+                >
+                  <span className="truncate">{getSigningStageOption(statusFilter).label}</span>
+                  <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
+                </summary>
+
+                <div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-[310px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                  <div className="px-3 pb-2 pt-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">
+                      Signing Stage
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-normal text-slate-500">
+                      เลือกขั้นตอนของเอกสารที่ต้องการแสดง
+                    </div>
+                  </div>
+
+                  <div className="grid gap-1">
+                    {SIGNING_STAGE_OPTIONS.map((option) => {
+                      const selected = statusFilter === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          title={option.description}
+                          onClick={(event) => {
+                            setStatusFilter(option.value);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                          className={`rounded-xl px-3 py-2.5 text-left transition ${
+                            selected
+                              ? "bg-violet-100 text-violet-800"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold">{option.label}</span>
+                            {selected ? (
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">
+                                ✓
+                              </span>
+                            ) : null}
+                          </div>
+                          <div
+                            className={`mt-1 text-[11px] font-normal leading-4 ${
+                              selected ? "text-violet-600" : "text-slate-500"
+                            }`}
+                          >
+                            {option.description}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </details>
+            </div>
             <div className="flex items-end">
               <button
                 type="button"
@@ -4832,9 +4919,9 @@ export default function SignatureCenterMockup({
           ) : null}
         </section>
 
-        <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div data-document-list-v16 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-white shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
-            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+        <section className="grid items-start gap-5 px-1 xl:grid-cols-[minmax(0,1fr)_330px]">
+          <div data-document-list-v20 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-white shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Document List</h2>
                 <p className="mt-0.5 text-xs font-normal text-slate-500">
@@ -4874,7 +4961,7 @@ export default function SignatureCenterMockup({
                     <button
                       type="button"
                       onClick={() => setExpandedMonths((previous) => ({ ...previous, [group.monthKey]: !expanded }))}
-                      className="flex w-full items-center justify-between bg-violet-50/60 px-4 py-2.5 text-left transition hover:bg-violet-50"
+                      className="flex w-full items-center justify-between bg-gradient-to-r from-violet-50 to-indigo-50/60 px-5 py-2.5 text-left transition hover:from-violet-100/70 hover:to-indigo-50"
                     >
                       <span className="flex items-center gap-2.5">
                         <span className="rounded-lg bg-violet-700 px-3 py-1.5 text-xs font-semibold text-white">{group.monthLabel}</span>
@@ -4885,13 +4972,25 @@ export default function SignatureCenterMockup({
 
                     {expanded ? (
                       <>
-                        <div className="hidden grid-cols-[11%_27%_20%_10%_15%_17%] items-center gap-2 border-y border-slate-100 bg-slate-50/90 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500 md:grid">
-                          <div>Document Ref.</div>
-                          <div>Assessed Agent</div>
-                          <div>Document Type</div>
-                          <div>Status</div>
-                          <div>Pending Roles</div>
-                          <div>Pending Signers</div>
+                        <div className="hidden grid-cols-[12%_24%_24%_10%_14%_16%] items-stretch gap-1.5 border-y border-slate-100 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.04em] md:grid">
+                          <div className="flex items-center justify-center rounded-lg bg-violet-100/80 px-2 py-2 text-center text-violet-700">
+                            Document Ref.
+                          </div>
+                          <div className="flex items-center justify-center rounded-lg bg-fuchsia-50 px-2 py-2 text-center text-fuchsia-700">
+                            Assessed Agent
+                          </div>
+                          <div className="flex items-center justify-center rounded-lg bg-sky-50 px-2 py-2 text-center text-sky-700">
+                            Document Type
+                          </div>
+                          <div className="flex items-center justify-center rounded-lg bg-slate-100 px-2 py-2 text-center text-slate-700">
+                            Status
+                          </div>
+                          <div className="flex items-center justify-center rounded-lg bg-amber-50 px-2 py-2 text-center text-amber-700">
+                            Pending Roles
+                          </div>
+                          <div className="flex items-center justify-center rounded-lg bg-indigo-50 px-2 py-2 text-center text-indigo-700">
+                            Pending Signers
+                          </div>
                         </div>
                         <div className="divide-y divide-slate-100">
                           {group.items.map((doc) => {
@@ -4905,10 +5004,10 @@ export default function SignatureCenterMockup({
                                 key={doc.id}
                                 type="button"
                                 onClick={() => openWorkspaceDetail(doc.id)}
-                                className={`grid w-full cursor-pointer gap-2 px-4 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 md:grid-cols-[11%_27%_20%_10%_15%_17%] md:items-center md:gap-2 ${
+                                className={`grid w-full cursor-pointer gap-2 px-5 py-2.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 md:grid-cols-[12%_24%_24%_10%_14%_16%] md:items-center md:gap-1.5 ${
                                   selected
                                     ? "bg-violet-50/80 shadow-[inset_3px_0_0_#7c3aed]"
-                                    : "bg-white hover:bg-slate-50"
+                                    : "bg-white hover:bg-violet-50/40"
                                 }`}
                               >
                                 <div className="min-w-0">
@@ -4923,15 +5022,15 @@ export default function SignatureCenterMockup({
                                 </div>
                                 <div className="min-w-0">
                                   <div className="md:hidden text-[10px] font-medium text-slate-400">Document Type</div>
-                                  <div className="line-clamp-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium leading-5 text-slate-700">
+                                  <div className="line-clamp-2 rounded-xl border border-sky-100 bg-sky-50/55 px-2.5 py-1.5 text-xs font-medium leading-5 text-slate-700">
                                     {getDocumentTypeLabel(doc)}
                                   </div>
                                 </div>
-                                <div><WorkspaceStatusBadge status={status} /></div>
+                                <div className="md:text-center"><WorkspaceStatusBadge status={status} /></div>
                                 <div className={`space-y-1 rounded-xl px-3 py-2 text-xs font-medium leading-5 ${
                                   docPendingRoles.length
-                                    ? "bg-amber-50/70 text-amber-800"
-                                    : "bg-emerald-50/70 text-emerald-700"
+                                    ? "border border-amber-100 bg-amber-50/75 text-amber-800"
+                                    : "border border-emerald-100 bg-emerald-50/75 text-emerald-700"
                                 }`}>
                                   {docPendingRoles.length ? (
                                     docPendingRoles.map((role) => (
@@ -4943,7 +5042,7 @@ export default function SignatureCenterMockup({
                                     <div>Completed</div>
                                   )}
                                 </div>
-                                <div className="space-y-1 rounded-xl bg-violet-50/60 px-3 py-2 text-xs font-medium leading-5 text-slate-700">
+                                <div className="space-y-1 rounded-xl border border-indigo-100 bg-indigo-50/55 px-2.5 py-1.5 text-xs font-medium leading-5 text-slate-700">
                                   {docPendingRoles.length ? (
                                     docPendingRoles.map((role) => (
                                       <div key={`${doc.id}-pending-signer-${role}`} className="truncate" title={getRoleSigner(doc, role)}>
@@ -4973,7 +5072,7 @@ export default function SignatureCenterMockup({
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-sm font-normal text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3.5 text-sm font-normal text-slate-500 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 แสดง {workspaceDocuments.length ? (safeCurrentPage - 1) * rowsPerPage + 1 : 0}-{Math.min(safeCurrentPage * rowsPerPage, workspaceDocuments.length)} จาก {workspaceDocuments.length} รายการ
               </div>
@@ -5008,7 +5107,7 @@ export default function SignatureCenterMockup({
             </div>
           </div>
 
-          <aside className="self-start rounded-[22px] border border-violet-100 bg-white p-3.5 shadow-[0_14px_36px_rgba(88,28,135,0.07)] xl:sticky xl:top-4">
+          <aside className="mr-1 self-start rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_14px_36px_rgba(88,28,135,0.07)] xl:sticky xl:top-4">
             {selectedDocument && workspaceDetailOpen ? (
               <>
                 <div className="flex items-start justify-between gap-3">
