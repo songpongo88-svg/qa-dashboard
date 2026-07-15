@@ -3367,7 +3367,11 @@ export default function App() {
     PASSWORD_RESET_ADMIN_USERNAMES.has(currentUsernameKey) ||
     PASSWORD_RESET_ADMIN_DISPLAY_NAMES.has(currentDisplayNameKey)
   );
-  const pendingPasswordResetRequestCount = passwordResetRequests.filter((request) => request.status === "Pending").length;
+  const pendingPasswordResetRequestCount = passwordResetRequests.filter(
+    (request) =>
+      request.status === "Pending" &&
+      request.username.trim().toLowerCase() !== currentUsernameKey
+  ).length;
   const userDirectoryAllowed = Boolean(currentUser) && (
     hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
     hasRolePermission(currentUser, rolePermissions, "manageUsers")
@@ -4454,6 +4458,71 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [currentUser, maintenanceBlocked, passwordResetShortcutAllowed]);
 
+  // data-password-reset-badge-cleanup-v1
+  useEffect(() => {
+    if (!currentUser || maintenanceBlocked || !passwordResetShortcutAllowed) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const requests = await fetchStoredPasswordResetRequests();
+        const pendingRequests = requests.filter(
+          (request) => request.status === "Pending"
+        );
+
+        let resolvedCount = 0;
+
+        for (const request of pendingRequests) {
+          const latestPasswordRecord = await getCentralPasswordRecord(
+            request.username
+          ).catch(() => null);
+
+          if (!latestPasswordRecord) continue;
+
+          const requestedAt = new Date(request.requestedAt || "").getTime();
+          const issuedAt = new Date(latestPasswordRecord.issuedAt || "").getTime();
+
+          if (
+            !Number.isFinite(requestedAt) ||
+            !Number.isFinite(issuedAt) ||
+            issuedAt < requestedAt
+          ) {
+            continue;
+          }
+
+          await updateStoredPasswordResetRequest(request.requestId, {
+            status: "Approved",
+            reviewedAt:
+              latestPasswordRecord.issuedAt || new Date().toISOString(),
+            reviewedBy: "System Auto Recovery",
+          });
+          resolvedCount += 1;
+        }
+
+        const refreshedRequests = resolvedCount
+          ? await fetchStoredPasswordResetRequests()
+          : requests;
+
+        if (!cancelled) {
+          setPasswordResetRequests(refreshedRequests);
+        }
+      } catch (error) {
+        console.warn("Password reset history reconciliation failed", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentUser?.username,
+    maintenanceBlocked,
+    passwordResetShortcutAllowed,
+  ]);
+
   useEffect(() => {
     if (!currentUser || maintenanceBlocked || !CHAT_SUPABASE_POLLING_ENABLED) {
       setChatMessages([]);
@@ -5295,6 +5364,8 @@ export default function App() {
         requestedAt: issuedAt.toISOString(),
         status: "Approved",
         tempPassword: temporaryPassword,
+        reviewedAt: issuedAt.toISOString(),
+        reviewedBy: "System Auto Recovery",
       });
 
       saveLocalPasswordRecord(account.username, {

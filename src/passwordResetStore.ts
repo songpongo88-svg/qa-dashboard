@@ -1,4 +1,4 @@
-﻿import { collection, doc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
 const PASSWORD_RESET_REQUEST_COLLECTION = "qa_password_reset_requests";
@@ -86,10 +86,17 @@ export async function fetchStoredPasswordResetRequests() {
 
 export async function createStoredPasswordResetRequest(request: StoredPasswordResetRequest) {
   const now = new Date().toISOString();
+  const normalizedStatus = normalizeStatus(request.status);
   const row = {
     ...request,
-    status: "Pending" as const,
+    status: normalizedStatus,
     requestedAt: request.requestedAt || now,
+    reviewedAt:
+      normalizedStatus === "Pending" ? "" : request.reviewedAt || now,
+    reviewedBy:
+      normalizedStatus === "Pending"
+        ? ""
+        : request.reviewedBy || "System Auto Recovery",
     updatedAt: now,
     updatedAtServer: serverTimestamp(),
   };
