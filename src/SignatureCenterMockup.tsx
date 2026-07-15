@@ -4542,15 +4542,15 @@ export default function SignatureCenterMockup({
   }
 
   return (
-    <div data-signature-ui-v22 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
+    <div data-signature-ui-v23 className="-m-4 min-h-screen bg-[#f3f0fa] text-slate-950 sm:-m-6">
       <div className="min-h-screen bg-[#f3f0fa]">
         <style>{`
           @import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap");
-          [data-signature-ui-v22],
-          [data-signature-ui-v22] button,
-          [data-signature-ui-v22] input,
-          [data-signature-ui-v22] select,
-          [data-signature-ui-v22] textarea {
+          [data-signature-ui-v23],
+          [data-signature-ui-v23] button,
+          [data-signature-ui-v23] input,
+          [data-signature-ui-v23] select,
+          [data-signature-ui-v23] textarea {
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
@@ -4751,42 +4751,137 @@ export default function SignatureCenterMockup({
         </header>
 
         <section className="rounded-[26px] border border-violet-100 bg-white p-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
-          <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_160px_120px_190px_auto]">
-            <label className="block">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,360px)_170px_140px_210px_auto]">
+            <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Search</span>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Document Ref. / Case ID / Agent / Team"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:bg-white"
-              />
-            </label>
-            <label className="block">
+              <div className="relative">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 fill-none stroke-slate-400"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setSearch("");
+                  }}
+                  placeholder="Search Document Ref., Case ID or Agent"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-semibold outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    title="Clear search"
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-base font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Month</span>
-              <select
-                value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
-              >
-                <option value="all">All Months</option>
-                {monthOptions.map((month) => (
-                  <option key={month} value={month}>{getMonthLabel(month)}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
+              <details className="group relative">
+                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden">
+                  <span className="truncate">
+                    {selectedMonth === "all" ? "All Months" : getMonthLabel(selectedMonth)}
+                  </span>
+                  <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="absolute left-0 top-[calc(100%+8px)] z-[70] w-[260px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                  <div className="px-3 pb-2 pt-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Month</div>
+                    <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกเดือนของเอกสารที่ต้องการแสดง</div>
+                  </div>
+                  <div className="max-h-[300px] space-y-1 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        setSelectedMonth("all");
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                      }}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
+                        selectedMonth === "all" ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span>
+                        <span className="block text-xs font-semibold">All Months</span>
+                        <span className="mt-0.5 block text-[11px] font-normal text-slate-500">แสดงเอกสารทุกเดือน</span>
+                      </span>
+                      {selectedMonth === "all" ? (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">✓</span>
+                      ) : null}
+                    </button>
+                    {monthOptions.map((month) => {
+                      const selected = selectedMonth === month;
+                      return (
+                        <button
+                          key={month}
+                          type="button"
+                          onClick={(event) => {
+                            setSelectedMonth(month);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
+                            selected ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="text-xs font-semibold">{getMonthLabel(month)}</span>
+                          {selected ? (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">✓</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </details>
+            </div>
+            <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Year</span>
-              <select
-                value={selectedYear}
-                onChange={(event) => setSelectedYear(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none focus:border-violet-400"
-              >
-                <option value="all">All Years</option>
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </label>
+              <details className="group relative">
+                <summary className="flex w-full cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 focus-visible:border-violet-400 [&::-webkit-details-marker]:hidden">
+                  <span className="truncate">{selectedYear === "all" ? "All Years" : selectedYear}</span>
+                  <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="absolute left-0 top-[calc(100%+8px)] z-[70] w-[220px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                  <div className="px-3 pb-2 pt-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Year</div>
+                    <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกปี ค.ศ. ของเอกสาร</div>
+                  </div>
+                  <div className="space-y-1">
+                    {(["all", ...yearOptions] as string[]).map((year) => {
+                      const selected = selectedYear === year;
+                      return (
+                        <button
+                          key={year}
+                          type="button"
+                          onClick={(event) => {
+                            setSelectedYear(year);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition ${
+                            selected ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="text-xs font-semibold">{year === "all" ? "All Years" : year}</span>
+                          {selected ? (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">✓</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </details>
+            </div>
             <div className="block">
               <span className="mb-1.5 block text-xs font-black text-slate-500">Signing Stage</span>
               <details className="group relative">
@@ -4881,21 +4976,6 @@ export default function SignatureCenterMockup({
           ) : null}
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {[
-            { label: "เอกสารทั้งหมด", value: workspaceSummary.total, tone: "text-slate-950", surface: "bg-slate-50" },
-            { label: "รอเซ็น", value: workspaceSummary.pending, tone: "text-amber-700", surface: "bg-amber-50/60" },
-            { label: "เซ็นแล้ว", value: workspaceSummary.signed, tone: "text-emerald-700", surface: "bg-emerald-50/60" },
-            { label: "เกินกำหนด", value: workspaceSummary.expired, tone: "text-rose-700", surface: "bg-rose-50/60" },
-            { label: "ค้างดำเนินการ", value: workspaceSummary.inProgress, tone: "text-sky-700", surface: "bg-sky-50/60" },
-          ].map((item) => (
-            <div key={item.label} className={`rounded-[22px] border border-slate-100 px-4 py-4 ${item.surface}`}>
-              <div className="text-xs font-black text-slate-500">{item.label}</div>
-              <div className={`mt-1 text-3xl font-black ${item.tone}`}>{item.value}</div>
-            </div>
-          ))}
-        </section>
-
         <section className="rounded-[26px] border border-violet-100 bg-white px-5 py-4 shadow-[0_16px_42px_rgba(88,28,135,0.06)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -4920,7 +5000,7 @@ export default function SignatureCenterMockup({
         </section>
 
         <section className="grid items-start gap-5 px-1.5 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div data-document-list-v22 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-[#faf9fd] shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
+          <div data-document-list-v23 className="min-w-0 self-start overflow-hidden rounded-[22px] border border-violet-100 bg-[#faf9fd] shadow-[0_16px_42px_rgba(88,28,135,0.09)]">
             <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Document List</h2>
@@ -4930,22 +5010,56 @@ export default function SignatureCenterMockup({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                    Document Status
-                  </span>
-                  <select
-                    value={quickFilter}
-                    onChange={(event) => setQuickFilter(event.target.value as WorkspaceQuickFilter)}
-                    className="min-w-[128px] bg-transparent text-xs font-semibold text-slate-700 outline-none"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="signed">Signed</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="expired">Overdue</option>
-                  </select>
-                </label>
+                <details className="group relative">
+                  <summary className="flex min-w-[190px] cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition hover:border-violet-300 hover:bg-violet-50/40 [&::-webkit-details-marker]:hidden">
+                    <span>
+                      <span className="block text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">Document Status</span>
+                      <span className="mt-0.5 block">
+                        {quickFilter === "all" ? "All Status" : quickFilter === "pending" ? "Pending" : quickFilter === "signed" ? "Signed" : quickFilter === "in-progress" ? "In Progress" : "Overdue"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-violet-600 transition group-open:rotate-180">⌄</span>
+                  </summary>
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-[280px] overflow-hidden rounded-2xl border border-violet-100 bg-white p-2 shadow-[0_20px_55px_rgba(30,41,59,0.20)]">
+                    <div className="px-3 pb-2 pt-1">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-500">Document Status</div>
+                      <div className="mt-0.5 text-[11px] font-normal text-slate-500">เลือกสถานะโดยรวมของเอกสาร</div>
+                    </div>
+                    {([
+                      ["all", "All Status", "แสดงเอกสารทุกสถานะ"],
+                      ["pending", "Pending", "ยังไม่มีผู้ลงนามหรือกำลังรอเริ่มลงนาม"],
+                      ["signed", "Signed", "ลงนามครบทุก Role แล้ว"],
+                      ["in-progress", "In Progress", "ลงนามแล้วบาง Role และยังดำเนินการไม่ครบ"],
+                      ["expired", "Overdue", "เลยกำหนดลงนามและยังไม่ครบ"],
+                    ] as const).map(([value, label, description]) => {
+                      const selected = quickFilter === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          title={description}
+                          onClick={(event) => {
+                            setQuickFilter(value as WorkspaceQuickFilter);
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                          }}
+                          className={`w-full rounded-xl px-3 py-2.5 text-left transition ${
+                            selected ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold">{label}</span>
+                            {selected ? (
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-700 text-[10px] font-bold text-white">✓</span>
+                            ) : null}
+                          </div>
+                          <div className={`mt-1 text-[11px] font-normal leading-4 ${selected ? "text-violet-600" : "text-slate-500"}`}>
+                            {description}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </details>
 
                 <span className="rounded-full bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700">
                   {workspaceDocuments.length} Documents
@@ -5123,7 +5237,30 @@ export default function SignatureCenterMockup({
             </div>
           </div>
 
-          <aside className="mr-1 self-start rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_14px_36px_rgba(88,28,135,0.07)] xl:sticky xl:top-4">
+          <div className="mr-1 space-y-4 self-start xl:sticky xl:top-4">
+            <section className="rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-500">Overview</div>
+                  <div className="mt-0.5 text-base font-semibold text-slate-950">Document Summary</div>
+                </div>
+                <span className="rounded-full bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-700">{workspaceSummary.total}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {[
+                  { label: "Pending", value: workspaceSummary.pending, tone: "text-amber-700", surface: "border-amber-100 bg-amber-50" },
+                  { label: "Signed", value: workspaceSummary.signed, tone: "text-emerald-700", surface: "border-emerald-100 bg-emerald-50" },
+                  { label: "Overdue", value: workspaceSummary.expired, tone: "text-rose-700", surface: "border-rose-100 bg-rose-50" },
+                  { label: "In Progress", value: workspaceSummary.inProgress, tone: "text-sky-700", surface: "border-sky-100 bg-sky-50" },
+                ].map((item) => (
+                  <div key={item.label} className={`rounded-xl border px-3 py-2.5 ${item.surface}`}>
+                    <div className="text-[10px] font-medium text-slate-500">{item.label}</div>
+                    <div className={`mt-0.5 text-xl font-semibold ${item.tone}`}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <aside className="rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_14px_36px_rgba(88,28,135,0.07)]">
             {selectedDocument && workspaceDetailOpen ? (
               <>
                 <div className="flex items-start justify-between gap-3">
@@ -5269,7 +5406,8 @@ export default function SignatureCenterMockup({
                 </div>
               </div>
             )}
-          </aside>
+            </aside>
+          </div>
         </section>
       </section>
 
