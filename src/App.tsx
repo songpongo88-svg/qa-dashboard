@@ -225,6 +225,7 @@ const USER_ACCOUNTS: UserAccount[] = [
   },
 ];
 const STORAGE_KEY = "qa_current_user";
+const REMEMBERED_USERNAME_KEY = "qa_remembered_username";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
@@ -2176,7 +2177,7 @@ function ForgotPasswordModal({
       <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
         <div className="text-xl font-bold text-slate-900">Forgot Password</div>
         <div className="mt-2 text-sm leading-6 text-slate-500">
-          Enter your username and registered email. Songpon will review the request and provide a temporary password after approval.
+          Enter your username and registered email. The system will create a temporary password, sign you in automatically, and require a new password.
         </div>
         <div className="mt-6 space-y-4">
           <div>
@@ -2192,7 +2193,7 @@ function ForgotPasswordModal({
         </div>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-          <button type="button" onClick={onSubmit} className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Submit Request</button>
+          <button type="button" onClick={onSubmit} className="rounded-2xl bg-violet-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800">Verify and Continue</button>
         </div>
       </div>
     </div>
@@ -2876,9 +2877,21 @@ export default function App() {
   const [sessionValidationPending, setSessionValidationPending] = useState(
     () => Boolean(storedUserCandidate)
   );
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(
+    () => window.localStorage.getItem(REMEMBERED_USERNAME_KEY) || ""
+  );
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [loginStep, setLoginStep] = useState<"username" | "password">("username");
+  const [loginUsernameStatus, setLoginUsernameStatus] = useState<
+    "idle" | "checking" | "valid" | "invalid"
+  >("idle");
+  const [verifiedLoginDisplayName, setVerifiedLoginDisplayName] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(
+    () => Boolean(window.localStorage.getItem(REMEMBERED_USERNAME_KEY))
+  );
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [temporaryLoginNotice, setTemporaryLoginNotice] = useState("");
   const [showSessionWarning, setShowSessionWarning] = useState(false);
 
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -2948,6 +2961,8 @@ export default function App() {
   const currentUserWasRestoredRef = useRef(Boolean(storedUserCandidate));
   const restoredLoginLoggedRef = useRef(false);
   const lastSessionTouchRef = useRef(0);
+  const usernameValidationRequestRef = useRef(0);
+  const automaticLoginRequestRef = useRef(0);
 
   const activateUserSession = async (user: CurrentUser) => {
     try {
@@ -2963,6 +2978,11 @@ export default function App() {
       restoredLoginLoggedRef.current = true;
       lastSessionTouchRef.current = Date.now();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser));
+      if (rememberLogin) {
+        localStorage.setItem(REMEMBERED_USERNAME_KEY, authenticatedUser.username);
+      } else {
+        localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+      }
       setCurrentUser(authenticatedUser);
       return authenticatedUser;
     } catch (error) {
@@ -3072,6 +3092,122 @@ export default function App() {
     () => buildEffectiveUserAccounts(USER_ACCOUNTS, profileOverrides, roleOverrides),
     [profileOverrides, roleOverrides]
   );
+
+  useEffect(() => {
+    if (currentUser || loginStep !== "username") return;
+
+    const typedUsername = username.trim();
+    const requestId = ++usernameValidationRequestRef.current;
+
+    setPassword("");
+    setVerifiedLoginDisplayName("");
+    setTemporaryLoginNotice("");
+
+    if (!typedUsername) {
+      setLoginUsernameStatus("idle");
+      if (loginError === "ไม่พบ User นี้") setLoginError("");
+      return;
+    }
+
+    if (typedUsername.length < 2) {
+      setLoginUsernameStatus("idle");
+      setLoginError("");
+      return;
+    }
+
+    setLoginUsernameStatus("checking");
+    setLoginError("");
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const normalizedUsername = typedUsername.toLowerCase();
+        let account: UserAccount | null =
+          normalizedUsername === "songpon" ? USER_ACCOUNTS[0] : null;
+
+        if (!account) {
+          const centralAccounts = await getCentralEffectiveUserAccounts();
+          account =
+            centralAccounts.find(
+              (item) => item.username.trim().toLowerCase() === normalizedUsername
+            ) || null;
+        }
+
+        if (!account) {
+          const profileIds = Array.from(
+            new Set([
+              typedUsername,
+              typedUsername.charAt(0).toUpperCase() + typedUsername.slice(1),
+              typedUsername.toLowerCase(),
+            ].filter(Boolean))
+          );
+
+          for (const profileId of profileIds) {
+            const snapshot = await getDoc(doc(firebaseDb, "qa_user_profiles", profileId));
+            if (!snapshot.exists()) continue;
+            const profile = snapshot.data() as any;
+            account = {
+              username: String(profile.username || profileId),
+              password: String(profile.password || ""),
+              displayName: String(profile.displayName || profile.agentName || profileId),
+              role: normalizeRoleName(profile.role || "Admin Live Chat"),
+              agentName: String(profile.agentName || profile.displayName || profileId),
+              email: String(profile.email || ""),
+              teamLead: String(profile.teamLead || ""),
+              teamName: String(profile.teamName || ""),
+              status: profile.status === "Suspended" ? "Suspended" : "Active",
+              suspendReason: String(profile.suspendReason || ""),
+              suspendEffectiveDate: String(profile.suspendEffectiveDate || ""),
+            };
+            break;
+          }
+        }
+
+        if (requestId !== usernameValidationRequestRef.current) return;
+        if (!account) {
+          setLoginUsernameStatus("invalid");
+          setLoginError("ไม่พบ User นี้");
+          return;
+        }
+        if (isAccountSuspended(account)) {
+          setLoginUsernameStatus("invalid");
+          setLoginError(`บัญชีนี้ถูกระงับการใช้งาน${buildSuspendedMessage(account)}`);
+          return;
+        }
+
+        const candidateUser: CurrentUser = {
+          username: account.username,
+          displayName: account.displayName,
+          role: normalizeRoleName(account.role),
+          agentName: account.agentName,
+          email: account.email || "",
+          loginAt: new Date().toISOString(),
+        };
+
+        if (maintenanceState.enabled && !canBypassMaintenance(candidateUser)) {
+          setLoginUsernameStatus("invalid");
+          setLoginError(maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message);
+          return;
+        }
+
+        setUsername(account.username);
+        setVerifiedLoginDisplayName(account.displayName || account.agentName || account.username);
+        setLoginUsernameStatus("valid");
+        setLoginStep("password");
+        setPassword("");
+        setLoginError("");
+        window.setTimeout(() => {
+          document.querySelector<HTMLInputElement>('input[aria-label="Login Password"]')?.focus();
+        }, 80);
+      } catch (error) {
+        if (requestId !== usernameValidationRequestRef.current) return;
+        console.error("Username validation failed", error);
+        setLoginUsernameStatus("invalid");
+        setLoginError("ไม่สามารถตรวจสอบ User ได้ กรุณาลองใหม่อีกครั้ง");
+      }
+    }, 550);
+
+    return () => window.clearTimeout(timer);
+  }, [currentUser, loginStep, username, maintenanceState.enabled, maintenanceState.message]);
 
   const workspaceTeamName = useMemo(() => {
     if (!currentUser) return "-";
@@ -4603,8 +4739,14 @@ export default function App() {
     clearSessionTimers();
     setShowSessionWarning(false);
     setCurrentUser(null);
-    setUsername("");
+    const rememberedUsername = window.localStorage.getItem(REMEMBERED_USERNAME_KEY) || "";
+    setUsername(rememberedUsername);
     setPassword("");
+    setLoginStep("username");
+    setLoginUsernameStatus("idle");
+    setVerifiedLoginDisplayName("");
+    setLoginSubmitting(false);
+    setTemporaryLoginNotice("");
     setLoginError(message);
     navigateToTab("dashboard", {
       replace: true,
@@ -4879,7 +5021,7 @@ export default function App() {
         }
 
         if (profilePassword !== typedPassword) {
-          setLoginError("Invalid username or password");
+          setLoginError("รหัสผ่านไม่ถูกต้อง");
           return;
         }
 
@@ -4955,7 +5097,7 @@ export default function App() {
         setLoginError("Temporary password has expired. Please use Forgot Password to request a new temporary password.");
         return;
       }
-      setLoginError("Invalid username or password");
+      setLoginError("รหัสผ่านไม่ถูกต้อง");
       return;
     }
 
@@ -5034,77 +5176,130 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (currentUser || loginStep !== "password" || showForgotPasswordModal || loginSubmitting) return;
+
+    const typedPassword = password.trim();
+    const requestId = ++automaticLoginRequestRef.current;
+    if (!typedPassword || typedPassword.length < 6) {
+      setLoginSubmitting(false);
+      if (loginError === "รหัสผ่านไม่ถูกต้อง") setLoginError("");
+      return;
+    }
+
+    setLoginError("");
+    const timer = window.setTimeout(async () => {
+      if (requestId !== automaticLoginRequestRef.current) return;
+      setLoginSubmitting(true);
+      try {
+        await handleLoginAsync();
+      } finally {
+        if (requestId === automaticLoginRequestRef.current) setLoginSubmitting(false);
+      }
+    }, temporaryLoginNotice ? 350 : 700);
+
+    return () => window.clearTimeout(timer);
+  }, [currentUser, loginStep, password, showForgotPasswordModal, temporaryLoginNotice]);
+
   const handleForgotPasswordReset = () => {
     void handleForgotPasswordRequest();
   };
 
   const handleForgotPasswordRequest = async () => {
-    if (maintenanceState.enabled) {
-      setForgotPasswordError("Password reset is paused while the system is under maintenance.");
-      setForgotPasswordSuccess("");
-      return;
-    }
-
     const normalizedUsername = forgotUsernameInput.trim().toLowerCase();
     const normalizedEmail = normalizeEmail(forgotEmailInput);
-
     if (!normalizedUsername || !normalizedEmail) {
-      setForgotPasswordError("Please enter username and registered email.");
+      setForgotPasswordError("กรุณากรอก Username และอีเมลที่ลงทะเบียนให้ครบ");
       setForgotPasswordSuccess("");
       return;
     }
 
     const centralUserAccounts = await getCentralEffectiveUserAccounts();
-    const account = centralUserAccounts.find((item) => item.username.trim().toLowerCase() === normalizedUsername);
+    const account = centralUserAccounts.find(
+      (item) => item.username.trim().toLowerCase() === normalizedUsername
+    ) || null;
 
     if (!account) {
-      setForgotPasswordError("Username not found");
+      setForgotPasswordError("ไม่พบ User นี้");
       setForgotPasswordSuccess("");
       return;
     }
-
     if (isAccountSuspended(account)) {
-      setForgotPasswordError(`This account has been suspended${buildSuspendedMessage(account)}. Password reset is not available.`);
+      setForgotPasswordError(`บัญชีนี้ถูกระงับการใช้งาน${buildSuspendedMessage(account)}`);
       setForgotPasswordSuccess("");
       return;
     }
-
     if (!account.email) {
-      setForgotPasswordError("This user does not have a registered email yet. Please contact Supervisor.");
+      setForgotPasswordError("บัญชีนี้ยังไม่มีอีเมลที่ลงทะเบียน กรุณาติดต่อผู้ดูแลระบบ");
       setForgotPasswordSuccess("");
       return;
     }
-
     if (normalizeEmail(account.email) !== normalizedEmail) {
-      setForgotPasswordError("Email does not match the registered user information");
+      setForgotPasswordError("อีเมลไม่ตรงกับข้อมูลที่ลงทะเบียน");
       setForgotPasswordSuccess("");
       return;
     }
 
+    const temporaryPassword = generateTemporaryPassword();
+    const issuedAt = new Date();
+    const expiresAt = addDays(issuedAt, TEMP_PASSWORD_VALID_DAYS);
     const requestId = `${account.username.toLowerCase()}-${Date.now()}`;
 
     try {
+      await upsertStoredUserProfiles([{
+        username: account.username,
+        displayName: account.displayName,
+        agentName: account.agentName || account.displayName,
+        email: account.email || "",
+        role: account.role,
+        teamLead: account.teamLead || "",
+        teamName: account.teamName || "",
+        status: account.status === "Suspended" ? "Suspended" : "Active",
+        suspendReason: account.suspendReason || "",
+        suspendEffectiveDate: account.suspendEffectiveDate || "",
+        password: temporaryPassword,
+        passwordKind: "temporary",
+        passwordIssuedAt: issuedAt.toISOString(),
+        passwordExpiresAt: expiresAt.toISOString(),
+      } as any]);
+
       await createStoredPasswordResetRequest({
         requestId,
         username: account.username,
         displayName: account.displayName,
-        email: account.email,
-        requestedAt: new Date().toISOString(),
-        status: "Pending",
-        tempPassword: "",
+        email: account.email || "",
+        requestedAt: issuedAt.toISOString(),
+        status: "Approved",
+        tempPassword: temporaryPassword,
       });
-    } catch {
-      setForgotPasswordError("Submit request failed. Please try again.");
+
+      saveLocalPasswordRecord(account.username, {
+        password: temporaryPassword,
+        kind: "temporary",
+        issuedAt: issuedAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        eventType: "password_reset_approved",
+      });
+    } catch (error) {
+      console.error("Automatic password recovery failed", error);
+      setForgotPasswordError("ไม่สามารถสร้างรหัสผ่านชั่วคราวได้ กรุณาลองใหม่อีกครั้ง");
       setForgotPasswordSuccess("");
       return;
     }
 
     setForgotPasswordError("");
-    setForgotPasswordSuccess("Request submitted. Please contact Songpon to receive a temporary password after approval.");
-    setTimeout(() => {
+    setForgotPasswordSuccess("ยืนยันข้อมูลสำเร็จ ระบบกำลังเข้าสู่ระบบด้วยรหัสผ่านชั่วคราว");
+    setUsername(account.username);
+    setVerifiedLoginDisplayName(account.displayName || account.agentName || account.username);
+    setLoginUsernameStatus("valid");
+    setLoginStep("password");
+    setTemporaryLoginNotice("Temporary password applied. Signing you in securely...");
+    setPassword(temporaryPassword);
+
+    window.setTimeout(() => {
       setShowForgotPasswordModal(false);
       resetForgotPasswordState();
-    }, 1800);
+    }, 450);
   };
 
   const handleStayLoggedIn = () => {
@@ -5401,112 +5596,81 @@ export default function App() {
           onSubmit={handleForgotPasswordReset}
         />
 
-        <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-gradient-to-br from-violet-50 via-white to-fuchsia-50"}`}>
-          {songkranTheme ? <SongkranBackdrop /> : null}
+        <div data-login-flow-v1 className="relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={{ fontFamily: "'Kanit', sans-serif" }}>
+          <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-fuchsia-300/20 blur-3xl" />
 
-          <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4 py-4 sm:px-5 lg:px-6">
-          <div className="grid w-full max-w-[1020px] overflow-hidden rounded-[24px] border border-violet-200/70 bg-white shadow-[0_18px_56px_rgba(76,29,149,0.10)] lg:grid-cols-[1fr_0.94fr]">
-            <div className={`relative overflow-hidden p-5 text-white sm:p-6 lg:p-7 ${songkranTheme ? "bg-gradient-to-br from-sky-700 via-cyan-600 to-fuchsia-600" : "bg-gradient-to-br from-violet-950 via-violet-900 to-fuchsia-700"}`}>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_28%)]" />
-              {songkranTheme ? <SongkranBackdrop compact /> : null}
-
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100">Secure Access</div>
-                  <LogoBox />
-                </div>
-
-                <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200">Robinhood Customer Service QA</div>
-                <div className="mt-3 text-[28px] font-bold tracking-tight sm:text-[34px]">QA Monitoring Workspace</div>
-                <div className="mt-3 max-w-xl text-sm leading-6 text-violet-100/90">
-                  A CRM-style quality workspace for performance tracking, case evaluation, appeal handling, user access, and operational control.
-                </div>
-
-                {songkranTheme ? <div className="mt-4"><SongkranBadge /></div> : null}
-
-                <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
-                  <LoginFeatureCard title="Performance" desc="Dashboard, KPI, grade, incentive, trend, and summary view" />
-                  <LoginFeatureCard title="QA Review" desc="Evaluation workspace, appeal review, case detail, and QA rubric reference" />
-                  <LoginFeatureCard title="Access Control" desc="User directory, role permissions, password reset, and system audit tools" />
-                  <LoginFeatureCard title="Work Queue" desc="CRM inbox, task notifications, and operational follow-up" />
-                </div>
-
-                {songkranTheme ? <FestiveIllustration /> : null}
-
-                <div className="mt-6 flex items-center gap-4 rounded-[22px] border border-white/15 bg-white/10 px-4 py-3.5 backdrop-blur-sm">
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
-                    <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
+          <div className="relative mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-[1180px] items-center justify-center">
+            <div className="grid w-full max-w-[1040px] overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_30px_90px_rgba(76,29,149,0.16)] lg:grid-cols-[0.92fr_1.08fr]">
+              <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#28104f] via-violet-900 to-fuchsia-700 p-9 text-white lg:flex lg:flex-col lg:justify-between">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_28%)]" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.24em] text-violet-100">Secure QA Access</span>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/10"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-9 w-9 object-contain" /></div>
                   </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-200">Enterprise Access</div>
-                    <div className="mt-1 text-sm font-semibold text-white sm:text-base">Customer Service Quality Monitoring Platform</div>
-                    <div className="mt-1 text-xs text-violet-100/80 sm:text-sm">Optimized to fit browser view without manual zoom out</div>
+                  <div className="mt-14 max-w-md">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.26em] text-violet-200">Robinhood Customer Service</div>
+                    <h1 className="mt-4 text-[38px] font-semibold leading-[1.12] tracking-tight">Quality workspace,<br />simplified.</h1>
+                    <p className="mt-5 max-w-sm text-sm leading-7 text-violet-100/85">ตรวจสอบผล QA จัดการเคส และติดตามงานในพื้นที่เดียว พร้อมระบบ Session ที่ปลอดภัย</p>
+                  </div>
+                  <div className="mt-10 grid gap-3">
+                    {[["01", "Performance", "Score, KPI and monthly trends"], ["02", "QA Review", "Evaluation, appeal and case detail"], ["03", "Operations", "Access control and work queue"]].map(([number, title, description]) => (
+                      <div key={number} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 backdrop-blur-sm">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-xs font-semibold text-violet-100">{number}</span>
+                        <div><div className="text-sm font-medium text-white">{title}</div><div className="mt-0.5 text-xs text-violet-200/80">{description}</div></div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+                <div className="relative z-10 mt-10 flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-violet-200/80"><span>Central secure session</span><span>2-hour inactivity policy</span></div>
+              </section>
+
+              <section className="relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
+                <div className="mx-auto w-full max-w-[430px]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-9 w-9 object-contain" /></div>
+                    <div className="ml-auto rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{loginStep === "username" ? "Step 1 of 2" : "Step 2 of 2"}</div>
+                  </div>
+
+                  <div className="mt-8">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-violet-600">{loginStep === "username" ? "Account verification" : "Secure sign in"}</div>
+                    <h2 className="mt-2 text-[32px] font-semibold tracking-tight text-slate-950">{loginStep === "username" ? "Welcome back" : "Enter your password"}</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">{loginStep === "username" ? "กรอก Username ระบบจะตรวจสอบและไปขั้นตอนถัดไปให้อัตโนมัติ" : "เมื่อรหัสผ่านถูกต้อง ระบบจะเข้าสู่ Workspace โดยอัตโนมัติ"}</p>
+                  </div>
+
+                  <div className="mt-6 flex items-center gap-2"><span className="h-1.5 flex-1 rounded-full bg-violet-600" /><span className={`h-1.5 flex-1 rounded-full ${loginStep === "password" ? "bg-violet-600" : "bg-slate-200"}`} /></div>
+
+                  {maintenanceState.enabled ? <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800"><div className="font-medium">Maintenance Mode</div><div className="mt-0.5 text-xs">{maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message}</div></div> : null}
+
+                  {loginStep === "username" ? (
+                    <div className="mt-8">
+                      <label className="mb-2 block text-sm font-medium text-slate-800">Username</label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">@</span>
+                        <input type="text" autoComplete="username" autoFocus value={username} onChange={(event) => { setUsername(event.target.value); setLoginUsernameStatus("idle"); setLoginError(""); }} placeholder="Enter username" className={`w-full rounded-2xl border bg-slate-50 py-4 pl-10 pr-12 text-[15px] font-medium text-slate-950 outline-none transition focus:bg-white focus:ring-4 ${loginUsernameStatus === "invalid" ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : "border-slate-200 focus:border-violet-500 focus:ring-violet-100"}`} />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2">{loginUsernameStatus === "checking" ? <span className="block h-5 w-5 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" /> : null}</span>
+                      </div>
+                      <div className="mt-3 min-h-[24px]">{loginUsernameStatus === "checking" ? <div className="text-xs text-violet-600">กำลังตรวจสอบ User...</div> : loginError ? <div className="text-sm font-medium text-rose-600">{loginError}</div> : <div className="text-xs text-slate-400">ระบบตรวจสอบให้อัตโนมัติ โดยไม่ต้องกดปุ่ม</div>}</div>
+                      <button type="button" onClick={() => { setForgotUsernameInput(username); setShowForgotPasswordModal(true); }} className="mt-5 text-sm font-medium text-violet-700 transition hover:text-violet-900">Forgot Password</button>
+                    </div>
+                  ) : (
+                    <div className="mt-8">
+                      <div className="flex items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3">
+                        <div className="min-w-0"><div className="text-[10px] font-medium uppercase tracking-[0.16em] text-violet-500">Verified account</div><div className="mt-1 truncate text-sm font-semibold text-slate-900">{verifiedLoginDisplayName || username}</div><div className="truncate text-xs text-slate-500">@{username}</div></div>
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">✓</span>
+                      </div>
+                      <div className="mt-5"><label className="mb-2 block text-sm font-medium text-slate-800">Password</label><PasswordVisibilityInput value={password} onChange={(value) => { setPassword(value); setLoginError(""); setTemporaryLoginNotice(""); }} placeholder="Enter password" ariaLabel="Login Password" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-[15px] font-medium text-slate-950 outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100" /></div>
+                      <div className="mt-3 min-h-[44px]">{loginSubmitting ? <div className="flex items-center gap-2 text-sm text-violet-600"><span className="h-4 w-4 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" />กำลังเข้าสู่ระบบ...</div> : temporaryLoginNotice ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{temporaryLoginNotice}</div> : loginError ? <div className="text-sm font-medium text-rose-600">{loginError}</div> : <div className="text-xs text-slate-400">ระบบจะเข้าสู่ระบบทันทีเมื่อรหัสผ่านถูกต้อง</div>}</div>
+                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"><input type="checkbox" checked={rememberLogin} onChange={(event) => setRememberLogin(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-violet-600" /><span><span className="block text-sm font-medium text-slate-800">Remember this account</span><span className="mt-0.5 block text-xs text-slate-500">จดจำ Username โดยไม่จัดเก็บรหัสผ่าน</span></span></label>
+                      <div className="mt-5 flex items-center justify-between gap-3"><button type="button" onClick={() => { automaticLoginRequestRef.current += 1; setLoginStep("username"); setLoginUsernameStatus("idle"); setVerifiedLoginDisplayName(""); setPassword(""); setLoginError(""); setTemporaryLoginNotice(""); }} className="text-sm font-medium text-slate-500 hover:text-slate-900">← Change Username</button><button type="button" onClick={() => { setForgotUsernameInput(username); setShowForgotPasswordModal(true); }} className="text-sm font-medium text-violet-700 hover:text-violet-900">Forgot Password</button></div>
+                    </div>
+                  )}
+
+                  <div className="mt-8 border-t border-slate-100 pt-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><VersionPill meta={buildMeta} className="min-w-0 flex-1" /><ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} /></div><div className="mt-4 flex items-center justify-between text-[11px] text-slate-400"><span>Secure access verified by Firebase</span><span>Session: 2 hours</span></div></div>
+                </div>
+              </section>
             </div>
-
-            <div className="relative bg-white p-5 sm:p-6 lg:p-7">
-              {songkranTheme ? <SongkranFlowerCorner className="right-2 top-2 opacity-80" /> : null}
-
-              <div className="mx-auto w-full max-w-[400px]">
-                <div className="flex justify-center lg:justify-start">
-                  <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm">
-                    <img src="/robinhood-logo.png" alt="Robinhood" className="h-9 w-9 object-contain" />
-                  </div>
-                </div>
-
-                <div className="mt-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-700">Sign In</div>
-                  <div className="mt-2 text-[26px] font-bold tracking-tight text-slate-900 sm:text-[30px]">Welcome back</div>
-                  <div className="mt-2 text-sm leading-6 text-slate-500">
-                    {maintenanceState.enabled
-                      ? "Maintenance mode is active. Only Songpon admin access can continue."
-                      : "Enter your credentials to access the Robinhood QA workspace."}
-                  </div>
-                </div>
-
-                {maintenanceState.enabled ? (
-                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-                    {maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message}
-                  </div>
-                ) : null}
-
-                <div className="mt-7 space-y-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-800">Username</label>
-                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} placeholder="Enter username" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-800">Password</label>
-                    <PasswordVisibilityInput value={password} onChange={setPassword} onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }} placeholder="Enter password" ariaLabel="Password" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100" />
-                  </div>
-
-                  {loginError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{loginError}</div> : null}
-
-                  <button type="button" onClick={handleLogin} className={`w-full rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(109,40,217,0.24)] transition hover:opacity-95 ${songkranTheme ? "bg-gradient-to-r from-sky-500 via-cyan-500 to-fuchsia-500" : "bg-gradient-to-r from-violet-700 via-violet-700 to-fuchsia-600"}`}>Sign In</button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForgotUsernameInput(username);
-                      setShowForgotPasswordModal(true);
-                    }}
-                    className="w-full rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
-                  >
-                    Forgot Password
-                  </button>
-                </div>
-
-                <div className="mt-5 flex flex-col items-start gap-2">
-                  <VersionPill meta={buildMeta} className="w-full" />
-                  <ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} />
-                </div>
-
-                <div className="mt-4 text-center text-xs leading-5 text-slate-400 lg:text-left">This login layout is responsive and sized for standard laptop browser view.</div>
-              </div>
-            </div>
-          </div>
           </div>
         </div>
       </>
