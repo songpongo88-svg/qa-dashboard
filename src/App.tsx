@@ -3627,7 +3627,15 @@ export default function App() {
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
     if (value === "create-evaluation") {
-      window.open(buildWorkspaceUrl({ tab: "create-evaluation" }), "_blank", "noopener,noreferrer");
+      const evaluationUrl = buildWorkspaceUrl({ tab: "create-evaluation" });
+      const evaluationWindow = window.open(
+        evaluationUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      if (!evaluationWindow) {
+        navigateToTab("create-evaluation");
+      }
       return;
     }
     if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "training-attendance" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
@@ -4494,12 +4502,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (sessionValidationPending) return;
     if (currentUser) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
     }
-  }, [currentUser]);
+  }, [currentUser, sessionValidationPending]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -5596,7 +5603,7 @@ export default function App() {
           onSubmit={handleForgotPasswordReset}
         />
 
-        <div data-login-flow-v1 className="relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={{ fontFamily: "'Kanit', sans-serif" }}>
+        <div data-login-flow-v4 className="relative min-h-screen overflow-hidden bg-[#f5f2fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8" style={{ fontFamily: "'Kanit', sans-serif" }}>
           <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 right-0 h-96 w-96 rounded-full bg-fuchsia-300/20 blur-3xl" />
 
@@ -5605,14 +5612,18 @@ export default function App() {
               <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#28104f] via-violet-900 to-fuchsia-700 p-9 text-white lg:flex lg:flex-col lg:justify-between">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.10),transparent_28%)]" />
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.24em] text-violet-100">Secure QA Access</span>
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/10"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-9 w-9 object-contain" /></div>
+                  <div className="flex items-start justify-between gap-5">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.20)] backdrop-blur-sm">
+                      <img src="/robinhood-logo.png" alt="Robinhood QA" className="h-16 w-16 object-contain drop-shadow-lg" />
+                    </div>
+                    <span className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-violet-100">
+                      Secure Workspace
+                    </span>
                   </div>
-                  <div className="mt-14 max-w-md">
-                    <div className="text-[11px] font-medium uppercase tracking-[0.26em] text-violet-200">Robinhood Customer Service</div>
-                    <h1 className="mt-4 text-[38px] font-semibold leading-[1.12] tracking-tight">Quality workspace,<br />simplified.</h1>
-                    <p className="mt-5 max-w-sm text-sm leading-7 text-violet-100/85">ตรวจสอบผล QA จัดการเคส และติดตามงานในพื้นที่เดียว พร้อมระบบ Session ที่ปลอดภัย</p>
+                  <div className="mt-10 max-w-md">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-violet-200">Robinhood Quality Assurance</div>
+                    <h1 className="mt-4 text-[40px] font-semibold leading-[1.08] tracking-tight">QA Operations Center</h1>
+                    <p className="mt-5 max-w-sm text-sm leading-7 text-violet-100/90">ติดตามผลประเมิน จัดการเคส และควบคุมงานสำคัญจากพื้นที่เดียว</p>
                   </div>
                   <div className="mt-10 grid gap-3">
                     {[["01", "Performance", "Score, KPI and monthly trends"], ["02", "QA Review", "Evaluation, appeal and case detail"], ["03", "Operations", "Access control and work queue"]].map(([number, title, description]) => (
@@ -5629,17 +5640,15 @@ export default function App() {
               <section className="relative bg-white px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
                 <div className="mx-auto w-full max-w-[430px]">
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-9 w-9 object-contain" /></div>
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-violet-100 bg-violet-50 shadow-sm lg:hidden"><img src="/robinhood-logo.png" alt="Robinhood QA" className="h-11 w-11 object-contain" /></div>
                     <div className="ml-auto rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{loginStep === "username" ? "Step 1 of 2" : "Step 2 of 2"}</div>
                   </div>
 
                   <div className="mt-8">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-violet-600">{loginStep === "username" ? "Account verification" : "Secure sign in"}</div>
                     <h2 className="mt-2 text-[32px] font-semibold tracking-tight text-slate-950">{loginStep === "username" ? "Welcome back" : "Enter your password"}</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">{loginStep === "username" ? "กรอก Username ระบบจะตรวจสอบและไปขั้นตอนถัดไปให้อัตโนมัติ" : "เมื่อรหัสผ่านถูกต้อง ระบบจะเข้าสู่ Workspace โดยอัตโนมัติ"}</p>
-                  </div>
 
-                  <div className="mt-6 flex items-center gap-2"><span className="h-1.5 flex-1 rounded-full bg-violet-600" /><span className={`h-1.5 flex-1 rounded-full ${loginStep === "password" ? "bg-violet-600" : "bg-slate-200"}`} /></div>
+                  </div>
 
                   {maintenanceState.enabled ? <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800"><div className="font-medium">Maintenance Mode</div><div className="mt-0.5 text-xs">{maintenanceState.message || DEFAULT_MAINTENANCE_STATE.message}</div></div> : null}
 
@@ -5651,7 +5660,13 @@ export default function App() {
                         <input type="text" autoComplete="username" autoFocus value={username} onChange={(event) => { setUsername(event.target.value); setLoginUsernameStatus("idle"); setLoginError(""); }} placeholder="Enter username" className={`w-full rounded-2xl border bg-slate-50 py-4 pl-10 pr-12 text-[15px] font-medium text-slate-950 outline-none transition focus:bg-white focus:ring-4 ${loginUsernameStatus === "invalid" ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : "border-slate-200 focus:border-violet-500 focus:ring-violet-100"}`} />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2">{loginUsernameStatus === "checking" ? <span className="block h-5 w-5 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" /> : null}</span>
                       </div>
-                      <div className="mt-3 min-h-[24px]">{loginUsernameStatus === "checking" ? <div className="text-xs text-violet-600">กำลังตรวจสอบ User...</div> : loginError ? <div className="text-sm font-medium text-rose-600">{loginError}</div> : <div className="text-xs text-slate-400">ระบบตรวจสอบให้อัตโนมัติ โดยไม่ต้องกดปุ่ม</div>}</div>
+                      <div className="mt-3 min-h-[20px]">
+                        {loginUsernameStatus === "checking" ? (
+                          <div className="text-xs font-medium text-violet-600">กำลังตรวจสอบ User...</div>
+                        ) : loginUsernameStatus === "invalid" && loginError ? (
+                          <div className="text-sm font-medium text-rose-600">{loginError}</div>
+                        ) : null}
+                      </div>
                       <button type="button" onClick={() => { setForgotUsernameInput(username); setShowForgotPasswordModal(true); }} className="mt-5 text-sm font-medium text-violet-700 transition hover:text-violet-900">Forgot Password</button>
                     </div>
                   ) : (
@@ -5667,7 +5682,13 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="mt-8 border-t border-slate-100 pt-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><VersionPill meta={buildMeta} className="min-w-0 flex-1" /><ReleaseNotesButton onClick={() => setShowReleaseNotesModal(true)} /></div><div className="mt-4 flex items-center justify-between text-[11px] text-slate-400"><span>Secure access verified by Firebase</span><span>Session: 2 hours</span></div></div>
+                  <div className="mt-8 border-t border-slate-100 pt-5">
+                    <VersionPill meta={buildMeta} className="w-full" />
+                    <div className="mt-4 flex items-center justify-between gap-4 text-[11px] text-slate-400">
+                      <span>Secure access verified by Firebase</span>
+                      <span className="whitespace-nowrap">Session: 2 hours</span>
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>
