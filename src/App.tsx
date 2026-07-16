@@ -10,6 +10,7 @@ import SummaryMockup from "./SummaryMockup";
 import SignatureCenterMockup from "./SignatureCenterMockup";
 import PresentationMockup from "./PresentationMockup";
 import CoachingMockup from "./CoachingMockup";
+import AnnouncementHub from "./AnnouncementHub";
 import UsageLogMockup from "./UsageLogMockup";
 import UserRoleAdminMockup from "./UserRoleAdminMockup";
 import CreateEvaluationMockup, { EvaluationSubmitPayload } from "./CreateEvaluationMockup";
@@ -6136,6 +6137,12 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* data-announcement-hub-v2 */}
+        <AnnouncementHub
+          currentUser={currentUser}
+          users={effectiveUserAccounts}
+        />
 
         {inboxReturnTitle && activeTab !== "task-inbox" ? (
           <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
