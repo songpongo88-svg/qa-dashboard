@@ -6,6 +6,8 @@ import {
   upsertAnnouncementReceipt,
   upsertStoredAnnouncement,
   type AnnouncementMedia,
+  type AnnouncementActionRequired,
+  type AnnouncementDisplayMode,
   type AnnouncementMediaType,
   type AnnouncementPopupMode,
   type AnnouncementPriority,
@@ -204,6 +206,8 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
     category: "General",
     priority: "Normal",
     popupMode: "Once",
+    displayMode: "Popup",
+    actionRequired: "Read Only",
     startsAt: localDateTimeInput(now),
     endsAt: localDateTimeInput(tomorrow),
     targetAll: true,
@@ -238,6 +242,8 @@ export default function AnnouncementHub({
     useState<AnnouncementMediaType>("image");
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaLabel, setMediaLabel] = useState("");
+  const [uploadMessage, setUploadMessage] = useState("");
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [search, setSearch] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -300,7 +306,12 @@ export default function AnnouncementHub({
 
     const next = myAnnouncements.find((item) => {
       if (announcementStatus(item) !== "Active") return false;
-      if (item.popupMode === "Mailbox Only") return false;
+      if (
+        item.popupMode === "Mailbox Only" ||
+        item.displayMode === "Mailbox Only" ||
+        item.displayMode === "Banner"
+      )
+        return false;
       const receipt = myReceiptMap.get(item.id);
       if (item.popupMode === "Until Acknowledged") {
         return !receipt?.acknowledgedAt;
@@ -433,6 +444,71 @@ export default function AnnouncementHub({
     setHubOpen(true);
   };
 
+  const inferMediaType = (file: File): AnnouncementMediaType => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    if (file.type === "application/pdf") return "pdf";
+    return "file";
+  };
+
+  const handleFilesSelected = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    const remainingSlots = Math.max(0, 5 - draft.media.length);
+    if (!remainingSlots) {
+      setUploadMessage("แนบได้สูงสุด 5 ไฟล์ต่อประกาศ");
+      return;
+    }
+
+    const selected = files.slice(0, remainingSlots);
+    const tooLarge = selected.filter((file) => file.size > 700 * 1024);
+    if (tooLarge.length) {
+      setUploadMessage(
+        `ไฟล์ต้องไม่เกิน 700 KB ต่อไฟล์: ${tooLarge
+          .map((file) => file.name)
+          .join(", ")}`
+      );
+      return;
+    }
+
+    setUploadMessage("กำลังอ่านไฟล์...");
+    try {
+      const nextMedia = await Promise.all(
+        selected.map(
+          (file) =>
+            new Promise<AnnouncementMedia>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () =>
+                resolve({
+                  id: `file-${Date.now()}-${Math.random()
+                    .toString(36)
+                    .slice(2)}`,
+                  type: inferMediaType(file),
+                  url: String(reader.result || ""),
+                  label: file.name,
+                });
+              reader.onerror = () =>
+                reject(new Error(`อ่านไฟล์ ${file.name} ไม่สำเร็จ`));
+              reader.readAsDataURL(file);
+            })
+        )
+      );
+      setDraft((current) => ({
+        ...current,
+        media: [...current.media, ...nextMedia],
+      }));
+      setUploadMessage(`แนบไฟล์สำเร็จ ${nextMedia.length} ไฟล์`);
+    } catch (error) {
+      setUploadMessage(
+        error instanceof Error ? error.message : "แนบไฟล์ไม่สำเร็จ"
+      );
+    }
+  };
+
   const addMedia = () => {
     if (!mediaUrl.trim()) return;
     setDraft({
@@ -477,8 +553,40 @@ export default function AnnouncementHub({
       (item) => item.announcementId === announcementId && Boolean(item[field])
     ).length;
 
+  const activeBanner = myAnnouncements.find(
+    (item) =>
+      announcementStatus(item) === "Active" &&
+      item.displayMode === "Banner" &&
+      !myReceiptMap.get(item.id)?.acknowledgedAt
+  );
+
   return (
     <>
+      {activeBanner ? (
+        <div className="fixed left-1/2 top-4 z-[130] w-[min(94vw,1100px)] -translate-x-1/2 rounded-[22px] border border-white/30 bg-gradient-to-r from-violet-800 to-fuchsia-600 px-5 py-4 text-white shadow-[0_20px_60px_rgba(76,29,149,0.35)]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-200">
+                {activeBanner.category} • {activeBanner.priority}
+              </div>
+              <div className="mt-1 text-base font-black">
+                {activeBanner.title}
+              </div>
+              <div className="mt-1 line-clamp-2 text-sm text-white/80">
+                {activeBanner.body}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void markRead(activeBanner, true)}
+              className="rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-xs font-black text-white hover:bg-white/25"
+            >
+              รับทราบ
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <button
         type="button"
         onClick={() => {
@@ -498,7 +606,13 @@ export default function AnnouncementHub({
 
       {popupMessage ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-[34px] border border-white/20 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.5)]">
+          <div
+            className={`overflow-hidden border border-white/20 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.5)] ${
+              popupMessage.displayMode === "Full Screen"
+                ? "h-[94vh] w-[96vw] rounded-[34px]"
+                : "max-h-[92vh] w-full max-w-3xl rounded-[34px]"
+            }`}
+          >
             <div
               className={`bg-gradient-to-r ${
                 priorityClasses(popupMessage.priority).panel
@@ -532,7 +646,8 @@ export default function AnnouncementHub({
               ) : null}
             </div>
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-7 py-5">
-              {popupMessage.popupMode !== "Until Acknowledged" ? (
+              {popupMessage.popupMode !== "Until Acknowledged" &&
+              popupMessage.actionRequired !== "Acknowledge" ? (
                 <button
                   type="button"
                   onClick={readLater}
@@ -782,7 +897,7 @@ export default function AnnouncementHub({
 
                       <label>
                         <span className="mb-2 block text-xs font-black text-slate-500">
-                          ความสำคัญ
+                          ระดับประกาศ
                         </span>
                         <select
                           value={draft.priority}
@@ -848,6 +963,46 @@ export default function AnnouncementHub({
                         </select>
                       </label>
 
+                      <label>
+                        <span className="mb-2 block text-xs font-black text-slate-500">
+                          รูปแบบการแสดงผล
+                        </span>
+                        <select
+                          value={draft.displayMode}
+                          onChange={(event) =>
+                            setDraft({
+                              ...draft,
+                              displayMode: event.target.value as AnnouncementDisplayMode,
+                            })
+                          }
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                          <option>Banner</option>
+                          <option>Popup</option>
+                          <option>Full Screen</option>
+                          <option>Mailbox Only</option>
+                        </select>
+                      </label>
+
+                      <label>
+                        <span className="mb-2 block text-xs font-black text-slate-500">
+                          การตอบสนองของผู้ใช้
+                        </span>
+                        <select
+                          value={draft.actionRequired}
+                          onChange={(event) =>
+                            setDraft({
+                              ...draft,
+                              actionRequired: event.target.value as AnnouncementActionRequired,
+                            })
+                          }
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                        >
+                          <option>Read Only</option>
+                          <option>Acknowledge</option>
+                        </select>
+                      </label>
+
                       <label className="md:col-span-2">
                         <span className="mb-2 block text-xs font-black text-slate-500">
                           รายละเอียด
@@ -864,8 +1019,39 @@ export default function AnnouncementHub({
                     </div>
 
                     <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                      <div className="text-sm font-black text-slate-900">
-                        Media URL
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-black text-slate-900">
+                            แนบไฟล์หรือ Media
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            รูปภาพ วิดีโอ PDF Word Excel PowerPoint สูงสุด 5 ไฟล์ และไม่เกิน 700 KB ต่อไฟล์
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-black text-white shadow-md"
+                        >
+                          Add File
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                          onChange={(event) => void handleFilesSelected(event)}
+                          className="hidden"
+                        />
+                      </div>
+                      {uploadMessage ? (
+                        <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700">
+                          {uploadMessage}
+                        </div>
+                      ) : null}
+
+                      <div className="mt-4 text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                        หรือแนบด้วย URL
                       </div>
                       <div className="mt-3 grid gap-3 md:grid-cols-[140px_minmax(0,1fr)_minmax(0,0.7fr)_auto]">
                         <select
@@ -878,6 +1064,7 @@ export default function AnnouncementHub({
                           <option value="image">Image</option>
                           <option value="video">Video</option>
                           <option value="pdf">PDF</option>
+                          <option value="file">Other File</option>
                           <option value="link">Link</option>
                         </select>
                         <input

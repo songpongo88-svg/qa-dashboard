@@ -13,7 +13,9 @@ const RECEIPT_COLLECTION = "qa_announcement_receipts";
 
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent";
 export type AnnouncementPopupMode = "Once" | "Until Acknowledged" | "Mailbox Only";
-export type AnnouncementMediaType = "image" | "video" | "pdf" | "link";
+export type AnnouncementDisplayMode = "Banner" | "Popup" | "Full Screen" | "Mailbox Only";
+export type AnnouncementActionRequired = "Read Only" | "Acknowledge";
+export type AnnouncementMediaType = "image" | "video" | "pdf" | "file" | "link";
 
 export type AnnouncementMedia = {
   id: string;
@@ -29,6 +31,8 @@ export type StoredAnnouncement = {
   category: string;
   priority: AnnouncementPriority;
   popupMode: AnnouncementPopupMode;
+  displayMode: AnnouncementDisplayMode;
+  actionRequired: AnnouncementActionRequired;
   startsAt: string;
   endsAt: string;
   targetAll: boolean;
@@ -67,6 +71,7 @@ function safeMedia(value: unknown): AnnouncementMedia[] {
       type:
         item?.type === "video" ||
         item?.type === "pdf" ||
+        item?.type === "file" ||
         item?.type === "link"
           ? item.type
           : "image",
@@ -94,6 +99,14 @@ function normalizeAnnouncement(
       value?.popupMode === "Mailbox Only"
         ? value.popupMode
         : "Once",
+    displayMode:
+      value?.displayMode === "Banner" ||
+      value?.displayMode === "Full Screen" ||
+      value?.displayMode === "Mailbox Only"
+        ? value.displayMode
+        : "Popup",
+    actionRequired:
+      value?.actionRequired === "Acknowledge" ? "Acknowledge" : "Read Only",
     startsAt: String(value?.startsAt || ""),
     endsAt: String(value?.endsAt || ""),
     targetAll: Boolean(value?.targetAll),
