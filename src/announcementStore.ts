@@ -13,7 +13,7 @@ const RECEIPT_COLLECTION = "qa_announcement_receipts";
 
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent";
 export type AnnouncementPopupMode = "Once" | "Until Acknowledged" | "Mailbox Only";
-export type AnnouncementDisplayMode = "Banner" | "Popup" | "Full Screen" | "Mailbox Only";
+export type AnnouncementDisplayMode = "Banner" | "Popup" | "Full Screen" | "Media Spotlight" | "Media Only" | "Mailbox Only";
 export type AnnouncementActionRequired = "Read Only" | "Acknowledge";
 export type AnnouncementMediaType = "image" | "video" | "pdf" | "file" | "link";
 
@@ -102,6 +102,8 @@ function normalizeAnnouncement(
     displayMode:
       value?.displayMode === "Banner" ||
       value?.displayMode === "Full Screen" ||
+      value?.displayMode === "Media Spotlight" ||
+      value?.displayMode === "Media Only" ||
       value?.displayMode === "Mailbox Only"
         ? value.displayMode
         : "Popup",

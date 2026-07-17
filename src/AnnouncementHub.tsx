@@ -136,14 +136,14 @@ function priorityClasses(priority: AnnouncementPriority) {
   };
 }
 
-function MediaPreview({ media }: { media: AnnouncementMedia }) {
+function MediaPreview({ media, spotlight = false }: { media: AnnouncementMedia; spotlight?: boolean }) {
   if (media.type === "image") {
     return (
       <a href={media.url} target="_blank" rel="noreferrer">
         <img
           src={media.url}
           alt={media.label || "Announcement media"}
-          className="max-h-[360px] w-full rounded-2xl border border-slate-200 bg-slate-50 object-contain"
+          className={spotlight ? "max-h-[72vh] w-full rounded-[26px] bg-slate-950 object-contain" : "max-h-[360px] w-full rounded-2xl border border-slate-200 bg-slate-50 object-contain"}
         />
       </a>
     );
@@ -154,7 +154,7 @@ function MediaPreview({ media }: { media: AnnouncementMedia }) {
       <video
         src={media.url}
         controls
-        className="max-h-[360px] w-full rounded-2xl border border-slate-200 bg-slate-950"
+        className={spotlight ? "max-h-[72vh] w-full rounded-[26px] bg-slate-950" : "max-h-[360px] w-full rounded-2xl border border-slate-200 bg-slate-950"}
       />
     );
   }
@@ -560,8 +560,13 @@ export default function AnnouncementHub({
       !myReceiptMap.get(item.id)?.acknowledgedAt
   );
 
+  const spotlightMode = popupMessage?.displayMode === "Media Spotlight" || popupMessage?.displayMode === "Media Only";
+  const mediaOnlyMode = popupMessage?.displayMode === "Media Only";
+  const spotlightMedia = popupMessage?.media?.[0] || null;
+
   return (
     <>
+      {/* data-announcement-media-spotlight-v4 */}
       {activeBanner ? (
         <div className="fixed left-1/2 top-4 z-[130] w-[min(94vw,1100px)] -translate-x-1/2 rounded-[22px] border border-white/30 bg-gradient-to-r from-violet-800 to-fuchsia-600 px-5 py-4 text-white shadow-[0_20px_60px_rgba(76,29,149,0.35)]">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -608,43 +613,44 @@ export default function AnnouncementHub({
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
           <div
             className={`overflow-hidden border border-white/20 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.5)] ${
-              popupMessage.displayMode === "Full Screen"
+              popupMessage.displayMode === "Full Screen" || spotlightMode
                 ? "h-[94vh] w-[96vw] rounded-[34px]"
                 : "max-h-[92vh] w-full max-w-3xl rounded-[34px]"
             }`}
           >
-            <div
-              className={`bg-gradient-to-r ${
-                priorityClasses(popupMessage.priority).panel
-              } px-7 py-6 text-white`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em]">
-                  {popupMessage.category}
-                </span>
-                <span className="text-xs font-bold text-white/80">
-                  {formatDateTime(popupMessage.startsAt)}
-                </span>
-              </div>
-              <h2 className="mt-4 text-2xl font-black sm:text-3xl">
-                {popupMessage.title}
-              </h2>
-              <div className="mt-2 text-sm font-bold text-white/80">
-                From: {popupMessage.createdByName || popupMessage.createdBy}
-              </div>
-            </div>
-            <div className="max-h-[62vh] overflow-y-auto p-7">
-              <div className="whitespace-pre-wrap text-base leading-8 text-slate-700">
-                {popupMessage.body}
-              </div>
-              {popupMessage.media.length ? (
-                <div className="mt-6 space-y-4">
-                  {popupMessage.media.map((media) => (
-                    <MediaPreview key={media.id} media={media} />
-                  ))}
+            {!mediaOnlyMode ? (
+              <div className={`bg-gradient-to-r ${priorityClasses(popupMessage.priority).panel} px-7 py-6 text-white`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em]">{popupMessage.category}</span>
+                  <span className="text-xs font-bold text-white/80">{formatDateTime(popupMessage.startsAt)}</span>
                 </div>
-              ) : null}
-            </div>
+                <h2 className="mt-4 text-2xl font-black sm:text-3xl">{popupMessage.title}</h2>
+                <div className="mt-2 text-sm font-bold text-white/80">From: {popupMessage.createdByName || popupMessage.createdBy}</div>
+              </div>
+            ) : null}
+            {spotlightMode ? (
+              <div className="flex h-[calc(94vh-92px)] flex-col overflow-hidden bg-slate-950">
+                <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-6">
+                  {spotlightMedia ? <div className="w-full"><MediaPreview media={spotlightMedia} spotlight /></div> : <div className="text-white">ไม่พบ Media</div>}
+                </div>
+                {!mediaOnlyMode && popupMessage.body ? (
+                  <details className="border-t border-white/10 bg-slate-900 px-5 py-3 text-white">
+                    <summary className="cursor-pointer text-sm font-black">ดูรายละเอียดประกาศ</summary>
+                    <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/75">{popupMessage.body}</div>
+                  </details>
+                ) : null}
+                {popupMessage.media.length > 1 ? (
+                  <div className="flex gap-3 overflow-x-auto border-t border-white/10 bg-slate-900 p-3">
+                    {popupMessage.media.slice(1).map((media) => <div key={media.id} className="min-w-[180px] max-w-[260px]"><MediaPreview media={media} /></div>)}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="max-h-[62vh] overflow-y-auto p-7">
+                <div className="whitespace-pre-wrap text-base leading-8 text-slate-700">{popupMessage.body}</div>
+                {popupMessage.media.length ? <div className="mt-6 space-y-4">{popupMessage.media.map((media) => <MediaPreview key={media.id} media={media} />)}</div> : null}
+              </div>
+            )}
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-7 py-5">
               {popupMessage.popupMode !== "Until Acknowledged" &&
               popupMessage.actionRequired !== "Acknowledge" ? (
@@ -782,6 +788,7 @@ export default function AnnouncementHub({
                   <div className="min-h-[420px] rounded-[28px] border border-violet-100 bg-white p-6 shadow-sm">
                     {selectedMessage ? (
                       <>
+                        {selectedMessage.media[0]?.type === "image" ? <img src={selectedMessage.media[0].url} alt={selectedMessage.media[0].label || selectedMessage.title} className="mb-6 max-h-[420px] w-full rounded-[26px] bg-slate-950 object-contain" /> : null}
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
                             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">
@@ -980,6 +987,8 @@ export default function AnnouncementHub({
                           <option>Banner</option>
                           <option>Popup</option>
                           <option>Full Screen</option>
+                          <option>Media Spotlight</option>
+                          <option>Media Only</option>
                           <option>Mailbox Only</option>
                         </select>
                       </label>
