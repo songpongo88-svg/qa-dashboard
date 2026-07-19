@@ -232,12 +232,18 @@ function getTopicMasterByMonth(monthKey: string): readonly TopicMasterItem[] {
   if (monthKey !== "unknown" && monthKey >= JUNE_2026_POLICY_START_MONTH_KEY) {
     return JUNE_2026_TOPIC_MASTER;
   }
-
   if (monthKey === "2026-01" || monthKey === "2026-02") {
     return JAN_FEB_2026_TOPIC_MASTER;
   }
-
   return isNewPolicyMonth(monthKey) ? APRIL_2026_TOPIC_MASTER : LEGACY_TOPIC_MASTER;
+}
+
+function getTopicPolicyGroup(monthKey: string) {
+  if (monthKey === "2026-01" || monthKey === "2026-02") return { key: "jan-feb-2026", label: "January–February 2026", order: 1 };
+  if (monthKey === "2026-03") return { key: "march-2026", label: "March 2026", order: 2 };
+  if (monthKey === "2026-04" || monthKey === "2026-05") return { key: "apr-may-2026", label: "April–May 2026", order: 3 };
+  if (monthKey !== "unknown" && monthKey >= "2026-06") return { key: "june-current", label: "June 2026–Current", order: 4 };
+  return { key: "other", label: "Other Periods", order: 9 };
 }
 
 const ALL_TOPIC_MASTER = Array.from(
@@ -1797,37 +1803,76 @@ export default function SummaryMockup({
     [comparisonRows]
   );
 
-  const topicComparisonRows = useMemo(() => {
-    return topicSummary.map((topic) => {
-      const values = comparisonRows.map((period, index) => {
-        const scopedCases = filteredCases.filter((item) => {
-          if (analysisMode === "weekly") return item.weekLabel === period.label;
-          if (analysisMode === "monthly") return item.monthLabel === period.label;
-          return item.yearKey === period.label;
-        });
-        const scopedTopic = buildTopicSummary(scopedCases).find((item) => item.code === topic.code);
-        const pct = scopedTopic?.pct ?? 0;
-        const previousPeriod = index > 0 ? comparisonRows[index - 1] : null;
-        let previousPct: number | null = null;
-
-        if (previousPeriod) {
-          const previousCases = filteredCases.filter((item) => {
-            if (analysisMode === "weekly") return item.weekLabel === previousPeriod.label;
-            if (analysisMode === "monthly") return item.monthLabel === previousPeriod.label;
-            return item.yearKey === previousPeriod.label;
-          });
-          previousPct = buildTopicSummary(previousCases).find((item) => item.code === topic.code)?.pct ?? 0;
-        }
-
-        return {
-          period: period.label,
-          pct,
-          delta: previousPct === null ? null : Number((pct - previousPct).toFixed(2)),
-        };
-      });
-      return { ...topic, values };
+  const getCasesForPeriodLabel = (periodLabel: string) =>
+    filteredCases.filter((item) => {
+      if (analysisMode === "weekly") return item.weekLabel === periodLabel;
+      if (analysisMode === "monthly") return item.monthLabel === periodLabel;
+      return item.yearKey === periodLabel;
     });
-  }, [topicSummary, comparisonRows, filteredCases, analysisMode]);
+
+  const topicPolicyGroups = useMemo(() => {
+    const grouped = new Map<string, any>();
+
+    comparisonRows.forEach((period) => {
+      const periodCases = getCasesForPeriodLabel(period.label);
+      const policies = Array.from(
+        new Map(periodCases.map((item) => {
+          const group = getTopicPolicyGroup(item.monthKey);
+          return [group.key, group];
+        })).values()
+      );
+
+      policies.forEach((policy) => {
+        if (!grouped.has(policy.key)) grouped.set(policy.key, { ...policy, periodLabels: [], topics: [] });
+        const target = grouped.get(policy.key);
+        if (!target.periodLabels.includes(period.label)) target.periodLabels.push(period.label);
+      });
+    });
+
+    grouped.forEach((group) => {
+      const masters = new Map<string, { code: string; label: string }>();
+      group.periodLabels.forEach((periodLabel: string) => {
+        getCasesForPeriodLabel(periodLabel)
+          .filter((item) => getTopicPolicyGroup(item.monthKey).key === group.key)
+          .forEach((item) => item.topics.forEach((topic) => masters.set(topic.code + "::" + topic.label, { code: topic.code, label: topic.label })));
+      });
+
+      group.topics = Array.from(masters.values()).map((master) => {
+        let previousPct: number | null = null;
+        const values = group.periodLabels.map((periodLabel: string) => {
+          const scopedCases = getCasesForPeriodLabel(periodLabel).filter((item) => getTopicPolicyGroup(item.monthKey).key === group.key);
+          const match = buildTopicSummary(scopedCases).find((item) => item.code === master.code && item.label === master.label);
+          const pct = match ? match.pct : null;
+          const delta = pct === null || previousPct === null ? null : Number((pct - previousPct).toFixed(2));
+          if (pct !== null) previousPct = pct;
+          return { period: periodLabel, pct, delta };
+        });
+        return { ...master, values };
+      });
+    });
+
+    return Array.from(grouped.values()).sort((a: any, b: any) => a.order - b.order);
+  }, [comparisonRows, filteredCases, analysisMode]);
+
+  const agentComparisonRows = useMemo(() => {
+    if (effectiveSelectedAgent !== "all") return [];
+
+    return availableAgents
+      .map((agent) => {
+        const values = comparisonRows.map((period) => {
+          const cases = getCasesForPeriodLabel(period.label).filter((item) => isSameAgent(item.agent, agent));
+          if (!cases.length) return { period: period.label, score: null as number | null, caseCount: 0 };
+          const summary = summarizeCases(cases);
+          return { period: period.label, score: summary.avgScore, caseCount: summary.caseCount };
+        });
+        const availableScores = values.filter((item) => item.score !== null);
+        if (!availableScores.length) return null;
+        const first = availableScores[0].score ?? 0;
+        const last = availableScores[availableScores.length - 1].score ?? 0;
+        return { agent, values, overallDelta: Number((last - first).toFixed(2)) };
+      })
+      .filter(Boolean) as any[];
+  }, [availableAgents, comparisonRows, filteredCases, analysisMode, effectiveSelectedAgent]);
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -2016,10 +2061,9 @@ export default function SummaryMockup({
     const colWidths = [Math.max(52, tableWidth - 126), 18, 28, 24, 18, 18];
     const columns = [report.firstColLabel, "Cases", "Average", "Change", "Grade", "Revised"];
 
-    const monthLabel = monthOptions.find((item) => item.value === selectedMonth)?.label || "All Months";
     const agentLabel = effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles);
-    const weekLabel = selectedWeek === "all" ? "All Weeks" : selectedWeek;
-    const yearLabel = selectedYear === "all" ? "All Years" : selectedYear;
+    const selectedPeriodText = comparisonRows.map((item) => item.label).join(", ") || "No period selected";
+    const compareTypeLabel = analysisMode === "weekly" ? "Weekly Comparison" : analysisMode === "monthly" ? "Monthly Comparison" : "Yearly Comparison";
     const generatedByName = safe(
       currentUser?.name ||
         currentUser?.displayName ||
@@ -2084,74 +2128,98 @@ export default function SummaryMockup({
 
     doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("Current Scope", margin, y);
-
+    doc.setFontSize(12);
+    doc.text("Report Information", margin, y);
     y += 7;
 
-    const scopeGap = 4;
-    const scopeCellWidth = (tableWidth - scopeGap) / 2;
-    drawInfoCell("Agent", agentLabel, margin, y, scopeCellWidth);
-    drawInfoCell("Month", monthLabel, margin + scopeCellWidth + scopeGap, y, scopeCellWidth);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(margin, y, tableWidth, 34, 2, 2, "S");
+    const infoRows = [
+      ["Report type", compareTypeLabel],
+      ["Scope", agentLabel],
+      ["Selected periods", selectedPeriodText],
+      ["Prepared by", generatedByName],
+    ];
+    infoRows.forEach((row, index) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.2);
+      doc.setTextColor(71, 85, 105);
+      doc.text(row[0], margin + 5, y + 7 + index * 8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      fitText(row[1], tableWidth - 48, 2).forEach((line, lineIndex) => {
+        doc.text(line, margin + 38, y + 7 + index * 8 + lineIndex * 3.4);
+      });
+    });
 
-    y += 19;
-    drawInfoCell("Week", weekLabel, margin, y, scopeCellWidth);
-    drawInfoCell("Year", yearLabel, margin + scopeCellWidth + scopeGap, y, scopeCellWidth);
+    y += 42;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Executive Summary", margin, y);
+    y += 7;
 
-    y += 21;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.2);
-    doc.setTextColor(71, 85, 105);
-    doc.text("Generated by: " + generatedByName, margin, y);
-
+    const summaryRowsForPdf = [
+      ["Total cases", String(reportSummary.caseCount)],
+      ["Average score", reportSummary.avgScore.toFixed(2)],
+      ["Overall grade", String(reportSummary.grade)],
+      ["Revised cases", String(reportSummary.revisedCount)],
+      ["Generated on", new Date().toLocaleString("en-GB")],
+    ];
+    summaryRowsForPdf.forEach((row, index) => {
+      doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, tableWidth, 8, "FD");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.2);
+      doc.setTextColor(71, 85, 105);
+      doc.text(row[0], margin + 3, y + 5.3);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text(row[1], pageWidth - margin - 3, y + 5.3, { align: "right" });
+      y += 8;
+    });
     y += 9;
 
-    doc.setFillColor(246, 242, 255);
-    doc.setDrawColor(221, 214, 254);
-    doc.roundedRect(margin, y, tableWidth, 24, 2.5, 2.5, "FD");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(49, 16, 101);
-    const metricColWidth = tableWidth / 3;
-    doc.text("Cases: " + reportSummary.caseCount, margin + 5, y + 8);
-    doc.text("Average Score: " + reportSummary.avgScore.toFixed(2), margin + metricColWidth + 5, y + 8);
-    doc.text("Grade: " + reportSummary.grade, margin + metricColWidth * 2 + 5, y + 8);
-    doc.text("Revised: " + reportSummary.revisedCount, margin + 5, y + 18);
-    doc.text("Generated at: " + new Date().toLocaleString("en-GB"), margin + metricColWidth + 5, y + 18);
-
-    y += 33;
-
-    if (topicComparisonRows.length && comparisonRows.length) {
-      ensurePageSpace(24);
+    if (topicPolicyGroups.length && comparisonRows.length) {
       doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.text("Topic Performance Comparison", margin, y);
-      y += 7;
-
-      topicComparisonRows.forEach((topic) => {
-        ensurePageSpace(8);
-        doc.setFillColor(250, 248, 255);
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(margin, y, tableWidth, 8, "FD");
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(15, 23, 42);
-        doc.text(fitText(topic.code + " " + topic.label, 58, 1)[0] || "", margin + 2, y + 5.2);
-
-        const availableWidth = tableWidth - 62;
-        const periodWidth = availableWidth / Math.max(1, topic.values.length);
-        topic.values.forEach((value, index) => {
-          const x = margin + 62 + periodWidth * index + periodWidth / 2;
-          const deltaText = value.delta === null ? "Base" : (value.delta > 0 ? "+" : "") + value.delta.toFixed(2);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(value.delta === null ? 71 : value.delta >= 0 ? 5 : 190, value.delta === null ? 85 : value.delta >= 0 ? 150 : 24, value.delta === null ? 105 : value.delta >= 0 ? 105 : 93);
-          doc.text(value.pct.toFixed(2) + "% (" + deltaText + ")", x, y + 5.2, { align: "center" });
-        });
-        y += 8;
-      });
       y += 8;
+
+      topicPolicyGroups.forEach((group: any) => {
+        ensurePageSpace(16);
+        doc.setFillColor(49, 16, 101);
+        doc.rect(margin, y, tableWidth, 8, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text(group.label, margin + 3, y + 5.3);
+        y += 8;
+
+        group.topics.forEach((topic: any) => {
+          ensurePageSpace(8);
+          doc.setFillColor(250, 248, 255);
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(margin, y, tableWidth, 8, "FD");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.8);
+          doc.setTextColor(15, 23, 42);
+          doc.text(fitText(topic.code + " " + topic.label, 56, 1)[0] || "", margin + 2, y + 5.2);
+
+          const availableWidth = tableWidth - 60;
+          const periodWidth = availableWidth / Math.max(1, group.periodLabels.length);
+          topic.values.forEach((value: any, index: number) => {
+            const x = margin + 60 + periodWidth * index + periodWidth / 2;
+            const display = value.pct === null ? "N/A" : value.pct.toFixed(2) + "%" + (value.delta === null ? " (Base)" : " (" + (value.delta > 0 ? "+" : "") + value.delta.toFixed(2) + ")");
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(value.pct === null || value.delta === null ? 100 : value.delta >= 0 ? 5 : 190, value.pct === null || value.delta === null ? 116 : value.delta >= 0 ? 150 : 24, value.pct === null || value.delta === null ? 139 : value.delta >= 0 ? 105 : 93);
+            doc.text(display, x, y + 5.2, { align: "center" });
+          });
+          y += 8;
+        });
+        y += 6;
+      });
     }
 
     if (report.rows.length > 1) {
@@ -2162,41 +2230,34 @@ export default function SummaryMockup({
       doc.text("Performance Comparison Chart", margin, y);
       y += 7;
 
-      const chartX = margin + 12;
+      const chartX = margin + 8;
       const chartY = y;
-      const chartW = tableWidth - 18;
-      const chartH = 48;
-      doc.setDrawColor(203, 213, 225);
-      doc.line(chartX, chartY, chartX, chartY + chartH);
-      doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH);
+      const chartW = tableWidth - 12;
+      const rowH = 11;
+      const chartH = report.rows.length * rowH;
 
-      const points = report.rows.map((row, index) => {
-        const x = report.rows.length === 1 ? chartX + chartW / 2 : chartX + index * (chartW / (report.rows.length - 1));
-        const score = Math.max(0, Math.min(100, row.avgScore));
-        const pointY = chartY + chartH - (score / 100) * chartH;
+      report.rows.forEach((row, index) => {
         const previous = index > 0 ? report.rows[index - 1] : null;
         const delta = previous ? Number((row.avgScore - previous.avgScore).toFixed(2)) : null;
-        return { x, y: pointY, score, label: row.label, delta };
-      });
+        const barY = chartY + index * rowH;
+        const barW = Math.max(1, (Math.max(0, Math.min(100, row.avgScore)) / 100) * (chartW - 55));
 
-      doc.setDrawColor(124, 58, 237);
-      doc.setLineWidth(0.8);
-      for (let index = 1; index < points.length; index += 1) {
-        doc.line(points[index - 1].x, points[index - 1].y, points[index].x, points[index].y);
-      }
-
-      points.forEach((point) => {
-        doc.setFillColor(124, 58, 237);
-        doc.circle(point.x, point.y, 1.5, "F");
-        doc.setFontSize(6.5);
-        doc.setTextColor(76, 29, 149);
-        const deltaText = point.delta === null ? "Base" : (point.delta > 0 ? "+" : "") + point.delta.toFixed(2);
-        doc.text(point.score.toFixed(2) + " (" + deltaText + ")", point.x, Math.max(chartY + 3, point.y - 3), { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
         doc.setTextColor(71, 85, 105);
-        doc.text(fitText(point.label, 24, 1)[0] || "", point.x, chartY + chartH + 5, { align: "center" });
+        doc.text(fitText(row.label, 38, 1)[0] || "", chartX, barY + 5.5);
+        doc.setFillColor(237, 233, 254);
+        doc.roundedRect(chartX + 42, barY + 1.5, chartW - 55, 6, 1.5, 1.5, "F");
+        doc.setFillColor(124, 58, 237);
+        doc.roundedRect(chartX + 42, barY + 1.5, barW, 6, 1.5, 1.5, "F");
+
+        const deltaText = delta === null ? "Base" : (delta > 0 ? "+" : "") + delta.toFixed(2);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(delta === null ? 100 : delta >= 0 ? 5 : 190, delta === null ? 116 : delta >= 0 ? 150 : 24, delta === null ? 139 : delta >= 0 ? 105 : 93);
+        doc.text(row.avgScore.toFixed(2) + " (" + deltaText + ")", chartX + chartW, barY + 5.5, { align: "right" });
       });
 
-      y += chartH + 14;
+      y += chartH + 8;
     }
 
     doc.setTextColor(15, 23, 42);
@@ -2520,97 +2581,57 @@ export default function SummaryMockup({
             </div>
 
             <Panel>
-              <PanelHeader title="Topic Performance Comparison" subtitle="เปรียบเทียบคะแนนแต่ละ Topic พร้อมผลต่างจากรายการก่อนหน้า" />
-              <PanelBody>
-                <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                  <table className="min-w-[900px] w-full text-sm">
-                    <thead>
-                      <tr className="bg-violet-950 text-white">
-                        <th className="px-4 py-3 text-left">Topic</th>
-                        {comparisonRows.map((period) => (
-                          <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topicComparisonRows.map((topic) => (
-                        <tr key={topic.code} className="bg-white">
-                          <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">{topic.code} {topic.label}</td>
-                          {topic.values.map((value) => (
-                            <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
-                              <div className="font-black text-violet-700">{value.pct.toFixed(2)}%</div>
-                              <div className={"mt-1 text-xs font-black " + (value.delta === null ? "text-slate-400" : value.delta >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                                {value.delta === null ? "Base" : (value.delta > 0 ? "+" : "") + value.delta.toFixed(2)}
-                              </div>
-                            </td>
+              <PanelHeader title="Topic Performance Comparison" subtitle="แยกตามชุดเกณฑ์ QA เพื่อไม่เปรียบเทียบหัวข้อคนละเกณฑ์เข้าด้วยกัน" />
+              <PanelBody className="space-y-5">
+                {topicPolicyGroups.map((group: any) => (
+                  <div key={group.key} className="overflow-hidden rounded-2xl border border-violet-100 bg-white">
+                    <div className="bg-violet-950 px-4 py-3 text-sm font-black text-white">{group.label}</div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-[900px] w-full text-sm">
+                        <thead>
+                          <tr className="bg-violet-50 text-violet-950">
+                            <th className="px-4 py-3 text-left">Topic</th>
+                            {group.periodLabels.map((period: string) => <th key={period} className="px-4 py-3 text-center">{period}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.topics.map((topic: any) => (
+                            <tr key={topic.code + topic.label} className="bg-white">
+                              <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">{topic.code} {topic.label}</td>
+                              {topic.values.map((value: any) => (
+                                <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
+                                  {value.pct === null ? <div className="font-bold text-slate-400">N/A</div> : <>
+                                    <div className="font-black text-violet-700">{value.pct.toFixed(2)}%</div>
+                                    <div className={"mt-1 text-xs font-black " + (value.delta === null ? "text-slate-400" : value.delta >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                                      {value.delta === null ? "Base" : (value.delta > 0 ? "▲ +" : value.delta < 0 ? "▼ " : "— ") + value.delta.toFixed(2)}
+                                    </div>
+                                  </>}
+                                </td>
+                              ))}
+                            </tr>
                           ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
               </PanelBody>
             </Panel>
 
             {comparisonRows.length ? (
               <Panel>
-                <PanelHeader title="Performance Comparison Chart" subtitle="คะแนนและผลต่างของแต่ละช่วงเมื่อเทียบกับรายการก่อนหน้า" />
+                <PanelHeader title="Performance Comparison Bar Chart" subtitle="เปรียบเทียบคะแนนแต่ละช่วงด้วยแท่งจริง พร้อมผลต่างจากช่วงก่อนหน้า" />
                 <PanelBody>
-                  <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="space-y-4">
                     {comparisonRowsWithDelta.map((row) => (
-                      <div key={row.label} className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50 p-4">
-                        <div className="text-xs font-black text-slate-500">{row.label}</div>
-                        <div className="mt-2 flex items-end justify-between gap-3">
-                          <div className="text-2xl font-black text-violet-800">{row.avgScore.toFixed(2)}</div>
-                          <div className={"text-sm font-black " + (row.scoreDelta === null ? "text-slate-400" : row.scoreDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                            {row.scoreDelta === null ? "Base" : (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2)}
-                          </div>
+                      <div key={row.label} className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_130px] md:items-center">
+                        <div><div className="text-sm font-black text-slate-800">{row.label}</div><div className="mt-1 text-xs font-semibold text-slate-500">Cases {row.caseCount}</div></div>
+                        <div className="h-7 overflow-hidden rounded-full bg-violet-100">
+                          <div className="flex h-full items-center justify-end rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500 px-3 text-xs font-black text-white" style={{ width: Math.max(4, Math.min(100, row.avgScore)) + "%" }}>{row.avgScore.toFixed(2)}</div>
                         </div>
-                        <div className="mt-2 text-xs font-semibold text-slate-500">
-                          Cases {row.caseCount}{row.caseDelta === null ? "" : " (" + (row.caseDelta > 0 ? "+" : "") + row.caseDelta + ")"}
-                        </div>
+                        <div className={"text-right text-sm font-black " + (row.scoreDelta === null ? "text-slate-400" : row.scoreDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>{row.scoreDelta === null ? "Base" : (row.scoreDelta > 0 ? "▲ +" : row.scoreDelta < 0 ? "▼ " : "— ") + row.scoreDelta.toFixed(2)}</div>
                       </div>
                     ))}
-                  </div>
-                  <div className="overflow-x-auto">
-                    <svg viewBox="0 0 900 300" className="min-w-[760px] w-full">
-                      <line x1="70" y1="25" x2="70" y2="245" stroke="#cbd5e1" strokeWidth="1" />
-                      <line x1="70" y1="245" x2="860" y2="245" stroke="#cbd5e1" strokeWidth="1" />
-                      {[0, 25, 50, 75, 100].map((tick) => {
-                        const y = 245 - tick * 2.2;
-                        return (
-                          <g key={tick}>
-                            <line x1="70" y1={y} x2="860" y2={y} stroke="#ede9fe" strokeWidth="1" />
-                            <text x="58" y={y + 4} textAnchor="end" fontSize="11" fill="#64748b">{tick}</text>
-                          </g>
-                        );
-                      })}
-                      <polyline
-                        fill="none"
-                        stroke="#7c3aed"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        points={comparisonRowsWithDelta.map((row, index) => {
-                          const x = comparisonRowsWithDelta.length === 1 ? 465 : 80 + index * (770 / (comparisonRowsWithDelta.length - 1));
-                          const y = 245 - Math.max(0, Math.min(100, row.avgScore)) * 2.2;
-                          return x + "," + y;
-                        }).join(" ")}
-                      />
-                      {comparisonRowsWithDelta.map((row, index) => {
-                        const x = comparisonRowsWithDelta.length === 1 ? 465 : 80 + index * (770 / (comparisonRowsWithDelta.length - 1));
-                        const y = 245 - Math.max(0, Math.min(100, row.avgScore)) * 2.2;
-                        return (
-                          <g key={row.label}>
-                            <circle cx={x} cy={y} r="6" fill="#7c3aed" />
-                            <text x={x} y={y - 12} textAnchor="middle" fontSize="12" fontWeight="700" fill="#4c1d95">
-                              {row.avgScore.toFixed(2)} {row.scoreDelta === null ? "(Base)" : "(" + (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2) + ")"}
-                            </text>
-                            <text x={x} y="270" textAnchor="middle" fontSize="10" fill="#475569">{row.label.length > 18 ? row.label.slice(0, 18) + "..." : row.label}</text>
-                          </g>
-                        );
-                      })}
-                    </svg>
                   </div>
                 </PanelBody>
               </Panel>
@@ -2618,41 +2639,30 @@ export default function SummaryMockup({
 
             <Panel>
               <PanelHeader title="Summary Table" subtitle="Summary result based on selected periods พร้อมผลต่างจากรายการก่อนหน้า" />
-              <PanelBody>
-                <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                  <table className="min-w-[900px] w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-950 text-white">
-                        <th className="px-4 py-3 text-left">Period</th>
-                        <th className="px-4 py-3 text-center">Cases</th>
-                        <th className="px-4 py-3 text-center">Δ Cases</th>
-                        <th className="px-4 py-3 text-center">Average</th>
-                        <th className="px-4 py-3 text-center">Δ Score</th>
-                        <th className="px-4 py-3 text-center">Grade</th>
-                        <th className="px-4 py-3 text-center">Revised</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comparisonRowsWithDelta.map((row) => (
-                        <tr key={row.label} className="bg-white">
-                          <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-900">{row.label}</td>
-                          <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.caseCount}</td>
-                          <td className={"border-t border-slate-100 px-4 py-3 text-center font-black " + (row.caseDelta === null ? "text-slate-400" : row.caseDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                            {row.caseDelta === null ? "Base" : (row.caseDelta > 0 ? "+" : "") + row.caseDelta}
-                          </td>
-                          <td className="border-t border-slate-100 px-4 py-3 text-center font-black text-violet-700">{row.avgScore.toFixed(2)}</td>
-                          <td className={"border-t border-slate-100 px-4 py-3 text-center font-black " + (row.scoreDelta === null ? "text-slate-400" : row.scoreDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>
-                            {row.scoreDelta === null ? "Base" : (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2)}
-                          </td>
-                          <td className="border-t border-slate-100 px-4 py-3 text-center font-black">{row.grade}</td>
-                          <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.revisedCount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </PanelBody>
+              <PanelBody><SummaryTable rows={comparisonRows} firstColLabel={analysisMode === "weekly" ? "Week" : analysisMode === "monthly" ? "Month" : "Year"} showIncentive={false} /></PanelBody>
             </Panel>
+
+            {effectiveSelectedAgent === "all" && agentComparisonRows.length ? (
+              <Panel>
+                <PanelHeader title="Agent Comparison" subtitle="แยกราย Agent เมื่อเลือก All Agents" />
+                <PanelBody>
+                  <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                    <table className="min-w-[980px] w-full text-sm">
+                      <thead><tr className="bg-violet-950 text-white"><th className="px-4 py-3 text-left">Agent</th>{comparisonRows.map((period) => <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>)}<th className="px-4 py-3 text-center">Overall Δ</th></tr></thead>
+                      <tbody>
+                        {agentComparisonRows.map((row: any) => (
+                          <tr key={row.agent} className="bg-white">
+                            <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-900">{buildSuspendedAgentLabel(row.agent, accountProfiles)}</td>
+                            {row.values.map((value: any) => <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">{value.score === null ? <span className="text-slate-400">N/A</span> : <><div className="font-black text-violet-700">{value.score.toFixed(2)}</div><div className="text-[11px] text-slate-500">{value.caseCount} case(s)</div></>}</td>)}
+                            <td className={"border-t border-violet-100 px-4 py-3 text-center font-black " + (row.overallDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>{row.overallDelta > 0 ? "+" : ""}{row.overallDelta.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : null}
           </div>
         </div>
       </div>
