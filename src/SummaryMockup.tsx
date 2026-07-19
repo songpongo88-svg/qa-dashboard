@@ -1783,16 +1783,47 @@ export default function SummaryMockup({
     return groupCases(filteredCases, groupedBy);
   }, [filteredCases, analysisMode]);
 
+  const comparisonRowsWithDelta = useMemo(
+    () =>
+      comparisonRows.map((row, index) => {
+        const previous = index > 0 ? comparisonRows[index - 1] : null;
+        return {
+          ...row,
+          scoreDelta: previous ? Number((row.avgScore - previous.avgScore).toFixed(2)) : null,
+          caseDelta: previous ? row.caseCount - previous.caseCount : null,
+          revisedDelta: previous ? row.revisedCount - previous.revisedCount : null,
+        };
+      }),
+    [comparisonRows]
+  );
+
   const topicComparisonRows = useMemo(() => {
     return topicSummary.map((topic) => {
-      const values = comparisonRows.map((period) => {
+      const values = comparisonRows.map((period, index) => {
         const scopedCases = filteredCases.filter((item) => {
           if (analysisMode === "weekly") return item.weekLabel === period.label;
           if (analysisMode === "monthly") return item.monthLabel === period.label;
           return item.yearKey === period.label;
         });
         const scopedTopic = buildTopicSummary(scopedCases).find((item) => item.code === topic.code);
-        return { period: period.label, pct: scopedTopic?.pct ?? 0 };
+        const pct = scopedTopic?.pct ?? 0;
+        const previousPeriod = index > 0 ? comparisonRows[index - 1] : null;
+        let previousPct: number | null = null;
+
+        if (previousPeriod) {
+          const previousCases = filteredCases.filter((item) => {
+            if (analysisMode === "weekly") return item.weekLabel === previousPeriod.label;
+            if (analysisMode === "monthly") return item.monthLabel === previousPeriod.label;
+            return item.yearKey === previousPeriod.label;
+          });
+          previousPct = buildTopicSummary(previousCases).find((item) => item.code === topic.code)?.pct ?? 0;
+        }
+
+        return {
+          period: period.label,
+          pct,
+          delta: previousPct === null ? null : Number((pct - previousPct).toFixed(2)),
+        };
       });
       return { ...topic, values };
     });
@@ -1982,8 +2013,8 @@ export default function SummaryMockup({
     const margin = 12;
     const footerSpace = 12;
     const tableWidth = pageWidth - margin * 2;
-    const colWidths = [Math.max(66, tableWidth - 104), 22, 36, 20, 26];
-    const columns = [report.firstColLabel, "Cases", "Average Score", "Grade", "Revised"];
+    const colWidths = [Math.max(52, tableWidth - 126), 18, 28, 24, 18, 18];
+    const columns = [report.firstColLabel, "Cases", "Average", "Change", "Grade", "Revised"];
 
     const monthLabel = monthOptions.find((item) => item.value === selectedMonth)?.label || "All Months";
     const agentLabel = effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles);
@@ -2091,8 +2122,40 @@ export default function SummaryMockup({
 
     y += 33;
 
+    if (topicComparisonRows.length && comparisonRows.length) {
+      ensurePageSpace(24);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Topic Performance Comparison", margin, y);
+      y += 7;
+
+      topicComparisonRows.forEach((topic) => {
+        ensurePageSpace(8);
+        doc.setFillColor(250, 248, 255);
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, tableWidth, 8, "FD");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(15, 23, 42);
+        doc.text(fitText(topic.code + " " + topic.label, 58, 1)[0] || "", margin + 2, y + 5.2);
+
+        const availableWidth = tableWidth - 62;
+        const periodWidth = availableWidth / Math.max(1, topic.values.length);
+        topic.values.forEach((value, index) => {
+          const x = margin + 62 + periodWidth * index + periodWidth / 2;
+          const deltaText = value.delta === null ? "Base" : (value.delta > 0 ? "+" : "") + value.delta.toFixed(2);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(value.delta === null ? 71 : value.delta >= 0 ? 5 : 190, value.delta === null ? 85 : value.delta >= 0 ? 150 : 24, value.delta === null ? 105 : value.delta >= 0 ? 105 : 93);
+          doc.text(value.pct.toFixed(2) + "% (" + deltaText + ")", x, y + 5.2, { align: "center" });
+        });
+        y += 8;
+      });
+      y += 8;
+    }
+
     if (report.rows.length > 1) {
-      ensurePageSpace(74);
+      ensurePageSpace(82);
       doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
@@ -2111,7 +2174,9 @@ export default function SummaryMockup({
         const x = report.rows.length === 1 ? chartX + chartW / 2 : chartX + index * (chartW / (report.rows.length - 1));
         const score = Math.max(0, Math.min(100, row.avgScore));
         const pointY = chartY + chartH - (score / 100) * chartH;
-        return { x, y: pointY, score, label: row.label };
+        const previous = index > 0 ? report.rows[index - 1] : null;
+        const delta = previous ? Number((row.avgScore - previous.avgScore).toFixed(2)) : null;
+        return { x, y: pointY, score, label: row.label, delta };
       });
 
       doc.setDrawColor(124, 58, 237);
@@ -2125,7 +2190,8 @@ export default function SummaryMockup({
         doc.circle(point.x, point.y, 1.5, "F");
         doc.setFontSize(6.5);
         doc.setTextColor(76, 29, 149);
-        doc.text(point.score.toFixed(2), point.x, Math.max(chartY + 3, point.y - 3), { align: "center" });
+        const deltaText = point.delta === null ? "Base" : (point.delta > 0 ? "+" : "") + point.delta.toFixed(2);
+        doc.text(point.score.toFixed(2) + " (" + deltaText + ")", point.x, Math.max(chartY + 3, point.y - 3), { align: "center" });
         doc.setTextColor(71, 85, 105);
         doc.text(fitText(point.label, 24, 1)[0] || "", point.x, chartY + chartH + 5, { align: "center" });
       });
@@ -2133,30 +2199,11 @@ export default function SummaryMockup({
       y += chartH + 14;
     }
 
-    if (reportTopicSummary.length) {
-      ensurePageSpace(18 + reportTopicSummary.length * 8);
-      doc.setTextColor(15, 23, 42);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("Topic Performance", margin, y);
-      y += 6;
-
-      reportTopicSummary.forEach((topic, index) => {
-        ensurePageSpace(8);
-        doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 248 : 255, 255);
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(margin, y, tableWidth, 8, "FD");
-        doc.setTextColor(15, 23, 42);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.8);
-        doc.text(fitText(topic.code + " " + topic.label, tableWidth - 54, 1)[0] || "", margin + 2, y + 5.3);
-        doc.setFont("helvetica", "bold");
-        doc.text(topic.avgScore.toFixed(2) + " / " + topic.max.toFixed(2), pageWidth - margin - 28, y + 5.3, { align: "right" });
-        doc.text(topic.pct.toFixed(2) + "%", pageWidth - margin - 2, y + 5.3, { align: "right" });
-        y += 8;
-      });
-      y += 8;
-    }
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Summary result based on selected periods", margin, y);
+    y += 7;
 
     const drawTableHeader = () => {
       doc.setFillColor(49, 16, 101);
@@ -2204,10 +2251,13 @@ export default function SummaryMockup({
 
       doc.setTextColor(15, 23, 42);
 
+      const previousRow = index > 0 ? report.rows[index - 1] : null;
+      const scoreDelta = previousRow ? Number((row.avgScore - previousRow.avgScore).toFixed(2)) : null;
       const values = [
         firstColumnLines,
         String(row.caseCount),
         row.avgScore.toFixed(2),
+        scoreDelta === null ? "Base" : (scoreDelta > 0 ? "+" : "") + scoreDelta.toFixed(2),
         String(row.grade),
         String(row.revisedCount),
       ];
@@ -2469,10 +2519,59 @@ export default function SummaryMockup({
               <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from selected periods" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
 
+            <Panel>
+              <PanelHeader title="Topic Performance Comparison" subtitle="เปรียบเทียบคะแนนแต่ละ Topic พร้อมผลต่างจากรายการก่อนหน้า" />
+              <PanelBody>
+                <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                  <table className="min-w-[900px] w-full text-sm">
+                    <thead>
+                      <tr className="bg-violet-950 text-white">
+                        <th className="px-4 py-3 text-left">Topic</th>
+                        {comparisonRows.map((period) => (
+                          <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topicComparisonRows.map((topic) => (
+                        <tr key={topic.code} className="bg-white">
+                          <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">{topic.code} {topic.label}</td>
+                          {topic.values.map((value) => (
+                            <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
+                              <div className="font-black text-violet-700">{value.pct.toFixed(2)}%</div>
+                              <div className={"mt-1 text-xs font-black " + (value.delta === null ? "text-slate-400" : value.delta >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                                {value.delta === null ? "Base" : (value.delta > 0 ? "+" : "") + value.delta.toFixed(2)}
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </PanelBody>
+            </Panel>
+
             {comparisonRows.length ? (
               <Panel>
-                <PanelHeader title="Performance Comparison Chart" subtitle="แนวโน้มคะแนนเฉลี่ยของช่วงเวลาที่เลือก" />
+                <PanelHeader title="Performance Comparison Chart" subtitle="คะแนนและผลต่างของแต่ละช่วงเมื่อเทียบกับรายการก่อนหน้า" />
                 <PanelBody>
+                  <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {comparisonRowsWithDelta.map((row) => (
+                      <div key={row.label} className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50 p-4">
+                        <div className="text-xs font-black text-slate-500">{row.label}</div>
+                        <div className="mt-2 flex items-end justify-between gap-3">
+                          <div className="text-2xl font-black text-violet-800">{row.avgScore.toFixed(2)}</div>
+                          <div className={"text-sm font-black " + (row.scoreDelta === null ? "text-slate-400" : row.scoreDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                            {row.scoreDelta === null ? "Base" : (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs font-semibold text-slate-500">
+                          Cases {row.caseCount}{row.caseDelta === null ? "" : " (" + (row.caseDelta > 0 ? "+" : "") + row.caseDelta + ")"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   <div className="overflow-x-auto">
                     <svg viewBox="0 0 900 300" className="min-w-[760px] w-full">
                       <line x1="70" y1="25" x2="70" y2="245" stroke="#cbd5e1" strokeWidth="1" />
@@ -2492,19 +2591,21 @@ export default function SummaryMockup({
                         strokeWidth="4"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        points={comparisonRows.map((row, index) => {
-                          const x = comparisonRows.length === 1 ? 465 : 80 + index * (770 / (comparisonRows.length - 1));
+                        points={comparisonRowsWithDelta.map((row, index) => {
+                          const x = comparisonRowsWithDelta.length === 1 ? 465 : 80 + index * (770 / (comparisonRowsWithDelta.length - 1));
                           const y = 245 - Math.max(0, Math.min(100, row.avgScore)) * 2.2;
                           return x + "," + y;
                         }).join(" ")}
                       />
-                      {comparisonRows.map((row, index) => {
-                        const x = comparisonRows.length === 1 ? 465 : 80 + index * (770 / (comparisonRows.length - 1));
+                      {comparisonRowsWithDelta.map((row, index) => {
+                        const x = comparisonRowsWithDelta.length === 1 ? 465 : 80 + index * (770 / (comparisonRowsWithDelta.length - 1));
                         const y = 245 - Math.max(0, Math.min(100, row.avgScore)) * 2.2;
                         return (
                           <g key={row.label}>
                             <circle cx={x} cy={y} r="6" fill="#7c3aed" />
-                            <text x={x} y={y - 12} textAnchor="middle" fontSize="12" fontWeight="700" fill="#4c1d95">{row.avgScore.toFixed(2)}</text>
+                            <text x={x} y={y - 12} textAnchor="middle" fontSize="12" fontWeight="700" fill="#4c1d95">
+                              {row.avgScore.toFixed(2)} {row.scoreDelta === null ? "(Base)" : "(" + (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2) + ")"}
+                            </text>
                             <text x={x} y="270" textAnchor="middle" fontSize="10" fill="#475569">{row.label.length > 18 ? row.label.slice(0, 18) + "..." : row.label}</text>
                           </g>
                         );
@@ -2516,40 +2617,35 @@ export default function SummaryMockup({
             ) : null}
 
             <Panel>
-              <PanelHeader title="Summary Table" subtitle="Summary result based on selected periods" />
-              <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} showIncentive={summaryTableShowIncentive} /></PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title={agentMonthlyAnalyticsTitle} subtitle={agentMonthlyAnalyticsSubtitle} />
-              <PanelBody>
-                <AgentMonthlyAnalyticsTable
-                  rows={agentMonthlyAnalyticsRows}
-                  firstColLabel={agentMonthlyAnalyticsFirstCol}
-                />
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Topic Performance Comparison" subtitle="เปรียบเทียบคะแนนแต่ละ Topic แยกตามช่วงเวลาที่เลือก" />
+              <PanelHeader title="Summary Table" subtitle="Summary result based on selected periods พร้อมผลต่างจากรายการก่อนหน้า" />
               <PanelBody>
                 <div className="overflow-x-auto rounded-2xl border border-violet-100">
                   <table className="min-w-[900px] w-full text-sm">
                     <thead>
-                      <tr className="bg-violet-950 text-white">
-                        <th className="px-4 py-3 text-left">Topic</th>
-                        {comparisonRows.map((period) => (
-                          <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>
-                        ))}
+                      <tr className="bg-slate-950 text-white">
+                        <th className="px-4 py-3 text-left">Period</th>
+                        <th className="px-4 py-3 text-center">Cases</th>
+                        <th className="px-4 py-3 text-center">Δ Cases</th>
+                        <th className="px-4 py-3 text-center">Average</th>
+                        <th className="px-4 py-3 text-center">Δ Score</th>
+                        <th className="px-4 py-3 text-center">Grade</th>
+                        <th className="px-4 py-3 text-center">Revised</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {topicComparisonRows.map((topic) => (
-                        <tr key={topic.code} className="bg-white">
-                          <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">{topic.code} {topic.label}</td>
-                          {topic.values.map((value) => (
-                            <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">{value.pct.toFixed(2)}%</td>
-                          ))}
+                      {comparisonRowsWithDelta.map((row) => (
+                        <tr key={row.label} className="bg-white">
+                          <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-900">{row.label}</td>
+                          <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.caseCount}</td>
+                          <td className={"border-t border-slate-100 px-4 py-3 text-center font-black " + (row.caseDelta === null ? "text-slate-400" : row.caseDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                            {row.caseDelta === null ? "Base" : (row.caseDelta > 0 ? "+" : "") + row.caseDelta}
+                          </td>
+                          <td className="border-t border-slate-100 px-4 py-3 text-center font-black text-violet-700">{row.avgScore.toFixed(2)}</td>
+                          <td className={"border-t border-slate-100 px-4 py-3 text-center font-black " + (row.scoreDelta === null ? "text-slate-400" : row.scoreDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                            {row.scoreDelta === null ? "Base" : (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2)}
+                          </td>
+                          <td className="border-t border-slate-100 px-4 py-3 text-center font-black">{row.grade}</td>
+                          <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.revisedCount}</td>
                         </tr>
                       ))}
                     </tbody>
