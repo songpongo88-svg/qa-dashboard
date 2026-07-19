@@ -1854,25 +1854,48 @@ export default function SummaryMockup({
     return Array.from(grouped.values()).sort((a: any, b: any) => a.order - b.order);
   }, [comparisonRows, filteredCases, analysisMode]);
 
+  const agentDisplayPeriods = useMemo(() => {
+    if (selectedPeriods.length || analysisMode === "yearly") return comparisonRows;
+    return comparisonRows.slice(0, 1);
+  }, [comparisonRows, selectedPeriods.length, analysisMode]);
+
   const agentComparisonRows = useMemo(() => {
     if (effectiveSelectedAgent !== "all") return [];
 
-    return availableAgents
-      .map((agent) => {
-        const values = comparisonRows.map((period) => {
-          const cases = getCasesForPeriodLabel(period.label).filter((item) => isSameAgent(item.agent, agent));
-          if (!cases.length) return { period: period.label, score: null as number | null, caseCount: 0 };
-          const summary = summarizeCases(cases);
-          return { period: period.label, score: summary.avgScore, caseCount: summary.caseCount };
-        });
-        const availableScores = values.filter((item) => item.score !== null);
-        if (!availableScores.length) return null;
-        const first = availableScores[0].score ?? 0;
-        const last = availableScores[availableScores.length - 1].score ?? 0;
-        return { agent, values, overallDelta: Number((last - first).toFixed(2)) };
-      })
-      .filter(Boolean) as any[];
-  }, [availableAgents, comparisonRows, filteredCases, analysisMode, effectiveSelectedAgent]);
+    const agentUniverse = getUniqueNormalizedAgents([
+      ...availableAgents,
+      ...allCases.map((item) => item.agent),
+    ]).filter((agent) =>
+      shouldShowAgentInSummaryScope(agent, filteredCases.length ? filteredCases : allCases, accountProfiles)
+    );
+
+    return agentUniverse.map((agent) => {
+      const values = agentDisplayPeriods.map((period) => {
+        const cases = getCasesForPeriodLabel(period.label).filter((item) => isSameAgent(item.agent, agent));
+        if (!cases.length) {
+          return { period: period.label, score: null as number | null, caseCount: 0 };
+        }
+        const summary = summarizeCases(cases);
+        return { period: period.label, score: summary.avgScore, caseCount: summary.caseCount };
+      });
+
+      const availableScores = values.filter((item) => item.score !== null);
+      const overallDelta =
+        availableScores.length >= 2
+          ? Number(((availableScores[availableScores.length - 1].score ?? 0) - (availableScores[0].score ?? 0)).toFixed(2))
+          : null;
+
+      return { agent, values, overallDelta };
+    });
+  }, [
+    availableAgents,
+    allCases,
+    filteredCases,
+    accountProfiles,
+    agentDisplayPeriods,
+    analysisMode,
+    effectiveSelectedAgent,
+  ]);
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -2085,6 +2108,67 @@ export default function SummaryMockup({
       return visible;
     };
 
+    const drawPdfText = (
+      value: unknown,
+      x: number,
+      y: number,
+      options: any = {}
+    ) => {
+      const text = safe(value);
+      const hasThai = /[\u0E00-\u0E7F]/.test(text);
+
+      if (!hasThai) {
+        (doc as any).text(text, x, y, options);
+        return;
+      }
+
+      const scale = 4;
+      const fontSize = Number((doc as any).getFontSize?.() || 9);
+      const fontStyle = String((doc as any).getFont?.()?.fontStyle || "normal");
+      const fontWeight = fontStyle.includes("bold") ? "700" : "400";
+      const fontPx = Math.max(10, fontSize * 1.333) * scale;
+      const canvas = document.createElement("canvas");
+      const measureContext = canvas.getContext("2d");
+
+      if (!measureContext) {
+        (doc as any).text(text.replace(/[\u0E00-\u0E7F]/g, "?"), x, y, options);
+        return;
+      }
+
+      measureContext.font = fontWeight + " " + fontPx + 'px Tahoma, "Noto Sans Thai", Arial, sans-serif';
+      const measuredWidth = Math.ceil(measureContext.measureText(text).width + 10 * scale);
+      const measuredHeight = Math.ceil(fontPx * 1.55);
+      canvas.width = Math.max(8, measuredWidth);
+      canvas.height = Math.max(8, measuredHeight);
+
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      context.scale(scale, scale);
+      context.font = fontWeight + " " + (fontPx / scale) + 'px Tahoma, "Noto Sans Thai", Arial, sans-serif';
+      context.textBaseline = "alphabetic";
+      context.fillStyle = String((doc as any).getTextColor?.() || "#0f172a");
+      context.fillText(text, 2, (measuredHeight / scale) * 0.76);
+
+      const pxToMm = 25.4 / 96;
+      const widthMm = (canvas.width / scale) * pxToMm;
+      const heightMm = (canvas.height / scale) * pxToMm;
+      let drawX = x;
+      if (options?.align === "center") drawX = x - widthMm / 2;
+      if (options?.align === "right") drawX = x - widthMm;
+
+      doc.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        drawX,
+        y - heightMm * 0.76,
+        widthMm,
+        heightMm,
+        undefined,
+        "FAST"
+      );
+    };
+
     const drawHeader = () => {
       doc.setFillColor(49, 16, 101);
       doc.rect(margin, 10, tableWidth, 24, "F");
@@ -2092,11 +2176,11 @@ export default function SummaryMockup({
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(17);
-      doc.text(report.title, margin + 6, 20);
+      drawPdfText(report.title, margin + 6, 20);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      doc.text("Robinhood QA - Quality Monitoring Workspace", margin + 6, 28);
+      drawPdfText("Robinhood QA - Quality Monitoring Workspace", margin + 6, 28);
     };
 
     const ensurePageSpace = (neededHeight: number, includeTableHeader = false) => {
@@ -2114,11 +2198,11 @@ export default function SummaryMockup({
       doc.setTextColor(109, 40, 217);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.2);
-      doc.text(label, x + 3, top + 5);
+      drawPdfText(label, x + 3, top + 5);
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(8.2);
       fitText(value, width - 6, 2).forEach((line, index) => {
-        doc.text(line, x + 3, top + 10 + index * 3.6);
+        drawPdfText(line, x + 3, top + 10 + index * 3.6);
       });
     };
 
@@ -2129,7 +2213,7 @@ export default function SummaryMockup({
     doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Report Information", margin, y);
+    drawPdfText("Report Information", margin, y);
     y += 7;
 
     doc.setDrawColor(226, 232, 240);
@@ -2144,18 +2228,18 @@ export default function SummaryMockup({
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.2);
       doc.setTextColor(71, 85, 105);
-      doc.text(row[0], margin + 5, y + 7 + index * 8);
+      drawPdfText(row[0], margin + 5, y + 7 + index * 8);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(15, 23, 42);
       fitText(row[1], tableWidth - 48, 2).forEach((line, lineIndex) => {
-        doc.text(line, margin + 38, y + 7 + index * 8 + lineIndex * 3.4);
+        drawPdfText(line, margin + 38, y + 7 + index * 8 + lineIndex * 3.4);
       });
     });
 
     y += 42;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text("Executive Summary", margin, y);
+    drawPdfText("Executive Summary", margin, y);
     y += 7;
 
     const summaryRowsForPdf = [
@@ -2172,10 +2256,10 @@ export default function SummaryMockup({
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.2);
       doc.setTextColor(71, 85, 105);
-      doc.text(row[0], margin + 3, y + 5.3);
+      drawPdfText(row[0], margin + 3, y + 5.3);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(15, 23, 42);
-      doc.text(row[1], pageWidth - margin - 3, y + 5.3, { align: "right" });
+      drawPdfText(row[1], pageWidth - margin - 3, y + 5.3, { align: "right" });
       y += 8;
     });
     y += 9;
@@ -2184,7 +2268,7 @@ export default function SummaryMockup({
       doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text("Topic Performance Comparison", margin, y);
+      drawPdfText("Topic Performance Comparison", margin, y);
       y += 8;
 
       topicPolicyGroups.forEach((group: any) => {
@@ -2194,7 +2278,7 @@ export default function SummaryMockup({
         doc.setTextColor(255, 255, 255);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
-        doc.text(group.label, margin + 3, y + 5.3);
+        drawPdfText(group.label, margin + 3, y + 5.3);
         y += 8;
 
         group.topics.forEach((topic: any) => {
@@ -2205,7 +2289,7 @@ export default function SummaryMockup({
           doc.setFont("helvetica", "normal");
           doc.setFontSize(6.8);
           doc.setTextColor(15, 23, 42);
-          doc.text(fitText(topic.code + " " + topic.label, 56, 1)[0] || "", margin + 2, y + 5.2);
+          drawPdfText(fitText(topic.code + " " + topic.label, 56, 1)[0] || "", margin + 2, y + 5.2);
 
           const availableWidth = tableWidth - 60;
           const periodWidth = availableWidth / Math.max(1, group.periodLabels.length);
@@ -2214,7 +2298,7 @@ export default function SummaryMockup({
             const display = value.pct === null ? "N/A" : value.pct.toFixed(2) + "%" + (value.delta === null ? " (Base)" : " (" + (value.delta > 0 ? "+" : "") + value.delta.toFixed(2) + ")");
             doc.setFont("helvetica", "bold");
             doc.setTextColor(value.pct === null || value.delta === null ? 100 : value.delta >= 0 ? 5 : 190, value.pct === null || value.delta === null ? 116 : value.delta >= 0 ? 150 : 24, value.pct === null || value.delta === null ? 139 : value.delta >= 0 ? 105 : 93);
-            doc.text(display, x, y + 5.2, { align: "center" });
+            drawPdfText(display, x, y + 5.2, { align: "center" });
           });
           y += 8;
         });
@@ -2227,7 +2311,7 @@ export default function SummaryMockup({
       doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.text("Performance Comparison Chart", margin, y);
+      drawPdfText("Performance Comparison Chart", margin, y);
       y += 7;
 
       const chartX = margin + 8;
@@ -2245,7 +2329,7 @@ export default function SummaryMockup({
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
         doc.setTextColor(71, 85, 105);
-        doc.text(fitText(row.label, 38, 1)[0] || "", chartX, barY + 5.5);
+        drawPdfText(fitText(row.label, 38, 1)[0] || "", chartX, barY + 5.5);
         doc.setFillColor(237, 233, 254);
         doc.roundedRect(chartX + 42, barY + 1.5, chartW - 55, 6, 1.5, 1.5, "F");
         doc.setFillColor(124, 58, 237);
@@ -2254,7 +2338,7 @@ export default function SummaryMockup({
         const deltaText = delta === null ? "Base" : (delta > 0 ? "+" : "") + delta.toFixed(2);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(delta === null ? 100 : delta >= 0 ? 5 : 190, delta === null ? 116 : delta >= 0 ? 150 : 24, delta === null ? 139 : delta >= 0 ? 105 : 93);
-        doc.text(row.avgScore.toFixed(2) + " (" + deltaText + ")", chartX + chartW, barY + 5.5, { align: "right" });
+        drawPdfText(row.avgScore.toFixed(2) + " (" + deltaText + ")", chartX + chartW, barY + 5.5, { align: "right" });
       });
 
       y += chartH + 8;
@@ -2263,7 +2347,7 @@ export default function SummaryMockup({
     doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("Summary result based on selected periods", margin, y);
+    drawPdfText("Summary result based on selected periods", margin, y);
     y += 7;
 
     const drawTableHeader = () => {
@@ -2279,7 +2363,7 @@ export default function SummaryMockup({
       columns.forEach((column, index) => {
         const align = index === 0 ? "left" : "center";
         const textX = index === 0 ? x + 2 : x + colWidths[index] / 2;
-        doc.text(column, textX, y + 6.5, { align });
+        drawPdfText(column, textX, y + 6.5, { align });
         x += colWidths[index];
       });
 
@@ -2293,7 +2377,7 @@ export default function SummaryMockup({
 
     if (!report.rows.length) {
       doc.setTextColor(100, 116, 139);
-      doc.text("No data found", margin + 2, y + 7);
+      drawPdfText("No data found", margin + 2, y + 7);
     }
 
     report.rows.forEach((row, index) => {
@@ -2327,13 +2411,13 @@ export default function SummaryMockup({
       values.forEach((value, colIndex) => {
         if (Array.isArray(value)) {
           value.forEach((line, lineIndex) => {
-            doc.text(line, x + 2, y + 6 + lineIndex * 4);
+            drawPdfText(line, x + 2, y + 6 + lineIndex * 4);
           });
         } else {
           const text = fitText(value, colWidths[colIndex] - 4, 1)[0] || "";
           const align = colIndex === 0 ? "left" : "center";
           const textX = colIndex === 0 ? x + 2 : x + colWidths[colIndex] / 2;
-          doc.text(text, textX, y + 6, { align });
+          drawPdfText(text, textX, y + 6, { align });
         }
         x += colWidths[colIndex];
       });
@@ -2341,13 +2425,76 @@ export default function SummaryMockup({
       y += rowHeight;
     });
 
+    if (effectiveSelectedAgent === "all" && agentComparisonRows.length) {
+      y += 9;
+      ensurePageSpace(18);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      drawPdfText(
+        selectedPeriods.length >= 2 ? "Agent Comparison" : "Agent Overview",
+        margin,
+        y
+      );
+      y += 8;
+
+      agentComparisonRows.forEach((row: any) => {
+        ensurePageSpace(12 + row.values.length * 6);
+        doc.setFillColor(49, 16, 101);
+        doc.rect(margin, y, tableWidth, 8, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        drawPdfText(buildSuspendedAgentLabel(row.agent, accountProfiles), margin + 3, y + 5.3);
+        y += 8;
+
+        row.values.forEach((value: any, index: number) => {
+          doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(margin, y, tableWidth, 6, "FD");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7.2);
+          doc.setTextColor(71, 85, 105);
+          drawPdfText(value.period, margin + 3, y + 4.2);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(15, 23, 42);
+          const scoreText =
+            value.score === null
+              ? "N/A"
+              : value.score.toFixed(2) + " | " + value.caseCount + " case(s)";
+          drawPdfText(scoreText, pageWidth - margin - 3, y + 4.2, { align: "right" });
+          y += 6;
+        });
+
+        if (selectedPeriods.length >= 2) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.2);
+          doc.setTextColor(
+            row.overallDelta === null ? 100 : row.overallDelta >= 0 ? 5 : 190,
+            row.overallDelta === null ? 116 : row.overallDelta >= 0 ? 150 : 24,
+            row.overallDelta === null ? 139 : row.overallDelta >= 0 ? 105 : 93
+          );
+          const differenceText =
+            row.overallDelta === null
+              ? "Overall difference: N/A"
+              : "Overall difference: " +
+                (row.overallDelta > 0 ? "+" : "") +
+                row.overallDelta.toFixed(2);
+          drawPdfText(differenceText, pageWidth - margin - 3, y + 5, { align: "right" });
+          y += 7;
+        } else {
+          y += 3;
+        }
+      });
+    }
+
     const pageCount = doc.getNumberOfPages();
     for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
       doc.setPage(pageIndex);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Page ${pageIndex} of ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+      drawPdfText(`Page ${pageIndex} of ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: "right" });
     }
 
     const fileName =
@@ -2580,6 +2727,77 @@ export default function SummaryMockup({
               <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from selected periods" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
 
+            {(analysisMode === "monthly" || analysisMode === "weekly") && effectiveSelectedAgent === "all" && agentComparisonRows.length ? (
+              <Panel>
+                <PanelHeader
+                  title={
+                    selectedPeriods.length >= 2
+                      ? "Agent Comparison"
+                      : analysisMode === "monthly"
+                        ? "Monthly Agent Overview"
+                        : "Weekly Agent Overview"
+                  }
+                  subtitle={
+                    selectedPeriods.length >= 2
+                      ? "แสดงคะแนน Agent แยกตามแต่ละช่วงที่เลือก"
+                      : "ยังไม่เลือกช่วงเปรียบเทียบ ระบบจะแสดง Agent ทั้งหมดของช่วงล่าสุด"
+                  }
+                />
+                <PanelBody>
+                  <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                    <table className="min-w-[900px] w-full text-sm">
+                      <thead>
+                        <tr className="bg-violet-950 text-white">
+                          <th className="px-4 py-3 text-left">Agent</th>
+                          {agentDisplayPeriods.map((period) => (
+                            <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>
+                          ))}
+                          <th className="px-4 py-3 text-center">
+                            {selectedPeriods.length >= 2 ? "Overall Difference" : "Status"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agentComparisonRows.map((row: any) => (
+                          <tr key={row.agent} className="bg-white">
+                            <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-900">
+                              {buildSuspendedAgentLabel(row.agent, accountProfiles)}
+                            </td>
+                            {row.values.map((value: any) => (
+                              <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
+                                {value.score === null ? (
+                                  <span className="font-bold text-slate-400">N/A</span>
+                                ) : (
+                                  <>
+                                    <div className="font-black text-violet-700">{value.score.toFixed(2)}</div>
+                                    <div className="text-[11px] text-slate-500">{value.caseCount} case(s)</div>
+                                  </>
+                                )}
+                              </td>
+                            ))}
+                            <td className={
+                              "border-t border-violet-100 px-4 py-3 text-center font-black " +
+                              (row.overallDelta === null
+                                ? "text-slate-400"
+                                : row.overallDelta >= 0
+                                  ? "text-emerald-600"
+                                  : "text-rose-600")
+                            }>
+                              {selectedPeriods.length < 2
+                                ? row.values.some((value: any) => value.score !== null) ? "Active" : "No cases"
+                                : row.overallDelta === null
+                                  ? "N/A"
+                                  : (row.overallDelta > 0 ? "+" : "") + row.overallDelta.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : null}
+
             <Panel>
               <PanelHeader title="Topic Performance Comparison" subtitle="แยกตามชุดเกณฑ์ QA เพื่อไม่เปรียบเทียบหัวข้อคนละเกณฑ์เข้าด้วยกัน" />
               <PanelBody className="space-y-5">
@@ -2642,27 +2860,7 @@ export default function SummaryMockup({
               <PanelBody><SummaryTable rows={comparisonRows} firstColLabel={analysisMode === "weekly" ? "Week" : analysisMode === "monthly" ? "Month" : "Year"} showIncentive={false} /></PanelBody>
             </Panel>
 
-            {effectiveSelectedAgent === "all" && agentComparisonRows.length ? (
-              <Panel>
-                <PanelHeader title="Agent Comparison" subtitle="แยกราย Agent เมื่อเลือก All Agents" />
-                <PanelBody>
-                  <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                    <table className="min-w-[980px] w-full text-sm">
-                      <thead><tr className="bg-violet-950 text-white"><th className="px-4 py-3 text-left">Agent</th>{comparisonRows.map((period) => <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>)}<th className="px-4 py-3 text-center">Overall Δ</th></tr></thead>
-                      <tbody>
-                        {agentComparisonRows.map((row: any) => (
-                          <tr key={row.agent} className="bg-white">
-                            <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-900">{buildSuspendedAgentLabel(row.agent, accountProfiles)}</td>
-                            {row.values.map((value: any) => <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">{value.score === null ? <span className="text-slate-400">N/A</span> : <><div className="font-black text-violet-700">{value.score.toFixed(2)}</div><div className="text-[11px] text-slate-500">{value.caseCount} case(s)</div></>}</td>)}
-                            <td className={"border-t border-violet-100 px-4 py-3 text-center font-black " + (row.overallDelta >= 0 ? "text-emerald-600" : "text-rose-600")}>{row.overallDelta > 0 ? "+" : ""}{row.overallDelta.toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </PanelBody>
-              </Panel>
-            ) : null}
+
           </div>
         </div>
       </div>
