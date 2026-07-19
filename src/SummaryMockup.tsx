@@ -2464,9 +2464,9 @@ export default function SummaryMockup({
             </Panel>
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <MetricCard title="Cases" value={String(summaryCards.caseCount)} sub={hasComparison ? "Compare: " + comparisonCards.caseCount + " • Δ " + formatDelta(summaryCards.caseCount, comparisonCards.caseCount) : "Case(s) in current view"} />
-              <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub={hasComparison ? "Compare: " + comparisonCards.avgScore.toFixed(2) + " • Δ " + formatDelta(summaryCards.avgScore, comparisonCards.avgScore) : "Average final score in current view"} valueClassName="text-violet-700" />
-              <MetricCard title="Grade" value={summaryCards.grade} sub={hasComparison ? "Compare grade: " + comparisonCards.grade : "Calculated from current average score"} valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
+              <MetricCard title="Cases" value={String(summaryCards.caseCount)} sub="Case(s) in selected periods" />
+              <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub="Average score across selected periods" valueClassName="text-violet-700" />
+              <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from selected periods" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
 
             {comparisonRows.length ? (
