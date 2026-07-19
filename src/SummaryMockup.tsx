@@ -1203,6 +1203,9 @@ export default function SummaryMockup({
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
   const [reportPdfView, setReportPdfView] = useState<SummaryView>("weekly-dashboard");
+  const [compareMonth, setCompareMonth] = useState<string>("all");
+  const [compareWeek, setCompareWeek] = useState<string>("all");
+  const [compareYear, setCompareYear] = useState<string>("all");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -1700,6 +1703,13 @@ export default function SummaryMockup({
     return [{ value: "all", label: "All Years" }].concat(keys.map((key) => ({ value: key, label: key })));
   }, [allCases]);
 
+  const compareWeekOptions = useMemo(() => {
+    const filtered = compareMonth === "all" ? allCases : allCases.filter((item) => item.monthKey === compareMonth);
+    const labels = [...new Set(filtered.map((item) => item.weekLabel).filter(Boolean))]
+      .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
+    return [{ value: "all", label: "All Weeks" }].concat(labels.map((label) => ({ value: label, label })));
+  }, [allCases, compareMonth]);
+
   const effectiveSelectedAgent =
     roleScopedAgentList.length
       ? roleScopedAgentList[0]
@@ -1738,8 +1748,29 @@ export default function SummaryMockup({
     }
   }, [allCases, accountProfiles]);
 
+  const comparisonCases = useMemo(() => {
+    const enabled = compareMonth !== "all" || compareWeek !== "all" || compareYear !== "all";
+    if (!enabled) return [];
+
+    return allCases.filter((item) => {
+      if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
+      if (effectiveSelectedAgent !== "all" && !isSameAgent(item.agent, effectiveSelectedAgent)) return false;
+      if (compareMonth !== "all" && item.monthKey !== compareMonth) return false;
+      if (compareWeek !== "all" && item.weekLabel !== compareWeek) return false;
+      if (compareYear !== "all" && item.yearKey !== compareYear) return false;
+      return true;
+    });
+  }, [allCases, effectiveSelectedAgent, compareMonth, compareWeek, compareYear, roleScopedAgentList]);
+
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
+  const comparisonCards = useMemo(() => summarizeCases(comparisonCases), [comparisonCases]);
+  const comparisonTopicSummary = useMemo(() => buildTopicSummary(comparisonCases), [comparisonCases]);
+  const hasComparison = comparisonCases.length > 0;
+  const formatDelta = (current: number, previous: number) => {
+    const delta = Number((current - previous).toFixed(2));
+    return delta > 0 ? "+" + delta.toFixed(2) : delta.toFixed(2);
+  };
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -1905,6 +1936,7 @@ export default function SummaryMockup({
   function generateSummaryReportPdf() {
     const report = getSummaryRowsForReport(reportPdfView);
     const reportSummary = summarizeCases(filteredCases);
+    const reportTopicSummary = buildTopicSummary(filteredCases);
 
     const doc = new jsPDF({
       orientation: "portrait",
@@ -2030,6 +2062,31 @@ export default function SummaryMockup({
     doc.text("Generated at: " + new Date().toLocaleString("en-GB"), margin + metricColWidth + 5, y + 18);
 
     y += 33;
+
+    if (reportTopicSummary.length) {
+      ensurePageSpace(18 + reportTopicSummary.length * 8);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Topic Performance", margin, y);
+      y += 6;
+
+      reportTopicSummary.forEach((topic, index) => {
+        ensurePageSpace(8);
+        doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 248 : 255, 255);
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, tableWidth, 8, "FD");
+        doc.setTextColor(15, 23, 42);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.8);
+        doc.text(fitText(topic.code + " " + topic.label, tableWidth - 54, 1)[0] || "", margin + 2, y + 5.3);
+        doc.setFont("helvetica", "bold");
+        doc.text(topic.avgScore.toFixed(2) + " / " + topic.max.toFixed(2), pageWidth - margin - 28, y + 5.3, { align: "right" });
+        doc.text(topic.pct.toFixed(2) + "%", pageWidth - margin - 2, y + 5.3, { align: "right" });
+        y += 8;
+      });
+      y += 8;
+    }
 
     const drawTableHeader = () => {
       doc.setFillColor(49, 16, 101);
@@ -2184,8 +2241,8 @@ export default function SummaryMockup({
       {songkranTheme ? <SongkranBackdrop /> : null}
       <PageHero
         eyebrow="QA Summary"
-        title="Weekly / Monthly / Yearly Summary Workspace"
-        subtitle="รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว"
+        title="QA Performance Comparison Center"
+        subtitle="Compare ผล QA แบบ Weekly, Monthly และ Yearly พร้อม Topic Performance และรายงานในหน้าเดียว"
         workspaceTitle="Quality Monitoring Workspace"
         workspaceSubtitle="Corporate dashboard for audit tracking and case review"
       />
@@ -2273,6 +2330,30 @@ export default function SummaryMockup({
                     <div className="mt-2"><FilterSelect value={selectedYear} onChange={setSelectedYear} options={yearOptions} /></div>
                   </div>
                 </div>
+
+                <div className="rounded-[24px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-violet-50 p-4">
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-fuchsia-700">Compare Period</div>
+                  <div className="mt-1 text-xs leading-5 text-slate-600">เลือกช่วงที่ต้องการนำมาเทียบกับข้อมูลปัจจุบัน</div>
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <FilterLabel>Compare Month</FilterLabel>
+                      <div className="mt-2">
+                        <FilterSelect value={compareMonth} onChange={(value) => { setCompareMonth(value); setCompareWeek("all"); }} options={monthOptions} />
+                      </div>
+                    </div>
+                    <div>
+                      <FilterLabel>Compare Week</FilterLabel>
+                      <div className="mt-2"><FilterSelect value={compareWeek} onChange={setCompareWeek} options={compareWeekOptions} /></div>
+                    </div>
+                    <div>
+                      <FilterLabel>Compare Year</FilterLabel>
+                      <div className="mt-2"><FilterSelect value={compareYear} onChange={setCompareYear} options={yearOptions} /></div>
+                    </div>
+                    <button type="button" onClick={() => { setCompareMonth("all"); setCompareWeek("all"); setCompareYear("all"); }} className="w-full rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-xs font-bold text-fuchsia-700 hover:bg-fuchsia-50">
+                      Clear Comparison
+                    </button>
+                  </div>
+                </div>
               </PanelBody>
             </Panel>
           </div>
@@ -2292,9 +2373,9 @@ export default function SummaryMockup({
             </Panel>
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <MetricCard title="Cases" value={`${summaryCards.caseCount}`} sub="Case(s) in current view" />
-              <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub="Average final score in current view" valueClassName="text-violet-700" />
-              <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from current average score" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
+              <MetricCard title="Cases" value={String(summaryCards.caseCount)} sub={hasComparison ? "Compare: " + comparisonCards.caseCount + " • Δ " + formatDelta(summaryCards.caseCount, comparisonCards.caseCount) : "Case(s) in current view"} />
+              <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub={hasComparison ? "Compare: " + comparisonCards.avgScore.toFixed(2) + " • Δ " + formatDelta(summaryCards.avgScore, comparisonCards.avgScore) : "Average final score in current view"} valueClassName="text-violet-700" />
+              <MetricCard title="Grade" value={summaryCards.grade} sub={hasComparison ? "Compare grade: " + comparisonCards.grade : "Calculated from current average score"} valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
 
             <Panel>
@@ -2313,8 +2394,30 @@ export default function SummaryMockup({
             </Panel>
 
             <Panel>
-              <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
-              <PanelBody><TopicTable topics={topicSummary} /></PanelBody>
+              <PanelHeader title="Topic Performance" subtitle={hasComparison ? "คะแนนรายหัวข้อ พร้อมผลต่างจากช่วงที่เลือกเปรียบเทียบ" : "Average topic score in current view"} />
+              <PanelBody>
+                <TopicTable topics={topicSummary} />
+                {hasComparison ? (
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-violet-100">
+                    <div className="grid grid-cols-[minmax(0,1fr)_110px_110px_90px] bg-violet-950 px-4 py-3 text-xs font-black uppercase tracking-wide text-white">
+                      <div>Topic</div><div className="text-center">Current</div><div className="text-center">Compare</div><div className="text-center">Δ</div>
+                    </div>
+                    {topicSummary.map((topic) => {
+                      const compareTopic = comparisonTopicSummary.find((item) => item.code === topic.code);
+                      const comparePct = compareTopic?.pct ?? 0;
+                      const delta = topic.pct - comparePct;
+                      return (
+                        <div key={topic.code} className="grid grid-cols-[minmax(0,1fr)_110px_110px_90px] items-center border-t border-violet-100 bg-white px-4 py-3 text-sm">
+                          <div className="pr-3 font-bold text-slate-800">{topic.code} {topic.label}</div>
+                          <div className="text-center font-black text-violet-700">{topic.pct.toFixed(2)}%</div>
+                          <div className="text-center font-bold text-slate-600">{comparePct.toFixed(2)}%</div>
+                          <div className={"text-center font-black " + (delta >= 0 ? "text-emerald-600" : "text-rose-600")}>{formatDelta(topic.pct, comparePct)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </PanelBody>
             </Panel>
           </div>
         </div>
