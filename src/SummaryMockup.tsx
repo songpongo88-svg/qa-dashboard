@@ -1203,9 +1203,8 @@ export default function SummaryMockup({
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
   const [reportPdfView, setReportPdfView] = useState<SummaryView>("weekly-dashboard");
-  const [compareMonth, setCompareMonth] = useState<string>("all");
-  const [compareWeek, setCompareWeek] = useState<string>("all");
-  const [compareYear, setCompareYear] = useState<string>("all");
+  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
+  const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -1703,12 +1702,36 @@ export default function SummaryMockup({
     return [{ value: "all", label: "All Years" }].concat(keys.map((key) => ({ value: key, label: key })));
   }, [allCases]);
 
-  const compareWeekOptions = useMemo(() => {
-    const filtered = compareMonth === "all" ? allCases : allCases.filter((item) => item.monthKey === compareMonth);
-    const labels = [...new Set(filtered.map((item) => item.weekLabel).filter(Boolean))]
-      .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
-    return [{ value: "all", label: "All Weeks" }].concat(labels.map((label) => ({ value: label, label })));
-  }, [allCases, compareMonth]);
+  const periodOptions = useMemo(() => {
+    if (analysisMode === "weekly") {
+      return [...new Set(allCases.map((item) => item.weekLabel).filter((value) => value && value !== "-"))]
+        .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
+    }
+    if (analysisMode === "monthly") {
+      return [...new Set(allCases.map((item) => item.monthKey).filter(Boolean))]
+        .sort((a, b) => b.localeCompare(a));
+    }
+    return [...new Set(allCases.map((item) => item.yearKey).filter(Boolean))]
+      .sort((a, b) => b.localeCompare(a));
+  }, [allCases, analysisMode]);
+
+  const getPeriodDisplayLabel = (value: string) => {
+    if (analysisMode === "monthly") {
+      return allCases.find((item) => item.monthKey === value)?.monthLabel || value;
+    }
+    return value;
+  };
+
+  useEffect(() => {
+    setSelectedPeriods([]);
+    setViewMode(
+      analysisMode === "weekly"
+        ? "weekly-dashboard"
+        : analysisMode === "monthly"
+          ? "monthly-dashboard"
+          : "yearly-team-summary"
+    );
+  }, [analysisMode]);
 
   const effectiveSelectedAgent =
     roleScopedAgentList.length
@@ -1719,12 +1742,16 @@ export default function SummaryMockup({
     return allCases.filter((item) => {
       if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
       if (effectiveSelectedAgent !== "all" && !isSameAgent(item.agent, effectiveSelectedAgent)) return false;
-      if (selectedMonth !== "all" && item.monthKey !== selectedMonth) return false;
-      if (selectedWeek !== "all" && item.weekLabel !== selectedWeek) return false;
-      if (selectedYear !== "all" && item.yearKey !== selectedYear) return false;
+
+      if (selectedPeriods.length) {
+        if (analysisMode === "weekly" && !selectedPeriods.includes(item.weekLabel)) return false;
+        if (analysisMode === "monthly" && !selectedPeriods.includes(item.monthKey)) return false;
+        if (analysisMode === "yearly" && !selectedPeriods.includes(item.yearKey)) return false;
+      }
+
       return true;
     });
-  }, [allCases, effectiveSelectedAgent, selectedMonth, selectedWeek, selectedYear, roleScopedAgentList]);
+  }, [allCases, effectiveSelectedAgent, selectedPeriods, analysisMode, roleScopedAgentList]);
 
   useEffect(() => {
     if (!accountProfiles.length || !allCases.length) return;
@@ -1748,29 +1775,28 @@ export default function SummaryMockup({
     }
   }, [allCases, accountProfiles]);
 
-  const comparisonCases = useMemo(() => {
-    const enabled = compareMonth !== "all" || compareWeek !== "all" || compareYear !== "all";
-    if (!enabled) return [];
-
-    return allCases.filter((item) => {
-      if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
-      if (effectiveSelectedAgent !== "all" && !isSameAgent(item.agent, effectiveSelectedAgent)) return false;
-      if (compareMonth !== "all" && item.monthKey !== compareMonth) return false;
-      if (compareWeek !== "all" && item.weekLabel !== compareWeek) return false;
-      if (compareYear !== "all" && item.yearKey !== compareYear) return false;
-      return true;
-    });
-  }, [allCases, effectiveSelectedAgent, compareMonth, compareWeek, compareYear, roleScopedAgentList]);
-
   const summaryCards = useMemo(() => summarizeCases(filteredCases), [filteredCases]);
   const topicSummary = useMemo(() => buildTopicSummary(filteredCases), [filteredCases]);
-  const comparisonCards = useMemo(() => summarizeCases(comparisonCases), [comparisonCases]);
-  const comparisonTopicSummary = useMemo(() => buildTopicSummary(comparisonCases), [comparisonCases]);
-  const hasComparison = comparisonCases.length > 0;
-  const formatDelta = (current: number, previous: number) => {
-    const delta = Number((current - previous).toFixed(2));
-    return delta > 0 ? "+" + delta.toFixed(2) : delta.toFixed(2);
-  };
+
+  const comparisonRows = useMemo(() => {
+    const groupedBy = analysisMode === "weekly" ? "week" : analysisMode === "monthly" ? "month" : "year";
+    return groupCases(filteredCases, groupedBy);
+  }, [filteredCases, analysisMode]);
+
+  const topicComparisonRows = useMemo(() => {
+    return topicSummary.map((topic) => {
+      const values = comparisonRows.map((period) => {
+        const scopedCases = filteredCases.filter((item) => {
+          if (analysisMode === "weekly") return item.weekLabel === period.label;
+          if (analysisMode === "monthly") return item.monthLabel === period.label;
+          return item.yearKey === period.label;
+        });
+        const scopedTopic = buildTopicSummary(scopedCases).find((item) => item.code === topic.code);
+        return { period: period.label, pct: scopedTopic?.pct ?? 0 };
+      });
+      return { ...topic, values };
+    });
+  }, [topicSummary, comparisonRows, filteredCases, analysisMode]);
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -1828,6 +1854,8 @@ export default function SummaryMockup({
   const agentMonthlyAnalyticsFirstCol = effectiveSelectedAgent === "all" ? "Agent" : "Month";
 
   const summaryRows = useMemo(() => {
+    if (effectiveSelectedAgent !== "all") return comparisonRows;
+
     switch (viewMode) {
       case "weekly-dashboard":
       case "weekly-qa-by-agent":
@@ -1846,9 +1874,9 @@ export default function SummaryMockup({
       case "yearly-team-summary":
         return groupCases(filteredCases, "year");
       default:
-        return [];
+        return comparisonRows;
     }
-  }, [filteredCases, viewMode, availableAgents, selectedMonth, accountProfiles]);
+  }, [filteredCases, viewMode, availableAgents, selectedMonth, accountProfiles, effectiveSelectedAgent, comparisonRows]);
 
   const summaryTableShowIncentive = viewMode === "monthly-team-summary";
 
@@ -2063,6 +2091,48 @@ export default function SummaryMockup({
 
     y += 33;
 
+    if (report.rows.length > 1) {
+      ensurePageSpace(74);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("Performance Comparison Chart", margin, y);
+      y += 7;
+
+      const chartX = margin + 12;
+      const chartY = y;
+      const chartW = tableWidth - 18;
+      const chartH = 48;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(chartX, chartY, chartX, chartY + chartH);
+      doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH);
+
+      const points = report.rows.map((row, index) => {
+        const x = report.rows.length === 1 ? chartX + chartW / 2 : chartX + index * (chartW / (report.rows.length - 1));
+        const score = Math.max(0, Math.min(100, row.avgScore));
+        const pointY = chartY + chartH - (score / 100) * chartH;
+        return { x, y: pointY, score, label: row.label };
+      });
+
+      doc.setDrawColor(124, 58, 237);
+      doc.setLineWidth(0.8);
+      for (let index = 1; index < points.length; index += 1) {
+        doc.line(points[index - 1].x, points[index - 1].y, points[index].x, points[index].y);
+      }
+
+      points.forEach((point) => {
+        doc.setFillColor(124, 58, 237);
+        doc.circle(point.x, point.y, 1.5, "F");
+        doc.setFontSize(6.5);
+        doc.setTextColor(76, 29, 149);
+        doc.text(point.score.toFixed(2), point.x, Math.max(chartY + 3, point.y - 3), { align: "center" });
+        doc.setTextColor(71, 85, 105);
+        doc.text(fitText(point.label, 24, 1)[0] || "", point.x, chartY + chartH + 5, { align: "center" });
+      });
+
+      y += chartH + 14;
+    }
+
     if (reportTopicSummary.length) {
       ensurePageSpace(18 + reportTopicSummary.length * 8);
       doc.setTextColor(15, 23, 42);
@@ -2272,88 +2342,109 @@ export default function SummaryMockup({
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel className="sticky top-4">
-              <PanelHeader title="Summary Controls" subtitle="Select summary type and filter scope" />
+              <PanelHeader title="Choose What to Compare" subtitle="เลือกช่วงเวลาได้หลายรายการ แล้วดูผลเปรียบเทียบในหน้าเดียว" />
               <PanelBody className="space-y-5">
-                <div className="space-y-2">
-                  <ViewButton active={viewMode === "weekly-dashboard"} label="Weekly Dashboard" onClick={() => setViewMode("weekly-dashboard")} />
-                  {!roleScopedAgentList.length ? (
-                    <ViewButton active={viewMode === "weekly-qa-by-agent"} label="Weekly QA by Agent" onClick={() => setViewMode("weekly-qa-by-agent")} />
-                  ) : null}
-                  <ViewButton active={viewMode === "monthly-dashboard"} label="Monthly Dashboard" onClick={() => setViewMode("monthly-dashboard")} />
-                  <ViewButton active={viewMode === "monthly-team-summary"} label="Monthly Team Summary" onClick={() => setViewMode("monthly-team-summary")} />
-                  <ViewButton active={viewMode === "yearly-team-summary"} label="Yearly Team Summary" onClick={() => setViewMode("yearly-team-summary")} />
-                  <ViewButton active={viewMode === "yearly-by-agent"} label="Yearly by Agent" onClick={() => setViewMode("yearly-by-agent")} />
+                <div>
+                  <FilterLabel>1. Compare Type</FilterLabel>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {[
+                      { value: "weekly", label: "Weekly" },
+                      { value: "monthly", label: "Monthly" },
+                      { value: "yearly", label: "Yearly" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setAnalysisMode(option.value as "weekly" | "monthly" | "yearly")}
+                        className={
+                          "rounded-2xl border px-3 py-3 text-xs font-black transition " +
+                          (analysisMode === option.value
+                            ? "border-violet-700 bg-violet-700 text-white shadow-lg shadow-violet-200"
+                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50")
+                        }
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <div>
+                  <FilterLabel>2. Select Agent</FilterLabel>
+                  <div className="mt-2">
+                    {roleScopedAgentList.length ? (
+                      <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800">
+                        {effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}
+                      </div>
+                    ) : (
+                      <FilterSelect
+                        value={effectiveSelectedAgent || "all"}
+                        onChange={(value) => {
+                          setSelectedAgent(value);
+                          onSelectedAgentChange?.(value);
+                        }}
+                        options={[{ value: "all", label: "All Agents" }].concat(
+                          availableAgents.map((agent) => ({ value: agent, label: buildSuspendedAgentLabel(agent, accountProfiles) }))
+                        )}
+                      />
+                    )}
+                  </div>
+                  {effectiveSelectedAgent !== "all" ? (
+                    <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+                      แสดงเฉพาะข้อมูลของ {buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles)}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <FilterLabel>3. Select {analysisMode === "weekly" ? "Weeks" : analysisMode === "monthly" ? "Months" : "Years"}</FilterLabel>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPeriods(selectedPeriods.length === periodOptions.length ? [] : periodOptions)}
+                      className="text-xs font-black text-violet-700 hover:text-violet-900"
+                    >
+                      {selectedPeriods.length === periodOptions.length ? "Clear All" : "Select All"}
+                    </button>
+                  </div>
+                  <div className="mt-2 max-h-[320px] space-y-2 overflow-y-auto rounded-2xl border border-violet-100 bg-violet-50/50 p-3">
+                    {periodOptions.map((period) => {
+                      const checked = selectedPeriods.includes(period);
+                      return (
+                        <label key={period} className={"flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 transition " + (checked ? "border-violet-500 bg-white shadow-sm" : "border-transparent bg-white/60 hover:border-violet-200")}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setSelectedPeriods((current) =>
+                                current.includes(period)
+                                  ? current.filter((item) => item !== period)
+                                  : [...current, period]
+                              );
+                            }}
+                            className="h-4 w-4 accent-violet-700"
+                          />
+                          <span className="text-sm font-bold text-slate-800">{getPeriodDisplayLabel(period)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 text-xs font-semibold text-slate-500">
+                    เลือกแล้ว {selectedPeriods.length} รายการ {selectedPeriods.length < 2 ? "• เลือกอย่างน้อย 2 รายการเพื่อเปรียบเทียบ" : ""}
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => {
                     setReportPdfView(viewMode);
                     setReportPdfDialogOpen(true);
                   }}
-                  className="inline-flex w-full items-center justify-center rounded-2xl border border-violet-300 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(109,40,217,0.18)] transition hover:from-violet-800 hover:to-fuchsia-700"
+                  disabled={selectedPeriods.length < 2}
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-black text-white shadow-lg transition hover:from-violet-800 hover:to-fuchsia-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Export Report PDF
+                  Generate Compare PDF
                 </button>
-
-                <div className="space-y-4">
-                  <div>
-                    <FilterLabel>Agent</FilterLabel>
-                    <div className="mt-2">
-                      {roleScopedAgentList.length ? (
-                        <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                          {effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}
-                        </div>
-                      ) : (
-                        <FilterSelect
-                          value={effectiveSelectedAgent || "all"}
-                          onChange={(value) => {
-                            setSelectedAgent(value);
-                            onSelectedAgentChange?.(value);
-                          }}
-                          options={[{ value: "all", label: "All Agents" }].concat(
-                            availableAgents.map((agent) => ({ value: agent, label: buildSuspendedAgentLabel(agent, accountProfiles) }))
-                          )}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <FilterLabel>Month</FilterLabel>
-                    <div className="mt-2"><FilterSelect value={selectedMonth} onChange={(value) => { setSelectedMonth(value); onSelectedMonthChange?.(value); setSelectedWeek("all"); }} options={monthOptions} /></div>
-                  </div>
-                  <div>
-                    <FilterLabel>Week</FilterLabel>
-                    <div className="mt-2"><FilterSelect value={selectedWeek} onChange={(value) => { setSelectedWeek(value); onSelectedWeekChange?.(value); }} options={weekOptions} /></div>
-                  </div>
-                  <div>
-                    <FilterLabel>Year</FilterLabel>
-                    <div className="mt-2"><FilterSelect value={selectedYear} onChange={setSelectedYear} options={yearOptions} /></div>
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-violet-50 p-4">
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-fuchsia-700">Compare Period</div>
-                  <div className="mt-1 text-xs leading-5 text-slate-600">เลือกช่วงที่ต้องการนำมาเทียบกับข้อมูลปัจจุบัน</div>
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <FilterLabel>Compare Month</FilterLabel>
-                      <div className="mt-2">
-                        <FilterSelect value={compareMonth} onChange={(value) => { setCompareMonth(value); setCompareWeek("all"); }} options={monthOptions} />
-                      </div>
-                    </div>
-                    <div>
-                      <FilterLabel>Compare Week</FilterLabel>
-                      <div className="mt-2"><FilterSelect value={compareWeek} onChange={setCompareWeek} options={compareWeekOptions} /></div>
-                    </div>
-                    <div>
-                      <FilterLabel>Compare Year</FilterLabel>
-                      <div className="mt-2"><FilterSelect value={compareYear} onChange={setCompareYear} options={yearOptions} /></div>
-                    </div>
-                    <button type="button" onClick={() => { setCompareMonth("all"); setCompareWeek("all"); setCompareYear("all"); }} className="w-full rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-xs font-bold text-fuchsia-700 hover:bg-fuchsia-50">
-                      Clear Comparison
-                    </button>
-                  </div>
-                </div>
               </PanelBody>
             </Panel>
           </div>
@@ -2378,8 +2469,54 @@ export default function SummaryMockup({
               <MetricCard title="Grade" value={summaryCards.grade} sub={hasComparison ? "Compare grade: " + comparisonCards.grade : "Calculated from current average score"} valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
 
+            {comparisonRows.length ? (
+              <Panel>
+                <PanelHeader title="Performance Comparison Chart" subtitle="แนวโน้มคะแนนเฉลี่ยของช่วงเวลาที่เลือก" />
+                <PanelBody>
+                  <div className="overflow-x-auto">
+                    <svg viewBox="0 0 900 300" className="min-w-[760px] w-full">
+                      <line x1="70" y1="25" x2="70" y2="245" stroke="#cbd5e1" strokeWidth="1" />
+                      <line x1="70" y1="245" x2="860" y2="245" stroke="#cbd5e1" strokeWidth="1" />
+                      {[0, 25, 50, 75, 100].map((tick) => {
+                        const y = 245 - tick * 2.2;
+                        return (
+                          <g key={tick}>
+                            <line x1="70" y1={y} x2="860" y2={y} stroke="#ede9fe" strokeWidth="1" />
+                            <text x="58" y={y + 4} textAnchor="end" fontSize="11" fill="#64748b">{tick}</text>
+                          </g>
+                        );
+                      })}
+                      <polyline
+                        fill="none"
+                        stroke="#7c3aed"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={comparisonRows.map((row, index) => {
+                          const x = comparisonRows.length === 1 ? 465 : 80 + index * (770 / (comparisonRows.length - 1));
+                          const y = 245 - Math.max(0, Math.min(100, row.avgScore)) * 2.2;
+                          return x + "," + y;
+                        }).join(" ")}
+                      />
+                      {comparisonRows.map((row, index) => {
+                        const x = comparisonRows.length === 1 ? 465 : 80 + index * (770 / (comparisonRows.length - 1));
+                        const y = 245 - Math.max(0, Math.min(100, row.avgScore)) * 2.2;
+                        return (
+                          <g key={row.label}>
+                            <circle cx={x} cy={y} r="6" fill="#7c3aed" />
+                            <text x={x} y={y - 12} textAnchor="middle" fontSize="12" fontWeight="700" fill="#4c1d95">{row.avgScore.toFixed(2)}</text>
+                            <text x={x} y="270" textAnchor="middle" fontSize="10" fill="#475569">{row.label.length > 18 ? row.label.slice(0, 18) + "..." : row.label}</text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : null}
+
             <Panel>
-              <PanelHeader title="Summary Table" subtitle="Summary result based on current tab and filters" />
+              <PanelHeader title="Summary Table" subtitle="Summary result based on selected periods" />
               <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} showIncentive={summaryTableShowIncentive} /></PanelBody>
             </Panel>
 
@@ -2394,29 +2531,30 @@ export default function SummaryMockup({
             </Panel>
 
             <Panel>
-              <PanelHeader title="Topic Performance" subtitle={hasComparison ? "คะแนนรายหัวข้อ พร้อมผลต่างจากช่วงที่เลือกเปรียบเทียบ" : "Average topic score in current view"} />
+              <PanelHeader title="Topic Performance Comparison" subtitle="เปรียบเทียบคะแนนแต่ละ Topic แยกตามช่วงเวลาที่เลือก" />
               <PanelBody>
-                <TopicTable topics={topicSummary} />
-                {hasComparison ? (
-                  <div className="mt-5 overflow-hidden rounded-2xl border border-violet-100">
-                    <div className="grid grid-cols-[minmax(0,1fr)_110px_110px_90px] bg-violet-950 px-4 py-3 text-xs font-black uppercase tracking-wide text-white">
-                      <div>Topic</div><div className="text-center">Current</div><div className="text-center">Compare</div><div className="text-center">Δ</div>
-                    </div>
-                    {topicSummary.map((topic) => {
-                      const compareTopic = comparisonTopicSummary.find((item) => item.code === topic.code);
-                      const comparePct = compareTopic?.pct ?? 0;
-                      const delta = topic.pct - comparePct;
-                      return (
-                        <div key={topic.code} className="grid grid-cols-[minmax(0,1fr)_110px_110px_90px] items-center border-t border-violet-100 bg-white px-4 py-3 text-sm">
-                          <div className="pr-3 font-bold text-slate-800">{topic.code} {topic.label}</div>
-                          <div className="text-center font-black text-violet-700">{topic.pct.toFixed(2)}%</div>
-                          <div className="text-center font-bold text-slate-600">{comparePct.toFixed(2)}%</div>
-                          <div className={"text-center font-black " + (delta >= 0 ? "text-emerald-600" : "text-rose-600")}>{formatDelta(topic.pct, comparePct)}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
+                <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                  <table className="min-w-[900px] w-full text-sm">
+                    <thead>
+                      <tr className="bg-violet-950 text-white">
+                        <th className="px-4 py-3 text-left">Topic</th>
+                        {comparisonRows.map((period) => (
+                          <th key={period.label} className="px-4 py-3 text-center">{period.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topicComparisonRows.map((topic) => (
+                        <tr key={topic.code} className="bg-white">
+                          <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">{topic.code} {topic.label}</td>
+                          {topic.values.map((value) => (
+                            <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">{value.pct.toFixed(2)}%</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </PanelBody>
             </Panel>
           </div>
