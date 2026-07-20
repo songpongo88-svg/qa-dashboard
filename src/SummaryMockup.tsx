@@ -1982,50 +1982,191 @@ export default function SummaryMockup({
 
   const periodTopicReports = useMemo(() => {
     const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, "0")}`;
+    const currentMonthKey =
+      `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, "0")}`;
     const currentYearKey = String(now.getFullYear());
 
     return comparisonRows.map((period) => {
       const periodCases = getCasesForPeriodLabel(period.label);
       const activeCodes = new Set(
         periodCases.flatMap((item) =>
-          (item.reviewStatus === "Revised" && item.revisedTopics?.length
-            ? mergeTopicSet(item.topics, item.revisedTopics)
-            : item.topics
+          (
+            item.reviewStatus === "Revised" &&
+            item.revisedTopics?.length
+              ? mergeTopicSet(
+                  item.topics,
+                  item.revisedTopics
+                )
+              : item.topics
           ).map((topic) => topic.code)
         )
       );
 
-      const topics = buildTopicSummary(periodCases).filter((topic) => activeCodes.has(topic.code));
-      const strongest = [...topics].sort((a, b) => b.pct - a.pct).slice(0, 3);
-      const coaching = [...topics].sort((a, b) => a.pct - b.pct).slice(0, 3);
-      const summary = summarizeCases(periodCases);
-      const policy = getTopicPolicyGroup(getPolicyMonthKeyForCases(periodCases));
+      const topics = buildTopicSummary(
+        periodCases
+      ).filter((topic) =>
+        activeCodes.has(topic.code)
+      );
+
+      const strongest = [...topics]
+        .sort((a, b) => b.pct - a.pct)
+        .slice(0, 3);
+
+      const coaching = [...topics]
+        .sort((a, b) => a.pct - b.pct)
+        .slice(0, 3);
+
+      const summary =
+        summarizeCases(periodCases);
+
+      const policy =
+        getTopicPolicyGroup(
+          getPolicyMonthKeyForCases(
+            periodCases
+          )
+        );
+
+      const evaluatedAgents =
+        getUniqueNormalizedAgents(
+          periodCases.map(
+            (item) => item.agent
+          )
+        );
+
+      const agentCaseCounts =
+        evaluatedAgents.map(
+          (agent) => ({
+            agent,
+            count: periodCases.filter(
+              (item) =>
+                isSameAgent(
+                  item.agent,
+                  agent
+                )
+            ).length,
+          })
+        );
+
+      const agentsMeetingTarget =
+        agentCaseCounts.filter(
+          (item) =>
+            item.count >= CASE_TARGET
+        ).length;
+
+      const averageCasesPerAgent =
+        evaluatedAgents.length
+          ? Number(
+              (
+                periodCases.length /
+                evaluatedAgents.length
+              ).toFixed(2)
+            )
+          : 0;
+
+      const selectedAgentCaseCount =
+        effectiveSelectedAgent === "all"
+          ? null
+          : periodCases.length;
+
+      const selectedAgentStatus =
+        selectedAgentCaseCount === null
+          ? null
+          : selectedAgentCaseCount === 0
+            ? "Not Started"
+            : selectedAgentCaseCount <
+                CASE_TARGET
+              ? "In Progress"
+              : selectedAgentCaseCount ===
+                  CASE_TARGET
+                ? "Completed"
+                : "Over Target";
 
       let isCurrent = false;
-      if (analysisMode === "monthly") {
-        isCurrent = periodCases.some((item) => item.monthKey === currentMonthKey);
-      } else if (analysisMode === "yearly") {
-        isCurrent = period.label === currentYearKey;
-      } else {
-        const dates = period.label.match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
-        const endDate = excelDateToJSDate(dates?.[dates.length - 1]);
+
+      if (
+        analysisMode === "monthly"
+      ) {
+        isCurrent =
+          periodCases.some(
+            (item) =>
+              item.monthKey ===
+              currentMonthKey
+          );
+      }
+      else if (
+        analysisMode === "yearly"
+      ) {
+        isCurrent =
+          period.label ===
+          currentYearKey;
+      }
+      else {
+        const dates =
+          period.label.match(
+            /\d{1,2}\/\d{1,2}\/\d{4}/g
+          );
+
+        const endDate =
+          excelDateToJSDate(
+            dates?.[
+              dates.length - 1
+            ]
+          );
+
         if (endDate) {
-          endDate.setHours(23, 59, 59, 999);
-          isCurrent = endDate.getTime() >= now.getTime();
+          endDate.setHours(
+            23,
+            59,
+            59,
+            999
+          );
+
+          isCurrent =
+            endDate.getTime() >=
+            now.getTime();
         }
       }
 
-      const gradeOrder = ["A", "B", "C", "D", "F", "G"];
-      const gradeMix = gradeOrder.map((grade) => {
-        const count = periodCases.filter((item) => String(item.grade) === grade).length;
-        return {
-          grade,
-          count,
-          pct: periodCases.length ? Number(((count / periodCases.length) * 100).toFixed(2)) : 0,
-        };
-      });
-      const revisedCount = periodCases.filter((item) => item.reviewStatus === "Revised").length;
+      const gradeOrder = [
+        "A",
+        "B",
+        "C",
+        "D",
+        "F",
+        "G",
+      ];
+
+      const gradeMix =
+        gradeOrder.map((grade) => {
+          const count =
+            periodCases.filter(
+              (item) =>
+                String(
+                  item.grade
+                ) === grade
+            ).length;
+
+          return {
+            grade,
+            count,
+            pct: periodCases.length
+              ? Number(
+                  (
+                    (count /
+                      periodCases.length) *
+                    100
+                  ).toFixed(2)
+                )
+              : 0,
+          };
+        });
+
+      const revisedCount =
+        periodCases.filter(
+          (item) =>
+            item.reviewStatus ===
+            "Revised"
+        ).length;
 
       return {
         ...period,
@@ -2035,15 +2176,36 @@ export default function SummaryMockup({
         coaching,
         summary,
         policy,
+        coverage: {
+          agentCount:
+            evaluatedAgents.length,
+          averageCasesPerAgent,
+          agentsMeetingTarget,
+          target: CASE_TARGET,
+          selectedAgentCaseCount,
+          selectedAgentStatus,
+        },
         gradeMix,
         reviewMix: {
-          original: periodCases.length - revisedCount,
+          original:
+            periodCases.length -
+            revisedCount,
           revised: revisedCount,
         },
-        status: periodCases.length === 0 ? "No Data" : isCurrent ? "In Progress" : "Complete",
+        status:
+          periodCases.length === 0
+            ? "No Data"
+            : isCurrent
+              ? "In Progress"
+              : "Complete",
       };
     });
-  }, [comparisonRows, filteredCases, analysisMode]);
+  }, [
+    comparisonRows,
+    filteredCases,
+    analysisMode,
+    effectiveSelectedAgent,
+  ]);
 
   const topicDifferenceGroups = useMemo(() => {
     const groups = new Map<string, any>();
@@ -2189,9 +2351,183 @@ export default function SummaryMockup({
   }, [comparisonRowsWithDelta, filteredCases]);
 
   const caseHighlights = useMemo(() => {
-    const buildHighlight = (item: CaseItem) => {
+    const cleanPoint = (
+      value: unknown,
+      maxLength = 150
+    ) => {
+      const text = String(
+        value || ""
+      )
+        .replace(
+          /[\r\n•▪●◦]+/g,
+          " "
+        )
+        .replace(
+          /\s+/g,
+          " "
+        )
+        .replace(
+          /^(จากการตรวจสอบ|จุดที่หักคือ|จุดที่ควรปรับ|ข้อควรปรับ|สิ่งที่ทำได้ดี|จุดเด่น)\s*:?\s*/i,
+          ""
+        )
+        .trim();
+
+      if (
+        text.length <= maxLength
+      ) {
+        return text;
+      }
+
+      const shortened =
+        text.slice(
+          0,
+          maxLength
+        );
+
+      const lastBreak =
+        Math.max(
+          shortened.lastIndexOf(
+            " "
+          ),
+          shortened.lastIndexOf(
+            ","
+          ),
+          shortened.lastIndexOf(
+            "，"
+          )
+        );
+
+      return (
+        (
+          lastBreak > 80
+            ? shortened.slice(
+                0,
+                lastBreak
+              )
+            : shortened
+        ).trim() + "…"
+      );
+    };
+
+    const summarizeComment = (
+      value: unknown,
+      type:
+        | "strength"
+        | "improvement"
+    ) => {
+      const text = String(
+        value || ""
+      ).trim();
+
+      if (!text) return "";
+
+      const prepared = text
+        .replace(
+          /(จุดที่หักคือ|จุดที่ควรปรับ|ข้อควรปรับ|สิ่งที่ทำได้ดี|จุดเด่น|จากการตรวจสอบ|ตัวอย่างที่เหมาะสม)/g,
+          "|||$1"
+        )
+        .replace(
+          /([.!?])\s+/g,
+          "$1|||"
+        )
+        .replace(
+          /[\r\n•▪●◦]+/g,
+          "|||"
+        );
+
+      const chunks = prepared
+        .split("|||")
+        .map((item) =>
+          cleanPoint(item)
+        )
+        .filter(
+          (item) =>
+            item.length >= 12
+        );
+
+      if (!chunks.length) {
+        return cleanPoint(text);
+      }
+
+      const keywords =
+        type === "strength"
+          ? [
+              "ถูกต้อง",
+              "ครบถ้วน",
+              "ตรวจสอบ",
+              "ชัดเจน",
+              "สุภาพ",
+              "เหมาะสม",
+              "ตาม process",
+              "ติดตาม",
+              "ดำเนินการ",
+              "สรุปผล",
+            ]
+          : [
+              "ควร",
+              "ไม่ได้",
+              "ไม่พบ",
+              "ไม่",
+              "ขาด",
+              "ผิด",
+              "หัก",
+              "ยัง",
+              "ล่าช้า",
+              "ไม่ครบ",
+              "ไม่ชัดเจน",
+            ];
+
+      const ranked = chunks
+        .map((item, index) => {
+          const normalized =
+            item.toLowerCase();
+
+          const keywordScore =
+            keywords.reduce(
+              (score, keyword) =>
+                score +
+                (
+                  normalized.includes(
+                    keyword
+                  )
+                    ? 3
+                    : 0
+                ),
+              0
+            );
+
+          const boilerplatePenalty =
+            normalized.includes(
+              "ตัวอย่างที่เหมาะสม"
+            )
+              ? 3
+              : 0;
+
+          return {
+            item,
+            score:
+              keywordScore -
+              boilerplatePenalty -
+              index * 0.05,
+          };
+        })
+        .sort(
+          (a, b) =>
+            b.score - a.score
+        );
+
+      return cleanPoint(
+        ranked[0]?.item ||
+          chunks[0]
+      );
+    };
+
+    const buildHighlight = (
+      item: CaseItem
+    ) => {
       const effectiveTopics =
-        item.reviewStatus === "Revised" &&
+        item.reviewStatus ===
+          "Revised" &&
         item.revisedTopics?.length
           ? mergeTopicSet(
               item.topics,
@@ -2199,12 +2535,18 @@ export default function SummaryMockup({
             )
           : item.topics;
 
-      const sortedHigh = [...effectiveTopics].sort(
-        (a, b) => b.pct - a.pct
+      const sortedHigh = [
+        ...effectiveTopics,
+      ].sort(
+        (a, b) =>
+          b.pct - a.pct
       );
 
-      const sortedLow = [...effectiveTopics].sort(
-        (a, b) => a.pct - b.pct
+      const sortedLow = [
+        ...effectiveTopics,
+      ].sort(
+        (a, b) =>
+          a.pct - b.pct
       );
 
       const strongestTopic =
@@ -2224,43 +2566,54 @@ export default function SummaryMockup({
 
       const buildNote = (
         topic: Topic,
-        type: "strength" | "improvement"
+        type:
+          | "strength"
+          | "improvement"
       ) => {
-        const comment = String(
-          topic.comment || ""
-        ).trim();
+        const comment =
+          String(
+            topic.comment || ""
+          ).trim();
 
-        const deducted = Number(
-          Math.max(
-            0,
-            topic.max - topic.score
-          ).toFixed(2)
-        );
+        const deducted =
+          Number(
+            Math.max(
+              0,
+              topic.max -
+                topic.score
+            ).toFixed(2)
+          );
 
         const fallback =
           type === "strength"
-            ? `ได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน และเป็นหัวข้อที่ทำได้ดีของเคส`
-            : `ได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน${
+            ? `ทำได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน`
+            : `ทำได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน${
                 deducted > 0
-                  ? ` (ถูกหัก ${deducted.toFixed(2)} คะแนน)`
+                  ? ` และถูกหัก ${deducted.toFixed(2)} คะแนน`
                   : ""
               }`;
 
         return {
           label: topic.label,
           pct: topic.pct,
-          detail: comment || fallback,
+          detail:
+            summarizeComment(
+              comment,
+              type
+            ) || fallback,
         };
       };
 
       const strengthCandidates =
         sortedHigh.filter(
-          (topic) => topic.pct >= 90
+          (topic) =>
+            topic.pct >= 90
         );
 
       const improvementCandidates =
         sortedLow.filter(
-          (topic) => topic.pct < 100
+          (topic) =>
+            topic.pct < 100
         );
 
       const strengthNotes = (
@@ -2270,7 +2623,10 @@ export default function SummaryMockup({
       )
         .slice(0, 2)
         .map((topic) =>
-          buildNote(topic, "strength")
+          buildNote(
+            topic,
+            "strength"
+          )
         );
 
       const improvementNotes =
@@ -2286,9 +2642,13 @@ export default function SummaryMockup({
       return {
         caseId: item.caseId,
         agent: item.agent,
-        auditDate: item.auditDate,
+        auditDate:
+          item.auditDate,
         score: item.finalScore,
-        inquiry,
+        inquiry: cleanPoint(
+          inquiry,
+          180
+        ),
         strongestTopic,
         lowestTopic,
         strengthNotes,
@@ -2301,7 +2661,8 @@ export default function SummaryMockup({
     ]
       .sort((a, b) => {
         if (
-          b.finalScore !== a.finalScore
+          b.finalScore !==
+          a.finalScore
         ) {
           return (
             b.finalScore -
@@ -2310,10 +2671,14 @@ export default function SummaryMockup({
         }
 
         return (
-          (b.auditDateObj?.getTime() ||
-            0) -
-          (a.auditDateObj?.getTime() ||
-            0)
+          (
+            b.auditDateObj?.getTime() ||
+            0
+          ) -
+          (
+            a.auditDateObj?.getTime() ||
+            0
+          )
         );
       })
       .slice(0, 5)
@@ -2328,7 +2693,8 @@ export default function SummaryMockup({
       )
       .sort((a, b) => {
         if (
-          a.finalScore !== b.finalScore
+          a.finalScore !==
+          b.finalScore
         ) {
           return (
             a.finalScore -
@@ -2337,10 +2703,14 @@ export default function SummaryMockup({
         }
 
         return (
-          (b.auditDateObj?.getTime() ||
-            0) -
-          (a.auditDateObj?.getTime() ||
-            0)
+          (
+            b.auditDateObj?.getTime() ||
+            0
+          ) -
+          (
+            a.auditDateObj?.getTime() ||
+            0
+          )
         );
       })
       .slice(0, 5)
@@ -2433,167 +2803,7 @@ export default function SummaryMockup({
     roleScopedAgentList,
   ]);
 
-  const agentMonthlyCoverageRows = useMemo(() => {
-    if (
-      analysisMode !== "monthly" ||
-      !teamMonthlyAnalyticsRows.length
-    ) {
-      return [];
-    }
 
-    const coverageMonthKeys =
-      teamMonthlyAnalyticsRows.map(
-        (row) => row.monthKey
-      );
-
-    const coverageCases = allCases.filter(
-      (item) => {
-        if (
-          roleScopedAgentList.length &&
-          !roleScopedAgentList.some(
-            (agent) =>
-              isSameAgent(
-                item.agent,
-                agent
-              )
-          )
-        ) {
-          return false;
-        }
-
-        return coverageMonthKeys.includes(
-          item.monthKey
-        );
-      }
-    );
-
-    const agentUniverse =
-      effectiveSelectedAgent !== "all"
-        ? [effectiveSelectedAgent]
-        : getUniqueNormalizedAgents([
-            ...AGENT_MASTER,
-            ...availableAgents,
-            ...coverageCases.map(
-              (item) => item.agent
-            ),
-          ]);
-
-    return agentUniverse
-      .filter((agent) => {
-        if (
-          roleScopedAgentList.length &&
-          !roleScopedAgentList.some(
-            (scopedAgent) =>
-              isSameAgent(
-                agent,
-                scopedAgent
-              )
-          )
-        ) {
-          return false;
-        }
-
-        const hasCases =
-          coverageCases.some(
-            (item) =>
-              isSameAgent(
-                item.agent,
-                agent
-              )
-          );
-
-        const isLegacyResigned =
-          Object.keys(
-            RESIGNED_AGENT_HIDE_AFTER
-          ).some((name) =>
-            isSameAgent(name, agent)
-          );
-
-        const isInactive =
-          isLegacyResigned ||
-          isSuspendedAgent(
-            agent,
-            accountProfiles
-          );
-
-        return isInactive
-          ? hasCases
-          : true;
-      })
-      .map((agent) => {
-        const values =
-          teamMonthlyAnalyticsRows.map(
-            (month) => {
-              const count =
-                coverageCases.filter(
-                  (item) =>
-                    item.monthKey ===
-                      month.monthKey &&
-                    isSameAgent(
-                      item.agent,
-                      agent
-                    )
-                ).length;
-
-              return {
-                monthKey:
-                  month.monthKey,
-                label: month.label,
-                count,
-                completionPct:
-                  Math.min(
-                    100,
-                    (count /
-                      CASE_TARGET) *
-                      100
-                  ),
-              };
-            }
-          );
-
-        const latestCount =
-          values[
-            values.length - 1
-          ]?.count || 0;
-
-        const status =
-          latestCount === 0
-            ? "Not Started"
-            : latestCount <
-                CASE_TARGET
-              ? "In Progress"
-              : latestCount ===
-                  CASE_TARGET
-                ? "Completed"
-                : "Over Target";
-
-        return {
-          agent,
-          values,
-          latestCount,
-          status,
-          totalCases:
-            values.reduce(
-              (sum, value) =>
-                sum + value.count,
-              0
-            ),
-        };
-      })
-      .sort((a, b) =>
-        a.agent.localeCompare(
-          b.agent
-        )
-      );
-  }, [
-    analysisMode,
-    teamMonthlyAnalyticsRows,
-    allCases,
-    roleScopedAgentList,
-    effectiveSelectedAgent,
-    availableAgents,
-    accountProfiles,
-  ]);
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -3423,283 +3633,7 @@ export default function SummaryMockup({
 
       y += 10;
 
-      startNewPage();
 
-      drawSectionTitle(
-        "Agent Monthly Evaluation Coverage",
-        `Target: ${CASE_TARGET} evaluated cases per Agent per month`
-      );
-
-      const coverageMonthHeaders =
-        teamMonthlyAnalyticsRows.map(
-          (month) => month.label
-        );
-
-      const agentWidth = 54;
-      const statusWidth = 31;
-      const totalWidth = 16;
-      const monthWidth =
-        (
-          contentWidth -
-          agentWidth -
-          statusWidth -
-          totalWidth
-        ) /
-        Math.max(
-          1,
-          coverageMonthHeaders.length
-        );
-
-      const drawCoverageHeader = () => {
-        const headerHeight = 12;
-
-        doc.setFillColor(
-          49,
-          16,
-          101
-        );
-
-        doc.roundedRect(
-          margin,
-          y,
-          contentWidth,
-          headerHeight,
-          2,
-          2,
-          "F"
-        );
-
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-        doc.setFontSize(5.8);
-
-        drawText(
-          "Agent",
-          margin + 3,
-          y + 7,
-          { color: "#ffffff" }
-        );
-
-        coverageMonthHeaders.forEach(
-          (header, index) => {
-            const centerX =
-              margin +
-              agentWidth +
-              monthWidth * index +
-              monthWidth / 2;
-
-            wrapText(
-              header,
-              14,
-              2
-            ).forEach(
-              (line, lineIndex) => {
-                drawText(
-                  line,
-                  centerX,
-                  y +
-                    5 +
-                    lineIndex * 3,
-                  {
-                    align: "center",
-                    color: "#ffffff",
-                  }
-                );
-              }
-            );
-          }
-        );
-
-        drawText(
-          "Status",
-          pageWidth -
-            margin -
-            totalWidth -
-            statusWidth / 2,
-          y + 7,
-          {
-            align: "center",
-            color: "#ffffff",
-          }
-        );
-
-        drawText(
-          "Total",
-          pageWidth -
-            margin -
-            totalWidth / 2,
-          y + 7,
-          {
-            align: "center",
-            color: "#ffffff",
-          }
-        );
-
-        y += headerHeight;
-      };
-
-      drawCoverageHeader();
-
-      agentMonthlyCoverageRows.forEach(
-        (row, index) => {
-          const agentLines = wrapText(
-            buildSuspendedAgentLabel(
-              row.agent,
-              accountProfiles
-            ),
-            29,
-            2
-          );
-
-          const rowHeight = Math.max(
-            10,
-            4 +
-              agentLines.length *
-                3.5
-          );
-
-          if (
-            y + rowHeight >
-            pageHeight - 15
-          ) {
-            startNewPage();
-
-            drawSectionTitle(
-              "Agent Monthly Evaluation Coverage (continued)"
-            );
-
-            drawCoverageHeader();
-          }
-
-          doc.setFillColor(
-            index % 2 === 0
-              ? 255
-              : 248,
-            index % 2 === 0
-              ? 255
-              : 250,
-            index % 2 === 0
-              ? 255
-              : 252
-          );
-
-          doc.setDrawColor(
-            226,
-            232,
-            240
-          );
-
-          doc.rect(
-            margin,
-            y,
-            contentWidth,
-            rowHeight,
-            "FD"
-          );
-
-          doc.setFont(
-            "helvetica",
-            "normal"
-          );
-          doc.setFontSize(5.8);
-          doc.setTextColor(
-            51,
-            65,
-            85
-          );
-
-          agentLines.forEach(
-            (line, lineIndex) => {
-              drawText(
-                line,
-                margin + 3,
-                y +
-                  5 +
-                  lineIndex * 3.5
-              );
-            }
-          );
-
-          row.values.forEach(
-            (value, valueIndex) => {
-              const centerX =
-                margin +
-                agentWidth +
-                monthWidth *
-                  valueIndex +
-                monthWidth / 2;
-
-              doc.setFont(
-                "helvetica",
-                "bold"
-              );
-
-              doc.setTextColor(
-                value.count >=
-                  CASE_TARGET
-                  ? 5
-                  : value.count > 0
-                    ? 180
-                    : 148,
-                value.count >=
-                  CASE_TARGET
-                  ? 150
-                  : value.count > 0
-                    ? 83
-                    : 163,
-                value.count >=
-                  CASE_TARGET
-                  ? 105
-                  : value.count > 0
-                    ? 9
-                    : 184
-              );
-
-              drawText(
-                `${value.count}/${CASE_TARGET}`,
-                centerX,
-                y + 5.5,
-                {
-                  align: "center",
-                }
-              );
-            }
-          );
-
-          doc.setFont(
-            "helvetica",
-            "bold"
-          );
-          doc.setFontSize(5.4);
-
-          drawText(
-            `${row.status} ${row.latestCount}/${CASE_TARGET}`,
-            pageWidth -
-              margin -
-              totalWidth -
-              statusWidth / 2,
-            y + 5.5,
-            { align: "center" }
-          );
-
-          drawText(
-            String(
-              row.totalCases
-            ),
-            pageWidth -
-              margin -
-              totalWidth / 2,
-            y + 5.5,
-            { align: "center" }
-          );
-
-          y += rowHeight;
-        }
-      );
-
-      y += 10;
     }
 
     periodTopicReports.forEach((report, reportIndex) => {
@@ -3726,6 +3660,167 @@ export default function SummaryMockup({
         );
         y += 13;
       }
+
+      ensureSpace(19);
+
+      const coverageMetrics =
+        effectiveSelectedAgent === "all"
+          ? [
+              {
+                label: "Total Cases",
+                value: String(
+                  report.caseCount
+                ),
+              },
+              {
+                label: "Agents Evaluated",
+                value: String(
+                  report.coverage.agentCount
+                ),
+              },
+              {
+                label: "Avg / Agent",
+                value:
+                  report.coverage.averageCasesPerAgent.toFixed(2),
+              },
+              ...(analysisMode ===
+              "monthly"
+                ? [
+                    {
+                      label: "Target Met",
+                      value: `${report.coverage.agentsMeetingTarget}/${report.coverage.agentCount}`,
+                    },
+                    {
+                      label: "Monthly Plan",
+                      value: `${report.coverage.target} x ${report.coverage.agentCount}`,
+                    },
+                  ]
+                : []),
+            ]
+          : [
+              {
+                label: "Agent",
+                value:
+                  buildSuspendedAgentLabel(
+                    effectiveSelectedAgent,
+                    accountProfiles
+                  ),
+              },
+              {
+                label: "Evaluated Cases",
+                value:
+                  analysisMode ===
+                  "monthly"
+                    ? `${report.caseCount}/${report.coverage.target}`
+                    : String(
+                        report.caseCount
+                      ),
+              },
+              {
+                label: "Status",
+                value:
+                  report.coverage.selectedAgentStatus ||
+                  "No Data",
+              },
+              ...(analysisMode ===
+              "monthly"
+                ? [
+                    {
+                      label: "Monthly Target",
+                      value: String(
+                        report.coverage.target
+                      ),
+                    },
+                  ]
+                : []),
+            ];
+
+      const coverageHeight = 14;
+      const coverageWidth =
+        contentWidth /
+        Math.max(
+          1,
+          coverageMetrics.length
+        );
+
+      coverageMetrics.forEach(
+        (metric, index) => {
+          const metricX =
+            margin +
+            coverageWidth * index;
+
+          doc.setFillColor(
+            index % 2 === 0
+              ? 246
+              : 240,
+            index % 2 === 0
+              ? 242
+              : 249,
+            index % 2 === 0
+              ? 255
+              : 255
+          );
+
+          doc.setDrawColor(
+            221,
+            214,
+            254
+          );
+
+          doc.rect(
+            metricX,
+            y,
+            coverageWidth,
+            coverageHeight,
+            "FD"
+          );
+
+          doc.setFont(
+            "helvetica",
+            "normal"
+          );
+          doc.setFontSize(5.6);
+          doc.setTextColor(
+            100,
+            116,
+            139
+          );
+
+          drawText(
+            metric.label,
+            metricX +
+              coverageWidth / 2,
+            y + 4.5,
+            { align: "center" }
+          );
+
+          doc.setFont(
+            "helvetica",
+            "bold"
+          );
+          doc.setFontSize(
+            metric.label ===
+              "Agent"
+              ? 6
+              : 8
+          );
+          doc.setTextColor(
+            76,
+            29,
+            149
+          );
+
+          drawText(
+            metric.value,
+            metricX +
+              coverageWidth / 2,
+            y + 10.5,
+            { align: "center" }
+          );
+        }
+      );
+
+      y += coverageHeight + 6;
 
       const tableX = margin;
       const tableWidth = contentWidth;
@@ -4425,8 +4520,8 @@ export default function SummaryMockup({
       drawSectionTitle(
         title,
         mode === "strong"
-          ? "Top evaluated cases with strengths and improvement points"
-          : "Lowest-scoring cases with coaching details"
+          ? "Top evaluated cases — concise strengths and improvement points"
+          : "Lowest-scoring cases — concise coaching points"
       );
 
       rows.forEach((row, index) => {
@@ -4436,51 +4531,58 @@ export default function SummaryMockup({
             accountProfiles
           );
 
-        const agentLines = wrapText(
+        const metaLines = wrapText(
           `Agent: ${agentText} | Audit Date: ${row.auditDate}`,
-          82,
+          84,
           2
         );
 
         const strengthLines =
           row.strengthNotes.flatMap(
-            (note: any, noteIndex: number) =>
+            (
+              note: any,
+              noteIndex: number
+            ) =>
               wrapText(
-                `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
-                92,
-                3
+                `• ${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                88,
+                2
               )
           );
 
         const improvementLines =
           row.improvementNotes.length
             ? row.improvementNotes.flatMap(
-                (note: any, noteIndex: number) =>
+                (
+                  note: any,
+                  noteIndex: number
+                ) =>
                   wrapText(
-                    `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
-                    92,
-                    3
+                    `• ${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                    88,
+                    2
                   )
               )
             : [
-                "No deducted topic found in this case.",
+                "• No deducted topic found in this case.",
               ];
 
-        const inquiryLines = wrapText(
-          `Inquiry: ${row.inquiry}`,
-          92,
-          4
-        );
-
-        const contentLineCount =
-          agentLines.length +
-          strengthLines.length +
-          improvementLines.length +
-          inquiryLines.length;
+        const inquiryLines =
+          wrapText(
+            `Inquiry: ${row.inquiry}`,
+            90,
+            2
+          );
 
         const cardHeight =
-          25 +
-          contentLineCount * 3.7;
+          24 +
+          (
+            metaLines.length +
+            strengthLines.length +
+            improvementLines.length +
+            inquiryLines.length
+          ) *
+            3.6;
 
         if (
           y + cardHeight >
@@ -4548,9 +4650,7 @@ export default function SummaryMockup({
 
         drawText(
           `Score: ${row.score.toFixed(2)}`,
-          pageWidth -
-            margin -
-            4,
+          pageWidth - margin - 4,
           y + 6.6,
           {
             align: "right",
@@ -4564,21 +4664,21 @@ export default function SummaryMockup({
           "helvetica",
           "normal"
         );
-        doc.setFontSize(6.7);
+        doc.setFontSize(6.5);
         doc.setTextColor(
           51,
           65,
           85
         );
 
-        agentLines.forEach(
+        metaLines.forEach(
           (line) => {
             drawText(
               line,
               margin + 5,
               lineY
             );
-            lineY += 3.7;
+            lineY += 3.6;
           }
         );
 
@@ -4617,7 +4717,7 @@ export default function SummaryMockup({
               margin + 7,
               lineY
             );
-            lineY += 3.7;
+            lineY += 3.6;
           }
         );
 
@@ -4656,7 +4756,7 @@ export default function SummaryMockup({
               margin + 7,
               lineY
             );
-            lineY += 3.7;
+            lineY += 3.6;
           }
         );
 
@@ -4677,7 +4777,7 @@ export default function SummaryMockup({
               margin + 5,
               lineY
             );
-            lineY += 3.7;
+            lineY += 3.6;
           }
         );
 
@@ -5355,100 +5455,6 @@ export default function SummaryMockup({
               </Panel>
             ) : null}
 
-            {analysisMode === "monthly" && agentMonthlyCoverageRows.length ? (
-              <Panel>
-                <PanelHeader
-                  title="Agent Monthly Evaluation Coverage"
-                  subtitle={`จำนวนเคสที่ประเมินต่อ Agent รายเดือน • เป้าหมาย ${CASE_TARGET} เคสต่อคนต่อเดือน`}
-                />
-                <PanelBody>
-                  <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-white">
-                    <table className="min-w-[980px] w-full text-sm">
-                      <thead>
-                        <tr className="bg-violet-950 text-white">
-                          <th className="px-4 py-3 text-left">Agent</th>
-                          {teamMonthlyAnalyticsRows.map((month) => (
-                            <th
-                              key={month.monthKey}
-                              className="px-4 py-3 text-center"
-                            >
-                              {month.label}
-                            </th>
-                          ))}
-                          <th className="px-4 py-3 text-center">
-                            Current Status
-                          </th>
-                          <th className="px-4 py-3 text-center">
-                            3-Month Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {agentMonthlyCoverageRows.map((row) => (
-                          <tr
-                            key={row.agent}
-                            className="bg-white"
-                          >
-                            <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-900">
-                              {buildSuspendedAgentLabel(
-                                row.agent,
-                                accountProfiles
-                              )}
-                            </td>
-
-                            {row.values.map((value) => (
-                              <td
-                                key={`${row.agent}-${value.monthKey}`}
-                                className="border-t border-violet-100 px-4 py-3"
-                              >
-                                <div className="text-center text-sm font-black text-violet-700">
-                                  {value.count}/{CASE_TARGET}
-                                </div>
-                                <div className="mx-auto mt-2 h-2 w-24 overflow-hidden rounded-full bg-violet-100">
-                                  <div
-                                    className="h-full rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500"
-                                    style={{
-                                      width: `${value.completionPct}%`,
-                                    }}
-                                  />
-                                </div>
-                              </td>
-                            ))}
-
-                            <td className="border-t border-violet-100 px-4 py-3 text-center">
-                              <span
-                                className={
-                                  "inline-flex rounded-full border px-3 py-1 text-xs font-black " +
-                                  (row.status === "Completed"
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                    : row.status === "Over Target"
-                                      ? "border-sky-200 bg-sky-50 text-sky-700"
-                                      : row.status === "In Progress"
-                                        ? "border-amber-200 bg-amber-50 text-amber-700"
-                                        : "border-slate-200 bg-slate-50 text-slate-500")
-                                }
-                              >
-                                {row.status} • {row.latestCount}/{CASE_TARGET}
-                              </span>
-                            </td>
-
-                            <td className="border-t border-violet-100 px-4 py-3 text-center text-base font-black text-slate-900">
-                              {row.totalCases}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-xs leading-5 text-violet-700">
-                    พนักงานที่ยังทำงานอยู่จะแสดงแม้มี 0 เคส ส่วนพนักงานที่ออกหรือถูก Suspend จะแสดงเฉพาะเดือนที่มีเคสประเมินจริง
-                  </div>
-                </PanelBody>
-              </Panel>
-            ) : null}
-
-
             {(analysisMode === "monthly" || analysisMode === "weekly") && effectiveSelectedAgent === "all" && agentComparisonRows.length ? (
               <Panel>
                 <PanelHeader
@@ -5533,6 +5539,135 @@ export default function SummaryMockup({
                         Partial data — calculated from {report.caseCount} evaluated case(s)
                       </div>
                     ) : null}
+
+                    <div
+                      className={
+                        "mb-5 grid gap-3 " +
+                        (
+                          effectiveSelectedAgent ===
+                          "all"
+                            ? analysisMode ===
+                                "monthly"
+                              ? "sm:grid-cols-2 xl:grid-cols-5"
+                              : "sm:grid-cols-2 xl:grid-cols-3"
+                            : analysisMode ===
+                                "monthly"
+                              ? "sm:grid-cols-2 xl:grid-cols-4"
+                              : "sm:grid-cols-2 xl:grid-cols-3"
+                        )
+                      }
+                    >
+                      {effectiveSelectedAgent ===
+                      "all" ? (
+                        <>
+                          <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-violet-600">
+                              Total Cases
+                            </div>
+                            <div className="mt-1 text-xl font-black text-slate-900">
+                              {report.caseCount}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700">
+                              Agents Evaluated
+                            </div>
+                            <div className="mt-1 text-xl font-black text-slate-900">
+                              {report.coverage.agentCount}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-fuchsia-100 bg-fuchsia-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">
+                              Average / Agent
+                            </div>
+                            <div className="mt-1 text-xl font-black text-slate-900">
+                              {report.coverage.averageCasesPerAgent.toFixed(2)}
+                            </div>
+                            <div className="text-[11px] font-semibold text-slate-500">
+                              Cases per Agent
+                            </div>
+                          </div>
+
+                          {analysisMode ===
+                          "monthly" ? (
+                            <>
+                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                                  Target Met
+                                </div>
+                                <div className="mt-1 text-xl font-black text-slate-900">
+                                  {report.coverage.agentsMeetingTarget}/{report.coverage.agentCount}
+                                </div>
+                                <div className="text-[11px] font-semibold text-slate-500">
+                                  Agents
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                                  Monthly Plan
+                                </div>
+                                <div className="mt-1 text-lg font-black text-slate-900">
+                                  {report.coverage.target} Cases × {report.coverage.agentCount} Agents
+                                </div>
+                              </div>
+                            </>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-violet-600">
+                              Agent
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              {buildSuspendedAgentLabel(
+                                effectiveSelectedAgent,
+                                accountProfiles
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700">
+                              Evaluated Cases
+                            </div>
+                            <div className="mt-1 text-xl font-black text-slate-900">
+                              {analysisMode ===
+                              "monthly"
+                                ? `${report.caseCount}/${report.coverage.target}`
+                                : report.caseCount}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                              Status
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-900">
+                              {report.coverage.selectedAgentStatus || "No Data"}
+                            </div>
+                          </div>
+
+                          {analysisMode ===
+                          "monthly" ? (
+                            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                              <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                                Monthly Target
+                              </div>
+                              <div className="mt-1 text-xl font-black text-slate-900">
+                                {report.coverage.target}
+                              </div>
+                              <div className="text-[11px] font-semibold text-slate-500">
+                                Cases / Agent
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
 
                     <div
                       className={
@@ -5923,10 +6058,10 @@ export default function SummaryMockup({
               <Panel>
                 <PanelHeader
                   title="Best Cases / Strong Cases"
-                  subtitle="Top 5 เคสที่ได้คะแนนสูง พร้อมสิ่งที่ทำได้ดีและจุดที่ยังควรระวัง"
+                  subtitle="Top 5 เคสที่ได้คะแนนสูง โดยสรุปเฉพาะสิ่งที่ทำได้ดีและจุดที่ควรระวัง"
                 />
                 <PanelBody>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {caseHighlights.strongestCases.length ? (
                       caseHighlights.strongestCases.map((item, index) => (
                         <div
@@ -5951,57 +6086,62 @@ export default function SummaryMockup({
                             </div>
                           </div>
 
-                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-emerald-700">
-                              สิ่งที่ทำได้ดี
-                            </div>
-
-                            <div className="mt-2 space-y-2">
-                              {item.strengthNotes.map((note, noteIndex) => (
-                                <div
-                                  key={`${item.caseId}-strength-${noteIndex}`}
-                                  className="rounded-lg bg-emerald-50 px-3 py-2"
-                                >
-                                  <div className="text-xs font-black text-slate-800">
-                                    {note.label} — {note.pct.toFixed(2)}%
-                                  </div>
-                                  <div className="mt-1 text-xs leading-5 text-slate-600">
-                                    {note.detail}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-amber-700">
-                              จุดที่ควรปรับ / ควรระวัง
-                            </div>
-
-                            {item.improvementNotes.length ? (
-                              <div className="mt-2 space-y-2">
-                                {item.improvementNotes.map((note, noteIndex) => (
-                                  <div
-                                    key={`${item.caseId}-improvement-${noteIndex}`}
-                                    className="rounded-lg bg-amber-50 px-3 py-2"
+                          <div className="mt-4 grid gap-3">
+                            <div className="rounded-xl border border-emerald-100 bg-white/90 p-3">
+                              <div className="text-xs font-black text-emerald-700">
+                                สิ่งที่ทำได้ดี
+                              </div>
+                              <ul className="mt-2 space-y-2">
+                                {item.strengthNotes.map((note, noteIndex) => (
+                                  <li
+                                    key={`${item.caseId}-strength-${noteIndex}`}
+                                    className="flex gap-2 text-xs leading-5 text-slate-700"
                                   >
-                                    <div className="text-xs font-black text-slate-800">
-                                      {note.label} — {note.pct.toFixed(2)}%
-                                    </div>
-                                    <div className="mt-1 text-xs leading-5 text-slate-600">
+                                    <span className="font-black text-emerald-600">•</span>
+                                    <span>
+                                      <span className="font-black text-slate-900">
+                                        {note.label} ({note.pct.toFixed(2)}%)
+                                      </span>
+                                      {" — "}
                                       {note.detail}
-                                    </div>
-                                  </div>
+                                    </span>
+                                  </li>
                                 ))}
+                              </ul>
+                            </div>
+
+                            <div className="rounded-xl border border-amber-100 bg-white/90 p-3">
+                              <div className="text-xs font-black text-amber-700">
+                                จุดที่ควรปรับ / ควรระวัง
                               </div>
-                            ) : (
-                              <div className="mt-2 text-xs font-bold text-emerald-700">
-                                ไม่พบหัวข้อที่ถูกหักคะแนนในเคสนี้
-                              </div>
-                            )}
+
+                              {item.improvementNotes.length ? (
+                                <ul className="mt-2 space-y-2">
+                                  {item.improvementNotes.map((note, noteIndex) => (
+                                    <li
+                                      key={`${item.caseId}-improve-${noteIndex}`}
+                                      className="flex gap-2 text-xs leading-5 text-slate-700"
+                                    >
+                                      <span className="font-black text-amber-600">•</span>
+                                      <span>
+                                        <span className="font-black text-slate-900">
+                                          {note.label} ({note.pct.toFixed(2)}%)
+                                        </span>
+                                        {" — "}
+                                        {note.detail}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="mt-2 text-xs font-bold text-emerald-700">
+                                  ไม่พบหัวข้อที่ถูกหักคะแนนในเคสนี้
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
+                          <div className="mt-3 line-clamp-2 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
                             <span className="font-black text-slate-800">
                               Inquiry:
                             </span>{" "}
@@ -6021,10 +6161,10 @@ export default function SummaryMockup({
               <Panel>
                 <PanelHeader
                   title="Improvement Cases / Coaching Cases"
-                  subtitle="Top 5 เคสคะแนนต่ำ พร้อมจุดเด่นและรายละเอียดที่ควรใช้โค้ชชิ่ง"
+                  subtitle="Top 5 เคสคะแนนต่ำ โดยสรุปจุดเด่นและหัวข้อที่ควรนำไปโค้ชชิ่ง"
                 />
                 <PanelBody>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {caseHighlights.improvementCases.length ? (
                       caseHighlights.improvementCases.map((item, index) => (
                         <div
@@ -6049,51 +6189,55 @@ export default function SummaryMockup({
                             </div>
                           </div>
 
-                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-emerald-700">
-                              สิ่งที่ยังทำได้ดี
+                          <div className="mt-4 grid gap-3">
+                            <div className="rounded-xl border border-emerald-100 bg-white/90 p-3">
+                              <div className="text-xs font-black text-emerald-700">
+                                สิ่งที่ยังทำได้ดี
+                              </div>
+                              <ul className="mt-2 space-y-2">
+                                {item.strengthNotes.map((note, noteIndex) => (
+                                  <li
+                                    key={`${item.caseId}-good-${noteIndex}`}
+                                    className="flex gap-2 text-xs leading-5 text-slate-700"
+                                  >
+                                    <span className="font-black text-emerald-600">•</span>
+                                    <span>
+                                      <span className="font-black text-slate-900">
+                                        {note.label} ({note.pct.toFixed(2)}%)
+                                      </span>
+                                      {" — "}
+                                      {note.detail}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
 
-                            <div className="mt-2 space-y-2">
-                              {item.strengthNotes.map((note, noteIndex) => (
-                                <div
-                                  key={`${item.caseId}-good-${noteIndex}`}
-                                  className="rounded-lg bg-emerald-50 px-3 py-2"
-                                >
-                                  <div className="text-xs font-black text-slate-800">
-                                    {note.label} — {note.pct.toFixed(2)}%
-                                  </div>
-                                  <div className="mt-1 text-xs leading-5 text-slate-600">
-                                    {note.detail}
-                                  </div>
-                                </div>
-                              ))}
+                            <div className="rounded-xl border border-amber-100 bg-white/90 p-3">
+                              <div className="text-xs font-black text-amber-700">
+                                จุดที่ควรปรับ
+                              </div>
+                              <ul className="mt-2 space-y-2">
+                                {item.improvementNotes.map((note, noteIndex) => (
+                                  <li
+                                    key={`${item.caseId}-coach-${noteIndex}`}
+                                    className="flex gap-2 text-xs leading-5 text-slate-700"
+                                  >
+                                    <span className="font-black text-amber-600">•</span>
+                                    <span>
+                                      <span className="font-black text-slate-900">
+                                        {note.label} ({note.pct.toFixed(2)}%)
+                                      </span>
+                                      {" — "}
+                                      {note.detail}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           </div>
 
-                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-amber-700">
-                              จุดที่ควรปรับ
-                            </div>
-
-                            <div className="mt-2 space-y-2">
-                              {item.improvementNotes.map((note, noteIndex) => (
-                                <div
-                                  key={`${item.caseId}-coach-${noteIndex}`}
-                                  className="rounded-lg bg-amber-50 px-3 py-2"
-                                >
-                                  <div className="text-xs font-black text-slate-800">
-                                    {note.label} — {note.pct.toFixed(2)}%
-                                  </div>
-                                  <div className="mt-1 text-xs leading-5 text-slate-600">
-                                    {note.detail}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
+                          <div className="mt-3 line-clamp-2 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
                             <span className="font-black text-slate-800">
                               Inquiry:
                             </span>{" "}
