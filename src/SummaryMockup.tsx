@@ -3897,7 +3897,13 @@ export default function SummaryMockup({
                       </div>
                     ) : null}
 
-                    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,0.8fr)]">
+                    <div
+                      className={
+                        report.topics.length <= 4
+                          ? "space-y-5"
+                          : "grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,0.8fr)]"
+                      }
+                    >
                       <div className="h-fit self-start overflow-x-auto rounded-2xl border border-violet-100">
                         <table className="min-w-[760px] w-full text-sm">
                           <thead>
@@ -3929,8 +3935,20 @@ export default function SummaryMockup({
                         </table>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+                      <div
+                        className={
+                          report.topics.length <= 4
+                            ? "grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+                            : "space-y-4"
+                        }
+                      >
+                        <div
+                          className={
+                            report.topics.length <= 4
+                              ? "contents"
+                              : "grid gap-4 md:grid-cols-2 xl:grid-cols-1"
+                          }
+                        >
                           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                             <div className="text-sm font-black text-emerald-700">Strongest Topics</div>
                             <div className="mt-3 space-y-2">
