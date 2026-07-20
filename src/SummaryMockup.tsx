@@ -2241,15 +2241,28 @@ export default function SummaryMockup({
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 12;
-    const tableWidth = pageWidth - margin * 2;
-    const footerSpace = 12;
-    const safe = (value: unknown) => String(value ?? "-").replace(/\s+/g, " ").trim();
+    const contentWidth = pageWidth - margin * 2;
+    const footerY = pageHeight - 8;
+    const generatedBy = String(
+      currentUser?.name ||
+      currentUser?.displayName ||
+      currentUser?.email ||
+      "Unknown User"
+    ).trim();
+
+    const safe = (value: unknown) =>
+      String(value ?? "-")
+        .replace(/\s+/g, " ")
+        .trim();
 
     const drawText = (
       value: unknown,
       x: number,
       y: number,
-      options: { align?: "left" | "center" | "right"; color?: string } = {}
+      options: {
+        align?: "left" | "center" | "right";
+        color?: string;
+      } = {}
     ) => {
       const text = safe(value);
       const hasThai = /[\u0E00-\u0E7F]/.test(text);
@@ -2268,11 +2281,17 @@ export default function SummaryMockup({
       const measure = canvas.getContext("2d");
 
       if (!measure) {
-        doc.text(text.replace(/[\u0E00-\u0E7F]/g, "?"), x, y, { align: options.align || "left" });
+        doc.text(
+          text.replace(/[\u0E00-\u0E7F]/g, "?"),
+          x,
+          y,
+          { align: options.align || "left" }
+        );
         return;
       }
 
-      measure.font = `${fontWeight} ${fontPx}px Tahoma, "Noto Sans Thai", Arial, sans-serif`;
+      measure.font =
+        `${fontWeight} ${fontPx}px Tahoma, "Noto Sans Thai", Arial, sans-serif`;
       const measuredWidth = Math.ceil(measure.measureText(text).width + 12 * scale);
       const measuredHeight = Math.ceil(fontPx * 1.55);
       canvas.width = Math.max(8, measuredWidth);
@@ -2282,7 +2301,8 @@ export default function SummaryMockup({
       if (!context) return;
 
       context.scale(scale, scale);
-      context.font = `${fontWeight} ${fontPx / scale}px Tahoma, "Noto Sans Thai", Arial, sans-serif`;
+      context.font =
+        `${fontWeight} ${fontPx / scale}px Tahoma, "Noto Sans Thai", Arial, sans-serif`;
       context.textBaseline = "alphabetic";
       context.fillStyle = options.color || "#0f172a";
       context.fillText(text, 2, (measuredHeight / scale) * 0.76);
@@ -2291,6 +2311,7 @@ export default function SummaryMockup({
       const widthMm = (canvas.width / scale) * pxToMm;
       const heightMm = (canvas.height / scale) * pxToMm;
       let drawX = x;
+
       if (options.align === "center") drawX = x - widthMm / 2;
       if (options.align === "right") drawX = x - widthMm;
 
@@ -2306,268 +2327,935 @@ export default function SummaryMockup({
       );
     };
 
-    const wrapText = (value: unknown, maxChars = 60, maxLines = 2) => {
+    const wrapText = (
+      value: unknown,
+      maxChars = 66,
+      maxLines = 2
+    ) => {
       const text = safe(value);
       if (text.length <= maxChars) return [text];
+
       const chars = Array.from(text);
       const lines: string[] = [];
-      for (let index = 0; index < chars.length && lines.length < maxLines; index += maxChars) {
+
+      for (
+        let index = 0;
+        index < chars.length && lines.length < maxLines;
+        index += maxChars
+      ) {
         lines.push(chars.slice(index, index + maxChars).join(""));
       }
-      if (chars.length > maxChars * maxLines) {
-        lines[maxLines - 1] = lines[maxLines - 1].slice(0, -3) + "...";
+
+      if (chars.length > maxChars * maxLines && lines.length) {
+        lines[lines.length - 1] =
+          lines[lines.length - 1].slice(0, Math.max(0, maxChars - 3)) + "...";
       }
+
       return lines;
     };
 
-    let y = 0;
+    const addDonutChart = (
+      x: number,
+      y: number,
+      size: number,
+      originalPct: number,
+      revisedPct: number
+    ) => {
+      const canvas = document.createElement("canvas");
+      const pixels = 480;
+      canvas.width = pixels;
+      canvas.height = pixels;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      const center = pixels / 2;
+      const radius = pixels * 0.38;
+      const lineWidth = pixels * 0.15;
+      const start = -Math.PI / 2;
+      const originalAngle = (Math.max(0, Math.min(100, originalPct)) / 100) * Math.PI * 2;
+
+      context.lineWidth = lineWidth;
+      context.lineCap = "butt";
+
+      context.beginPath();
+      context.strokeStyle = "#e2e8f0";
+      context.arc(center, center, radius, 0, Math.PI * 2);
+      context.stroke();
+
+      if (originalPct > 0) {
+        context.beginPath();
+        context.strokeStyle = "#7c3aed";
+        context.arc(center, center, radius, start, start + originalAngle);
+        context.stroke();
+      }
+
+      if (revisedPct > 0) {
+        context.beginPath();
+        context.strokeStyle = "#d946ef";
+        context.arc(
+          center,
+          center,
+          radius,
+          start + originalAngle,
+          start + Math.PI * 2
+        );
+        context.stroke();
+      }
+
+      context.fillStyle = "#ffffff";
+      context.beginPath();
+      context.arc(center, center, radius - lineWidth / 2 + 2, 0, Math.PI * 2);
+      context.fill();
+
+      context.fillStyle = "#4c1d95";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.font = "700 64px Arial";
+      context.fillText(`${originalPct.toFixed(0)}%`, center, center - 8);
+      context.fillStyle = "#64748b";
+      context.font = "600 26px Arial";
+      context.fillText("Original", center, center + 54);
+
+      doc.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        x,
+        y,
+        size,
+        size,
+        undefined,
+        "FAST"
+      );
+    };
 
     const reportTitle =
       `${reportModeName} ${isComparisonMode ? "Comparison" : "Performance"} Report`;
+    const reportSubtitle =
+      effectivePeriodLabels.join(", ") || "No period selected";
 
-    const drawHeader = () => {
+    let y = 0;
+
+    const drawPageHeader = () => {
       doc.setFillColor(49, 16, 101);
-      doc.rect(margin, 10, tableWidth, 24, "F");
+      doc.rect(0, 0, pageWidth, 31, "F");
+
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
-      drawText(reportTitle, margin + 6, 20, { color: "#ffffff" });
+      drawText(reportTitle, margin, 14, { color: "#ffffff" });
+
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
-      drawText("Robinhood QA • Quality Monitoring Workspace", margin + 6, 28, { color: "#ffffff" });
+      drawText("Robinhood QA • Quality Monitoring Workspace", margin, 22, {
+        color: "#ffffff",
+      });
+      drawText(reportSubtitle, pageWidth - margin, 22, {
+        align: "right",
+        color: "#ffffff",
+      });
+
+      doc.setDrawColor(124, 58, 237);
+      doc.setLineWidth(0.7);
+      doc.line(margin, 35, pageWidth - margin, 35);
+    };
+
+    const startNewPage = () => {
+      doc.addPage();
+      drawPageHeader();
+      y = 43;
     };
 
     const ensureSpace = (needed: number) => {
-      if (y + needed <= pageHeight - footerSpace - margin) return;
-      doc.addPage();
-      drawHeader();
-      y = 44;
+      if (y + needed <= pageHeight - 15) return;
+      startNewPage();
     };
 
-    drawHeader();
-    y = 44;
+    const drawSectionTitle = (
+      title: string,
+      subtitle?: string
+    ) => {
+      ensureSpace(subtitle ? 18 : 12);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      drawText(title, margin, y);
 
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    drawText("Report Information", margin, y);
-    y += 7;
+      if (subtitle) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        drawText(subtitle, margin, y + 5);
+        y += 12;
+      } else {
+        y += 7;
+      }
+    };
+
+    const drawMetricCard = (
+      x: number,
+      cardY: number,
+      width: number,
+      label: string,
+      value: string,
+      tone: "violet" | "emerald" | "sky" | "amber" = "violet"
+    ) => {
+      const fills: Record<string, [number, number, number]> = {
+        violet: [246, 242, 255],
+        emerald: [236, 253, 245],
+        sky: [240, 249, 255],
+        amber: [255, 251, 235],
+      };
+      const texts: Record<string, [number, number, number]> = {
+        violet: [91, 33, 182],
+        emerald: [4, 120, 87],
+        sky: [3, 105, 161],
+        amber: [180, 83, 9],
+      };
+
+      const fill = fills[tone];
+      const text = texts[tone];
+
+      doc.setFillColor(...fill);
+      doc.setDrawColor(221, 214, 254);
+      doc.roundedRect(x, cardY, width, 21, 2.5, 2.5, "FD");
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      drawText(label, x + 4, cardY + 7);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(...text);
+      drawText(value, x + 4, cardY + 16);
+    };
+
+    drawPageHeader();
+    y = 43;
+
+    drawSectionTitle(
+      "Report Information",
+      "Scope and preparation details"
+    );
 
     const infoRows = [
-      ["Report type", reportTitle],
-      ["Scope", effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles)],
-      ["Selected periods", effectivePeriodLabels.join(", ")],
-      ["Prepared by", safe(currentUser?.name || currentUser?.displayName || currentUser?.email || "Unknown User")],
+      [
+        "Report Type",
+        reportTitle,
+        "Scope",
+        effectiveSelectedAgent === "all"
+          ? "All Agents"
+          : buildSuspendedAgentLabel(
+              effectiveSelectedAgent,
+              accountProfiles
+            ),
+      ],
+      [
+        "Selected Periods",
+        reportSubtitle,
+        "Prepared By",
+        generatedBy,
+      ],
+      [
+        "Generated On",
+        new Date().toLocaleString("en-GB"),
+        "Report Mode",
+        isComparisonMode ? "Comparison" : "Single Period",
+      ],
     ];
 
-    infoRows.forEach((row, index) => {
-      doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
+    infoRows.forEach((row, rowIndex) => {
+      doc.setFillColor(
+        rowIndex % 2 === 0 ? 250 : 255,
+        rowIndex % 2 === 0 ? 250 : 255,
+        rowIndex % 2 === 0 ? 252 : 255
+      );
       doc.setDrawColor(226, 232, 240);
-      doc.rect(margin, y, tableWidth, 8, "FD");
+      doc.rect(margin, y, contentWidth, 11, "FD");
+
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      drawText(row[0], margin + 3, y + 5.3);
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      drawText(row[0], margin + 3, y + 4);
+      drawText(row[2], margin + contentWidth / 2 + 3, y + 4);
+
       doc.setFont("helvetica", "bold");
-      drawText(row[1], pageWidth - margin - 3, y + 5.3, { align: "right" });
-      y += 8;
+      doc.setFontSize(7.6);
+      doc.setTextColor(15, 23, 42);
+      drawText(row[1], margin + 3, y + 8.5);
+      drawText(row[3], margin + contentWidth / 2 + 3, y + 8.5);
+      y += 11;
     });
 
     y += 8;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    drawText("Executive Summary", margin, y);
-    y += 7;
+    drawSectionTitle(
+      "Executive Summary",
+      "Overall result for the selected scope"
+    );
 
-    const executiveRows = [
-      ["Total cases", String(reportSummary.caseCount)],
-      ["Average score", reportSummary.avgScore.toFixed(2)],
-      ["Overall grade", String(reportSummary.grade)],
-      ["Revised cases", String(reportSummary.revisedCount)],
-      ["Report mode", isComparisonMode ? "Comparison" : "Single Period"],
-    ];
+    const metricGap = 4;
+    const metricWidth = (contentWidth - metricGap * 3) / 4;
+    drawMetricCard(
+      margin,
+      y,
+      metricWidth,
+      "Total Cases",
+      String(reportSummary.caseCount),
+      "violet"
+    );
+    drawMetricCard(
+      margin + metricWidth + metricGap,
+      y,
+      metricWidth,
+      "Average Score",
+      reportSummary.avgScore.toFixed(2),
+      "emerald"
+    );
+    drawMetricCard(
+      margin + (metricWidth + metricGap) * 2,
+      y,
+      metricWidth,
+      "Overall Grade",
+      String(reportSummary.grade),
+      "sky"
+    );
+    drawMetricCard(
+      margin + (metricWidth + metricGap) * 3,
+      y,
+      metricWidth,
+      "Revised Cases",
+      String(reportSummary.revisedCount),
+      "amber"
+    );
+    y += 30;
 
-    executiveRows.forEach((row, index) => {
-      doc.setFillColor(index % 2 === 0 ? 246 : 255, index % 2 === 0 ? 242 : 255, index % 2 === 0 ? 255 : 255);
-      doc.setDrawColor(221, 214, 254);
-      doc.rect(margin, y, tableWidth, 8, "FD");
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      drawText(row[0], margin + 3, y + 5.3);
-      doc.setFont("helvetica", "bold");
-      drawText(row[1], pageWidth - margin - 3, y + 5.3, { align: "right" });
-      y += 8;
-    });
+    periodTopicReports.forEach((report, reportIndex) => {
+      if (reportIndex > 0 || y > 145) {
+        startNewPage();
+      }
 
-    periodTopicReports.forEach((report) => {
-      ensureSpace(48 + report.topics.length * 10);
-      y += 9;
-      doc.setFillColor(49, 16, 101);
-      doc.rect(margin, y, tableWidth, 10, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      drawText(`Topic Performance — ${report.label}`, margin + 4, y + 6.7, { color: "#ffffff" });
-      y += 10;
-
-      doc.setFillColor(report.status === "In Progress" ? 255 : 240, report.status === "In Progress" ? 251 : 253, report.status === "In Progress" ? 235 : 244);
-      doc.setDrawColor(report.status === "In Progress" ? 245 : 167, report.status === "In Progress" ? 158 : 243, report.status === "In Progress" ? 11 : 208);
-      doc.rect(margin, y, tableWidth, 8, "FD");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      drawText(
-        `${report.caseCount} Cases • Average ${report.avgScore.toFixed(2)} • ${report.status}`,
-        margin + 3,
-        y + 5.3
+      drawSectionTitle(
+        `Topic Performance — ${report.label}`,
+        `${report.caseCount} Cases • Average ${report.avgScore.toFixed(2)} • ${report.status}`
       );
-      y += 8;
 
-      const topicColWidths = [116, 22, 18, 24];
-      const topicHeaders = ["Topic", "Avg", "Max", "%"];
+      if (report.status === "In Progress") {
+        doc.setFillColor(255, 251, 235);
+        doc.setDrawColor(245, 158, 11);
+        doc.roundedRect(margin, y, contentWidth, 9, 2, 2, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(146, 64, 14);
+        drawText(
+          `Partial data — calculated from ${report.caseCount} evaluated case(s)`,
+          margin + 3,
+          y + 5.8
+        );
+        y += 13;
+      }
+
+      const tableX = margin;
+      const tableWidth = contentWidth;
+      const topicWidths = [112, 24, 20, 28];
+      const headers = ["Topic", "Avg", "Max", "%"];
+
       doc.setFillColor(109, 40, 217);
-      doc.rect(margin, y, tableWidth, 9, "F");
-      let headerX = margin;
+      doc.roundedRect(tableX, y, tableWidth, 9, 2, 2, "F");
+
+      let headerX = tableX;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
-      topicHeaders.forEach((header, index) => {
+
+      headers.forEach((header, index) => {
         drawText(
           header,
-          index === 0 ? headerX + 2 : headerX + topicColWidths[index] / 2,
+          index === 0
+            ? headerX + 3
+            : headerX + topicWidths[index] / 2,
           y + 6,
-          { align: index === 0 ? "left" : "center", color: "#ffffff" }
+          {
+            align: index === 0 ? "left" : "center",
+            color: "#ffffff",
+          }
         );
-        headerX += topicColWidths[index];
+        headerX += topicWidths[index];
       });
+
       y += 9;
 
       report.topics.forEach((topic, index) => {
-        const lines = wrapText(`${topic.code}. ${topic.label}`, 72, 2);
+        const lines = wrapText(
+          `${topic.code}. ${topic.label}`,
+          68,
+          2
+        );
         const rowHeight = Math.max(9, 4 + lines.length * 4);
-        ensureSpace(rowHeight + 2);
-        doc.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
+
+        ensureSpace(rowHeight + 4);
+
+        doc.setFillColor(
+          index % 2 === 0 ? 255 : 248,
+          index % 2 === 0 ? 255 : 250,
+          index % 2 === 0 ? 255 : 252
+        );
         doc.setDrawColor(226, 232, 240);
-        doc.rect(margin, y, tableWidth, rowHeight, "FD");
+        doc.rect(tableX, y, tableWidth, rowHeight, "FD");
+
         doc.setTextColor(15, 23, 42);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
-        lines.forEach((line, lineIndex) => drawText(line, margin + 2, y + 5 + lineIndex * 4));
+
+        lines.forEach((line, lineIndex) => {
+          drawText(
+            line,
+            tableX + 3,
+            y + 5 + lineIndex * 4
+          );
+        });
+
         doc.setFont("helvetica", "bold");
-        drawText(topic.avgScore.toFixed(2), margin + 116 + 11, y + 5.5, { align: "center" });
-        drawText(topic.max.toFixed(2), margin + 116 + 22 + 9, y + 5.5, { align: "center" });
-        drawText(topic.pct.toFixed(2) + "%", pageWidth - margin - 12, y + 5.5, { align: "center" });
+        drawText(
+          topic.avgScore.toFixed(2),
+          tableX + 112 + 12,
+          y + 5.6,
+          { align: "center" }
+        );
+        drawText(
+          topic.max.toFixed(2),
+          tableX + 112 + 24 + 10,
+          y + 5.6,
+          { align: "center" }
+        );
+        doc.setTextColor(109, 40, 217);
+        drawText(
+          topic.pct.toFixed(2) + "%",
+          pageWidth - margin - 14,
+          y + 5.6,
+          { align: "center" }
+        );
+
         y += rowHeight;
       });
 
-      ensureSpace(28);
-      y += 5;
+      y += 7;
+      ensureSpace(59);
+
+      const halfWidth = (contentWidth - 5) / 2;
+      const insightY = y;
+
+      const drawInsightBox = (
+        x: number,
+        title: string,
+        items: TopicSummary[],
+        tone: "emerald" | "amber"
+      ) => {
+        const fill =
+          tone === "emerald"
+            ? ([236, 253, 245] as const)
+            : ([255, 251, 235] as const);
+        const border =
+          tone === "emerald"
+            ? ([167, 243, 208] as const)
+            : ([253, 230, 138] as const);
+        const text =
+          tone === "emerald"
+            ? ([4, 120, 87] as const)
+            : ([180, 83, 9] as const);
+
+        doc.setFillColor(...fill);
+        doc.setDrawColor(...border);
+        doc.roundedRect(x, insightY, halfWidth, 32, 2.5, 2.5, "FD");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...text);
+        drawText(title, x + 4, insightY + 7);
+
+        items.slice(0, 3).forEach((topic, index) => {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.5);
+          doc.setTextColor(51, 65, 85);
+          drawText(
+            `${index + 1}. ${topic.label}`,
+            x + 4,
+            insightY + 13 + index * 6
+          );
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(...text);
+          drawText(
+            topic.pct.toFixed(2) + "%",
+            x + halfWidth - 4,
+            insightY + 13 + index * 6,
+            { align: "right" }
+          );
+        });
+      };
+
+      drawInsightBox(
+        margin,
+        "Strongest Topics",
+        report.strongest,
+        "emerald"
+      );
+      drawInsightBox(
+        margin + halfWidth + 5,
+        "Coaching Focus",
+        report.coaching,
+        "amber"
+      );
+
+      y += 39;
+
+      const gradeBoxWidth = contentWidth * 0.58;
+      const statusBoxX = margin + gradeBoxWidth + 5;
+      const statusBoxWidth = contentWidth - gradeBoxWidth - 5;
+
+      doc.setFillColor(250, 248, 255);
+      doc.setDrawColor(221, 214, 254);
+      doc.roundedRect(
+        margin,
+        y,
+        gradeBoxWidth,
+        40,
+        2.5,
+        2.5,
+        "FD"
+      );
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
-      drawText("Strongest Topics", margin, y);
-      drawText("Coaching Focus", margin + tableWidth / 2 + 3, y);
-      y += 6;
+      doc.setTextColor(91, 33, 182);
+      drawText("Grade Mix", margin + 4, y + 7);
 
-      const maxInsightRows = Math.max(report.strongest.length, report.coaching.length);
-      for (let index = 0; index < maxInsightRows; index += 1) {
-        const strong = report.strongest[index];
-        const coach = report.coaching[index];
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        if (strong) {
-          drawText(
-            `${index + 1}. ${strong.label} — ${strong.pct.toFixed(2)}%`,
-            margin,
-            y
-          );
-        }
-        if (coach) {
-          drawText(
-            `${index + 1}. ${coach.label} — ${coach.pct.toFixed(2)}%`,
-            margin + tableWidth / 2 + 3,
-            y
-          );
-        }
-        y += 5;
-      }
-    });
+      const gradeCellWidth = (gradeBoxWidth - 12) / 2;
+      report.gradeMix.forEach((item, index) => {
+        const col = index % 2;
+        const row = Math.floor(index / 2);
+        const cellX = margin + 4 + col * (gradeCellWidth + 4);
+        const cellY = y + 11 + row * 8;
 
-    if (isComparisonMode) {
-      ensureSpace(20 + comparisonRowsWithDelta.length * 11);
-      y += 9;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      drawText("Performance Comparison Bar Chart", margin, y);
-      y += 8;
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(
+          cellX,
+          cellY,
+          gradeCellWidth,
+          6.5,
+          1.5,
+          1.5,
+          "F"
+        );
 
-      const chartX = margin;
-      const chartW = tableWidth;
-      const barStart = chartX + 45;
-      const barMaxW = chartW - 78;
-
-      comparisonRowsWithDelta.forEach((row, index) => {
-        const barY = y + index * 11;
-        const barW = Math.max(2, (Math.max(0, Math.min(100, row.avgScore)) / 100) * barMaxW);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        drawText(row.label, chartX, barY + 5);
-        doc.setFillColor(237, 233, 254);
-        doc.roundedRect(barStart, barY + 1, barMaxW, 6, 1.5, 1.5, "F");
-        doc.setFillColor(124, 58, 237);
-        doc.roundedRect(barStart, barY + 1, barW, 6, 1.5, 1.5, "F");
-        const deltaText =
-          row.scoreDelta === null
-            ? "Base"
-            : (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2);
         doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.setTextColor(109, 40, 217);
+        drawText(item.grade, cellX + 3, cellY + 4.5);
+
+        doc.setTextColor(71, 85, 105);
         drawText(
-          `${row.avgScore.toFixed(2)} (${deltaText})`,
-          pageWidth - margin,
-          barY + 5,
+          `${item.count} (${item.pct.toFixed(2)}%)`,
+          cellX + gradeCellWidth - 3,
+          cellY + 4.5,
           { align: "right" }
         );
       });
-      y += comparisonRowsWithDelta.length * 11 + 4;
+
+      doc.setFillColor(240, 249, 255);
+      doc.setDrawColor(186, 230, 253);
+      doc.roundedRect(
+        statusBoxX,
+        y,
+        statusBoxWidth,
+        40,
+        2.5,
+        2.5,
+        "FD"
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(3, 105, 161);
+      drawText(
+        "Review Status Mix",
+        statusBoxX + 4,
+        y + 7
+      );
+
+      const totalReview =
+        report.reviewMix.original +
+        report.reviewMix.revised;
+      const originalPct =
+        totalReview > 0
+          ? (report.reviewMix.original / totalReview) * 100
+          : 0;
+      const revisedPct =
+        totalReview > 0
+          ? (report.reviewMix.revised / totalReview) * 100
+          : 0;
+
+      addDonutChart(
+        statusBoxX + 5,
+        y + 10,
+        24,
+        originalPct,
+        revisedPct
+      );
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(71, 85, 105);
+      drawText(
+        `Original: ${report.reviewMix.original} (${originalPct.toFixed(2)}%)`,
+        statusBoxX + 32,
+        y + 19
+      );
+      drawText(
+        `Revised: ${report.reviewMix.revised} (${revisedPct.toFixed(2)}%)`,
+        statusBoxX + 32,
+        y + 27
+      );
+      doc.setFont("helvetica", "bold");
+      drawText(
+        `Total: ${totalReview} cases`,
+        statusBoxX + 32,
+        y + 35
+      );
+
+      y += 48;
+    });
+
+    if (isComparisonMode) {
+      startNewPage();
+      drawSectionTitle(
+        "Performance Comparison Analytics",
+        "Trend, score distribution and review status for the selected periods"
+      );
+
+      const chartTop = y;
+      const trendHeight = 67;
+
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(221, 214, 254);
+      doc.roundedRect(
+        margin,
+        chartTop,
+        contentWidth,
+        trendHeight,
+        2.5,
+        2.5,
+        "FD"
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      drawText(
+        `${reportModeName} Trend vs Selected Periods`,
+        margin + 4,
+        chartTop + 7
+      );
+
+      const trendX = margin + 15;
+      const trendY = chartTop + 13;
+      const trendW = contentWidth - 23;
+      const trendH = 43;
+
+      comparisonChartAnalytics.trendTicks.forEach(
+        (tick, index) => {
+          const lineY =
+            trendY +
+            (index /
+              Math.max(
+                1,
+                comparisonChartAnalytics.trendTicks.length - 1
+              )) *
+              trendH;
+
+          doc.setDrawColor(237, 233, 254);
+          doc.setLineWidth(0.25);
+          doc.line(
+            trendX,
+            lineY,
+            trendX + trendW,
+            lineY
+          );
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(5.5);
+          doc.setTextColor(100, 116, 139);
+          drawText(
+            String(tick),
+            trendX - 3,
+            lineY + 1.5,
+            { align: "right" }
+          );
+        }
+      );
+
+      const trendGap = 5;
+      const trendBarWidth =
+        (trendW -
+          trendGap *
+            (comparisonRowsWithDelta.length + 1)) /
+        Math.max(1, comparisonRowsWithDelta.length);
+
+      comparisonRowsWithDelta.forEach((row, index) => {
+        const barHeight = Math.max(
+          2,
+          ((row.avgScore -
+            comparisonChartAnalytics.trendFloor) /
+            comparisonChartAnalytics.trendRange) *
+            trendH
+        );
+        const barX =
+          trendX +
+          trendGap +
+          index * (trendBarWidth + trendGap);
+        const barY = trendY + trendH - barHeight;
+
+        doc.setFillColor(124, 58, 237);
+        doc.roundedRect(
+          barX,
+          barY,
+          trendBarWidth,
+          barHeight,
+          1.2,
+          1.2,
+          "F"
+        );
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5.5);
+        doc.setTextColor(15, 23, 42);
+        drawText(
+          row.avgScore.toFixed(2),
+          barX + trendBarWidth / 2,
+          Math.max(trendY + 3, barY - 2),
+          { align: "center" }
+        );
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5);
+        doc.setTextColor(100, 116, 139);
+        wrapText(row.label, 16, 2).forEach(
+          (line, lineIndex) => {
+            drawText(
+              line,
+              barX + trendBarWidth / 2,
+              trendY + trendH + 5 + lineIndex * 3,
+              { align: "center" }
+            );
+          }
+        );
+      });
+
+      y += trendHeight + 8;
+
+      const lowerCardWidth = (contentWidth - 5) / 2;
+      const lowerCardHeight = 66;
+
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(221, 214, 254);
+      doc.roundedRect(
+        margin,
+        y,
+        lowerCardWidth,
+        lowerCardHeight,
+        2.5,
+        2.5,
+        "FD"
+      );
+      doc.roundedRect(
+        margin + lowerCardWidth + 5,
+        y,
+        lowerCardWidth,
+        lowerCardHeight,
+        2.5,
+        2.5,
+        "FD"
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      drawText(
+        `Score Distribution (${comparisonChartAnalytics.total} cases)`,
+        margin + 4,
+        y + 7
+      );
+      drawText(
+        "Review Status Mix",
+        margin + lowerCardWidth + 9,
+        y + 7
+      );
+
+      const distX = margin + 10;
+      const distY = y + 13;
+      const distW = lowerCardWidth - 16;
+      const distH = 39;
+      const bucketGap = 5;
+      const bucketWidth =
+        (distW -
+          bucketGap *
+            (comparisonChartAnalytics.scoreBuckets.length + 1)) /
+        comparisonChartAnalytics.scoreBuckets.length;
+
+      comparisonChartAnalytics.scoreBuckets.forEach(
+        (bucket, index) => {
+          const barHeight =
+            comparisonChartAnalytics.maxBucketCount > 0
+              ? Math.max(
+                  bucket.count ? 2 : 0,
+                  (bucket.count /
+                    comparisonChartAnalytics.maxBucketCount) *
+                    distH
+                )
+              : 0;
+          const barX =
+            distX +
+            bucketGap +
+            index * (bucketWidth + bucketGap);
+          const barY = distY + distH - barHeight;
+
+          doc.setFillColor(124, 58, 237);
+          doc.roundedRect(
+            barX,
+            barY,
+            bucketWidth,
+            barHeight,
+            1,
+            1,
+            "F"
+          );
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6);
+          doc.setTextColor(15, 23, 42);
+          drawText(
+            String(bucket.count),
+            barX + bucketWidth / 2,
+            Math.max(distY + 3, barY - 2),
+            { align: "center" }
+          );
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(5.5);
+          doc.setTextColor(100, 116, 139);
+          drawText(
+            bucket.label,
+            barX + bucketWidth / 2,
+            distY + distH + 5,
+            { align: "center" }
+          );
+        }
+      );
+
+      addDonutChart(
+        margin + lowerCardWidth + 13,
+        y + 13,
+        36,
+        comparisonChartAnalytics.originalPct,
+        comparisonChartAnalytics.revisedPct
+      );
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(71, 85, 105);
+      drawText(
+        `Original: ${comparisonChartAnalytics.original} (${comparisonChartAnalytics.originalPct.toFixed(2)}%)`,
+        margin + lowerCardWidth + 52,
+        y + 27
+      );
+      drawText(
+        `Revised: ${comparisonChartAnalytics.revised} (${comparisonChartAnalytics.revisedPct.toFixed(2)}%)`,
+        margin + lowerCardWidth + 52,
+        y + 36
+      );
+      doc.setFont("helvetica", "bold");
+      drawText(
+        `Total: ${comparisonChartAnalytics.total} cases`,
+        margin + lowerCardWidth + 52,
+        y + 47
+      );
+
+      y += lowerCardHeight + 10;
 
       topicDifferenceGroups.forEach((group: any) => {
-        ensureSpace(18);
-        doc.setFillColor(49, 16, 101);
-        doc.rect(margin, y, tableWidth, 8, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        drawText(`Topic Difference — ${group.label}`, margin + 3, y + 5.4, { color: "#ffffff" });
-        y += 8;
+        drawSectionTitle(
+          `Topic Difference — ${group.label}`,
+          "Only periods using the same QA criteria are compared"
+        );
 
         group.topics.forEach((topic: any, index: number) => {
-          ensureSpace(14);
-          doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 248 : 255, 255);
+          const valuesText = topic.values
+            .map((value: any) => {
+              if (value.pct === null) {
+                return `${value.period}: Not Applicable`;
+              }
+
+              const delta =
+                value.delta === null
+                  ? "Base"
+                  : `${value.delta > 0 ? "+" : ""}${value.delta.toFixed(2)}`;
+
+              return `${value.period}: ${value.pct.toFixed(2)}% (${delta})`;
+            })
+            .join("  |  ");
+
+          const lines = wrapText(valuesText, 108, 2);
+          const rowHeight = 9 + lines.length * 3.6;
+
+          ensureSpace(rowHeight + 2);
+
+          doc.setFillColor(
+            index % 2 === 0 ? 250 : 255,
+            index % 2 === 0 ? 248 : 255,
+            255
+          );
           doc.setDrawColor(226, 232, 240);
-          doc.rect(margin, y, tableWidth, 13, "FD");
+          doc.rect(margin, y, contentWidth, rowHeight, "FD");
+
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
-          drawText(`${topic.code}. ${topic.label}`, margin + 2, y + 4.5);
+          doc.setTextColor(15, 23, 42);
+          drawText(
+            `${topic.code}. ${topic.label}`,
+            margin + 3,
+            y + 4.8
+          );
+
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(6.5);
-          const valueText = topic.values.map((value: any) => {
-            if (value.pct === null) return `${value.period}: Not Applicable`;
-            const delta = value.delta === null ? "Base" : (value.delta > 0 ? "+" : "") + value.delta.toFixed(2);
-            return `${value.period}: ${value.pct.toFixed(2)}% (${delta})`;
-          }).join("  |  ");
-          wrapText(valueText, 115, 2).forEach((line, lineIndex) => {
-            drawText(line, margin + 2, y + 9 + lineIndex * 3.5);
+          doc.setFontSize(6.4);
+          doc.setTextColor(71, 85, 105);
+
+          lines.forEach((line, lineIndex) => {
+            drawText(
+              line,
+              margin + 3,
+              y + 9 + lineIndex * 3.6
+            );
           });
-          y += 13;
+
+          y += rowHeight;
         });
-        y += 5;
+
+        y += 6;
       });
     }
 
-    ensureSpace(20 + comparisonRows.length * 9);
-    y += 8;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    drawText("Summary Table", margin, y);
-    y += 7;
+    drawSectionTitle(
+      "Summary Table",
+      isComparisonMode
+        ? "Comparison result based on the selected periods"
+        : "Result for the selected period"
+    );
 
     const summaryWidths = [76, 22, 28, 24, 20, 16];
     const summaryHeaders = [
-      analysisMode === "weekly" ? "Week" : analysisMode === "monthly" ? "Month" : "Year",
+      analysisMode === "weekly"
+        ? "Week"
+        : analysisMode === "monthly"
+          ? "Month"
+          : "Year",
       "Cases",
       "Average",
       "Change",
@@ -2576,92 +3264,195 @@ export default function SummaryMockup({
     ];
 
     doc.setFillColor(49, 16, 101);
-    doc.rect(margin, y, tableWidth, 9, "F");
+    doc.roundedRect(
+      margin,
+      y,
+      contentWidth,
+      9,
+      2,
+      2,
+      "F"
+    );
+
     let summaryX = margin;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
+
     summaryHeaders.forEach((header, index) => {
       drawText(
         header,
-        index === 0 ? summaryX + 2 : summaryX + summaryWidths[index] / 2,
+        index === 0
+          ? summaryX + 3
+          : summaryX + summaryWidths[index] / 2,
         y + 6,
-        { align: index === 0 ? "left" : "center", color: "#ffffff" }
+        {
+          align: index === 0 ? "left" : "center",
+          color: "#ffffff",
+        }
       );
       summaryX += summaryWidths[index];
     });
+
     y += 9;
 
     comparisonRowsWithDelta.forEach((row, index) => {
       ensureSpace(9);
-      doc.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, index % 2 === 0 ? 255 : 252);
+
+      doc.setFillColor(
+        index % 2 === 0 ? 255 : 248,
+        index % 2 === 0 ? 255 : 250,
+        index % 2 === 0 ? 255 : 252
+      );
       doc.setDrawColor(226, 232, 240);
-      doc.rect(margin, y, tableWidth, 9, "FD");
+      doc.rect(margin, y, contentWidth, 9, "FD");
+
       const values = [
         row.label,
         String(row.caseCount),
         row.avgScore.toFixed(2),
-        row.scoreDelta === null ? "Base" : (row.scoreDelta > 0 ? "+" : "") + row.scoreDelta.toFixed(2),
+        row.scoreDelta === null
+          ? "Base"
+          : `${row.scoreDelta > 0 ? "+" : ""}${row.scoreDelta.toFixed(2)}`,
         String(row.grade),
         String(row.revisedCount),
       ];
-      let x = margin;
-      doc.setTextColor(15, 23, 42);
+
+      let cellX = margin;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7);
+      doc.setTextColor(15, 23, 42);
+
       values.forEach((value, colIndex) => {
         drawText(
           value,
-          colIndex === 0 ? x + 2 : x + summaryWidths[colIndex] / 2,
+          colIndex === 0
+            ? cellX + 3
+            : cellX + summaryWidths[colIndex] / 2,
           y + 5.8,
-          { align: colIndex === 0 ? "left" : "center" }
+          {
+            align: colIndex === 0 ? "left" : "center",
+          }
         );
-        x += summaryWidths[colIndex];
+        cellX += summaryWidths[colIndex];
       });
+
       y += 9;
     });
 
-    if (effectiveSelectedAgent === "all" && agentComparisonRows.length) {
+    if (
+      effectiveSelectedAgent === "all" &&
+      agentComparisonRows.length
+    ) {
       y += 9;
-      ensureSpace(18);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      drawText(isComparisonMode ? "Agent Comparison" : "Agent Overview", margin, y);
-      y += 8;
+      drawSectionTitle(
+        isComparisonMode
+          ? "Agent Comparison"
+          : "Agent Overview",
+        "Agent-level score and case coverage"
+      );
 
       agentComparisonRows.forEach((row: any) => {
-        ensureSpace(10 + row.values.length * 6);
+        ensureSpace(10 + row.values.length * 7);
+
         doc.setFillColor(49, 16, 101);
-        doc.rect(margin, y, tableWidth, 8, "F");
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          8,
+          1.8,
+          1.8,
+          "F"
+        );
+
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
-        drawText(buildSuspendedAgentLabel(row.agent, accountProfiles), margin + 3, y + 5.4, { color: "#ffffff" });
+        drawText(
+          buildSuspendedAgentLabel(
+            row.agent,
+            accountProfiles
+          ),
+          margin + 3,
+          y + 5.4,
+          { color: "#ffffff" }
+        );
         y += 8;
 
-        row.values.forEach((value: any, index: number) => {
-          doc.setFillColor(index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 250 : 255, index % 2 === 0 ? 252 : 255);
-          doc.setDrawColor(226, 232, 240);
-          doc.rect(margin, y, tableWidth, 6, "FD");
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(7);
-          drawText(value.period, margin + 3, y + 4.2);
-          const scoreText =
-            value.score === null
-              ? "No cases"
-              : `${value.score.toFixed(2)} | ${value.caseCount} case(s)`;
-          doc.setFont("helvetica", "bold");
-          drawText(scoreText, pageWidth - margin - 3, y + 4.2, { align: "right" });
-          y += 6;
-        });
+        row.values.forEach(
+          (value: any, valueIndex: number) => {
+            doc.setFillColor(
+              valueIndex % 2 === 0 ? 250 : 255,
+              valueIndex % 2 === 0 ? 250 : 255,
+              valueIndex % 2 === 0 ? 252 : 255
+            );
+            doc.setDrawColor(226, 232, 240);
+            doc.rect(
+              margin,
+              y,
+              contentWidth,
+              6.5,
+              "FD"
+            );
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(71, 85, 105);
+            drawText(
+              value.period,
+              margin + 3,
+              y + 4.5
+            );
+
+            const scoreText =
+              value.score === null
+                ? "No cases"
+                : `${value.score.toFixed(2)} | ${value.caseCount} case(s)`;
+
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(15, 23, 42);
+            drawText(
+              scoreText,
+              pageWidth - margin - 3,
+              y + 4.5,
+              { align: "right" }
+            );
+
+            y += 6.5;
+          }
+        );
 
         if (isComparisonMode) {
           const differenceText =
             row.overallDelta === null
               ? "Overall difference: N/A"
               : `Overall difference: ${row.overallDelta > 0 ? "+" : ""}${row.overallDelta.toFixed(2)}`;
+
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
-          drawText(differenceText, pageWidth - margin - 3, y + 4.5, { align: "right" });
-          y += 6;
+          doc.setTextColor(
+            row.overallDelta === null
+              ? 100
+              : row.overallDelta >= 0
+                ? 5
+                : 190,
+            row.overallDelta === null
+              ? 116
+              : row.overallDelta >= 0
+                ? 150
+                : 24,
+            row.overallDelta === null
+              ? 139
+              : row.overallDelta >= 0
+                ? 105
+                : 93
+          );
+          drawText(
+            differenceText,
+            pageWidth - margin - 3,
+            y + 5,
+            { align: "right" }
+          );
+          y += 7;
         } else {
           y += 3;
         }
@@ -2669,16 +3460,41 @@ export default function SummaryMockup({
     }
 
     const pageCount = doc.getNumberOfPages();
-    for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
+
+    for (
+      let pageIndex = 1;
+      pageIndex <= pageCount;
+      pageIndex += 1
+    ) {
       doc.setPage(pageIndex);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(
+        margin,
+        pageHeight - 12,
+        pageWidth - margin,
+        pageHeight - 12
+      );
+
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setTextColor(100, 116, 139);
-      drawText(`Page ${pageIndex} of ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+      drawText(
+        `${reportTitle} • ${generatedBy}`,
+        margin,
+        footerY
+      );
+      drawText(
+        `Page ${pageIndex} of ${pageCount}`,
+        pageWidth - margin,
+        footerY,
+        { align: "right" }
+      );
     }
 
     const fileName =
       `QA_${reportModeName}_${isComparisonMode ? "Comparison" : "Performance"}_Report.pdf`;
+
     doc.save(fileName);
     setReportPdfDialogOpen(false);
   }
@@ -3081,8 +3897,8 @@ export default function SummaryMockup({
                       </div>
                     ) : null}
 
-                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,0.8fr)]">
-                      <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,0.8fr)]">
+                      <div className="h-fit self-start overflow-x-auto rounded-2xl border border-violet-100">
                         <table className="min-w-[760px] w-full text-sm">
                           <thead>
                             <tr className="bg-violet-700 text-white">
