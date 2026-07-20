@@ -1772,10 +1772,60 @@ export default function SummaryMockup({
     });
 
   const effectivePeriodKeys = useMemo(() => {
-    const valid = selectedPeriods.filter((period) => periodOptions.includes(period));
-    if (valid.length) return sortPeriodKeys(valid);
-    return periodOptions[0] ? sortPeriodKeys([periodOptions[0]]) : [];
-  }, [selectedPeriods, periodOptions, analysisMode]);
+    const valid = selectedPeriods.filter((period) =>
+      periodOptions.includes(period)
+    );
+
+    if (valid.length) {
+      return sortPeriodKeys(valid);
+    }
+
+    const now = new Date();
+
+    if (analysisMode === "monthly") {
+      const currentMonthKey =
+        `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, "0")}`;
+
+      const defaultMonth =
+        periodOptions.includes(currentMonthKey)
+          ? currentMonthKey
+          : periodOptions[0];
+
+      return defaultMonth
+        ? [defaultMonth]
+        : [];
+    }
+
+    if (analysisMode === "weekly") {
+      const currentWeek =
+        getWeekLabelFromAuditDate(now);
+
+      const defaultWeek =
+        periodOptions.includes(currentWeek)
+          ? currentWeek
+          : periodOptions[0];
+
+      return defaultWeek
+        ? [defaultWeek]
+        : [];
+    }
+
+    const currentYear =
+      String(now.getFullYear());
+
+    const defaultYear =
+      periodOptions.includes(currentYear)
+        ? currentYear
+        : periodOptions[0];
+
+    return defaultYear
+      ? [defaultYear]
+      : [];
+  }, [
+    selectedPeriods,
+    periodOptions,
+    analysisMode,
+  ]);
 
   const getPeriodDisplayLabel = (value: string) => {
     if (analysisMode === "monthly") {
@@ -2187,6 +2237,87 @@ export default function SummaryMockup({
 
     return { strongestCases, improvementCases };
   }, [filteredCases]);
+
+  const teamMonthlyAnalyticsRows = useMemo(() => {
+    if (analysisMode !== "monthly") return [];
+
+    const currentMonthKey =
+      `${new Date().getFullYear()}-${`${new Date().getMonth() + 1}`.padStart(2, "0")}`;
+
+    const selectedMonthlyKeys = effectivePeriodKeys
+      .filter((key) => /^\d{4}-\d{2}$/.test(key))
+      .sort((a, b) => a.localeCompare(b));
+
+    const anchorMonthKey =
+      selectedMonthlyKeys[selectedMonthlyKeys.length - 1] ||
+      (allCases.some((item) => item.monthKey === currentMonthKey)
+        ? currentMonthKey
+        : getLatestMonthKey(allCases));
+
+    if (!anchorMonthKey || anchorMonthKey === "unknown") {
+      return [];
+    }
+
+    const rows = buildRecentMonthKeys(anchorMonthKey, 3)
+      .reverse()
+      .map((monthKey) => {
+        const monthCases = allCases.filter((item) => {
+          if (
+            roleScopedAgentList.length &&
+            !roleScopedAgentList.some((agent) =>
+              isSameAgent(item.agent, agent)
+            )
+          ) {
+            return false;
+          }
+
+          return item.monthKey === monthKey;
+        });
+
+        const summary = summarizeCases(monthCases);
+        const avgScore = monthCases.length
+          ? summary.avgScore
+          : 0;
+
+        return {
+          monthKey,
+          label: getMonthLabelForKey(monthKey, allCases),
+          caseCount: summary.caseCount,
+          avgScore,
+          revisedCount: summary.revisedCount,
+          grade: monthCases.length
+            ? summary.grade
+            : scoreToGrade(0, monthKey),
+          barPct: monthCases.length
+            ? Math.max(
+                8,
+                Math.min(
+                  100,
+                  ((avgScore - 70) / 30) * 100
+                )
+              )
+            : 0,
+        };
+      });
+
+    return rows.map((row, index) => ({
+      ...row,
+      scoreDelta:
+        index === 0 || !rows[index - 1].caseCount || !row.caseCount
+          ? null
+          : Number(
+              (
+                row.avgScore -
+                rows[index - 1].avgScore
+              ).toFixed(2)
+            ),
+    }));
+  }, [
+    analysisMode,
+    effectivePeriodKeys,
+    allCases,
+    roleScopedAgentList,
+  ]);
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -2764,6 +2895,258 @@ export default function SummaryMockup({
       "amber"
     );
     y += 30;
+
+    if (
+      analysisMode === "monthly" &&
+      teamMonthlyAnalyticsRows.length
+    ) {
+      ensureSpace(96);
+
+      drawSectionTitle(
+        "Team Monthly Analytics — Last 3 Months",
+        "Automatic team trend shown without requiring a month comparison"
+      );
+
+      const analyticsTop = y;
+      const chartHeight = 54;
+
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(221, 214, 254);
+      doc.roundedRect(
+        margin,
+        analyticsTop,
+        contentWidth,
+        chartHeight,
+        2.5,
+        2.5,
+        "FD"
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      drawText(
+        "Monthly Average Score Trend",
+        margin + 4,
+        analyticsTop + 7
+      );
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6);
+      doc.setTextColor(100, 116, 139);
+      drawText(
+        "Team score scale 70–100",
+        pageWidth - margin - 4,
+        analyticsTop + 7,
+        { align: "right" }
+      );
+
+      const chartX = margin + 18;
+      const chartY = analyticsTop + 13;
+      const chartW = contentWidth - 28;
+      const chartH = 30;
+
+      [0, 1, 2, 3].forEach((index) => {
+        const lineY =
+          chartY + (index / 3) * chartH;
+
+        doc.setDrawColor(237, 233, 254);
+        doc.setLineWidth(0.25);
+        doc.line(
+          chartX,
+          lineY,
+          chartX + chartW,
+          lineY
+        );
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.3);
+        doc.setTextColor(100, 116, 139);
+        drawText(
+          String(100 - index * 10),
+          chartX - 3,
+          lineY + 1.5,
+          { align: "right" }
+        );
+      });
+
+      const gap = 12;
+      const barWidth =
+        (chartW -
+          gap * (teamMonthlyAnalyticsRows.length + 1)) /
+        Math.max(1, teamMonthlyAnalyticsRows.length);
+
+      teamMonthlyAnalyticsRows.forEach(
+        (row, index) => {
+          const barHeight = row.caseCount
+            ? Math.max(
+                2,
+                (row.barPct / 100) * chartH
+              )
+            : 0;
+
+          const barX =
+            chartX +
+            gap +
+            index * (barWidth + gap);
+
+          const barY =
+            chartY +
+            chartH -
+            barHeight;
+
+          if (row.caseCount) {
+            doc.setFillColor(124, 58, 237);
+            doc.roundedRect(
+              barX,
+              barY,
+              barWidth,
+              barHeight,
+              1.2,
+              1.2,
+              "F"
+            );
+          }
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(5.8);
+          doc.setTextColor(15, 23, 42);
+          drawText(
+            row.caseCount
+              ? row.avgScore.toFixed(2)
+              : "No data",
+            barX + barWidth / 2,
+            row.caseCount
+              ? Math.max(chartY + 3, barY - 2)
+              : chartY + chartH - 2,
+            { align: "center" }
+          );
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(5.2);
+          doc.setTextColor(100, 116, 139);
+          wrapText(row.label, 18, 2).forEach(
+            (line, lineIndex) => {
+              drawText(
+                line,
+                barX + barWidth / 2,
+                chartY +
+                  chartH +
+                  5 +
+                  lineIndex * 3,
+                { align: "center" }
+              );
+            }
+          );
+        }
+      );
+
+      y += chartHeight + 6;
+
+      const widths = [60, 22, 28, 28, 20, 26];
+      const headers = [
+        "Month",
+        "Cases",
+        "Average",
+        "Change",
+        "Grade",
+        "Revised",
+      ];
+
+      doc.setFillColor(49, 16, 101);
+      doc.roundedRect(
+        margin,
+        y,
+        contentWidth,
+        9,
+        2,
+        2,
+        "F"
+      );
+
+      let headerX = margin;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.7);
+
+      headers.forEach((header, index) => {
+        drawText(
+          header,
+          index === 0
+            ? headerX + 3
+            : headerX + widths[index] / 2,
+          y + 6,
+          {
+            align: index === 0
+              ? "left"
+              : "center",
+            color: "#ffffff",
+          }
+        );
+
+        headerX += widths[index];
+      });
+
+      y += 9;
+
+      teamMonthlyAnalyticsRows.forEach(
+        (row, index) => {
+          doc.setFillColor(
+            index % 2 === 0 ? 255 : 248,
+            index % 2 === 0 ? 255 : 250,
+            index % 2 === 0 ? 255 : 252
+          );
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(
+            margin,
+            y,
+            contentWidth,
+            9,
+            "FD"
+          );
+
+          const values = [
+            row.label,
+            String(row.caseCount),
+            row.caseCount
+              ? row.avgScore.toFixed(2)
+              : "No data",
+            row.scoreDelta === null
+              ? "Base"
+              : `${row.scoreDelta > 0 ? "+" : ""}${row.scoreDelta.toFixed(2)}`,
+            row.caseCount
+              ? String(row.grade)
+              : "-",
+            String(row.revisedCount),
+          ];
+
+          let x = margin;
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6.5);
+          doc.setTextColor(51, 65, 85);
+
+          values.forEach((value, colIndex) => {
+            drawText(
+              value,
+              colIndex === 0
+                ? x + 3
+                : x + widths[colIndex] / 2,
+              y + 5.8,
+              {
+                align: colIndex === 0
+                  ? "left"
+                  : "center",
+              }
+            );
+
+            x += widths[colIndex];
+          });
+
+          y += 9;
+        }
+      );
+
+      y += 10;
+    }
 
     periodTopicReports.forEach((report, reportIndex) => {
       if (reportIndex > 0 || y > 145) {
@@ -3491,107 +3874,162 @@ export default function SummaryMockup({
           : "Lowest-scoring cases recommended for coaching review"
       );
 
-      const columnWidths = [26, 40, 18, 100];
-      const headers = ["Case ID", "Agent", "Score", "Topic / Inquiry"];
-
-      const drawHeader = () => {
-        doc.setFillColor(
-          mode === "strong" ? 5 : 217,
-          mode === "strong" ? 150 : 119,
-          mode === "strong" ? 105 : 6
-        );
-        doc.roundedRect(margin, y, contentWidth, 9, 2, 2, "F");
-
-        let x = margin;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(6.7);
-
-        headers.forEach((header, index) => {
-          drawText(
-            header,
-            index === 0 ? x + 2 : x + columnWidths[index] / 2,
-            y + 6,
-            {
-              align: index === 0 ? "left" : "center",
-              color: "#ffffff",
-            }
-          );
-          x += columnWidths[index];
-        });
-
-        y += 9;
-      };
-
-      drawHeader();
-
       rows.forEach((row, index) => {
-        const topic = mode === "strong" ? row.strongestTopic : row.lowestTopic;
-        const topicPrefix = mode === "strong" ? "Strongest" : "Lowest";
-        const detailText =
-          `${topicPrefix}: ${
-            topic ? `${topic.label} (${topic.pct.toFixed(2)}%)` : "No topic data"
-          } | Inquiry: ${row.inquiry}`;
+        const topic =
+          mode === "strong"
+            ? row.strongestTopic
+            : row.lowestTopic;
 
-        const detailLines = wrapText(detailText, 76, 3);
+        const topicTitle =
+          mode === "strong"
+            ? "Strongest Topic"
+            : "Lowest Topic";
+
+        const topicText = topic
+          ? `${topic.label} (${topic.pct.toFixed(2)}%)`
+          : "No topic data";
+
+        const agentText =
+          buildSuspendedAgentLabel(
+            row.agent,
+            accountProfiles
+          );
+
         const agentLines = wrapText(
-          buildSuspendedAgentLabel(row.agent, accountProfiles),
-          25,
+          `Agent: ${agentText} | Audit Date: ${row.auditDate}`,
+          78,
           2
         );
 
-        const rowHeight = Math.max(
-          10,
-          4 + Math.max(detailLines.length, agentLines.length) * 3.6
+        const topicLines = wrapText(
+          `${topicTitle}: ${topicText}`,
+          82,
+          2
         );
 
-        if (y + rowHeight > pageHeight - 15) {
+        const inquiryLines = wrapText(
+          `Inquiry: ${row.inquiry}`,
+          92,
+          4
+        );
+
+        const bodyLineCount =
+          agentLines.length +
+          topicLines.length +
+          inquiryLines.length;
+
+        const cardHeight =
+          13 +
+          bodyLineCount * 4 +
+          5;
+
+        if (
+          y + cardHeight >
+          pageHeight - 15
+        ) {
           startNewPage();
-          drawSectionTitle(`${title} (continued)`);
-          drawHeader();
+          drawSectionTitle(
+            `${title} (continued)`
+          );
         }
 
-        doc.setFillColor(
-          index % 2 === 0 ? 255 : 248,
-          index % 2 === 0 ? 255 : 250,
-          index % 2 === 0 ? 255 : 252
+        const fill =
+          mode === "strong"
+            ? ([240, 253, 250] as const)
+            : ([255, 251, 235] as const);
+
+        const border =
+          mode === "strong"
+            ? ([110, 231, 183] as const)
+            : ([253, 186, 116] as const);
+
+        const accent =
+          mode === "strong"
+            ? ([5, 150, 105] as const)
+            : ([217, 119, 6] as const);
+
+        doc.setFillColor(...fill);
+        doc.setDrawColor(...border);
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          cardHeight,
+          2.5,
+          2.5,
+          "FD"
         );
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(margin, y, contentWidth, rowHeight, "FD");
 
-        let x = margin;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.3);
-        doc.setTextColor(51, 65, 85);
-
-        drawText(row.caseId, x + 2, y + 5);
-        x += columnWidths[0];
-
-        agentLines.forEach((line, lineIndex) => {
-          drawText(line, x + 2, y + 5 + lineIndex * 3.6);
-        });
-        x += columnWidths[1];
+        doc.setFillColor(...accent);
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          10,
+          2.5,
+          2.5,
+          "F"
+        );
 
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(
-          mode === "strong" ? 5 : 180,
-          mode === "strong" ? 150 : 83,
-          mode === "strong" ? 105 : 9
-        );
+        doc.setFontSize(8);
         drawText(
-          row.score.toFixed(2),
-          x + columnWidths[2] / 2,
-          y + 5,
-          { align: "center" }
+          `${index + 1}. Case ID: ${row.caseId}`,
+          margin + 4,
+          y + 6.6,
+          { color: "#ffffff" }
         );
-        x += columnWidths[2];
+
+        drawText(
+          `Score: ${row.score.toFixed(2)}`,
+          pageWidth - margin - 4,
+          y + 6.6,
+          {
+            align: "right",
+            color: "#ffffff",
+          }
+        );
+
+        let lineY = y + 16;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.8);
+        doc.setTextColor(51, 65, 85);
+
+        agentLines.forEach((line) => {
+          drawText(
+            line,
+            margin + 5,
+            lineY
+          );
+          lineY += 4;
+        });
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...accent);
+
+        topicLines.forEach((line) => {
+          drawText(
+            line,
+            margin + 5,
+            lineY
+          );
+          lineY += 4;
+        });
 
         doc.setFont("helvetica", "normal");
         doc.setTextColor(71, 85, 105);
-        detailLines.forEach((line, lineIndex) => {
-          drawText(line, x + 2, y + 5 + lineIndex * 3.6);
+
+        inquiryLines.forEach((line) => {
+          drawText(
+            line,
+            margin + 5,
+            lineY
+          );
+          lineY += 4;
         });
 
-        y += rowHeight;
+        y += cardHeight + 4;
       });
     };
 
@@ -4005,7 +4443,7 @@ export default function SummaryMockup({
                           : "Select Years"}
                     </FilterLabel>
                     <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-black text-violet-700">
-                      {effectivePeriodKeys.length}/{maxSelectedPeriods}
+                      {selectedPeriods.length}/{maxSelectedPeriods}
                     </div>
                   </div>
 
@@ -4020,9 +4458,11 @@ export default function SummaryMockup({
                     }
                   >
                     {periodOptions.map((period) => {
-                      const activeSelections = selectedPeriods.length ? selectedPeriods : effectivePeriodKeys;
+                      const activeSelections = selectedPeriods;
                       const checked = activeSelections.includes(period);
-                      const disabled = !checked && activeSelections.length >= maxSelectedPeriods;
+                      const disabled =
+                        !checked &&
+                        activeSelections.length >= maxSelectedPeriods;
 
                       return (
                         <button
@@ -4030,7 +4470,7 @@ export default function SummaryMockup({
                           type="button"
                           disabled={disabled}
                           onClick={() => {
-                            const current = selectedPeriods.length ? selectedPeriods : effectivePeriodKeys;
+                            const current = selectedPeriods;
                             if (current.includes(period)) {
                               setSelectedPeriods(current.filter((item) => item !== period));
                               return;
@@ -4059,11 +4499,13 @@ export default function SummaryMockup({
                   </div>
 
                   <div className="mt-2 text-xs leading-5 text-slate-500">
-                    {analysisMode === "monthly"
-                      ? "เลือกได้ 1–6 เดือน"
-                      : analysisMode === "weekly"
-                        ? "เลือกได้ 1–4 สัปดาห์"
-                        : "เลือกได้ 1–4 ปี"}
+                    {selectedPeriods.length
+                      ? analysisMode === "monthly"
+                        ? "เลือกได้สูงสุด 6 เดือน"
+                        : analysisMode === "weekly"
+                          ? "เลือกได้สูงสุด 4 สัปดาห์"
+                          : "เลือกได้สูงสุด 4 ปี"
+                      : `ยังไม่ได้เลือก Compare — ระบบกำลังแสดง ${effectivePeriodLabels.join(", ") || "ช่วงปัจจุบัน"} อัตโนมัติ`}
                   </div>
                 </div>
 
@@ -4125,6 +4567,141 @@ export default function SummaryMockup({
               <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub="Average score across selected periods" valueClassName="text-violet-700" />
               <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from selected periods" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
+
+            {analysisMode === "monthly" && teamMonthlyAnalyticsRows.length ? (
+              <Panel>
+                <PanelHeader
+                  title="Team Monthly Analytics — Last 3 Months"
+                  subtitle="แสดงภาพรวมทีมย้อนหลัง 3 เดือนอัตโนมัติ โดยไม่ต้องเลือก Compare"
+                />
+                <PanelBody>
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(480px,1.2fr)]">
+                    <div className="rounded-2xl border border-violet-100 bg-white p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-black text-slate-900">
+                            Monthly Average Score Trend
+                          </div>
+                          <div className="mt-1 text-xs font-semibold text-slate-500">
+                            Score scale 70–100
+                          </div>
+                        </div>
+                        <div className="rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
+                          Team
+                        </div>
+                      </div>
+
+                      <div className="relative mt-6 h-[230px]">
+                        <div className="absolute inset-x-0 top-0 bottom-10">
+                          {[0, 1, 2, 3].map((index) => (
+                            <div
+                              key={index}
+                              className="absolute left-0 right-0 border-t border-violet-100"
+                              style={{ top: `${(index / 3) * 100}%` }}
+                            />
+                          ))}
+
+                          <div className="absolute inset-0 flex items-end gap-6 px-5">
+                            {teamMonthlyAnalyticsRows.map((row) => (
+                              <div
+                                key={row.monthKey}
+                                className="relative h-full min-w-0 flex-1"
+                              >
+                                <div
+                                  className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-black text-slate-800"
+                                  style={{
+                                    bottom: `calc(${row.barPct}% + 7px)`,
+                                  }}
+                                >
+                                  {row.caseCount
+                                    ? row.avgScore.toFixed(2)
+                                    : "No data"}
+                                </div>
+
+                                <div
+                                  className="absolute bottom-0 left-[18%] right-[18%] rounded-t-xl bg-gradient-to-t from-violet-700 to-fuchsia-500 shadow-[0_5px_16px_rgba(124,58,237,0.22)]"
+                                  style={{
+                                    height: `${row.barPct}%`,
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 flex h-9 gap-6 px-5">
+                          {teamMonthlyAnalyticsRows.map((row) => (
+                            <div
+                              key={row.monthKey}
+                              className="min-w-0 flex-1 truncate text-center text-[11px] font-bold text-slate-500"
+                              title={row.label}
+                            >
+                              {row.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-white">
+                      <table className="min-w-[680px] w-full text-sm">
+                        <thead>
+                          <tr className="bg-violet-950 text-white">
+                            <th className="px-4 py-3 text-left">Month</th>
+                            <th className="px-4 py-3 text-center">Cases</th>
+                            <th className="px-4 py-3 text-center">Average</th>
+                            <th className="px-4 py-3 text-center">Change</th>
+                            <th className="px-4 py-3 text-center">Grade</th>
+                            <th className="px-4 py-3 text-center">Revised</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {teamMonthlyAnalyticsRows.map((row) => (
+                            <tr key={row.monthKey} className="bg-white">
+                              <td className="border-t border-violet-100 px-4 py-4 font-black text-slate-900">
+                                {row.label}
+                              </td>
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-bold text-slate-700">
+                                {row.caseCount}
+                              </td>
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-black text-violet-700">
+                                {row.caseCount
+                                  ? row.avgScore.toFixed(2)
+                                  : "No data"}
+                              </td>
+                              <td
+                                className={
+                                  "border-t border-violet-100 px-4 py-4 text-center font-black " +
+                                  (row.scoreDelta === null
+                                    ? "text-slate-400"
+                                    : row.scoreDelta >= 0
+                                      ? "text-emerald-600"
+                                      : "text-rose-600")
+                                }
+                              >
+                                {row.scoreDelta === null
+                                  ? "Base"
+                                  : `${row.scoreDelta > 0 ? "+" : ""}${row.scoreDelta.toFixed(2)}`}
+                              </td>
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-black text-slate-800">
+                                {row.caseCount ? row.grade : "-"}
+                              </td>
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-bold text-slate-700">
+                                {row.revisedCount}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      <div className="border-t border-violet-100 bg-violet-50 px-4 py-3 text-xs font-semibold text-violet-700">
+                        ข้อมูลย้อนหลัง 3 เดือนจะแสดงอัตโนมัติ แม้ยังไม่ได้เลือกเดือนสำหรับ Compare
+                      </div>
+                    </div>
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : null}
 
             {(analysisMode === "monthly" || analysisMode === "weekly") && effectiveSelectedAgent === "all" && agentComparisonRows.length ? (
               <Panel>
