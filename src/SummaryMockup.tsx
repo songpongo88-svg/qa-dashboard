@@ -2017,6 +2017,56 @@ export default function SummaryMockup({
   const reportModeName =
     analysisMode === "weekly" ? "Weekly" : analysisMode === "monthly" ? "Monthly" : "Yearly";
 
+  const comparisonChartAnalytics = useMemo(() => {
+    const scores = comparisonRowsWithDelta.map((row) => row.avgScore);
+    const minimumScore = scores.length ? Math.min(...scores) : 0;
+    const trendFloor = Math.max(0, Math.min(90, Math.floor((minimumScore - 5) / 10) * 10));
+    const trendCeiling = 100;
+    const trendRange = Math.max(10, trendCeiling - trendFloor);
+    const trendTicks = Array.from({ length: 4 }, (_, index) =>
+      Math.round(trendCeiling - (trendRange / 3) * index)
+    );
+
+    const scoreBuckets = [
+      {
+        label: "90–100",
+        count: filteredCases.filter((item) => item.finalScore >= 90).length,
+      },
+      {
+        label: "85–89",
+        count: filteredCases.filter((item) => item.finalScore >= 85 && item.finalScore < 90).length,
+      },
+      {
+        label: "80–84",
+        count: filteredCases.filter((item) => item.finalScore >= 80 && item.finalScore < 85).length,
+      },
+      {
+        label: "<80",
+        count: filteredCases.filter((item) => item.finalScore < 80).length,
+      },
+    ];
+
+    const maxBucketCount = Math.max(1, ...scoreBuckets.map((bucket) => bucket.count));
+    const revised = filteredCases.filter((item) => item.reviewStatus === "Revised").length;
+    const original = Math.max(0, filteredCases.length - revised);
+    const total = filteredCases.length;
+    const originalPct = total ? Number(((original / total) * 100).toFixed(2)) : 0;
+    const revisedPct = total ? Number(((revised / total) * 100).toFixed(2)) : 0;
+
+    return {
+      trendFloor,
+      trendRange,
+      trendTicks,
+      scoreBuckets,
+      maxBucketCount,
+      original,
+      revised,
+      total,
+      originalPct,
+      revisedPct,
+    };
+  }, [comparisonRowsWithDelta, filteredCases]);
+
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
     return getLatestMonthKey(filteredCases.length ? filteredCases : allCases);
@@ -3134,40 +3184,193 @@ export default function SummaryMockup({
             {isComparisonMode ? (
               <Panel>
                 <PanelHeader
-                  title="Performance Comparison Bar Chart"
-                  subtitle="แต่ละช่วงเปรียบเทียบกับช่วงก่อนหน้าตามลำดับเวลา"
+                  title="Performance Comparison Analytics"
+                  subtitle="แสดง Trend, Score Distribution และ Review Status Mix ในรูปแบบเดียวกับรายงาน Weekly"
                 />
                 <PanelBody>
-                  <div className="space-y-4">
-                    {comparisonRowsWithDelta.map((row) => (
-                      <div key={row.label} className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_130px] md:items-center">
-                        <div>
-                          <div className="text-sm font-black text-slate-800">{row.label}</div>
-                          <div className="mt-1 text-xs font-semibold text-slate-500">{row.caseCount} Cases</div>
+                  <div className="grid gap-4 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+                      <div className="text-sm font-black text-slate-900">
+                        {reportModeName} Trend vs Selected Periods
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        Average score comparison
+                      </div>
+
+                      <div className="relative mt-5 h-[245px] pl-10">
+                        <div className="absolute left-0 top-0 bottom-9 flex w-8 flex-col justify-between text-right text-[10px] font-semibold text-slate-500">
+                          {comparisonChartAnalytics.trendTicks.map((tick) => (
+                            <span key={tick}>{tick}</span>
+                          ))}
                         </div>
-                        <div className="h-8 overflow-hidden rounded-full bg-violet-100">
-                          <div
-                            className="flex h-full items-center justify-end rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500 px-3 text-xs font-black text-white"
-                            style={{ width: Math.max(5, Math.min(100, row.avgScore)) + "%" }}
-                          >
-                            {row.avgScore.toFixed(2)}
+
+                        <div className="absolute left-10 right-0 top-0 bottom-9">
+                          {comparisonChartAnalytics.trendTicks.map((tick, index) => (
+                            <div
+                              key={tick}
+                              className="absolute left-0 right-0 border-t border-violet-100"
+                              style={{
+                                top:
+                                  comparisonChartAnalytics.trendTicks.length === 1
+                                    ? "0%"
+                                    : `${(index / (comparisonChartAnalytics.trendTicks.length - 1)) * 100}%`,
+                              }}
+                            />
+                          ))}
+
+                          <div className="absolute inset-0 flex items-end gap-3 px-2">
+                            {comparisonRowsWithDelta.map((row) => {
+                              const barHeight = Math.max(
+                                5,
+                                Math.min(
+                                  100,
+                                  ((row.avgScore - comparisonChartAnalytics.trendFloor) /
+                                    comparisonChartAnalytics.trendRange) *
+                                    100
+                                )
+                              );
+
+                              return (
+                                <div key={row.label} className="relative h-full min-w-0 flex-1">
+                                  <div
+                                    className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-black text-slate-800"
+                                    style={{ bottom: `calc(${barHeight}% + 5px)` }}
+                                  >
+                                    {row.avgScore.toFixed(2)}
+                                  </div>
+                                  <div
+                                    className="absolute bottom-0 left-[16%] right-[16%] rounded-t-md bg-gradient-to-t from-violet-700 to-violet-500 shadow-[0_3px_10px_rgba(124,58,237,0.25)]"
+                                    style={{ height: `${barHeight}%` }}
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                        <div className={
-                          "text-right text-sm font-black " +
-                          (row.scoreDelta === null
-                            ? "text-slate-400"
-                            : row.scoreDelta >= 0
-                              ? "text-emerald-600"
-                              : "text-rose-600")
-                        }>
-                          {row.scoreDelta === null
-                            ? "Base"
-                            : (row.scoreDelta > 0 ? "▲ +" : row.scoreDelta < 0 ? "▼ " : "— ") +
-                              row.scoreDelta.toFixed(2)}
+
+                        <div className="absolute bottom-0 left-10 right-0 flex h-8 gap-3 px-2">
+                          {comparisonRowsWithDelta.map((row) => (
+                            <div
+                              key={row.label}
+                              title={row.label}
+                              className="min-w-0 flex-1 truncate text-center text-[10px] font-semibold text-slate-500"
+                            >
+                              {row.label}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+                      <div className="text-sm font-black text-slate-900">
+                        Score Distribution ({comparisonChartAnalytics.total} cases)
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        Final score range
+                      </div>
+
+                      <div className="relative mt-5 h-[245px] pb-8">
+                        <div className="absolute inset-x-0 top-0 bottom-8">
+                          {[0, 1, 2, 3].map((index) => (
+                            <div
+                              key={index}
+                              className="absolute left-0 right-0 border-t border-violet-100"
+                              style={{ top: `${(index / 3) * 100}%` }}
+                            />
+                          ))}
+
+                          <div className="absolute inset-0 flex items-end gap-5 px-4">
+                            {comparisonChartAnalytics.scoreBuckets.map((bucket) => {
+                              const barHeight = Math.max(
+                                bucket.count ? 7 : 0,
+                                (bucket.count / comparisonChartAnalytics.maxBucketCount) * 100
+                              );
+
+                              return (
+                                <div key={bucket.label} className="relative h-full min-w-0 flex-1">
+                                  <div
+                                    className="absolute left-1/2 -translate-x-1/2 text-[11px] font-black text-slate-800"
+                                    style={{ bottom: `calc(${barHeight}% + 5px)` }}
+                                  >
+                                    {bucket.count}
+                                  </div>
+                                  <div
+                                    className="absolute bottom-0 left-[12%] right-[12%] rounded-t-md bg-gradient-to-t from-violet-700 to-fuchsia-500 shadow-[0_3px_10px_rgba(124,58,237,0.22)]"
+                                    style={{ height: `${barHeight}%` }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 flex h-8 gap-5 px-4">
+                          {comparisonChartAnalytics.scoreBuckets.map((bucket) => (
+                            <div
+                              key={bucket.label}
+                              className="min-w-0 flex-1 text-center text-[10px] font-semibold text-slate-500"
+                            >
+                              {bucket.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
+                      <div className="text-sm font-black text-slate-900">Review Status Mix</div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        Original vs Revised
+                      </div>
+
+                      <div className="mt-7 flex flex-col items-center">
+                        <div
+                          className="relative h-36 w-36 rounded-full"
+                          style={{
+                            background:
+                              comparisonChartAnalytics.total > 0
+                                ? `conic-gradient(#7c3aed 0 ${comparisonChartAnalytics.originalPct}%, #d946ef ${comparisonChartAnalytics.originalPct}% 100%)`
+                                : "conic-gradient(#e2e8f0 0 100%)",
+                          }}
+                        >
+                          <div className="absolute inset-[20px] flex flex-col items-center justify-center rounded-full bg-white shadow-inner">
+                            <div className="text-2xl font-black text-violet-700">
+                              {comparisonChartAnalytics.originalPct.toFixed(0)}%
+                            </div>
+                            <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                              Original
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 w-full space-y-3">
+                          <div className="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 rounded-full bg-violet-700" />
+                              <span className="text-xs font-bold text-slate-700">Original</span>
+                            </div>
+                            <div className="text-xs font-black text-violet-700">
+                              {comparisonChartAnalytics.original} ({comparisonChartAnalytics.originalPct.toFixed(2)}%)
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between rounded-xl bg-fuchsia-50 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 rounded-full bg-fuchsia-500" />
+                              <span className="text-xs font-bold text-slate-700">Revised</span>
+                            </div>
+                            <div className="text-xs font-black text-fuchsia-700">
+                              {comparisonChartAnalytics.revised} ({comparisonChartAnalytics.revisedPct.toFixed(2)}%)
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 text-xs font-bold text-slate-500">
+                          Total: {comparisonChartAnalytics.total} cases
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </PanelBody>
               </Panel>
