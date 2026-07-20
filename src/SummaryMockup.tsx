@@ -2363,20 +2363,45 @@ export default function SummaryMockup({
           " "
         )
         .replace(
-          /\s+/g,
-          " "
+          /\(\s*\d+(?:\.\d+)?\s*%\s*\)/g,
+          ""
+        )
+        .replace(
+          /\b\d+(?:\.\d+)?\s*%\b/g,
+          ""
+        )
+        .replace(
+          /(?:ได้|ทำได้)\s*\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?\s*คะแนน/g,
+          ""
+        )
+        .replace(
+          /(?:ถูกหัก|หัก)\s*\d+(?:\.\d+)?\s*คะแนน/g,
+          ""
+        )
+        .replace(
+          /\b\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?\b/g,
+          ""
         )
         .replace(
           /^(จากการตรวจสอบ|จุดที่หักคือ|จุดที่ควรปรับ|ข้อควรปรับ|สิ่งที่ทำได้ดี|จุดเด่น)\s*:?\s*/i,
           ""
         )
         .replace(
-          /[.…]{2,}$/g,
+          /\s+/g,
+          " "
+        )
+        .replace(
+          /^[\-–—:;,.\s]+/,
+          ""
+        )
+        .replace(
+          /[\-–—:;,.\s]+$/,
           ""
         )
         .trim();
 
       if (
+        !text ||
         text.length <= maxLength
       ) {
         return text;
@@ -2395,44 +2420,10 @@ export default function SummaryMockup({
             item.length <= maxLength
         );
 
-      if (
-        completeClauses.length
-      ) {
-        return completeClauses[0];
-      }
-
-      const shortened =
-        text.slice(
-          0,
-          maxLength
-        );
-
-      const lastBreak =
-        Math.max(
-          shortened.lastIndexOf(
-            " "
-          ),
-          shortened.lastIndexOf(
-            ","
-          ),
-          shortened.lastIndexOf(
-            "，"
-          )
-        );
-
       return (
-        lastBreak > 40
-          ? shortened.slice(
-              0,
-              lastBreak
-            )
-          : shortened
-      )
-        .replace(
-          /[.…]{2,}$/g,
-          ""
-        )
-        .trim();
+        completeClauses[0] ||
+        ""
+      );
     };
 
     const summarizeComment = (
@@ -2668,33 +2659,27 @@ export default function SummaryMockup({
             topic.comment || ""
           ).trim();
 
-        const deducted =
-          Number(
-            Math.max(
-              0,
-              topic.max -
-                topic.score
-            ).toFixed(2)
+        const summarized =
+          summarizeComment(
+            comment,
+            type
           );
 
-        const fallback =
-          type === "strength"
-            ? `ทำได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน`
-            : `ทำได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน${
-                deducted > 0
-                  ? ` และถูกหัก ${deducted.toFixed(2)} คะแนน`
-                  : ""
-              }`;
+        const detail = cleanPoint(
+          summarized
+            .replace(
+              topic.label,
+              ""
+            )
+            .replace(
+              /^\s*[\(\)\-–—:;,.\s]+/,
+              ""
+            )
+        );
 
-        return {
-          label: topic.label,
-          pct: topic.pct,
-          detail:
-            summarizeComment(
-              comment,
-              type
-            ) || fallback,
-        };
+        return detail
+          ? { detail }
+          : null;
       };
 
       const strengthCandidates =
@@ -2720,6 +2705,15 @@ export default function SummaryMockup({
             topic,
             "strength"
           )
+        )
+        .filter(
+          (
+            note
+          ): note is {
+            detail: string;
+          } => Boolean(
+            note?.detail
+          )
         );
 
       const improvementNotes =
@@ -2730,7 +2724,16 @@ export default function SummaryMockup({
               topic,
               "improvement"
             )
-          );
+          )
+          .filter(
+            (
+              note
+            ): note is {
+              detail: string;
+            } => Boolean(
+              note?.detail
+          )
+        );
 
       return {
         caseId: item.caseId,
@@ -4649,8 +4652,8 @@ export default function SummaryMockup({
       drawSectionTitle(
         title,
         mode === "strong"
-          ? "Top evaluated cases — concise strengths and improvement points"
-          : "Lowest-scoring cases — concise coaching points"
+          ? "Positive Feedback summarized from evaluation details"
+          : "Improvement Feedback summarized from evaluation details"
       );
 
       rows.forEach((row, index) => {
@@ -4667,17 +4670,21 @@ export default function SummaryMockup({
         );
 
         const strengthLines =
-          row.strengthNotes.flatMap(
-            (
-              note: any,
-              noteIndex: number
-            ) =>
-              wrapText(
-                `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
-                88,
-                2
+          row.strengthNotes.length
+            ? row.strengthNotes.flatMap(
+                (
+                  note: any,
+                  noteIndex: number
+                ) =>
+                  wrapText(
+                    `${noteIndex + 1}. ${note.detail}`,
+                    88,
+                    3
+                  )
               )
-          );
+            : [
+                "1. No additional positive Feedback was found in the evaluation details.",
+              ];
 
         const improvementLines =
           row.improvementNotes.length
@@ -4687,20 +4694,20 @@ export default function SummaryMockup({
                   noteIndex: number
                 ) =>
                   wrapText(
-                    `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                    `${noteIndex + 1}. ${note.detail}`,
                     88,
-                    2
+                    3
                   )
               )
             : [
-                "• No deducted topic found in this case.",
+                "1. No additional improvement Feedback was found in the evaluation details.",
               ];
 
         const inquiryLines =
           wrapText(
             `Inquiry: ${row.inquiry}`,
             90,
-            2
+            3
           );
 
         const cardHeight =
@@ -4777,16 +4784,6 @@ export default function SummaryMockup({
           { color: "#ffffff" }
         );
 
-        drawText(
-          `Score: ${row.score.toFixed(2)}`,
-          pageWidth - margin - 4,
-          y + 6.6,
-          {
-            align: "right",
-            color: "#ffffff",
-          }
-        );
-
         let lineY = y + 16;
 
         doc.setFont(
@@ -4822,7 +4819,7 @@ export default function SummaryMockup({
         );
 
         drawText(
-          "Strengths / สิ่งที่ทำได้ดี",
+          "Positive Feedback / สิ่งที่ทำได้ดี",
           margin + 5,
           lineY + 1
         );
@@ -4861,7 +4858,7 @@ export default function SummaryMockup({
         );
 
         drawText(
-          "Improvements / จุดที่ควรปรับ",
+          "Improvement Feedback / จุดที่ควรปรับ",
           margin + 5,
           lineY + 1
         );
@@ -4915,13 +4912,13 @@ export default function SummaryMockup({
     };
 
     drawCaseHighlightTable(
-      "Best Cases / Strong Cases",
+      "Best Cases / Positive Feedback",
       caseHighlights.strongestCases,
       "strong"
     );
 
     drawCaseHighlightTable(
-      "Improvement Cases / Coaching Cases",
+      "Coaching Cases / Improvement Feedback",
       caseHighlights.improvementCases,
       "improve"
     );
@@ -6186,8 +6183,8 @@ export default function SummaryMockup({
             <div className="grid gap-6 xl:grid-cols-2">
               <Panel>
                 <PanelHeader
-                  title="Best Cases / Strong Cases"
-                  subtitle="Top 5 เคสที่ได้คะแนนสูง โดยสรุปเฉพาะสิ่งที่ทำได้ดีและจุดที่ควรระวัง"
+                  title="Best Cases / Positive Feedback"
+                  subtitle="ตัวอย่าง Feedback ด้านบวกจากรายละเอียดการประเมินจริง"
                 />
                 <PanelBody>
                   <div className="space-y-3">
@@ -6197,77 +6194,68 @@ export default function SummaryMockup({
                           key={`strong-${item.caseId}-${index}`}
                           className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4"
                         >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="text-sm font-black text-slate-900">
-                                {index + 1}. {item.caseId}
-                              </div>
-                              <div className="mt-1 text-xs font-semibold text-slate-500">
-                                {buildSuspendedAgentLabel(
-                                  item.agent,
-                                  accountProfiles
-                                )} • {item.auditDate}
-                              </div>
+                          <div>
+                            <div className="text-sm font-black text-slate-900">
+                              {index + 1}. {item.caseId}
                             </div>
-
-                            <div className="rounded-full bg-emerald-600 px-3 py-1 text-sm font-black text-white">
-                              {item.score.toFixed(2)}
+                            <div className="mt-1 text-xs font-semibold text-slate-500">
+                              {buildSuspendedAgentLabel(
+                                item.agent,
+                                accountProfiles
+                              )} • {item.auditDate}
                             </div>
                           </div>
 
-                          <div className="mt-4 grid gap-3">
-                            <div className="rounded-xl border border-emerald-100 bg-white/90 p-3">
-                              <div className="text-xs font-black text-emerald-700">
-                                สิ่งที่ทำได้ดี
-                              </div>
-                              <ul className="mt-2 space-y-2">
+                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-emerald-700">
+                              สิ่งที่ทำได้ดี
+                            </div>
+
+                            {item.strengthNotes.length ? (
+                              <ol className="mt-3 space-y-3">
                                 {item.strengthNotes.map((note, noteIndex) => (
                                   <li
                                     key={`${item.caseId}-strength-${noteIndex}`}
-                                    className="flex gap-2 text-xs leading-5 text-slate-700"
+                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
                                   >
-                                    <span className="font-black text-emerald-600">{noteIndex + 1}.</span>
-                                    <span>
-                                      <span className="font-black text-slate-900">
-                                        {note.label} ({note.pct.toFixed(2)}%)
-                                      </span>
-                                      {" — "}
-                                      {note.detail}
+                                    <span className="font-black text-emerald-600">
+                                      {noteIndex + 1}.
                                     </span>
+                                    <span>{note.detail}</span>
                                   </li>
                                 ))}
-                              </ul>
-                            </div>
-
-                            <div className="rounded-xl border border-amber-100 bg-white/90 p-3">
-                              <div className="text-xs font-black text-amber-700">
-                                จุดที่ควรปรับ / ควรระวัง
+                              </ol>
+                            ) : (
+                              <div className="mt-2 text-xs font-semibold text-slate-500">
+                                ไม่พบ Feedback ด้านจุดเด่นเพิ่มเติมจากรายละเอียดการประเมิน
                               </div>
+                            )}
+                          </div>
 
-                              {item.improvementNotes.length ? (
-                                <ul className="mt-2 space-y-2">
-                                  {item.improvementNotes.map((note, noteIndex) => (
-                                    <li
-                                      key={`${item.caseId}-improve-${noteIndex}`}
-                                      className="flex gap-2 text-xs leading-5 text-slate-700"
-                                    >
-                                      <span className="font-black text-amber-600">{noteIndex + 1}.</span>
-                                      <span>
-                                        <span className="font-black text-slate-900">
-                                          {note.label} ({note.pct.toFixed(2)}%)
-                                        </span>
-                                        {" — "}
-                                        {note.detail}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="mt-2 text-xs font-bold text-emerald-700">
-                                  ไม่พบหัวข้อที่ถูกหักคะแนนในเคสนี้
-                                </div>
-                              )}
+                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-amber-700">
+                              จุดที่ควรปรับ / ควรระวัง
                             </div>
+
+                            {item.improvementNotes.length ? (
+                              <ol className="mt-3 space-y-3">
+                                {item.improvementNotes.map((note, noteIndex) => (
+                                  <li
+                                    key={`${item.caseId}-improve-${noteIndex}`}
+                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
+                                  >
+                                    <span className="font-black text-amber-600">
+                                      {noteIndex + 1}.
+                                    </span>
+                                    <span>{note.detail}</span>
+                                  </li>
+                                ))}
+                              </ol>
+                            ) : (
+                              <div className="mt-2 text-xs font-semibold text-emerald-700">
+                                ไม่พบ Feedback ที่ต้องปรับเพิ่มเติมจากรายละเอียดการประเมิน
+                              </div>
+                            )}
                           </div>
 
                           <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
@@ -6289,8 +6277,8 @@ export default function SummaryMockup({
 
               <Panel>
                 <PanelHeader
-                  title="Improvement Cases / Coaching Cases"
-                  subtitle="Top 5 เคสคะแนนต่ำ โดยสรุปจุดเด่นและหัวข้อที่ควรนำไปโค้ชชิ่ง"
+                  title="Coaching Cases / Improvement Feedback"
+                  subtitle="ตัวอย่าง Feedback ที่ควรนำไปใช้ปรับปรุงและโค้ชชิ่ง"
                 />
                 <PanelBody>
                   <div className="space-y-3">
@@ -6300,70 +6288,68 @@ export default function SummaryMockup({
                           key={`improve-${item.caseId}-${index}`}
                           className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4"
                         >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="text-sm font-black text-slate-900">
-                                {index + 1}. {item.caseId}
-                              </div>
-                              <div className="mt-1 text-xs font-semibold text-slate-500">
-                                {buildSuspendedAgentLabel(
-                                  item.agent,
-                                  accountProfiles
-                                )} • {item.auditDate}
-                              </div>
+                          <div>
+                            <div className="text-sm font-black text-slate-900">
+                              {index + 1}. {item.caseId}
                             </div>
-
-                            <div className="rounded-full bg-amber-600 px-3 py-1 text-sm font-black text-white">
-                              {item.score.toFixed(2)}
+                            <div className="mt-1 text-xs font-semibold text-slate-500">
+                              {buildSuspendedAgentLabel(
+                                item.agent,
+                                accountProfiles
+                              )} • {item.auditDate}
                             </div>
                           </div>
 
-                          <div className="mt-4 grid gap-3">
-                            <div className="rounded-xl border border-emerald-100 bg-white/90 p-3">
-                              <div className="text-xs font-black text-emerald-700">
-                                สิ่งที่ยังทำได้ดี
-                              </div>
-                              <ul className="mt-2 space-y-2">
+                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-emerald-700">
+                              สิ่งที่ยังทำได้ดี
+                            </div>
+
+                            {item.strengthNotes.length ? (
+                              <ol className="mt-3 space-y-3">
                                 {item.strengthNotes.map((note, noteIndex) => (
                                   <li
                                     key={`${item.caseId}-good-${noteIndex}`}
-                                    className="flex gap-2 text-xs leading-5 text-slate-700"
+                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
                                   >
-                                    <span className="font-black text-emerald-600">{noteIndex + 1}.</span>
-                                    <span>
-                                      <span className="font-black text-slate-900">
-                                        {note.label} ({note.pct.toFixed(2)}%)
-                                      </span>
-                                      {" — "}
-                                      {note.detail}
+                                    <span className="font-black text-emerald-600">
+                                      {noteIndex + 1}.
                                     </span>
+                                    <span>{note.detail}</span>
                                   </li>
                                 ))}
-                              </ul>
+                              </ol>
+                            ) : (
+                              <div className="mt-2 text-xs font-semibold text-slate-500">
+                                ไม่พบ Feedback ด้านจุดเด่นเพิ่มเติมจากรายละเอียดการประเมิน
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-amber-700">
+                              จุดที่ควรปรับ
                             </div>
 
-                            <div className="rounded-xl border border-amber-100 bg-white/90 p-3">
-                              <div className="text-xs font-black text-amber-700">
-                                จุดที่ควรปรับ
-                              </div>
-                              <ul className="mt-2 space-y-2">
+                            {item.improvementNotes.length ? (
+                              <ol className="mt-3 space-y-3">
                                 {item.improvementNotes.map((note, noteIndex) => (
                                   <li
                                     key={`${item.caseId}-coach-${noteIndex}`}
-                                    className="flex gap-2 text-xs leading-5 text-slate-700"
+                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
                                   >
-                                    <span className="font-black text-amber-600">{noteIndex + 1}.</span>
-                                    <span>
-                                      <span className="font-black text-slate-900">
-                                        {note.label} ({note.pct.toFixed(2)}%)
-                                      </span>
-                                      {" — "}
-                                      {note.detail}
+                                    <span className="font-black text-amber-600">
+                                      {noteIndex + 1}.
                                     </span>
+                                    <span>{note.detail}</span>
                                   </li>
                                 ))}
-                              </ul>
-                            </div>
+                              </ol>
+                            ) : (
+                              <div className="mt-2 text-xs font-semibold text-slate-500">
+                                ไม่พบ Feedback ที่ต้องปรับเพิ่มเติมจากรายละเอียดการประเมิน
+                              </div>
+                            )}
                           </div>
 
                           <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
@@ -6376,7 +6362,7 @@ export default function SummaryMockup({
                       ))
                     ) : (
                       <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-sm font-bold text-emerald-700">
-                        ไม่พบเคสที่มีคะแนนต่ำกว่า 100 ในช่วงที่เลือก
+                        ไม่พบเคสสำหรับ Coaching ในช่วงที่เลือก
                       </div>
                     )}
                   </div>
