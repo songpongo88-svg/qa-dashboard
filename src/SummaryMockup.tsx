@@ -2370,12 +2370,35 @@ export default function SummaryMockup({
           /^(จากการตรวจสอบ|จุดที่หักคือ|จุดที่ควรปรับ|ข้อควรปรับ|สิ่งที่ทำได้ดี|จุดเด่น)\s*:?\s*/i,
           ""
         )
+        .replace(
+          /[.…]{2,}$/g,
+          ""
+        )
         .trim();
 
       if (
         text.length <= maxLength
       ) {
         return text;
+      }
+
+      const completeClauses = text
+        .split(
+          /(?:[.!?。;；]|\s+(?:แต่|อย่างไรก็ตาม|อย่างไรก็ดี|เนื่องจาก|เพราะ|จึง|รวมถึง)\s+)/
+        )
+        .map((item) =>
+          item.trim()
+        )
+        .filter(
+          (item) =>
+            item.length >= 12 &&
+            item.length <= maxLength
+        );
+
+      if (
+        completeClauses.length
+      ) {
+        return completeClauses[0];
       }
 
       const shortened =
@@ -2398,15 +2421,18 @@ export default function SummaryMockup({
         );
 
       return (
-        (
-          lastBreak > 80
-            ? shortened.slice(
-                0,
-                lastBreak
-              )
-            : shortened
-        ).trim() + "…"
-      );
+        lastBreak > 40
+          ? shortened.slice(
+              0,
+              lastBreak
+            )
+          : shortened
+      )
+        .replace(
+          /[.…]{2,}$/g,
+          ""
+        )
+        .trim();
     };
 
     const summarizeComment = (
@@ -2417,17 +2443,21 @@ export default function SummaryMockup({
     ) => {
       const text = String(
         value || ""
-      ).trim();
+      )
+        .split(
+          /(?:ตัวอย่างที่เหมาะสม|เงื่อนไขที่ใช้หักคะแนนตามไฟล์)/i
+        )[0]
+        .trim();
 
       if (!text) return "";
 
       const prepared = text
         .replace(
-          /(จุดที่หักคือ|จุดที่ควรปรับ|ข้อควรปรับ|สิ่งที่ทำได้ดี|จุดเด่น|จากการตรวจสอบ|ตัวอย่างที่เหมาะสม)/g,
+          /(จุดที่หักคือ|จุดที่ควรปรับ|ข้อควรปรับ|สิ่งที่ทำได้ดี|จุดเด่น|จากการตรวจสอบ)/g,
           "|||$1"
         )
         .replace(
-          /([.!?])\s+/g,
+          /([.!?。])\s+/g,
           "$1|||"
         )
         .replace(
@@ -2435,8 +2465,58 @@ export default function SummaryMockup({
           "|||"
         );
 
+      const positiveNoIssue = [
+        "ไม่พบข้อผิดพลาด",
+        "ไม่พบหัวข้อที่ถูกหัก",
+        "ไม่มีข้อผิดพลาด",
+        "ไม่ถูกหักคะแนน",
+      ];
+
+      const positiveKeywords = [
+        "ถูกต้อง",
+        "ครบถ้วน",
+        "ชัดเจน",
+        "สุภาพ",
+        "เหมาะสม",
+        "ตรวจสอบ",
+        "ดำเนินการ",
+        "ติดตาม",
+        "สรุปผล",
+        "ดูแลเคส",
+        "ตาม process",
+        "ตามขั้นตอน",
+      ];
+
+      const improvementKeywords = [
+        "ควร",
+        "ไม่ได้",
+        "ไม่แจ้ง",
+        "ไม่ตรวจสอบ",
+        "ไม่ติดตาม",
+        "ไม่สรุป",
+        "ไม่ครบ",
+        "ไม่ชัดเจน",
+        "ไม่เหมาะสม",
+        "ผิด",
+        "หักคะแนน",
+        "ถูกหัก",
+        "สะกดผิด",
+        "คำผิด",
+        "ตกหล่น",
+        "ขาด",
+        "ล่าช้า",
+        "เกิน sla",
+        "ไม่ผ่าน sla",
+        "ไม่ตรง",
+      ];
+
       const chunks = prepared
         .split("|||")
+        .flatMap((item) =>
+          item.split(
+            /(?:\s*[;；]\s*|\s+(?:แต่|อย่างไรก็ตาม|อย่างไรก็ดี|เนื่องจาก|เพราะ|จึง|รวมถึง)\s+)/
+          )
+        )
         .map((item) =>
           cleanPoint(item)
         )
@@ -2445,80 +2525,93 @@ export default function SummaryMockup({
             item.length >= 12
         );
 
-      if (!chunks.length) {
-        return cleanPoint(text);
-      }
-
-      const keywords =
-        type === "strength"
-          ? [
-              "ถูกต้อง",
-              "ครบถ้วน",
-              "ตรวจสอบ",
-              "ชัดเจน",
-              "สุภาพ",
-              "เหมาะสม",
-              "ตาม process",
-              "ติดตาม",
-              "ดำเนินการ",
-              "สรุปผล",
-            ]
-          : [
-              "ควร",
-              "ไม่ได้",
-              "ไม่พบ",
-              "ไม่",
-              "ขาด",
-              "ผิด",
-              "หัก",
-              "ยัง",
-              "ล่าช้า",
-              "ไม่ครบ",
-              "ไม่ชัดเจน",
-            ];
-
       const ranked = chunks
         .map((item, index) => {
           const normalized =
             item.toLowerCase();
 
-          const keywordScore =
-            keywords.reduce(
+          const noIssue =
+            positiveNoIssue.some(
+              (keyword) =>
+                normalized.includes(
+                  keyword
+                )
+            );
+
+          const positiveScore =
+            positiveKeywords.reduce(
               (score, keyword) =>
                 score +
                 (
                   normalized.includes(
                     keyword
                   )
-                    ? 3
+                    ? 1
                     : 0
                 ),
               0
             );
 
-          const boilerplatePenalty =
-            normalized.includes(
-              "ตัวอย่างที่เหมาะสม"
-            )
-              ? 3
-              : 0;
+          const improvementScore =
+            improvementKeywords.reduce(
+              (score, keyword) =>
+                score +
+                (
+                  normalized.includes(
+                    keyword
+                  )
+                    ? 1
+                    : 0
+                ),
+              0
+            );
+
+          const valid =
+            type === "strength"
+              ? (
+                  noIssue ||
+                  (
+                    positiveScore > 0 &&
+                    improvementScore === 0
+                  )
+                )
+              : (
+                  !noIssue &&
+                  improvementScore > 0
+                );
 
           return {
             item,
+            valid,
             score:
-              keywordScore -
-              boilerplatePenalty -
-              index * 0.05,
+              type === "strength"
+                ? (
+                    positiveScore * 5 +
+                    (
+                      noIssue
+                        ? 4
+                        : 0
+                    ) -
+                    index * 0.05
+                  )
+                : (
+                    improvementScore * 6 -
+                    positiveScore -
+                    index * 0.05
+                  ),
           };
         })
+        .filter(
+          (item) =>
+            item.valid
+        )
         .sort(
           (a, b) =>
             b.score - a.score
         );
 
       return cleanPoint(
-        ranked[0]?.item ||
-          chunks[0]
+        ranked[0]?.item || ""
       );
     };
 
@@ -2981,6 +3074,7 @@ export default function SummaryMockup({
     const margin = 12;
     const contentWidth = pageWidth - margin * 2;
     const footerY = pageHeight - 8;
+    const contentBottom = pageHeight - 18;
     const generatedBy = String(
       currentUser?.name ||
       currentUser?.displayName ||
@@ -3086,25 +3180,45 @@ export default function SummaryMockup({
       maxLines = 2
     ) => {
       const text = safe(value);
-      if (text.length <= maxChars) return [text];
 
-      const chars = Array.from(text);
+      if (text.length <= maxChars) {
+        return [text];
+      }
+
+      const words = text.split(/\s+/);
       const lines: string[] = [];
+      let current = "";
 
-      for (
-        let index = 0;
-        index < chars.length && lines.length < maxLines;
-        index += maxChars
+      words.forEach((word) => {
+        if (lines.length >= maxLines) return;
+
+        const candidate =
+          current
+            ? `${current} ${word}`
+            : word;
+
+        if (candidate.length <= maxChars) {
+          current = candidate;
+          return;
+        }
+
+        if (current) {
+          lines.push(current);
+        }
+
+        current = word;
+      });
+
+      if (
+        current &&
+        lines.length < maxLines
       ) {
-        lines.push(chars.slice(index, index + maxChars).join(""));
+        lines.push(current);
       }
 
-      if (chars.length > maxChars * maxLines && lines.length) {
-        lines[lines.length - 1] =
-          lines[lines.length - 1].slice(0, Math.max(0, maxChars - 3)) + "...";
-      }
-
-      return lines;
+      return lines.length
+        ? lines.slice(0, maxLines)
+        : [text];
     };
 
     const addDonutChart = (
@@ -3219,7 +3333,7 @@ export default function SummaryMockup({
     };
 
     const ensureSpace = (needed: number) => {
-      if (y + needed <= pageHeight - 15) return;
+      if (y + needed <= contentBottom) return;
       startNewPage();
     };
 
@@ -3906,7 +4020,14 @@ export default function SummaryMockup({
       });
 
       y += 7;
-      ensureSpace(59);
+
+      if (y + 39 > contentBottom) {
+        startNewPage();
+        drawSectionTitle(
+          `Topic Performance — ${report.label} (continued)`,
+          "Strongest topics and coaching focus"
+        );
+      }
 
       const halfWidth = (contentWidth - 5) / 2;
       const insightY = y;
@@ -3973,6 +4094,14 @@ export default function SummaryMockup({
       );
 
       y += 39;
+
+      if (y + 48 > contentBottom) {
+        startNewPage();
+        drawSectionTitle(
+          `Topic Performance — ${report.label} (continued)`,
+          "Grade and review status"
+        );
+      }
 
       const gradeBoxWidth = contentWidth * 0.58;
       const statusBoxX = margin + gradeBoxWidth + 5;
@@ -4544,7 +4673,7 @@ export default function SummaryMockup({
               noteIndex: number
             ) =>
               wrapText(
-                `• ${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
                 88,
                 2
               )
@@ -4558,7 +4687,7 @@ export default function SummaryMockup({
                   noteIndex: number
                 ) =>
                   wrapText(
-                    `• ${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                    `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
                     88,
                     2
                   )
@@ -4586,7 +4715,7 @@ export default function SummaryMockup({
 
         if (
           y + cardHeight >
-          pageHeight - 15
+          contentBottom
         ) {
           startNewPage();
 
@@ -4876,7 +5005,7 @@ export default function SummaryMockup({
 
         const rowHeight = Math.max(10, 4 + agentLines.length * 3.5);
 
-        if (y + rowHeight > pageHeight - 15) {
+        if (y + rowHeight > contentBottom) {
           startNewPage();
           drawSectionTitle(
             isComparisonMode
@@ -6097,7 +6226,7 @@ export default function SummaryMockup({
                                     key={`${item.caseId}-strength-${noteIndex}`}
                                     className="flex gap-2 text-xs leading-5 text-slate-700"
                                   >
-                                    <span className="font-black text-emerald-600">•</span>
+                                    <span className="font-black text-emerald-600">{noteIndex + 1}.</span>
                                     <span>
                                       <span className="font-black text-slate-900">
                                         {note.label} ({note.pct.toFixed(2)}%)
@@ -6122,7 +6251,7 @@ export default function SummaryMockup({
                                       key={`${item.caseId}-improve-${noteIndex}`}
                                       className="flex gap-2 text-xs leading-5 text-slate-700"
                                     >
-                                      <span className="font-black text-amber-600">•</span>
+                                      <span className="font-black text-amber-600">{noteIndex + 1}.</span>
                                       <span>
                                         <span className="font-black text-slate-900">
                                           {note.label} ({note.pct.toFixed(2)}%)
@@ -6141,7 +6270,7 @@ export default function SummaryMockup({
                             </div>
                           </div>
 
-                          <div className="mt-3 line-clamp-2 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
+                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
                             <span className="font-black text-slate-800">
                               Inquiry:
                             </span>{" "}
@@ -6200,7 +6329,7 @@ export default function SummaryMockup({
                                     key={`${item.caseId}-good-${noteIndex}`}
                                     className="flex gap-2 text-xs leading-5 text-slate-700"
                                   >
-                                    <span className="font-black text-emerald-600">•</span>
+                                    <span className="font-black text-emerald-600">{noteIndex + 1}.</span>
                                     <span>
                                       <span className="font-black text-slate-900">
                                         {note.label} ({note.pct.toFixed(2)}%)
@@ -6223,7 +6352,7 @@ export default function SummaryMockup({
                                     key={`${item.caseId}-coach-${noteIndex}`}
                                     className="flex gap-2 text-xs leading-5 text-slate-700"
                                   >
-                                    <span className="font-black text-amber-600">•</span>
+                                    <span className="font-black text-amber-600">{noteIndex + 1}.</span>
                                     <span>
                                       <span className="font-black text-slate-900">
                                         {note.label} ({note.pct.toFixed(2)}%)
@@ -6237,7 +6366,7 @@ export default function SummaryMockup({
                             </div>
                           </div>
 
-                          <div className="mt-3 line-clamp-2 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
+                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
                             <span className="font-black text-slate-800">
                               Inquiry:
                             </span>{" "}
