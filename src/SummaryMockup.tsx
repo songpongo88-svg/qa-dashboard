@@ -274,6 +274,36 @@ const RESIGNED_AGENT_HIDE_AFTER: Record<string, string> = {
 
 type SummaryAccount = StoredUserProfile & Record<string, any>;
 
+
+function getSummaryTeamName(account?: SummaryAccount | null) {
+  return String(
+    account?.teamName ||
+      account?.team_name ||
+      account?.team ||
+      account?.department ||
+      ""
+  ).trim();
+}
+
+function getPreviousMonthKey(monthKey: string) {
+  const match = String(monthKey || "").match(/^(\d{4})-(\d{2})$/);
+  if (!match) return "";
+  const date = new Date(Number(match[1]), Number(match[2]) - 2, 1);
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
+}
+
+function sanitizePdfFilePart(value: unknown, fallback = "Report") {
+  const text = String(value || "")
+    .trim()
+    .replace(/\s+-\s+/g, "_to_")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^-+|-+$/g, "")
+    .replace(/^_+|_+$/g, "");
+  return text || fallback;
+}
+
 function isSongkranThemeActive() {
   return false;
 }
@@ -1213,6 +1243,10 @@ export default function SummaryMockup({
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
   const [periodFilterYear, setPeriodFilterYear] = useState<string>("all");
   const [periodFilterMonth, setPeriodFilterMonth] = useState<string>("all");
+  const [summarySection, setSummarySection] = useState<"summary" | "team">("summary");
+  const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>("");
+  const [selectedTeamDetail, setSelectedTeamDetail] = useState<string>("all");
+
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -2299,6 +2333,172 @@ export default function SummaryMockup({
   const isComparisonMode = comparisonRows.length >= 2;
   const reportModeName =
     analysisMode === "weekly" ? "Weekly" : analysisMode === "monthly" ? "Monthly" : "Yearly";
+
+  const normalizedCurrentRole = normalizeText(currentUser?.role);
+  const isAdminRole =
+    normalizedCurrentRole === "admin" ||
+    normalizedCurrentRole.startsWith("admin ") ||
+    normalizedCurrentRole.endsWith(" admin") ||
+    normalizedCurrentRole.includes("admin live chat");
+
+  const currentUserAccount = useMemo(() => {
+    const matchValues = [
+      currentUser?.agentName,
+      currentUser?.displayName,
+      currentUser?.username,
+      currentUser?.email,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
+
+    return (
+      accountProfiles.find((account) =>
+        buildAccountMatchValues(account).some((accountValue) =>
+          matchValues.some((currentValue) => isSameAgent(accountValue, currentValue))
+        )
+      ) || null
+    );
+  }, [accountProfiles, currentUser]);
+
+  const currentUserTeamName = useMemo(
+    () => getSummaryTeamName(currentUserAccount),
+    [currentUserAccount]
+  );
+
+  const teamMonthOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        allCases
+          .map((item) => item.monthKey)
+          .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey))
+      )
+    ).sort((a, b) => b.localeCompare(a));
+  }, [allCases]);
+
+  useEffect(() => {
+    if (!teamMonthOptions.length) return;
+
+    const currentMonthKey = `${new Date().getFullYear()}-${`${new Date().getMonth() + 1}`.padStart(2, "0")}`;
+    const defaultMonth = teamMonthOptions.includes(currentMonthKey)
+      ? currentMonthKey
+      : teamMonthOptions[0];
+
+    if (!teamSelectedMonth || !teamMonthOptions.includes(teamSelectedMonth)) {
+      setTeamSelectedMonth(defaultMonth);
+    }
+  }, [teamMonthOptions, teamSelectedMonth]);
+
+  useEffect(() => {
+    if (isAdminRole) setSummarySection("team");
+  }, [isAdminRole]);
+
+  const getCaseTeamName = (item: CaseItem) => {
+    const account = getAccountStatus(item.agent, accountProfiles);
+    return getSummaryTeamName(account) || "Unassigned Team";
+  };
+
+  const teamPerformanceRows = useMemo(() => {
+    if (!teamSelectedMonth) return [];
+
+    const previousMonthKey = getPreviousMonthKey(teamSelectedMonth);
+    const selectedCases = allCases.filter((item) => item.monthKey === teamSelectedMonth);
+    const previousCases = allCases.filter((item) => item.monthKey === previousMonthKey);
+
+    const teamNames = Array.from(
+      new Set([
+        ...accountProfiles.map((account) => getSummaryTeamName(account)).filter(Boolean),
+        ...selectedCases.map((item) => getCaseTeamName(item)),
+      ])
+    )
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+
+    return teamNames
+      .map((teamName) => {
+        const cases = selectedCases.filter((item) => getCaseTeamName(item) === teamName);
+        const previousTeamCases = previousCases.filter((item) => getCaseTeamName(item) === teamName);
+        const summary = summarizeCases(cases);
+        const previousSummary = summarizeCases(previousTeamCases);
+        const agentCount = getUniqueNormalizedAgents(cases.map((item) => item.agent)).length;
+        const change =
+          cases.length && previousTeamCases.length
+            ? Number((summary.avgScore - previousSummary.avgScore).toFixed(2))
+            : null;
+
+        return {
+          teamName,
+          cases,
+          caseCount: summary.caseCount,
+          agentCount,
+          avgScore: cases.length ? summary.avgScore : null,
+          change,
+          grade: cases.length ? summary.grade : null,
+          revisedCount: summary.revisedCount,
+        };
+      })
+      .filter((row) => {
+        if (isAdminRole) {
+          return currentUserTeamName && normalizeText(row.teamName) === normalizeText(currentUserTeamName);
+        }
+        return row.caseCount > 0 || row.teamName !== "Unassigned Team";
+      });
+  }, [
+    allCases,
+    accountProfiles,
+    teamSelectedMonth,
+    isAdminRole,
+    currentUserTeamName,
+  ]);
+
+  const adminOwnTeamRow = useMemo(
+    () =>
+      currentUserTeamName
+        ? teamPerformanceRows.find(
+            (row) => normalizeText(row.teamName) === normalizeText(currentUserTeamName)
+          ) || null
+        : null,
+    [teamPerformanceRows, currentUserTeamName]
+  );
+
+  const visibleTeamDetailOptions = useMemo(
+    () => teamPerformanceRows.filter((row) => row.caseCount > 0),
+    [teamPerformanceRows]
+  );
+
+  useEffect(() => {
+    if (
+      selectedTeamDetail !== "all" &&
+      !visibleTeamDetailOptions.some(
+        (row) => normalizeText(row.teamName) === normalizeText(selectedTeamDetail)
+      )
+    ) {
+      setSelectedTeamDetail("all");
+    }
+  }, [selectedTeamDetail, visibleTeamDetailOptions]);
+
+  const selectedTeamCases = useMemo(() => {
+    if (selectedTeamDetail === "all") return [];
+    return allCases.filter(
+      (item) =>
+        item.monthKey === teamSelectedMonth &&
+        normalizeText(getCaseTeamName(item)) === normalizeText(selectedTeamDetail)
+    );
+  }, [allCases, accountProfiles, teamSelectedMonth, selectedTeamDetail]);
+
+  const selectedTeamTopics = useMemo(
+    () => buildTopicSummary(selectedTeamCases),
+    [selectedTeamCases]
+  );
+
+  const selectedTeamSummary = useMemo(
+    () => summarizeCases(selectedTeamCases),
+    [selectedTeamCases]
+  );
+
+  const allTeamsSummary = useMemo(() => {
+    const cases = allCases.filter((item) => item.monthKey === teamSelectedMonth);
+    return summarizeCases(cases);
+  }, [allCases, teamSelectedMonth]);
 
   const comparisonChartAnalytics = useMemo(() => {
     const scores = comparisonRowsWithDelta.map((row) => row.avgScore);
@@ -4624,6 +4824,26 @@ export default function SummaryMockup({
       doc.setTextColor(15, 23, 42);
 
       values.forEach((value, colIndex) => {
+        if (colIndex === 3) {
+          if (row.scoreDelta === null) {
+            doc.setTextColor(100, 116, 139);
+          }
+          else if (row.scoreDelta > 0) {
+            doc.setTextColor(5, 150, 105);
+          }
+          else if (row.scoreDelta < 0) {
+            doc.setTextColor(190, 24, 93);
+          }
+          else {
+            doc.setTextColor(37, 99, 235);
+          }
+          doc.setFont("helvetica", "bold");
+        }
+        else {
+          doc.setTextColor(15, 23, 42);
+          doc.setFont("helvetica", "normal");
+        }
+
         drawText(
           value,
           colIndex === 0
@@ -4648,7 +4868,6 @@ export default function SummaryMockup({
       if (!rows.length) return;
 
       y += 8;
-
       drawSectionTitle(
         title,
         mode === "strong"
@@ -4656,258 +4875,118 @@ export default function SummaryMockup({
           : "Improvement Feedback summarized from evaluation details"
       );
 
-      rows.forEach((row, index) => {
-        const agentText =
-          buildSuspendedAgentLabel(
-            row.agent,
-            accountProfiles
-          );
+      const widths = [8, 19, 25, 19, 31, 42, 42];
+      const headers = [
+        "No.",
+        "Case ID",
+        "Agent",
+        "Audit Date",
+        "Inquiry",
+        "Positive Feedback",
+        "Improvement Feedback",
+      ];
 
-        const metaLines = wrapText(
-          `Agent: ${agentText} | Audit Date: ${row.auditDate}`,
-          84,
-          2
+      const buildLines = (items: { detail: string }[], fallback: string, maxChars: number) => {
+        const source = items.length
+          ? items.map((item, index) => `${index + 1}. ${item.detail}`)
+          : [fallback];
+        return source.flatMap((item) => wrapText(item, maxChars, 4));
+      };
+
+      const drawFeedbackHeader = () => {
+        const headerHeight = 13;
+        const accent = mode === "strong" ? [5, 150, 105] : [217, 119, 6];
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+        doc.roundedRect(margin, y, contentWidth, headerHeight, 2, 2, "F");
+
+        let x = margin;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5.1);
+        headers.forEach((header, index) => {
+          const lines = wrapText(header, index >= 4 ? 15 : 10, 2);
+          lines.forEach((line, lineIndex) => {
+            drawText(
+              line,
+              x + widths[index] / 2,
+              y + 5 + lineIndex * 3.2,
+              { align: "center", color: "#ffffff" }
+            );
+          });
+          x += widths[index];
+        });
+        y += headerHeight;
+      };
+
+      drawFeedbackHeader();
+
+      rows.forEach((row, index) => {
+        const agentLines = wrapText(
+          buildSuspendedAgentLabel(row.agent, accountProfiles),
+          14,
+          3
+        );
+        const inquiryLines = wrapText(row.inquiry, 20, 4);
+        const positiveLines = buildLines(
+          row.strengthNotes,
+          "ไม่พบ Feedback ด้านจุดเด่นเพิ่มเติมจากรายละเอียดการประเมิน",
+          27
+        );
+        const improvementLines = buildLines(
+          row.improvementNotes,
+          "ไม่พบ Feedback ที่ต้องปรับเพิ่มเติมจากรายละเอียดการประเมิน",
+          27
         );
 
-        const strengthLines =
-          row.strengthNotes.length
-            ? row.strengthNotes.flatMap(
-                (
-                  note: any,
-                  noteIndex: number
-                ) =>
-                  wrapText(
-                    `${noteIndex + 1}. ${note.detail}`,
-                    88,
-                    3
-                  )
-              )
-            : [
-                "1. No additional positive Feedback was found in the evaluation details.",
-              ];
+        const lineCount = Math.max(
+          1,
+          agentLines.length,
+          inquiryLines.length,
+          positiveLines.length,
+          improvementLines.length
+        );
+        const rowHeight = Math.max(13, 5 + lineCount * 3.3);
 
-        const improvementLines =
-          row.improvementNotes.length
-            ? row.improvementNotes.flatMap(
-                (
-                  note: any,
-                  noteIndex: number
-                ) =>
-                  wrapText(
-                    `${noteIndex + 1}. ${note.detail}`,
-                    88,
-                    3
-                  )
-              )
-            : [
-                "1. No additional improvement Feedback was found in the evaluation details.",
-              ];
-
-        const inquiryLines =
-          wrapText(
-            `Inquiry: ${row.inquiry}`,
-            90,
-            3
-          );
-
-        const cardHeight =
-          24 +
-          (
-            metaLines.length +
-            strengthLines.length +
-            improvementLines.length +
-            inquiryLines.length
-          ) *
-            3.6;
-
-        if (
-          y + cardHeight >
-          contentBottom
-        ) {
+        if (y + rowHeight > contentBottom) {
           startNewPage();
-
-          drawSectionTitle(
-            `${title} (continued)`
-          );
+          drawSectionTitle(`${title} (continued)`);
+          drawFeedbackHeader();
         }
 
-        const fill =
-          mode === "strong"
-            ? ([240, 253, 250] as const)
-            : ([255, 251, 235] as const);
-
-        const border =
-          mode === "strong"
-            ? ([110, 231, 183] as const)
-            : ([253, 186, 116] as const);
-
-        const accent =
-          mode === "strong"
-            ? ([5, 150, 105] as const)
-            : ([217, 119, 6] as const);
-
-        doc.setFillColor(...fill);
-        doc.setDrawColor(...border);
-
-        doc.roundedRect(
-          margin,
-          y,
-          contentWidth,
-          cardHeight,
-          2.5,
-          2.5,
-          "FD"
+        doc.setFillColor(
+          index % 2 === 0 ? 255 : 248,
+          index % 2 === 0 ? 255 : 250,
+          index % 2 === 0 ? 255 : 252
         );
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, contentWidth, rowHeight, "FD");
 
-        doc.setFillColor(...accent);
+        const cells = [
+          [String(index + 1)],
+          [row.caseId],
+          agentLines,
+          [row.auditDate],
+          inquiryLines,
+          positiveLines,
+          improvementLines,
+        ];
 
-        doc.roundedRect(
-          margin,
-          y,
-          contentWidth,
-          10,
-          2.5,
-          2.5,
-          "F"
-        );
-
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-        doc.setFontSize(8);
-
-        drawText(
-          `${index + 1}. Case ID: ${row.caseId}`,
-          margin + 4,
-          y + 6.6,
-          { color: "#ffffff" }
-        );
-
-        let lineY = y + 16;
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-        doc.setFontSize(6.5);
-        doc.setTextColor(
-          51,
-          65,
-          85
-        );
-
-        metaLines.forEach(
-          (line) => {
+        let x = margin;
+        cells.forEach((lines, colIndex) => {
+          doc.setFont("helvetica", colIndex === 1 ? "bold" : "normal");
+          doc.setFontSize(5.2);
+          doc.setTextColor(51, 65, 85);
+          lines.forEach((line, lineIndex) => {
             drawText(
               line,
-              margin + 5,
-              lineY
+              colIndex < 4 ? x + widths[colIndex] / 2 : x + 2,
+              y + 5 + lineIndex * 3.3,
+              { align: colIndex < 4 ? "center" : "left" }
             );
-            lineY += 3.6;
-          }
-        );
+          });
+          x += widths[colIndex];
+        });
 
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-        doc.setTextColor(
-          5,
-          150,
-          105
-        );
-
-        drawText(
-          "Positive Feedback / สิ่งที่ทำได้ดี",
-          margin + 5,
-          lineY + 1
-        );
-
-        lineY += 5;
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-        doc.setTextColor(
-          51,
-          65,
-          85
-        );
-
-        strengthLines.forEach(
-          (line) => {
-            drawText(
-              line,
-              margin + 7,
-              lineY
-            );
-            lineY += 3.6;
-          }
-        );
-
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-        doc.setTextColor(
-          180,
-          83,
-          9
-        );
-
-        drawText(
-          "Improvement Feedback / จุดที่ควรปรับ",
-          margin + 5,
-          lineY + 1
-        );
-
-        lineY += 5;
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-        doc.setTextColor(
-          51,
-          65,
-          85
-        );
-
-        improvementLines.forEach(
-          (line) => {
-            drawText(
-              line,
-              margin + 7,
-              lineY
-            );
-            lineY += 3.6;
-          }
-        );
-
-        doc.setFont(
-          "helvetica",
-          "normal"
-        );
-        doc.setTextColor(
-          71,
-          85,
-          105
-        );
-
-        inquiryLines.forEach(
-          (line) => {
-            drawText(
-              line,
-              margin + 5,
-              lineY
-            );
-            lineY += 3.6;
-          }
-        );
-
-        y += cardHeight + 4;
+        y += rowHeight;
       });
     };
 
@@ -5122,11 +5201,152 @@ export default function SummaryMockup({
       );
     }
 
+    const selectedAgentFilePart =
+      effectiveSelectedAgent === "all"
+        ? "All_Agents"
+        : sanitizePdfFilePart(effectiveSelectedAgent, "Agent");
+
+    const selectedPeriodFilePart = sanitizePdfFilePart(
+      effectivePeriodLabels.length
+        ? effectivePeriodLabels.join(isComparisonMode ? "_vs_" : "_")
+        : comparisonRows.map((row) => row.label).join("_vs_"),
+      "Selected_Period"
+    );
+
     const fileName =
-      `QA_${reportModeName}_${isComparisonMode ? "Comparison" : "Performance"}_Report.pdf`;
+      `QA_${reportModeName}_${isComparisonMode ? "Comparison_" : ""}${selectedAgentFilePart}_${selectedPeriodFilePart}.pdf`;
+
 
     doc.save(fileName);
     setReportPdfDialogOpen(false);
+  }
+
+  function generateTeamPerformancePdf() {
+    if (!teamSelectedMonth) return;
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 12;
+    const contentWidth = pageWidth - margin * 2;
+    const monthLabel = getMonthLabelForKey(teamSelectedMonth, allCases);
+
+    doc.setFillColor(49, 16, 101);
+    doc.rect(0, 0, pageWidth, 34, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(isAdminRole ? "My Team Average" : "Team Performance", margin, 16);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(monthLabel, margin, 25);
+
+    if (isAdminRole) {
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(currentUserTeamName || "Team not assigned", margin, 55);
+      doc.setFontSize(30);
+      doc.setTextColor(109, 40, 217);
+      doc.text(
+        adminOwnTeamRow?.avgScore === null || adminOwnTeamRow?.avgScore === undefined
+          ? "No Data"
+          : adminOwnTeamRow.avgScore.toFixed(2),
+        margin,
+        78
+      );
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Average Score", margin, 88);
+
+      const fileName = `QA_Team_Average_${sanitizePdfFilePart(
+        currentUserTeamName,
+        "Team_Not_Assigned"
+      )}_${sanitizePdfFilePart(monthLabel)}.pdf`;
+      doc.save(fileName);
+      return;
+    }
+
+    let y = 45;
+    const widths = [48, 22, 24, 28, 24, 18, 22];
+    const headers = ["Team", "Cases", "Agents", "Average", "Change", "Grade", "Revised"];
+
+    const drawHeader = () => {
+      doc.setFillColor(109, 40, 217);
+      doc.roundedRect(margin, y, contentWidth, 10, 2, 2, "F");
+      let x = margin;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      headers.forEach((header, index) => {
+        doc.setTextColor(255, 255, 255);
+        doc.text(
+          header,
+          index === 0 ? x + 3 : x + widths[index] / 2,
+          y + 6.5,
+          { align: index === 0 ? "left" : "center" }
+        );
+        x += widths[index];
+      });
+      y += 10;
+    };
+
+    drawHeader();
+
+    teamPerformanceRows.forEach((row, index) => {
+      if (y + 10 > pageHeight - 18) {
+        doc.addPage();
+        y = 18;
+        drawHeader();
+      }
+
+      doc.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, contentWidth, 10, "FD");
+
+      const values = [
+        row.teamName,
+        String(row.caseCount),
+        String(row.agentCount),
+        row.avgScore === null ? "No Data" : row.avgScore.toFixed(2),
+        row.change === null ? "Base" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(2)}`,
+        row.grade || "-",
+        String(row.revisedCount),
+      ];
+
+      let x = margin;
+      values.forEach((value, colIndex) => {
+        doc.setFont("helvetica", colIndex === 0 ? "bold" : "normal");
+        doc.setFontSize(6.2);
+
+        if (colIndex === 4) {
+          if (row.change === null) doc.setTextColor(100, 116, 139);
+          else if (row.change > 0) doc.setTextColor(5, 150, 105);
+          else if (row.change < 0) doc.setTextColor(190, 24, 93);
+          else doc.setTextColor(37, 99, 235);
+        } else {
+          doc.setTextColor(51, 65, 85);
+        }
+
+        doc.text(
+          String(value),
+          colIndex === 0 ? x + 3 : x + widths[colIndex] / 2,
+          y + 6.4,
+          { align: colIndex === 0 ? "left" : "center", maxWidth: widths[colIndex] - 4 }
+        );
+        x += widths[colIndex];
+      });
+
+      y += 10;
+    });
+
+    const fileName = `QA_Team_Performance_All_Teams_${sanitizePdfFilePart(monthLabel)}.pdf`;
+    doc.save(fileName);
   }
 
   if (isLoading) {
@@ -5197,6 +5417,206 @@ export default function SummaryMockup({
         workspaceTitle="Quality Monitoring Workspace"
         workspaceSubtitle="Corporate dashboard for audit tracking and case review"
       />
+      <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
+        {!isAdminRole ? (
+          <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setSummarySection("summary")}
+              className={
+                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+                (summarySection === "summary"
+                  ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
+                  : "text-violet-700 hover:bg-violet-50")
+              }
+            >
+              Summary
+            </button>
+            <button
+              type="button"
+              onClick={() => setSummarySection("team")}
+              className={
+                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+                (summarySection === "team"
+                  ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
+                  : "text-violet-700 hover:bg-violet-50")
+              }
+            >
+              Team Performance
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {summarySection === "team" || isAdminRole ? (
+        <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+          <Panel>
+            <PanelHeader
+              title={isAdminRole ? "My Team Performance" : "Team Performance"}
+              subtitle={
+                isAdminRole
+                  ? "Admin สามารถดูได้เฉพาะ Average Score ของทีมตัวเอง"
+                  : "ดูผลแต่ละทีมแยกจากกันและเลือกเดือนที่ต้องการตรวจสอบ"
+              }
+            />
+            <PanelBody className="space-y-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="w-full max-w-sm">
+                  <FilterLabel>Select Month</FilterLabel>
+                  <div className="mt-2">
+                    <FilterSelect
+                      value={teamSelectedMonth}
+                      onChange={setTeamSelectedMonth}
+                      options={teamMonthOptions.map((monthKey) => ({
+                        value: monthKey,
+                        label: getMonthLabelForKey(monthKey, allCases),
+                      }))}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={generateTeamPerformancePdf}
+                  disabled={!teamSelectedMonth || (isAdminRole && !currentUserTeamName)}
+                  className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Generate Team PDF
+                </button>
+              </div>
+
+              {isAdminRole ? (
+                currentUserTeamName ? (
+                  <div className="rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 p-7 text-white shadow-xl shadow-violet-100">
+                    <div className="text-xs font-black uppercase tracking-[0.2em] text-violet-200">
+                      Team
+                    </div>
+                    <div className="mt-2 text-2xl font-black">{currentUserTeamName}</div>
+                    <div className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-violet-200">
+                      Average Score
+                    </div>
+                    <div className="mt-2 text-6xl font-black tracking-tight">
+                      {adminOwnTeamRow?.avgScore === null || adminOwnTeamRow?.avgScore === undefined
+                        ? "No Data"
+                        : adminOwnTeamRow.avgScore.toFixed(2)}
+                    </div>
+                    <div className="mt-4 text-sm font-semibold text-violet-100">
+                      {getMonthLabelForKey(teamSelectedMonth, allCases)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-sm font-bold text-amber-800">
+                    ยังไม่ได้กำหนดทีมสำหรับบัญชีนี้
+                  </div>
+                )
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
+                      <div className="text-xs font-black uppercase tracking-wide text-violet-600">Teams</div>
+                      <div className="mt-2 text-3xl font-black text-slate-950">{teamPerformanceRows.filter((row) => row.caseCount > 0).length}</div>
+                    </div>
+                    <div className="rounded-3xl border border-sky-100 bg-sky-50 p-5">
+                      <div className="text-xs font-black uppercase tracking-wide text-sky-600">Cases</div>
+                      <div className="mt-2 text-3xl font-black text-slate-950">{allTeamsSummary.caseCount}</div>
+                    </div>
+                    <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
+                      <div className="text-xs font-black uppercase tracking-wide text-emerald-600">Average</div>
+                      <div className="mt-2 text-3xl font-black text-slate-950">{allTeamsSummary.avgScore.toFixed(2)}</div>
+                    </div>
+                    <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5">
+                      <div className="text-xs font-black uppercase tracking-wide text-amber-600">Month</div>
+                      <div className="mt-2 text-lg font-black text-slate-950">{getMonthLabelForKey(teamSelectedMonth, allCases)}</div>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-3xl border border-violet-100 bg-white">
+                    <table className="min-w-[980px] w-full text-sm">
+                      <thead>
+                        <tr className="bg-violet-950 text-white">
+                          <th className="px-4 py-3 text-left">Team</th>
+                          <th className="px-4 py-3 text-center">Cases</th>
+                          <th className="px-4 py-3 text-center">Agents</th>
+                          <th className="px-4 py-3 text-center">Average</th>
+                          <th className="px-4 py-3 text-center">Change</th>
+                          <th className="px-4 py-3 text-center">Grade</th>
+                          <th className="px-4 py-3 text-center">Revised</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamPerformanceRows.map((row) => (
+                          <tr key={row.teamName} className="bg-white">
+                            <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-900">{row.teamName}</td>
+                            <td className="border-t border-violet-100 px-4 py-3 text-center font-bold">{row.caseCount}</td>
+                            <td className="border-t border-violet-100 px-4 py-3 text-center font-bold">{row.agentCount}</td>
+                            <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">{row.avgScore === null ? "No Data" : row.avgScore.toFixed(2)}</td>
+                            <td
+                              className={
+                                "border-t border-violet-100 px-4 py-3 text-center font-black " +
+                                (row.change === null
+                                  ? "text-slate-400"
+                                  : row.change > 0
+                                    ? "text-emerald-600"
+                                    : row.change < 0
+                                      ? "text-rose-600"
+                                      : "text-blue-600")
+                              }
+                            >
+                              {row.change === null ? "Base" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(2)}`}
+                            </td>
+                            <td className="border-t border-violet-100 px-4 py-3 text-center font-black">{row.grade || "-"}</td>
+                            <td className="border-t border-violet-100 px-4 py-3 text-center font-bold">{row.revisedCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <div>
+                      <FilterLabel>Team Detail</FilterLabel>
+                      <div className="mt-2">
+                        <FilterSelect
+                          value={selectedTeamDetail}
+                          onChange={setSelectedTeamDetail}
+                          options={[{ value: "all", label: "Select a team" }].concat(
+                            visibleTeamDetailOptions.map((row) => ({
+                              value: row.teamName,
+                              label: row.teamName,
+                            }))
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    {selectedTeamDetail !== "all" ? (
+                      <div className="rounded-3xl border border-violet-100 bg-violet-50/50 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-wide text-violet-600">Selected Team</div>
+                            <div className="mt-1 text-xl font-black text-slate-950">{selectedTeamDetail}</div>
+                          </div>
+                          <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-violet-700 shadow-sm">
+                            {selectedTeamSummary.caseCount} Cases • {selectedTeamSummary.avgScore.toFixed(2)} Avg
+                          </div>
+                        </div>
+                        <div className="mt-5">
+                          <TopicTable topics={selectedTeamTopics} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-3xl border border-dashed border-violet-200 bg-violet-50/40 px-6 py-10 text-center text-sm font-semibold text-violet-600">
+                        เลือกทีมเพื่อดู Topic Performance ของทีมนั้น
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </PanelBody>
+          </Panel>
+        </div>
+      ) : null}
+
       {false ? (
       <div>
         <div className="mx-auto max-w-[1720px] px-6 py-8 lg:px-8 lg:py-10">
@@ -5219,7 +5639,7 @@ export default function SummaryMockup({
       </div>
       ) : null}
 
-      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+      <div className={`mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8 ${summarySection === "summary" && !isAdminRole ? "" : "hidden"}`}>
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel className="sticky top-4">
