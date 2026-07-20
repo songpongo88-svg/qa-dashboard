@@ -1789,6 +1789,12 @@ export default function SummaryMockup({
   useEffect(() => {
     setSelectedPeriods([]);
     setPeriodFilterMonth("all");
+
+    if (!roleScopedAgentList.length) {
+      setSelectedAgent("all");
+      onSelectedAgentChange?.("all");
+    }
+
     setViewMode(
       analysisMode === "weekly"
         ? "weekly-dashboard"
@@ -1803,20 +1809,71 @@ export default function SummaryMockup({
       ? roleScopedAgentList[0]
       : selectedAgent;
 
-  const filteredCases = useMemo(() => {
+  const periodScopedCases = useMemo(() => {
     return allCases.filter((item) => {
-      if (roleScopedAgentList.length && !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))) return false;
-      if (effectiveSelectedAgent !== "all" && !isSameAgent(item.agent, effectiveSelectedAgent)) return false;
+      if (
+        roleScopedAgentList.length &&
+        !roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent))
+      ) {
+        return false;
+      }
 
       if (effectivePeriodKeys.length) {
-        if (analysisMode === "weekly" && !effectivePeriodKeys.includes(item.weekLabel)) return false;
-        if (analysisMode === "monthly" && !effectivePeriodKeys.includes(item.monthKey)) return false;
-        if (analysisMode === "yearly" && !effectivePeriodKeys.includes(item.yearKey)) return false;
+        if (
+          analysisMode === "weekly" &&
+          !effectivePeriodKeys.includes(item.weekLabel)
+        ) return false;
+
+        if (
+          analysisMode === "monthly" &&
+          !effectivePeriodKeys.includes(item.monthKey)
+        ) return false;
+
+        if (
+          analysisMode === "yearly" &&
+          !effectivePeriodKeys.includes(item.yearKey)
+        ) return false;
       }
 
       return true;
     });
-  }, [allCases, effectiveSelectedAgent, effectivePeriodKeys, analysisMode, roleScopedAgentList]);
+  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList]);
+
+  const selectableAgentOptions = useMemo(() => {
+    const scopedAgentNames = getUniqueNormalizedAgents(
+      periodScopedCases.map((item) => item.agent)
+    );
+
+    const agentUniverse = getUniqueNormalizedAgents([
+      ...AGENT_MASTER,
+      ...availableAgents,
+      ...allCases.map((item) => item.agent),
+    ]);
+
+    return agentUniverse.filter((agent) => {
+      const hasCasesInSelectedScope = scopedAgentNames.some((name) =>
+        isSameAgent(name, agent)
+      );
+
+      const isLegacyResigned = Object.keys(
+        RESIGNED_AGENT_HIDE_AFTER
+      ).some((name) => isSameAgent(name, agent));
+
+      const isInactive =
+        isLegacyResigned ||
+        isSuspendedAgent(agent, accountProfiles);
+
+      return isInactive ? hasCasesInSelectedScope : true;
+    });
+  }, [periodScopedCases, availableAgents, allCases, accountProfiles]);
+
+  const filteredCases = useMemo(() => {
+    if (effectiveSelectedAgent === "all") return periodScopedCases;
+
+    return periodScopedCases.filter((item) =>
+      isSameAgent(item.agent, effectiveSelectedAgent)
+    );
+  }, [periodScopedCases, effectiveSelectedAgent]);
 
   useEffect(() => {
     if (!accountProfiles.length || !allCases.length) return;
@@ -1985,33 +2042,47 @@ export default function SummaryMockup({
   const agentComparisonRows = useMemo(() => {
     if (effectiveSelectedAgent !== "all") return [];
 
-    const agentUniverse = getUniqueNormalizedAgents([
-      ...AGENT_MASTER,
-      ...availableAgents,
-      ...allCases.map((item) => item.agent),
-    ]).filter((agent) =>
-      shouldShowAgentInSummaryScope(agent, allCases, accountProfiles)
-    );
-
-    return agentUniverse.map((agent) => {
+    return selectableAgentOptions.map((agent) => {
       const values = agentDisplayPeriods.map((period) => {
-        const cases = getCasesForPeriodLabel(period.label).filter((item) => isSameAgent(item.agent, agent));
+        const cases = periodScopedCases.filter((item) => {
+          if (!isSameAgent(item.agent, agent)) return false;
+          if (analysisMode === "weekly") return item.weekLabel === period.label;
+          if (analysisMode === "monthly") return item.monthLabel === period.label;
+          return item.yearKey === period.label;
+        });
+
         if (!cases.length) {
           return { period: period.label, score: null as number | null, caseCount: 0 };
         }
+
         const summary = summarizeCases(cases);
-        return { period: period.label, score: summary.avgScore, caseCount: summary.caseCount };
+        return {
+          period: period.label,
+          score: summary.avgScore,
+          caseCount: summary.caseCount,
+        };
       });
 
       const availableScores = values.filter((item) => item.score !== null);
       const overallDelta =
         availableScores.length >= 2
-          ? Number(((availableScores[availableScores.length - 1].score ?? 0) - (availableScores[0].score ?? 0)).toFixed(2))
+          ? Number(
+              (
+                (availableScores[availableScores.length - 1].score ?? 0) -
+                (availableScores[0].score ?? 0)
+              ).toFixed(2)
+            )
           : null;
 
       return { agent, values, overallDelta };
     });
-  }, [availableAgents, allCases, accountProfiles, agentDisplayPeriods, effectiveSelectedAgent]);
+  }, [
+    selectableAgentOptions,
+    agentDisplayPeriods,
+    periodScopedCases,
+    analysisMode,
+    effectiveSelectedAgent,
+  ]);
 
   const isComparisonMode = comparisonRows.length >= 2;
   const reportModeName =
@@ -2066,6 +2137,56 @@ export default function SummaryMockup({
       revisedPct,
     };
   }, [comparisonRowsWithDelta, filteredCases]);
+
+  const caseHighlights = useMemo(() => {
+    const buildHighlight = (item: CaseItem) => {
+      const effectiveTopics =
+        item.reviewStatus === "Revised" && item.revisedTopics?.length
+          ? mergeTopicSet(item.topics, item.revisedTopics)
+          : item.topics;
+
+      const strongestTopic =
+        [...effectiveTopics].sort((a, b) => b.pct - a.pct)[0] || null;
+      const lowestTopic =
+        [...effectiveTopics].sort((a, b) => a.pct - b.pct)[0] || null;
+
+      const inquiry =
+        item.inquiryTh && item.inquiryTh !== "-"
+          ? item.inquiryTh
+          : item.inquiryEn && item.inquiryEn !== "-"
+            ? item.inquiryEn
+            : "No inquiry detail";
+
+      return {
+        caseId: item.caseId,
+        agent: item.agent,
+        auditDate: item.auditDate,
+        score: item.finalScore,
+        inquiry,
+        strongestTopic,
+        lowestTopic,
+      };
+    };
+
+    const strongestCases = [...filteredCases]
+      .sort((a, b) => {
+        if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
+        return (b.auditDateObj?.getTime() || 0) - (a.auditDateObj?.getTime() || 0);
+      })
+      .slice(0, 5)
+      .map(buildHighlight);
+
+    const improvementCases = [...filteredCases]
+      .filter((item) => item.finalScore < 100)
+      .sort((a, b) => {
+        if (a.finalScore !== b.finalScore) return a.finalScore - b.finalScore;
+        return (b.auditDateObj?.getTime() || 0) - (a.auditDateObj?.getTime() || 0);
+      })
+      .slice(0, 5)
+      .map(buildHighlight);
+
+    return { strongestCases, improvementCases };
+  }, [filteredCases]);
 
   const analyticsMonthKey = useMemo(() => {
     if (selectedMonth !== "all") return selectedMonth;
@@ -2268,7 +2389,22 @@ export default function SummaryMockup({
       const hasThai = /[\u0E00-\u0E7F]/.test(text);
 
       if (!hasThai) {
-        doc.text(text, x, y, { align: options.align || "left" });
+        const previousColor = String(
+          (doc as any).getTextColor?.() || "#0f172a"
+        );
+
+        if (options.color) {
+          doc.setTextColor(options.color);
+        }
+
+        doc.text(text, x, y, {
+          align: options.align || "left",
+        });
+
+        if (options.color) {
+          doc.setTextColor(previousColor);
+        }
+
         return;
       }
 
@@ -3091,7 +3227,8 @@ export default function SummaryMockup({
       const distX = margin + 10;
       const distY = y + 13;
       const distW = lowerCardWidth - 16;
-      const distH = 39;
+      const distTopPadding = 8;
+      const distH = 31;
       const bucketGap = 5;
       const bucketWidth =
         (distW -
@@ -3114,7 +3251,7 @@ export default function SummaryMockup({
             distX +
             bucketGap +
             index * (bucketWidth + bucketGap);
-          const barY = distY + distH - barHeight;
+          const barY = distY + distTopPadding + distH - barHeight;
 
           doc.setFillColor(124, 58, 237);
           doc.roundedRect(
@@ -3133,7 +3270,7 @@ export default function SummaryMockup({
           drawText(
             String(bucket.count),
             barX + bucketWidth / 2,
-            Math.max(distY + 3, barY - 2),
+            barY - 2,
             { align: "center" }
           );
 
@@ -3143,7 +3280,7 @@ export default function SummaryMockup({
           drawText(
             bucket.label,
             barX + bucketWidth / 2,
-            distY + distH + 5,
+            distY + distTopPadding + distH + 5,
             { align: "center" }
           );
         }
@@ -3339,123 +3476,300 @@ export default function SummaryMockup({
       y += 9;
     });
 
+    const drawCaseHighlightTable = (
+      title: string,
+      rows: typeof caseHighlights.strongestCases,
+      mode: "strong" | "improve"
+    ) => {
+      if (!rows.length) return;
+
+      y += 8;
+      drawSectionTitle(
+        title,
+        mode === "strong"
+          ? "Top evaluated cases with the highest scores"
+          : "Lowest-scoring cases recommended for coaching review"
+      );
+
+      const columnWidths = [26, 40, 18, 100];
+      const headers = ["Case ID", "Agent", "Score", "Topic / Inquiry"];
+
+      const drawHeader = () => {
+        doc.setFillColor(
+          mode === "strong" ? 5 : 217,
+          mode === "strong" ? 150 : 119,
+          mode === "strong" ? 105 : 6
+        );
+        doc.roundedRect(margin, y, contentWidth, 9, 2, 2, "F");
+
+        let x = margin;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.7);
+
+        headers.forEach((header, index) => {
+          drawText(
+            header,
+            index === 0 ? x + 2 : x + columnWidths[index] / 2,
+            y + 6,
+            {
+              align: index === 0 ? "left" : "center",
+              color: "#ffffff",
+            }
+          );
+          x += columnWidths[index];
+        });
+
+        y += 9;
+      };
+
+      drawHeader();
+
+      rows.forEach((row, index) => {
+        const topic = mode === "strong" ? row.strongestTopic : row.lowestTopic;
+        const topicPrefix = mode === "strong" ? "Strongest" : "Lowest";
+        const detailText =
+          `${topicPrefix}: ${
+            topic ? `${topic.label} (${topic.pct.toFixed(2)}%)` : "No topic data"
+          } | Inquiry: ${row.inquiry}`;
+
+        const detailLines = wrapText(detailText, 76, 3);
+        const agentLines = wrapText(
+          buildSuspendedAgentLabel(row.agent, accountProfiles),
+          25,
+          2
+        );
+
+        const rowHeight = Math.max(
+          10,
+          4 + Math.max(detailLines.length, agentLines.length) * 3.6
+        );
+
+        if (y + rowHeight > pageHeight - 15) {
+          startNewPage();
+          drawSectionTitle(`${title} (continued)`);
+          drawHeader();
+        }
+
+        doc.setFillColor(
+          index % 2 === 0 ? 255 : 248,
+          index % 2 === 0 ? 255 : 250,
+          index % 2 === 0 ? 255 : 252
+        );
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, contentWidth, rowHeight, "FD");
+
+        let x = margin;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(6.3);
+        doc.setTextColor(51, 65, 85);
+
+        drawText(row.caseId, x + 2, y + 5);
+        x += columnWidths[0];
+
+        agentLines.forEach((line, lineIndex) => {
+          drawText(line, x + 2, y + 5 + lineIndex * 3.6);
+        });
+        x += columnWidths[1];
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(
+          mode === "strong" ? 5 : 180,
+          mode === "strong" ? 150 : 83,
+          mode === "strong" ? 105 : 9
+        );
+        drawText(
+          row.score.toFixed(2),
+          x + columnWidths[2] / 2,
+          y + 5,
+          { align: "center" }
+        );
+        x += columnWidths[2];
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        detailLines.forEach((line, lineIndex) => {
+          drawText(line, x + 2, y + 5 + lineIndex * 3.6);
+        });
+
+        y += rowHeight;
+      });
+    };
+
+    drawCaseHighlightTable(
+      "Best Cases / Strong Cases",
+      caseHighlights.strongestCases,
+      "strong"
+    );
+
+    drawCaseHighlightTable(
+      "Improvement Cases / Coaching Cases",
+      caseHighlights.improvementCases,
+      "improve"
+    );
+
     if (
       effectiveSelectedAgent === "all" &&
       agentComparisonRows.length
     ) {
       y += 9;
       drawSectionTitle(
-        isComparisonMode
-          ? "Agent Comparison"
-          : "Agent Overview",
+        isComparisonMode ? "Agent Comparison" : "Agent Overview",
         "Agent-level score and case coverage"
       );
 
-      agentComparisonRows.forEach((row: any) => {
-        ensureSpace(10 + row.values.length * 7);
+      const periodHeaders = agentDisplayPeriods.map((period) => period.label);
+      const agentColumnWidth = 48;
+      const differenceColumnWidth = isComparisonMode ? 22 : 0;
+      const periodColumnWidth =
+        (
+          contentWidth -
+          agentColumnWidth -
+          differenceColumnWidth
+        ) /
+        Math.max(1, periodHeaders.length);
 
-        doc.setFillColor(49, 16, 101);
+      const drawAgentTableHeader = () => {
+        const headerHeight = 12;
+        doc.setFillColor(109, 40, 217);
         doc.roundedRect(
           margin,
           y,
           contentWidth,
-          8,
-          1.8,
-          1.8,
+          headerHeight,
+          2,
+          2,
           "F"
         );
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        drawText(
-          buildSuspendedAgentLabel(
-            row.agent,
-            accountProfiles
-          ),
-          margin + 3,
-          y + 5.4,
-          { color: "#ffffff" }
-        );
-        y += 8;
+        doc.setFontSize(5.8);
 
-        row.values.forEach(
-          (value: any, valueIndex: number) => {
-            doc.setFillColor(
-              valueIndex % 2 === 0 ? 250 : 255,
-              valueIndex % 2 === 0 ? 250 : 255,
-              valueIndex % 2 === 0 ? 252 : 255
-            );
-            doc.setDrawColor(226, 232, 240);
-            doc.rect(
-              margin,
-              y,
-              contentWidth,
-              6.5,
-              "FD"
-            );
+        drawText("Agent", margin + 3, y + 7, { color: "#ffffff" });
 
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(7);
-            doc.setTextColor(71, 85, 105);
+        periodHeaders.forEach((header, index) => {
+          const centerX =
+            margin +
+            agentColumnWidth +
+            periodColumnWidth * index +
+            periodColumnWidth / 2;
+
+          wrapText(header, 15, 2).forEach((line, lineIndex) => {
             drawText(
-              value.period,
-              margin + 3,
-              y + 4.5
+              line,
+              centerX,
+              y + 5 + lineIndex * 3.2,
+              { align: "center", color: "#ffffff" }
             );
+          });
+        });
 
-            const scoreText =
-              value.score === null
-                ? "No cases"
-                : `${value.score.toFixed(2)} | ${value.caseCount} case(s)`;
+        if (isComparisonMode) {
+          drawText(
+            "Difference",
+            pageWidth - margin - differenceColumnWidth / 2,
+            y + 7,
+            { align: "center", color: "#ffffff" }
+          );
+        }
 
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(15, 23, 42);
-            drawText(
-              scoreText,
-              pageWidth - margin - 3,
-              y + 4.5,
-              { align: "right" }
-            );
+        y += headerHeight;
+      };
 
-            y += 6.5;
-          }
+      drawAgentTableHeader();
+
+      agentComparisonRows.forEach((row: any, index) => {
+        const agentLines = wrapText(
+          buildSuspendedAgentLabel(row.agent, accountProfiles),
+          28,
+          2
         );
+
+        const rowHeight = Math.max(10, 4 + agentLines.length * 3.5);
+
+        if (y + rowHeight > pageHeight - 15) {
+          startNewPage();
+          drawSectionTitle(
+            isComparisonMode
+              ? "Agent Comparison (continued)"
+              : "Agent Overview (continued)"
+          );
+          drawAgentTableHeader();
+        }
+
+        doc.setFillColor(
+          index % 2 === 0 ? 255 : 248,
+          index % 2 === 0 ? 255 : 250,
+          index % 2 === 0 ? 255 : 252
+        );
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, contentWidth, rowHeight, "FD");
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.8);
+        doc.setTextColor(51, 65, 85);
+
+        agentLines.forEach((line, lineIndex) => {
+          drawText(line, margin + 3, y + 5 + lineIndex * 3.5);
+        });
+
+        row.values.forEach((value: any, valueIndex: number) => {
+          const centerX =
+            margin +
+            agentColumnWidth +
+            periodColumnWidth * valueIndex +
+            periodColumnWidth / 2;
+
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(
+            value.score === null ? 148 : 91,
+            value.score === null ? 163 : 33,
+            value.score === null ? 184 : 182
+          );
+
+          drawText(
+            value.score === null
+              ? "No cases"
+              : `${value.score.toFixed(2)} (${value.caseCount})`,
+            centerX,
+            y + 5.5,
+            { align: "center" }
+          );
+        });
 
         if (isComparisonMode) {
           const differenceText =
             row.overallDelta === null
-              ? "Overall difference: N/A"
-              : `Overall difference: ${row.overallDelta > 0 ? "+" : ""}${row.overallDelta.toFixed(2)}`;
+              ? "N/A"
+              : `${row.overallDelta > 0 ? "+" : ""}${row.overallDelta.toFixed(2)}`;
 
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(7);
           doc.setTextColor(
             row.overallDelta === null
-              ? 100
+              ? 148
               : row.overallDelta >= 0
                 ? 5
                 : 190,
             row.overallDelta === null
-              ? 116
+              ? 163
               : row.overallDelta >= 0
                 ? 150
                 : 24,
             row.overallDelta === null
-              ? 139
+              ? 184
               : row.overallDelta >= 0
                 ? 105
                 : 93
           );
+
           drawText(
             differenceText,
-            pageWidth - margin - 3,
-            y + 5,
-            { align: "right" }
+            pageWidth - margin - differenceColumnWidth / 2,
+            y + 5.5,
+            { align: "center" }
           );
-          y += 7;
-        } else {
-          y += 3;
         }
+
+        y += rowHeight;
       });
     }
 
@@ -3638,7 +3952,7 @@ export default function SummaryMockup({
                           onSelectedAgentChange?.(value);
                         }}
                         options={[{ value: "all", label: "All Agents" }].concat(
-                          availableAgents.map((agent) => ({
+                          selectableAgentOptions.map((agent) => ({
                             value: agent,
                             label: buildSuspendedAgentLabel(agent, accountProfiles),
                           }))
@@ -4118,7 +4432,7 @@ export default function SummaryMockup({
                             {comparisonChartAnalytics.scoreBuckets.map((bucket) => {
                               const barHeight = Math.max(
                                 bucket.count ? 7 : 0,
-                                (bucket.count / comparisonChartAnalytics.maxBucketCount) * 100
+                                (bucket.count / comparisonChartAnalytics.maxBucketCount) * 88
                               );
 
                               return (
@@ -4281,6 +4595,106 @@ export default function SummaryMockup({
                 />
               </PanelBody>
             </Panel>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Panel>
+                <PanelHeader
+                  title="Best Cases / Strong Cases"
+                  subtitle="Top 5 เคสที่ได้คะแนนสูงในช่วงที่เลือก"
+                />
+                <PanelBody>
+                  <div className="space-y-3">
+                    {caseHighlights.strongestCases.length ? (
+                      caseHighlights.strongestCases.map((item, index) => (
+                        <div
+                          key={`strong-${item.caseId}-${index}`}
+                          className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-black text-slate-900">
+                                {index + 1}. {item.caseId}
+                              </div>
+                              <div className="mt-1 text-xs font-semibold text-slate-500">
+                                {buildSuspendedAgentLabel(item.agent, accountProfiles)} • {item.auditDate}
+                              </div>
+                            </div>
+                            <div className="rounded-full bg-emerald-600 px-3 py-1 text-sm font-black text-white">
+                              {item.score.toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 rounded-xl bg-white/90 px-3 py-2 text-xs leading-5 text-slate-700">
+                            <span className="font-black text-emerald-700">Strongest:</span>{" "}
+                            {item.strongestTopic
+                              ? `${item.strongestTopic.label} (${item.strongestTopic.pct.toFixed(2)}%)`
+                              : "No topic data"}
+                          </div>
+
+                          <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                            {item.inquiry}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-8 text-center text-sm text-slate-500">
+                        No cases found in the selected scope.
+                      </div>
+                    )}
+                  </div>
+                </PanelBody>
+              </Panel>
+
+              <Panel>
+                <PanelHeader
+                  title="Improvement Cases / Coaching Cases"
+                  subtitle="Top 5 เคสคะแนนต่ำที่ควรใช้ประกอบการโค้ชชิ่ง"
+                />
+                <PanelBody>
+                  <div className="space-y-3">
+                    {caseHighlights.improvementCases.length ? (
+                      caseHighlights.improvementCases.map((item, index) => (
+                        <div
+                          key={`improve-${item.caseId}-${index}`}
+                          className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-black text-slate-900">
+                                {index + 1}. {item.caseId}
+                              </div>
+                              <div className="mt-1 text-xs font-semibold text-slate-500">
+                                {buildSuspendedAgentLabel(item.agent, accountProfiles)} • {item.auditDate}
+                              </div>
+                            </div>
+                            <div className="rounded-full bg-amber-600 px-3 py-1 text-sm font-black text-white">
+                              {item.score.toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 rounded-xl bg-white/90 px-3 py-2 text-xs leading-5 text-slate-700">
+                            <span className="font-black text-amber-700">Lowest topic:</span>{" "}
+                            {item.lowestTopic
+                              ? `${item.lowestTopic.label} (${item.lowestTopic.pct.toFixed(2)}%)`
+                              : "No topic data"}
+                          </div>
+
+                          <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                            {item.inquiry}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-sm font-bold text-emerald-700">
+                        ไม่พบเคสที่มีคะแนนต่ำกว่า 100 ในช่วงที่เลือก
+                      </div>
+                    )}
+                  </div>
+                </PanelBody>
+              </Panel>
+            </div>
+
+
 
           </div>
         </div>
