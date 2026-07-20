@@ -304,6 +304,38 @@ function sanitizePdfFilePart(value: unknown, fallback = "Report") {
   return text || fallback;
 }
 
+async function ensureSarabunPdfFont() {
+  if (typeof document === "undefined") return;
+
+  const fontQuery = '400 16px "Sarabun"';
+
+  if (!document.fonts?.check(fontQuery)) {
+    const existingLink = document.querySelector<HTMLLinkElement>(
+      'link[data-summary-pdf-sarabun="true"]'
+    );
+
+    if (!existingLink) {
+      await new Promise<void>((resolve) => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href =
+          "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap";
+        link.dataset.summaryPdfSarabun = "true";
+        link.onload = () => resolve();
+        link.onerror = () => resolve();
+        document.head.appendChild(link);
+      });
+    }
+  }
+
+  try {
+    await document.fonts?.load('400 16px "Sarabun"');
+    await document.fonts?.load('700 16px "Sarabun"');
+  } catch {
+    // Use a Thai-compatible fallback font.
+  }
+}
+
 function isSongkranThemeActive() {
   return false;
 }
@@ -1245,7 +1277,6 @@ export default function SummaryMockup({
   const [periodFilterMonth, setPeriodFilterMonth] = useState<string>("all");
   const [summarySection, setSummarySection] = useState<"summary" | "team">("summary");
   const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>("");
-  const [selectedTeamDetail, setSelectedTeamDetail] = useState<string>("all");
 
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
@@ -2401,12 +2432,18 @@ export default function SummaryMockup({
     if (!teamSelectedMonth) return [];
 
     const previousMonthKey = getPreviousMonthKey(teamSelectedMonth);
-    const selectedCases = allCases.filter((item) => item.monthKey === teamSelectedMonth);
-    const previousCases = allCases.filter((item) => item.monthKey === previousMonthKey);
+    const selectedCases = allCases.filter(
+      (item) => item.monthKey === teamSelectedMonth
+    );
+    const previousCases = allCases.filter(
+      (item) => item.monthKey === previousMonthKey
+    );
 
     const teamNames = Array.from(
       new Set([
-        ...accountProfiles.map((account) => getSummaryTeamName(account)).filter(Boolean),
+        ...accountProfiles
+          .map((account) => getSummaryTeamName(account))
+          .filter(Boolean),
         ...selectedCases.map((item) => getCaseTeamName(item)),
       ])
     )
@@ -2415,32 +2452,67 @@ export default function SummaryMockup({
 
     return teamNames
       .map((teamName) => {
-        const cases = selectedCases.filter((item) => getCaseTeamName(item) === teamName);
-        const previousTeamCases = previousCases.filter((item) => getCaseTeamName(item) === teamName);
+        const cases = selectedCases.filter(
+          (item) => getCaseTeamName(item) === teamName
+        );
+        const previousTeamCases = previousCases.filter(
+          (item) => getCaseTeamName(item) === teamName
+        );
         const summary = summarizeCases(cases);
         const previousSummary = summarizeCases(previousTeamCases);
-        const agentCount = getUniqueNormalizedAgents(cases.map((item) => item.agent)).length;
+
+        const agents = getUniqueNormalizedAgents(
+          cases.map((item) => item.agent)
+        )
+          .map((agent) => {
+            const agentCases = cases.filter((item) =>
+              isSameAgent(item.agent, agent)
+            );
+            const agentSummary = summarizeCases(agentCases);
+
+            return {
+              agent,
+              caseCount: agentSummary.caseCount,
+              avgScore: agentSummary.avgScore,
+              grade: agentSummary.grade,
+              revisedCount: agentSummary.revisedCount,
+            };
+          })
+          .sort((a, b) => a.agent.localeCompare(b.agent));
+
         const change =
           cases.length && previousTeamCases.length
-            ? Number((summary.avgScore - previousSummary.avgScore).toFixed(2))
+            ? Number(
+                (
+                  summary.avgScore -
+                  previousSummary.avgScore
+                ).toFixed(2)
+              )
             : null;
 
         return {
           teamName,
           cases,
+          agents,
           caseCount: summary.caseCount,
-          agentCount,
+          agentCount: agents.length,
           avgScore: cases.length ? summary.avgScore : null,
           change,
           grade: cases.length ? summary.grade : null,
           revisedCount: summary.revisedCount,
+          topics: buildTopicSummary(cases),
         };
       })
       .filter((row) => {
         if (isAdminRole) {
-          return currentUserTeamName && normalizeText(row.teamName) === normalizeText(currentUserTeamName);
+          return (
+            currentUserTeamName &&
+            normalizeText(row.teamName) ===
+              normalizeText(currentUserTeamName)
+          );
         }
-        return row.caseCount > 0 || row.teamName !== "Unassigned Team";
+
+        return row.caseCount > 0;
       });
   }, [
     allCases,
@@ -2458,41 +2530,6 @@ export default function SummaryMockup({
           ) || null
         : null,
     [teamPerformanceRows, currentUserTeamName]
-  );
-
-  const visibleTeamDetailOptions = useMemo(
-    () => teamPerformanceRows.filter((row) => row.caseCount > 0),
-    [teamPerformanceRows]
-  );
-
-  useEffect(() => {
-    if (
-      selectedTeamDetail !== "all" &&
-      !visibleTeamDetailOptions.some(
-        (row) => normalizeText(row.teamName) === normalizeText(selectedTeamDetail)
-      )
-    ) {
-      setSelectedTeamDetail("all");
-    }
-  }, [selectedTeamDetail, visibleTeamDetailOptions]);
-
-  const selectedTeamCases = useMemo(() => {
-    if (selectedTeamDetail === "all") return [];
-    return allCases.filter(
-      (item) =>
-        item.monthKey === teamSelectedMonth &&
-        normalizeText(getCaseTeamName(item)) === normalizeText(selectedTeamDetail)
-    );
-  }, [allCases, accountProfiles, teamSelectedMonth, selectedTeamDetail]);
-
-  const selectedTeamTopics = useMemo(
-    () => buildTopicSummary(selectedTeamCases),
-    [selectedTeamCases]
-  );
-
-  const selectedTeamSummary = useMemo(
-    () => summarizeCases(selectedTeamCases),
-    [selectedTeamCases]
   );
 
   const allTeamsSummary = useMemo(() => {
@@ -3264,7 +3301,9 @@ export default function SummaryMockup({
     }
   };
 
-  function generateSummaryReportPdf() {
+  async function generateSummaryReportPdf() {
+    await ensureSarabunPdfFont();
+
     const reportSummary = summarizeCases(filteredCases);
     const doc = new jsPDF({
       orientation: "portrait",
@@ -3341,7 +3380,7 @@ export default function SummaryMockup({
       }
 
       measure.font =
-        `${fontWeight} ${fontPx}px Tahoma, "Noto Sans Thai", Arial, sans-serif`;
+        `${fontWeight} ${fontPx}px "Sarabun", "TH Sarabun New", Tahoma, "Noto Sans Thai", Arial, sans-serif`;
       const measuredWidth = Math.ceil(measure.measureText(text).width + 12 * scale);
       const measuredHeight = Math.ceil(fontPx * 1.55);
       canvas.width = Math.max(8, measuredWidth);
@@ -3352,7 +3391,7 @@ export default function SummaryMockup({
 
       context.scale(scale, scale);
       context.font =
-        `${fontWeight} ${fontPx / scale}px Tahoma, "Noto Sans Thai", Arial, sans-serif`;
+        `${fontWeight} ${fontPx / scale}px "Sarabun", "TH Sarabun New", Tahoma, "Noto Sans Thai", Arial, sans-serif`;
       context.textBaseline = "alphabetic";
       context.fillStyle = options.color || "#0f172a";
       context.fillText(text, 2, (measuredHeight / scale) * 0.76);
@@ -4860,148 +4899,6 @@ export default function SummaryMockup({
       y += 9;
     });
 
-    const drawCaseHighlightTable = (
-      title: string,
-      rows: typeof caseHighlights.strongestCases,
-      mode: "strong" | "improve"
-    ) => {
-      if (!rows.length) return;
-
-      y += 8;
-      drawSectionTitle(
-        title,
-        mode === "strong"
-          ? "Positive Feedback summarized from evaluation details"
-          : "Improvement Feedback summarized from evaluation details"
-      );
-
-      const widths = [8, 19, 25, 19, 31, 42, 42];
-      const headers = [
-        "No.",
-        "Case ID",
-        "Agent",
-        "Audit Date",
-        "Inquiry",
-        "Positive Feedback",
-        "Improvement Feedback",
-      ];
-
-      const buildLines = (items: { detail: string }[], fallback: string, maxChars: number) => {
-        const source = items.length
-          ? items.map((item, index) => `${index + 1}. ${item.detail}`)
-          : [fallback];
-        return source.flatMap((item) => wrapText(item, maxChars, 4));
-      };
-
-      const drawFeedbackHeader = () => {
-        const headerHeight = 13;
-        const accent = mode === "strong" ? [5, 150, 105] : [217, 119, 6];
-        doc.setFillColor(accent[0], accent[1], accent[2]);
-        doc.roundedRect(margin, y, contentWidth, headerHeight, 2, 2, "F");
-
-        let x = margin;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(5.1);
-        headers.forEach((header, index) => {
-          const lines = wrapText(header, index >= 4 ? 15 : 10, 2);
-          lines.forEach((line, lineIndex) => {
-            drawText(
-              line,
-              x + widths[index] / 2,
-              y + 5 + lineIndex * 3.2,
-              { align: "center", color: "#ffffff" }
-            );
-          });
-          x += widths[index];
-        });
-        y += headerHeight;
-      };
-
-      drawFeedbackHeader();
-
-      rows.forEach((row, index) => {
-        const agentLines = wrapText(
-          buildSuspendedAgentLabel(row.agent, accountProfiles),
-          14,
-          3
-        );
-        const inquiryLines = wrapText(row.inquiry, 20, 4);
-        const positiveLines = buildLines(
-          row.strengthNotes,
-          "ไม่พบ Feedback ด้านจุดเด่นเพิ่มเติมจากรายละเอียดการประเมิน",
-          27
-        );
-        const improvementLines = buildLines(
-          row.improvementNotes,
-          "ไม่พบ Feedback ที่ต้องปรับเพิ่มเติมจากรายละเอียดการประเมิน",
-          27
-        );
-
-        const lineCount = Math.max(
-          1,
-          agentLines.length,
-          inquiryLines.length,
-          positiveLines.length,
-          improvementLines.length
-        );
-        const rowHeight = Math.max(13, 5 + lineCount * 3.3);
-
-        if (y + rowHeight > contentBottom) {
-          startNewPage();
-          drawSectionTitle(`${title} (continued)`);
-          drawFeedbackHeader();
-        }
-
-        doc.setFillColor(
-          index % 2 === 0 ? 255 : 248,
-          index % 2 === 0 ? 255 : 250,
-          index % 2 === 0 ? 255 : 252
-        );
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(margin, y, contentWidth, rowHeight, "FD");
-
-        const cells = [
-          [String(index + 1)],
-          [row.caseId],
-          agentLines,
-          [row.auditDate],
-          inquiryLines,
-          positiveLines,
-          improvementLines,
-        ];
-
-        let x = margin;
-        cells.forEach((lines, colIndex) => {
-          doc.setFont("helvetica", colIndex === 1 ? "bold" : "normal");
-          doc.setFontSize(5.2);
-          doc.setTextColor(51, 65, 85);
-          lines.forEach((line, lineIndex) => {
-            drawText(
-              line,
-              colIndex < 4 ? x + widths[colIndex] / 2 : x + 2,
-              y + 5 + lineIndex * 3.3,
-              { align: colIndex < 4 ? "center" : "left" }
-            );
-          });
-          x += widths[colIndex];
-        });
-
-        y += rowHeight;
-      });
-    };
-
-    drawCaseHighlightTable(
-      "Best Cases / Positive Feedback",
-      caseHighlights.strongestCases,
-      "strong"
-    );
-
-    drawCaseHighlightTable(
-      "Coaching Cases / Improvement Feedback",
-      caseHighlights.improvementCases,
-      "improve"
-    );
-
     if (
       effectiveSelectedAgent === "all" &&
       agentComparisonRows.length
@@ -5221,8 +5118,10 @@ export default function SummaryMockup({
     setReportPdfDialogOpen(false);
   }
 
-  function generateTeamPerformancePdf() {
+  async function generateTeamPerformancePdf() {
     if (!teamSelectedMonth) return;
+
+    await ensureSarabunPdfFont();
 
     const doc = new jsPDF({
       orientation: "portrait",
@@ -5234,118 +5133,387 @@ export default function SummaryMockup({
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 12;
     const contentWidth = pageWidth - margin * 2;
-    const monthLabel = getMonthLabelForKey(teamSelectedMonth, allCases);
+    const monthLabel = getMonthLabelForKey(
+      teamSelectedMonth,
+      allCases
+    );
 
-    doc.setFillColor(49, 16, 101);
-    doc.rect(0, 0, pageWidth, 34, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(isAdminRole ? "My Team Average" : "Team Performance", margin, 16);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(monthLabel, margin, 25);
+    const drawTeamText = (
+      value: unknown,
+      x: number,
+      textY: number,
+      options: {
+        align?: "left" | "center" | "right";
+        color?: string;
+        bold?: boolean;
+        size?: number;
+      } = {}
+    ) => {
+      const text = String(value ?? "-")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const hasThai = /[\u0E00-\u0E7F]/.test(text);
+      const size = options.size || 7;
+
+      doc.setFont(
+        "helvetica",
+        options.bold ? "bold" : "normal"
+      );
+      doc.setFontSize(size);
+
+      if (!hasThai) {
+        if (options.color) {
+          doc.setTextColor(options.color);
+        }
+
+        doc.text(text, x, textY, {
+          align: options.align || "left",
+        });
+        return;
+      }
+
+      const scale = 4;
+      const fontPx =
+        Math.max(10, size * 1.333) * scale;
+      const canvas = document.createElement("canvas");
+      const measure = canvas.getContext("2d");
+
+      if (!measure) return;
+
+      const weight = options.bold ? "700" : "400";
+      const family =
+        '"Sarabun", "TH Sarabun New", Tahoma, "Noto Sans Thai", Arial, sans-serif';
+
+      measure.font =
+        `${weight} ${fontPx}px ${family}`;
+
+      canvas.width = Math.max(
+        8,
+        Math.ceil(
+          measure.measureText(text).width +
+            12 * scale
+        )
+      );
+      canvas.height = Math.max(
+        8,
+        Math.ceil(fontPx * 1.55)
+      );
+
+      const context = canvas.getContext("2d");
+
+      if (!context) return;
+
+      context.scale(scale, scale);
+      context.font =
+        `${weight} ${fontPx / scale}px ${family}`;
+      context.textBaseline = "alphabetic";
+      context.fillStyle =
+        options.color || "#0f172a";
+      context.fillText(
+        text,
+        2,
+        (canvas.height / scale) * 0.76
+      );
+
+      const pxToMm = 25.4 / 96;
+      const widthMm =
+        (canvas.width / scale) * pxToMm;
+      const heightMm =
+        (canvas.height / scale) * pxToMm;
+      let drawX = x;
+
+      if (options.align === "center") {
+        drawX = x - widthMm / 2;
+      }
+      if (options.align === "right") {
+        drawX = x - widthMm;
+      }
+
+      doc.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        drawX,
+        textY - heightMm * 0.76,
+        widthMm,
+        heightMm,
+        undefined,
+        "FAST"
+      );
+    };
+
+    const drawPageHeader = (title: string) => {
+      doc.setFillColor(49, 16, 101);
+      doc.rect(0, 0, pageWidth, 34, "F");
+
+      drawTeamText(title, margin, 16, {
+        color: "#ffffff",
+        bold: true,
+        size: 18,
+      });
+
+      drawTeamText(monthLabel, margin, 25, {
+        color: "#ffffff",
+        size: 9,
+      });
+    };
+
+    drawPageHeader(
+      isAdminRole
+        ? "My Team Average"
+        : "Team Performance"
+    );
 
     if (isAdminRole) {
-      doc.setTextColor(15, 23, 42);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text(currentUserTeamName || "Team not assigned", margin, 55);
-      doc.setFontSize(30);
-      doc.setTextColor(109, 40, 217);
-      doc.text(
-        adminOwnTeamRow?.avgScore === null || adminOwnTeamRow?.avgScore === undefined
+      drawTeamText(
+        currentUserTeamName ||
+          "Team not assigned",
+        margin,
+        55,
+        {
+          bold: true,
+          size: 12,
+        }
+      );
+
+      drawTeamText(
+        adminOwnTeamRow?.avgScore === null ||
+          adminOwnTeamRow?.avgScore === undefined
           ? "No Data"
           : adminOwnTeamRow.avgScore.toFixed(2),
         margin,
-        78
+        78,
+        {
+          color: "#6d28d9",
+          bold: true,
+          size: 30,
+        }
       );
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text("Average Score", margin, 88);
 
-      const fileName = `QA_Team_Average_${sanitizePdfFilePart(
-        currentUserTeamName,
-        "Team_Not_Assigned"
-      )}_${sanitizePdfFilePart(monthLabel)}.pdf`;
+      drawTeamText(
+        "Average Score",
+        margin,
+        88,
+        {
+          color: "#64748b",
+          size: 9,
+        }
+      );
+
+      const fileName =
+        `QA_Team_Average_${sanitizePdfFilePart(
+          currentUserTeamName,
+          "Team_Not_Assigned"
+        )}_${sanitizePdfFilePart(monthLabel)}.pdf`;
+
       doc.save(fileName);
       return;
     }
 
     let y = 45;
-    const widths = [48, 22, 24, 28, 24, 18, 22];
-    const headers = ["Team", "Cases", "Agents", "Average", "Change", "Grade", "Revised"];
 
-    const drawHeader = () => {
-      doc.setFillColor(109, 40, 217);
-      doc.roundedRect(margin, y, contentWidth, 10, 2, 2, "F");
-      let x = margin;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.5);
-      headers.forEach((header, index) => {
-        doc.setTextColor(255, 255, 255);
-        doc.text(
-          header,
-          index === 0 ? x + 3 : x + widths[index] / 2,
-          y + 6.5,
-          { align: index === 0 ? "left" : "center" }
-        );
-        x += widths[index];
-      });
-      y += 10;
+    const startNewTeamPage = () => {
+      doc.addPage();
+      drawPageHeader("Team Performance");
+      y = 43;
     };
 
-    drawHeader();
-
-    teamPerformanceRows.forEach((row, index) => {
-      if (y + 10 > pageHeight - 18) {
-        doc.addPage();
-        y = 18;
-        drawHeader();
+    const ensureTeamSpace = (needed: number) => {
+      if (y + needed <= pageHeight - 18) {
+        return;
       }
 
-      doc.setFillColor(index % 2 === 0 ? 255 : 248, index % 2 === 0 ? 255 : 250, 252);
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(margin, y, contentWidth, 10, "FD");
+      startNewTeamPage();
+    };
 
-      const values = [
-        row.teamName,
-        String(row.caseCount),
-        String(row.agentCount),
-        row.avgScore === null ? "No Data" : row.avgScore.toFixed(2),
-        row.change === null ? "Base" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(2)}`,
-        row.grade || "-",
-        String(row.revisedCount),
+    teamPerformanceRows.forEach((teamRow) => {
+      if (!teamRow.caseCount) return;
+
+      ensureTeamSpace(36);
+
+      doc.setFillColor(109, 40, 217);
+      doc.roundedRect(
+        margin,
+        y,
+        contentWidth,
+        13,
+        2.5,
+        2.5,
+        "F"
+      );
+
+      drawTeamText(
+        teamRow.teamName,
+        margin + 4,
+        y + 8,
+        {
+          color: "#ffffff",
+          bold: true,
+          size: 9,
+        }
+      );
+
+      drawTeamText(
+        `${teamRow.caseCount} Cases | ${teamRow.agentCount} Agents | Avg ${
+          teamRow.avgScore === null
+            ? "No Data"
+            : teamRow.avgScore.toFixed(2)
+        }`,
+        pageWidth - margin - 4,
+        y + 8,
+        {
+          align: "right",
+          color: "#ffffff",
+          bold: true,
+          size: 6.5,
+        }
+      );
+
+      y += 16;
+
+      const widths = [61, 28, 34, 27, 36];
+      const headers = [
+        "Agent",
+        "Cases",
+        "Average",
+        "Grade",
+        "Revised",
       ];
 
-      let x = margin;
-      values.forEach((value, colIndex) => {
-        doc.setFont("helvetica", colIndex === 0 ? "bold" : "normal");
-        doc.setFontSize(6.2);
-
-        if (colIndex === 4) {
-          if (row.change === null) doc.setTextColor(100, 116, 139);
-          else if (row.change > 0) doc.setTextColor(5, 150, 105);
-          else if (row.change < 0) doc.setTextColor(190, 24, 93);
-          else doc.setTextColor(37, 99, 235);
-        } else {
-          doc.setTextColor(51, 65, 85);
-        }
-
-        doc.text(
-          String(value),
-          colIndex === 0 ? x + 3 : x + widths[colIndex] / 2,
-          y + 6.4,
-          { align: colIndex === 0 ? "left" : "center", maxWidth: widths[colIndex] - 4 }
+      const drawAgentHeader = () => {
+        doc.setFillColor(30, 41, 59);
+        doc.rect(
+          margin,
+          y,
+          contentWidth,
+          10,
+          "F"
         );
-        x += widths[colIndex];
-      });
 
-      y += 10;
+        let x = margin;
+
+        headers.forEach((header, index) => {
+          drawTeamText(
+            header,
+            index === 0
+              ? x + 3
+              : x + widths[index] / 2,
+            y + 6.5,
+            {
+              align:
+                index === 0
+                  ? "left"
+                  : "center",
+              color: "#ffffff",
+              bold: true,
+              size: 6,
+            }
+          );
+
+          x += widths[index];
+        });
+
+        y += 10;
+      };
+
+      drawAgentHeader();
+
+      teamRow.agents.forEach(
+        (agentRow, index) => {
+          if (y + 10 > pageHeight - 18) {
+            startNewTeamPage();
+
+            doc.setFillColor(109, 40, 217);
+            doc.roundedRect(
+              margin,
+              y,
+              contentWidth,
+              11,
+              2,
+              2,
+              "F"
+            );
+
+            drawTeamText(
+              `${teamRow.teamName} (continued)`,
+              margin + 4,
+              y + 7,
+              {
+                color: "#ffffff",
+                bold: true,
+                size: 8,
+              }
+            );
+
+            y += 14;
+            drawAgentHeader();
+          }
+
+          doc.setFillColor(
+            index % 2 === 0 ? 255 : 248,
+            index % 2 === 0 ? 255 : 250,
+            252
+          );
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(
+            margin,
+            y,
+            contentWidth,
+            10,
+            "FD"
+          );
+
+          const values = [
+            buildSuspendedAgentLabel(
+              agentRow.agent,
+              accountProfiles
+            ),
+            String(agentRow.caseCount),
+            agentRow.avgScore.toFixed(2),
+            String(agentRow.grade),
+            String(agentRow.revisedCount),
+          ];
+
+          let x = margin;
+
+          values.forEach((value, colIndex) => {
+            drawTeamText(
+              value,
+              colIndex === 0
+                ? x + 3
+                : x + widths[colIndex] / 2,
+              y + 6.4,
+              {
+                align:
+                  colIndex === 0
+                    ? "left"
+                    : "center",
+                bold:
+                  colIndex === 0 ||
+                  colIndex === 2,
+                size: 6,
+                color:
+                  colIndex === 2
+                    ? "#6d28d9"
+                    : "#334155",
+              }
+            );
+
+            x += widths[colIndex];
+          });
+
+          y += 10;
+        }
+      );
+
+      y += 8;
     });
 
-    const fileName = `QA_Team_Performance_All_Teams_${sanitizePdfFilePart(monthLabel)}.pdf`;
+    const fileName =
+      `QA_Team_Performance_All_Teams_${sanitizePdfFilePart(
+        monthLabel
+      )}.pdf`;
+
     doc.save(fileName);
   }
 
@@ -5513,104 +5681,188 @@ export default function SummaryMockup({
                 <>
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-violet-600">Teams</div>
-                      <div className="mt-2 text-3xl font-black text-slate-950">{teamPerformanceRows.filter((row) => row.caseCount > 0).length}</div>
+                      <div className="text-xs font-black uppercase tracking-wide text-violet-600">
+                        Teams
+                      </div>
+                      <div className="mt-2 text-3xl font-black text-slate-950">
+                        {teamPerformanceRows.length}
+                      </div>
                     </div>
+
                     <div className="rounded-3xl border border-sky-100 bg-sky-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-sky-600">Cases</div>
-                      <div className="mt-2 text-3xl font-black text-slate-950">{allTeamsSummary.caseCount}</div>
+                      <div className="text-xs font-black uppercase tracking-wide text-sky-600">
+                        Cases
+                      </div>
+                      <div className="mt-2 text-3xl font-black text-slate-950">
+                        {allTeamsSummary.caseCount}
+                      </div>
                     </div>
+
                     <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-emerald-600">Average</div>
-                      <div className="mt-2 text-3xl font-black text-slate-950">{allTeamsSummary.avgScore.toFixed(2)}</div>
+                      <div className="text-xs font-black uppercase tracking-wide text-emerald-600">
+                        Average
+                      </div>
+                      <div className="mt-2 text-3xl font-black text-slate-950">
+                        {allTeamsSummary.avgScore.toFixed(2)}
+                      </div>
                     </div>
+
                     <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-amber-600">Month</div>
-                      <div className="mt-2 text-lg font-black text-slate-950">{getMonthLabelForKey(teamSelectedMonth, allCases)}</div>
+                      <div className="text-xs font-black uppercase tracking-wide text-amber-600">
+                        Month
+                      </div>
+                      <div className="mt-2 text-lg font-black text-slate-950">
+                        {getMonthLabelForKey(
+                          teamSelectedMonth,
+                          allCases
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto rounded-3xl border border-violet-100 bg-white">
-                    <table className="min-w-[980px] w-full text-sm">
-                      <thead>
-                        <tr className="bg-violet-950 text-white">
-                          <th className="px-4 py-3 text-left">Team</th>
-                          <th className="px-4 py-3 text-center">Cases</th>
-                          <th className="px-4 py-3 text-center">Agents</th>
-                          <th className="px-4 py-3 text-center">Average</th>
-                          <th className="px-4 py-3 text-center">Change</th>
-                          <th className="px-4 py-3 text-center">Grade</th>
-                          <th className="px-4 py-3 text-center">Revised</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {teamPerformanceRows.map((row) => (
-                          <tr key={row.teamName} className="bg-white">
-                            <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-900">{row.teamName}</td>
-                            <td className="border-t border-violet-100 px-4 py-3 text-center font-bold">{row.caseCount}</td>
-                            <td className="border-t border-violet-100 px-4 py-3 text-center font-bold">{row.agentCount}</td>
-                            <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">{row.avgScore === null ? "No Data" : row.avgScore.toFixed(2)}</td>
-                            <td
-                              className={
-                                "border-t border-violet-100 px-4 py-3 text-center font-black " +
-                                (row.change === null
-                                  ? "text-slate-400"
-                                  : row.change > 0
-                                    ? "text-emerald-600"
-                                    : row.change < 0
-                                      ? "text-rose-600"
-                                      : "text-blue-600")
-                              }
-                            >
-                              {row.change === null ? "Base" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(2)}`}
-                            </td>
-                            <td className="border-t border-violet-100 px-4 py-3 text-center font-black">{row.grade || "-"}</td>
-                            <td className="border-t border-violet-100 px-4 py-3 text-center font-bold">{row.revisedCount}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <div className="space-y-6">
+                    {teamPerformanceRows.length ? (
+                      teamPerformanceRows.map((row) => (
+                        <Panel key={row.teamName}>
+                          <PanelHeader
+                            title={row.teamName}
+                            subtitle={`${row.caseCount} Cases • ${row.agentCount} Agents • ${
+                              row.avgScore === null
+                                ? "No Data"
+                                : `${row.avgScore.toFixed(2)} Average`
+                            }`}
+                          />
 
-                  <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-                    <div>
-                      <FilterLabel>Team Detail</FilterLabel>
-                      <div className="mt-2">
-                        <FilterSelect
-                          value={selectedTeamDetail}
-                          onChange={setSelectedTeamDetail}
-                          options={[{ value: "all", label: "Select a team" }].concat(
-                            visibleTeamDetailOptions.map((row) => ({
-                              value: row.teamName,
-                              label: row.teamName,
-                            }))
-                          )}
-                        />
-                      </div>
-                    </div>
+                          <PanelBody className="space-y-5">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                              <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
+                                <div className="text-[11px] font-black uppercase tracking-wide text-violet-600">
+                                  Cases
+                                </div>
+                                <div className="mt-1 text-2xl font-black text-slate-950">
+                                  {row.caseCount}
+                                </div>
+                              </div>
 
-                    {selectedTeamDetail !== "all" ? (
-                      <div className="rounded-3xl border border-violet-100 bg-violet-50/50 p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-black uppercase tracking-wide text-violet-600">Selected Team</div>
-                            <div className="mt-1 text-xl font-black text-slate-950">{selectedTeamDetail}</div>
-                          </div>
-                          <div className="rounded-full bg-white px-4 py-2 text-sm font-black text-violet-700 shadow-sm">
-                            {selectedTeamSummary.caseCount} Cases • {selectedTeamSummary.avgScore.toFixed(2)} Avg
-                          </div>
-                        </div>
-                        <div className="mt-5">
-                          <TopicTable topics={selectedTeamTopics} />
-                        </div>
-                      </div>
+                              <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
+                                <div className="text-[11px] font-black uppercase tracking-wide text-sky-600">
+                                  Agents
+                                </div>
+                                <div className="mt-1 text-2xl font-black text-slate-950">
+                                  {row.agentCount}
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                                <div className="text-[11px] font-black uppercase tracking-wide text-emerald-600">
+                                  Average
+                                </div>
+                                <div className="mt-1 text-2xl font-black text-slate-950">
+                                  {row.avgScore === null
+                                    ? "No Data"
+                                    : row.avgScore.toFixed(2)}
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                                <div className="text-[11px] font-black uppercase tracking-wide text-amber-600">
+                                  Change
+                                </div>
+                                <div
+                                  className={
+                                    "mt-1 text-2xl font-black " +
+                                    (row.change === null
+                                      ? "text-slate-400"
+                                      : row.change > 0
+                                        ? "text-emerald-600"
+                                        : row.change < 0
+                                          ? "text-rose-600"
+                                          : "text-blue-600")
+                                  }
+                                >
+                                  {row.change === null
+                                    ? "Base"
+                                    : `${row.change > 0 ? "+" : ""}${row.change.toFixed(2)}`}
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-fuchsia-100 bg-fuchsia-50 px-4 py-3">
+                                <div className="text-[11px] font-black uppercase tracking-wide text-fuchsia-600">
+                                  Grade
+                                </div>
+                                <div className="mt-1 text-2xl font-black text-slate-950">
+                                  {row.grade || "-"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-white">
+                              <table className="min-w-[760px] w-full text-sm">
+                                <thead>
+                                  <tr className="bg-slate-950 text-white">
+                                    <th className="px-4 py-3 text-left">
+                                      Agent
+                                    </th>
+                                    <th className="px-4 py-3 text-center">
+                                      Cases
+                                    </th>
+                                    <th className="px-4 py-3 text-center">
+                                      Average
+                                    </th>
+                                    <th className="px-4 py-3 text-center">
+                                      Grade
+                                    </th>
+                                    <th className="px-4 py-3 text-center">
+                                      Revised
+                                    </th>
+                                  </tr>
+                                </thead>
+
+                                <tbody>
+                                  {row.agents.map((agentRow) => (
+                                    <tr
+                                      key={`${row.teamName}-${agentRow.agent}`}
+                                      className="bg-white"
+                                    >
+                                      <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-900">
+                                        {buildSuspendedAgentLabel(
+                                          agentRow.agent,
+                                          accountProfiles
+                                        )}
+                                      </td>
+                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-bold text-slate-700">
+                                        {agentRow.caseCount}
+                                      </td>
+                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">
+                                        {agentRow.avgScore.toFixed(2)}
+                                      </td>
+                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-slate-800">
+                                        {agentRow.grade}
+                                      </td>
+                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-bold text-slate-700">
+                                        {agentRow.revisedCount}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <div>
+                              <div className="mb-3 text-sm font-black text-slate-900">
+                                Topic Performance
+                              </div>
+                              <TopicTable topics={row.topics} />
+                            </div>
+                          </PanelBody>
+                        </Panel>
+                      ))
                     ) : (
-                      <div className="rounded-3xl border border-dashed border-violet-200 bg-violet-50/40 px-6 py-10 text-center text-sm font-semibold text-violet-600">
-                        เลือกทีมเพื่อดู Topic Performance ของทีมนั้น
+                      <div className="rounded-3xl border border-dashed border-violet-200 bg-violet-50/40 px-6 py-12 text-center text-sm font-semibold text-violet-600">
+                        ไม่พบข้อมูลทีมในเดือนที่เลือก
                       </div>
                     )}
-                  </div>
-                </>
+                  </div></>
               )}
             </PanelBody>
           </Panel>
@@ -6600,195 +6852,7 @@ export default function SummaryMockup({
               </PanelBody>
             </Panel>
 
-            <div className="grid gap-6 xl:grid-cols-2">
-              <Panel>
-                <PanelHeader
-                  title="Best Cases / Positive Feedback"
-                  subtitle="ตัวอย่าง Feedback ด้านบวกจากรายละเอียดการประเมินจริง"
-                />
-                <PanelBody>
-                  <div className="space-y-3">
-                    {caseHighlights.strongestCases.length ? (
-                      caseHighlights.strongestCases.map((item, index) => (
-                        <div
-                          key={`strong-${item.caseId}-${index}`}
-                          className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4"
-                        >
-                          <div>
-                            <div className="text-sm font-black text-slate-900">
-                              {index + 1}. {item.caseId}
-                            </div>
-                            <div className="mt-1 text-xs font-semibold text-slate-500">
-                              {buildSuspendedAgentLabel(
-                                item.agent,
-                                accountProfiles
-                              )} • {item.auditDate}
-                            </div>
-                          </div>
 
-                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-emerald-700">
-                              สิ่งที่ทำได้ดี
-                            </div>
-
-                            {item.strengthNotes.length ? (
-                              <ol className="mt-3 space-y-3">
-                                {item.strengthNotes.map((note, noteIndex) => (
-                                  <li
-                                    key={`${item.caseId}-strength-${noteIndex}`}
-                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
-                                  >
-                                    <span className="font-black text-emerald-600">
-                                      {noteIndex + 1}.
-                                    </span>
-                                    <span>{note.detail}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            ) : (
-                              <div className="mt-2 text-xs font-semibold text-slate-500">
-                                ไม่พบ Feedback ด้านจุดเด่นเพิ่มเติมจากรายละเอียดการประเมิน
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-amber-700">
-                              จุดที่ควรปรับ / ควรระวัง
-                            </div>
-
-                            {item.improvementNotes.length ? (
-                              <ol className="mt-3 space-y-3">
-                                {item.improvementNotes.map((note, noteIndex) => (
-                                  <li
-                                    key={`${item.caseId}-improve-${noteIndex}`}
-                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
-                                  >
-                                    <span className="font-black text-amber-600">
-                                      {noteIndex + 1}.
-                                    </span>
-                                    <span>{note.detail}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            ) : (
-                              <div className="mt-2 text-xs font-semibold text-emerald-700">
-                                ไม่พบ Feedback ที่ต้องปรับเพิ่มเติมจากรายละเอียดการประเมิน
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
-                            <span className="font-black text-slate-800">
-                              Inquiry:
-                            </span>{" "}
-                            {item.inquiry}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-200 px-5 py-8 text-center text-sm text-slate-500">
-                        No cases found in the selected scope.
-                      </div>
-                    )}
-                  </div>
-                </PanelBody>
-              </Panel>
-
-              <Panel>
-                <PanelHeader
-                  title="Coaching Cases / Improvement Feedback"
-                  subtitle="ตัวอย่าง Feedback ที่ควรนำไปใช้ปรับปรุงและโค้ชชิ่ง"
-                />
-                <PanelBody>
-                  <div className="space-y-3">
-                    {caseHighlights.improvementCases.length ? (
-                      caseHighlights.improvementCases.map((item, index) => (
-                        <div
-                          key={`improve-${item.caseId}-${index}`}
-                          className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4"
-                        >
-                          <div>
-                            <div className="text-sm font-black text-slate-900">
-                              {index + 1}. {item.caseId}
-                            </div>
-                            <div className="mt-1 text-xs font-semibold text-slate-500">
-                              {buildSuspendedAgentLabel(
-                                item.agent,
-                                accountProfiles
-                              )} • {item.auditDate}
-                            </div>
-                          </div>
-
-                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-emerald-700">
-                              สิ่งที่ยังทำได้ดี
-                            </div>
-
-                            {item.strengthNotes.length ? (
-                              <ol className="mt-3 space-y-3">
-                                {item.strengthNotes.map((note, noteIndex) => (
-                                  <li
-                                    key={`${item.caseId}-good-${noteIndex}`}
-                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
-                                  >
-                                    <span className="font-black text-emerald-600">
-                                      {noteIndex + 1}.
-                                    </span>
-                                    <span>{note.detail}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            ) : (
-                              <div className="mt-2 text-xs font-semibold text-slate-500">
-                                ไม่พบ Feedback ด้านจุดเด่นเพิ่มเติมจากรายละเอียดการประเมิน
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
-                            <div className="text-xs font-black text-amber-700">
-                              จุดที่ควรปรับ
-                            </div>
-
-                            {item.improvementNotes.length ? (
-                              <ol className="mt-3 space-y-3">
-                                {item.improvementNotes.map((note, noteIndex) => (
-                                  <li
-                                    key={`${item.caseId}-coach-${noteIndex}`}
-                                    className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-sm leading-6 text-slate-700"
-                                  >
-                                    <span className="font-black text-amber-600">
-                                      {noteIndex + 1}.
-                                    </span>
-                                    <span>{note.detail}</span>
-                                  </li>
-                                ))}
-                              </ol>
-                            ) : (
-                              <div className="mt-2 text-xs font-semibold text-slate-500">
-                                ไม่พบ Feedback ที่ต้องปรับเพิ่มเติมจากรายละเอียดการประเมิน
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
-                            <span className="font-black text-slate-800">
-                              Inquiry:
-                            </span>{" "}
-                            {item.inquiry}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-sm font-bold text-emerald-700">
-                        ไม่พบเคสสำหรับ Coaching ในช่วงที่เลือก
-                      </div>
-                    )}
-                  </div>
-                </PanelBody>
-              </Panel>
-            </div>
 
 
           </div>
