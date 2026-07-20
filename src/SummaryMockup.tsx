@@ -2191,21 +2191,97 @@ export default function SummaryMockup({
   const caseHighlights = useMemo(() => {
     const buildHighlight = (item: CaseItem) => {
       const effectiveTopics =
-        item.reviewStatus === "Revised" && item.revisedTopics?.length
-          ? mergeTopicSet(item.topics, item.revisedTopics)
+        item.reviewStatus === "Revised" &&
+        item.revisedTopics?.length
+          ? mergeTopicSet(
+              item.topics,
+              item.revisedTopics
+            )
           : item.topics;
 
+      const sortedHigh = [...effectiveTopics].sort(
+        (a, b) => b.pct - a.pct
+      );
+
+      const sortedLow = [...effectiveTopics].sort(
+        (a, b) => a.pct - b.pct
+      );
+
       const strongestTopic =
-        [...effectiveTopics].sort((a, b) => b.pct - a.pct)[0] || null;
+        sortedHigh[0] || null;
+
       const lowestTopic =
-        [...effectiveTopics].sort((a, b) => a.pct - b.pct)[0] || null;
+        sortedLow[0] || null;
 
       const inquiry =
-        item.inquiryTh && item.inquiryTh !== "-"
+        item.inquiryTh &&
+        item.inquiryTh !== "-"
           ? item.inquiryTh
-          : item.inquiryEn && item.inquiryEn !== "-"
+          : item.inquiryEn &&
+              item.inquiryEn !== "-"
             ? item.inquiryEn
             : "No inquiry detail";
+
+      const buildNote = (
+        topic: Topic,
+        type: "strength" | "improvement"
+      ) => {
+        const comment = String(
+          topic.comment || ""
+        ).trim();
+
+        const deducted = Number(
+          Math.max(
+            0,
+            topic.max - topic.score
+          ).toFixed(2)
+        );
+
+        const fallback =
+          type === "strength"
+            ? `ได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน และเป็นหัวข้อที่ทำได้ดีของเคส`
+            : `ได้ ${topic.score.toFixed(2)}/${topic.max.toFixed(2)} คะแนน${
+                deducted > 0
+                  ? ` (ถูกหัก ${deducted.toFixed(2)} คะแนน)`
+                  : ""
+              }`;
+
+        return {
+          label: topic.label,
+          pct: topic.pct,
+          detail: comment || fallback,
+        };
+      };
+
+      const strengthCandidates =
+        sortedHigh.filter(
+          (topic) => topic.pct >= 90
+        );
+
+      const improvementCandidates =
+        sortedLow.filter(
+          (topic) => topic.pct < 100
+        );
+
+      const strengthNotes = (
+        strengthCandidates.length
+          ? strengthCandidates
+          : sortedHigh.slice(0, 1)
+      )
+        .slice(0, 2)
+        .map((topic) =>
+          buildNote(topic, "strength")
+        );
+
+      const improvementNotes =
+        improvementCandidates
+          .slice(0, 2)
+          .map((topic) =>
+            buildNote(
+              topic,
+              "improvement"
+            )
+          );
 
       return {
         caseId: item.caseId,
@@ -2215,27 +2291,65 @@ export default function SummaryMockup({
         inquiry,
         strongestTopic,
         lowestTopic,
+        strengthNotes,
+        improvementNotes,
       };
     };
 
-    const strongestCases = [...filteredCases]
+    const strongestCases = [
+      ...filteredCases,
+    ]
       .sort((a, b) => {
-        if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
-        return (b.auditDateObj?.getTime() || 0) - (a.auditDateObj?.getTime() || 0);
+        if (
+          b.finalScore !== a.finalScore
+        ) {
+          return (
+            b.finalScore -
+            a.finalScore
+          );
+        }
+
+        return (
+          (b.auditDateObj?.getTime() ||
+            0) -
+          (a.auditDateObj?.getTime() ||
+            0)
+        );
       })
       .slice(0, 5)
       .map(buildHighlight);
 
-    const improvementCases = [...filteredCases]
-      .filter((item) => item.finalScore < 100)
+    const improvementCases = [
+      ...filteredCases,
+    ]
+      .filter(
+        (item) =>
+          item.finalScore < 100
+      )
       .sort((a, b) => {
-        if (a.finalScore !== b.finalScore) return a.finalScore - b.finalScore;
-        return (b.auditDateObj?.getTime() || 0) - (a.auditDateObj?.getTime() || 0);
+        if (
+          a.finalScore !== b.finalScore
+        ) {
+          return (
+            a.finalScore -
+            b.finalScore
+          );
+        }
+
+        return (
+          (b.auditDateObj?.getTime() ||
+            0) -
+          (a.auditDateObj?.getTime() ||
+            0)
+        );
       })
       .slice(0, 5)
       .map(buildHighlight);
 
-    return { strongestCases, improvementCases };
+    return {
+      strongestCases,
+      improvementCases,
+    };
   }, [filteredCases]);
 
   const teamMonthlyAnalyticsRows = useMemo(() => {
@@ -2317,6 +2431,168 @@ export default function SummaryMockup({
     effectivePeriodKeys,
     allCases,
     roleScopedAgentList,
+  ]);
+
+  const agentMonthlyCoverageRows = useMemo(() => {
+    if (
+      analysisMode !== "monthly" ||
+      !teamMonthlyAnalyticsRows.length
+    ) {
+      return [];
+    }
+
+    const coverageMonthKeys =
+      teamMonthlyAnalyticsRows.map(
+        (row) => row.monthKey
+      );
+
+    const coverageCases = allCases.filter(
+      (item) => {
+        if (
+          roleScopedAgentList.length &&
+          !roleScopedAgentList.some(
+            (agent) =>
+              isSameAgent(
+                item.agent,
+                agent
+              )
+          )
+        ) {
+          return false;
+        }
+
+        return coverageMonthKeys.includes(
+          item.monthKey
+        );
+      }
+    );
+
+    const agentUniverse =
+      effectiveSelectedAgent !== "all"
+        ? [effectiveSelectedAgent]
+        : getUniqueNormalizedAgents([
+            ...AGENT_MASTER,
+            ...availableAgents,
+            ...coverageCases.map(
+              (item) => item.agent
+            ),
+          ]);
+
+    return agentUniverse
+      .filter((agent) => {
+        if (
+          roleScopedAgentList.length &&
+          !roleScopedAgentList.some(
+            (scopedAgent) =>
+              isSameAgent(
+                agent,
+                scopedAgent
+              )
+          )
+        ) {
+          return false;
+        }
+
+        const hasCases =
+          coverageCases.some(
+            (item) =>
+              isSameAgent(
+                item.agent,
+                agent
+              )
+          );
+
+        const isLegacyResigned =
+          Object.keys(
+            RESIGNED_AGENT_HIDE_AFTER
+          ).some((name) =>
+            isSameAgent(name, agent)
+          );
+
+        const isInactive =
+          isLegacyResigned ||
+          isSuspendedAgent(
+            agent,
+            accountProfiles
+          );
+
+        return isInactive
+          ? hasCases
+          : true;
+      })
+      .map((agent) => {
+        const values =
+          teamMonthlyAnalyticsRows.map(
+            (month) => {
+              const count =
+                coverageCases.filter(
+                  (item) =>
+                    item.monthKey ===
+                      month.monthKey &&
+                    isSameAgent(
+                      item.agent,
+                      agent
+                    )
+                ).length;
+
+              return {
+                monthKey:
+                  month.monthKey,
+                label: month.label,
+                count,
+                completionPct:
+                  Math.min(
+                    100,
+                    (count /
+                      CASE_TARGET) *
+                      100
+                  ),
+              };
+            }
+          );
+
+        const latestCount =
+          values[
+            values.length - 1
+          ]?.count || 0;
+
+        const status =
+          latestCount === 0
+            ? "Not Started"
+            : latestCount <
+                CASE_TARGET
+              ? "In Progress"
+              : latestCount ===
+                  CASE_TARGET
+                ? "Completed"
+                : "Over Target";
+
+        return {
+          agent,
+          values,
+          latestCount,
+          status,
+          totalCases:
+            values.reduce(
+              (sum, value) =>
+                sum + value.count,
+              0
+            ),
+        };
+      })
+      .sort((a, b) =>
+        a.agent.localeCompare(
+          b.agent
+        )
+      );
+  }, [
+    analysisMode,
+    teamMonthlyAnalyticsRows,
+    allCases,
+    roleScopedAgentList,
+    effectiveSelectedAgent,
+    availableAgents,
+    accountProfiles,
   ]);
 
   const analyticsMonthKey = useMemo(() => {
@@ -3146,6 +3422,284 @@ export default function SummaryMockup({
       );
 
       y += 10;
+
+      startNewPage();
+
+      drawSectionTitle(
+        "Agent Monthly Evaluation Coverage",
+        `Target: ${CASE_TARGET} evaluated cases per Agent per month`
+      );
+
+      const coverageMonthHeaders =
+        teamMonthlyAnalyticsRows.map(
+          (month) => month.label
+        );
+
+      const agentWidth = 54;
+      const statusWidth = 31;
+      const totalWidth = 16;
+      const monthWidth =
+        (
+          contentWidth -
+          agentWidth -
+          statusWidth -
+          totalWidth
+        ) /
+        Math.max(
+          1,
+          coverageMonthHeaders.length
+        );
+
+      const drawCoverageHeader = () => {
+        const headerHeight = 12;
+
+        doc.setFillColor(
+          49,
+          16,
+          101
+        );
+
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          headerHeight,
+          2,
+          2,
+          "F"
+        );
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+        doc.setFontSize(5.8);
+
+        drawText(
+          "Agent",
+          margin + 3,
+          y + 7,
+          { color: "#ffffff" }
+        );
+
+        coverageMonthHeaders.forEach(
+          (header, index) => {
+            const centerX =
+              margin +
+              agentWidth +
+              monthWidth * index +
+              monthWidth / 2;
+
+            wrapText(
+              header,
+              14,
+              2
+            ).forEach(
+              (line, lineIndex) => {
+                drawText(
+                  line,
+                  centerX,
+                  y +
+                    5 +
+                    lineIndex * 3,
+                  {
+                    align: "center",
+                    color: "#ffffff",
+                  }
+                );
+              }
+            );
+          }
+        );
+
+        drawText(
+          "Status",
+          pageWidth -
+            margin -
+            totalWidth -
+            statusWidth / 2,
+          y + 7,
+          {
+            align: "center",
+            color: "#ffffff",
+          }
+        );
+
+        drawText(
+          "Total",
+          pageWidth -
+            margin -
+            totalWidth / 2,
+          y + 7,
+          {
+            align: "center",
+            color: "#ffffff",
+          }
+        );
+
+        y += headerHeight;
+      };
+
+      drawCoverageHeader();
+
+      agentMonthlyCoverageRows.forEach(
+        (row, index) => {
+          const agentLines = wrapText(
+            buildSuspendedAgentLabel(
+              row.agent,
+              accountProfiles
+            ),
+            29,
+            2
+          );
+
+          const rowHeight = Math.max(
+            10,
+            4 +
+              agentLines.length *
+                3.5
+          );
+
+          if (
+            y + rowHeight >
+            pageHeight - 15
+          ) {
+            startNewPage();
+
+            drawSectionTitle(
+              "Agent Monthly Evaluation Coverage (continued)"
+            );
+
+            drawCoverageHeader();
+          }
+
+          doc.setFillColor(
+            index % 2 === 0
+              ? 255
+              : 248,
+            index % 2 === 0
+              ? 255
+              : 250,
+            index % 2 === 0
+              ? 255
+              : 252
+          );
+
+          doc.setDrawColor(
+            226,
+            232,
+            240
+          );
+
+          doc.rect(
+            margin,
+            y,
+            contentWidth,
+            rowHeight,
+            "FD"
+          );
+
+          doc.setFont(
+            "helvetica",
+            "normal"
+          );
+          doc.setFontSize(5.8);
+          doc.setTextColor(
+            51,
+            65,
+            85
+          );
+
+          agentLines.forEach(
+            (line, lineIndex) => {
+              drawText(
+                line,
+                margin + 3,
+                y +
+                  5 +
+                  lineIndex * 3.5
+              );
+            }
+          );
+
+          row.values.forEach(
+            (value, valueIndex) => {
+              const centerX =
+                margin +
+                agentWidth +
+                monthWidth *
+                  valueIndex +
+                monthWidth / 2;
+
+              doc.setFont(
+                "helvetica",
+                "bold"
+              );
+
+              doc.setTextColor(
+                value.count >=
+                  CASE_TARGET
+                  ? 5
+                  : value.count > 0
+                    ? 180
+                    : 148,
+                value.count >=
+                  CASE_TARGET
+                  ? 150
+                  : value.count > 0
+                    ? 83
+                    : 163,
+                value.count >=
+                  CASE_TARGET
+                  ? 105
+                  : value.count > 0
+                    ? 9
+                    : 184
+              );
+
+              drawText(
+                `${value.count}/${CASE_TARGET}`,
+                centerX,
+                y + 5.5,
+                {
+                  align: "center",
+                }
+              );
+            }
+          );
+
+          doc.setFont(
+            "helvetica",
+            "bold"
+          );
+          doc.setFontSize(5.4);
+
+          drawText(
+            `${row.status} ${row.latestCount}/${CASE_TARGET}`,
+            pageWidth -
+              margin -
+              totalWidth -
+              statusWidth / 2,
+            y + 5.5,
+            { align: "center" }
+          );
+
+          drawText(
+            String(
+              row.totalCases
+            ),
+            pageWidth -
+              margin -
+              totalWidth / 2,
+            y + 5.5,
+            { align: "center" }
+          );
+
+          y += rowHeight;
+        }
+      );
+
+      y += 10;
     }
 
     periodTopicReports.forEach((report, reportIndex) => {
@@ -3867,28 +4421,15 @@ export default function SummaryMockup({
       if (!rows.length) return;
 
       y += 8;
+
       drawSectionTitle(
         title,
         mode === "strong"
-          ? "Top evaluated cases with the highest scores"
-          : "Lowest-scoring cases recommended for coaching review"
+          ? "Top evaluated cases with strengths and improvement points"
+          : "Lowest-scoring cases with coaching details"
       );
 
       rows.forEach((row, index) => {
-        const topic =
-          mode === "strong"
-            ? row.strongestTopic
-            : row.lowestTopic;
-
-        const topicTitle =
-          mode === "strong"
-            ? "Strongest Topic"
-            : "Lowest Topic";
-
-        const topicText = topic
-          ? `${topic.label} (${topic.pct.toFixed(2)}%)`
-          : "No topic data";
-
         const agentText =
           buildSuspendedAgentLabel(
             row.agent,
@@ -3897,15 +4438,33 @@ export default function SummaryMockup({
 
         const agentLines = wrapText(
           `Agent: ${agentText} | Audit Date: ${row.auditDate}`,
-          78,
-          2
-        );
-
-        const topicLines = wrapText(
-          `${topicTitle}: ${topicText}`,
           82,
           2
         );
+
+        const strengthLines =
+          row.strengthNotes.flatMap(
+            (note: any, noteIndex: number) =>
+              wrapText(
+                `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                92,
+                3
+              )
+          );
+
+        const improvementLines =
+          row.improvementNotes.length
+            ? row.improvementNotes.flatMap(
+                (note: any, noteIndex: number) =>
+                  wrapText(
+                    `${noteIndex + 1}. ${note.label} (${note.pct.toFixed(2)}%) — ${note.detail}`,
+                    92,
+                    3
+                  )
+              )
+            : [
+                "No deducted topic found in this case.",
+              ];
 
         const inquiryLines = wrapText(
           `Inquiry: ${row.inquiry}`,
@@ -3913,21 +4472,22 @@ export default function SummaryMockup({
           4
         );
 
-        const bodyLineCount =
+        const contentLineCount =
           agentLines.length +
-          topicLines.length +
+          strengthLines.length +
+          improvementLines.length +
           inquiryLines.length;
 
         const cardHeight =
-          13 +
-          bodyLineCount * 4 +
-          5;
+          25 +
+          contentLineCount * 3.7;
 
         if (
           y + cardHeight >
           pageHeight - 15
         ) {
           startNewPage();
+
           drawSectionTitle(
             `${title} (continued)`
           );
@@ -3950,6 +4510,7 @@ export default function SummaryMockup({
 
         doc.setFillColor(...fill);
         doc.setDrawColor(...border);
+
         doc.roundedRect(
           margin,
           y,
@@ -3961,6 +4522,7 @@ export default function SummaryMockup({
         );
 
         doc.setFillColor(...accent);
+
         doc.roundedRect(
           margin,
           y,
@@ -3971,8 +4533,12 @@ export default function SummaryMockup({
           "F"
         );
 
-        doc.setFont("helvetica", "bold");
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
         doc.setFontSize(8);
+
         drawText(
           `${index + 1}. Case ID: ${row.caseId}`,
           margin + 4,
@@ -3982,7 +4548,9 @@ export default function SummaryMockup({
 
         drawText(
           `Score: ${row.score.toFixed(2)}`,
-          pageWidth - margin - 4,
+          pageWidth -
+            margin -
+            4,
           y + 6.6,
           {
             align: "right",
@@ -3992,42 +4560,126 @@ export default function SummaryMockup({
 
         let lineY = y + 16;
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.8);
-        doc.setTextColor(51, 65, 85);
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+        doc.setFontSize(6.7);
+        doc.setTextColor(
+          51,
+          65,
+          85
+        );
 
-        agentLines.forEach((line) => {
-          drawText(
-            line,
-            margin + 5,
-            lineY
-          );
-          lineY += 4;
-        });
+        agentLines.forEach(
+          (line) => {
+            drawText(
+              line,
+              margin + 5,
+              lineY
+            );
+            lineY += 3.7;
+          }
+        );
 
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(...accent);
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+        doc.setTextColor(
+          5,
+          150,
+          105
+        );
 
-        topicLines.forEach((line) => {
-          drawText(
-            line,
-            margin + 5,
-            lineY
-          );
-          lineY += 4;
-        });
+        drawText(
+          "Strengths / สิ่งที่ทำได้ดี",
+          margin + 5,
+          lineY + 1
+        );
 
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(71, 85, 105);
+        lineY += 5;
 
-        inquiryLines.forEach((line) => {
-          drawText(
-            line,
-            margin + 5,
-            lineY
-          );
-          lineY += 4;
-        });
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+        doc.setTextColor(
+          51,
+          65,
+          85
+        );
+
+        strengthLines.forEach(
+          (line) => {
+            drawText(
+              line,
+              margin + 7,
+              lineY
+            );
+            lineY += 3.7;
+          }
+        );
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+        doc.setTextColor(
+          180,
+          83,
+          9
+        );
+
+        drawText(
+          "Improvements / จุดที่ควรปรับ",
+          margin + 5,
+          lineY + 1
+        );
+
+        lineY += 5;
+
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+        doc.setTextColor(
+          51,
+          65,
+          85
+        );
+
+        improvementLines.forEach(
+          (line) => {
+            drawText(
+              line,
+              margin + 7,
+              lineY
+            );
+            lineY += 3.7;
+          }
+        );
+
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+        doc.setTextColor(
+          71,
+          85,
+          105
+        );
+
+        inquiryLines.forEach(
+          (line) => {
+            drawText(
+              line,
+              margin + 5,
+              lineY
+            );
+            lineY += 3.7;
+          }
+        );
 
         y += cardHeight + 4;
       });
@@ -4568,7 +5220,7 @@ export default function SummaryMockup({
               <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from selected periods" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
             </div>
 
-            {analysisMode === "monthly" && teamMonthlyAnalyticsRows.length ? (
+            {analysisMode === "monthly" ? (
               <Panel>
                 <PanelHeader
                   title="Team Monthly Analytics — Last 3 Months"
@@ -4702,6 +5354,100 @@ export default function SummaryMockup({
                 </PanelBody>
               </Panel>
             ) : null}
+
+            {analysisMode === "monthly" && agentMonthlyCoverageRows.length ? (
+              <Panel>
+                <PanelHeader
+                  title="Agent Monthly Evaluation Coverage"
+                  subtitle={`จำนวนเคสที่ประเมินต่อ Agent รายเดือน • เป้าหมาย ${CASE_TARGET} เคสต่อคนต่อเดือน`}
+                />
+                <PanelBody>
+                  <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-white">
+                    <table className="min-w-[980px] w-full text-sm">
+                      <thead>
+                        <tr className="bg-violet-950 text-white">
+                          <th className="px-4 py-3 text-left">Agent</th>
+                          {teamMonthlyAnalyticsRows.map((month) => (
+                            <th
+                              key={month.monthKey}
+                              className="px-4 py-3 text-center"
+                            >
+                              {month.label}
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-center">
+                            Current Status
+                          </th>
+                          <th className="px-4 py-3 text-center">
+                            3-Month Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agentMonthlyCoverageRows.map((row) => (
+                          <tr
+                            key={row.agent}
+                            className="bg-white"
+                          >
+                            <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-900">
+                              {buildSuspendedAgentLabel(
+                                row.agent,
+                                accountProfiles
+                              )}
+                            </td>
+
+                            {row.values.map((value) => (
+                              <td
+                                key={`${row.agent}-${value.monthKey}`}
+                                className="border-t border-violet-100 px-4 py-3"
+                              >
+                                <div className="text-center text-sm font-black text-violet-700">
+                                  {value.count}/{CASE_TARGET}
+                                </div>
+                                <div className="mx-auto mt-2 h-2 w-24 overflow-hidden rounded-full bg-violet-100">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500"
+                                    style={{
+                                      width: `${value.completionPct}%`,
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                            ))}
+
+                            <td className="border-t border-violet-100 px-4 py-3 text-center">
+                              <span
+                                className={
+                                  "inline-flex rounded-full border px-3 py-1 text-xs font-black " +
+                                  (row.status === "Completed"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : row.status === "Over Target"
+                                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                                      : row.status === "In Progress"
+                                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                                        : "border-slate-200 bg-slate-50 text-slate-500")
+                                }
+                              >
+                                {row.status} • {row.latestCount}/{CASE_TARGET}
+                              </span>
+                            </td>
+
+                            <td className="border-t border-violet-100 px-4 py-3 text-center text-base font-black text-slate-900">
+                              {row.totalCases}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-xs leading-5 text-violet-700">
+                    พนักงานที่ยังทำงานอยู่จะแสดงแม้มี 0 เคส ส่วนพนักงานที่ออกหรือถูก Suspend จะแสดงเฉพาะเดือนที่มีเคสประเมินจริง
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : null}
+
 
             {(analysisMode === "monthly" || analysisMode === "weekly") && effectiveSelectedAgent === "all" && agentComparisonRows.length ? (
               <Panel>
@@ -5177,10 +5923,10 @@ export default function SummaryMockup({
               <Panel>
                 <PanelHeader
                   title="Best Cases / Strong Cases"
-                  subtitle="Top 5 เคสที่ได้คะแนนสูงในช่วงที่เลือก"
+                  subtitle="Top 5 เคสที่ได้คะแนนสูง พร้อมสิ่งที่ทำได้ดีและจุดที่ยังควรระวัง"
                 />
                 <PanelBody>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {caseHighlights.strongestCases.length ? (
                       caseHighlights.strongestCases.map((item, index) => (
                         <div
@@ -5193,22 +5939,72 @@ export default function SummaryMockup({
                                 {index + 1}. {item.caseId}
                               </div>
                               <div className="mt-1 text-xs font-semibold text-slate-500">
-                                {buildSuspendedAgentLabel(item.agent, accountProfiles)} • {item.auditDate}
+                                {buildSuspendedAgentLabel(
+                                  item.agent,
+                                  accountProfiles
+                                )} • {item.auditDate}
                               </div>
                             </div>
+
                             <div className="rounded-full bg-emerald-600 px-3 py-1 text-sm font-black text-white">
                               {item.score.toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="mt-3 rounded-xl bg-white/90 px-3 py-2 text-xs leading-5 text-slate-700">
-                            <span className="font-black text-emerald-700">Strongest:</span>{" "}
-                            {item.strongestTopic
-                              ? `${item.strongestTopic.label} (${item.strongestTopic.pct.toFixed(2)}%)`
-                              : "No topic data"}
+                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-emerald-700">
+                              สิ่งที่ทำได้ดี
+                            </div>
+
+                            <div className="mt-2 space-y-2">
+                              {item.strengthNotes.map((note, noteIndex) => (
+                                <div
+                                  key={`${item.caseId}-strength-${noteIndex}`}
+                                  className="rounded-lg bg-emerald-50 px-3 py-2"
+                                >
+                                  <div className="text-xs font-black text-slate-800">
+                                    {note.label} — {note.pct.toFixed(2)}%
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-slate-600">
+                                    {note.detail}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
 
-                          <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-amber-700">
+                              จุดที่ควรปรับ / ควรระวัง
+                            </div>
+
+                            {item.improvementNotes.length ? (
+                              <div className="mt-2 space-y-2">
+                                {item.improvementNotes.map((note, noteIndex) => (
+                                  <div
+                                    key={`${item.caseId}-improvement-${noteIndex}`}
+                                    className="rounded-lg bg-amber-50 px-3 py-2"
+                                  >
+                                    <div className="text-xs font-black text-slate-800">
+                                      {note.label} — {note.pct.toFixed(2)}%
+                                    </div>
+                                    <div className="mt-1 text-xs leading-5 text-slate-600">
+                                      {note.detail}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="mt-2 text-xs font-bold text-emerald-700">
+                                ไม่พบหัวข้อที่ถูกหักคะแนนในเคสนี้
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
+                            <span className="font-black text-slate-800">
+                              Inquiry:
+                            </span>{" "}
                             {item.inquiry}
                           </div>
                         </div>
@@ -5225,10 +6021,10 @@ export default function SummaryMockup({
               <Panel>
                 <PanelHeader
                   title="Improvement Cases / Coaching Cases"
-                  subtitle="Top 5 เคสคะแนนต่ำที่ควรใช้ประกอบการโค้ชชิ่ง"
+                  subtitle="Top 5 เคสคะแนนต่ำ พร้อมจุดเด่นและรายละเอียดที่ควรใช้โค้ชชิ่ง"
                 />
                 <PanelBody>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {caseHighlights.improvementCases.length ? (
                       caseHighlights.improvementCases.map((item, index) => (
                         <div
@@ -5241,22 +6037,66 @@ export default function SummaryMockup({
                                 {index + 1}. {item.caseId}
                               </div>
                               <div className="mt-1 text-xs font-semibold text-slate-500">
-                                {buildSuspendedAgentLabel(item.agent, accountProfiles)} • {item.auditDate}
+                                {buildSuspendedAgentLabel(
+                                  item.agent,
+                                  accountProfiles
+                                )} • {item.auditDate}
                               </div>
                             </div>
+
                             <div className="rounded-full bg-amber-600 px-3 py-1 text-sm font-black text-white">
                               {item.score.toFixed(2)}
                             </div>
                           </div>
 
-                          <div className="mt-3 rounded-xl bg-white/90 px-3 py-2 text-xs leading-5 text-slate-700">
-                            <span className="font-black text-amber-700">Lowest topic:</span>{" "}
-                            {item.lowestTopic
-                              ? `${item.lowestTopic.label} (${item.lowestTopic.pct.toFixed(2)}%)`
-                              : "No topic data"}
+                          <div className="mt-4 rounded-xl border border-emerald-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-emerald-700">
+                              สิ่งที่ยังทำได้ดี
+                            </div>
+
+                            <div className="mt-2 space-y-2">
+                              {item.strengthNotes.map((note, noteIndex) => (
+                                <div
+                                  key={`${item.caseId}-good-${noteIndex}`}
+                                  className="rounded-lg bg-emerald-50 px-3 py-2"
+                                >
+                                  <div className="text-xs font-black text-slate-800">
+                                    {note.label} — {note.pct.toFixed(2)}%
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-slate-600">
+                                    {note.detail}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
 
-                          <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
+                          <div className="mt-3 rounded-xl border border-amber-100 bg-white/90 p-3">
+                            <div className="text-xs font-black text-amber-700">
+                              จุดที่ควรปรับ
+                            </div>
+
+                            <div className="mt-2 space-y-2">
+                              {item.improvementNotes.map((note, noteIndex) => (
+                                <div
+                                  key={`${item.caseId}-coach-${noteIndex}`}
+                                  className="rounded-lg bg-amber-50 px-3 py-2"
+                                >
+                                  <div className="text-xs font-black text-slate-800">
+                                    {note.label} — {note.pct.toFixed(2)}%
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-slate-600">
+                                    {note.detail}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs leading-5 text-slate-600">
+                            <span className="font-black text-slate-800">
+                              Inquiry:
+                            </span>{" "}
                             {item.inquiry}
                           </div>
                         </div>
@@ -5270,7 +6110,6 @@ export default function SummaryMockup({
                 </PanelBody>
               </Panel>
             </div>
-
 
 
           </div>
