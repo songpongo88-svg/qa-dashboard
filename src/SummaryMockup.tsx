@@ -3619,9 +3619,9 @@ export default function SummaryMockup({
       } = {}
     ) => {
       const text = safe(value);
-      const hasThai = /[\u0E00-\u0E7F]/.test(text);
+      const requiresCanvas = /[^\x20-\x7E]/.test(text);
 
-      if (!hasThai) {
+      if (!requiresCanvas) {
         const previousColor = String(
           (doc as any).getTextColor?.() || "#0f172a"
         );
@@ -4509,7 +4509,7 @@ export default function SummaryMockup({
           const diffText =
             row.displayDelta === null
               ? "Base"
-              : `${row.displayDelta > 0 ? "▲ +" : row.displayDelta < 0 ? "▼ " : ""}${row.displayDelta.toFixed(2)}`;
+              : `${row.displayDelta > 0 ? "+" : ""}${row.displayDelta.toFixed(2)}`;
 
           doc.setFont(
             "helvetica",
@@ -5570,8 +5570,7 @@ export default function SummaryMockup({
       const text = String(value ?? "-")
         .replace(/\s+/g, " ")
         .trim();
-      const hasThai =
-        /[\u0E00-\u0E7F]/.test(text);
+      const requiresCanvas = /[^\x20-\x7E]/.test(text);
       const size = options.size || 7;
 
       doc.setFont(
@@ -5582,7 +5581,7 @@ export default function SummaryMockup({
       );
       doc.setFontSize(size);
 
-      if (!hasThai) {
+      if (!requiresCanvas) {
         if (options.color) {
           doc.setTextColor(
             options.color
@@ -6466,7 +6465,7 @@ export default function SummaryMockup({
                     </div>
                   </div>
 
-                  <div className="grid items-start gap-6 xl:grid-cols-2">
+                  <div className="space-y-6">
                     {teamPerformanceRows.length ? (
                       teamPerformanceRows.map((row) => (
                         <div
@@ -6594,54 +6593,67 @@ export default function SummaryMockup({
                           </div>
 
                           <div className="border-t border-violet-100 bg-slate-50/70 px-5 py-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <div className="text-xs font-black text-slate-900">
-                                  3-Month Average Trend
-                                </div>
-                                <div className="mt-1 text-[11px] font-semibold text-slate-500">
-                                  Supporting view for the selected month
-                                </div>
+                            <div>
+                              <div className="text-xs font-black text-slate-900">
+                                3-Month Average Trend
+                              </div>
+                              <div className="mt-1 text-[11px] font-semibold text-slate-500">
+                                Supporting view for the selected month
                               </div>
                             </div>
 
-                            <div className="mt-4 grid grid-cols-3 gap-3">
-                              {row.trend.map((trendItem) => {
-                                const barHeight =
-                                  trendItem.avgScore === null
-                                    ? 5
-                                    : Math.max(
-                                        12,
-                                        Math.min(
-                                          100,
-                                          ((trendItem.avgScore - 70) / 30) * 100
-                                        )
-                                      );
+                            <div className="relative mt-4 h-36 overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 pt-4 pb-11">
+                              <div className="absolute inset-x-4 top-4 bottom-11">
+                                <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-slate-200" />
 
-                                return (
-                                  <div
-                                    key={`${row.teamName}-${trendItem.monthKey}`}
-                                    className="rounded-2xl border border-white bg-white px-3 py-3 text-center shadow-sm"
-                                  >
-                                    <div className="flex h-20 items-end justify-center">
+                                <div className="absolute inset-0 flex items-end gap-8">
+                                  {row.trend.map((trendItem) => {
+                                    const barHeight =
+                                      trendItem.avgScore === null
+                                        ? 0
+                                        : Math.max(
+                                            8,
+                                            Math.min(
+                                              100,
+                                              ((trendItem.avgScore - 70) / 30) * 100
+                                            )
+                                          );
+
+                                    return (
                                       <div
-                                        className={
-                                          "w-10 rounded-t-xl " +
-                                          (trendItem.avgScore === null
-                                            ? "bg-slate-200"
-                                            : "bg-gradient-to-t from-violet-700 to-fuchsia-500")
-                                        }
-                                        style={{ height: `${barHeight}%` }}
-                                      />
-                                    </div>
-                                    <div className="mt-2 text-sm font-black text-slate-900">
-                                      {trendItem.avgScore === null
-                                        ? "N/A"
-                                        : trendItem.avgScore.toFixed(2)}
-                                    </div>
+                                        key={`${row.teamName}-${trendItem.monthKey}`}
+                                        className="relative h-full min-w-0 flex-1"
+                                      >
+                                        <div
+                                          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-black text-slate-900"
+                                          style={{ bottom: `calc(${barHeight}% + 6px)` }}
+                                        >
+                                          {trendItem.avgScore === null
+                                            ? "N/A"
+                                            : trendItem.avgScore.toFixed(2)}
+                                        </div>
+
+                                        <div
+                                          className={
+                                            "absolute bottom-0 left-[22%] right-[22%] rounded-t-xl " +
+                                            (trendItem.avgScore === null
+                                              ? "bg-slate-200"
+                                              : "bg-gradient-to-t from-violet-700 to-fuchsia-500")
+                                          }
+                                          style={{ height: `${barHeight}%` }}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              <div className="absolute bottom-2 left-4 right-4 grid grid-cols-3 gap-8 text-center">
+                                {row.trend.map((trendItem) => (
+                                  <div key={`label-${row.teamName}-${trendItem.monthKey}`} className="min-w-0">
                                     <div
                                       className={
-                                        "mt-1 text-[11px] font-black " +
+                                        "text-[11px] font-black " +
                                         (trendItem.change === null
                                           ? "text-slate-400"
                                           : trendItem.change > 0
@@ -6653,16 +6665,17 @@ export default function SummaryMockup({
                                     >
                                       {trendItem.change === null
                                         ? "Base"
-                                        : `${trendItem.change > 0 ? "▲ +" : trendItem.change < 0 ? "▼ " : ""}${trendItem.change.toFixed(2)}`}
+                                        : `${trendItem.change > 0 ? "+" : ""}${trendItem.change.toFixed(2)}`}
                                     </div>
-                                    <div className="mt-1 text-[10px] font-semibold text-slate-500">
+                                    <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">
                                       {trendItem.label}
                                     </div>
                                   </div>
-                                );
-                              })}
+                                ))}
+                              </div>
                             </div>
                           </div>
+
                         </div>
                       ))
                     ) : (
@@ -6968,6 +6981,10 @@ export default function SummaryMockup({
                       : adminSelectedTeamAverage.toFixed(
                           2
                         )}
+                  </div>
+
+                  <div className="mt-2 text-sm font-semibold text-slate-500">
+                    {currentUserTeamName || "Team not assigned"}
                   </div>
                 </div>
               ) : null}
@@ -7306,25 +7323,43 @@ export default function SummaryMockup({
                   </div>
                 )}
 
-                <div className="grid gap-3 text-xs md:grid-cols-3">
-                  <div className="rounded-xl bg-slate-50 px-4 py-3 font-semibold leading-5 text-slate-600">
-                    คะแนนรายเดือนตั้งแต่ {PERFORMANCE_KPI_TARGET}% ขึ้นไปถือว่าผ่าน KPI ของเดือนนั้น
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                  <div className="text-sm font-black text-slate-900">
+                    เกณฑ์การพิจารณาสถานะ
                   </div>
-                  <div className="rounded-xl bg-yellow-50 px-4 py-3 font-semibold leading-5 text-yellow-800">
-                    คะแนนต่ำกว่า {PERFORMANCE_KPI_TARGET}% ติดต่อกัน 1–2 เดือน ยังอยู่ในเกณฑ์ปกติและแสดง Monitor
-                  </div>
-                  <div className="rounded-xl bg-rose-50 px-4 py-3 font-semibold leading-5 text-rose-800">
-                    คะแนนต่ำกว่า {PERFORMANCE_KPI_TARGET}% ติดต่อกันครบ 3 เดือน จึงถือว่าไม่ผ่าน QA และเข้าสู่ Coaching Program
-                  </div>
-                </div>
 
-                <div className="grid gap-3 text-xs md:grid-cols-2">
-                  <div className="rounded-xl bg-amber-50 px-4 py-3 font-semibold leading-5 text-amber-800">
-                    Grade D เดือนปัจจุบัน หรือ Grade C ติดต่อกัน 3 เดือน เข้าสู่ Coaching Program
-                  </div>
-                  <div className="rounded-xl bg-red-50 px-4 py-3 font-semibold leading-5 text-red-800">
-                    Grade D ติดต่อกัน 3 เดือน เข้าสู่ Contract Renewal Review
-                  </div>
+                  <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                    <li className="flex gap-3">
+                      <span className="font-black text-violet-700">1.</span>
+                      <span>
+                        คะแนนตั้งแต่ <strong>{PERFORMANCE_KPI_TARGET}%</strong> ขึ้นไป ถือว่าผ่าน KPI ของเดือนนั้น
+                      </span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-black text-violet-700">2.</span>
+                      <span>
+                        คะแนนต่ำกว่า <strong>{PERFORMANCE_KPI_TARGET}%</strong> ติดต่อกัน 1–2 เดือน ยังอยู่ในเกณฑ์ปกติ และแสดงสถานะ Monitor
+                      </span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-black text-violet-700">3.</span>
+                      <span>
+                        คะแนนต่ำกว่า <strong>{PERFORMANCE_KPI_TARGET}%</strong> ติดต่อกันครบ 3 เดือน ถือว่าไม่ผ่าน QA และเข้าสู่ Coaching Program
+                      </span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-black text-violet-700">4.</span>
+                      <span>
+                        Grade D ในเดือนปัจจุบัน หรือ Grade C ติดต่อกัน 3 เดือน เข้าสู่ Coaching Program
+                      </span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="font-black text-violet-700">5.</span>
+                      <span>
+                        Grade D ติดต่อกัน 3 เดือน เข้าสู่ Contract Renewal Review
+                      </span>
+                    </li>
+                  </ol>
                 </div>
               </PanelBody>
             </Panel>
