@@ -4184,7 +4184,10 @@ export default function SummaryMockup({
       });
     }
 
-    if (performanceStatusRows.length) {
+    if (
+      analysisMode === "monthly" &&
+      performanceStatusRows.length
+    ) {
       y += 5;
       drawSectionTitle(
         "Performance Status & Coaching Watchlist",
@@ -7177,6 +7180,7 @@ export default function SummaryMockup({
             ) : null}
 
 
+            {analysisMode === "monthly" ? (
             <Panel>
               <PanelHeader
                 title="Performance Status & Coaching Watchlist"
@@ -7324,6 +7328,7 @@ export default function SummaryMockup({
                 </div>
               </PanelBody>
             </Panel>
+            ) : null}
 
             {periodTopicReports.length ? (
               periodTopicReports.map((report) => (
