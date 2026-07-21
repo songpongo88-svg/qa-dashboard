@@ -167,6 +167,7 @@ type PeriodRow = {
 };
 
 const CASE_TARGET = 10;
+const PERFORMANCE_KPI_TARGET = 85;
 const RAW_DATA_FILE_NAMES = [
   "QA_RawData_January-February2026.xlsx",
   "QA_RawData_March-May2026.xlsx",
@@ -2431,12 +2432,9 @@ export default function SummaryMockup({
   const teamPerformanceRows = useMemo(() => {
     if (!teamSelectedMonth) return [];
 
-    const previousMonthKey = getPreviousMonthKey(teamSelectedMonth);
+    const trendMonthKeys = buildRecentMonthKeys(teamSelectedMonth, 3);
     const selectedCases = allCases.filter(
       (item) => item.monthKey === teamSelectedMonth
-    );
-    const previousCases = allCases.filter(
-      (item) => item.monthKey === previousMonthKey
     );
 
     const teamNames = Array.from(
@@ -2455,11 +2453,7 @@ export default function SummaryMockup({
         const cases = selectedCases.filter(
           (item) => getCaseTeamName(item) === teamName
         );
-        const previousTeamCases = previousCases.filter(
-          (item) => getCaseTeamName(item) === teamName
-        );
         const summary = summarizeCases(cases);
-        const previousSummary = summarizeCases(previousTeamCases);
 
         const agents = getUniqueNormalizedAgents(
           cases.map((item) => item.agent)
@@ -2480,15 +2474,47 @@ export default function SummaryMockup({
           })
           .sort((a, b) => a.agent.localeCompare(b.agent));
 
-        const change =
-          cases.length && previousTeamCases.length
-            ? Number(
-                (
-                  summary.avgScore -
-                  previousSummary.avgScore
-                ).toFixed(2)
-              )
+        const trend = trendMonthKeys.map((monthKey, index) => {
+          const monthCases = allCases.filter(
+            (item) =>
+              item.monthKey === monthKey &&
+              getCaseTeamName(item) === teamName
+          );
+          const monthSummary = summarizeCases(monthCases);
+          const avgScore = monthCases.length
+            ? monthSummary.avgScore
             : null;
+          const previousMonthKey =
+            index > 0 ? trendMonthKeys[index - 1] : "";
+          const previousCases = previousMonthKey
+            ? allCases.filter(
+                (item) =>
+                  item.monthKey === previousMonthKey &&
+                  getCaseTeamName(item) === teamName
+              )
+            : [];
+          const previousSummary = summarizeCases(previousCases);
+          const change =
+            avgScore !== null && previousCases.length
+              ? Number(
+                  (
+                    avgScore -
+                    previousSummary.avgScore
+                  ).toFixed(2)
+                )
+              : null;
+
+          return {
+            monthKey,
+            label: getMonthLabelForKey(monthKey, allCases),
+            caseCount: monthCases.length,
+            avgScore,
+            change,
+          };
+        });
+
+        const currentTrend =
+          trend[trend.length - 1] || null;
 
         return {
           teamName,
@@ -2497,10 +2523,11 @@ export default function SummaryMockup({
           caseCount: summary.caseCount,
           agentCount: agents.length,
           avgScore: cases.length ? summary.avgScore : null,
-          change,
+          change: currentTrend?.change ?? null,
           grade: cases.length ? summary.grade : null,
           revisedCount: summary.revisedCount,
           topics: buildTopicSummary(cases),
+          trend,
         };
       })
       .filter((row) => {
@@ -2536,6 +2563,242 @@ export default function SummaryMockup({
     const cases = allCases.filter((item) => item.monthKey === teamSelectedMonth);
     return summarizeCases(cases);
   }, [allCases, teamSelectedMonth]);
+
+  const performanceStatusBaseMonthKey = useMemo(() => {
+    if (analysisMode === "monthly") {
+      const monthlyKeys = effectivePeriodKeys
+        .filter((key) => /^\d{4}-\d{2}$/.test(key))
+        .sort();
+
+      if (monthlyKeys.length) {
+        return monthlyKeys[monthlyKeys.length - 1];
+      }
+    }
+
+    const scopedKeys = periodScopedCases
+      .map((item) => item.monthKey)
+      .filter((key) => /^\d{4}-\d{2}$/.test(key))
+      .sort();
+
+    return (
+      scopedKeys[scopedKeys.length - 1] ||
+      teamSelectedMonth ||
+      getLatestMonthKey(allCases)
+    );
+  }, [
+    analysisMode,
+    effectivePeriodKeys,
+    periodScopedCases,
+    teamSelectedMonth,
+    allCases,
+  ]);
+
+  const performanceStatusMonthKeys = useMemo(
+    () =>
+      performanceStatusBaseMonthKey &&
+      performanceStatusBaseMonthKey !== "unknown"
+        ? buildRecentMonthKeys(
+            performanceStatusBaseMonthKey,
+            3
+          )
+        : [],
+    [performanceStatusBaseMonthKey]
+  );
+
+  const performanceStatusRows = useMemo(() => {
+    if (
+      isAdminRole ||
+      !performanceStatusBaseMonthKey ||
+      performanceStatusBaseMonthKey === "unknown"
+    ) {
+      return [];
+    }
+
+    const baseMonthCases = allCases.filter(
+      (item) =>
+        item.monthKey ===
+        performanceStatusBaseMonthKey
+    );
+
+    const candidateAgents =
+      roleScopedAgentList.length
+        ? getUniqueNormalizedAgents(
+            roleScopedAgentList
+          )
+        : getUniqueNormalizedAgents(
+            baseMonthCases.map(
+              (item) => item.agent
+            )
+          );
+
+    const rows = candidateAgents.map(
+      (agent) => {
+        const trend =
+          performanceStatusMonthKeys.map(
+            (monthKey) => {
+              const monthCases =
+                allCases.filter(
+                  (item) =>
+                    item.monthKey ===
+                      monthKey &&
+                    isSameAgent(
+                      item.agent,
+                      agent
+                    )
+                );
+
+              if (!monthCases.length) {
+                return {
+                  monthKey,
+                  label:
+                    getMonthLabelForKey(
+                      monthKey,
+                      allCases
+                    ),
+                  caseCount: 0,
+                  avgScore: null as
+                    | number
+                    | null,
+                  grade: null as
+                    | Grade
+                    | null,
+                };
+              }
+
+              const monthSummary =
+                summarizeCases(
+                  monthCases
+                );
+
+              return {
+                monthKey,
+                label:
+                  getMonthLabelForKey(
+                    monthKey,
+                    allCases
+                  ),
+                caseCount:
+                  monthSummary.caseCount,
+                avgScore:
+                  monthSummary.avgScore,
+                grade:
+                  monthSummary.grade,
+              };
+            }
+          );
+
+        const current =
+          trend[trend.length - 1];
+        const currentAvg =
+          current?.avgScore ?? null;
+        const currentGrade =
+          current?.grade ?? null;
+        const hasThreeMonths =
+          trend.length === 3 &&
+          trend.every(
+            (item) =>
+              item.caseCount > 0 &&
+              item.grade
+          );
+        const gradeCThreeMonths =
+          hasThreeMonths &&
+          trend.every(
+            (item) =>
+              item.grade === "C"
+          );
+        const gradeDThreeMonths =
+          hasThreeMonths &&
+          trend.every(
+            (item) =>
+              item.grade === "D"
+          );
+        const belowKpi =
+          currentAvg !== null &&
+          currentAvg <
+            PERFORMANCE_KPI_TARGET;
+        const actions: string[] = [];
+
+        if (
+          currentGrade === "D" ||
+          gradeCThreeMonths ||
+          gradeDThreeMonths
+        ) {
+          actions.push(
+            "Coaching Program"
+          );
+        }
+
+        if (gradeDThreeMonths) {
+          actions.push(
+            "Contract Renewal Review"
+          );
+        }
+
+        const account =
+          getAccountStatus(
+            agent,
+            accountProfiles
+          );
+        const teamName =
+          getSummaryTeamName(account) ||
+          "Unassigned Team";
+        const isFlagged =
+          belowKpi ||
+          actions.length > 0;
+
+        return {
+          agent,
+          teamName,
+          currentAvg,
+          currentGrade,
+          trend,
+          belowKpi,
+          actions,
+          isFlagged,
+          gradeCThreeMonths,
+          gradeDThreeMonths,
+        };
+      }
+    );
+
+    return roleScopedAgentList.length
+      ? rows
+      : rows.filter(
+          (row) => row.isFlagged
+        );
+  }, [
+    isAdminRole,
+    performanceStatusBaseMonthKey,
+    performanceStatusMonthKeys,
+    allCases,
+    accountProfiles,
+    roleScopedAgentList,
+  ]);
+
+  const performanceStatusSummary =
+    useMemo(
+      () => ({
+        belowKpi:
+          performanceStatusRows.filter(
+            (row) => row.belowKpi
+          ).length,
+        coaching:
+          performanceStatusRows.filter(
+            (row) =>
+              row.actions.includes(
+                "Coaching Program"
+              )
+          ).length,
+        contractReview:
+          performanceStatusRows.filter(
+            (row) =>
+              row.actions.includes(
+                "Contract Renewal Review"
+              )
+          ).length,
+      }),
+      [performanceStatusRows]
+    );
 
   const comparisonChartAnalytics = useMemo(() => {
     const scores = comparisonRowsWithDelta.map((row) => row.avgScore);
@@ -3739,257 +4002,653 @@ export default function SummaryMockup({
     y += 30;
 
     if (
+      effectiveSelectedAgent === "all" &&
+      agentComparisonRows.length
+    ) {
+      y += 9;
+      drawSectionTitle(
+        isComparisonMode ? "Agent Comparison" : "Agent Overview",
+        "Agent-level score and case coverage"
+      );
+
+      const periodHeaders = agentDisplayPeriods.map((period) => period.label);
+      const agentColumnWidth = 48;
+      const differenceColumnWidth = isComparisonMode ? 22 : 0;
+      const periodColumnWidth =
+        (
+          contentWidth -
+          agentColumnWidth -
+          differenceColumnWidth
+        ) /
+        Math.max(1, periodHeaders.length);
+
+      const drawAgentTableHeader = () => {
+        const headerHeight = 12;
+        doc.setFillColor(109, 40, 217);
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          headerHeight,
+          2,
+          2,
+          "F"
+        );
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(5.8);
+
+        drawText("Agent", margin + 3, y + 7, { color: "#ffffff" });
+
+        periodHeaders.forEach((header, index) => {
+          const centerX =
+            margin +
+            agentColumnWidth +
+            periodColumnWidth * index +
+            periodColumnWidth / 2;
+
+          wrapText(header, 15, 2).forEach((line, lineIndex) => {
+            drawText(
+              line,
+              centerX,
+              y + 5 + lineIndex * 3.2,
+              { align: "center", color: "#ffffff" }
+            );
+          });
+        });
+
+        if (isComparisonMode) {
+          drawText(
+            "Difference",
+            pageWidth - margin - differenceColumnWidth / 2,
+            y + 7,
+            { align: "center", color: "#ffffff" }
+          );
+        }
+
+        y += headerHeight;
+      };
+
+      drawAgentTableHeader();
+
+      agentComparisonRows.forEach((row: any, index) => {
+        const agentLines = wrapText(
+          buildSuspendedAgentLabel(row.agent, accountProfiles),
+          28,
+          2
+        );
+
+        const rowHeight = Math.max(10, 4 + agentLines.length * 3.5);
+
+        if (y + rowHeight > contentBottom) {
+          startNewPage();
+          drawSectionTitle(
+            isComparisonMode
+              ? "Agent Comparison (continued)"
+              : "Agent Overview (continued)"
+          );
+          drawAgentTableHeader();
+        }
+
+        doc.setFillColor(
+          index % 2 === 0 ? 255 : 248,
+          index % 2 === 0 ? 255 : 250,
+          index % 2 === 0 ? 255 : 252
+        );
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, contentWidth, rowHeight, "FD");
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(5.8);
+        doc.setTextColor(51, 65, 85);
+
+        agentLines.forEach((line, lineIndex) => {
+          drawText(line, margin + 3, y + 5 + lineIndex * 3.5);
+        });
+
+        row.values.forEach((value: any, valueIndex: number) => {
+          const centerX =
+            margin +
+            agentColumnWidth +
+            periodColumnWidth * valueIndex +
+            periodColumnWidth / 2;
+
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(
+            value.score === null ? 148 : 91,
+            value.score === null ? 163 : 33,
+            value.score === null ? 184 : 182
+          );
+
+          drawText(
+            value.score === null
+              ? "No cases"
+              : `${value.score.toFixed(2)} (${value.caseCount})`,
+            centerX,
+            y + 5.5,
+            { align: "center" }
+          );
+        });
+
+        if (isComparisonMode) {
+          const differenceText =
+            row.overallDelta === null
+              ? "N/A"
+              : `${row.overallDelta > 0 ? "+" : ""}${row.overallDelta.toFixed(2)}`;
+
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(
+            row.overallDelta === null
+              ? 148
+              : row.overallDelta >= 0
+                ? 5
+                : 190,
+            row.overallDelta === null
+              ? 163
+              : row.overallDelta >= 0
+                ? 150
+                : 24,
+            row.overallDelta === null
+              ? 184
+              : row.overallDelta >= 0
+                ? 105
+                : 93
+          );
+
+          drawText(
+            differenceText,
+            pageWidth - margin - differenceColumnWidth / 2,
+            y + 5.5,
+            { align: "center" }
+          );
+        }
+
+        y += rowHeight;
+      });
+    }
+
+    if (
+      !isAdminRole &&
+      performanceStatusRows.length
+    ) {
+      y += 5;
+      drawSectionTitle(
+        "Performance Status & Coaching Watchlist",
+        `KPI target ${PERFORMANCE_KPI_TARGET}% • ${getMonthLabelForKey(
+          performanceStatusBaseMonthKey,
+          allCases
+        )}`
+      );
+
+      const statusWidths = [
+        35,
+        25,
+        18,
+        15,
+        30,
+        22,
+        41,
+      ];
+      const statusHeaders = [
+        "Agent",
+        "Team",
+        "Avg",
+        "Grade",
+        "3-Month Grade",
+        "KPI",
+        "Required Action",
+      ];
+
+      const drawStatusHeader = () => {
+        doc.setFillColor(
+          30,
+          41,
+          59
+        );
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          11,
+          2,
+          2,
+          "F"
+        );
+
+        let x = margin;
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+        doc.setFontSize(5.5);
+
+        statusHeaders.forEach(
+          (header, index) => {
+            drawText(
+              header,
+              index < 2
+                ? x + 2
+                : x +
+                    statusWidths[index] /
+                      2,
+              y + 7,
+              {
+                align:
+                  index < 2
+                    ? "left"
+                    : "center",
+                color: "#ffffff",
+              }
+            );
+            x += statusWidths[index];
+          }
+        );
+
+        y += 11;
+      };
+
+      drawStatusHeader();
+
+      performanceStatusRows.forEach(
+        (row, index) => {
+          const agentLines =
+            wrapText(
+              buildSuspendedAgentLabel(
+                row.agent,
+                accountProfiles
+              ),
+              20,
+              2
+            );
+          const teamLines =
+            wrapText(
+              row.teamName,
+              14,
+              2
+            );
+          const actionLines =
+            wrapText(
+              row.actions.length
+                ? row.actions.join(" • ")
+                : "Monitor",
+              25,
+              3
+            );
+          const rowHeight =
+            Math.max(
+              10,
+              4 +
+                Math.max(
+                  agentLines.length,
+                  teamLines.length,
+                  actionLines.length
+                ) *
+                  3.5
+            );
+
+          if (
+            y + rowHeight >
+            contentBottom
+          ) {
+            startNewPage();
+            drawSectionTitle(
+              "Performance Status & Coaching Watchlist (continued)"
+            );
+            drawStatusHeader();
+          }
+
+          doc.setFillColor(
+            index % 2 === 0
+              ? 255
+              : 248,
+            index % 2 === 0
+              ? 255
+              : 250,
+            252
+          );
+          doc.setDrawColor(
+            226,
+            232,
+            240
+          );
+          doc.rect(
+            margin,
+            y,
+            contentWidth,
+            rowHeight,
+            "FD"
+          );
+
+          const cells = [
+            agentLines,
+            teamLines,
+            [
+              row.currentAvg === null
+                ? "No Data"
+                : row.currentAvg.toFixed(2),
+            ],
+            [row.currentGrade || "-"],
+            [
+              row.trend
+                .map(
+                  (item) =>
+                    item.grade || "-"
+                )
+                .join(" > "),
+            ],
+            [
+              row.belowKpi
+                ? "Below KPI"
+                : "Meeting KPI",
+            ],
+            actionLines,
+          ];
+
+          let x = margin;
+          cells.forEach(
+            (lines, colIndex) => {
+              doc.setFont(
+                "helvetica",
+                colIndex === 0 ||
+                  colIndex === 5
+                  ? "bold"
+                  : "normal"
+              );
+              doc.setFontSize(5.2);
+              doc.setTextColor(
+                colIndex === 5 &&
+                row.belowKpi
+                  ? 180
+                  : 51,
+                colIndex === 5 &&
+                row.belowKpi
+                  ? 83
+                  : 65,
+                colIndex === 5 &&
+                row.belowKpi
+                  ? 9
+                  : 85
+              );
+
+              lines.forEach(
+                (
+                  line,
+                  lineIndex
+                ) => {
+                  drawText(
+                    line,
+                    colIndex < 2
+                      ? x + 2
+                      : x +
+                          statusWidths[
+                            colIndex
+                          ] /
+                            2,
+                    y +
+                      5 +
+                      lineIndex * 3.5,
+                    {
+                      align:
+                        colIndex < 2
+                          ? "left"
+                          : "center",
+                    }
+                  );
+                }
+              );
+
+              x += statusWidths[colIndex];
+            }
+          );
+
+          y += rowHeight;
+        }
+      );
+
+      y += 7;
+    }
+
+    if (
       analysisMode === "monthly" &&
       teamMonthlyAnalyticsRows.length
     ) {
-      ensureSpace(96);
+      ensureSpace(55);
 
-      drawSectionTitle(
-        "Team Monthly Analytics — Last 3 Months",
-        "Automatic team trend shown without requiring a month comparison"
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      drawText(
+        "3-Month Supporting Trend",
+        margin,
+        y
       );
 
-      const analyticsTop = y;
-      const chartHeight = 54;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.2);
+      doc.setTextColor(148, 163, 184);
+      drawText(
+        "Reference trend — selected periods remain the primary report focus",
+        margin,
+        y + 4.5
+      );
 
-      doc.setFillColor(255, 255, 255);
-      doc.setDrawColor(221, 214, 254);
+      y += 8;
+
+      const analyticsTop = y;
+      const chartHeight = 42;
+      const chartRows = [
+        ...teamMonthlyAnalyticsRows,
+      ]
+        .reverse()
+        .map((row, index, rows) => ({
+          ...row,
+          displayDelta:
+            index === 0 ||
+            !rows[index - 1].caseCount ||
+            !row.caseCount
+              ? null
+              : Number(
+                  (
+                    row.avgScore -
+                    rows[index - 1].avgScore
+                  ).toFixed(2)
+                ),
+        }));
+
+      doc.setFillColor(250, 250, 252);
+      doc.setDrawColor(226, 232, 240);
       doc.roundedRect(
         margin,
         analyticsTop,
         contentWidth,
         chartHeight,
-        2.5,
-        2.5,
+        2,
+        2,
         "FD"
       );
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(15, 23, 42);
-      drawText(
-        "Monthly Average Score Trend",
-        margin + 4,
-        analyticsTop + 7
-      );
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(6);
-      doc.setTextColor(100, 116, 139);
-      drawText(
-        "Team score scale 70–100",
-        pageWidth - margin - 4,
-        analyticsTop + 7,
-        { align: "right" }
-      );
-
-      const chartX = margin + 18;
-      const chartY = analyticsTop + 13;
-      const chartW = contentWidth - 28;
-      const chartH = 30;
-
-      [0, 1, 2, 3].forEach((index) => {
-        const lineY =
-          chartY + (index / 3) * chartH;
-
-        doc.setDrawColor(237, 233, 254);
-        doc.setLineWidth(0.25);
-        doc.line(
-          chartX,
-          lineY,
-          chartX + chartW,
-          lineY
-        );
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.3);
-        doc.setTextColor(100, 116, 139);
-        drawText(
-          String(100 - index * 10),
-          chartX - 3,
-          lineY + 1.5,
-          { align: "right" }
-        );
-      });
-
+      const chartX = margin + 14;
+      const chartY = analyticsTop + 6;
+      const chartW = contentWidth - 22;
+      const chartH = 23;
       const gap = 12;
       const barWidth =
         (chartW -
-          gap * (teamMonthlyAnalyticsRows.length + 1)) /
-        Math.max(1, teamMonthlyAnalyticsRows.length);
+          gap * (chartRows.length + 1)) /
+        Math.max(1, chartRows.length);
 
-      teamMonthlyAnalyticsRows.forEach(
+      [70, 85, 100].forEach(
+        (tick) => {
+          const lineY =
+            chartY +
+            chartH -
+            ((tick - 70) / 30) *
+              chartH;
+
+          doc.setDrawColor(
+            tick === 85
+              ? 253
+              : 226,
+            tick === 85
+              ? 186
+              : 232,
+            tick === 85
+              ? 116
+              : 240
+          );
+          doc.setLineWidth(
+            tick === 85 ? 0.45 : 0.2
+          );
+          doc.line(
+            chartX,
+            lineY,
+            chartX + chartW,
+            lineY
+          );
+
+          doc.setFont(
+            "helvetica",
+            "normal"
+          );
+          doc.setFontSize(5);
+          doc.setTextColor(
+            100,
+            116,
+            139
+          );
+          drawText(
+            String(tick),
+            chartX - 3,
+            lineY + 1.4,
+            { align: "right" }
+          );
+        }
+      );
+
+      chartRows.forEach(
         (row, index) => {
-          const barHeight = row.caseCount
-            ? Math.max(
-                2,
-                (row.barPct / 100) * chartH
-              )
-            : 0;
-
+          const barHeight =
+            row.caseCount
+              ? Math.max(
+                  2,
+                  ((row.avgScore - 70) /
+                    30) *
+                    chartH
+                )
+              : 0;
           const barX =
             chartX +
             gap +
-            index * (barWidth + gap);
-
+            index *
+              (barWidth + gap);
           const barY =
             chartY +
             chartH -
             barHeight;
 
           if (row.caseCount) {
-            doc.setFillColor(124, 58, 237);
+            doc.setFillColor(
+              124,
+              58,
+              237
+            );
             doc.roundedRect(
               barX,
               barY,
               barWidth,
               barHeight,
-              1.2,
-              1.2,
+              1,
+              1,
               "F"
             );
           }
 
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(5.8);
-          doc.setTextColor(15, 23, 42);
+          doc.setFont(
+            "helvetica",
+            "bold"
+          );
+          doc.setFontSize(5.7);
+          doc.setTextColor(
+            15,
+            23,
+            42
+          );
           drawText(
             row.caseCount
               ? row.avgScore.toFixed(2)
-              : "No data",
+              : "N/A",
             barX + barWidth / 2,
             row.caseCount
-              ? Math.max(chartY + 3, barY - 2)
-              : chartY + chartH - 2,
+              ? Math.max(
+                  chartY + 3,
+                  barY - 1.8
+                )
+              : chartY +
+                  chartH -
+                  2,
             { align: "center" }
           );
 
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(5.2);
-          doc.setTextColor(100, 116, 139);
-          wrapText(row.label, 18, 2).forEach(
-            (line, lineIndex) => {
-              drawText(
-                line,
-                barX + barWidth / 2,
-                chartY +
-                  chartH +
-                  5 +
-                  lineIndex * 3,
-                { align: "center" }
-              );
-            }
-          );
-        }
-      );
-
-      y += chartHeight + 6;
-
-      const widths = [60, 22, 28, 28, 20, 26];
-      const headers = [
-        "Month",
-        "Cases",
-        "Average",
-        "Change",
-        "Grade",
-        "Revised",
-      ];
-
-      doc.setFillColor(49, 16, 101);
-      doc.roundedRect(
-        margin,
-        y,
-        contentWidth,
-        9,
-        2,
-        2,
-        "F"
-      );
-
-      let headerX = margin;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.7);
-
-      headers.forEach((header, index) => {
-        drawText(
-          header,
-          index === 0
-            ? headerX + 3
-            : headerX + widths[index] / 2,
-          y + 6,
-          {
-            align: index === 0
-              ? "left"
-              : "center",
-            color: "#ffffff",
-          }
-        );
-
-        headerX += widths[index];
-      });
-
-      y += 9;
-
-      teamMonthlyAnalyticsRows.forEach(
-        (row, index) => {
-          doc.setFillColor(
-            index % 2 === 0 ? 255 : 248,
-            index % 2 === 0 ? 255 : 250,
-            index % 2 === 0 ? 255 : 252
-          );
-          doc.setDrawColor(226, 232, 240);
-          doc.rect(
-            margin,
-            y,
-            contentWidth,
-            9,
-            "FD"
-          );
-
-          const values = [
-            row.label,
-            String(row.caseCount),
-            row.caseCount
-              ? row.avgScore.toFixed(2)
-              : "No data",
-            row.scoreDelta === null
+          const diffText =
+            row.displayDelta === null
               ? "Base"
-              : `${row.scoreDelta > 0 ? "+" : ""}${row.scoreDelta.toFixed(2)}`,
-            row.caseCount
-              ? String(row.grade)
-              : "-",
-            String(row.revisedCount),
-          ];
+              : `${row.displayDelta > 0 ? "▲ +" : row.displayDelta < 0 ? "▼ " : ""}${row.displayDelta.toFixed(2)}`;
 
-          let x = margin;
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(6.5);
-          doc.setTextColor(51, 65, 85);
+          doc.setFont(
+            "helvetica",
+            "bold"
+          );
+          doc.setFontSize(5.1);
+          doc.setTextColor(
+            row.displayDelta === null
+              ? 148
+              : row.displayDelta > 0
+                ? 5
+                : row.displayDelta < 0
+                  ? 190
+                  : 37,
+            row.displayDelta === null
+              ? 163
+              : row.displayDelta > 0
+                ? 150
+                : row.displayDelta < 0
+                  ? 24
+                  : 99,
+            row.displayDelta === null
+              ? 184
+              : row.displayDelta > 0
+                ? 105
+                : row.displayDelta < 0
+                  ? 93
+                  : 235
+          );
+          drawText(
+            diffText,
+            barX + barWidth / 2,
+            chartY + chartH + 4,
+            { align: "center" }
+          );
 
-          values.forEach((value, colIndex) => {
-            drawText(
-              value,
-              colIndex === 0
-                ? x + 3
-                : x + widths[colIndex] / 2,
-              y + 5.8,
-              {
-                align: colIndex === 0
-                  ? "left"
-                  : "center",
-              }
-            );
-
-            x += widths[colIndex];
-          });
-
-          y += 9;
+          doc.setFont(
+            "helvetica",
+            "normal"
+          );
+          doc.setFontSize(4.8);
+          doc.setTextColor(
+            100,
+            116,
+            139
+          );
+          drawText(
+            row.label,
+            barX + barWidth / 2,
+            chartY + chartH + 8,
+            { align: "center" }
+          );
         }
       );
 
-      y += 10;
-
-
+      y += chartHeight + 8;
     }
 
     periodTopicReports.forEach((report, reportIndex) => {
@@ -4899,171 +5558,7 @@ export default function SummaryMockup({
       y += 9;
     });
 
-    if (
-      effectiveSelectedAgent === "all" &&
-      agentComparisonRows.length
-    ) {
-      y += 9;
-      drawSectionTitle(
-        isComparisonMode ? "Agent Comparison" : "Agent Overview",
-        "Agent-level score and case coverage"
-      );
 
-      const periodHeaders = agentDisplayPeriods.map((period) => period.label);
-      const agentColumnWidth = 48;
-      const differenceColumnWidth = isComparisonMode ? 22 : 0;
-      const periodColumnWidth =
-        (
-          contentWidth -
-          agentColumnWidth -
-          differenceColumnWidth
-        ) /
-        Math.max(1, periodHeaders.length);
-
-      const drawAgentTableHeader = () => {
-        const headerHeight = 12;
-        doc.setFillColor(109, 40, 217);
-        doc.roundedRect(
-          margin,
-          y,
-          contentWidth,
-          headerHeight,
-          2,
-          2,
-          "F"
-        );
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(5.8);
-
-        drawText("Agent", margin + 3, y + 7, { color: "#ffffff" });
-
-        periodHeaders.forEach((header, index) => {
-          const centerX =
-            margin +
-            agentColumnWidth +
-            periodColumnWidth * index +
-            periodColumnWidth / 2;
-
-          wrapText(header, 15, 2).forEach((line, lineIndex) => {
-            drawText(
-              line,
-              centerX,
-              y + 5 + lineIndex * 3.2,
-              { align: "center", color: "#ffffff" }
-            );
-          });
-        });
-
-        if (isComparisonMode) {
-          drawText(
-            "Difference",
-            pageWidth - margin - differenceColumnWidth / 2,
-            y + 7,
-            { align: "center", color: "#ffffff" }
-          );
-        }
-
-        y += headerHeight;
-      };
-
-      drawAgentTableHeader();
-
-      agentComparisonRows.forEach((row: any, index) => {
-        const agentLines = wrapText(
-          buildSuspendedAgentLabel(row.agent, accountProfiles),
-          28,
-          2
-        );
-
-        const rowHeight = Math.max(10, 4 + agentLines.length * 3.5);
-
-        if (y + rowHeight > contentBottom) {
-          startNewPage();
-          drawSectionTitle(
-            isComparisonMode
-              ? "Agent Comparison (continued)"
-              : "Agent Overview (continued)"
-          );
-          drawAgentTableHeader();
-        }
-
-        doc.setFillColor(
-          index % 2 === 0 ? 255 : 248,
-          index % 2 === 0 ? 255 : 250,
-          index % 2 === 0 ? 255 : 252
-        );
-        doc.setDrawColor(226, 232, 240);
-        doc.rect(margin, y, contentWidth, rowHeight, "FD");
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(5.8);
-        doc.setTextColor(51, 65, 85);
-
-        agentLines.forEach((line, lineIndex) => {
-          drawText(line, margin + 3, y + 5 + lineIndex * 3.5);
-        });
-
-        row.values.forEach((value: any, valueIndex: number) => {
-          const centerX =
-            margin +
-            agentColumnWidth +
-            periodColumnWidth * valueIndex +
-            periodColumnWidth / 2;
-
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(
-            value.score === null ? 148 : 91,
-            value.score === null ? 163 : 33,
-            value.score === null ? 184 : 182
-          );
-
-          drawText(
-            value.score === null
-              ? "No cases"
-              : `${value.score.toFixed(2)} (${value.caseCount})`,
-            centerX,
-            y + 5.5,
-            { align: "center" }
-          );
-        });
-
-        if (isComparisonMode) {
-          const differenceText =
-            row.overallDelta === null
-              ? "N/A"
-              : `${row.overallDelta > 0 ? "+" : ""}${row.overallDelta.toFixed(2)}`;
-
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(
-            row.overallDelta === null
-              ? 148
-              : row.overallDelta >= 0
-                ? 5
-                : 190,
-            row.overallDelta === null
-              ? 163
-              : row.overallDelta >= 0
-                ? 150
-                : 24,
-            row.overallDelta === null
-              ? 184
-              : row.overallDelta >= 0
-                ? 105
-                : 93
-          );
-
-          drawText(
-            differenceText,
-            pageWidth - margin - differenceColumnWidth / 2,
-            y + 5.5,
-            { align: "center" }
-          );
-        }
-
-        y += rowHeight;
-      });
-    }
 
     const pageCount = doc.getNumberOfPages();
 
@@ -5129,14 +5624,20 @@ export default function SummaryMockup({
       format: "a4",
     });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth =
+      doc.internal.pageSize.getWidth();
+    const pageHeight =
+      doc.internal.pageSize.getHeight();
     const margin = 12;
-    const contentWidth = pageWidth - margin * 2;
-    const monthLabel = getMonthLabelForKey(
-      teamSelectedMonth,
-      allCases
-    );
+    const contentWidth =
+      pageWidth - margin * 2;
+    const contentBottom =
+      pageHeight - 18;
+    const monthLabel =
+      getMonthLabelForKey(
+        teamSelectedMonth,
+        allCases
+      );
 
     const drawTeamText = (
       value: unknown,
@@ -5152,46 +5653,59 @@ export default function SummaryMockup({
       const text = String(value ?? "-")
         .replace(/\s+/g, " ")
         .trim();
-
-      const hasThai = /[\u0E00-\u0E7F]/.test(text);
+      const hasThai =
+        /[\u0E00-\u0E7F]/.test(text);
       const size = options.size || 7;
 
       doc.setFont(
         "helvetica",
-        options.bold ? "bold" : "normal"
+        options.bold
+          ? "bold"
+          : "normal"
       );
       doc.setFontSize(size);
 
       if (!hasThai) {
         if (options.color) {
-          doc.setTextColor(options.color);
+          doc.setTextColor(
+            options.color
+          );
         }
 
         doc.text(text, x, textY, {
-          align: options.align || "left",
+          align:
+            options.align || "left",
         });
         return;
       }
 
       const scale = 4;
       const fontPx =
-        Math.max(10, size * 1.333) * scale;
-      const canvas = document.createElement("canvas");
-      const measure = canvas.getContext("2d");
+        Math.max(
+          10,
+          size * 1.333
+        ) * scale;
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+      const measure =
+        canvas.getContext("2d");
 
       if (!measure) return;
 
-      const weight = options.bold ? "700" : "400";
+      const weight =
+        options.bold ? "700" : "400";
       const family =
         '"Sarabun", "TH Sarabun New", Tahoma, "Noto Sans Thai", Arial, sans-serif';
 
       measure.font =
         `${weight} ${fontPx}px ${family}`;
-
       canvas.width = Math.max(
         8,
         Math.ceil(
-          measure.measureText(text).width +
+          measure.measureText(text)
+            .width +
             12 * scale
         )
       );
@@ -5200,41 +5714,54 @@ export default function SummaryMockup({
         Math.ceil(fontPx * 1.55)
       );
 
-      const context = canvas.getContext("2d");
+      const context =
+        canvas.getContext("2d");
 
       if (!context) return;
 
       context.scale(scale, scale);
       context.font =
         `${weight} ${fontPx / scale}px ${family}`;
-      context.textBaseline = "alphabetic";
+      context.textBaseline =
+        "alphabetic";
       context.fillStyle =
         options.color || "#0f172a";
       context.fillText(
         text,
         2,
-        (canvas.height / scale) * 0.76
+        (canvas.height / scale) *
+          0.76
       );
 
       const pxToMm = 25.4 / 96;
       const widthMm =
-        (canvas.width / scale) * pxToMm;
+        (canvas.width / scale) *
+        pxToMm;
       const heightMm =
-        (canvas.height / scale) * pxToMm;
+        (canvas.height / scale) *
+        pxToMm;
       let drawX = x;
 
-      if (options.align === "center") {
+      if (
+        options.align === "center"
+      ) {
         drawX = x - widthMm / 2;
       }
-      if (options.align === "right") {
+
+      if (
+        options.align === "right"
+      ) {
         drawX = x - widthMm;
       }
 
       doc.addImage(
-        canvas.toDataURL("image/png"),
+        canvas.toDataURL(
+          "image/png"
+        ),
         "PNG",
         drawX,
-        textY - heightMm * 0.76,
+        textY -
+          heightMm * 0.76,
         widthMm,
         heightMm,
         undefined,
@@ -5242,20 +5769,42 @@ export default function SummaryMockup({
       );
     };
 
-    const drawPageHeader = (title: string) => {
-      doc.setFillColor(49, 16, 101);
-      doc.rect(0, 0, pageWidth, 34, "F");
+    const drawPageHeader = (
+      title: string
+    ) => {
+      doc.setFillColor(
+        49,
+        16,
+        101
+      );
+      doc.rect(
+        0,
+        0,
+        pageWidth,
+        31,
+        "F"
+      );
 
-      drawTeamText(title, margin, 16, {
-        color: "#ffffff",
-        bold: true,
-        size: 18,
-      });
+      drawTeamText(
+        title,
+        margin,
+        14,
+        {
+          color: "#ffffff",
+          bold: true,
+          size: 16,
+        }
+      );
 
-      drawTeamText(monthLabel, margin, 25, {
-        color: "#ffffff",
-        size: 9,
-      });
+      drawTeamText(
+        monthLabel,
+        margin,
+        22,
+        {
+          color: "#ffffff",
+          size: 8.5,
+        }
+      );
     };
 
     drawPageHeader(
@@ -5277,10 +5826,14 @@ export default function SummaryMockup({
       );
 
       drawTeamText(
-        adminOwnTeamRow?.avgScore === null ||
-          adminOwnTeamRow?.avgScore === undefined
+        adminOwnTeamRow?.avgScore ===
+          null ||
+        adminOwnTeamRow?.avgScore ===
+          undefined
           ? "No Data"
-          : adminOwnTeamRow.avgScore.toFixed(2),
+          : adminOwnTeamRow.avgScore.toFixed(
+              2
+            ),
         margin,
         78,
         {
@@ -5300,221 +5853,500 @@ export default function SummaryMockup({
         }
       );
 
-      const fileName =
+      doc.save(
         `QA_Team_Average_${sanitizePdfFilePart(
           currentUserTeamName,
           "Team_Not_Assigned"
-        )}_${sanitizePdfFilePart(monthLabel)}.pdf`;
-
-      doc.save(fileName);
+        )}_${sanitizePdfFilePart(
+          monthLabel
+        )}.pdf`
+      );
       return;
     }
 
-    let y = 45;
+    let y = 40;
 
     const startNewTeamPage = () => {
       doc.addPage();
-      drawPageHeader("Team Performance");
-      y = 43;
+      drawPageHeader(
+        "Team Performance"
+      );
+      y = 40;
     };
 
-    const ensureTeamSpace = (needed: number) => {
-      if (y + needed <= pageHeight - 18) {
+    const ensureTeamSpace = (
+      needed: number
+    ) => {
+      if (
+        y + needed <=
+        contentBottom
+      ) {
         return;
       }
 
       startNewTeamPage();
     };
 
-    teamPerformanceRows.forEach((teamRow) => {
-      if (!teamRow.caseCount) return;
+    teamPerformanceRows.forEach(
+      (teamRow) => {
+        if (!teamRow.caseCount) return;
 
-      ensureTeamSpace(36);
+        const estimatedHeight =
+          28 +
+          teamRow.agents.length * 8 +
+          teamRow.topics.length * 9 +
+          38;
 
-      doc.setFillColor(109, 40, 217);
-      doc.roundedRect(
-        margin,
-        y,
-        contentWidth,
-        13,
-        2.5,
-        2.5,
-        "F"
-      );
-
-      drawTeamText(
-        teamRow.teamName,
-        margin + 4,
-        y + 8,
-        {
-          color: "#ffffff",
-          bold: true,
-          size: 9,
+        if (
+          y > 45 ||
+          y + estimatedHeight >
+            contentBottom
+        ) {
+          startNewTeamPage();
         }
-      );
 
-      drawTeamText(
-        `${teamRow.caseCount} Cases | ${teamRow.agentCount} Agents | Avg ${
-          teamRow.avgScore === null
-            ? "No Data"
-            : teamRow.avgScore.toFixed(2)
-        }`,
-        pageWidth - margin - 4,
-        y + 8,
-        {
-          align: "right",
-          color: "#ffffff",
-          bold: true,
-          size: 6.5,
-        }
-      );
+        doc.setFillColor(
+          109,
+          40,
+          217
+        );
+        doc.roundedRect(
+          margin,
+          y,
+          contentWidth,
+          13,
+          2.5,
+          2.5,
+          "F"
+        );
 
-      y += 16;
+        drawTeamText(
+          teamRow.teamName,
+          margin + 4,
+          y + 8,
+          {
+            color: "#ffffff",
+            bold: true,
+            size: 9,
+          }
+        );
 
-      const widths = [61, 28, 34, 27, 36];
-      const headers = [
-        "Agent",
-        "Cases",
-        "Average",
-        "Grade",
-        "Revised",
-      ];
+        drawTeamText(
+          `${teamRow.caseCount} Cases • ${teamRow.agentCount} Agents • Avg ${
+            teamRow.avgScore === null
+              ? "No Data"
+              : teamRow.avgScore.toFixed(2)
+          }`,
+          pageWidth - margin - 4,
+          y + 8,
+          {
+            align: "right",
+            color: "#ffffff",
+            bold: true,
+            size: 6.3,
+          }
+        );
 
-      const drawAgentHeader = () => {
-        doc.setFillColor(30, 41, 59);
+        y += 17;
+
+        drawTeamText(
+          "Agent Performance",
+          margin,
+          y,
+          {
+            bold: true,
+            size: 7.5,
+          }
+        );
+        y += 4;
+
+        const agentWidths = [
+          78,
+          28,
+          34,
+          24,
+          22,
+        ];
+        const agentHeaders = [
+          "Agent",
+          "Cases",
+          "Average",
+          "Grade",
+          "Revised",
+        ];
+
+        doc.setFillColor(
+          30,
+          41,
+          59
+        );
         doc.rect(
           margin,
           y,
           contentWidth,
-          10,
+          9,
           "F"
         );
 
-        let x = margin;
+        let agentX = margin;
+        agentHeaders.forEach(
+          (header, index) => {
+            drawTeamText(
+              header,
+              index === 0
+                ? agentX + 3
+                : agentX +
+                    agentWidths[index] /
+                      2,
+              y + 6,
+              {
+                align:
+                  index === 0
+                    ? "left"
+                    : "center",
+                color: "#ffffff",
+                bold: true,
+                size: 5.8,
+              }
+            );
+            agentX += agentWidths[index];
+          }
+        );
 
-        headers.forEach((header, index) => {
-          drawTeamText(
-            header,
-            index === 0
-              ? x + 3
-              : x + widths[index] / 2,
-            y + 6.5,
-            {
-              align:
-                index === 0
-                  ? "left"
-                  : "center",
-              color: "#ffffff",
-              bold: true,
-              size: 6,
-            }
-          );
+        y += 9;
 
-          x += widths[index];
-        });
+        teamRow.agents.forEach(
+          (agentRow, index) => {
+            ensureTeamSpace(8);
 
-        y += 10;
-      };
-
-      drawAgentHeader();
-
-      teamRow.agents.forEach(
-        (agentRow, index) => {
-          if (y + 10 > pageHeight - 18) {
-            startNewTeamPage();
-
-            doc.setFillColor(109, 40, 217);
-            doc.roundedRect(
+            doc.setFillColor(
+              index % 2 === 0
+                ? 255
+                : 248,
+              index % 2 === 0
+                ? 255
+                : 250,
+              252
+            );
+            doc.setDrawColor(
+              226,
+              232,
+              240
+            );
+            doc.rect(
               margin,
               y,
               contentWidth,
-              11,
-              2,
-              2,
+              8,
+              "FD"
+            );
+
+            const values = [
+              buildSuspendedAgentLabel(
+                agentRow.agent,
+                accountProfiles
+              ),
+              String(
+                agentRow.caseCount
+              ),
+              agentRow.avgScore.toFixed(
+                2
+              ),
+              String(agentRow.grade),
+              String(
+                agentRow.revisedCount
+              ),
+            ];
+
+            let x = margin;
+            values.forEach(
+              (value, colIndex) => {
+                drawTeamText(
+                  value,
+                  colIndex === 0
+                    ? x + 3
+                    : x +
+                      agentWidths[
+                        colIndex
+                      ] /
+                        2,
+                  y + 5.4,
+                  {
+                    align:
+                      colIndex === 0
+                        ? "left"
+                        : "center",
+                    bold:
+                      colIndex === 0 ||
+                      colIndex === 2,
+                    size: 5.7,
+                    color:
+                      colIndex === 2
+                        ? "#6d28d9"
+                        : "#334155",
+                  }
+                );
+                x +=
+                  agentWidths[colIndex];
+              }
+            );
+
+            y += 8;
+          }
+        );
+
+        y += 7;
+        ensureTeamSpace(
+          8 +
+          teamRow.topics.length * 9
+        );
+
+        drawTeamText(
+          "Topic Performance",
+          margin,
+          y,
+          {
+            bold: true,
+            size: 7.5,
+          }
+        );
+        y += 5;
+
+        teamRow.topics.forEach(
+          (topic) => {
+            drawTeamText(
+              `${topic.code}. ${topic.label}`,
+              margin,
+              y + 3,
+              {
+                size: 5.8,
+                bold: true,
+                color: "#334155",
+              }
+            );
+
+            drawTeamText(
+              `${topic.pct.toFixed(2)}%`,
+              pageWidth - margin,
+              y + 3,
+              {
+                align: "right",
+                size: 5.8,
+                bold: true,
+                color: "#6d28d9",
+              }
+            );
+
+            const trackX = margin;
+            const trackY = y + 5;
+            const trackWidth =
+              contentWidth;
+            doc.setFillColor(
+              237,
+              233,
+              254
+            );
+            doc.roundedRect(
+              trackX,
+              trackY,
+              trackWidth,
+              2.5,
+              1,
+              1,
+              "F"
+            );
+            doc.setFillColor(
+              124,
+              58,
+              237
+            );
+            doc.roundedRect(
+              trackX,
+              trackY,
+              trackWidth *
+                Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    topic.pct
+                  )
+                ) /
+                100,
+              2.5,
+              1,
+              1,
               "F"
             );
 
-            drawTeamText(
-              `${teamRow.teamName} (continued)`,
-              margin + 4,
-              y + 7,
-              {
-                color: "#ffffff",
-                bold: true,
-                size: 8,
-              }
-            );
-
-            y += 14;
-            drawAgentHeader();
+            y += 9;
           }
+        );
 
-          doc.setFillColor(
-            index % 2 === 0 ? 255 : 248,
-            index % 2 === 0 ? 255 : 250,
-            252
+        y += 4;
+        ensureTeamSpace(36);
+
+        drawTeamText(
+          "3-Month Average Trend",
+          margin,
+          y,
+          {
+            bold: true,
+            size: 7.5,
+          }
+        );
+
+        y += 4;
+        const trendTop = y;
+        const trendHeight = 28;
+        doc.setFillColor(
+          250,
+          250,
+          252
+        );
+        doc.setDrawColor(
+          226,
+          232,
+          240
+        );
+        doc.roundedRect(
+          margin,
+          trendTop,
+          contentWidth,
+          trendHeight,
+          2,
+          2,
+          "FD"
+        );
+
+        const chartX = margin + 10;
+        const chartY =
+          trendTop + 4;
+        const chartW =
+          contentWidth - 20;
+        const chartH = 14;
+        const gap = 12;
+        const barWidth =
+          (chartW -
+            gap *
+              (teamRow.trend.length +
+                1)) /
+          Math.max(
+            1,
+            teamRow.trend.length
           );
-          doc.setDrawColor(226, 232, 240);
-          doc.rect(
-            margin,
-            y,
-            contentWidth,
-            10,
-            "FD"
-          );
 
-          const values = [
-            buildSuspendedAgentLabel(
-              agentRow.agent,
-              accountProfiles
-            ),
-            String(agentRow.caseCount),
-            agentRow.avgScore.toFixed(2),
-            String(agentRow.grade),
-            String(agentRow.revisedCount),
-          ];
+        teamRow.trend.forEach(
+          (trendItem, index) => {
+            const barHeight =
+              trendItem.avgScore === null
+                ? 0
+                : Math.max(
+                    1.5,
+                    ((trendItem.avgScore -
+                      70) /
+                      30) *
+                      chartH
+                  );
+            const barX =
+              chartX +
+              gap +
+              index *
+                (barWidth + gap);
+            const barY =
+              chartY +
+              chartH -
+              barHeight;
 
-          let x = margin;
+            if (
+              trendItem.avgScore !==
+              null
+            ) {
+              doc.setFillColor(
+                124,
+                58,
+                237
+              );
+              doc.roundedRect(
+                barX,
+                barY,
+                barWidth,
+                barHeight,
+                1,
+                1,
+                "F"
+              );
+            }
 
-          values.forEach((value, colIndex) => {
             drawTeamText(
-              value,
-              colIndex === 0
-                ? x + 3
-                : x + widths[colIndex] / 2,
-              y + 6.4,
+              trendItem.avgScore ===
+                null
+                ? "N/A"
+                : trendItem.avgScore.toFixed(
+                    2
+                  ),
+              barX + barWidth / 2,
+              trendItem.avgScore ===
+                null
+                ? chartY +
+                  chartH -
+                  1
+                : Math.max(
+                    chartY + 2,
+                    barY - 1.5
+                  ),
               {
-                align:
-                  colIndex === 0
-                    ? "left"
-                    : "center",
-                bold:
-                  colIndex === 0 ||
-                  colIndex === 2,
-                size: 6,
-                color:
-                  colIndex === 2
-                    ? "#6d28d9"
-                    : "#334155",
+                align: "center",
+                bold: true,
+                size: 5.2,
               }
             );
 
-            x += widths[colIndex];
-          });
+            const diffText =
+              trendItem.change === null
+                ? "Base"
+                : `${trendItem.change > 0 ? "+": ""}${trendItem.change.toFixed(2)}`;
 
-          y += 10;
-        }
-      );
+            drawTeamText(
+              diffText,
+              barX + barWidth / 2,
+              chartY + chartH + 4,
+              {
+                align: "center",
+                bold: true,
+                size: 4.8,
+                color:
+                  trendItem.change === null
+                    ? "#94a3b8"
+                    : trendItem.change > 0
+                      ? "#059669"
+                      : trendItem.change < 0
+                        ? "#be185d"
+                        : "#2563eb",
+              }
+            );
 
-      y += 8;
-    });
+            drawTeamText(
+              trendItem.label,
+              barX + barWidth / 2,
+              chartY + chartH + 8,
+              {
+                align: "center",
+                size: 4.5,
+                color: "#64748b",
+              }
+            );
+          }
+        );
 
-    const fileName =
+        y += trendHeight + 8;
+      }
+    );
+
+    doc.save(
       `QA_Team_Performance_All_Teams_${sanitizePdfFilePart(
         monthLabel
-      )}.pdf`;
-
-    doc.save(fileName);
+      )}.pdf`
+    );
   }
 
   if (isLoading) {
@@ -5679,191 +6511,235 @@ export default function SummaryMockup({
                 )
               ) : (
                 <>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-3xl border border-violet-100 bg-violet-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-violet-600">
-                        Teams
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-slate-950">
-                        {teamPerformanceRows.length}
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-sky-100 bg-sky-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-sky-600">
-                        Cases
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-slate-950">
-                        {allTeamsSummary.caseCount}
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-emerald-600">
-                        Average
-                      </div>
-                      <div className="mt-2 text-3xl font-black text-slate-950">
-                        {allTeamsSummary.avgScore.toFixed(2)}
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-amber-100 bg-amber-50 p-5">
-                      <div className="text-xs font-black uppercase tracking-wide text-amber-600">
-                        Month
-                      </div>
-                      <div className="mt-2 text-lg font-black text-slate-950">
+                  <div className="flex flex-col gap-3 rounded-3xl border border-violet-100 bg-white px-5 py-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="text-sm font-black text-slate-950">
                         {getMonthLabelForKey(
                           teamSelectedMonth,
                           allCases
                         )}
                       </div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        {teamPerformanceRows.length} Teams • {allTeamsSummary.caseCount} Cases
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 text-xs font-black">
+                      <span className="rounded-full bg-violet-100 px-3 py-2 text-violet-700">
+                        Overall Avg {allTeamsSummary.avgScore.toFixed(2)}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-2 text-slate-700">
+                        3-Month View
+                      </span>
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="grid items-start gap-6 xl:grid-cols-2">
                     {teamPerformanceRows.length ? (
                       teamPerformanceRows.map((row) => (
-                        <Panel key={row.teamName}>
-                          <PanelHeader
-                            title={row.teamName}
-                            subtitle={`${row.caseCount} Cases • ${row.agentCount} Agents • ${
-                              row.avgScore === null
-                                ? "No Data"
-                                : `${row.avgScore.toFixed(2)} Average`
-                            }`}
-                          />
-
-                          <PanelBody className="space-y-5">
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                              <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-wide text-violet-600">
-                                  Cases
-                                </div>
-                                <div className="mt-1 text-2xl font-black text-slate-950">
-                                  {row.caseCount}
-                                </div>
+                        <div
+                          key={row.teamName}
+                          className="overflow-hidden rounded-[28px] border border-violet-200/80 bg-white shadow-[0_10px_30px_rgba(76,29,149,0.08)]"
+                        >
+                          <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <div className="text-[17px] font-black text-slate-950">
+                                {row.teamName}
                               </div>
-
-                              <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-wide text-sky-600">
-                                  Agents
-                                </div>
-                                <div className="mt-1 text-2xl font-black text-slate-950">
-                                  {row.agentCount}
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-wide text-emerald-600">
-                                  Average
-                                </div>
-                                <div className="mt-1 text-2xl font-black text-slate-950">
-                                  {row.avgScore === null
-                                    ? "No Data"
-                                    : row.avgScore.toFixed(2)}
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-wide text-amber-600">
-                                  Change
-                                </div>
-                                <div
-                                  className={
-                                    "mt-1 text-2xl font-black " +
-                                    (row.change === null
-                                      ? "text-slate-400"
-                                      : row.change > 0
-                                        ? "text-emerald-600"
-                                        : row.change < 0
-                                          ? "text-rose-600"
-                                          : "text-blue-600")
-                                  }
-                                >
-                                  {row.change === null
-                                    ? "Base"
-                                    : `${row.change > 0 ? "+" : ""}${row.change.toFixed(2)}`}
-                                </div>
-                              </div>
-
-                              <div className="rounded-2xl border border-fuchsia-100 bg-fuchsia-50 px-4 py-3">
-                                <div className="text-[11px] font-black uppercase tracking-wide text-fuchsia-600">
-                                  Grade
-                                </div>
-                                <div className="mt-1 text-2xl font-black text-slate-950">
-                                  {row.grade || "-"}
-                                </div>
+                              <div className="mt-1 text-xs font-semibold text-slate-500">
+                                {row.caseCount} Cases • {row.agentCount} Agents
                               </div>
                             </div>
 
-                            <div className="overflow-x-auto rounded-2xl border border-violet-100 bg-white">
-                              <table className="min-w-[760px] w-full text-sm">
-                                <thead>
-                                  <tr className="bg-slate-950 text-white">
-                                    <th className="px-4 py-3 text-left">
-                                      Agent
-                                    </th>
-                                    <th className="px-4 py-3 text-center">
-                                      Cases
-                                    </th>
-                                    <th className="px-4 py-3 text-center">
-                                      Average
-                                    </th>
-                                    <th className="px-4 py-3 text-center">
-                                      Grade
-                                    </th>
-                                    <th className="px-4 py-3 text-center">
-                                      Revised
-                                    </th>
-                                  </tr>
-                                </thead>
+                            <div className="flex flex-wrap gap-2 text-xs font-black">
+                              <span className="rounded-full bg-violet-700 px-3 py-2 text-white">
+                                Avg {row.avgScore === null ? "No Data" : row.avgScore.toFixed(2)}
+                              </span>
+                              <span
+                                className={
+                                  "rounded-full px-3 py-2 " +
+                                  (row.change === null
+                                    ? "bg-slate-100 text-slate-500"
+                                    : row.change > 0
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : row.change < 0
+                                        ? "bg-rose-100 text-rose-700"
+                                        : "bg-blue-100 text-blue-700")
+                                }
+                              >
+                                {row.change === null
+                                  ? "Base"
+                                  : `${row.change > 0 ? "▲ +" : row.change < 0 ? "▼ " : ""}${row.change.toFixed(2)}`}
+                              </span>
+                              <span className={`rounded-full border px-3 py-2 ${getGradeTone(row.grade || "G")}`}>
+                                Grade {row.grade || "-"}
+                              </span>
+                            </div>
+                          </div>
 
-                                <tbody>
-                                  {row.agents.map((agentRow) => (
-                                    <tr
-                                      key={`${row.teamName}-${agentRow.agent}`}
-                                      className="bg-white"
-                                    >
-                                      <td className="border-t border-violet-100 px-4 py-3 font-black text-slate-900">
-                                        {buildSuspendedAgentLabel(
-                                          agentRow.agent,
-                                          accountProfiles
-                                        )}
-                                      </td>
-                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-bold text-slate-700">
-                                        {agentRow.caseCount}
-                                      </td>
-                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">
-                                        {agentRow.avgScore.toFixed(2)}
-                                      </td>
-                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-slate-800">
-                                        {agentRow.grade}
-                                      </td>
-                                      <td className="border-t border-violet-100 px-4 py-3 text-center font-bold text-slate-700">
-                                        {agentRow.revisedCount}
-                                      </td>
+                          <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+                            <div>
+                              <div className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                                Agent Performance
+                              </div>
+
+                              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="bg-slate-950 text-white">
+                                      <th className="px-3 py-2.5 text-left">Agent</th>
+                                      <th className="px-2 py-2.5 text-center">Cases</th>
+                                      <th className="px-2 py-2.5 text-center">Avg</th>
+                                      <th className="px-2 py-2.5 text-center">Grade</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {row.agents.map((agentRow) => (
+                                      <tr
+                                        key={`${row.teamName}-${agentRow.agent}`}
+                                        className="bg-white"
+                                      >
+                                        <td className="border-t border-slate-100 px-3 py-2.5 font-bold text-slate-900">
+                                          {buildSuspendedAgentLabel(
+                                            agentRow.agent,
+                                            accountProfiles
+                                          )}
+                                          {agentRow.revisedCount > 0 ? (
+                                            <div className="mt-0.5 text-[10px] font-semibold text-fuchsia-600">
+                                              {agentRow.revisedCount} Revised
+                                            </div>
+                                          ) : null}
+                                        </td>
+                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center font-bold text-slate-600">
+                                          {agentRow.caseCount}
+                                        </td>
+                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center font-black text-violet-700">
+                                          {agentRow.avgScore.toFixed(2)}
+                                        </td>
+                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center">
+                                          <span className={`inline-flex rounded-full border px-2 py-1 font-black ${getGradeTone(agentRow.grade)}`}>
+                                            {agentRow.grade}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
 
                             <div>
-                              <div className="mb-3 text-sm font-black text-slate-900">
+                              <div className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">
                                 Topic Performance
                               </div>
-                              <TopicTable topics={row.topics} />
+
+                              <div className="space-y-3">
+                                {row.topics.map((topic) => (
+                                  <div key={`${row.teamName}-${topic.code}`}>
+                                    <div className="flex items-start justify-between gap-3 text-xs">
+                                      <div className="font-bold leading-5 text-slate-700">
+                                        {topic.code}. {topic.label}
+                                      </div>
+                                      <div className="shrink-0 font-black text-violet-700">
+                                        {topic.pct.toFixed(2)}%
+                                      </div>
+                                    </div>
+                                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-violet-100">
+                                      <div
+                                        className="h-full rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500"
+                                        style={{
+                                          width: `${Math.max(
+                                            0,
+                                            Math.min(100, topic.pct)
+                                          )}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </PanelBody>
-                        </Panel>
+                          </div>
+
+                          <div className="border-t border-violet-100 bg-slate-50/70 px-5 py-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="text-xs font-black text-slate-900">
+                                  3-Month Average Trend
+                                </div>
+                                <div className="mt-1 text-[11px] font-semibold text-slate-500">
+                                  Supporting view for the selected month
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-3 gap-3">
+                              {row.trend.map((trendItem) => {
+                                const barHeight =
+                                  trendItem.avgScore === null
+                                    ? 5
+                                    : Math.max(
+                                        12,
+                                        Math.min(
+                                          100,
+                                          ((trendItem.avgScore - 70) / 30) * 100
+                                        )
+                                      );
+
+                                return (
+                                  <div
+                                    key={`${row.teamName}-${trendItem.monthKey}`}
+                                    className="rounded-2xl border border-white bg-white px-3 py-3 text-center shadow-sm"
+                                  >
+                                    <div className="flex h-20 items-end justify-center">
+                                      <div
+                                        className={
+                                          "w-10 rounded-t-xl " +
+                                          (trendItem.avgScore === null
+                                            ? "bg-slate-200"
+                                            : "bg-gradient-to-t from-violet-700 to-fuchsia-500")
+                                        }
+                                        style={{ height: `${barHeight}%` }}
+                                      />
+                                    </div>
+                                    <div className="mt-2 text-sm font-black text-slate-900">
+                                      {trendItem.avgScore === null
+                                        ? "N/A"
+                                        : trendItem.avgScore.toFixed(2)}
+                                    </div>
+                                    <div
+                                      className={
+                                        "mt-1 text-[11px] font-black " +
+                                        (trendItem.change === null
+                                          ? "text-slate-400"
+                                          : trendItem.change > 0
+                                            ? "text-emerald-600"
+                                            : trendItem.change < 0
+                                              ? "text-rose-600"
+                                              : "text-blue-600")
+                                      }
+                                    >
+                                      {trendItem.change === null
+                                        ? "Base"
+                                        : `${trendItem.change > 0 ? "▲ +" : trendItem.change < 0 ? "▼ " : ""}${trendItem.change.toFixed(2)}`}
+                                    </div>
+                                    <div className="mt-1 text-[10px] font-semibold text-slate-500">
+                                      {trendItem.label}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
                       ))
                     ) : (
-                      <div className="rounded-3xl border border-dashed border-violet-200 bg-violet-50/40 px-6 py-12 text-center text-sm font-semibold text-violet-600">
+                      <div className="col-span-full rounded-3xl border border-dashed border-violet-200 bg-violet-50/40 px-6 py-12 text-center text-sm font-semibold text-violet-600">
                         ไม่พบข้อมูลทีมในเดือนที่เลือก
                       </div>
                     )}
-                  </div></>
-              )}
+                  </div>
+                </>              )}
             </PanelBody>
           </Panel>
         </div>
@@ -6319,6 +7195,134 @@ export default function SummaryMockup({
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </PanelBody>
+              </Panel>
+            ) : null}
+
+
+            {!isAdminRole ? (
+              <Panel>
+                <PanelHeader
+                  title="Performance Status & Coaching Watchlist"
+                  subtitle={`Status based on ${getMonthLabelForKey(
+                    performanceStatusBaseMonthKey,
+                    allCases
+                  )} • KPI target ${PERFORMANCE_KPI_TARGET}%`}
+                />
+                <PanelBody className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-amber-700">
+                        Below KPI
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-slate-950">
+                        {performanceStatusSummary.belowKpi}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-yellow-700">
+                        Coaching Program
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-slate-950">
+                        {performanceStatusSummary.coaching}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
+                      <div className="text-[11px] font-black uppercase tracking-wide text-rose-700">
+                        Contract Review
+                      </div>
+                      <div className="mt-1 text-2xl font-black text-slate-950">
+                        {performanceStatusSummary.contractReview}
+                      </div>
+                    </div>
+                  </div>
+
+                  {performanceStatusRows.length ? (
+                    <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                      <table className="min-w-[1080px] w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-950 text-white">
+                            <th className="px-4 py-3 text-left">Agent</th>
+                            <th className="px-4 py-3 text-left">Team</th>
+                            <th className="px-4 py-3 text-center">Current Avg</th>
+                            <th className="px-4 py-3 text-center">Current Grade</th>
+                            <th className="px-4 py-3 text-center">3-Month Grade</th>
+                            <th className="px-4 py-3 text-center">Performance Status</th>
+                            <th className="px-4 py-3 text-left">Required Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {performanceStatusRows.map((row) => (
+                            <tr key={`status-${row.agent}`} className="bg-white">
+                              <td className="border-t border-slate-100 px-4 py-3 font-black text-slate-900">
+                                {buildSuspendedAgentLabel(
+                                  row.agent,
+                                  accountProfiles
+                                )}
+                              </td>
+                              <td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-600">
+                                {row.teamName}
+                              </td>
+                              <td className="border-t border-slate-100 px-4 py-3 text-center font-black text-slate-900">
+                                {row.currentAvg === null
+                                  ? "No Data"
+                                  : row.currentAvg.toFixed(2)}
+                              </td>
+                              <td className="border-t border-slate-100 px-4 py-3 text-center">
+                                {row.currentGrade ? (
+                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${getGradeTone(row.currentGrade)}`}>
+                                    {row.currentGrade}
+                                  </span>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+                              <td className="border-t border-slate-100 px-4 py-3 text-center font-bold text-slate-600">
+                                {row.trend
+                                  .map((item) => item.grade || "-")
+                                  .join(" → ")}
+                              </td>
+                              <td className="border-t border-slate-100 px-4 py-3 text-center">
+                                <span
+                                  className={
+                                    "inline-flex rounded-full px-3 py-1 text-xs font-black " +
+                                    (row.belowKpi
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-emerald-100 text-emerald-700")
+                                  }
+                                >
+                                  {row.belowKpi
+                                    ? "Below KPI"
+                                    : "Meeting KPI"}
+                                </span>
+                              </td>
+                              <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-700">
+                                {row.actions.length
+                                  ? row.actions.join(" • ")
+                                  : "Monitor"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-sm font-bold text-emerald-700">
+                      ไม่พบพนักงานที่เข้าเงื่อนไข Watchlist ในช่วงที่เลือก
+                    </div>
+                  )}
+
+                  <div className="grid gap-3 text-xs md:grid-cols-3">
+                    <div className="rounded-xl bg-slate-50 px-4 py-3 font-semibold text-slate-600">
+                      Average ต่ำกว่า {PERFORMANCE_KPI_TARGET}% แสดงสถานะ Below KPI
+                    </div>
+                    <div className="rounded-xl bg-yellow-50 px-4 py-3 font-semibold text-yellow-800">
+                      Grade D เดือนปัจจุบัน หรือ Grade C ติดต่อกัน 3 เดือน เข้าสู่ Coaching Program
+                    </div>
+                    <div className="rounded-xl bg-rose-50 px-4 py-3 font-semibold text-rose-800">
+                      Grade D ติดต่อกัน 3 เดือน เข้าสู่ Contract Renewal Review
+                    </div>
                   </div>
                 </PanelBody>
               </Panel>
