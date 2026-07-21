@@ -1,7 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import { jsPDF } from "jspdf";
-import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import PageHero from "./PageHero";
 import { scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { buildAppealRequests } from "./AppealRequestsMockup";
@@ -186,6 +185,23 @@ function splitAppealCaseIds(value: unknown) {
       .map((item) => normalizeCaseId(item))
       .filter(Boolean)
   )];
+}
+
+function downloadGeneratedAppealPdf(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = fileName;
+  link.style.display = "none";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 1500);
 }
 
 function toTitleCaseName(value: string) {
@@ -1275,6 +1291,14 @@ export default function AppealMockup({
   const [searchCaseId, setSearchCaseId] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState("all");
   const [selectedAgent, setSelectedAgent] = useState(externalSelectedAgent || "");
+  const [appealReloadKey, setAppealReloadKey] = useState(0);
+  const [approvedSourceInfo, setApprovedSourceInfo] = useState({
+    staticCount: 0,
+    firebaseCount: 0,
+    error: "",
+  });
+  const [pdfStatus, setPdfStatus] = useState<"idle" | "generating" | "success" | "error">("idle");
+  const [pdfMessage, setPdfMessage] = useState("");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -1612,6 +1636,7 @@ export default function AppealMockup({
           .filter(Boolean) as AppealCaseItem[];
 
         const firebaseMapped: AppealCaseItem[] = [];
+        let firebaseLoadError = "";
 
         try {
           const appealEvents = (await fetchAppealEvents(
@@ -1793,7 +1818,7 @@ export default function AppealMockup({
               inquiry,
               previousScore,
               finalScore,
-              reviewStatus: changedTopics.length ? "Revised" : "Original",
+              reviewStatus: "Revised",
               grade: scoreToGrade(finalScore, monthKey),
               appealVersion: "Firebase",
               appealSubmitDateTime: formatDateTimeOrRaw(request.submittedAt),
@@ -1813,9 +1838,29 @@ export default function AppealMockup({
           });
         } catch (firebaseError) {
           console.warn("Load Firebase appeal events failed", firebaseError);
+          firebaseLoadError =
+            firebaseError instanceof Error
+              ? `โหลดผล Approved จาก Review Queue ไม่สำเร็จ: ${firebaseError.message}`
+              : "โหลดผล Approved จาก Review Queue ไม่สำเร็จ";
         }
 
-        setAllCases(collapseAppealRowsToLatest([...mapped, ...firebaseMapped]));
+        const firebaseCaseIds = new Set(
+          firebaseMapped.map((item) => normalizeCaseId(item.caseId))
+        );
+        const staticCasesWithoutFirebaseDuplicate = mapped.filter(
+          (item) => !firebaseCaseIds.has(normalizeCaseId(item.caseId))
+        );
+        const approvedCases = collapseAppealRowsToLatest([
+          ...staticCasesWithoutFirebaseDuplicate,
+          ...firebaseMapped,
+        ]).sort((a, b) => b.appealTimestampRank - a.appealTimestampRank);
+
+        setAllCases(approvedCases);
+        setApprovedSourceInfo({
+          staticCount: staticCasesWithoutFirebaseDuplicate.length,
+          firebaseCount: firebaseMapped.length,
+          error: firebaseLoadError,
+        });
       } catch (error: any) {
         console.error(error);
         setLoadError(error?.message || "โหลดไฟล์ Excel ไม่สำเร็จ");
@@ -1825,7 +1870,7 @@ export default function AppealMockup({
     };
 
     loadWorkbook();
-  }, []);
+  }, [appealReloadKey]);
 
   const latestMonthKey = useMemo(() => {
     return (
@@ -1978,6 +2023,8 @@ export default function AppealMockup({
 
   useEffect(() => {
     setSelectedAppealRound(null);
+    setPdfStatus("idle");
+    setPdfMessage("");
   }, [selectedCase?.key]);
 
   const selectedCaseUsesNewPolicy = selectedCase ? isNewPolicyMonth(selectedCase.monthKey) : false;
@@ -1991,465 +2038,89 @@ export default function AppealMockup({
 
   const currentMonthDisplayLabel = formatMonthKeyLabel(selectedMonthKey);
 
-  const setPdfFont = (doc: jsPDF, style: "normal" | "bold" = "normal") => {
-    try {
-      doc.setFont("THSarabunNew", style);
-      return true;
-    } catch {
-      doc.setFont("helvetica", style);
-      return false;
-    }
-  };
-
   const handleGeneratePdf = async () => {
-    if (!selectedCase || !selectedRevision) return;
-
-    const loadLogoDataUrl = async () => {
-      try {
-        const response = await fetch("/robinhood-logo.png");
-        if (!response.ok) return "";
-        const blob = await response.blob();
-        return await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(blob);
-        });
-      } catch {
-        return "";
-      }
-    };
-
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
-    registerTHSarabunNew(doc);
-    const usingThaiFont = setPdfFont(doc, "normal");
-    const logoDataUrl = await loadLogoDataUrl();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const left = 16;
-    const right = pageWidth - 16;
-    const contentWidth = right - left;
-    let y = 16;
-
-    const selectedCaseOriginalGradeForPdf = scoreToGrade(
-      selectedRevision.previousScore,
-      selectedCase.monthKey
-    );
-    const scoreDelta = selectedRevision.finalScore - selectedRevision.previousScore;
-    const scoreDeltaText = `${scoreDelta > 0 ? "+" : ""}${scoreDelta.toFixed(2)}`;
-    const generatedAtDisplay = formatDateTime(new Date());
-    const generatedByDisplay = currentUser?.displayName || currentUser?.username || "-";
-    const generatedByRole = currentUser?.role ? ` (${currentUser.role})` : "";
-
-    const PDF_COLORS = {
-      black: [0, 0, 0] as [number, number, number],
-      body: [20, 20, 20] as [number, number, number],
-      muted: [90, 90, 90] as [number, number, number],
-      divider: [170, 170, 170] as [number, number, number],
-      sectionLine: [148, 163, 184] as [number, number, number],
-      accent: [79, 70, 229] as [number, number, number],
-      success: [22, 163, 74] as [number, number, number],
-      danger: [220, 38, 38] as [number, number, number],
-      neutral: [55, 65, 81] as [number, number, number],
-      appealReason: [120, 53, 15] as [number, number, number],
-      originalComment: [17, 24, 39] as [number, number, number],
-      revisedComment: [17, 24, 39] as [number, number, number],
-    };
-
-    const setColor = (color: [number, number, number]) => {
-      doc.setTextColor(color[0], color[1], color[2]);
-    };
-
-    const ensureSpace = (needed = 10) => {
-      if (y + needed > pageHeight - 16) {
-        doc.addPage();
-        y = 16;
-      }
-    };
-
-    const drawDivider = (
-      spaceBefore = 1.5,
-      spaceAfter = 4,
-      color: [number, number, number] = PDF_COLORS.divider,
-      width = 0.3
-    ) => {
-      ensureSpace(spaceBefore + spaceAfter + 2);
-      y += spaceBefore;
-      doc.setDrawColor(color[0], color[1], color[2]);
-      doc.setLineWidth(width);
-      doc.line(left, y, right, y);
-      y += spaceAfter;
-    };
-
-    const addMainTitle = () => {
-      const headerTop = y;
-      const headerHeight = 112;
-      ensureSpace(headerHeight + 6);
-
-      const purple = [112, 46, 166] as [number, number, number];
-      const purpleDark = [76, 29, 149] as [number, number, number];
-      const purplePale = [248, 245, 252] as [number, number, number];
-      const border = [203, 184, 220] as [number, number, number];
-
-      const monthLabel = getMonthLabel(new Date((selectedCase.monthKey || "2026-05") + "-01"));
-      const appealVersionText = sanitizeDisplayText(selectedRevision.appealVersion, "REV1");
-      const scoreText = selectedRevision.finalScore.toFixed(2);
-      const gradeText = sanitizeDisplayText(selectedRevision.grade, "-");
-      const criticalErrorText = "NO";
-      const appealStatusText = "Approved";
-      const commentStatusText = "Approved";
-      const reviewTypeText = selectedRevision.reviewStatus === "Revised" ? "Revised" : sanitizeDisplayText(selectedRevision.reviewStatus, "Revised");
-      const remarkText =
-        Math.abs(scoreDelta) < 0.001
-          ? "Rewrite / score unchanged"
-          : "Rewrite / score " + (scoreDelta > 0 ? "increased " : "decreased ") + scoreDeltaText;
-
-      const drawRoundedBox = (
-        x: number,
-        boxY: number,
-        w: number,
-        h: number,
-        fill: [number, number, number] = [255, 255, 255],
-        stroke: [number, number, number] = border
-      ) => {
-        doc.setFillColor(fill[0], fill[1], fill[2]);
-        doc.setDrawColor(stroke[0], stroke[1], stroke[2]);
-        doc.setLineWidth(0.25);
-        doc.roundedRect(x, boxY, w, h, 2.8, 2.8, "FD");
-      };
-
-      const drawInfoCard = (
-        x: number,
-        boxY: number,
-        w: number,
-        h: number,
-        label: string,
-        value: string,
-        options?: { compact?: boolean; badge?: boolean; labelColor?: [number, number, number] }
-      ) => {
-        drawRoundedBox(x, boxY, w, h, [255, 255, 255], border);
-
-        setPdfFont(doc, "bold");
-        doc.setFontSize(options?.compact ? 8.6 : 9.5);
-        setColor(options?.labelColor || purpleDark);
-        doc.text(label, x + 4, boxY + 5.2);
-
-        const safeValue = sanitizeDisplayText(value, "-");
-        const valueWidth = w - 8;
-
-        if (options?.badge) {
-          const badgeW = Math.min(w - 8, Math.max(18, doc.getTextWidth(safeValue) + 8));
-          doc.setFillColor(purple[0], purple[1], purple[2]);
-          doc.roundedRect(x + 4, boxY + h - 9.2, badgeW, 6.5, 1.8, 1.8, "F");
-          setPdfFont(doc, "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255);
-          doc.text(safeValue, x + 8, boxY + h - 4.5);
-          return;
-        }
-
-        setPdfFont(doc, "normal");
-        doc.setFontSize(options?.compact ? 8.2 : 10.5);
-        setColor(PDF_COLORS.body);
-        const lines = doc.splitTextToSize(safeValue, valueWidth).slice(0, options?.compact ? 2 : 3);
-        doc.text(lines, x + 4, boxY + 10.8);
-      };
-
-      doc.setFillColor(255, 255, 255);
-      doc.rect(0, 0, pageWidth, pageHeight, "F");
-
-      drawRoundedBox(left, headerTop, contentWidth, headerHeight, purplePale, border);
-
-      doc.setFillColor(purple[0], purple[1], purple[2]);
-      doc.roundedRect(left, headerTop, contentWidth, 17, 2.8, 2.8, "F");
-      doc.setFillColor(purpleDark[0], purpleDark[1], purpleDark[2]);
-      doc.rect(left, headerTop + 13.5, contentWidth, 3.5, "F");
-
-      if (logoDataUrl) {
-        try {
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(left + 5, headerTop + 3.2, 10.6, 10.6, 2, 2, "F");
-          doc.addImage(logoDataUrl, "PNG", left + 6.2, headerTop + 4.2, 8.2, 8.2);
-        } catch {}
-      }
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(17);
-      doc.setTextColor(255, 255, 255);
-      doc.text("APPEAL REVIEW REPORT", left + 19, headerTop + 10.8);
-
-      setPdfFont(doc, "normal");
-      doc.setFontSize(10.2);
-      doc.setTextColor(235, 225, 245);
-      doc.text("รายงานการตรวจสอบอุทธรณ์", left + 19, headerTop + 15.3);
-
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(right - 24, headerTop + 4.2, 17, 8.4, 2.2, 2.2, "F");
-      setPdfFont(doc, "bold");
-      doc.setFontSize(10);
-      setColor(purpleDark);
-      doc.text(appealVersionText, right - 20.7, headerTop + 10.1);
-
-      const row1Y = headerTop + 23;
-      const row2Y = headerTop + 43;
-      const row3Y = headerTop + 63;
-      const row4Y = headerTop + 83;
-      const gap = 3.5;
-      const col3 = (contentWidth - 8 - gap * 2) / 3;
-      const col4 = (contentWidth - 8 - gap * 3) / 4;
-      const x0 = left + 4;
-
-      drawInfoCard(x0, row1Y, col3, 15, "Agent", selectedCase.agent || "-");
-      drawInfoCard(x0 + col3 + gap, row1Y, col3, 15, "Month", monthLabel || "-");
-      drawInfoCard(x0 + (col3 + gap) * 2, row1Y, col3, 15, "Appeal Ver.", appealVersionText);
-
-      drawInfoCard(x0, row2Y, col4, 15, "Audit Date", selectedCase.auditDate || "-");
-      drawInfoCard(x0 + col4 + gap, row2Y, col4, 15, "Case ID", selectedCase.caseId || "-");
-      drawInfoCard(x0 + (col4 + gap) * 2, row2Y, col4, 15, "Final Score", scoreText, { badge: true });
-      drawInfoCard(x0 + (col4 + gap) * 3, row2Y, col4, 15, "Case Grade", gradeText, { badge: true });
-
-      drawInfoCard(x0, row3Y, col3 * 2 + gap, 15, "Customer Inquiry", selectedCase.inquiry || "-", { compact: true });
-      drawInfoCard(x0 + col3 * 2 + gap * 2, row3Y, col3, 15, "Critical Error", criticalErrorText);
-
-      drawInfoCard(x0, row4Y, col3, 15, "Appeal Status", appealStatusText, { badge: true });
-      drawInfoCard(x0 + col3 + gap, row4Y, col3, 15, "Comment Status", commentStatusText, { badge: true });
-      drawInfoCard(x0 + (col3 + gap) * 2, row4Y, col3, 15, "Review Type", reviewTypeText, { badge: true });
-
-      drawInfoCard(x0, headerTop + 101, contentWidth - 8, 8, "Remark", remarkText, { compact: true });
-
-      y = headerTop + headerHeight + 8;
-      drawDivider(0, 5, PDF_COLORS.sectionLine, 0.35);
-    };
-
-    const addSectionTitle = (text: string) => {
-      ensureSpace(10);
-      setPdfFont(doc, "bold");
-      doc.setFontSize(14);
-      setColor(PDF_COLORS.accent);
-      doc.text(text, left, y);
-      y += 2.5;
-      drawDivider(1, 4, PDF_COLORS.sectionLine, 0.35);
-    };
-
-    const addParagraph = (
-      text: string,
-      size = 11,
-      color: [number, number, number] = PDF_COLORS.body,
-      gapAfter = 5
-    ) => {
-      const lines = doc.splitTextToSize(sanitizeDisplayText(text, "-"), contentWidth);
-      ensureSpace(lines.length * (size * 0.45) + gapAfter + 2);
-      setPdfFont(doc, "normal");
-      doc.setFontSize(size);
-      setColor(color);
-      doc.text(lines, left, y);
-      y += lines.length * (size * 0.45) + gapAfter;
-    };
-
-    const addKeyValue = (label: string, value: string, labelWidth = 40) => {
-      const safeValue = sanitizeDisplayText(value, "-");
-      const valueLines = doc.splitTextToSize(safeValue, contentWidth - labelWidth);
-      ensureSpace(Math.max(6, valueLines.length * 4.8) + 1);
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.black);
-      doc.text(label, left, y);
-
-      setPdfFont(doc, "normal");
-      setColor(PDF_COLORS.body);
-      doc.text(valueLines, left + labelWidth, y);
-      y += Math.max(6, valueLines.length * 4.8);
-    };
-
-    const estimateTopicBlockHeight = (topic: Topic) => {
-      const originalScore = Number(topic.originalScore ?? 0);
-      const revisedScore = Number(topic.score ?? 0);
-      const diff = revisedScore - originalScore;
-      const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
-      const topicLeft = left + 4;
-      const topicRight = right - 4;
-      const topicWidth = topicRight - topicLeft;
-
-      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, topicWidth);
-      const topicMetaLines = doc.splitTextToSize("Appealed Topic Detail", topicWidth);
-      const scoreLines = doc.splitTextToSize(
-        `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
-          diff > 0 ? "+" : ""
-        }${diff} (${statusLabel})`,
-        topicWidth
-      );
-      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", topicWidth);
-      const originalCommentLines = doc.splitTextToSize(
-        topic.originalComment || "-",
-        topicWidth
-      );
-      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", topicWidth);
-
-      return (
-        topicMetaLines.length * 4 +
-        titleLines.length * 5 +
-        scoreLines.length * 4.8 +
-        appealReasonLines.length * 4.8 +
-        originalCommentLines.length * 4.8 +
-        revisedCommentLines.length * 4.8 +
-        34
-      );
-    };
-
-    const addTopicBlock = (topic: Topic) => {
-      const originalScore = Number(topic.originalScore ?? 0);
-      const revisedScore = Number(topic.score ?? 0);
-      const diff = revisedScore - originalScore;
-      const statusLabel = diff > 0 ? "Improved" : diff < 0 ? "Reduced" : "No Change";
-      const scoreColor =
-        diff > 0 ? PDF_COLORS.success : diff < 0 ? PDF_COLORS.danger : PDF_COLORS.neutral;
-      const topicLeft = left + 4;
-      const topicRight = right - 4;
-      const topicWidth = topicRight - topicLeft;
-
-      const titleLines = doc.splitTextToSize(`${topic.code} ${topic.label}`, topicWidth);
-      const topicMetaLines = doc.splitTextToSize("Appealed Topic Detail", topicWidth);
-      const scoreLines = doc.splitTextToSize(
-        `Original Score: ${originalScore}   Final Score: ${revisedScore}   Change: ${
-          diff > 0 ? "+" : ""
-        }${diff} (${statusLabel})`,
-        topicWidth
-      );
-      const appealReasonLines = doc.splitTextToSize(topic.appealReason || "-", topicWidth);
-      const originalCommentLines = doc.splitTextToSize(
-        topic.originalComment || "-",
-        topicWidth
-      );
-      const revisedCommentLines = doc.splitTextToSize(topic.comment || "-", topicWidth);
-
-      const estimatedHeight = estimateTopicBlockHeight(topic);
-
-      ensureSpace(estimatedHeight);
-
-      doc.setDrawColor(PDF_COLORS.sectionLine[0], PDF_COLORS.sectionLine[1], PDF_COLORS.sectionLine[2]);
-      doc.setLineWidth(0.3);
-      doc.line(topicLeft, y, topicRight, y);
-      y += 4;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(9.5);
-      setColor(PDF_COLORS.muted);
-      doc.text(topicMetaLines, topicLeft, y);
-      y += topicMetaLines.length * 4;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(12);
-      setColor(PDF_COLORS.black);
-      doc.text(titleLines, topicLeft, y);
-      y += titleLines.length * 5;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(10.5);
-      setColor(scoreColor);
-      doc.text(scoreLines, topicLeft, y);
-      y += scoreLines.length * 4.8 + 2;
-
-      doc.setDrawColor(PDF_COLORS.sectionLine[0], PDF_COLORS.sectionLine[1], PDF_COLORS.sectionLine[2]);
-      doc.setLineWidth(0.25);
-      doc.line(topicLeft, y, topicRight, y);
-      y += 4;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.black);
-      doc.text("Appeal Reason", topicLeft, y);
-      y += 5;
-      setPdfFont(doc, "normal");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.appealReason);
-      doc.text(appealReasonLines, topicLeft, y);
-      y += appealReasonLines.length * 4.8 + 2;
-
-      doc.line(topicLeft, y, topicRight, y);
-      y += 4;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.black);
-      doc.text("Original Comment", topicLeft, y);
-      y += 5;
-      setPdfFont(doc, "normal");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.originalComment);
-      doc.text(originalCommentLines, topicLeft, y);
-      y += originalCommentLines.length * 4.8 + 2;
-
-      doc.line(topicLeft, y, topicRight, y);
-      y += 4;
-
-      setPdfFont(doc, "bold");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.black);
-      doc.text("Revised Comment", topicLeft, y);
-      y += 5;
-      setPdfFont(doc, "normal");
-      doc.setFontSize(11);
-      setColor(PDF_COLORS.revisedComment);
-      doc.text(revisedCommentLines, topicLeft, y);
-      y += revisedCommentLines.length * 4.8 + 1.5;
-
-      drawDivider(1, 5);
-    };
-
-    addMainTitle();
-
-    if (!usingThaiFont) {
-      addParagraph(
-        "Font Notice: TH Sarabun font is not embedded yet. PDF is using fallback font.",
-        10,
-        PDF_COLORS.danger,
-        6
-      );
+    if (!selectedCase || !selectedRevision) {
+      setPdfStatus("error");
+      setPdfMessage("กรุณาเลือกเคส Approved ก่อนสร้าง Appeal PDF");
+      return;
     }
 
-    // Case overview is included in the redesigned PDF header.
-
-    addSectionTitle("Appeal Timeline");
-    addKeyValue("Appeal Submit Date & Time", selectedRevision.appealSubmitDateTime || "-", 58);
-    addKeyValue("Appeal Result Date & Time", selectedRevision.appealResultDateTime || "-", 58);
-    addKeyValue("Appeal Channel", selectedRevision.appealChannel || "-", 58);
-    addKeyValue(
-      "Grade Rule",
-      selectedCaseUsesNewPolicy
-        ? "Use score criteria from April 2026 onward"
-        : "Use previous score criteria",
-      58
-    );
-    addKeyValue("Final Decision", "Finalized and closed", 58);
-
-    addSectionTitle("Customer Inquiry");
-    addParagraph(selectedCase.inquiry || "-");
-
-    addSectionTitle("Appeal Review Summary");
-    addParagraph(selectedRevision.appealReviewSummary || "-");
-
-    const firstAppealedTopic = selectedRevision.appealedTopics[0];
-    const appealedTopicsHeaderHeight = 11;
-    if (
-      firstAppealedTopic &&
-      y + appealedTopicsHeaderHeight + estimateTopicBlockHeight(firstAppealedTopic) > pageHeight - 16
-    ) {
-      doc.addPage();
-      y = 16;
-    }
-
-    addSectionTitle("Appealed Topics");
     if (!selectedRevision.appealedTopics.length) {
-      addParagraph("ไม่พบหัวข้อที่มีการยื่นอุทธรณ์");
-    } else {
-      selectedRevision.appealedTopics.forEach((topic) => {
-        addTopicBlock(topic);
-      });
+      setPdfStatus("error");
+      setPdfMessage("เคสนี้ไม่มีหัวข้ออุทธรณ์ที่ใช้สร้าง Appeal PDF");
+      return;
     }
 
-    doc.save(`QA_Appeal_${selectedCase.caseId}.pdf`);
-    onGeneratePdf?.(selectedCase.caseId, selectedCase.agent, "appeal");
+    setPdfStatus("generating");
+    setPdfMessage("กำลังสร้าง Appeal PDF...");
+
+    try {
+      const originalTopics = selectedCase.allTopics.map((topic) => {
+        const originalScore = Number(topic.originalScore ?? topic.score ?? 0);
+        const max = Number(topic.max || 0);
+
+        return {
+          ...topic,
+          score: originalScore,
+          pct: max > 0 ? Math.round((originalScore / max) * 100) : 0,
+          comment: String(topic.originalComment || topic.comment || "").trim(),
+        };
+      });
+
+      const revisedTopics = selectedRevision.appealedTopics.map((topic) => {
+        const revisedScore = Number(topic.score ?? 0);
+        const max = Number(topic.max || 0);
+
+        return {
+          ...topic,
+          score: revisedScore,
+          pct: max > 0 ? Math.round((revisedScore / max) * 100) : 0,
+          comment: String(topic.comment || "").trim(),
+          appealReason: String(topic.appealReason || "").trim(),
+        };
+      });
+
+      const generated = await generateOfficialCaseDetailPdf({
+        caseItem: {
+          ...selectedCase,
+          monthLabel: formatMonthKeyLabel(selectedCase.monthKey),
+          auditTimestamp: selectedCase.auditDate,
+          inquiryTh: selectedCase.inquiry,
+          inquiryEn: "",
+          caseDescription: selectedCase.inquiry,
+          topics: originalTopics,
+          revisedTopics,
+          displayRevisedTopicCodes: revisedTopics.map((topic) => topic.code),
+          previousScore: selectedRevision.previousScore,
+          finalScore: selectedRevision.finalScore,
+          grade: selectedRevision.grade,
+          reviewStatus: "Revised",
+          appealStatus: "Approved",
+          commentStatus: "Approved",
+          appealVersion: selectedRevision.appealVersion || "Firebase",
+          remark: selectedRevision.appealReviewSummary || "Approved Appeal",
+        },
+        currentUser,
+        pdfVariant: "appeal",
+      });
+
+      const safeCaseId = normalizeCaseId(selectedCase.caseId) || "Appeal";
+      const fileName = `${safeCaseId}_Appeal_Report.pdf`;
+
+      downloadGeneratedAppealPdf(generated.blob, fileName);
+      onGeneratePdf?.(selectedCase.caseId, selectedCase.agent, "appeal");
+
+      setPdfStatus("success");
+      setPdfMessage(`สร้าง ${fileName} เรียบร้อยแล้ว`);
+    } catch (error) {
+      console.error("Generate Appeal PDF failed", error);
+      setPdfStatus("error");
+      setPdfMessage(
+        error instanceof Error
+          ? `สร้าง Appeal PDF ไม่สำเร็จ: ${error.message}`
+          : "สร้าง Appeal PDF ไม่สำเร็จ กรุณาลองใหม่"
+      );
+    }
   };
 
   if (isLoading) {
@@ -2550,6 +2221,51 @@ export default function AppealMockup({
       ) : null}
 
       <AppealClosedBanner />
+
+      <div className="flex flex-col gap-3 rounded-[24px] border border-emerald-200 bg-emerald-50/80 px-5 py-4 shadow-[0_10px_24px_rgba(16,185,129,0.08)] lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">
+            Approved Appeals Only
+          </div>
+          <div className="mt-1 text-sm font-semibold leading-6 text-emerald-900">
+            หน้านี้แสดงเฉพาะเคสที่ Review Queue อนุมัติแล้ว เคส Rejected จะแสดง Feedback ใน Case Detail แต่ไม่เข้าหน้า Appeals
+          </div>
+          <div className="mt-1 text-xs font-semibold text-slate-500">
+            Appeal ROWDATA: {approvedSourceInfo.staticCount} case(s) • Review Queue / Firebase: {approvedSourceInfo.firebaseCount} case(s)
+          </div>
+          {approvedSourceInfo.error ? (
+            <div className="mt-2 text-xs font-bold text-rose-700">
+              {approvedSourceInfo.error}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMonthKey("all");
+              setSearchCaseId("");
+
+              if (!roleScopedAgentList.length) {
+                setSelectedAgent("");
+                onSelectedAgentChange?.("");
+              }
+            }}
+            className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+          >
+            Show All Approved
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAppealReloadKey((current) => current + 1)}
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-800"
+          >
+            Refresh Approved Appeals
+          </button>
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[26px] border border-violet-200/80 bg-white/90 px-5 py-4 shadow-[0_10px_24px_rgba(76,29,149,0.06)] backdrop-blur-sm">
         <div>
@@ -2787,11 +2503,28 @@ export default function AppealMockup({
                       <button
                         type="button"
                         onClick={handleGeneratePdf}
-                        className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 hover:bg-fuchsia-100"
+                        disabled={pdfStatus === "generating"}
+                        className="inline-flex rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2.5 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-100 disabled:cursor-wait disabled:opacity-60"
                       >
-                        Generate PDF
+                        {pdfStatus === "generating" ? "Generating PDF..." : "Generate Appeal PDF"}
                       </button>
                     </div>
+
+                    {pdfMessage ? (
+                      <div
+                        className={
+                          "rounded-2xl border px-4 py-3 text-sm font-semibold " +
+                          (pdfStatus === "error"
+                            ? "border-rose-200 bg-rose-50 text-rose-700"
+                            : pdfStatus === "success"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-violet-200 bg-violet-50 text-violet-700")
+                        }
+                      >
+                        {pdfMessage}
+                      </div>
+                    ) : null}
+
                   </PanelBody>
                 </Panel>
 
