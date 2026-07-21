@@ -1281,10 +1281,41 @@ export default function SummaryMockup({
 
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
-  const roleScopedAgentList = useMemo(
-    () => getUniqueNormalizedAgents((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
-    [roleScopedAgentNames]
-  );
+  const roleScopedAgentList = useMemo(() => {
+    const providedScope = getUniqueNormalizedAgents(
+      (roleScopedAgentNames || [])
+        .map((name) => toTitleCaseName(String(name || "").trim()))
+        .filter(Boolean)
+    );
+
+    const normalizedRole = normalizeText(currentUser?.role);
+    const adminRole =
+      normalizedRole === "admin" ||
+      normalizedRole.startsWith("admin ") ||
+      normalizedRole.endsWith(" admin") ||
+      normalizedRole.includes("admin live chat");
+
+    const ownAgentName = toTitleCaseName(
+      String(
+        currentUser?.agentName ||
+          currentUser?.displayName ||
+          currentUser?.username ||
+          ""
+      ).trim()
+    );
+
+    if (adminRole && ownAgentName) {
+      return getUniqueNormalizedAgents([ownAgentName]);
+    }
+
+    return providedScope;
+  }, [
+    roleScopedAgentNames,
+    currentUser?.role,
+    currentUser?.agentName,
+    currentUser?.displayName,
+    currentUser?.username,
+  ]);
 
   useEffect(() => {
     let alive = true;
@@ -2420,10 +2451,6 @@ export default function SummaryMockup({
     }
   }, [teamMonthOptions, teamSelectedMonth]);
 
-  useEffect(() => {
-    if (isAdminRole) setSummarySection("team");
-  }, [isAdminRole]);
-
   const getCaseTeamName = (item: CaseItem) => {
     const account = getAccountStatus(item.agent, accountProfiles);
     return getSummaryTeamName(account) || "Unassigned Team";
@@ -2607,7 +2634,6 @@ export default function SummaryMockup({
 
   const performanceStatusRows = useMemo(() => {
     if (
-      isAdminRole ||
       !performanceStatusBaseMonthKey ||
       performanceStatusBaseMonthKey === "unknown"
     ) {
@@ -2615,159 +2641,98 @@ export default function SummaryMockup({
     }
 
     const baseMonthCases = allCases.filter(
-      (item) =>
-        item.monthKey ===
-        performanceStatusBaseMonthKey
+      (item) => item.monthKey === performanceStatusBaseMonthKey
     );
 
-    const candidateAgents =
-      roleScopedAgentList.length
-        ? getUniqueNormalizedAgents(
-            roleScopedAgentList
-          )
-        : getUniqueNormalizedAgents(
-            baseMonthCases.map(
-              (item) => item.agent
-            )
-          );
+    const candidateAgents = roleScopedAgentList.length
+      ? getUniqueNormalizedAgents(roleScopedAgentList)
+      : getUniqueNormalizedAgents(baseMonthCases.map((item) => item.agent));
 
-    const rows = candidateAgents.map(
-      (agent) => {
-        const trend =
-          performanceStatusMonthKeys.map(
-            (monthKey) => {
-              const monthCases =
-                allCases.filter(
-                  (item) =>
-                    item.monthKey ===
-                      monthKey &&
-                    isSameAgent(
-                      item.agent,
-                      agent
-                    )
-                );
+    return candidateAgents.map((agent) => {
+      const trend = performanceStatusMonthKeys.map((monthKey) => {
+        const monthCases = allCases.filter(
+          (item) =>
+            item.monthKey === monthKey &&
+            isSameAgent(item.agent, agent)
+        );
 
-              if (!monthCases.length) {
-                return {
-                  monthKey,
-                  label:
-                    getMonthLabelForKey(
-                      monthKey,
-                      allCases
-                    ),
-                  caseCount: 0,
-                  avgScore: null as
-                    | number
-                    | null,
-                  grade: null as
-                    | Grade
-                    | null,
-                };
-              }
-
-              const monthSummary =
-                summarizeCases(
-                  monthCases
-                );
-
-              return {
-                monthKey,
-                label:
-                  getMonthLabelForKey(
-                    monthKey,
-                    allCases
-                  ),
-                caseCount:
-                  monthSummary.caseCount,
-                avgScore:
-                  monthSummary.avgScore,
-                grade:
-                  monthSummary.grade,
-              };
-            }
-          );
-
-        const current =
-          trend[trend.length - 1];
-        const currentAvg =
-          current?.avgScore ?? null;
-        const currentGrade =
-          current?.grade ?? null;
-        const hasThreeMonths =
-          trend.length === 3 &&
-          trend.every(
-            (item) =>
-              item.caseCount > 0 &&
-              item.grade
-          );
-        const gradeCThreeMonths =
-          hasThreeMonths &&
-          trend.every(
-            (item) =>
-              item.grade === "C"
-          );
-        const gradeDThreeMonths =
-          hasThreeMonths &&
-          trend.every(
-            (item) =>
-              item.grade === "D"
-          );
-        const belowKpi =
-          currentAvg !== null &&
-          currentAvg <
-            PERFORMANCE_KPI_TARGET;
-        const actions: string[] = [];
-
-        if (
-          currentGrade === "D" ||
-          gradeCThreeMonths ||
-          gradeDThreeMonths
-        ) {
-          actions.push(
-            "Coaching Program"
-          );
+        if (!monthCases.length) {
+          return {
+            monthKey,
+            label: getMonthLabelForKey(monthKey, allCases),
+            caseCount: 0,
+            avgScore: null as number | null,
+            grade: null as Grade | null,
+            meetsKpi: null as boolean | null,
+          };
         }
 
-        if (gradeDThreeMonths) {
-          actions.push(
-            "Contract Renewal Review"
-          );
-        }
-
-        const account =
-          getAccountStatus(
-            agent,
-            accountProfiles
-          );
-        const teamName =
-          getSummaryTeamName(account) ||
-          "Unassigned Team";
-        const isFlagged =
-          belowKpi ||
-          actions.length > 0;
+        const monthSummary = summarizeCases(monthCases);
+        const avgScore = monthSummary.avgScore;
 
         return {
-          agent,
-          teamName,
-          currentAvg,
-          currentGrade,
-          trend,
-          belowKpi,
-          actions,
-          isFlagged,
-          gradeCThreeMonths,
-          gradeDThreeMonths,
+          monthKey,
+          label: getMonthLabelForKey(monthKey, allCases),
+          caseCount: monthSummary.caseCount,
+          avgScore,
+          grade: monthSummary.grade,
+          meetsKpi: avgScore >= PERFORMANCE_KPI_TARGET,
         };
-      }
-    );
+      });
 
-    return roleScopedAgentList.length
-      ? rows
-      : rows.filter(
-          (row) => row.isFlagged
-        );
+      const current = trend[trend.length - 1];
+      const currentAvg = current?.avgScore ?? null;
+      const currentGrade = current?.grade ?? null;
+
+      let consecutiveBelowKpi = 0;
+      for (let index = trend.length - 1; index >= 0; index -= 1) {
+        const month = trend[index];
+        if (month.caseCount > 0 && month.meetsKpi === false) {
+          consecutiveBelowKpi += 1;
+          continue;
+        }
+        break;
+      }
+
+      const failedQaThreeMonths = consecutiveBelowKpi >= 3;
+      const hasThreeMonths =
+        trend.length === 3 &&
+        trend.every((item) => item.caseCount > 0 && item.grade);
+      const gradeCThreeMonths =
+        hasThreeMonths && trend.every((item) => item.grade === "C");
+      const gradeDThreeMonths =
+        hasThreeMonths && trend.every((item) => item.grade === "D");
+
+      const actions: string[] = [];
+      if (
+        failedQaThreeMonths ||
+        currentGrade === "D" ||
+        gradeCThreeMonths ||
+        gradeDThreeMonths
+      ) {
+        actions.push("Coaching Program");
+      }
+      if (gradeDThreeMonths) {
+        actions.push("Contract Renewal Review");
+      }
+
+      const account = getAccountStatus(agent, accountProfiles);
+
+      return {
+        agent,
+        teamName: getSummaryTeamName(account) || "Unassigned Team",
+        currentAvg,
+        currentGrade,
+        trend,
+        consecutiveBelowKpi,
+        failedQaThreeMonths,
+        gradeCThreeMonths,
+        gradeDThreeMonths,
+        actions,
+        qaStatus: failedQaThreeMonths ? "ไม่ผ่าน QA" : "อยู่ในเกณฑ์ปกติ",
+      };
+    });
   }, [
-    isAdminRole,
     performanceStatusBaseMonthKey,
     performanceStatusMonthKeys,
     allCases,
@@ -2775,30 +2740,18 @@ export default function SummaryMockup({
     roleScopedAgentList,
   ]);
 
-  const performanceStatusSummary =
-    useMemo(
-      () => ({
-        belowKpi:
-          performanceStatusRows.filter(
-            (row) => row.belowKpi
-          ).length,
-        coaching:
-          performanceStatusRows.filter(
-            (row) =>
-              row.actions.includes(
-                "Coaching Program"
-              )
-          ).length,
-        contractReview:
-          performanceStatusRows.filter(
-            (row) =>
-              row.actions.includes(
-                "Contract Renewal Review"
-              )
-          ).length,
-      }),
-      [performanceStatusRows]
-    );
+  const performanceStatusSummary = useMemo(
+    () => ({
+      failedQa: performanceStatusRows.filter((row) => row.failedQaThreeMonths).length,
+      coaching: performanceStatusRows.filter((row) =>
+        row.actions.includes("Coaching Program")
+      ).length,
+      contractReview: performanceStatusRows.filter((row) =>
+        row.actions.includes("Contract Renewal Review")
+      ).length,
+    }),
+    [performanceStatusRows]
+  );
 
   const comparisonChartAnalytics = useMemo(() => {
     const scores = comparisonRowsWithDelta.map((row) => row.avgScore);
@@ -4167,243 +4120,140 @@ export default function SummaryMockup({
       });
     }
 
-    if (
-      !isAdminRole &&
-      performanceStatusRows.length
-    ) {
+    if (performanceStatusRows.length) {
       y += 5;
       drawSectionTitle(
         "Performance Status & Coaching Watchlist",
-        `KPI target ${PERFORMANCE_KPI_TARGET}% • ${getMonthLabelForKey(
-          performanceStatusBaseMonthKey,
-          allCases
-        )}`
+        `KPI target ${PERFORMANCE_KPI_TARGET}% • Three consecutive months rule`
       );
 
-      const statusWidths = [
-        35,
-        25,
-        18,
-        15,
-        30,
-        22,
-        41,
-      ];
+      const statusWidths = [29, 23, 24, 24, 24, 17, 20, 25];
+      const monthHeaders = performanceStatusMonthKeys.map((monthKey) =>
+        getMonthLabelForKey(monthKey, allCases)
+      );
       const statusHeaders = [
         "Agent",
         "Team",
-        "Avg",
-        "Grade",
-        "3-Month Grade",
-        "KPI",
+        ...monthHeaders,
+        "Consecutive",
+        "QA Status",
         "Required Action",
       ];
 
       const drawStatusHeader = () => {
-        doc.setFillColor(
-          30,
-          41,
-          59
-        );
-        doc.roundedRect(
-          margin,
-          y,
-          contentWidth,
-          11,
-          2,
-          2,
-          "F"
-        );
-
+        doc.setFillColor(30, 41, 59);
+        doc.roundedRect(margin, y, contentWidth, 13, 2, 2, "F");
         let x = margin;
-        doc.setFont(
-          "helvetica",
-          "bold"
-        );
-        doc.setFontSize(5.5);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(4.7);
 
-        statusHeaders.forEach(
-          (header, index) => {
-            drawText(
-              header,
-              index < 2
-                ? x + 2
-                : x +
-                    statusWidths[index] /
-                      2,
-              y + 7,
-              {
-                align:
-                  index < 2
-                    ? "left"
-                    : "center",
-                color: "#ffffff",
-              }
-            );
-            x += statusWidths[index];
-          }
-        );
+        statusHeaders.forEach((header, index) => {
+          wrapText(header, index >= 2 && index <= 4 ? 10 : 13, 2).forEach(
+            (line, lineIndex) => {
+              drawText(
+                line,
+                index < 2 ? x + 2 : x + statusWidths[index] / 2,
+                y + 5 + lineIndex * 3.2,
+                {
+                  align: index < 2 ? "left" : "center",
+                  color: "#ffffff",
+                }
+              );
+            }
+          );
+          x += statusWidths[index];
+        });
 
-        y += 11;
+        y += 13;
       };
 
       drawStatusHeader();
 
-      performanceStatusRows.forEach(
-        (row, index) => {
-          const agentLines =
-            wrapText(
-              buildSuspendedAgentLabel(
-                row.agent,
-                accountProfiles
-              ),
-              20,
-              2
-            );
-          const teamLines =
-            wrapText(
-              row.teamName,
-              14,
-              2
-            );
-          const actionLines =
-            wrapText(
-              row.actions.length
-                ? row.actions.join(" • ")
-                : "Monitor",
-              25,
-              3
-            );
-          const rowHeight =
-            Math.max(
-              10,
-              4 +
-                Math.max(
-                  agentLines.length,
-                  teamLines.length,
-                  actionLines.length
-                ) *
-                  3.5
-            );
+      performanceStatusRows.forEach((row, index) => {
+        const agentLines = wrapText(
+          buildSuspendedAgentLabel(row.agent, accountProfiles),
+          18,
+          2
+        );
+        const teamLines = wrapText(row.teamName, 13, 2);
+        const monthCells = row.trend.map((month) =>
+          month.avgScore === null
+            ? ["No Data"]
+            : [
+                month.avgScore.toFixed(2),
+                month.meetsKpi ? "Pass KPI" : "Fail KPI",
+              ]
+        );
+        const actionLines = wrapText(
+          row.actions.length ? row.actions.join(" • ") : "Monitor",
+          16,
+          3
+        );
 
-          if (
-            y + rowHeight >
-            contentBottom
-          ) {
-            startNewPage();
-            drawSectionTitle(
-              "Performance Status & Coaching Watchlist (continued)"
-            );
-            drawStatusHeader();
+        const rowHeight = Math.max(
+          11,
+          4 +
+            Math.max(
+              agentLines.length,
+              teamLines.length,
+              ...monthCells.map((lines) => lines.length),
+              actionLines.length
+            ) *
+              3.4
+        );
+
+        if (y + rowHeight > contentBottom) {
+          startNewPage();
+          drawSectionTitle(
+            "Performance Status & Coaching Watchlist (continued)"
+          );
+          drawStatusHeader();
+        }
+
+        doc.setFillColor(
+          index % 2 === 0 ? 255 : 248,
+          index % 2 === 0 ? 255 : 250,
+          252
+        );
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, y, contentWidth, rowHeight, "FD");
+
+        const cells = [
+          agentLines,
+          teamLines,
+          ...monthCells,
+          [`${row.consecutiveBelowKpi} month(s)`],
+          [row.failedQaThreeMonths ? "Fail QA" : "Normal"],
+          actionLines,
+        ];
+
+        let x = margin;
+        cells.forEach((lines, colIndex) => {
+          doc.setFont(
+            "helvetica",
+            colIndex === 0 || colIndex === 6 ? "bold" : "normal"
+          );
+          doc.setFontSize(4.8);
+
+          if (colIndex === 6 && row.failedQaThreeMonths) {
+            doc.setTextColor(190, 24, 93);
+          } else {
+            doc.setTextColor(51, 65, 85);
           }
 
-          doc.setFillColor(
-            index % 2 === 0
-              ? 255
-              : 248,
-            index % 2 === 0
-              ? 255
-              : 250,
-            252
-          );
-          doc.setDrawColor(
-            226,
-            232,
-            240
-          );
-          doc.rect(
-            margin,
-            y,
-            contentWidth,
-            rowHeight,
-            "FD"
-          );
+          lines.forEach((line, lineIndex) => {
+            drawText(
+              line,
+              colIndex < 2 ? x + 2 : x + statusWidths[colIndex] / 2,
+              y + 5 + lineIndex * 3.4,
+              { align: colIndex < 2 ? "left" : "center" }
+            );
+          });
+          x += statusWidths[colIndex];
+        });
 
-          const cells = [
-            agentLines,
-            teamLines,
-            [
-              row.currentAvg === null
-                ? "No Data"
-                : row.currentAvg.toFixed(2),
-            ],
-            [row.currentGrade || "-"],
-            [
-              row.trend
-                .map(
-                  (item) =>
-                    item.grade || "-"
-                )
-                .join(" > "),
-            ],
-            [
-              row.belowKpi
-                ? "Below KPI"
-                : "Meeting KPI",
-            ],
-            actionLines,
-          ];
-
-          let x = margin;
-          cells.forEach(
-            (lines, colIndex) => {
-              doc.setFont(
-                "helvetica",
-                colIndex === 0 ||
-                  colIndex === 5
-                  ? "bold"
-                  : "normal"
-              );
-              doc.setFontSize(5.2);
-              doc.setTextColor(
-                colIndex === 5 &&
-                row.belowKpi
-                  ? 180
-                  : 51,
-                colIndex === 5 &&
-                row.belowKpi
-                  ? 83
-                  : 65,
-                colIndex === 5 &&
-                row.belowKpi
-                  ? 9
-                  : 85
-              );
-
-              lines.forEach(
-                (
-                  line,
-                  lineIndex
-                ) => {
-                  drawText(
-                    line,
-                    colIndex < 2
-                      ? x + 2
-                      : x +
-                          statusWidths[
-                            colIndex
-                          ] /
-                            2,
-                    y +
-                      5 +
-                      lineIndex * 3.5,
-                    {
-                      align:
-                        colIndex < 2
-                          ? "left"
-                          : "center",
-                    }
-                  );
-                }
-              );
-
-              x += statusWidths[colIndex];
-            }
-          );
-
-          y += rowHeight;
-        }
-      );
+        y += rowHeight;
+      });
 
       y += 7;
     }
@@ -6418,37 +6268,35 @@ export default function SummaryMockup({
         workspaceSubtitle="Corporate dashboard for audit tracking and case review"
       />
       <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
-        {!isAdminRole ? (
-          <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setSummarySection("summary")}
-              className={
-                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
-                (summarySection === "summary"
-                  ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
-                  : "text-violet-700 hover:bg-violet-50")
-              }
-            >
-              Summary
-            </button>
-            <button
-              type="button"
-              onClick={() => setSummarySection("team")}
-              className={
-                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
-                (summarySection === "team"
-                  ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
-                  : "text-violet-700 hover:bg-violet-50")
-              }
-            >
-              Team Performance
-            </button>
-          </div>
-        ) : null}
+        <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setSummarySection("summary")}
+            className={
+              "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+              (summarySection === "summary"
+                ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
+                : "text-violet-700 hover:bg-violet-50")
+            }
+          >
+            Summary
+          </button>
+          <button
+            type="button"
+            onClick={() => setSummarySection("team")}
+            className={
+              "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+              (summarySection === "team"
+                ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
+                : "text-violet-700 hover:bg-violet-50")
+            }
+          >
+            Team Performance
+          </button>
+        </div>
       </div>
 
-      {summarySection === "team" || isAdminRole ? (
+      {summarySection === "team" ? (
         <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader
@@ -6767,7 +6615,7 @@ export default function SummaryMockup({
       </div>
       ) : null}
 
-      <div className={`mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8 ${summarySection === "summary" && !isAdminRole ? "" : "hidden"}`}>
+      <div className={`mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8 ${summarySection === "summary" ? "" : "hidden"}`}>
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <div className="space-y-6">
             <Panel className="sticky top-4">
@@ -7201,132 +7049,153 @@ export default function SummaryMockup({
             ) : null}
 
 
-            {!isAdminRole ? (
-              <Panel>
-                <PanelHeader
-                  title="Performance Status & Coaching Watchlist"
-                  subtitle={`Status based on ${getMonthLabelForKey(
-                    performanceStatusBaseMonthKey,
-                    allCases
-                  )} • KPI target ${PERFORMANCE_KPI_TARGET}%`}
-                />
-                <PanelBody className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-amber-700">
-                        Below KPI
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-slate-950">
-                        {performanceStatusSummary.belowKpi}
-                      </div>
+            <Panel>
+              <PanelHeader
+                title="Performance Status & Coaching Watchlist"
+                subtitle={`ตรวจสอบสถานะ KPI ต่อเนื่อง 3 เดือน • เป้าหมายรายเดือน ${PERFORMANCE_KPI_TARGET}%`}
+              />
+              <PanelBody className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
+                    <div className="text-[11px] font-black uppercase tracking-wide text-rose-700">
+                      ไม่ผ่าน QA 3 เดือนติด
                     </div>
-                    <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-yellow-700">
-                        Coaching Program
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-slate-950">
-                        {performanceStatusSummary.coaching}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
-                      <div className="text-[11px] font-black uppercase tracking-wide text-rose-700">
-                        Contract Review
-                      </div>
-                      <div className="mt-1 text-2xl font-black text-slate-950">
-                        {performanceStatusSummary.contractReview}
-                      </div>
+                    <div className="mt-1 text-2xl font-black text-slate-950">
+                      {performanceStatusSummary.failedQa}
                     </div>
                   </div>
+                  <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3">
+                    <div className="text-[11px] font-black uppercase tracking-wide text-yellow-700">
+                      Coaching Program
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-slate-950">
+                      {performanceStatusSummary.coaching}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+                    <div className="text-[11px] font-black uppercase tracking-wide text-red-700">
+                      Contract Review
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-slate-950">
+                      {performanceStatusSummary.contractReview}
+                    </div>
+                  </div>
+                </div>
 
-                  {performanceStatusRows.length ? (
-                    <div className="overflow-x-auto rounded-2xl border border-violet-100">
-                      <table className="min-w-[1080px] w-full text-sm">
-                        <thead>
-                          <tr className="bg-slate-950 text-white">
-                            <th className="px-4 py-3 text-left">Agent</th>
-                            <th className="px-4 py-3 text-left">Team</th>
-                            <th className="px-4 py-3 text-center">Current Avg</th>
-                            <th className="px-4 py-3 text-center">Current Grade</th>
-                            <th className="px-4 py-3 text-center">3-Month Grade</th>
-                            <th className="px-4 py-3 text-center">Performance Status</th>
-                            <th className="px-4 py-3 text-left">Required Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {performanceStatusRows.map((row) => (
-                            <tr key={`status-${row.agent}`} className="bg-white">
-                              <td className="border-t border-slate-100 px-4 py-3 font-black text-slate-900">
-                                {buildSuspendedAgentLabel(
-                                  row.agent,
-                                  accountProfiles
-                                )}
-                              </td>
-                              <td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-600">
-                                {row.teamName}
-                              </td>
-                              <td className="border-t border-slate-100 px-4 py-3 text-center font-black text-slate-900">
-                                {row.currentAvg === null
-                                  ? "No Data"
-                                  : row.currentAvg.toFixed(2)}
-                              </td>
-                              <td className="border-t border-slate-100 px-4 py-3 text-center">
-                                {row.currentGrade ? (
-                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${getGradeTone(row.currentGrade)}`}>
-                                    {row.currentGrade}
-                                  </span>
+                {performanceStatusRows.length ? (
+                  <div className="overflow-x-auto rounded-2xl border border-violet-100">
+                    <table className="min-w-[1240px] w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-950 text-white">
+                          <th className="px-4 py-3 text-left">Agent</th>
+                          <th className="px-4 py-3 text-left">Team</th>
+                          {performanceStatusMonthKeys.map((monthKey) => (
+                            <th key={`status-header-${monthKey}`} className="px-4 py-3 text-center">
+                              {getMonthLabelForKey(monthKey, allCases)}
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-center">ไม่ผ่านต่อเนื่อง</th>
+                          <th className="px-4 py-3 text-center">QA Status</th>
+                          <th className="px-4 py-3 text-left">Required Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {performanceStatusRows.map((row) => (
+                          <tr key={`status-${row.agent}`} className="bg-white">
+                            <td className="border-t border-slate-100 px-4 py-3 font-black text-slate-900">
+                              {buildSuspendedAgentLabel(row.agent, accountProfiles)}
+                            </td>
+                            <td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-600">
+                              {row.teamName}
+                            </td>
+                            {row.trend.map((month) => (
+                              <td
+                                key={`${row.agent}-${month.monthKey}`}
+                                className="border-t border-slate-100 px-3 py-3 text-center"
+                              >
+                                {month.avgScore === null ? (
+                                  <div className="text-xs font-bold text-slate-400">No Data</div>
                                 ) : (
-                                  "-"
+                                  <div className="space-y-1.5">
+                                    <div className="font-black text-slate-900">
+                                      {month.avgScore.toFixed(2)}
+                                    </div>
+                                    <span
+                                      className={
+                                        "inline-flex rounded-full px-2.5 py-1 text-[11px] font-black " +
+                                        (month.meetsKpi
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : "bg-amber-100 text-amber-800")
+                                      }
+                                    >
+                                      {month.meetsKpi ? "ผ่าน KPI" : "ไม่ผ่าน KPI"}
+                                    </span>
+                                  </div>
                                 )}
                               </td>
-                              <td className="border-t border-slate-100 px-4 py-3 text-center font-bold text-slate-600">
-                                {row.trend
-                                  .map((item) => item.grade || "-")
-                                  .join(" → ")}
-                              </td>
-                              <td className="border-t border-slate-100 px-4 py-3 text-center">
-                                <span
-                                  className={
-                                    "inline-flex rounded-full px-3 py-1 text-xs font-black " +
-                                    (row.belowKpi
+                            ))}
+                            <td className="border-t border-slate-100 px-4 py-3 text-center">
+                              <span
+                                className={
+                                  "inline-flex rounded-full px-3 py-1 text-xs font-black " +
+                                  (row.failedQaThreeMonths
+                                    ? "bg-rose-100 text-rose-700"
+                                    : row.consecutiveBelowKpi > 0
                                       ? "bg-amber-100 text-amber-800"
                                       : "bg-emerald-100 text-emerald-700")
-                                  }
-                                >
-                                  {row.belowKpi
-                                    ? "Below KPI"
-                                    : "Meeting KPI"}
-                                </span>
-                              </td>
-                              <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-700">
-                                {row.actions.length
-                                  ? row.actions.join(" • ")
-                                  : "Monitor"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-sm font-bold text-emerald-700">
-                      ไม่พบพนักงานที่เข้าเงื่อนไข Watchlist ในช่วงที่เลือก
-                    </div>
-                  )}
-
-                  <div className="grid gap-3 text-xs md:grid-cols-3">
-                    <div className="rounded-xl bg-slate-50 px-4 py-3 font-semibold text-slate-600">
-                      Average ต่ำกว่า {PERFORMANCE_KPI_TARGET}% แสดงสถานะ Below KPI
-                    </div>
-                    <div className="rounded-xl bg-yellow-50 px-4 py-3 font-semibold text-yellow-800">
-                      Grade D เดือนปัจจุบัน หรือ Grade C ติดต่อกัน 3 เดือน เข้าสู่ Coaching Program
-                    </div>
-                    <div className="rounded-xl bg-rose-50 px-4 py-3 font-semibold text-rose-800">
-                      Grade D ติดต่อกัน 3 เดือน เข้าสู่ Contract Renewal Review
-                    </div>
+                                }
+                              >
+                                {row.consecutiveBelowKpi} เดือน
+                              </span>
+                            </td>
+                            <td className="border-t border-slate-100 px-4 py-3 text-center">
+                              <span
+                                className={
+                                  "inline-flex rounded-full px-3 py-1 text-xs font-black " +
+                                  (row.failedQaThreeMonths
+                                    ? "bg-rose-100 text-rose-700"
+                                    : "bg-emerald-100 text-emerald-700")
+                                }
+                              >
+                                {row.qaStatus}
+                              </span>
+                            </td>
+                            <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-700">
+                              {row.actions.length ? row.actions.join(" • ") : "Monitor"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </PanelBody>
-              </Panel>
-            ) : null}
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-600">
+                    ไม่พบข้อมูลการประเมินในช่วง 3 เดือนที่ใช้ตรวจสอบ
+                  </div>
+                )}
+
+                <div className="grid gap-3 text-xs md:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 px-4 py-3 font-semibold leading-5 text-slate-600">
+                    คะแนนรายเดือนตั้งแต่ {PERFORMANCE_KPI_TARGET}% ขึ้นไปถือว่าผ่าน KPI ของเดือนนั้น
+                  </div>
+                  <div className="rounded-xl bg-yellow-50 px-4 py-3 font-semibold leading-5 text-yellow-800">
+                    คะแนนต่ำกว่า {PERFORMANCE_KPI_TARGET}% ติดต่อกัน 1–2 เดือน ยังอยู่ในเกณฑ์ปกติและแสดง Monitor
+                  </div>
+                  <div className="rounded-xl bg-rose-50 px-4 py-3 font-semibold leading-5 text-rose-800">
+                    คะแนนต่ำกว่า {PERFORMANCE_KPI_TARGET}% ติดต่อกันครบ 3 เดือน จึงถือว่าไม่ผ่าน QA และเข้าสู่ Coaching Program
+                  </div>
+                </div>
+
+                <div className="grid gap-3 text-xs md:grid-cols-2">
+                  <div className="rounded-xl bg-amber-50 px-4 py-3 font-semibold leading-5 text-amber-800">
+                    Grade D เดือนปัจจุบัน หรือ Grade C ติดต่อกัน 3 เดือน เข้าสู่ Coaching Program
+                  </div>
+                  <div className="rounded-xl bg-red-50 px-4 py-3 font-semibold leading-5 text-red-800">
+                    Grade D ติดต่อกัน 3 เดือน เข้าสู่ Contract Renewal Review
+                  </div>
+                </div>
+              </PanelBody>
+            </Panel>
 
             {periodTopicReports.length ? (
               periodTopicReports.map((report) => (
