@@ -1791,7 +1791,7 @@ export default function SummaryMockup({
   }, [roleScopedAgentList.length, viewMode]);
 
   const monthOptions = useMemo(() => {
-    const keys = [...new Set(allCases.map((item) => item.monthKey).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+    const keys = [...new Set(allCases.map((item) => item.monthKey).filter((key) => key && key !== "unknown"))].sort((a, b) => b.localeCompare(a));
     return [{ value: "all", label: "All Months" }].concat(keys.map((key) => ({ value: key, label: allCases.find((item) => item.monthKey === key)?.monthLabel || key })));
   }, [allCases]);
 
