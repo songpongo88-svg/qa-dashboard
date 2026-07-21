@@ -172,6 +172,22 @@ function normalizeCaseId(value: unknown) {
     .toUpperCase();
 }
 
+function splitAppealCaseIds(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+
+  const matchedIds = text.match(/[A-Za-z]{1,6}\d{3,}/g) || [];
+  const candidates = matchedIds.length
+    ? matchedIds
+    : text.split(/[,;|\n]+/g);
+
+  return [...new Set(
+    candidates
+      .map((item) => normalizeCaseId(item))
+      .filter(Boolean)
+  )];
+}
+
 function toTitleCaseName(value: string) {
   return String(value || "")
     .trim()
@@ -1608,7 +1624,13 @@ export default function AppealMockup({
           )) as UsageLogEvent[];
 
           const firebaseAppealRequests = (buildAppealRequests(appealEvents) as any[])
-            .filter((request) => request.status === "Approved");
+            .filter((request) => request.status === "Approved")
+            .flatMap((request) =>
+              splitAppealCaseIds(request.caseId).map((caseId) => ({
+                ...request,
+                caseId,
+              }))
+            );
 
           firebaseAppealRequests.forEach((request, firebaseIndex) => {
             const caseId = String(request.caseId || "").trim();
@@ -1901,13 +1923,51 @@ export default function AppealMockup({
   }, [filteredCases, selectedCaseKey]);
 
   useEffect(() => {
-    if (!externalSelectedCaseId || !filteredCases.length) return;
-    const targetCaseId = externalSelectedCaseId.trim().toLowerCase();
-    const matchedCase = filteredCases.find((item) => item.caseId.trim().toLowerCase() === targetCaseId);
-    if (matchedCase && matchedCase.key !== selectedCaseKey) {
+    if (!externalSelectedCaseId || !allCases.length) return;
+
+    const targetCaseId = normalizeCaseId(externalSelectedCaseId);
+    const candidates = allCases.filter(
+      (item) => normalizeCaseId(item.caseId) === targetCaseId
+    );
+
+    const matchedCase =
+      candidates.find(
+        (item) =>
+          !externalSelectedAgent ||
+          isSameAgent(item.agent, externalSelectedAgent)
+      ) || candidates[0];
+
+    if (!matchedCase) return;
+
+    if (
+      matchedCase.monthKey &&
+      selectedMonthKey !== matchedCase.monthKey
+    ) {
+      setSelectedMonthKey(matchedCase.monthKey);
+    }
+
+    if (
+      !roleScopedAgentList.length &&
+      matchedCase.agent &&
+      !isSameAgent(selectedAgent || "", matchedCase.agent)
+    ) {
+      setSelectedAgent(matchedCase.agent);
+      onSelectedAgentChange?.(matchedCase.agent);
+    }
+
+    if (matchedCase.key !== selectedCaseKey) {
       setSelectedCaseKey(matchedCase.key);
     }
-  }, [externalSelectedCaseId, filteredCases, selectedCaseKey]);
+  }, [
+    externalSelectedCaseId,
+    externalSelectedAgent,
+    allCases,
+    selectedCaseKey,
+    selectedMonthKey,
+    selectedAgent,
+    roleScopedAgentList,
+    onSelectedAgentChange,
+  ]);
 
   const selectedCase = filteredCases.find((item) => item.key === selectedCaseKey) || null;
   const selectedRevision = selectedCase

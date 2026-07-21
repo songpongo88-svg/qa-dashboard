@@ -59,6 +59,10 @@ type CaseItem = {
   topics: Topic[];
   revisedTopics?: Topic[] | null;
   displayRevisedTopicCodes?: string[];
+  appealStatus?: "Approved" | "Rejected";
+  appealReviewSummary?: string;
+  appealReviewedAt?: string;
+  appealRequestId?: string;
 };
 
 type AppealDraftTopic = {
@@ -92,7 +96,18 @@ type AppealMergeItem = {
   reviewStatus?: ReviewStatus;
   revisedTopics: Topic[];
   displayRevisedTopicCodes: string[];
+  source?: "excel" | "firebase";
 };
+
+type AppealOutcomeItem = {
+  caseId: string;
+  status: "Approved" | "Rejected";
+  reviewSummary: string;
+  reviewedAt: string;
+  requestId: string;
+};
+
+
 
 function downloadGeneratedPdfFile(result: { blob: Blob; fileName: string }) {
   const url = URL.createObjectURL(result.blob);
@@ -119,33 +134,75 @@ function isAppealTopicChanged(topic: { score?: number; revisedScore?: number | s
   return scoreChanged || commentChanged;
 }
 
+function normalizeAppealCaseId(value: unknown) {
+  return String(value ?? "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toUpperCase();
+}
+
+function splitAppealCaseIds(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+
+  const matchedIds = text.match(/[A-Za-z]{1,6}\d{3,}/g) || [];
+  const candidates = matchedIds.length
+    ? matchedIds
+    : text.split(/[,;|\n]+/g);
+
+  return [...new Set(
+    candidates
+      .map((item) => normalizeAppealCaseId(item))
+      .filter(Boolean)
+  )];
+}
+
+function getAppealRequestTime(request: any) {
+  const value = request?.reviewedAt || request?.submittedAt || "";
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function buildLatestAppealRequestMap(logs: UsageLogEvent[]) {
+  const latest = new Map<string, any>();
+
+  buildAppealRequests(logs)
+    .slice()
+    .sort((a, b) => getAppealRequestTime(a) - getAppealRequestTime(b))
+    .forEach((request) => {
+      splitAppealCaseIds(request.caseId).forEach((caseId) => {
+        latest.set(caseId, {
+          ...request,
+          caseId,
+        });
+      });
+    });
+
+  return latest;
+}
+
 function buildApprovedAppealMergeMap(
   logs: UsageLogEvent[],
   rawCaseMonthKeyMap: Map<string, string>
 ) {
-  const approvedRequests = buildAppealRequests(logs)
-    .filter((item) => item.status === "Approved")
-    .sort(
-      (a, b) =>
-        new Date(a.reviewedAt || a.submittedAt || "").getTime() -
-        new Date(b.reviewedAt || b.submittedAt || "").getTime()
-    );
   const map = new Map<string, AppealMergeItem>();
+  const latestRequests = buildLatestAppealRequestMap(logs);
 
-  approvedRequests.forEach((request) => {
-    const caseId = String(request.caseId || "").trim();
-    if (!caseId) return;
+  latestRequests.forEach((request, caseId) => {
+    if (request.status !== "Approved") return;
 
     const revisedTopics: Topic[] = [];
     const displayRevisedTopicCodes: string[] = [];
     const originalFinalScore = Number(request.finalScore || 0);
     let scoreDelta = 0;
 
-    request.topics.forEach((matched) => {
+    (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
       const master = getTopicMasterByMonth(
         rawCaseMonthKeyMap.get(caseId) || getMonthKey(excelDateToJSDate(request.auditDate))
       ).find((item) => item.code === matched.code);
+
       if (!master) return;
+
       const originalScore = Number(matched.score ?? 0);
       const hasRevisedScore =
         matched.revisedScore !== null &&
@@ -153,6 +210,7 @@ function buildApprovedAppealMergeMap(
         matched.revisedScore !== "" &&
         !Number.isNaN(Number(matched.revisedScore));
       const revisedScore = hasRevisedScore ? Number(matched.revisedScore) : originalScore;
+
       if (Number.isFinite(originalScore) && Number.isFinite(revisedScore)) {
         scoreDelta += revisedScore - originalScore;
       }
@@ -162,7 +220,9 @@ function buildApprovedAppealMergeMap(
         label: master.label,
         score: Number.isFinite(revisedScore) ? revisedScore : 0,
         max: master.max,
-        pct: master.max > 0 ? Math.round(((Number.isFinite(revisedScore) ? revisedScore : 0) / master.max) * 100) : 0,
+        pct: master.max > 0
+          ? Math.round(((Number.isFinite(revisedScore) ? revisedScore : 0) / master.max) * 100)
+          : 0,
         comment: String(matched.revisedComment || matched.comment || "").trim(),
       });
 
@@ -180,11 +240,81 @@ function buildApprovedAppealMergeMap(
       reviewStatus: "Revised",
       revisedTopics,
       displayRevisedTopicCodes,
+      source: "firebase",
     });
   });
 
   return map;
 }
+
+function buildAppealOutcomeMap(logs: UsageLogEvent[]) {
+  const map = new Map<string, AppealOutcomeItem>();
+  const latestRequests = buildLatestAppealRequestMap(logs);
+
+  latestRequests.forEach((request, caseId) => {
+    if (request.status !== "Approved" && request.status !== "Rejected") return;
+
+    map.set(caseId, {
+      caseId,
+      status: request.status,
+      reviewSummary: String(request.reviewSummary || "").trim(),
+      reviewedAt: String(request.reviewedAt || "").trim(),
+      requestId: String(request.requestId || "").trim(),
+    });
+  });
+
+  return map;
+}
+
+function applyAppealMapsToCaseItems(
+  cases: CaseItem[],
+  appealMap: Map<string, AppealMergeItem>,
+  outcomeMap: Map<string, AppealOutcomeItem>
+) {
+  return cases.map((item) => {
+    const caseId = normalizeAppealCaseId(item.caseId);
+    const mergedAppeal = appealMap.get(caseId) || appealMap.get(item.caseId);
+    const loggedOutcome = outcomeMap.get(caseId) || outcomeMap.get(item.caseId);
+
+    const excelAppealWins = Boolean(mergedAppeal && mergedAppeal.source !== "firebase");
+    const effectiveStatus = excelAppealWins
+      ? "Approved"
+      : loggedOutcome?.status;
+
+    let nextItem: CaseItem = {
+      ...item,
+      appealStatus: effectiveStatus,
+      appealReviewSummary: loggedOutcome?.reviewSummary || "",
+      appealReviewedAt: loggedOutcome?.reviewedAt || "",
+      appealRequestId: loggedOutcome?.requestId || "",
+    };
+
+    if (!mergedAppeal || effectiveStatus === "Rejected") {
+      return nextItem;
+    }
+
+    const finalScore =
+      mergedAppeal.finalScore ??
+      (mergedAppeal.revisedTopics.length
+        ? calcMergedFinalScore(item.topics, mergedAppeal.revisedTopics)
+        : item.finalScore);
+
+    nextItem = {
+      ...nextItem,
+      finalScore,
+      previousScore: mergedAppeal.previousScore ?? item.previousScore ?? item.finalScore,
+      grade: scoreToGrade(finalScore, item.monthKey),
+      reviewStatus: "Revised",
+      revisedTopics: mergedAppeal.revisedTopics.length
+        ? mergedAppeal.revisedTopics
+        : item.revisedTopics,
+      displayRevisedTopicCodes: mergedAppeal.displayRevisedTopicCodes,
+    };
+
+    return nextItem;
+  });
+}
+
 
 const CASE_TARGET = 10;
 const RAW_DATA_FILE_NAME = "QA_RawData_March-May2026.xlsx";
@@ -2362,6 +2492,7 @@ function SlideOverCaseDetail({
   if (!open || !caseItem) return null;
 
   const hasAppealCase =
+    caseItem.appealStatus === "Approved" ||
     caseItem.reviewStatus === "Revised" ||
     !!caseItem.revisedTopics?.length ||
     !!caseItem.displayRevisedTopicCodes?.length;
@@ -2919,6 +3050,48 @@ function SlideOverCaseDetail({
               subtitle="Selected case overview and review status"
             />
             <PanelBody className="space-y-5">
+              {caseItem.appealStatus === "Rejected" ? (
+                <div className="rounded-[22px] border border-rose-300 bg-rose-50 px-4 py-4 text-rose-800 shadow-sm">
+                  <div className="text-sm font-extrabold text-rose-700">
+                    Appeal Rejected
+                  </div>
+                  <div className="mt-1 text-sm font-semibold leading-6">
+                    คำขออุทธรณ์ของเคสนี้ไม่ได้รับการอนุมัติ คะแนนและผลการประเมินยังคงเป็นข้อมูลเดิม
+                  </div>
+                  {caseItem.appealReviewedAt ? (
+                    <div className="mt-2 text-xs font-semibold text-rose-600">
+                      Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}
+                    </div>
+                  ) : null}
+                  {caseItem.appealReviewSummary ? (
+                    <div className="mt-2 rounded-xl border border-rose-200 bg-white/80 px-3 py-2 text-sm leading-6 text-rose-800">
+                      <span className="font-extrabold">Review Summary:</span>{" "}
+                      {caseItem.appealReviewSummary}
+                    </div>
+                  ) : null}
+                </div>
+              ) : caseItem.appealStatus === "Approved" ? (
+                <div className="rounded-[22px] border border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-800 shadow-sm">
+                  <div className="text-sm font-extrabold text-emerald-700">
+                    Appeal Approved
+                  </div>
+                  <div className="mt-1 text-sm font-semibold leading-6">
+                    ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว
+                  </div>
+                  {caseItem.appealReviewedAt ? (
+                    <div className="mt-2 text-xs font-semibold text-emerald-600">
+                      Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}
+                    </div>
+                  ) : null}
+                  {caseItem.appealReviewSummary ? (
+                    <div className="mt-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm leading-6 text-emerald-800">
+                      <span className="font-extrabold">Review Summary:</span>{" "}
+                      {caseItem.appealReviewSummary}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] lg:p-5">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_300px] xl:items-start">
                   <div className="rounded-[22px] border border-slate-200 bg-white/95 p-3 shadow-sm lg:p-4">
@@ -3677,6 +3850,8 @@ export default function DashboardMockup({
           });
         });
 
+        let appealOutcomeMap = new Map<string, AppealOutcomeItem>();
+
         try {
           const reviewedLogs = await fetchAppealEvents(
             [
@@ -3686,15 +3861,24 @@ export default function DashboardMockup({
             ],
             { limit: 2000, forceRefresh: true }
           ) as UsageLogEvent[];
-          buildApprovedAppealMergeMap(reviewedLogs, rawCaseMonthKeyMap).forEach((item, caseId) => {
-            // Uploaded RawData + uploaded Appeal ROWDATA must win for uploaded months.
-            // Web approval logs are only allowed when the case is not in uploaded RawData.
-            if (!rawCaseMonthKeyMap.has(caseId) && !appealMap.has(caseId)) {
+
+          const firebaseApprovedMap = buildApprovedAppealMergeMap(
+            reviewedLogs,
+            rawCaseMonthKeyMap
+          );
+
+          firebaseApprovedMap.forEach((item, caseId) => {
+            // Existing Appeal ROWDATA remains the official source when the same
+            // Case ID already exists there. Otherwise the reviewed Firebase result
+            // is allowed to revise the original RawData / stored evaluation case.
+            if (!appealMap.has(caseId)) {
               appealMap.set(caseId, item);
             }
           });
+
+          appealOutcomeMap = buildAppealOutcomeMap(reviewedLogs);
         } catch (error) {
-          console.warn("Approved appeal review merge skipped", error);
+          console.warn("Appeal review result merge skipped", error);
         }
 
         setAppealMergeCount(appealMap.size);
@@ -3871,8 +4055,7 @@ export default function DashboardMockup({
               ], caseId ? `/case-pdfs/${caseId}.pdf` : "")
             );
 
-            const reviewStatus: ReviewStatus =
-              mergedAppeal?.displayRevisedTopicCodes?.length ? "Revised" : "Original";
+            const reviewStatus: ReviewStatus = mergedAppeal ? "Revised" : "Original";
 
             const auditDateDisplay = formatAuditDateForDisplay(auditRaw);
 
@@ -3921,7 +4104,7 @@ export default function DashboardMockup({
 
         evaluationCases = await loadEvaluationCases();
         const canonicalCases = mergeRawAndStoredEvaluationCases(mapped, evaluationCases);
-        setAllCases(canonicalCases);
+        setAllCases(applyAppealMapsToCaseItems(canonicalCases, appealMap, appealOutcomeMap));
       } catch (error: any) {
         console.error("Load Error:", error);
         if (evaluationCases.length) {
