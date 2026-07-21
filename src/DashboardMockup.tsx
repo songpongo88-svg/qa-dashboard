@@ -63,6 +63,7 @@ type CaseItem = {
   appealReviewSummary?: string;
   appealReviewedAt?: string;
   appealRequestId?: string;
+  appealReviewedTopics?: Topic[] | null;
 };
 
 type AppealDraftTopic = {
@@ -105,6 +106,7 @@ type AppealOutcomeItem = {
   reviewSummary: string;
   reviewedAt: string;
   requestId: string;
+  reviewedTopics: Topic[];
 };
 
 
@@ -247,12 +249,41 @@ function buildApprovedAppealMergeMap(
   return map;
 }
 
-function buildAppealOutcomeMap(logs: UsageLogEvent[]) {
+function buildAppealOutcomeMap(
+  logs: UsageLogEvent[],
+  rawCaseMonthKeyMap: Map<string, string>
+) {
   const map = new Map<string, AppealOutcomeItem>();
   const latestRequests = buildLatestAppealRequestMap(logs);
 
   latestRequests.forEach((request, caseId) => {
     if (request.status !== "Approved" && request.status !== "Rejected") return;
+
+    const monthKey =
+      rawCaseMonthKeyMap.get(caseId) ||
+      getMonthKey(excelDateToJSDate(request.auditDate));
+    const topicMaster = getTopicMasterByMonth(monthKey);
+    const reviewedTopics: Topic[] = [];
+
+    (Array.isArray(request.topics) ? request.topics : []).forEach((matched: any) => {
+      const revisedComment = String(matched.revisedComment || "").trim();
+      if (!revisedComment) return;
+
+      const master = topicMaster.find((item) => item.code === matched.code);
+      if (!master) return;
+
+      const originalScore = Number(matched.score ?? 0);
+      const safeScore = Number.isFinite(originalScore) ? originalScore : 0;
+
+      reviewedTopics.push({
+        code: master.code,
+        label: master.label,
+        score: safeScore,
+        max: master.max,
+        pct: master.max > 0 ? Math.round((safeScore / master.max) * 100) : 0,
+        comment: revisedComment,
+      });
+    });
 
     map.set(caseId, {
       caseId,
@@ -260,6 +291,7 @@ function buildAppealOutcomeMap(logs: UsageLogEvent[]) {
       reviewSummary: String(request.reviewSummary || "").trim(),
       reviewedAt: String(request.reviewedAt || "").trim(),
       requestId: String(request.requestId || "").trim(),
+      reviewedTopics,
     });
   });
 
@@ -272,9 +304,17 @@ function applyAppealMapsToCaseItems(
   outcomeMap: Map<string, AppealOutcomeItem>
 ) {
   return cases.map((item) => {
-    const caseId = normalizeAppealCaseId(item.caseId);
-    const mergedAppeal = appealMap.get(caseId) || appealMap.get(item.caseId);
-    const loggedOutcome = outcomeMap.get(caseId) || outcomeMap.get(item.caseId);
+    const itemCaseIds = splitAppealCaseIds(item.caseId);
+    const candidateCaseIds = itemCaseIds.length
+      ? itemCaseIds
+      : [normalizeAppealCaseId(item.caseId)].filter(Boolean);
+
+    const mergedAppeal = candidateCaseIds
+      .map((caseId) => appealMap.get(caseId))
+      .find(Boolean);
+    const loggedOutcome = candidateCaseIds
+      .map((caseId) => outcomeMap.get(caseId))
+      .find(Boolean);
 
     const excelAppealWins = Boolean(mergedAppeal && mergedAppeal.source !== "firebase");
     const effectiveStatus = excelAppealWins
@@ -287,6 +327,9 @@ function applyAppealMapsToCaseItems(
       appealReviewSummary: loggedOutcome?.reviewSummary || "",
       appealReviewedAt: loggedOutcome?.reviewedAt || "",
       appealRequestId: loggedOutcome?.requestId || "",
+      appealReviewedTopics: loggedOutcome?.reviewedTopics?.length
+        ? loggedOutcome.reviewedTopics
+        : null,
     };
 
     if (!mergedAppeal || effectiveStatus === "Rejected") {
@@ -3324,6 +3367,36 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
               </div>
+              {caseItem.appealStatus === "Rejected" &&
+              caseItem.appealReviewedTopics?.some((topic) => String(topic.comment || "").trim()) ? (
+                <div className="mb-5 rounded-[22px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
+                  <div className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-rose-700">
+                    Review Feedback / Revised Comment
+                  </div>
+                  <div className="mt-1 text-xs leading-5 text-slate-500">
+                    ข้อความที่ผู้พิจารณาแก้ไขไว้ใน Review Queue — ผลอุทธรณ์ถูก Reject จึงไม่เปลี่ยนคะแนนเดิม
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {caseItem.appealReviewedTopics
+                      .filter((topic) => String(topic.comment || "").trim())
+                      .map((topic, index) => (
+                        <div
+                          key={`${topic.code}-${index}`}
+                          className="rounded-[18px] border border-rose-100 bg-white px-4 py-3 shadow-sm"
+                        >
+                          <div className="text-sm font-extrabold text-slate-900">
+                            {index + 1}. {topic.code} {topic.label}
+                          </div>
+                          <div className="mt-2 whitespace-pre-line text-sm leading-7 text-rose-800">
+                            {topic.comment}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
+
               <CaseDetailTopicTable
                 topics={caseItem.topics}
                 revisedTopics={caseItem.revisedTopics}
@@ -3876,7 +3949,10 @@ export default function DashboardMockup({
             }
           });
 
-          appealOutcomeMap = buildAppealOutcomeMap(reviewedLogs);
+          appealOutcomeMap = buildAppealOutcomeMap(
+            reviewedLogs,
+            rawCaseMonthKeyMap
+          );
         } catch (error) {
           console.warn("Appeal review result merge skipped", error);
         }
