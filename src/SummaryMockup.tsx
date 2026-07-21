@@ -2428,6 +2428,15 @@ export default function SummaryMockup({
     [currentUserAccount]
   );
 
+  useEffect(() => {
+    if (
+      isAdminRole &&
+      summarySection !== "summary"
+    ) {
+      setSummarySection("summary");
+    }
+  }, [isAdminRole, summarySection]);
+
   const teamMonthOptions = useMemo(() => {
     return Array.from(
       new Set(
@@ -2590,6 +2599,61 @@ export default function SummaryMockup({
     const cases = allCases.filter((item) => item.monthKey === teamSelectedMonth);
     return summarizeCases(cases);
   }, [allCases, teamSelectedMonth]);
+
+  const adminSelectedTeamAverage = useMemo(() => {
+    if (
+      !isAdminRole ||
+      !currentUserTeamName
+    ) {
+      return null;
+    }
+
+    const teamCases = allCases.filter((item) => {
+      if (
+        normalizeText(
+          getCaseTeamName(item)
+        ) !==
+        normalizeText(
+          currentUserTeamName
+        )
+      ) {
+        return false;
+      }
+
+      if (!effectivePeriodKeys.length) {
+        return true;
+      }
+
+      if (analysisMode === "weekly") {
+        return effectivePeriodKeys.includes(
+          item.weekLabel
+        );
+      }
+
+      if (analysisMode === "monthly") {
+        return effectivePeriodKeys.includes(
+          item.monthKey
+        );
+      }
+
+      return effectivePeriodKeys.includes(
+        item.yearKey
+      );
+    });
+
+    if (!teamCases.length) {
+      return null;
+    }
+
+    return summarizeCases(teamCases).avgScore;
+  }, [
+    isAdminRole,
+    currentUserTeamName,
+    allCases,
+    accountProfiles,
+    effectivePeriodKeys,
+    analysisMode,
+  ]);
 
   const performanceStatusBaseMonthKey = useMemo(() => {
     if (analysisMode === "monthly") {
@@ -6267,36 +6331,53 @@ export default function SummaryMockup({
         workspaceTitle="Quality Monitoring Workspace"
         workspaceSubtitle="Corporate dashboard for audit tracking and case review"
       />
-      <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
-        <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setSummarySection("summary")}
-            className={
-              "rounded-xl px-5 py-2.5 text-sm font-black transition " +
-              (summarySection === "summary"
-                ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
-                : "text-violet-700 hover:bg-violet-50")
-            }
-          >
-            Summary
-          </button>
-          <button
-            type="button"
-            onClick={() => setSummarySection("team")}
-            className={
-              "rounded-xl px-5 py-2.5 text-sm font-black transition " +
-              (summarySection === "team"
-                ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
-                : "text-violet-700 hover:bg-violet-50")
-            }
-          >
-            Team Performance
-          </button>
-        </div>
-      </div>
+      {!isAdminRole ? (
+        <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
+          <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() =>
+                setSummarySection(
+                  "summary"
+                )
+              }
+              className={
+                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+                (
+                  summarySection ===
+                  "summary"
+                    ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
+                    : "text-violet-700 hover:bg-violet-50"
+                )
+              }
+            >
+              Summary
+            </button>
 
-      {summarySection === "team" ? (
+            <button
+              type="button"
+              onClick={() =>
+                setSummarySection(
+                  "team"
+                )
+              }
+              className={
+                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+                (
+                  summarySection ===
+                  "team"
+                    ? "bg-violet-700 text-white shadow-lg shadow-violet-200"
+                    : "text-violet-700 hover:bg-violet-50"
+                )
+              }
+            >
+              Team Performance
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {summarySection === "team" && !isAdminRole ? (
         <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader
@@ -6836,10 +6917,57 @@ export default function SummaryMockup({
             </Panel>
 
 
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <MetricCard title="Cases" value={String(summaryCards.caseCount)} sub="Case(s) in selected periods" />
-              <MetricCard title="Average Score" value={summaryCards.avgScore.toFixed(2)} sub="Average score across selected periods" valueClassName="text-violet-700" />
-              <MetricCard title="Grade" value={summaryCards.grade} sub="Calculated from selected periods" valueClassName="text-sky-700" accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200" />
+            <div
+              className={
+                "grid gap-6 md:grid-cols-2 " +
+                (
+                  isAdminRole
+                    ? "xl:grid-cols-4"
+                    : "xl:grid-cols-3"
+                )
+              }
+            >
+              <MetricCard
+                title="Cases"
+                value={String(
+                  summaryCards.caseCount
+                )}
+                sub="Case(s) in selected periods"
+              />
+
+              <MetricCard
+                title="Average Score"
+                value={summaryCards.avgScore.toFixed(
+                  2
+                )}
+                sub="Average score across selected periods"
+                valueClassName="text-violet-700"
+              />
+
+              <MetricCard
+                title="Grade"
+                value={summaryCards.grade}
+                sub="Calculated from selected periods"
+                valueClassName="text-sky-700"
+                accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
+              />
+
+              {isAdminRole ? (
+                <div className="rounded-[28px] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/70 to-teal-100/70 p-6 shadow-sm">
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
+                    Team Average
+                  </div>
+
+                  <div className="mt-4 text-4xl font-black tracking-tight text-emerald-700">
+                    {adminSelectedTeamAverage ===
+                    null
+                      ? "No Data"
+                      : adminSelectedTeamAverage.toFixed(
+                          2
+                        )}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {analysisMode === "monthly" ? (
