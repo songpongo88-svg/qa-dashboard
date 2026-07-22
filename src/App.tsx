@@ -209,6 +209,7 @@ type AppTab =
 
 type CaseWorkspaceTabKey = `case:${string}`;
 type WorkspaceTabKey = AppTab | "case-detail" | CaseWorkspaceTabKey;
+type UserAdminSection = "users" | "roles" | "maintenance";
 
 type SidebarNavItem = {
   key: string;
@@ -325,6 +326,13 @@ function normalizeAppTab(value: string | null | undefined): AppTab | "" {
   return VALID_APP_TABS.has(normalized as AppTab) ? (normalized as AppTab) : "";
 }
 
+function normalizeUserAdminSection(value: unknown): UserAdminSection {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "users" || normalized === "roles" || normalized === "maintenance"
+    ? normalized
+    : "maintenance";
+}
+
 const VALID_WORKSPACE_TAB_KEYS = new Set<WorkspaceTabKey>([
   ...Array.from(VALID_APP_TABS),
   "case-detail",
@@ -348,7 +356,7 @@ const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   coaching: "Coaching",
   rubric: "Rubrics",
   "usage-log": "Login Log",
-  "user-roles": "System Setup",
+  "user-roles": "Administration",
 };
 
 function buildCaseWorkspaceKey(caseId: string, agentName = ""): CaseWorkspaceTabKey {
@@ -3041,6 +3049,13 @@ export default function App() {
 
   // data-create-evaluation-multitab-v5
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
+  const [userAdminSection, setUserAdminSection] = useState<UserAdminSection>(() => {
+    try {
+      return normalizeUserAdminSection(new URL(window.location.href).searchParams.get("adminSection"));
+    } catch {
+      return "maintenance";
+    }
+  });
   const [showReleaseNotesModal, setShowReleaseNotesModal] = useState(false);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [liveNow, setLiveNow] = useState(() => new Date());
@@ -3078,7 +3093,7 @@ export default function App() {
     return stored || (activeTab as WorkspaceTabKey) || "dashboard";
   });
   const [sidebarGroupsOpen, setSidebarGroupsOpen] = useState<Record<string, boolean>>(() => {
-    const defaults = { performance: true, qa: false, appeals: false, quality: false, tools: false, workspace: false, admin: false, account: false };
+    const defaults = { performance: true, qa: false, appeals: false, quality: false, tools: false, workspace: false, admin: false, system: false, account: false };
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(SIDEBAR_GROUPS_SESSION_STORAGE_KEY) || "{}");
       return { ...defaults, ...(stored && typeof stored === "object" ? stored : {}) };
@@ -3119,6 +3134,7 @@ export default function App() {
     setSelectedAppealCaseId("");
     setSelectedRubricCode("");
     setAccountMenuValue("");
+    setUserAdminSection("maintenance");
     setShareLinkMessage("");
 
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, "dashboard");
@@ -3130,7 +3146,7 @@ export default function App() {
 
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.set("tab", "dashboard");
-    ["workspace", "subTab", "caseId", "agent", "rubricCode"].forEach((key) => {
+    ["workspace", "subTab", "caseId", "agent", "rubricCode", "adminSection"].forEach((key) => {
       cleanUrl.searchParams.delete(key);
     });
     window.history.replaceState({}, "", cleanUrl.toString());
@@ -3546,10 +3562,10 @@ export default function App() {
     hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
     hasRolePermission(currentUser, rolePermissions, "manageUsers")
   );
+  const roleManagementAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageRoles");
+  const maintenanceAdminAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const roleAdminAllowed = Boolean(currentUser) && (
-    userDirectoryAllowed ||
-    hasRolePermission(currentUser, rolePermissions, "manageRoles") ||
-    hasRolePermission(currentUser, rolePermissions, "manageMaintenance")
+    userDirectoryAllowed || roleManagementAllowed || maintenanceAdminAllowed
   );
   const teamChatAllowed = currentUser ? hasRolePermission(currentUser, rolePermissions, "useTeamChat") : false;
   const maintenanceBlocked = Boolean(currentUser) && maintenanceState.enabled && !hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
@@ -3592,7 +3608,7 @@ export default function App() {
   const missedCallHistoryCount = chatMessages.filter((message) => message.kind === "call" && message.callStatus === "missed").length;
   const accountOptions = canUseAdminAccountMenu
     ? [
-        ...(roleAdminAllowed ? [{ value: "user-roles", label: "System Setup" }] : []),
+        ...(roleAdminAllowed ? [{ value: "user-roles", label: "Administration" }] : []),
         ...(passwordResetShortcutAllowed ? [{ value: "reset-password", label: "Password Reset" }] : []),
         ...(usageLogAllowed ? [{ value: "usage-log", label: "Login Log" }] : []),
         { value: "change-password", label: "My Password" },
@@ -3654,6 +3670,11 @@ export default function App() {
       setSelectedMonthGlobal("all");
       setSelectedAppealCaseId(requestedCaseId);
       if (requestedAgent) setSelectedAgentGlobal(requestedAgent);
+      return;
+    }
+
+    if (tab === "user-roles") {
+      setUserAdminSection(normalizeUserAdminSection(params.get("adminSection")));
       return;
     }
 
@@ -5000,6 +5021,11 @@ export default function App() {
     navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } });
   };
 
+  const openUserAdminSection = (section: UserAdminSection) => {
+    setUserAdminSection(section);
+    navigateToTab("user-roles", { params: { adminSection: section } });
+  };
+
   const openTaskInbox = () => {
     setInboxReturnTitle("");
     navigateToTab("task-inbox");
@@ -6124,7 +6150,16 @@ export default function App() {
       items: [
         { key: "usage-log", label: "Login Log", description: "ดูประวัติการเข้าสู่ระบบและออกจากระบบ", icon: "clock", allowed: usageLogAllowed, active: activeWorkspaceTab === "usage-log", onClick: () => activateWorkspaceTab("usage-log") },
         { key: "reset-password", label: "Password Reset", description: "รีเซ็ตรหัสผ่านให้ผู้ใช้งาน", icon: "appeal", allowed: passwordResetShortcutAllowed, active: false, onClick: () => handleAccountMenuChange("reset-password"), badge: pendingPasswordResetRequestCount },
-        { key: "user-roles", label: "System Setup", description: "จัดการผู้ใช้ สิทธิ์ Role และ Maintenance", icon: "users", allowed: roleAdminAllowed, active: activeWorkspaceTab === "user-roles", onClick: () => activateWorkspaceTab("user-roles") },
+        { key: "admin-users", label: "Users", description: "สร้าง แก้ไข เปิดหรือระงับบัญชีผู้ใช้งาน", icon: "users", allowed: userDirectoryAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "users", onClick: () => openUserAdminSection("users") },
+        { key: "admin-roles", label: "Roles & Permissions", description: "จัดการ Role และกำหนดสิทธิ์การเข้าถึง", icon: "key", allowed: roleManagementAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "roles", onClick: () => openUserAdminSection("roles") },
+      ],
+    },
+    {
+      id: "system",
+      title: "System",
+      description: "ตั้งค่าการเปิดใช้งานระบบ",
+      items: [
+        { key: "system-setup", label: "System Setup", description: "เปิดหรือปิด Maintenance Mode และกำหนดข้อความแจ้งผู้ใช้", icon: "clock", allowed: maintenanceAdminAllowed, active: activeWorkspaceTab === "user-roles" && userAdminSection === "maintenance", onClick: () => openUserAdminSection("maintenance") },
       ],
     },
     {
@@ -6150,7 +6185,7 @@ export default function App() {
             .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside data-navigation-labels-v50="true" className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
+        <aside data-navigation-labels-v50="true" data-admin-sidebar-v56="true" className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
           <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -6551,6 +6586,8 @@ export default function App() {
           <UsageLogMockup />
         ) : activeTab === "user-roles" && roleAdminAllowed ? (
           <UserRoleAdminMockup
+            initialTab={userAdminSection}
+            showPrimaryTabs={false}
             accounts={effectiveUserAccounts}
             currentUser={currentUser}
             roleOverrides={roleOverrides}

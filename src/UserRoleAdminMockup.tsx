@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { jsPDF } from "jspdf";
@@ -129,6 +129,8 @@ type UserRoleAdminMockupProps = {
   roleOverrides: Record<string, UserRole>;
   rolePermissions: RolePermissionMap;
   maintenanceState: MaintenanceState;
+  initialTab?: AdminTab;
+  showPrimaryTabs?: boolean;
   onMaintenanceChanged: () => void | Promise<void>;
   onRolesChanged: () => void | Promise<void>;
 };
@@ -627,6 +629,8 @@ export default function UserRoleAdminMockup({
   roleOverrides,
   rolePermissions,
   maintenanceState,
+  initialTab,
+  showPrimaryTabs = true,
   onMaintenanceChanged,
   onRolesChanged,
 }: UserRoleAdminMockupProps) {
@@ -642,7 +646,7 @@ export default function UserRoleAdminMockup({
   const [directoryTab, setDirectoryTab] = useState<DirectoryTab>("active");
   const [directoryRoleFilter, setDirectoryRoleFilter] = useState<UserRole | "all">("all");
   const [userManagementView, setUserManagementView] = useState<UserManagementView>("users");
-  const [adminTab, setAdminTab] = useState<AdminTab>("users");
+  const [adminTab, setAdminTab] = useState<AdminTab>(() => initialTab || "users");
   const [roleDefinitions, setRoleDefinitions] = useState<RoleDefinition[]>(() => buildRoleDefinitions([]));
   const [permissionDrafts, setPermissionDrafts] = useState<RolePermissionMap>(rolePermissions);
   const [newRoleName, setNewRoleName] = useState("");
@@ -756,6 +760,12 @@ export default function UserRoleAdminMockup({
   useEffect(() => {
     setPermissionDrafts(rolePermissions);
   }, [rolePermissions]);
+
+  useEffect(() => {
+    if (initialTab && initialTab !== adminTab) {
+      setAdminTab(initialTab);
+    }
+  }, [adminTab, initialTab]);
 
   useEffect(() => {
     if (adminTab === "users" && canViewUserDirectory) return;
@@ -1667,58 +1677,86 @@ export default function UserRoleAdminMockup({
     }
   };
 
+  const pageCopy = adminTab === "users"
+    ? {
+        eyebrow: "User Management",
+        title: "Users",
+        subtitle: "จัดการข้อมูลผู้ใช้ บัญชี สถานะ และทีมที่รับผิดชอบ",
+        workspaceTitle: "User Directory",
+        workspaceSubtitle: "สร้าง แก้ไข และควบคุมบัญชีผู้ใช้งาน",
+      }
+    : adminTab === "roles"
+      ? {
+          eyebrow: "Access Control",
+          title: "Roles & Permissions",
+          subtitle: "จัดการ Role และกำหนดสิทธิ์การเข้าถึงแต่ละส่วนของระบบ",
+          workspaceTitle: "Access Management",
+          workspaceSubtitle: "กำหนดบทบาทและสิทธิ์ของผู้ใช้งาน",
+        }
+      : {
+          eyebrow: "System",
+          title: "System Setup",
+          subtitle: "จัดการ Maintenance Mode และสถานะการเปิดใช้งานระบบ",
+          workspaceTitle: "System Maintenance",
+          workspaceSubtitle: "ควบคุมการเปิดหรือปิดระบบสำหรับผู้ใช้งาน",
+        };
+
   return (
-    <div className="min-h-screen bg-[#fbf8ff] text-slate-950">
+    <div data-admin-section-v56="true" className="min-h-screen bg-[#fbf8ff] text-slate-950">
       <PageHero
-        eyebrow="Admin"
-        title="System Setup"
-        subtitle="จัดการผู้ใช้ สิทธิ์ Role และสถานะการเปิดใช้งานระบบ"
-        workspaceTitle="Admin Console"
-        workspaceSubtitle="การตั้งค่าระบบ QA สำหรับผู้ดูแล"
+        eyebrow={pageCopy.eyebrow}
+        title={pageCopy.title}
+        subtitle={pageCopy.subtitle}
+        workspaceTitle={pageCopy.workspaceTitle}
+        workspaceSubtitle={pageCopy.workspaceSubtitle}
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <MetricCard label="Total Users" value={totalUsers} tone="text-violet-600" />
-          <MetricCard label="Active" value={activeUsers} tone="text-emerald-600" />
-          <MetricCard label="Suspended" value={suspendedUsers} tone="text-rose-600" />
-          <MetricCard label="Senior" value={seniorUsers} tone="text-amber-600" />
-          <MetricCard label="Supervisors" value={supervisorUsers} tone="text-sky-600" />
-          <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
-        </div>
-
-        <div className="mt-6 rounded-[30px] border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 p-3 shadow-[0_18px_48px_rgba(109,40,217,0.10)]">
-          <div className="grid gap-3 lg:grid-cols-3">
-            {canViewUserDirectory ? (
-              <AdminPrimaryTabButton
-                active={adminTab === "users"}
-                title="Users"
-                description={canManageUsers ? "Manage user profiles and account status" : "View user profiles and account status"}
-                count={totalUsers}
-                onClick={() => setAdminTab("users")}
-              />
-            ) : null}
-            {canManageRoles ? (
-              <AdminPrimaryTabButton
-                active={adminTab === "roles"}
-                title="Access"
-                description="Configure roles and permissions"
-                count={roleDefinitions.length}
-                onClick={() => setAdminTab("roles")}
-              />
-            ) : null}
-            {canManageMaintenance ? (
-              <AdminPrimaryTabButton
-                active={adminTab === "maintenance"}
-                title="Maintenance"
-                description={maintenanceState.enabled ? "Maintenance mode is active" : "System is open for users"}
-                count={maintenanceState.enabled ? 1 : 0}
-                tone={maintenanceState.enabled ? "amber" : "slate"}
-                onClick={() => setAdminTab("maintenance")}
-              />
-            ) : null}
+        {adminTab === "users" ? (
+          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <MetricCard label="Total Users" value={totalUsers} tone="text-violet-600" />
+            <MetricCard label="Active" value={activeUsers} tone="text-emerald-600" />
+            <MetricCard label="Suspended" value={suspendedUsers} tone="text-rose-600" />
+            <MetricCard label="Senior" value={seniorUsers} tone="text-amber-600" />
+            <MetricCard label="Supervisors" value={supervisorUsers} tone="text-sky-600" />
+            <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
           </div>
-        </div>
+        ) : null}
+
+        {showPrimaryTabs ? (
+          <div className="mt-6 rounded-[30px] border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 p-3 shadow-[0_18px_48px_rgba(109,40,217,0.10)]">
+            <div className="grid gap-3 lg:grid-cols-3">
+              {canViewUserDirectory ? (
+                <AdminPrimaryTabButton
+                  active={adminTab === "users"}
+                  title="Users"
+                  description={canManageUsers ? "Manage user profiles and account status" : "View user profiles and account status"}
+                  count={totalUsers}
+                  onClick={() => setAdminTab("users")}
+                />
+              ) : null}
+              {canManageRoles ? (
+                <AdminPrimaryTabButton
+                  active={adminTab === "roles"}
+                  title="Access"
+                  description="Configure roles and permissions"
+                  count={roleDefinitions.length}
+                  onClick={() => setAdminTab("roles")}
+                />
+              ) : null}
+              {canManageMaintenance ? (
+                <AdminPrimaryTabButton
+                  active={adminTab === "maintenance"}
+                  title="Maintenance"
+                  description={maintenanceState.enabled ? "Maintenance mode is active" : "System is open for users"}
+                  count={maintenanceState.enabled ? 1 : 0}
+                  tone={maintenanceState.enabled ? "amber" : "slate"}
+                  onClick={() => setAdminTab("maintenance")}
+                />
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {message ? (
           <div className="mt-4 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-bold text-violet-700 shadow-sm">
