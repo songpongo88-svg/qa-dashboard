@@ -3592,277 +3592,377 @@ function SlideOverCaseDetail({
       ) : null}
 
       <div className="relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff] shadow-2xl">
-        <div className="sticky top-0 z-10 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
+        <div className="sticky top-0 z-20 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
+          <div className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-6">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-700">
                 Case Review
               </div>
-              <div className="mt-1 truncate text-lg font-bold text-slate-900">{caseItem.caseId}</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2.5">
+                <div className="truncate text-[24px] font-extrabold leading-none tracking-tight text-slate-950 lg:text-[28px]">
+                  {caseItem.caseId}
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                  <span aria-hidden="true">▣</span>
+                  {caseItem.weekLabel || "-"}
+                </span>
+                {caseItem.caseUrl ? (
+                  <a
+                    href={caseItem.caseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    Open Case
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-700">
+                    Case Detail
+                  </span>
+                )}
+              </div>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="shrink-0 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
             >
               Close
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-6 p-5 lg:p-6">
-          <Panel>
-            <PanelHeader
-              title="Case Information"
-              subtitle="Selected case overview and review status"
-            />
-            <PanelBody className="space-y-5">
-              {caseItem.appealStatus === "Rejected" ? (
-                <div className="rounded-[22px] border border-rose-300 bg-rose-50 px-4 py-4 text-rose-800 shadow-sm">
-                  <div className="text-sm font-extrabold text-rose-700">
-                    Appeal Rejected
-                  </div>
-                  <div className="mt-1 text-sm font-semibold leading-6">
-                    คำขออุทธรณ์ของเคสนี้ไม่ได้รับการอนุมัติ คะแนนและผลการประเมินยังคงเป็นข้อมูลเดิม
-                  </div>
-                  {caseItem.appealReviewedAt ? (
-                    <div className="mt-2 text-xs font-semibold text-rose-600">
-                      Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}
-                    </div>
-                  ) : null}
-                  {caseItem.appealReviewSummary ? (
-                    <div className="mt-2 rounded-xl border border-rose-200 bg-white/80 px-3 py-2 text-sm leading-6 text-rose-800">
-                      <span className="font-extrabold">Review Summary:</span>{" "}
-                      {caseItem.appealReviewSummary}
-                    </div>
-                  ) : null}
+        <div className="flex-1 overflow-y-auto space-y-5 p-4 lg:p-5">
+          <section data-case-detail-priority-v53="true" className="space-y-4">
+            {caseItem.appealStatus === "Rejected" ? (
+              <div className="rounded-[22px] border border-rose-300 bg-rose-50 px-4 py-4 text-rose-800 shadow-sm">
+                <div className="text-sm font-extrabold text-rose-700">Appeal Rejected</div>
+                <div className="mt-1 text-sm font-semibold leading-6">
+                  คำขออุทธรณ์ของเคสนี้ไม่ได้รับการอนุมัติ คะแนนและผลการประเมินยังคงเป็นข้อมูลเดิม
                 </div>
-              ) : caseItem.appealStatus === "Approved" ? (
-                <div className="rounded-[22px] border border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-800 shadow-sm">
-                  <div className="text-sm font-extrabold text-emerald-700">
-                    Appeal Approved
+                {caseItem.appealReviewedAt ? (
+                  <div className="mt-2 text-xs font-semibold text-rose-600">
+                    Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}
                   </div>
-                  <div className="mt-1 text-sm font-semibold leading-6">
-                    ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว
+                ) : null}
+                {caseItem.appealReviewSummary ? (
+                  <div className="mt-2 rounded-xl border border-rose-200 bg-white/80 px-3 py-2 text-sm leading-6 text-rose-800">
+                    <span className="font-extrabold">Review Summary:</span>{" "}
+                    {caseItem.appealReviewSummary}
                   </div>
-                  {caseItem.appealReviewedAt ? (
-                    <div className="mt-2 text-xs font-semibold text-emerald-600">
-                      Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}
-                    </div>
-                  ) : null}
-                  {caseItem.appealReviewSummary ? (
-                    <div className="mt-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm leading-6 text-emerald-800">
-                      <span className="font-extrabold">Review Summary:</span>{" "}
-                      {caseItem.appealReviewSummary}
-                    </div>
-                  ) : null}
+                ) : null}
+              </div>
+            ) : caseItem.appealStatus === "Approved" ? (
+              <div className="rounded-[22px] border border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-800 shadow-sm">
+                <div className="text-sm font-extrabold text-emerald-700">Appeal Approved</div>
+                <div className="mt-1 text-sm font-semibold leading-6">
+                  ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว
                 </div>
-              ) : null}
+                {caseItem.appealReviewedAt ? (
+                  <div className="mt-2 text-xs font-semibold text-emerald-600">
+                    Reviewed Date: {formatBangkokDateTime(caseItem.appealReviewedAt)}
+                  </div>
+                ) : null}
+                {caseItem.appealReviewSummary ? (
+                  <div className="mt-2 rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-sm leading-6 text-emerald-800">
+                    <span className="font-extrabold">Review Summary:</span>{" "}
+                    {caseItem.appealReviewSummary}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
-              <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4 shadow-[0_16px_36px_rgba(15,23,42,0.06)] lg:p-5">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_300px] xl:items-start">
-                  <div className="rounded-[22px] border border-slate-200 bg-white/95 p-3 shadow-sm lg:p-4">
-                    <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-slate-50">
-                      {[
-                        { label: "Agent", value: caseItem.agent || "-" },
-                        { label: "Evaluated By", value: caseItem.evaluatorName || "Not recorded" },
-                        { label: "Case Date", value: caseItem.auditDate || "-" },
-                        { label: "Audit Date", value: caseItem.auditTimestamp || "-" },
-                        { label: "RawData File", value: caseItem.rawDataSourceName || RAW_DATA_FILE_NAME },
-                        {
-                          label: "Waiting Time / Service Time",
-                          value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
-                        },
-                        { label: "Week", value: caseItem.weekLabel || "-" },
-                      ].map((entry, index, arr) => (
-                        <div
-                          key={entry.label}
-                          className={`px-4 py-3 ${index !== arr.length - 1 ? "border-b border-slate-200" : ""}`}
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_340px] xl:items-start">
+              <div className="space-y-4">
+                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">▣</span>
+                    <div>
+                      <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Overview</div>
+                      <div className="mt-0.5 text-[11px] text-slate-500">ข้อมูลหลักของเคสและหัวข้อที่ติดต่อ</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-5">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">Agent</div>
+                      <div className="mt-1.5 text-[18px] font-extrabold tracking-tight text-slate-950">
+                        {caseItem.agent || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[20px] border border-violet-200 bg-gradient-to-r from-violet-50 via-fuchsia-50/60 to-white p-4 shadow-[0_8px_20px_rgba(109,40,217,0.06)]">
+                      <div className="flex items-start gap-3.5">
+                        <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-lg font-black text-white shadow-sm">◎</span>
+                        <div className="min-w-0 border-l border-violet-200 pl-4">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">Intent</div>
+                          {(() => {
+                            const detailIntent = splitCaseNavigatorIntent(caseItem.inquiryTh, caseItem.inquiryEn);
+                            return (
+                              <>
+                                <div className="mt-1.5 whitespace-pre-line text-[15px] font-extrabold leading-6 text-slate-900">
+                                  {detailIntent.thai}
+                                </div>
+                                {detailIntent.english ? (
+                                  <div className="mt-0.5 whitespace-pre-line text-[13px] font-semibold leading-5 text-slate-500">
+                                    {detailIntent.english}
+                                  </div>
+                                ) : null}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
+                      <div className="min-w-0 sm:border-r sm:border-slate-200 sm:pr-4">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">Case Date</div>
+                        <div className="mt-1.5 text-[15px] font-extrabold text-slate-900">{caseItem.auditDate || "-"}</div>
+                      </div>
+                      <div className="min-w-0 sm:pl-1">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">Week</div>
+                        <div className="mt-1.5 text-[15px] font-extrabold text-slate-900">{caseItem.weekLabel || "-"}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3.5">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">◷</span>
+                    <div>
+                      <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Timeline / Audit Info</div>
+                      <div className="mt-0.5 text-[11px] text-slate-500">เวลาให้บริการและข้อมูลผู้ประเมิน</div>
+                    </div>
+                  </div>
+                  <div className="grid gap-0 p-5 sm:grid-cols-3">
+                    {[
+                      { label: "Audit Date", value: caseItem.auditTimestamp || "-" },
+                      {
+                        label: "Waiting Time / Service Time",
+                        value: formatWaitingServiceRange(caseItem.waitingTime, caseItem.serviceTime),
+                      },
+                      { label: "Evaluated By", value: caseItem.evaluatorName || "Not recorded" },
+                    ].map((entry, index) => (
+                      <div
+                        key={entry.label}
+                        className={`min-w-0 py-2 sm:px-4 sm:py-0 ${index > 0 ? "border-t border-slate-100 pt-4 sm:border-l sm:border-t-0 sm:pt-0" : "sm:pl-0"}`}
+                      >
+                        <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">{entry.label}</div>
+                        <div className="mt-1.5 break-words text-[14px] font-extrabold leading-5 text-slate-900">{entry.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3.5">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">▤</span>
+                    <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Source</div>
+                  </div>
+                  <div className="px-5 py-4">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">RawData File</div>
+                    <div className="mt-1.5 text-[15px] font-extrabold text-slate-900">
+                      {caseItem.rawDataSourceName || RAW_DATA_FILE_NAME}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 xl:sticky xl:top-4">
+                <div className={`rounded-[24px] border p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-lg font-black text-emerald-700 shadow-sm">★</span>
+                    <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Final Score</div>
+                  </div>
+
+                  <div className="mt-5 flex items-start justify-between gap-3">
+                    <div>
+                      <div className={`text-[52px] font-black leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
+                        {caseItem.finalScore.toFixed(2)}
+                      </div>
+                      <div className={`mt-3 text-[14px] font-extrabold ${currentGradeTone(caseItem.grade).levelText}`}>
+                        {currentGradeTone(caseItem.grade).level}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <span className={`inline-flex rounded-full border px-3.5 py-1.5 text-[12px] font-bold ${currentGradeTone(caseItem.grade).badge}`}>
+                        Grade {caseItem.grade}
+                      </span>
+                      <span className={`inline-flex rounded-full border px-3.5 py-1.5 text-[12px] font-bold ${reviewTone(caseItem.reviewStatus)}`}>
+                        {caseItem.reviewStatus}
+                      </span>
+                    </div>
+                  </div>
+
+                  {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
+                    <div className="mt-4 rounded-[16px] border border-white/70 bg-white/80 px-3 py-2.5 text-[12px] text-slate-700 shadow-sm">
+                      <span className="font-bold text-slate-900">Score Change:</span>{" "}
+                      Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-lg font-black text-violet-700">⚡</span>
+                    <div>
+                      <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Quick Actions</div>
+                      <div className="mt-0.5 text-[11px] text-slate-500">เปิด แชร์ หรือดาวน์โหลดข้อมูลเคส</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2.5">
+                    {hasAppealCase ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenAppealCase?.(caseItem.caseId, caseItem.agent);
+                          onClose();
+                        }}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-[13px] font-bold text-violet-700 transition hover:bg-violet-100"
+                      >
+                        <span aria-hidden="true">↗</span>
+                        Open Appeal Case
+                      </button>
+                    ) : null}
+
+                    {caseItem.caseUrl ? (
+                      <a
+                        href={caseItem.caseUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-[13px] font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      >
+                        <span aria-hidden="true">◎</span>
+                        Open Case URL
+                      </a>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => onShareCaseDetail?.(caseItem.caseId, caseItem.agent)}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-[13px] font-bold text-indigo-700 transition hover:bg-indigo-100"
+                    >
+                      <span aria-hidden="true">↗</span>
+                      Share Case Detail Link
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateCaseDetailPdf("original")}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-700 transition hover:bg-amber-100"
+                      title={`Generate ${caseItem.caseId} Original PDF`}
+                    >
+                      <span aria-hidden="true">▤</span>
+                      {caseItem.caseId} Original PDF
+                    </button>
+
+                    {canSubmitAppeal ? (
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={openAppealSubmitForm}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-bold text-emerald-700 transition hover:bg-emerald-100"
                         >
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            {entry.label}
+                          <span aria-hidden="true">＋</span>
+                          Submit Appeal
+                        </button>
+                        {appealOverrideAllowed && !isAppealWindowOpen(caseItem.auditDateObj) ? (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[12px] font-semibold text-amber-700">
+                            Appeal override enabled for this case.
                           </div>
-                          <div className="mt-1.5 text-[15px] font-bold tracking-tight text-slate-900 lg:text-[16px]">
-                            {entry.value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={`rounded-[22px] border px-4 py-4 shadow-[0_14px_30px_rgba(15,23,42,0.08)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Final Score</div>
-                        <div className={`mt-2 text-[42px] font-extrabold leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
-                          {caseItem.finalScore.toFixed(2)}
-                        </div>
-                        <div className={`mt-2 text-[13px] font-semibold ${currentGradeTone(caseItem.grade).levelText}`}>
-                          {currentGradeTone(caseItem.grade).level}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${currentGradeTone(caseItem.grade).badge}`}>
-                          Grade {caseItem.grade}
-                        </span>
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${reviewTone(caseItem.reviewStatus)}`}>
-                          {caseItem.reviewStatus}
-                        </span>
-                      </div>
-                    </div>
-
-                    {caseItem.reviewStatus === "Revised" && typeof caseItem.previousScore === "number" ? (
-                      <div className="mt-3 rounded-[16px] border border-white/70 bg-white/80 px-3 py-2.5 text-[12px] text-slate-700 shadow-sm">
-                        <span className="font-semibold text-slate-900">Score Change:</span>{" "}
-                        Original {caseItem.previousScore.toFixed(2)} → Revised {caseItem.finalScore.toFixed(2)}
+                        ) : null}
                       </div>
                     ) : null}
 
-                    <div className="mt-4 grid gap-2.5">
-                      {hasAppealCase ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onOpenAppealCase?.(caseItem.caseId, caseItem.agent);
-                            onClose();
-                          }}
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-semibold text-violet-700 transition hover:bg-violet-100"
-                        >
-                          Open Appeal Case
-                        </button>
-                      ) : null}
+                    {appealRequestExists ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[12px] font-semibold text-slate-600">
+                        Appeal request already submitted for this case.
+                      </div>
+                    ) : null}
 
-                      {caseItem.caseUrl ? (
-                        <a
-                          href={caseItem.caseUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
-                        >
-                          Open Case URL
-                        </a>
-                      ) : null}
-
+                    {hasAppealCase ? (
                       <button
                         type="button"
-                        onClick={() => onShareCaseDetail?.(caseItem.caseId, caseItem.agent)}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[13px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                        onClick={() => handleGenerateCaseDetailPdf("appeal")}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-[13px] font-bold text-violet-700 transition hover:bg-violet-100"
+                        title={`Generate ${caseItem.caseId} Appeal PDF`}
                       >
-                        Share Case Detail Link
+                        <span aria-hidden="true">▤</span>
+                        {caseItem.caseId} Appeal PDF
                       </button>
+                    ) : null}
+
+                    {String(caseItem.caseImageUrl || "").trim() ? (
                       <button
                         type="button"
-                        onClick={() => handleGenerateCaseDetailPdf("original")}
-                        className="inline-flex w-full items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-semibold text-amber-700 transition hover:bg-amber-100"
-                        title={`Generate ${caseItem.caseId} Original PDF`}
+                        onClick={() => {
+                          if (verifiedImagePdfUrls.length) {
+                            setPreviewAsset({
+                              type: "pdf",
+                              url: verifiedImagePdfUrls[0].url,
+                              title: verifiedImagePdfUrls[0].label,
+                              downloadUrl: verifiedImagePdfUrls[0].url,
+                            });
+                            return;
+                          }
+                          if (verifiedImageUrls.length) {
+                            setPreviewAsset({
+                              type: "image",
+                              url: verifiedImageUrls[0],
+                              title: `${caseItem.caseId} Case Image`,
+                              items: verifiedImageUrls,
+                              index: 0,
+                              downloadUrl: verifiedImageUrls[0],
+                            });
+                            return;
+                          }
+
+                          const fallbackImageCandidates = imageAssetCandidates.filter((item) => item?.previewUrl || item?.url);
+                          const firstFallback = fallbackImageCandidates[0];
+
+                          if (firstFallback?.isPdf) {
+                            const pdfTarget = firstFallback.rawUrl || firstFallback.url;
+                            setPreviewAsset({
+                              type: "pdf",
+                              url: getGoogleDrivePdfViewerUrl(pdfTarget) || pdfTarget,
+                              title: `${caseItem.caseId} Image Attachment PDF`,
+                              downloadUrl: normalizeAssetUrl(pdfTarget) || pdfTarget,
+                            });
+                            return;
+                          }
+
+                          const fallbackUrls = fallbackImageCandidates
+                            .map((item) => item.previewUrl || item.url)
+                            .filter((url): url is string => Boolean(url))
+                            .filter((url, index, arr) => arr.indexOf(url) === index);
+
+                          if (fallbackUrls.length) {
+                            setPreviewAsset({
+                              type: "image",
+                              url: fallbackUrls[0],
+                              title: `${caseItem.caseId} Case Image`,
+                              items: fallbackUrls,
+                              index: 0,
+                              downloadUrl: fallbackUrls[0],
+                            });
+                          }
+                        }}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-[13px] font-bold text-sky-700 transition hover:bg-sky-100"
                       >
-                        {caseItem.caseId} Original PDF
+                        <span aria-hidden="true">▧</span>
+                        Preview Case Image
                       </button>
-
-                      {canSubmitAppeal ? (
-                        <div className="space-y-2">
-                          <button
-                            type="button"
-                            onClick={openAppealSubmitForm}
-                            className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                          >
-                            Submit Appeal
-                          </button>
-                          {appealOverrideAllowed && !isAppealWindowOpen(caseItem.auditDateObj) ? (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[12px] font-semibold text-amber-700">
-                              Appeal override enabled for this case.
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {appealRequestExists ? (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[12px] font-semibold text-slate-600">
-                          Appeal request already submitted for this case.
-                        </div>
-                      ) : null}
-
-                      {hasAppealCase ? (
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateCaseDetailPdf("appeal")}
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-semibold text-violet-700 transition hover:bg-violet-100"
-                          title={`Generate ${caseItem.caseId} Appeal PDF`}
-                        >
-                          {caseItem.caseId} Appeal PDF
-                        </button>
-                      ) : null}
-                      {String(caseItem.caseImageUrl || '').trim() ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (verifiedImagePdfUrls.length) {
-                              setPreviewAsset({
-                                type: "pdf",
-                                url: verifiedImagePdfUrls[0].url,
-                                title: verifiedImagePdfUrls[0].label,
-                                downloadUrl: verifiedImagePdfUrls[0].url,
-                              });
-                              return;
-                            }
-                            if (verifiedImageUrls.length) {
-                              setPreviewAsset({
-                                type: "image",
-                                url: verifiedImageUrls[0],
-                                title: `${caseItem.caseId} Case Image`,
-                                items: verifiedImageUrls,
-                                index: 0,
-                                downloadUrl: verifiedImageUrls[0],
-                              });
-                              return;
-                            }
-
-                            const fallbackImageCandidates = imageAssetCandidates.filter((item) => item?.previewUrl || item?.url);
-                            const firstFallback = fallbackImageCandidates[0];
-
-                            if (firstFallback?.isPdf) {
-                              const pdfTarget = firstFallback.rawUrl || firstFallback.url;
-                              setPreviewAsset({
-                                type: "pdf",
-                                url: getGoogleDrivePdfViewerUrl(pdfTarget) || pdfTarget,
-                                title: `${caseItem.caseId} Image Attachment PDF`,
-                                downloadUrl: normalizeAssetUrl(pdfTarget) || pdfTarget,
-                              });
-                              return;
-                            }
-
-                            const fallbackUrls = fallbackImageCandidates
-                              .map((item) => item.previewUrl || item.url)
-                              .filter((url): url is string => Boolean(url))
-                              .filter((url, index, arr) => arr.indexOf(url) === index);
-
-                            if (fallbackUrls.length) {
-                              setPreviewAsset({
-                                type: "image",
-                                url: fallbackUrls[0],
-                                title: `${caseItem.caseId} Case Image`,
-                                items: fallbackUrls,
-                                index: 0,
-                                downloadUrl: fallbackUrls[0],
-                              });
-                            }
-                          }}
-                          className="inline-flex w-full items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-[13px] font-semibold text-sky-700 transition hover:bg-sky-100"
-                        >
-                          Preview Case Image
-                        </button>
-                      ) : null}
-
-                    </div>
+                    ) : null}
                   </div>
                 </div>
-
               </div>
-            </PanelBody>
-          </Panel>
-
+            </div>
+          </section>
           <Panel>
             <PanelHeader title="Topic Detail" subtitle="Premium topic review with highlighted revised score changes" />
             <PanelBody>
