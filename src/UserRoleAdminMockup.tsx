@@ -2677,6 +2677,7 @@ function TeamManagementPanel({
 }
 
 // data-role-permission-readable-font-v58
+// data-role-permission-column-layout-v59
 function PermissionThaiTooltip({
   label,
   description,
@@ -2689,9 +2690,9 @@ function PermissionThaiTooltip({
       <span
         tabIndex={0}
         aria-label={`คำอธิบายสิทธิ์ ${label}`}
-        className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-violet-200 bg-violet-50 text-[11px] font-semibold text-violet-700 outline-none transition hover:border-violet-400 hover:bg-violet-100 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+        className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-slate-200 bg-white text-[11px] font-medium text-slate-500 outline-none transition hover:border-violet-300 hover:text-violet-700 focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
       >
-        ?
+        i
       </span>
       <span className="pointer-events-none absolute left-1/2 top-full z-[70] mt-2 hidden w-72 -translate-x-1/2 rounded-2xl bg-slate-950 px-4 py-3 text-left text-xs font-normal leading-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.32)] group-hover:block group-focus-within:block">
         <span className="block font-semibold text-violet-200">{label}</span>
@@ -2738,51 +2739,136 @@ function RoleManagementPanel({
   const [selectedRoleName, setSelectedRoleName] = useState(roles[0]?.name || "");
   const [roleSearch, setRoleSearch] = useState("");
   const [permissionSearch, setPermissionSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
   const [showCreateRole, setShowCreateRole] = useState(false);
   const [editingRoleName, setEditingRoleName] = useState("");
   const [editingRoleDraft, setEditingRoleDraft] = useState({ name: "", description: "" });
   const [permissionToast, setPermissionToast] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    Performance: true,
-    Review: true,
-    Account: true,
-    System: true,
-  });
+  const categoryOrder = [
+    "Appeals",
+    "Learning & Training",
+    "Performance",
+    "QA & Evaluation",
+    "System",
+    "User & Team",
+  ] as const;
+
+  const categoryMeta: Record<
+    (typeof categoryOrder)[number],
+    { thai: string; icon: string }
+  > = {
+    Appeals: { thai: "การจัดการอุทธรณ์", icon: "↺" },
+    "Learning & Training": { thai: "การเรียนรู้และการฝึกอบรม", icon: "✦" },
+    Performance: { thai: "การจัดการผลงาน", icon: "▥" },
+    "QA & Evaluation": { thai: "การประเมินคุณภาพ", icon: "★" },
+    System: { thai: "การตั้งค่าระบบ", icon: "⚙" },
+    "User & Team": { thai: "ผู้ใช้และทีมงาน", icon: "◉" },
+  };
+
+  const groupedPermissions = useMemo(() => {
+    const groups = categoryOrder.reduce((acc, category) => {
+      acc[category] = [];
+      return acc;
+    }, {} as Record<(typeof categoryOrder)[number], typeof PERMISSION_DEFINITIONS>);
+
+    PERMISSION_DEFINITIONS.forEach((permission) => {
+      let category: (typeof categoryOrder)[number] = "System";
+
+      if (["viewAppeal", "submitAppeal", "reviewAppeals", "appealOverride"].includes(permission.key)) {
+        category = "Appeals";
+      } else if (
+        [
+          "takePreTest",
+          "managePreTest",
+          "viewPreTestResults",
+          "resetPreTestRetake",
+          "exportPreTestResults",
+          "viewTrainingCheckIn",
+          "viewTrainingAttendance",
+          "checkInTrainingSelf",
+          "manageTrainingSessions",
+          "manageTrainingRoster",
+          "manualUpdateTrainingAttendance",
+          "exportTrainingAttendance",
+        ].includes(permission.key)
+      ) {
+        category = "Learning & Training";
+      } else if (["viewDashboard", "viewAllAgents", "viewSummary", "viewCoaching"].includes(permission.key)) {
+        category = "Performance";
+      } else if (
+        [
+          "viewRubric",
+          "manageRubric",
+          "createEvaluation",
+          "qaEvaluationTarget",
+          "exportPdf",
+          "exportAppealRawdata",
+        ].includes(permission.key)
+      ) {
+        category = "QA & Evaluation";
+      } else if (
+        ["viewUserDirectory", "viewAllTeams", "viewOwnTeam", "manageUsers", "manageTeams", "resetPassword"].includes(permission.key)
+      ) {
+        category = "User & Team";
+      } else {
+        category = "System";
+      }
+
+      groups[category].push(permission);
+    });
+
+    categoryOrder.forEach((category) => {
+      groups[category] = [...groups[category]].sort((a, b) => a.label.localeCompare(b.label));
+    });
+
+    return groups;
+  }, []);
+
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() =>
+    categoryOrder.reduce((acc, category, index) => {
+      acc[category] = index < 2;
+      return acc;
+    }, {} as Record<string, boolean>)
+  );
+
+  const sortedRoles = useMemo(
+    () => [...roles].sort((a, b) => a.name.localeCompare(b.name)),
+    [roles]
+  );
 
   const normalizedRoleSearch = roleSearch.trim().toLowerCase();
   const normalizedPermissionSearch = permissionSearch.trim().toLowerCase();
-  const visibleRoles = roles.filter((role) => {
-    const matchesSearch =
-      !normalizedRoleSearch ||
+
+  const visibleRoles = sortedRoles.filter((role) => {
+    if (!normalizedRoleSearch) return true;
+    return (
       role.name.toLowerCase().includes(normalizedRoleSearch) ||
-      String(role.description || "").toLowerCase().includes(normalizedRoleSearch);
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" ? role.active : !role.active);
-    return matchesSearch && matchesStatus;
+      String(role.description || "").toLowerCase().includes(normalizedRoleSearch)
+    );
   });
+
+  useEffect(() => {
+    if (!visibleRoles.length && !sortedRoles.length) return;
+    const availableRoleNames = visibleRoles.length ? visibleRoles.map((role) => role.name) : sortedRoles.map((role) => role.name);
+    if (!selectedRoleName || !availableRoleNames.includes(selectedRoleName)) {
+      setSelectedRoleName(availableRoleNames[0] || "");
+    }
+  }, [selectedRoleName, sortedRoles, visibleRoles]);
+
   const selectedRole =
-    roles.find((role) => role.name === selectedRoleName) ||
+    visibleRoles.find((role) => role.name === selectedRoleName) ||
+    sortedRoles.find((role) => role.name === selectedRoleName) ||
     visibleRoles[0] ||
-    roles[0];
+    sortedRoles[0];
+
   const selectedPermissions = selectedRole
     ? permissionDrafts[selectedRole.name] || getDefaultRolePermissions(selectedRole.name)
     : getDefaultRolePermissions("Admin Live Chat");
-  const selectedSavedPermissions = selectedRole
-    ? savedPermissions[selectedRole.name] || getDefaultRolePermissions(selectedRole.name)
-    : getDefaultRolePermissions("Admin Live Chat");
-  const enabledPermissionCount = PERMISSION_KEYS.filter((key) => selectedPermissions[key]).length;
-  const activeRoleCount = roles.filter((role) => role.active).length;
-  const disabledRoleCount = roles.length - activeRoleCount;
+
+  const activeRoleCount = sortedRoles.filter((role) => role.active).length;
   const selectedUserCount = selectedRole ? roleUserCounts[selectedRole.name] || 0 : 0;
+  const enabledPermissionCount = PERMISSION_KEYS.filter((key) => Boolean(selectedPermissions[key])).length;
 
-  const permissionsByCategory = PERMISSION_DEFINITIONS.reduce((groups, permission) => {
-    groups[permission.category] = [...(groups[permission.category] || []), permission];
-    return groups;
-  }, {} as Record<string, typeof PERMISSION_DEFINITIONS>);
-
-  const totalDirtyCount = roles.reduce((total, role) => {
+  const totalDirtyCount = sortedRoles.reduce((total, role) => {
     const draft = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
     const saved = savedPermissions[role.name] || getDefaultRolePermissions(role.name);
     return total + PERMISSION_KEYS.filter((key) => Boolean(draft[key]) !== Boolean(saved[key])).length;
@@ -2798,9 +2884,11 @@ function RoleManagementPanel({
       key === "manageMaintenance"
     );
 
-  const showPermissionToast = (message: string) => {
-    setPermissionToast(message);
-  };
+  useEffect(() => {
+    if (!permissionToast) return;
+    const timer = window.setTimeout(() => setPermissionToast(""), 2400);
+    return () => window.clearTimeout(timer);
+  }, [permissionToast]);
 
   const changePermission = (
     roleName: string,
@@ -2808,29 +2896,11 @@ function RoleManagementPanel({
     value: boolean
   ) => {
     onPermissionChange(roleName, permission.key, value);
-    showPermissionToast(
-      `${value ? "เปิด" : "ปิด"}สิทธิ์ ${permission.label} สำหรับ ${roleName} แล้ว (ยังไม่ได้บันทึก)`
-    );
-  };
-
-  const changeCategoryPermissions = (
-    category: string,
-    permissions: typeof PERMISSION_DEFINITIONS,
-    value: boolean
-  ) => {
-    if (!selectedRole) return;
-    permissions.forEach((permission) => {
-      if (!isPermissionLocked(selectedRole.name, permission.key)) {
-        onPermissionChange(selectedRole.name, permission.key, value);
-      }
-    });
-    showPermissionToast(
-      `${value ? "เปิด" : "ปิด"}สิทธิ์หมวด ${PERMISSION_CATEGORY_META[category]?.title || category} สำหรับ ${selectedRole.name} แล้ว (ยังไม่ได้บันทึก)`
-    );
+    setPermissionToast(`${value ? "เปิด" : "ปิด"}สิทธิ์ ${permission.label} แล้ว`);
   };
 
   const resetPermissionChanges = () => {
-    roles.forEach((role) => {
+    sortedRoles.forEach((role) => {
       const draft = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
       const saved = savedPermissions[role.name] || getDefaultRolePermissions(role.name);
       PERMISSION_KEYS.forEach((key) => {
@@ -2839,505 +2909,460 @@ function RoleManagementPanel({
         }
       });
     });
-    showPermissionToast("ยกเลิกการเปลี่ยนแปลงสิทธิ์ทั้งหมดแล้ว");
+    setPermissionToast("รีเซ็ตการเปลี่ยนแปลงสิทธิ์แล้ว");
   };
 
-  useEffect(() => {
-    if (!roles.length) return;
-    if (!selectedRoleName || !roles.some((role) => role.name === selectedRoleName)) {
-      setSelectedRoleName(roles[0].name);
-    }
-  }, [roles, selectedRoleName]);
+  const filteredCategoryEntries = categoryOrder
+    .map((category) => {
+      const permissions = groupedPermissions[category].filter((permission) => {
+        if (!normalizedPermissionSearch) return true;
+        const thaiDescription = String(PERMISSION_THAI_HELP[permission.key] || "").toLowerCase();
+        return (
+          permission.label.toLowerCase().includes(normalizedPermissionSearch) ||
+          permission.description.toLowerCase().includes(normalizedPermissionSearch) ||
+          thaiDescription.includes(normalizedPermissionSearch)
+        );
+      });
 
-  useEffect(() => {
-    if (!permissionToast) return;
-    const timer = window.setTimeout(() => setPermissionToast(""), 3200);
-    return () => window.clearTimeout(timer);
-  }, [permissionToast]);
+      return {
+        category,
+        permissions,
+        totalCount: groupedPermissions[category].length,
+        enabledCount: groupedPermissions[category].filter((permission) => Boolean(selectedPermissions[permission.key])).length,
+      };
+    })
+    .filter((entry) => !normalizedPermissionSearch || entry.permissions.length > 0);
+
+  const canRename = selectedRole ? !selectedRole.locked && !isSystemRole(selectedRole.name) && selectedUserCount === 0 : false;
+  const canToggle = selectedRole ? !selectedRole.locked && selectedUserCount === 0 : false;
+  const canDelete = selectedRole ? !selectedRole.locked && selectedUserCount === 0 : false;
 
   return (
-    <div data-role-permission-v57="true" className="bg-slate-50/70 p-4 lg:p-5">
-      {permissionToast ? (
-        <div className="fixed right-6 top-6 z-[120] max-w-sm rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-700 shadow-[0_18px_48px_rgba(15,23,42,0.18)]">
-          <div className="flex items-start gap-3">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold">✓</span>
-            <span className="leading-6">{permissionToast}</span>
+    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] p-5">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-violet-600">Access</div>
+          <div className="mt-1 text-[34px] font-semibold tracking-tight text-slate-950">
+            Role & Permission Management
+          </div>
+          <div className="mt-2 text-sm font-normal leading-6 text-slate-500">
+            จัดการบทบาทและสิทธิ์การเข้าถึงระบบ
           </div>
         </div>
-      ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Total Roles", value: roles.length, note: "Role ทั้งหมด", tone: "text-violet-700", bg: "border-violet-100 bg-violet-50/70" },
-          { label: "Active Roles", value: activeRoleCount, note: "กำลังใช้งาน", tone: "text-emerald-700", bg: "border-emerald-100 bg-emerald-50/70" },
-          { label: "Disabled Roles", value: disabledRoleCount, note: "ปิดการใช้งาน", tone: "text-rose-700", bg: "border-rose-100 bg-rose-50/70" },
-          { label: "Permissions", value: PERMISSION_DEFINITIONS.length, note: "สิทธิ์ในระบบ", tone: "text-sky-700", bg: "border-sky-100 bg-sky-50/70" },
-        ].map((item) => (
-          <div key={item.label} className={`rounded-[22px] border px-4 py-3 ${item.bg}`}>
-            <div className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${item.tone}`}>{item.label}</div>
-            <div className="mt-2 flex items-end justify-between gap-3">
-              <div className="text-3xl font-semibold leading-none text-slate-950">{item.value}</div>
-              <div className="text-xs font-medium text-slate-500">{item.note}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 flex flex-col gap-3 rounded-[22px] border border-slate-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
-          <div className="relative min-w-0 flex-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex min-w-[260px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <span className="text-base text-slate-400">⌕</span>
             <input
               value={roleSearch}
               onChange={(event) => setRoleSearch(event.target.value)}
-              placeholder="ค้นหา Role..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-normal text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
+              placeholder="ค้นหาบทบาท..."
+              className="w-full border-0 bg-transparent text-sm font-normal text-slate-800 outline-none placeholder:text-slate-400"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as "all" | "active" | "disabled")}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
+          <button
+            type="button"
+            onClick={() => setShowCreateRole((current) => !current)}
+            className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-medium text-white shadow-[0_14px_30px_rgba(109,40,217,0.20)] transition hover:opacity-95"
           >
-            <option value="all">ทุกสถานะ</option>
-            <option value="active">Active</option>
-            <option value="disabled">Disabled</option>
-          </select>
+            ＋ สร้างบทบาท
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCreateRole((current) => !current)}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
-        >
-          <span className="text-lg leading-none">+</span>
-          Create Role
-        </button>
       </div>
 
       {showCreateRole ? (
-        <div className="mt-3 grid gap-3 rounded-[22px] border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
-          <label className="block">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">Role Name</span>
-            <input
-              value={newRoleName}
-              disabled={saving}
-              onChange={(event) => onNameChange(event.target.value)}
-              placeholder="เช่น QA Lead"
-              className="mt-2 w-full rounded-xl border border-white bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-            />
-          </label>
-          <label className="block">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">Description</span>
-            <input
-              value={newRoleDescription}
-              disabled={saving}
-              onChange={(event) => onDescriptionChange(event.target.value)}
-              placeholder="อธิบายหน้าที่ของ Role นี้แบบสั้น ๆ"
-              className="mt-2 w-full rounded-xl border border-white bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-            />
-          </label>
-          <div className="flex gap-2">
+        <div className="mt-4 rounded-[24px] border border-violet-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 text-sm font-medium text-slate-700">เพิ่มบทบาทใหม่</div>
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Role Name</span>
+              <input
+                value={newRoleName}
+                disabled={saving}
+                onChange={(event) => onNameChange(event.target.value)}
+                placeholder="e.g. Trainer, Manager"
+                className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Description</span>
+              <input
+                value={newRoleDescription}
+                disabled={saving}
+                onChange={(event) => onDescriptionChange(event.target.value)}
+                placeholder="Short explanation for this role"
+                className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </label>
             <button
               type="button"
-              onClick={() => setShowCreateRole(false)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
+              disabled={saving}
+              onClick={onSave}
+              className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-violet-800 disabled:opacity-50"
             >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={saving || !newRoleName.trim()}
-              onClick={() => {
-                onSave();
-                setShowCreateRole(false);
-              }}
-              className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              Add Role
+              เพิ่ม Role
             </button>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-4 py-3">
-            <div className="text-sm font-semibold text-slate-950">Role List</div>
-            <div className="mt-0.5 text-xs font-normal text-slate-500">เลือก Role เพื่อดูและกำหนดสิทธิ์</div>
-          </div>
-          <div className="max-h-[760px] space-y-2 overflow-y-auto p-3">
-            {visibleRoles.map((role) => {
-              const selected = selectedRole?.name === role.name;
-              const rolePermissionValues = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
-              const roleEnabledCount = PERMISSION_KEYS.filter((key) => rolePermissionValues[key]).length;
-              const userCount = roleUserCounts[role.name] || 0;
-              return (
-                <button
-                  key={role.name}
-                  type="button"
-                  onClick={() => {
-                    setSelectedRoleName(role.name);
-                    setEditingRoleName("");
-                    setPermissionSearch("");
-                  }}
-                  className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
-                    selected
-                      ? "border-violet-300 bg-violet-50 shadow-[0_10px_24px_rgba(109,40,217,0.12)]"
-                      : "border-transparent bg-slate-50/80 hover:border-violet-100 hover:bg-white"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${role.active ? "bg-emerald-500" : "bg-rose-400"}`} />
-                        <div className="truncate text-sm font-semibold text-slate-950">{role.name}</div>
-                        {role.locked ? <span title="System role" className="text-xs text-amber-600">🔒</span> : null}
-                      </div>
-                      <div className="mt-1 line-clamp-2 text-xs font-normal leading-5 text-slate-500">
-                        {role.description || "ยังไม่มีคำอธิบาย Role"}
-                      </div>
-                    </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                      role.active
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-rose-200 bg-rose-50 text-rose-700"
-                    }`}>
-                      {role.active ? "Active" : "Disabled"}
-                    </span>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        {visibleRoles.map((role) => {
+          const selected = selectedRole?.name === role.name;
+          const userCount = roleUserCounts[role.name] || 0;
+          const rolePermissionMap = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
+          const enabledCount = PERMISSION_KEYS.filter((key) => Boolean(rolePermissionMap[key])).length;
+
+          return (
+            <button
+              key={role.name}
+              type="button"
+              onClick={() => setSelectedRoleName(role.name)}
+              className={`rounded-[22px] border px-4 py-4 text-left transition ${
+                selected
+                  ? "border-violet-300 bg-white shadow-[0_16px_34px_rgba(109,40,217,0.14)]"
+                  : "border-slate-200 bg-white hover:border-violet-200 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-medium text-white ${roleAvatarClass(role.name)}`}>
+                    {userInitials(role.name)}
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] font-medium text-slate-500">
-                    <span>{userCount} users</span>
-                    <span>{roleEnabledCount}/{PERMISSION_KEYS.length} permissions</span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div className="min-w-0">
+                    <div className="truncate text-lg font-semibold text-slate-950">{role.name}</div>
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500"
-                      style={{ width: `${Math.round((roleEnabledCount / PERMISSION_KEYS.length) * 100)}%` }}
-                    />
-                  </div>
-                </button>
-              );
-            })}
-            {!visibleRoles.length ? (
-              <div className="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-medium text-slate-500">
-                ไม่พบ Role ที่ค้นหา
-              </div>
-            ) : null}
-          </div>
-        </aside>
-
-        <section className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-          {selectedRole ? (
-            <>
-              <div className="border-b border-slate-100 bg-gradient-to-r from-white via-violet-50/60 to-white px-4 py-4 lg:px-5">
-                {editingRoleName === selectedRole.name ? (
-                  <div className="grid gap-3 lg:grid-cols-[1fr_1.5fr_auto] lg:items-end">
-                    <label>
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">Role Name</span>
-                      <input
-                        value={editingRoleDraft.name}
-                        disabled={saving || selectedRole.locked || isSystemRole(selectedRole.name) || selectedUserCount > 0}
-                        onChange={(event) => setEditingRoleDraft((current) => ({ ...current, name: event.target.value }))}
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 disabled:text-slate-400"
-                      />
-                    </label>
-                    <label>
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700">Description</span>
-                      <input
-                        value={editingRoleDraft.description}
-                        disabled={saving}
-                        onChange={(event) => setEditingRoleDraft((current) => ({ ...current, description: event.target.value }))}
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                      />
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingRoleName("");
-                          setEditingRoleDraft({ name: "", description: "" });
-                        }}
-                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => {
-                          onSaveRoleDetails(selectedRole, editingRoleDraft.name, editingRoleDraft.description);
-                          setEditingRoleName("");
-                        }}
-                        className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-800 disabled:bg-slate-300"
-                      >
-                        Save Role
-                      </button>
+                      className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                        role.active ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"
+                      }`}
+                    >
+                      {role.active ? "เปิดใช้งาน" : "ยังไม่เปิดใช้งาน"}
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-xl font-semibold text-slate-950">{selectedRole.name}</div>
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
-                          selectedRole.active
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-rose-200 bg-rose-50 text-rose-700"
-                        }`}>
-                          {selectedRole.active ? "Active" : "Disabled"}
-                        </span>
-                        {selectedRole.locked ? (
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
-                            Locked System Role
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-1 max-w-3xl text-sm font-normal leading-6 text-slate-500">
-                        {selectedRole.description || "ยังไม่มีคำอธิบาย Role"}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
-                        <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{selectedUserCount} users</span>
-                        <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{enabledPermissionCount} permissions enabled</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => {
-                          setEditingRoleName(selectedRole.name);
-                          setEditingRoleDraft({
-                            name: selectedRole.name,
-                            description: selectedRole.description || "",
-                          });
-                        }}
-                        className="rounded-xl border border-violet-200 bg-white px-3.5 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-50"
-                      >
-                        Edit Details
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving || selectedRole.locked || selectedUserCount > 0}
-                        onClick={() => onToggle(selectedRole)}
-                        title={selectedUserCount > 0 ? "Role นี้มีผู้ใช้งานอยู่ จึงยังปิดไม่ได้" : ""}
-                        className="rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                      >
-                        {selectedRole.active ? "Disable Role" : "Enable Role"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={saving || selectedRole.locked || selectedUserCount > 0}
-                        onClick={() => onDelete(selectedRole)}
-                        title={selectedUserCount > 0 ? "Role นี้มีผู้ใช้งานอยู่ จึงยังลบไม่ได้" : ""}
-                        className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
-                <div>
-                  <div className="text-sm font-semibold text-slate-950">Permissions</div>
-                  <div className="mt-0.5 text-xs font-normal text-slate-500">
-                    เปิดสิทธิ์เฉพาะเมนูและงานที่ Role นี้ต้องใช้งาน
                   </div>
                 </div>
-                <div className="relative w-full lg:max-w-sm">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
-                  <input
-                    value={permissionSearch}
-                    onChange={(event) => setPermissionSearch(event.target.value)}
-                    placeholder="ค้นหาสิทธิ์..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-normal text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3 p-4 lg:p-5">
-                {Object.entries(permissionsByCategory).map(([category, permissions]) => {
-                  const categoryMeta = PERMISSION_CATEGORY_META[category] || {
-                    title: category,
-                    thai: category,
-                    description: "",
-                  };
-                  const filteredPermissions = permissions.filter((permission) => {
-                    if (!normalizedPermissionSearch) return true;
-                    const thaiDescription = PERMISSION_THAI_HELP[permission.key] || "";
-                    return (
-                      permission.label.toLowerCase().includes(normalizedPermissionSearch) ||
-                      permission.description.toLowerCase().includes(normalizedPermissionSearch) ||
-                      thaiDescription.toLowerCase().includes(normalizedPermissionSearch)
-                    );
-                  });
-                  if (!filteredPermissions.length) return null;
-                  const enabledCount = permissions.filter((permission) => selectedPermissions[permission.key]).length;
-                  const expanded = expandedCategories[category] !== false;
-                  return (
-                    <div key={category} className="overflow-visible rounded-[20px] border border-slate-200 bg-white">
-                      <div className="flex flex-col gap-3 bg-slate-50/80 px-4 py-3 md:flex-row md:items-center md:justify-between">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedCategories((current) => ({ ...current, [category]: !expanded }))}
-                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                        >
-                          <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-semibold text-violet-700 shadow-sm transition ${expanded ? "rotate-90" : ""}`}>
-                            ›
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-950">{categoryMeta.title}</span>
-                            <span className="mt-0.5 block text-xs font-normal text-slate-500">
-                              {categoryMeta.thai} · เปิด {enabledCount} จาก {permissions.length} สิทธิ์
-                            </span>
-                          </span>
-                        </button>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => changeCategoryPermissions(category, permissions, true)}
-                            className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                          >
-                            Enable All
-                          </button>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => changeCategoryPermissions(category, permissions, false)}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                          >
-                            Disable All
-                          </button>
-                        </div>
-                      </div>
-
-                      {expanded ? (
-                        <div className="divide-y divide-slate-100 px-4">
-                          {filteredPermissions.map((permission) => {
-                            const checked = Boolean(selectedPermissions[permission.key]);
-                            const locked = isPermissionLocked(selectedRole.name, permission.key);
-                            const thaiDescription = PERMISSION_THAI_HELP[permission.key] || permission.description;
-                            const toggleTooltip = locked
-                              ? "สิทธิ์นี้ถูกล็อกเพื่อความปลอดภัยของผู้ดูแลระบบ"
-                              : checked
-                                ? `สิทธิ์นี้เปิดใช้งานอยู่ คลิกเพื่อปิดสิทธิ์ ${permission.label}`
-                                : `สิทธิ์นี้ยังไม่เปิด คลิกเพื่อเปิดสิทธิ์ ${permission.label}`;
-                            return (
-                              <div key={permission.key} className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="min-w-0 pr-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <div className="text-sm font-semibold text-slate-950">{permission.label}</div>
-                                    <PermissionThaiTooltip label={permission.label} description={thaiDescription} />
-                                    {locked ? (
-                                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                                        Locked
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <div className="mt-1 text-xs font-normal leading-5 text-slate-500">{permission.description}</div>
-                                  <div className={`mt-1.5 text-[11px] font-semibold ${checked ? "text-emerald-600" : "text-slate-400"}`}>
-                                    สถานะ: {checked ? "เปิดใช้งาน" : "ยังไม่เปิดใช้งาน"}
-                                  </div>
-                                </div>
-                                <label
-                                  title={toggleTooltip}
-                                  className={`group relative inline-flex shrink-0 items-center gap-2 ${locked || saving ? "cursor-not-allowed" : "cursor-pointer"}`}
-                                >
-                                  <span className={`text-xs font-semibold ${checked ? "text-emerald-700" : "text-slate-400"}`}>
-                                    {checked ? "ON" : "OFF"}
-                                  </span>
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={saving || locked}
-                                    onChange={(event) => changePermission(selectedRole.name, permission, event.target.checked)}
-                                    className="peer sr-only"
-                                  />
-                                  <span className={`relative h-7 w-12 rounded-full border transition ${
-                                    checked
-                                      ? "border-violet-500 bg-violet-600"
-                                      : "border-slate-200 bg-slate-200"
-                                  } ${saving || locked ? "opacity-60" : ""}`}>
-                                    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
-                                      checked ? "left-6" : "left-1"
-                                    }`} />
-                                  </span>
-                                  <span className="pointer-events-none absolute right-0 top-full z-[60] mt-2 hidden w-64 rounded-xl bg-slate-950 px-3 py-2.5 text-left text-xs font-normal leading-5 text-white shadow-[0_16px_38px_rgba(15,23,42,0.30)] group-hover:block">
-                                    {toggleTooltip}
-                                    <span className="absolute -top-1.5 right-5 h-3 w-3 rotate-45 bg-slate-950" />
-                                  </span>
-                                </label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-
-                {normalizedPermissionSearch &&
-                !Object.values(permissionsByCategory).some((permissions) =>
-                  permissions.some((permission) => {
-                    const thaiDescription = PERMISSION_THAI_HELP[permission.key] || "";
-                    return (
-                      permission.label.toLowerCase().includes(normalizedPermissionSearch) ||
-                      permission.description.toLowerCase().includes(normalizedPermissionSearch) ||
-                      thaiDescription.toLowerCase().includes(normalizedPermissionSearch)
-                    );
-                  })
-                ) ? (
-                  <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center text-sm font-medium text-slate-500">
-                    ไม่พบสิทธิ์ที่ค้นหา
-                  </div>
+                {selected ? (
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-600 text-sm font-medium text-white">
+                    ✓
+                  </span>
                 ) : null}
               </div>
-            </>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-[11px] font-medium text-slate-400">ผู้ใช้</div>
+                  <div className="mt-1 text-2xl font-semibold text-slate-950">{userCount}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-medium text-slate-400">สิทธิ์ที่เปิดใช้งาน</div>
+                  <div className="mt-1 text-2xl font-semibold text-slate-950">{enabledCount}</div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+
+        {!visibleRoles.length ? (
+          <div className="sm:col-span-2 xl:col-span-6 rounded-[22px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-medium text-slate-500">
+            ไม่พบบทบาทที่ค้นหา
+          </div>
+        ) : null}
+      </div>
+
+      {selectedRole ? (
+        <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          {editingRoleName === selectedRole.name ? (
+            <div className="grid gap-4 lg:grid-cols-[1fr_1.5fr_auto] lg:items-end">
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Role Name</span>
+                <input
+                  value={editingRoleDraft.name}
+                  disabled={!canRename || saving}
+                  onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, name: event.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Description</span>
+                <input
+                  value={editingRoleDraft.description}
+                  disabled={saving}
+                  onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, description: event.target.value }))}
+                  className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2.5 text-sm font-normal text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingRoleName("");
+                    setEditingRoleDraft({ name: "", description: "" });
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    onSaveRoleDetails(selectedRole, editingRoleDraft.name, editingRoleDraft.description);
+                    setEditingRoleName("");
+                  }}
+                  className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
+                >
+                  Save Role
+                </button>
+              </div>
+            </div>
           ) : (
-            <div className="p-10 text-center text-sm font-medium text-slate-500">
-              ยังไม่มี Role สำหรับกำหนดสิทธิ์
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-lg font-semibold text-slate-950">{selectedRole.name}</div>
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                      selectedRole.active ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"
+                    }`}
+                  >
+                    {selectedRole.active ? "เปิดใช้งาน" : "ยังไม่เปิดใช้งาน"}
+                  </span>
+                  <span className="inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-700">
+                    {selectedUserCount} ผู้ใช้
+                  </span>
+                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                    {enabledPermissionCount} สิทธิ์
+                  </span>
+                </div>
+                <div className="mt-2 text-sm font-normal leading-6 text-slate-500">
+                  {selectedRole.description || "ยังไม่มีคำอธิบายสำหรับบทบาทนี้"}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setEditingRoleName(selectedRole.name);
+                    setEditingRoleDraft({
+                      name: selectedRole.name,
+                      description: selectedRole.description || "",
+                    });
+                  }}
+                  className="rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-50"
+                >
+                  Edit Role
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || !canToggle}
+                  onClick={() => onToggle(selectedRole)}
+                  className="rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  {selectedRole.active ? "Disable" : "Enable"}
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || !canDelete}
+                  onClick={() => onDelete(selectedRole)}
+                  className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           )}
-        </section>
+        </div>
+      ) : null}
+
+      <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-violet-700">Permissions</div>
+            <div className="mt-1 text-base font-semibold text-slate-950">
+              สิทธิ์ของ {selectedRole?.name || "-"}
+            </div>
+          </div>
+          <div className="flex min-w-[280px] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <span className="text-base text-slate-400">⌕</span>
+            <input
+              value={permissionSearch}
+              onChange={(event) => setPermissionSearch(event.target.value)}
+              placeholder="ค้นหาสิทธิ์..."
+              className="w-full border-0 bg-transparent text-sm font-normal text-slate-800 outline-none placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          {filteredCategoryEntries.map(({ category, permissions, totalCount, enabledCount }) => {
+            const expanded = Boolean(expandedCategories[category]);
+            return (
+              <section key={category} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedCategories((current) => ({
+                      ...current,
+                      [category]: !expanded,
+                    }))
+                  }
+                  className="flex w-full items-center justify-between gap-4 bg-slate-50/70 px-5 py-4 text-left transition hover:bg-slate-50"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium text-slate-600">
+                      {expanded ? "⌄" : "›"}
+                    </span>
+                    <span className="text-xl font-semibold text-violet-700">{category}</span>
+                    <span className="text-sm font-normal text-slate-500">
+                      ({categoryMeta[category].thai})
+                    </span>
+                  </div>
+                  <div className="rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
+                    {totalCount} สิทธิ์
+                  </div>
+                </button>
+
+                {expanded ? (
+                  <div className="space-y-3 px-4 py-4">
+                    {permissions.map((permission) => {
+                      const checked = Boolean(selectedPermissions[permission.key]);
+                      const locked = selectedRole ? isPermissionLocked(selectedRole.name, permission.key) : false;
+                      const thaiDescription =
+                        PERMISSION_THAI_HELP[permission.key] || permission.description;
+                      const toggleTooltip = locked
+                        ? "สิทธิ์นี้ถูกล็อกเพื่อความปลอดภัยของผู้ดูแลระบบ"
+                        : checked
+                          ? `สิทธิ์นี้เปิดใช้งานอยู่ คลิกเพื่อปิดสิทธิ์ ${permission.label}`
+                          : `สิทธิ์นี้ยังไม่เปิด คลิกเพื่อเปิดสิทธิ์ ${permission.label}`;
+
+                      return (
+                        <div
+                          key={permission.key}
+                          className="grid gap-3 rounded-[18px] border border-slate-100 bg-white px-4 py-3 lg:grid-cols-[minmax(220px,1fr)_minmax(340px,1.6fr)_150px_84px] lg:items-center"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="truncate text-base font-medium text-slate-900">
+                              {permission.label}
+                            </div>
+                            <PermissionThaiTooltip
+                              label={permission.label}
+                              description={thaiDescription}
+                            />
+                          </div>
+
+                          <div className="text-sm font-normal leading-6 text-slate-500">
+                            {thaiDescription}
+                          </div>
+
+                          <div className="flex justify-start lg:justify-center">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                                checked
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-rose-50 text-rose-600"
+                              }`}
+                            >
+                              {checked ? "เปิดใช้งาน" : "ยังไม่เปิดใช้งาน"}
+                            </span>
+                          </div>
+
+                          <label
+                            title={toggleTooltip}
+                            className={`group relative inline-flex items-center justify-end ${
+                              locked || saving ? "cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={saving || locked}
+                              onChange={(event) => selectedRole && changePermission(selectedRole.name, permission, event.target.checked)}
+                              className="peer sr-only"
+                            />
+                            <span
+                              className={`relative h-7 w-12 rounded-full border transition ${
+                                checked
+                                  ? "border-violet-500 bg-violet-600"
+                                  : "border-slate-200 bg-slate-200"
+                              } ${saving || locked ? "opacity-60" : ""}`}
+                            >
+                              <span
+                                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
+                                  checked ? "left-6" : "left-1"
+                                }`}
+                              />
+                            </span>
+                            <span className="pointer-events-none absolute right-0 top-full z-[60] mt-2 hidden w-64 rounded-xl bg-slate-950 px-3 py-2.5 text-left text-xs font-normal leading-5 text-white shadow-[0_16px_38px_rgba(15,23,42,0.30)] group-hover:block">
+                              {toggleTooltip}
+                              <span className="absolute -top-1.5 right-5 h-3 w-3 rotate-45 bg-slate-950" />
+                            </span>
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            );
+          })}
+
+          {!filteredCategoryEntries.length ? (
+            <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center text-sm font-medium text-slate-500">
+              ไม่พบสิทธิ์ที่ค้นหา
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="sticky bottom-3 z-30 mt-4 flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className={`text-sm font-semibold ${totalDirtyCount ? "text-amber-700" : "text-emerald-700"}`}>
-            {totalDirtyCount ? `มีการเปลี่ยนแปลงสิทธิ์ ${totalDirtyCount} รายการ` : "บันทึกสิทธิ์เป็นข้อมูลล่าสุดแล้ว"}
-          </div>
-          <div className="mt-0.5 text-xs font-normal text-slate-500">
-            การเปิดหรือปิด Switch จะยังไม่ใช้งานจริงจนกว่าจะกด Save Changes
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg text-violet-700">
+            ◌
+          </span>
+          <div>
+            <div className={`text-base font-medium ${totalDirtyCount ? "text-violet-700" : "text-emerald-700"}`}>
+              {totalDirtyCount
+                ? `มีการเปลี่ยนแปลงสิทธิ์ ${totalDirtyCount} รายการ`
+                : "บันทึกสิทธิ์เป็นข้อมูลล่าสุดแล้ว"}
+            </div>
+            <div className="mt-0.5 text-sm font-normal text-slate-500">
+              การเปิดหรือปิดสิทธิ์จะมีผลเมื่อกดบันทึกการเปลี่ยนแปลง
+            </div>
           </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex gap-3">
           <button
             type="button"
             disabled={saving || totalDirtyCount === 0}
             onClick={resetPermissionChanges}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl border border-violet-200 bg-white px-5 py-2.5 text-sm font-medium text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Reset Changes
+            รีเซ็ตการเปลี่ยนแปลง
           </button>
           <button
             type="button"
             disabled={saving || totalDirtyCount === 0}
             onClick={() => {
-              showPermissionToast("กำลังบันทึกการเปลี่ยนแปลงสิทธิ์...");
+              setPermissionToast("กำลังบันทึกการเปลี่ยนแปลงสิทธิ์...");
               void onSavePermissions();
             }}
-            className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300"
+            className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? "Saving..." : "บันทึกการเปลี่ยนแปลง"}
           </button>
         </div>
       </div>
+
+      {permissionToast ? (
+        <div className="fixed bottom-6 right-6 z-[80] rounded-2xl bg-slate-950 px-4 py-3 text-sm font-normal text-white shadow-[0_18px_44px_rgba(15,23,42,0.28)]">
+          {permissionToast}
+        </div>
+      ) : null}
     </div>
   );
 }
-
 function MiniAccessCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-[22px] border border-violet-100 bg-white p-5 shadow-sm">
