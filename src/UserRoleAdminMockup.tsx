@@ -182,6 +182,68 @@ const PERMISSION_DEFINITIONS: Array<{
 
 const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
 
+const PERMISSION_THAI_HELP: Record<RolePermissionKey, string> = {
+  viewDashboard: "อนุญาตให้เปิดหน้า Dashboard และดูภาพรวมคะแนน เกรด KPI และผลการทำงานของเคส",
+  viewAllAgents: "อนุญาตให้เลือก All Agents และดูข้อมูลของพนักงานทุกคนใน Dashboard และ Analytics",
+  viewSummary: "อนุญาตให้เปิดหน้า Analytics เพื่อดูผลสรุปรายสัปดาห์ รายเดือน และรายปี",
+  viewCoaching: "อนุญาตให้เปิดหน้า Coaching เพื่อดูและติดตามข้อมูลการโค้ชของพนักงาน",
+  viewAppeal: "อนุญาตให้เปิดหน้า Appeal Cases และดูข้อมูลการอุทธรณ์ของเคส",
+  submitAppeal: "อนุญาตให้ส่งคำขออุทธรณ์จากหน้า Case Detail",
+  reviewAppeals: "อนุญาตให้เปิด Appeal Review และอนุมัติหรือปฏิเสธคำขออุทธรณ์",
+  appealOverride: "อนุญาตให้เปิดสิทธิ์ยื่นอุทธรณ์ให้เคสที่หมดเวลายื่นตามปกติ",
+  viewRubric: "อนุญาตให้เปิดดูเกณฑ์และมาตรฐานการประเมิน QA",
+  manageRubric: "อนุญาตให้สร้าง แก้ไข จัดการเวอร์ชัน และสิ้นสุดการใช้งาน Rubric",
+  createEvaluation: "อนุญาตให้เปิดหน้า Evaluate และสร้างผลประเมิน QA ใหม่",
+  takePreTest: "อนุญาตให้เปิดและทำแบบทดสอบ Pre-Test ที่ได้รับมอบหมาย",
+  managePreTest: "อนุญาตให้สร้าง แก้ไข ปิดใช้งาน ลบ และแชร์ชุดข้อสอบ Pre-Test",
+  viewPreTestResults: "อนุญาตให้ดูประวัติและผลการทำแบบทดสอบ Pre-Test",
+  resetPreTestRetake: "อนุญาตให้เปิดรอบทำ Pre-Test ครั้งถัดไปโดยยังเก็บประวัติเดิมไว้",
+  exportPreTestResults: "อนุญาตให้ส่งออกผล Pre-Test เป็นไฟล์ PDF หรือ Excel",
+  viewTrainingCheckIn: "อนุญาตให้เปิดหน้า Training และดู Session ที่เปิดให้ Check-in",
+  viewTrainingAttendance: "อนุญาตให้ดูรายชื่อ สถานะเข้าอบรม และประวัติการเข้าอบรม",
+  checkInTrainingSelf: "อนุญาตให้ผู้ใช้ Check-in และ Check-out เฉพาะรายการของตนเอง",
+  manageTrainingSessions: "อนุญาตให้สร้าง แก้ไข เปิด และปิด Training Session",
+  manageTrainingRoster: "อนุญาตให้เพิ่มหรือลบรายชื่อผู้เข้าร่วม Training Session",
+  manualUpdateTrainingAttendance: "อนุญาตให้แก้ไขสถานะการเข้าอบรมด้วยตนเองพร้อมระบุเหตุผล",
+  exportTrainingAttendance: "อนุญาตให้ส่งออกรายงานการเข้าอบรมของผู้เข้าร่วมทั้งหมด",
+  viewUsageLog: "อนุญาตให้เปิด Login Log และดูประวัติการเข้าใช้งานระบบ",
+  exportPdf: "อนุญาตให้สร้างหรือดาวน์โหลดรายงาน PDF ในหน้าที่รองรับ",
+  exportAppealRawdata: "อนุญาตให้ส่งออกข้อมูล Appeal ที่ตรวจสอบแล้วสำหรับอัปเดต RawData",
+  viewUserDirectory: "อนุญาตให้ดูรายชื่อผู้ใช้และข้อมูลบัญชีในโหมดอ่านอย่างเดียว",
+  viewAllTeams: "อนุญาตให้ดูทุกทีม หัวหน้าทีม และสมาชิกทุกคน",
+  viewOwnTeam: "อนุญาตให้ดูเฉพาะสมาชิกที่อยู่ในทีมเดียวกับผู้ใช้",
+  qaEvaluationTarget: "อนุญาตให้ผู้ใช้ใน Role นี้ถูกเลือกเป็นผู้รับการประเมิน QA และรับแจ้งผลประเมิน",
+  resetPassword: "อนุญาตให้อนุมัติคำขอและรีเซ็ตรหัสผ่านให้ผู้ใช้งานอื่น",
+  manageUsers: "อนุญาตให้สร้างผู้ใช้ แก้ไขข้อมูลบัญชี ระงับ และเปิดใช้งานบัญชี",
+  manageTeams: "อนุญาตให้สร้างทีม กำหนดหัวหน้าทีม และย้ายผู้ใช้ระหว่างทีม",
+  manageRoles: "อนุญาตให้สร้าง แก้ไข เปิดหรือปิด Role และกำหนดสิทธิ์ของแต่ละ Role",
+  manageMaintenance: "อนุญาตให้เปิดหรือปิด Maintenance Mode และแก้ไขข้อความแจ้งผู้ใช้",
+  useTeamChat: "อนุญาตให้ใช้งาน Team Chat ข้อความส่วนตัว การส่งไฟล์ และ Call Invite",
+};
+
+const PERMISSION_CATEGORY_META: Record<string, { title: string; thai: string; description: string }> = {
+  Performance: {
+    title: "Performance & Dashboard",
+    thai: "ผลการทำงานและแดชบอร์ด",
+    description: "สิทธิ์สำหรับดูคะแนน ภาพรวม และข้อมูลของพนักงาน",
+  },
+  Review: {
+    title: "QA, Appeals & Training",
+    thai: "งานประเมิน อุทธรณ์ และการเรียนรู้",
+    description: "สิทธิ์สำหรับงาน QA อุทธรณ์ Pre-Test และ Training",
+  },
+  Account: {
+    title: "User Access & Export",
+    thai: "การเข้าถึงข้อมูลและการส่งออก",
+    description: "สิทธิ์สำหรับดูข้อมูลผู้ใช้ ประวัติระบบ และส่งออกรายงาน",
+  },
+  System: {
+    title: "Administration & System",
+    thai: "การดูแลผู้ใช้และระบบ",
+    description: "สิทธิ์ระดับผู้ดูแลสำหรับ Users, Teams, Roles และ Maintenance",
+  },
+};
+
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
     viewDashboard: true,
@@ -1936,6 +1998,7 @@ export default function UserRoleAdminMockup({
               onToggle={(role) => void toggleRoleActive(role)}
               onDelete={(role) => void deleteRoleDefinition(role)}
               permissionDrafts={permissionDrafts}
+              savedPermissions={rolePermissions}
               onPermissionChange={updateRolePermission}
               onSavePermissions={() => void saveRolePermissions()}
             />
@@ -2613,6 +2676,31 @@ function TeamManagementPanel({
   );
 }
 
+function PermissionThaiTooltip({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
+  return (
+    <span className="group relative inline-flex shrink-0">
+      <span
+        tabIndex={0}
+        aria-label={`คำอธิบายสิทธิ์ ${label}`}
+        className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-violet-200 bg-violet-50 text-[11px] font-black text-violet-700 outline-none transition hover:border-violet-400 hover:bg-violet-100 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+      >
+        ?
+      </span>
+      <span className="pointer-events-none absolute left-1/2 top-full z-[70] mt-2 hidden w-72 -translate-x-1/2 rounded-2xl bg-slate-950 px-4 py-3 text-left text-xs font-semibold leading-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.32)] group-hover:block group-focus-within:block">
+        <span className="block font-black text-violet-200">{label}</span>
+        <span className="mt-1 block text-slate-200">{description}</span>
+        <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-slate-950" />
+      </span>
+    </span>
+  );
+}
+
 function RoleManagementPanel({
   roles,
   roleUserCounts,
@@ -2620,6 +2708,7 @@ function RoleManagementPanel({
   newRoleDescription,
   saving,
   permissionDrafts,
+  savedPermissions,
   onNameChange,
   onDescriptionChange,
   onSave,
@@ -2635,6 +2724,7 @@ function RoleManagementPanel({
   newRoleDescription: string;
   saving: boolean;
   permissionDrafts: RolePermissionMap;
+  savedPermissions: RolePermissionMap;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onSave: () => void;
@@ -2642,185 +2732,331 @@ function RoleManagementPanel({
   onToggle: (role: RoleDefinition) => void;
   onDelete: (role: RoleDefinition) => void;
   onPermissionChange: (roleName: string, key: RolePermissionKey, value: boolean) => void;
-  onSavePermissions: () => void;
+  onSavePermissions: () => void | Promise<void>;
 }) {
-  const activeRoles = roles.filter((role) => role.active);
-  const [roleAdminSubTab, setRoleAdminSubTab] = useState<RoleAdminSubTab>("role-list");
+  const [selectedRoleName, setSelectedRoleName] = useState(roles[0]?.name || "");
+  const [roleSearch, setRoleSearch] = useState("");
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
+  const [showCreateRole, setShowCreateRole] = useState(false);
   const [editingRoleName, setEditingRoleName] = useState("");
   const [editingRoleDraft, setEditingRoleDraft] = useState({ name: "", description: "" });
-  const [selectedRoleName, setSelectedRoleName] = useState(activeRoles[0]?.name || "");
-  const selectedRole = activeRoles.find((role) => role.name === selectedRoleName) || activeRoles[0];
+  const [permissionToast, setPermissionToast] = useState("");
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    Performance: true,
+    Review: true,
+    Account: true,
+    System: true,
+  });
+
+  const normalizedRoleSearch = roleSearch.trim().toLowerCase();
+  const normalizedPermissionSearch = permissionSearch.trim().toLowerCase();
+  const visibleRoles = roles.filter((role) => {
+    const matchesSearch =
+      !normalizedRoleSearch ||
+      role.name.toLowerCase().includes(normalizedRoleSearch) ||
+      String(role.description || "").toLowerCase().includes(normalizedRoleSearch);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? role.active : !role.active);
+    return matchesSearch && matchesStatus;
+  });
+  const selectedRole =
+    roles.find((role) => role.name === selectedRoleName) ||
+    visibleRoles[0] ||
+    roles[0];
   const selectedPermissions = selectedRole
     ? permissionDrafts[selectedRole.name] || getDefaultRolePermissions(selectedRole.name)
     : getDefaultRolePermissions("Admin Live Chat");
+  const selectedSavedPermissions = selectedRole
+    ? savedPermissions[selectedRole.name] || getDefaultRolePermissions(selectedRole.name)
+    : getDefaultRolePermissions("Admin Live Chat");
   const enabledPermissionCount = PERMISSION_KEYS.filter((key) => selectedPermissions[key]).length;
+  const activeRoleCount = roles.filter((role) => role.active).length;
+  const disabledRoleCount = roles.length - activeRoleCount;
+  const selectedUserCount = selectedRole ? roleUserCounts[selectedRole.name] || 0 : 0;
+
   const permissionsByCategory = PERMISSION_DEFINITIONS.reduce((groups, permission) => {
     groups[permission.category] = [...(groups[permission.category] || []), permission];
     return groups;
   }, {} as Record<string, typeof PERMISSION_DEFINITIONS>);
 
+  const totalDirtyCount = roles.reduce((total, role) => {
+    const draft = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
+    const saved = savedPermissions[role.name] || getDefaultRolePermissions(role.name);
+    return total + PERMISSION_KEYS.filter((key) => Boolean(draft[key]) !== Boolean(saved[key])).length;
+  }, 0);
+
+  const isPermissionLocked = (roleName: string, key: RolePermissionKey) =>
+    roleName === "Quality Assurance" &&
+    (
+      key === "viewUserDirectory" ||
+      key === "manageUsers" ||
+      key === "manageRoles" ||
+      key === "manageRubric" ||
+      key === "manageMaintenance"
+    );
+
+  const showPermissionToast = (message: string) => {
+    setPermissionToast(message);
+  };
+
+  const changePermission = (
+    roleName: string,
+    permission: (typeof PERMISSION_DEFINITIONS)[number],
+    value: boolean
+  ) => {
+    onPermissionChange(roleName, permission.key, value);
+    showPermissionToast(
+      `${value ? "เปิด" : "ปิด"}สิทธิ์ ${permission.label} สำหรับ ${roleName} แล้ว (ยังไม่ได้บันทึก)`
+    );
+  };
+
+  const changeCategoryPermissions = (
+    category: string,
+    permissions: typeof PERMISSION_DEFINITIONS,
+    value: boolean
+  ) => {
+    if (!selectedRole) return;
+    permissions.forEach((permission) => {
+      if (!isPermissionLocked(selectedRole.name, permission.key)) {
+        onPermissionChange(selectedRole.name, permission.key, value);
+      }
+    });
+    showPermissionToast(
+      `${value ? "เปิด" : "ปิด"}สิทธิ์หมวด ${PERMISSION_CATEGORY_META[category]?.title || category} สำหรับ ${selectedRole.name} แล้ว (ยังไม่ได้บันทึก)`
+    );
+  };
+
+  const resetPermissionChanges = () => {
+    roles.forEach((role) => {
+      const draft = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
+      const saved = savedPermissions[role.name] || getDefaultRolePermissions(role.name);
+      PERMISSION_KEYS.forEach((key) => {
+        if (Boolean(draft[key]) !== Boolean(saved[key])) {
+          onPermissionChange(role.name, key, Boolean(saved[key]));
+        }
+      });
+    });
+    showPermissionToast("ยกเลิกการเปลี่ยนแปลงสิทธิ์ทั้งหมดแล้ว");
+  };
+
   useEffect(() => {
-    if (!activeRoles.length) return;
-    if (!selectedRoleName || !activeRoles.some((role) => role.name === selectedRoleName)) {
-      setSelectedRoleName(activeRoles[0].name);
+    if (!roles.length) return;
+    if (!selectedRoleName || !roles.some((role) => role.name === selectedRoleName)) {
+      setSelectedRoleName(roles[0].name);
     }
-  }, [activeRoles, selectedRoleName]);
+  }, [roles, selectedRoleName]);
+
+  useEffect(() => {
+    if (!permissionToast) return;
+    const timer = window.setTimeout(() => setPermissionToast(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [permissionToast]);
 
   return (
-    <div className="p-5">
-      <div className="mb-5 grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
-        <div className="rounded-[26px] border border-violet-100 bg-gradient-to-br from-slate-950 to-violet-900 p-5 text-white shadow-sm">
-          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">Role Access Studio</div>
-          <div className="mt-3 text-2xl font-black">Roles & Permission Matrix</div>
-          <div className="mt-2 text-sm font-semibold leading-6 text-violet-100">
-            Control what each role can open, review, export, and administer. Changes affect every user assigned to that role after save.
+    <div data-role-permission-v57="true" className="bg-slate-50/70 p-4 lg:p-5">
+      {permissionToast ? (
+        <div className="fixed right-6 top-6 z-[120] max-w-sm rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-700 shadow-[0_18px_48px_rgba(15,23,42,0.18)]">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-black">✓</span>
+            <span className="leading-6">{permissionToast}</span>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <MiniAccessCard label="Active Roles" value={activeRoles.length} />
-          <MiniAccessCard label="Permissions" value={PERMISSION_DEFINITIONS.length} />
-          <MiniAccessCard label="Locked Admin" value={roles.some((role) => role.name === "Quality Assurance") ? 1 : 0} />
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Total Roles", value: roles.length, note: "Role ทั้งหมด", tone: "text-violet-700", bg: "border-violet-100 bg-violet-50/70" },
+          { label: "Active Roles", value: activeRoleCount, note: "กำลังใช้งาน", tone: "text-emerald-700", bg: "border-emerald-100 bg-emerald-50/70" },
+          { label: "Disabled Roles", value: disabledRoleCount, note: "ปิดการใช้งาน", tone: "text-rose-700", bg: "border-rose-100 bg-rose-50/70" },
+          { label: "Permissions", value: PERMISSION_DEFINITIONS.length, note: "สิทธิ์ในระบบ", tone: "text-sky-700", bg: "border-sky-100 bg-sky-50/70" },
+        ].map((item) => (
+          <div key={item.label} className={`rounded-[22px] border px-4 py-3 ${item.bg}`}>
+            <div className={`text-[10px] font-black uppercase tracking-[0.18em] ${item.tone}`}>{item.label}</div>
+            <div className="mt-2 flex items-end justify-between gap-3">
+              <div className="text-3xl font-black leading-none text-slate-950">{item.value}</div>
+              <div className="text-xs font-bold text-slate-500">{item.note}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 rounded-[22px] border border-slate-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+          <div className="relative min-w-0 flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+            <input
+              value={roleSearch}
+              onChange={(event) => setRoleSearch(event.target.value)}
+              placeholder="ค้นหา Role..."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as "all" | "active" | "disabled")}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
+          >
+            <option value="all">ทุกสถานะ</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
         </div>
-      </div>
-
-      <div className="mb-5 flex flex-wrap gap-3 rounded-[24px] border border-violet-100 bg-white p-3 shadow-sm">
         <button
           type="button"
-          onClick={() => setRoleAdminSubTab("role-list")}
-          className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
-            roleAdminSubTab === "role-list"
-              ? "bg-slate-950 text-white shadow-sm"
-              : "bg-slate-50 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
-          }`}
+          onClick={() => setShowCreateRole((current) => !current)}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:opacity-95"
         >
-          1. Role List
-        </button>
-        <button
-          type="button"
-          onClick={() => setRoleAdminSubTab("permission-builder")}
-          className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
-            roleAdminSubTab === "permission-builder"
-              ? "bg-slate-950 text-white shadow-sm"
-              : "bg-slate-50 text-slate-600 hover:bg-violet-50 hover:text-violet-700"
-          }`}
-        >
-          2. Permission Builder
+          <span className="text-lg leading-none">+</span>
+          Create Role
         </button>
       </div>
 
-      {roleAdminSubTab === "role-list" ? (
-      <>
-      <div className="mb-4 rounded-[22px] border border-sky-200 bg-sky-50 px-5 py-4 text-sm font-semibold leading-6 text-sky-900">
-        <div className="font-black">How to use Role List</div>
-        <div className="mt-1">
-          Add a role above, or use Edit on each card to update the role text. Disable/Delete is available when no users are assigned.
+      {showCreateRole ? (
+        <div className="mt-3 grid gap-3 rounded-[22px] border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
+          <label className="block">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Role Name</span>
+            <input
+              value={newRoleName}
+              disabled={saving}
+              onChange={(event) => onNameChange(event.target.value)}
+              placeholder="เช่น QA Lead"
+              className="mt-2 w-full rounded-xl border border-white bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Description</span>
+            <input
+              value={newRoleDescription}
+              disabled={saving}
+              onChange={(event) => onDescriptionChange(event.target.value)}
+              placeholder="อธิบายหน้าที่ของ Role นี้แบบสั้น ๆ"
+              className="mt-2 w-full rounded-xl border border-white bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCreateRole(false)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={saving || !newRoleName.trim()}
+              onClick={() => {
+                onSave();
+                setShowCreateRole(false);
+              }}
+              className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Add Role
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="grid gap-4 rounded-[24px] border border-violet-100 bg-violet-50/50 p-5 lg:grid-cols-[1fr_1.4fr_auto] lg:items-end">
-        <label className="block">
-          <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">New Role Name</span>
-          <input
-            value={newRoleName}
-            disabled={saving}
-            onChange={(event) => onNameChange(event.target.value)}
-            placeholder="e.g. Trainer, QA Lead, Manager"
-            className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Description</span>
-          <input
-            value={newRoleDescription}
-            disabled={saving}
-            onChange={(event) => onDescriptionChange(event.target.value)}
-            placeholder="Short explanation for this role"
-            className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-          />
-        </label>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={onSave}
-          className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Add Role
-        </button>
-      </div>
+      ) : null}
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
-        {roles.map((role) => {
-          const userCount = roleUserCounts[role.name] || 0;
-          const editing = editingRoleName === role.name;
-          const canRename = !role.locked && !isSystemRole(role.name) && userCount === 0;
-          const canToggle = !role.locked && userCount === 0;
-          const canDelete = !role.locked && userCount === 0;
-          return (
-            <div key={role.name} className={`rounded-[26px] border p-5 shadow-sm transition ${
-              role.active ? "border-violet-100 bg-white" : "border-rose-100 bg-rose-50/40"
-            }`}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1">
-                  {editing ? (
-                    <div className="space-y-3">
-                      <label className="block">
-                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Role Name</span>
-                        <input
-                          value={editingRoleDraft.name}
-                          disabled={!canRename || saving}
-                          onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, name: event.target.value }))}
-                          className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Description</span>
-                        <textarea
-                          value={editingRoleDraft.description}
-                          disabled={saving}
-                          onChange={(event) => setEditingRoleDraft((draft) => ({ ...draft, description: event.target.value }))}
-                          className="mt-2 min-h-[86px] w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
-                        />
-                      </label>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-4 py-3">
+            <div className="text-sm font-black text-slate-950">Role List</div>
+            <div className="mt-0.5 text-xs font-semibold text-slate-500">เลือก Role เพื่อดูและกำหนดสิทธิ์</div>
+          </div>
+          <div className="max-h-[760px] space-y-2 overflow-y-auto p-3">
+            {visibleRoles.map((role) => {
+              const selected = selectedRole?.name === role.name;
+              const rolePermissionValues = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
+              const roleEnabledCount = PERMISSION_KEYS.filter((key) => rolePermissionValues[key]).length;
+              const userCount = roleUserCounts[role.name] || 0;
+              return (
+                <button
+                  key={role.name}
+                  type="button"
+                  onClick={() => {
+                    setSelectedRoleName(role.name);
+                    setEditingRoleName("");
+                    setPermissionSearch("");
+                  }}
+                  className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
+                    selected
+                      ? "border-violet-300 bg-violet-50 shadow-[0_10px_24px_rgba(109,40,217,0.12)]"
+                      : "border-transparent bg-slate-50/80 hover:border-violet-100 hover:bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${role.active ? "bg-emerald-500" : "bg-rose-400"}`} />
+                        <div className="truncate text-sm font-black text-slate-950">{role.name}</div>
+                        {role.locked ? <span title="System role" className="text-xs text-amber-600">🔒</span> : null}
+                      </div>
+                      <div className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
+                        {role.description || "ยังไม่มีคำอธิบาย Role"}
+                      </div>
                     </div>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-xl font-black text-slate-950">{role.name}</div>
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
-                          role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
-                        }`}>
-                          {role.active ? "Active" : "Disabled"}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs font-semibold text-slate-500">
-                        {role.locked ? "Locked system role" : role.createdBy ? `Updated by ${role.createdBy}` : "Custom role"}
-                      </div>
-                      <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-600">
-                        {role.description || "No description yet. Click Edit to add one."}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="shrink-0 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
-                  <div className="text-2xl font-black text-slate-950">{userCount}</div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Users</div>
-                </div>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${
+                      role.active
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-rose-200 bg-rose-50 text-rose-700"
+                    }`}>
+                      {role.active ? "Active" : "Disabled"}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                    <span>{userCount} users</span>
+                    <span>{roleEnabledCount}/{PERMISSION_KEYS.length} permissions</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500"
+                      style={{ width: `${Math.round((roleEnabledCount / PERMISSION_KEYS.length) * 100)}%` }}
+                    />
+                  </div>
+                </button>
+              );
+            })}
+            {!visibleRoles.length ? (
+              <div className="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+                ไม่พบ Role ที่ค้นหา
               </div>
+            ) : null}
+          </div>
+        </aside>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs font-semibold text-slate-500">
-                  {userCount ? "Assigned users keep this role protected from disable/delete." : canRename ? "Custom role with no users. Full edit is available." : "No users assigned. Status can be changed."}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {editing ? (
-                    <>
+        <section className="min-w-0 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+          {selectedRole ? (
+            <>
+              <div className="border-b border-slate-100 bg-gradient-to-r from-white via-violet-50/60 to-white px-4 py-4 lg:px-5">
+                {editingRoleName === selectedRole.name ? (
+                  <div className="grid gap-3 lg:grid-cols-[1fr_1.5fr_auto] lg:items-end">
+                    <label>
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Role Name</span>
+                      <input
+                        value={editingRoleDraft.name}
+                        disabled={saving || selectedRole.locked || isSystemRole(selectedRole.name) || selectedUserCount > 0}
+                        onChange={(event) => setEditingRoleDraft((current) => ({ ...current, name: event.target.value }))}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-900 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 disabled:text-slate-400"
+                      />
+                    </label>
+                    <label>
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Description</span>
+                      <input
+                        value={editingRoleDraft.description}
+                        disabled={saving}
+                        onChange={(event) => setEditingRoleDraft((current) => ({ ...current, description: event.target.value }))}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      />
+                    </label>
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => {
                           setEditingRoleName("");
                           setEditingRoleDraft({ name: "", description: "" });
                         }}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600"
                       >
                         Cancel
                       </button>
@@ -2828,198 +3064,275 @@ function RoleManagementPanel({
                         type="button"
                         disabled={saving}
                         onClick={() => {
-                          onSaveRoleDetails(role, editingRoleDraft.name, editingRoleDraft.description);
+                          onSaveRoleDetails(selectedRole, editingRoleDraft.name, editingRoleDraft.description);
                           setEditingRoleName("");
                         }}
-                        className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white hover:bg-violet-800 disabled:bg-slate-300"
                       >
                         Save Role
                       </button>
-                    </>
-                  ) : (
-                    <>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-xl font-black text-slate-950">{selectedRole.name}</div>
+                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${
+                          selectedRole.active
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
+                        }`}>
+                          {selectedRole.active ? "Active" : "Disabled"}
+                        </span>
+                        {selectedRole.locked ? (
+                          <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                            Locked System Role
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
+                        {selectedRole.description || "ยังไม่มีคำอธิบาย Role"}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
+                        <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{selectedUserCount} users</span>
+                        <span className="rounded-full bg-white px-3 py-1.5 shadow-sm">{enabledPermissionCount} permissions enabled</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         disabled={saving}
                         onClick={() => {
-                          setEditingRoleName(role.name);
-                          setEditingRoleDraft({ name: role.name, description: role.description || "" });
+                          setEditingRoleName(selectedRole.name);
+                          setEditingRoleDraft({
+                            name: selectedRole.name,
+                            description: selectedRole.description || "",
+                          });
                         }}
-                        className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                        className="rounded-xl border border-violet-200 bg-white px-3.5 py-2 text-xs font-black text-violet-700 transition hover:bg-violet-50"
                       >
-                        Edit
+                        Edit Details
                       </button>
                       <button
                         type="button"
-                        disabled={saving || !canToggle}
-                        onClick={() => onToggle(role)}
-                        className="rounded-2xl border border-amber-200 bg-white px-4 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        disabled={saving || selectedRole.locked || selectedUserCount > 0}
+                        onClick={() => onToggle(selectedRole)}
+                        title={selectedUserCount > 0 ? "Role นี้มีผู้ใช้งานอยู่ จึงยังปิดไม่ได้" : ""}
+                        className="rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-xs font-black text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                       >
-                        {role.active ? "Disable" : "Enable"}
+                        {selectedRole.active ? "Disable Role" : "Enable Role"}
                       </button>
                       <button
                         type="button"
-                        disabled={saving || !canDelete}
-                        onClick={() => onDelete(role)}
-                        className="rounded-2xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        disabled={saving || selectedRole.locked || selectedUserCount > 0}
+                        onClick={() => onDelete(selectedRole)}
+                        title={selectedUserCount > 0 ? "Role นี้มีผู้ใช้งานอยู่ จึงยังลบไม่ได้" : ""}
+                        className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-black text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                       >
                         Delete
                       </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800">
-        Tip: Delete is now available for unused roles, including old default roles. If users are assigned, change their role in the Users tab first.
-      </div>
-      </>
-      ) : null}
-
-      {roleAdminSubTab === "permission-builder" ? (
-      <div className="overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white to-violet-50 px-5 py-5 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="text-lg font-black text-slate-950">Permission Builder</div>
-            <div className="mt-1 text-sm font-semibold text-slate-500">
-              Select one role, then turn access on or off by category. This is easier than editing a wide matrix.
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={onSavePermissions}
-            className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            {saving ? "Saving..." : "Save Permissions"}
-          </button>
-        </div>
-
-        <div className="grid gap-5 p-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="rounded-[24px] border border-slate-100 bg-slate-50 p-3">
-            <div className="px-2 pb-3 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Choose Role</div>
-            <div className="space-y-2">
-              {activeRoles.map((role) => {
-                const rolePermissions = permissionDrafts[role.name] || getDefaultRolePermissions(role.name);
-                const roleEnabledCount = PERMISSION_KEYS.filter((key) => rolePermissions[key]).length;
-                const selected = selectedRole?.name === role.name;
-                return (
-                  <button
-                    key={role.name}
-                    type="button"
-                    onClick={() => setSelectedRoleName(role.name)}
-                    className={`w-full rounded-[20px] border px-4 py-3 text-left transition ${
-                      selected
-                        ? "border-violet-300 bg-white shadow-[0_12px_28px_rgba(109,40,217,0.14)]"
-                        : "border-transparent bg-white/70 hover:border-violet-100 hover:bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-black text-slate-950">{role.name}</div>
-                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${
-                        role.active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"
-                      }`}>
-                        {role.active ? "Active" : "Disabled"}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-500">{roleEnabledCount}/{PERMISSION_KEYS.length} permissions enabled</div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500"
-                        style={{ width: `${Math.round((roleEnabledCount / PERMISSION_KEYS.length) * 100)}%` }}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="min-w-0">
-            {selectedRole ? (
-              <>
-                <div className="mb-4 rounded-[24px] border border-violet-100 bg-gradient-to-r from-violet-50 to-white p-5">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Editing Permission</div>
-                      <div className="mt-1 text-2xl font-black text-slate-950">{selectedRole.name}</div>
-                      <div className="mt-1 text-sm font-semibold text-slate-500">{selectedRole.description || "No role description yet."}</div>
-                    </div>
-                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3 text-center shadow-sm">
-                      <div className="text-2xl font-black text-violet-700">{enabledPermissionCount}</div>
-                      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Enabled</div>
                     </div>
                   </div>
-                </div>
+                )}
+              </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {Object.entries(permissionsByCategory).map(([category, permissions]) => (
-                    <div key={category} className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">{category}</div>
-                        <div className="text-xs font-bold text-slate-400">
-                          {permissions.filter((permission) => selectedPermissions[permission.key]).length}/{permissions.length}
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
+                <div>
+                  <div className="text-sm font-black text-slate-950">Permissions</div>
+                  <div className="mt-0.5 text-xs font-semibold text-slate-500">
+                    เปิดสิทธิ์เฉพาะเมนูและงานที่ Role นี้ต้องใช้งาน
+                  </div>
+                </div>
+                <div className="relative w-full lg:max-w-sm">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+                  <input
+                    value={permissionSearch}
+                    onChange={(event) => setPermissionSearch(event.target.value)}
+                    placeholder="ค้นหาสิทธิ์..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 lg:p-5">
+                {Object.entries(permissionsByCategory).map(([category, permissions]) => {
+                  const categoryMeta = PERMISSION_CATEGORY_META[category] || {
+                    title: category,
+                    thai: category,
+                    description: "",
+                  };
+                  const filteredPermissions = permissions.filter((permission) => {
+                    if (!normalizedPermissionSearch) return true;
+                    const thaiDescription = PERMISSION_THAI_HELP[permission.key] || "";
+                    return (
+                      permission.label.toLowerCase().includes(normalizedPermissionSearch) ||
+                      permission.description.toLowerCase().includes(normalizedPermissionSearch) ||
+                      thaiDescription.toLowerCase().includes(normalizedPermissionSearch)
+                    );
+                  });
+                  if (!filteredPermissions.length) return null;
+                  const enabledCount = permissions.filter((permission) => selectedPermissions[permission.key]).length;
+                  const expanded = expandedCategories[category] !== false;
+                  return (
+                    <div key={category} className="overflow-visible rounded-[20px] border border-slate-200 bg-white">
+                      <div className="flex flex-col gap-3 bg-slate-50/80 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedCategories((current) => ({ ...current, [category]: !expanded }))}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-black text-violet-700 shadow-sm transition ${expanded ? "rotate-90" : ""}`}>
+                            ›
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-black text-slate-950">{categoryMeta.title}</span>
+                            <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                              {categoryMeta.thai} · เปิด {enabledCount} จาก {permissions.length} สิทธิ์
+                            </span>
+                          </span>
+                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => changeCategoryPermissions(category, permissions, true)}
+                            className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-black text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                          >
+                            Enable All
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => changeCategoryPermissions(category, permissions, false)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                          >
+                            Disable All
+                          </button>
                         </div>
                       </div>
-                      <div className="space-y-3">
-                        {permissions.map((permission) => {
-                          const checked = Boolean(selectedPermissions[permission.key]);
-                          const locked = selectedRole.name === "Quality Assurance" && (
-                            permission.key === "viewUserDirectory" ||
-                            permission.key === "manageUsers" ||
-                            permission.key === "manageRoles" ||
-                            permission.key === "manageRubric" ||
-                            permission.key === "manageMaintenance"
-                          );
-                          return (
-                            <div key={permission.key} className={`rounded-2xl border px-4 py-3 ${
-                              checked ? "border-violet-100 bg-violet-50/50" : "border-slate-100 bg-slate-50/70"
-                            }`}>
-                              <div className="flex items-start justify-between gap-4">
-                                <div>
-                                  <div className="font-black text-slate-950">{permission.label}</div>
+
+                      {expanded ? (
+                        <div className="divide-y divide-slate-100 px-4">
+                          {filteredPermissions.map((permission) => {
+                            const checked = Boolean(selectedPermissions[permission.key]);
+                            const locked = isPermissionLocked(selectedRole.name, permission.key);
+                            const thaiDescription = PERMISSION_THAI_HELP[permission.key] || permission.description;
+                            const toggleTooltip = locked
+                              ? "สิทธิ์นี้ถูกล็อกเพื่อความปลอดภัยของผู้ดูแลระบบ"
+                              : checked
+                                ? `สิทธิ์นี้เปิดใช้งานอยู่ คลิกเพื่อปิดสิทธิ์ ${permission.label}`
+                                : `สิทธิ์นี้ยังไม่เปิด คลิกเพื่อเปิดสิทธิ์ ${permission.label}`;
+                            return (
+                              <div key={permission.key} className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0 pr-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <div className="text-sm font-black text-slate-950">{permission.label}</div>
+                                    <PermissionThaiTooltip label={permission.label} description={thaiDescription} />
+                                    {locked ? (
+                                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700">
+                                        Locked
+                                      </span>
+                                    ) : null}
+                                  </div>
                                   <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">{permission.description}</div>
-                                  {locked ? <div className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-600">Locked for admin safety</div> : null}
+                                  <div className={`mt-1.5 text-[11px] font-black ${checked ? "text-emerald-600" : "text-slate-400"}`}>
+                                    สถานะ: {checked ? "เปิดใช้งาน" : "ยังไม่เปิดใช้งาน"}
+                                  </div>
                                 </div>
-                                <label className="inline-flex shrink-0 cursor-pointer items-center justify-center pt-1">
+                                <label
+                                  title={toggleTooltip}
+                                  className={`group relative inline-flex shrink-0 items-center gap-2 ${locked || saving ? "cursor-not-allowed" : "cursor-pointer"}`}
+                                >
+                                  <span className={`text-xs font-black ${checked ? "text-emerald-700" : "text-slate-400"}`}>
+                                    {checked ? "ON" : "OFF"}
+                                  </span>
                                   <input
                                     type="checkbox"
                                     checked={checked}
                                     disabled={saving || locked}
-                                    onChange={(event) => onPermissionChange(selectedRole.name, permission.key, event.target.checked)}
+                                    onChange={(event) => changePermission(selectedRole.name, permission, event.target.checked)}
                                     className="peer sr-only"
                                   />
                                   <span className={`relative h-7 w-12 rounded-full border transition ${
                                     checked
                                       ? "border-violet-500 bg-violet-600"
                                       : "border-slate-200 bg-slate-200"
-                                  } ${saving || locked ? "cursor-not-allowed opacity-60" : ""}`}>
+                                  } ${saving || locked ? "opacity-60" : ""}`}>
                                     <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
                                       checked ? "left-6" : "left-1"
                                     }`} />
                                   </span>
+                                  <span className="pointer-events-none absolute right-0 top-full z-[60] mt-2 hidden w-64 rounded-xl bg-slate-950 px-3 py-2.5 text-left text-xs font-semibold leading-5 text-white shadow-[0_16px_38px_rgba(15,23,42,0.30)] group-hover:block">
+                                    {toggleTooltip}
+                                    <span className="absolute -top-1.5 right-5 h-3 w-3 rotate-45 bg-slate-950" />
+                                  </span>
                                 </label>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">
-                No active role selected.
+                  );
+                })}
+
+                {normalizedPermissionSearch &&
+                !Object.values(permissionsByCategory).some((permissions) =>
+                  permissions.some((permission) => {
+                    const thaiDescription = PERMISSION_THAI_HELP[permission.key] || "";
+                    return (
+                      permission.label.toLowerCase().includes(normalizedPermissionSearch) ||
+                      permission.description.toLowerCase().includes(normalizedPermissionSearch) ||
+                      thaiDescription.toLowerCase().includes(normalizedPermissionSearch)
+                    );
+                  })
+                ) ? (
+                  <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center text-sm font-bold text-slate-500">
+                    ไม่พบสิทธิ์ที่ค้นหา
+                  </div>
+                ) : null}
               </div>
-            )}
+            </>
+          ) : (
+            <div className="p-10 text-center text-sm font-bold text-slate-500">
+              ยังไม่มี Role สำหรับกำหนดสิทธิ์
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="sticky bottom-3 z-30 mt-4 flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-white/95 px-4 py-3 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className={`text-sm font-black ${totalDirtyCount ? "text-amber-700" : "text-emerald-700"}`}>
+            {totalDirtyCount ? `มีการเปลี่ยนแปลงสิทธิ์ ${totalDirtyCount} รายการ` : "บันทึกสิทธิ์เป็นข้อมูลล่าสุดแล้ว"}
+          </div>
+          <div className="mt-0.5 text-xs font-semibold text-slate-500">
+            การเปิดหรือปิด Switch จะยังไม่ใช้งานจริงจนกว่าจะกด Save Changes
           </div>
         </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={saving || totalDirtyCount === 0}
+            onClick={resetPermissionChanges}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Reset Changes
+          </button>
+          <button
+            type="button"
+            disabled={saving || totalDirtyCount === 0}
+            onClick={() => {
+              showPermissionToast("กำลังบันทึกการเปลี่ยนแปลงสิทธิ์...");
+              void onSavePermissions();
+            }}
+            className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </div>
-      ) : null}
     </div>
   );
 }
