@@ -5934,7 +5934,10 @@ export default function DashboardMockup({
                   </>
                   ) : null}
 
-                  <div data-dashboard-priority-v46="true" className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.65fr)]">
+                  <div
+                    data-dashboard-priority-v47="true"
+                    className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.85fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.8fr)_minmax(280px,0.55fr)]"
+                  >
                     <Panel>
                       <PanelHeader title="Topic Performance" subtitle="Strongest to coaching focus · ranked by average percentage" />
                       <PanelBody>
@@ -5942,23 +5945,7 @@ export default function DashboardMockup({
                       </PanelBody>
                     </Panel>
 
-                    <div className="min-w-0 space-y-6">
                     <Panel>
-                      <PanelHeader title="Grade Mix" subtitle="Current grades · expand to view Case IDs" />
-                      <PanelBody className="!p-4">
-                        <GradeMix
-                          gradeCounts={summary.gradeCounts}
-                          cases={dashboardCases}
-                          onOpenCase={(item) => {
-                            setSelectedCaseKey(item.key);
-                            onOpenCaseDetail?.(item.caseId, item.agent);
-                            setSlideOverOpen(true);
-                          }}
-                        />
-                      </PanelBody>
-                    </Panel>
-
-                    <Panel className="h-full">
                       <PanelHeader
                         title="Grade & Incentive"
                         subtitle={getGradePolicyLabel(effectiveViewMonthKey)}
@@ -6045,6 +6032,22 @@ export default function DashboardMockup({
                         </div>
                       </PanelBody>
                     </Panel>
+
+                    <div className="min-w-0 xl:col-start-2 2xl:col-start-auto">
+                      <Panel>
+                        <PanelHeader title="Grade Mix" subtitle="Current grades · expand to view Case IDs" />
+                        <PanelBody className="!p-4">
+                          <GradeMix
+                            gradeCounts={summary.gradeCounts}
+                            cases={dashboardCases}
+                            onOpenCase={(item) => {
+                              setSelectedCaseKey(item.key);
+                              onOpenCaseDetail?.(item.caseId, item.agent);
+                              setSlideOverOpen(true);
+                            }}
+                          />
+                        </PanelBody>
+                      </Panel>
                     </div>
 
                     {false ? (
