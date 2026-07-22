@@ -3042,6 +3042,7 @@ function SafeCaseImagePreview({
 
 function SlideOverCaseDetail({
   open,
+  embedded = false,
   caseItem,
   currentUser,
   onClose,
@@ -3050,6 +3051,7 @@ function SlideOverCaseDetail({
   onShareCaseDetail,
 }: {
   open: boolean;
+  embedded?: boolean;
   caseItem: CaseItem | null;
   currentUser: any;
   onClose: () => void;
@@ -3367,11 +3369,11 @@ function SlideOverCaseDetail({
   };
 
   return (
-    <div className="fixed inset-0 z-[90] bg-slate-900/45">
-      <div className="absolute inset-0" onClick={onClose} />
+    <div className={embedded ? "relative min-h-0 w-full bg-[#f8f6ff]" : "fixed inset-0 z-[90] bg-slate-900/45"}>
+      {!embedded ? <div className="absolute inset-0" onClick={onClose} /> : null}
 
       {previewAsset ? (
-        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 lg:p-6">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 lg:p-6">
           <div className="absolute inset-0" onClick={() => setPreviewAsset(null)} />
           <div className="relative z-10 flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-2xl">
             <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 lg:px-5">
@@ -3468,9 +3470,9 @@ function SlideOverCaseDetail({
       ) : null}
 
       {appealSubmitOpen ? (
-        <div className="absolute inset-0 z-[130] flex items-center justify-center bg-slate-950/60 p-4">
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
-            <div className="border-b border-slate-200 px-5 py-4">
+            <div className="border-b border-slate-200 px-4 py-3">
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">Submit Appeal</div>
               <div className="mt-1 text-xl font-extrabold text-slate-950">{caseItem.caseId}</div>
               <div className="mt-1 text-sm text-slate-500">
@@ -3563,7 +3565,7 @@ function SlideOverCaseDetail({
               </div>
             </div>
 
-            <div className="border-t border-slate-200 bg-white px-5 py-4">
+            <div className="border-t border-slate-200 bg-white px-4 py-3">
               {appealSubmitMessage ? (
                 <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
                   {appealSubmitMessage}
@@ -3591,8 +3593,8 @@ function SlideOverCaseDetail({
         </div>
       ) : null}
 
-      <div className="relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff] shadow-2xl">
-        <div className="sticky top-0 z-20 border-b border-violet-100 bg-white/95 backdrop-blur-sm">
+      <div className={embedded ? "relative z-10 min-h-0 w-full bg-[#f8f6ff]" : "relative z-10 flex h-screen w-screen flex-col overflow-hidden bg-[#f8f6ff] shadow-2xl"}>
+        <div className={embedded ? "sticky top-[49px] z-20 border-b border-violet-100 bg-white/95 backdrop-blur-sm" : "sticky top-0 z-20 border-b border-violet-100 bg-white/95 backdrop-blur-sm"}>
           <div className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-6">
             <div className="min-w-0">
               <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-700">
@@ -3634,10 +3636,10 @@ function SlideOverCaseDetail({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-5 p-4 lg:p-5">
-          <section data-case-detail-priority-v53="true" className="space-y-4">
+        <div className={embedded ? "space-y-3 p-3 lg:p-4" : "flex-1 overflow-y-auto space-y-3 p-3 lg:p-4"}>
+          <section data-case-detail-priority-v53="true" data-case-detail-compact-v54="true" className="space-y-3">
             {caseItem.appealStatus === "Rejected" ? (
-              <div className="rounded-[22px] border border-rose-300 bg-rose-50 px-4 py-4 text-rose-800 shadow-sm">
+              <div className="rounded-[18px] border border-rose-300 bg-rose-50 px-4 py-4 text-rose-800 shadow-sm">
                 <div className="text-sm font-extrabold text-rose-700">Appeal Rejected</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
                   คำขออุทธรณ์ของเคสนี้ไม่ได้รับการอนุมัติ คะแนนและผลการประเมินยังคงเป็นข้อมูลเดิม
@@ -3655,7 +3657,7 @@ function SlideOverCaseDetail({
                 ) : null}
               </div>
             ) : caseItem.appealStatus === "Approved" ? (
-              <div className="rounded-[22px] border border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-800 shadow-sm">
+              <div className="rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-800 shadow-sm">
                 <div className="text-sm font-extrabold text-emerald-700">Appeal Approved</div>
                 <div className="mt-1 text-sm font-semibold leading-6">
                   ผลการพิจารณาอุทธรณ์ได้รับการอนุมัติ และถูกนำมาใช้ใน Case Detail แล้ว
@@ -3674,10 +3676,10 @@ function SlideOverCaseDetail({
               </div>
             ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_340px] xl:items-start">
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
-                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+            <div className="mx-auto grid w-full max-w-[1460px] gap-3 xl:grid-cols-[minmax(0,1.75fr)_310px] xl:items-start">
+              <div className="space-y-3">
+                <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">▣</span>
                     <div>
                       <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Overview</div>
@@ -3685,7 +3687,7 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
 
-                  <div className="space-y-4 p-5">
+                  <div className="space-y-3 p-4">
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">Agent</div>
                       <div className="mt-1.5 text-[18px] font-extrabold tracking-tight text-slate-950">
@@ -3730,15 +3732,15 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
-                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3.5">
+                <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">◷</span>
                     <div>
                       <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Timeline / Audit Info</div>
                       <div className="mt-0.5 text-[11px] text-slate-500">เวลาให้บริการและข้อมูลผู้ประเมิน</div>
                     </div>
                   </div>
-                  <div className="grid gap-0 p-5 sm:grid-cols-3">
+                  <div className="grid gap-0 p-4 sm:grid-cols-3">
                     {[
                       { label: "Audit Date", value: caseItem.auditTimestamp || "-" },
                       {
@@ -3758,12 +3760,12 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
-                  <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3.5">
+                <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-base font-black text-violet-700">▤</span>
                     <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Source</div>
                   </div>
-                  <div className="px-5 py-4">
+                  <div className="px-4 py-3">
                     <div className="text-[10px] font-bold uppercase tracking-[0.17em] text-slate-500">RawData File</div>
                     <div className="mt-1.5 text-[15px] font-extrabold text-slate-900">
                       {caseItem.rawDataSourceName || RAW_DATA_FILE_NAME}
@@ -3773,7 +3775,7 @@ function SlideOverCaseDetail({
               </div>
 
               <div className="space-y-4 xl:sticky xl:top-4">
-                <div className={`rounded-[24px] border p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
+                <div className={`rounded-[20px] border p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] bg-gradient-to-br ${currentGradeTone(caseItem.grade).card}`}>
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/70 text-lg font-black text-emerald-700 shadow-sm">★</span>
                     <div className="text-[17px] font-extrabold tracking-tight text-slate-950">Final Score</div>
@@ -3781,7 +3783,7 @@ function SlideOverCaseDetail({
 
                   <div className="mt-5 flex items-start justify-between gap-3">
                     <div>
-                      <div className={`text-[52px] font-black leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
+                      <div className={`text-[44px] font-black leading-none tracking-tight ${currentGradeTone(caseItem.grade).levelText}`}>
                         {caseItem.finalScore.toFixed(2)}
                       </div>
                       <div className={`mt-3 text-[14px] font-extrabold ${currentGradeTone(caseItem.grade).levelText}`}>
@@ -3806,7 +3808,7 @@ function SlideOverCaseDetail({
                   ) : null}
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+                <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-lg font-black text-violet-700">⚡</span>
                     <div>
@@ -3823,7 +3825,7 @@ function SlideOverCaseDetail({
                           onOpenAppealCase?.(caseItem.caseId, caseItem.agent);
                           onClose();
                         }}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-[13px] font-bold text-violet-700 transition hover:bg-violet-100"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-bold text-violet-700 transition hover:bg-violet-100"
                       >
                         <span aria-hidden="true">↗</span>
                         Open Appeal Case
@@ -3835,7 +3837,7 @@ function SlideOverCaseDetail({
                         href={caseItem.caseUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-[13px] font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                       >
                         <span aria-hidden="true">◎</span>
                         Open Case URL
@@ -3845,7 +3847,7 @@ function SlideOverCaseDetail({
                     <button
                       type="button"
                       onClick={() => onShareCaseDetail?.(caseItem.caseId, caseItem.agent)}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-[13px] font-bold text-indigo-700 transition hover:bg-indigo-100"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[13px] font-bold text-indigo-700 transition hover:bg-indigo-100"
                     >
                       <span aria-hidden="true">↗</span>
                       Share Case Detail Link
@@ -3854,7 +3856,7 @@ function SlideOverCaseDetail({
                     <button
                       type="button"
                       onClick={() => handleGenerateCaseDetailPdf("original")}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-700 transition hover:bg-amber-100"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] font-bold text-amber-700 transition hover:bg-amber-100"
                       title={`Generate ${caseItem.caseId} Original PDF`}
                     >
                       <span aria-hidden="true">▤</span>
@@ -3866,7 +3868,7 @@ function SlideOverCaseDetail({
                         <button
                           type="button"
                           onClick={openAppealSubmitForm}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-bold text-emerald-700 transition hover:bg-emerald-100"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition hover:bg-emerald-100"
                         >
                           <span aria-hidden="true">＋</span>
                           Submit Appeal
@@ -3889,7 +3891,7 @@ function SlideOverCaseDetail({
                       <button
                         type="button"
                         onClick={() => handleGenerateCaseDetailPdf("appeal")}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-[13px] font-bold text-violet-700 transition hover:bg-violet-100"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-bold text-violet-700 transition hover:bg-violet-100"
                         title={`Generate ${caseItem.caseId} Appeal PDF`}
                       >
                         <span aria-hidden="true">▤</span>
@@ -3952,7 +3954,7 @@ function SlideOverCaseDetail({
                             });
                           }
                         }}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-[13px] font-bold text-sky-700 transition hover:bg-sky-100"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-[13px] font-bold text-sky-700 transition hover:bg-sky-100"
                       >
                         <span aria-hidden="true">▧</span>
                         Preview Case Image
@@ -3967,7 +3969,7 @@ function SlideOverCaseDetail({
             <PanelHeader title="Topic Detail" subtitle="Premium topic review with highlighted revised score changes" />
             <PanelBody>
               <div className="mb-5 space-y-4">
-                <div className="rounded-[22px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
+                <div className="rounded-[18px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 px-4 py-4 shadow-[0_10px_24px_rgba(109,40,217,0.06)]">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">{"\u{1F4AC}"}</span>
                     <div>
@@ -3980,7 +3982,7 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
 
-                <div className="rounded-[22px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
+                <div className="rounded-[18px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-100 text-base text-fuchsia-700 shadow-sm">{"\u{1F4DD}"}</span>
                     <div>
@@ -3995,7 +3997,7 @@ function SlideOverCaseDetail({
               </div>
               {caseItem.appealStatus === "Rejected" &&
               caseItem.appealReviewedTopics?.some((topic) => String(topic.comment || "").trim()) ? (
-                <div className="mb-5 rounded-[22px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
+                <div className="mb-5 rounded-[18px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
                   <div className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-rose-700">
                     Review Feedback / Revised Comment
                   </div>
@@ -4040,6 +4042,7 @@ function SlideOverCaseDetail({
 export default function DashboardMockup({
   currentUser,
   dashboardSubTab,
+  caseDetailWorkspaceMode = false,
   externalSelectedAgent,
   externalSelectedMonthKey,
   externalSelectedWeek,
@@ -4057,6 +4060,7 @@ export default function DashboardMockup({
 }: {
   currentUser: any;
   dashboardSubTab: "overview" | "case-detail";
+  caseDetailWorkspaceMode?: boolean;
   externalSelectedAgent?: string;
   externalSelectedMonthKey?: string;
   externalSelectedWeek?: string;
@@ -4106,6 +4110,12 @@ export default function DashboardMockup({
     }
     onCloseCaseDetail?.();
   }
+
+  useEffect(() => {
+    if (!caseDetailWorkspaceMode && !externalCaseIdSearch) {
+      setSlideOverOpen(false);
+    }
+  }, [caseDetailWorkspaceMode, externalCaseIdSearch]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const caseSearchHistoryStorageKey = useMemo(() => {
@@ -5616,6 +5626,32 @@ export default function DashboardMockup({
             {"ตรวจสอบว่าไฟล์อยู่ใน public ครบตามชื่อที่กำหนด: QA_RawData_January-February2026.xlsx / QA_RawData_March-May2026.xlsx / Appeal ROWDATA.xlsx"}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (caseDetailWorkspaceMode && dashboardSubTab === "case-detail") {
+    return (
+      <div data-case-detail-workspace-v54="true" className="min-h-[calc(100vh-52px)] bg-[#f8f6ff]">
+        {activeSelectedCase ? (
+          <SlideOverCaseDetail
+            embedded
+            open
+            caseItem={activeSelectedCase}
+            currentUser={currentUser}
+            onClose={closeCaseDetail}
+            onOpenAppealCase={onOpenAppealCase}
+            onGeneratePdf={onGeneratePdf}
+            onShareCaseDetail={onShareCaseDetail}
+          />
+        ) : (
+          <div className="mx-auto flex min-h-[420px] max-w-3xl items-center justify-center p-6">
+            <div className="w-full rounded-[20px] border border-violet-200 bg-white px-5 py-8 text-center shadow-sm">
+              <div className="text-sm font-bold text-slate-800">กำลังเปิด Case Detail</div>
+              <div className="mt-1 text-xs text-slate-500">รอโหลดข้อมูลของ {externalCaseIdSearch || "เคสที่เลือก"}</div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

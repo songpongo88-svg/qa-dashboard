@@ -207,7 +207,8 @@ type AppTab =
   | "usage-log"
   | "user-roles";
 
-type WorkspaceTabKey = AppTab | "case-detail";
+type CaseWorkspaceTabKey = `case:${string}`;
+type WorkspaceTabKey = AppTab | "case-detail" | CaseWorkspaceTabKey;
 
 type SidebarNavItem = {
   key: string;
@@ -329,7 +330,7 @@ const VALID_WORKSPACE_TAB_KEYS = new Set<WorkspaceTabKey>([
   "case-detail",
 ]);
 
-const WORKSPACE_TAB_LABELS: Record<WorkspaceTabKey, string> = {
+const WORKSPACE_TAB_LABELS: Record<AppTab | "case-detail", string> = {
   dashboard: "Overview",
   "case-detail": "Cases",
   appeal: "Appeal Cases",
@@ -350,10 +351,38 @@ const WORKSPACE_TAB_LABELS: Record<WorkspaceTabKey, string> = {
   "user-roles": "System Setup",
 };
 
+function buildCaseWorkspaceKey(caseId: string, agentName = ""): CaseWorkspaceTabKey {
+  const safeCaseId = String(caseId || "").trim();
+  const safeAgent = String(agentName || "").trim();
+  return `case:${encodeURIComponent(safeCaseId)}|${encodeURIComponent(safeAgent)}` as CaseWorkspaceTabKey;
+}
+
+function parseCaseWorkspaceKey(value: unknown) {
+  const normalized = String(value || "");
+  if (!normalized.startsWith("case:")) return { caseId: "", agentName: "" };
+  const payload = normalized.slice(5);
+  const separatorIndex = payload.indexOf("|");
+  const encodedCaseId = separatorIndex >= 0 ? payload.slice(0, separatorIndex) : payload;
+  const encodedAgent = separatorIndex >= 0 ? payload.slice(separatorIndex + 1) : "";
+  try {
+    return {
+      caseId: decodeURIComponent(encodedCaseId || ""),
+      agentName: decodeURIComponent(encodedAgent || ""),
+    };
+  } catch {
+    return { caseId: encodedCaseId, agentName: encodedAgent };
+  }
+}
+
+function isCaseWorkspaceTabKey(value: unknown): value is CaseWorkspaceTabKey {
+  return String(value || "").startsWith("case:") && Boolean(parseCaseWorkspaceKey(value).caseId);
+}
+
 function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
   const normalized = String(value || "").trim();
-  return VALID_WORKSPACE_TAB_KEYS.has(normalized as WorkspaceTabKey)
-    ? (normalized as WorkspaceTabKey)
+  if (isCaseWorkspaceTabKey(normalized)) return normalized as CaseWorkspaceTabKey;
+  return VALID_WORKSPACE_TAB_KEYS.has(normalized as AppTab | "case-detail")
+    ? (normalized as AppTab | "case-detail")
     : "";
 }
 
@@ -3752,11 +3781,24 @@ export default function App() {
   }, [sidebarPermissionNotice]);
 
   const activateWorkspaceTab = useCallback((workspaceKey: WorkspaceTabKey) => {
-    if (workspaceKey === "case-detail") {
+    if (isCaseWorkspaceTabKey(workspaceKey)) {
+      const { caseId, agentName } = parseCaseWorkspaceKey(workspaceKey);
       setDashboardSubTab("case-detail");
+      setSelectedDashboardCaseId(caseId);
+      if (agentName) setSelectedAgentGlobal(agentName);
       navigateToTab("dashboard", {
         workspaceKey,
-        params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" },
+        params: { subTab: "case-detail", caseId, agent: agentName },
+      });
+      return;
+    }
+
+    if (workspaceKey === "case-detail") {
+      setDashboardSubTab("case-detail");
+      setSelectedDashboardCaseId("");
+      navigateToTab("dashboard", {
+        workspaceKey,
+        params: { subTab: "case-detail", caseId: "", agent: selectedAgentGlobal || "" },
       });
       return;
     }
@@ -6248,11 +6290,13 @@ export default function App() {
           users={effectiveUserAccounts}
         />
 
-        <div data-workspace-tabs-draggable-v46="true" className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-gradient-to-r from-white via-violet-50/80 to-fuchsia-50/70 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
+        <div data-workspace-tabs-draggable-v46="true" data-case-workspace-tabs-v54="true" className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-gradient-to-r from-white via-violet-50/80 to-fuchsia-50/70 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="Open workspace tabs">
             {openWorkspaceTabs.map((workspaceKey) => {
               const isActive = activeWorkspaceTab === workspaceKey;
-              const label = WORKSPACE_TAB_LABELS[workspaceKey];
+              const label = isCaseWorkspaceTabKey(workspaceKey)
+                ? parseCaseWorkspaceKey(workspaceKey).caseId
+                : WORKSPACE_TAB_LABELS[workspaceKey];
               return <div
                 key={workspaceKey}
                 draggable={workspaceKey !== "dashboard"}
@@ -6319,6 +6363,7 @@ export default function App() {
             <DashboardMockup
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
+              caseDetailWorkspaceMode={isCaseWorkspaceTabKey(activeWorkspaceTab)}
               externalSelectedAgent={selectedAgentGlobal}
               externalSelectedMonthKey={selectedMonthGlobal}
               externalSelectedWeek={selectedWeekGlobal}
@@ -6330,9 +6375,14 @@ export default function App() {
               onSelectedWeekChange={setSelectedWeekGlobal}
               onShareCaseDetail={shareCaseDetailLink}
               onCloseCaseDetail={() => {
+                if (isCaseWorkspaceTabKey(activeWorkspaceTab)) {
+                  closeWorkspaceTab(activeWorkspaceTab);
+                  return;
+                }
                 setSelectedDashboardCaseId("");
                 navigateToTab("dashboard", {
                   replace: true,
+                  workspaceKey: "case-detail",
                   params: {
                     subTab: "case-detail",
                     caseId: "",
@@ -6341,10 +6391,12 @@ export default function App() {
                 });
               }}
               onOpenCaseDetail={(caseId, agentName) => {
+                const caseWorkspaceKey = buildCaseWorkspaceKey(caseId || "", agentName || "");
                 setDashboardSubTab("case-detail");
                 setSelectedDashboardCaseId(caseId || "");
                 if (agentName) setSelectedAgentGlobal(agentName);
                 navigateToTab("dashboard", {
+                  workspaceKey: caseWorkspaceKey,
                   params: {
                     subTab: "case-detail",
                     caseId: caseId || "",
