@@ -1227,7 +1227,7 @@ function Panel({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[26px] border border-violet-200/70 bg-white/95 shadow-[0_10px_28px_rgba(76,29,149,0.08)] backdrop-blur-sm ${className}`}
+      className={`relative min-w-0 overflow-hidden rounded-[26px] border border-violet-200/70 bg-white/95 shadow-[0_10px_28px_rgba(76,29,149,0.08)] backdrop-blur-sm ${className}`}
     >
       {isSongkranThemeActive() ? (
         <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
@@ -1527,6 +1527,52 @@ function formatDateRangeValue(value: string) {
   return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 }
 
+function formatCompactDate(date: Date, includeYear = true) {
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    ...(includeYear ? { year: "numeric" } : {}),
+  });
+}
+
+function formatCompactDateRange(dateFrom: string, dateTo: string) {
+  const from = parseInputDateValue(dateFrom);
+  const to = parseInputDateValue(dateTo);
+  if (!from || !to) return "Select date range";
+
+  const sameYear = from.getFullYear() === to.getFullYear();
+  const sameMonth = sameYear && from.getMonth() === to.getMonth();
+  if (sameMonth) {
+    return `${String(from.getDate()).padStart(2, "0")}–${formatCompactDate(to)}`;
+  }
+  if (sameYear) {
+    return `${formatCompactDate(from, false)}–${formatCompactDate(to)}`;
+  }
+  return `${formatCompactDate(from)}–${formatCompactDate(to)}`;
+}
+
+function formatCompactWeekLabel(value: string) {
+  const dateParts = String(value || "").match(/\d{2}\/\d{2}\/\d{4}/g);
+  if (!dateParts || dateParts.length < 2) return value;
+
+  const parseDisplayDate = (displayValue: string) => {
+    const [day, month, year] = displayValue.split("/").map(Number);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const from = parseDisplayDate(dateParts[0]);
+  const to = parseDisplayDate(dateParts[1]);
+  if (!from || !to) return value;
+
+  const sameYear = from.getFullYear() === to.getFullYear();
+  const sameMonth = sameYear && from.getMonth() === to.getMonth();
+  if (sameMonth) {
+    const month = to.toLocaleDateString("en-GB", { month: "short" });
+    return `${String(from.getDate()).padStart(2, "0")}–${String(to.getDate()).padStart(2, "0")} ${month}`;
+  }
+  return `${formatCompactDate(from, false)}–${formatCompactDate(to, false)}`;
+}
+
 function getCalendarCells(monthDate: Date) {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
@@ -1616,8 +1662,8 @@ function DateRangePicker({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
       }}
     >
-      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white px-16 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-        <span className="w-full min-w-0 truncate text-center">{dateFrom && dateTo ? `${formatDateRangeValue(dateFrom)} – ${formatDateRangeValue(dateTo)}` : "Select date range"}</span>
+      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white pl-4 pr-20 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+        <span className="w-full min-w-0 truncate text-center">{formatCompactDateRange(dateFrom, dateTo)}</span>
         <svg viewBox="0 0 24 24" className="absolute right-4 h-5 w-5 shrink-0 text-violet-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
       </button>
 
@@ -1765,30 +1811,83 @@ function ReviewStatusBadge({ item }: { item: CaseItem }) {
 }
 
 function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
+  const rankedItems = [...items].sort((a, b) => {
+    if (a.pct === "-") return 1;
+    if (b.pct === "-") return -1;
+    return Number(b.pct) - Number(a.pct);
+  });
+  const scoredItems = rankedItems.filter((item) => item.pct !== "-");
+  const strongestCode = scoredItems[0]?.code || "";
+  const coachingCode = scoredItems.length > 1 ? scoredItems[scoredItems.length - 1]?.code || "" : "";
+
   return (
-    <div className="overflow-x-auto rounded-2xl border border-violet-100">
-      <table className="min-w-[860px] w-full text-sm">
+    <div data-ranked-topic-performance-v46="true" className="min-w-0 overflow-hidden rounded-2xl border border-violet-100">
+      <table className="w-full table-fixed text-sm">
+        <colgroup>
+          <col className="w-14" />
+          <col className="hidden w-16 md:table-column" />
+          <col />
+          <col className="hidden w-28 sm:table-column" />
+          <col className="w-20" />
+          <col className="hidden w-36 lg:table-column" />
+        </colgroup>
         <thead>
-          <tr className="bg-violet-950 text-[11px] text-white">
-            <th className="px-3 py-3">Topic</th>
+          <tr className="bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 text-[11px] text-white">
+            <th className="px-3 py-3 text-center">Rank</th>
+            <th className="hidden px-3 py-3 text-center md:table-cell">Topic</th>
             <th className="px-3 py-3 text-left">Description</th>
-            <th className="px-3 py-3">Avg Score</th>
-            <th className="px-3 py-3">Max</th>
-            <th className="px-3 py-3">Avg %</th>
+            <th className="hidden px-3 py-3 text-center sm:table-cell">Score</th>
+            <th className="px-3 py-3 text-center">Avg %</th>
+            <th className="hidden px-3 py-3 text-left lg:table-cell">Focus</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((entry) => (
-            <tr key={entry.code} className="bg-white">
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.code}</td>
-              <td className="border-t border-slate-200 px-3 py-3">{entry.label}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.avgScore}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">{entry.max}</td>
-              <td className="border-t border-slate-200 px-3 py-3 text-center">
-                {entry.pct === "-" ? "-" : `${entry.pct}%`}
-              </td>
-            </tr>
-          ))}
+          {rankedItems.map((entry, index) => {
+            const isStrongest = entry.code === strongestCode;
+            const isCoachingFocus = entry.code === coachingCode;
+            const focusLabel = isStrongest ? "Strongest" : isCoachingFocus ? "Coaching Focus" : "";
+            return (
+              <tr
+                key={entry.code}
+                className={isStrongest ? "bg-emerald-50/80" : isCoachingFocus ? "bg-rose-50/80" : "bg-white"}
+              >
+                <td className="border-t border-slate-200 px-3 py-3 text-center">
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold ${
+                    isStrongest
+                      ? "border-emerald-200 bg-emerald-100 text-emerald-800"
+                      : isCoachingFocus
+                        ? "border-rose-200 bg-rose-100 text-rose-800"
+                        : "border-violet-200 bg-violet-50 text-violet-800"
+                  }`}>{index + 1}</span>
+                </td>
+                <td className="hidden border-t border-slate-200 px-3 py-3 text-center font-semibold text-violet-700 md:table-cell">{entry.code}</td>
+                <td className="border-t border-slate-200 px-3 py-3">
+                  <div className="break-words font-semibold text-slate-900">{entry.label}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] lg:hidden">
+                    <span className="text-slate-500 md:hidden">Topic {entry.code}</span>
+                    {focusLabel ? (
+                      <span className={`rounded-full border px-2 py-0.5 font-semibold ${
+                        isStrongest
+                          ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                          : "border-rose-200 bg-rose-100 text-rose-700"
+                      }`}>{focusLabel}</span>
+                    ) : null}
+                  </div>
+                </td>
+                <td className="hidden border-t border-slate-200 px-3 py-3 text-center font-semibold text-slate-700 sm:table-cell">{entry.avgScore === "-" ? "-" : `${entry.avgScore} / ${entry.max}`}</td>
+                <td className="border-t border-slate-200 px-3 py-3 text-center font-bold text-violet-800">{entry.pct === "-" ? "-" : `${entry.pct}%`}</td>
+                <td className="hidden border-t border-slate-200 px-3 py-3 lg:table-cell">
+                  {focusLabel ? (
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                      isStrongest
+                        ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+                        : "border-rose-200 bg-rose-100 text-rose-700"
+                    }`}>{focusLabel}</span>
+                  ) : <span className="text-slate-300">—</span>}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -2030,25 +2129,74 @@ function CaseDetailTopicTable({
   );
 }
 
-function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
+function GradeMix({
+  gradeCounts,
+  cases,
+  onOpenCase,
+}: {
+  gradeCounts: Record<Grade, number>;
+  cases: CaseItem[];
+  onOpenCase?: (item: CaseItem) => void;
+}) {
+  const [openGrade, setOpenGrade] = useState<Grade | "">("");
+  const visibleGrades = (Object.keys(gradeCounts) as Grade[]).filter((grade) => gradeCounts[grade] > 0);
+  const totalCases = Math.max(cases.length, 1);
+
+  if (!visibleGrades.length) {
+    return <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/60 px-4 py-5 text-center text-xs text-slate-500">No grade data in the current view</div>;
+  }
+
   return (
-    <div className="space-y-3">
-      {(Object.keys(gradeCounts) as Grade[]).map((grade) => (
-        <div
-          key={grade}
-          className="relative flex items-center justify-between rounded-2xl border border-violet-100 bg-white px-4 py-3"
-        >
-          {isSongkranThemeActive() ? (
-            <span className="pointer-events-none absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
-          ) : null}
-          <span
-            className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${gradeTone(grade)}`}
-          >
-            {grade}
-          </span>
-          <span className="text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s)</span>
-        </div>
-      ))}
+    <div data-grade-mix-case-drilldown-v46="true" className="space-y-2">
+      {visibleGrades.map((grade) => {
+        const gradeCases = cases.filter((item) => item.grade === grade);
+        const isOpen = openGrade === grade;
+        const percentage = Math.round((gradeCases.length / totalCases) * 100);
+        const barTone = grade === "A"
+          ? "bg-emerald-500"
+          : grade === "B"
+            ? "bg-sky-500"
+            : grade === "C"
+              ? "bg-amber-500"
+              : "bg-rose-500";
+        return (
+          <div key={grade} className={`overflow-hidden rounded-2xl border transition ${isOpen ? "border-violet-300 bg-violet-50/70" : "border-violet-100 bg-white"}`}>
+            <div className="flex min-w-0 items-center justify-between gap-2 px-3 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-semibold ${gradeTone(grade)}`}>{grade}</span>
+                <span className="truncate text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s) · {percentage}%</span>
+              </div>
+              <button
+                type="button"
+                disabled={!gradeCases.length}
+                aria-expanded={isOpen}
+                onClick={() => setOpenGrade((current) => current === grade ? "" : grade)}
+                className="shrink-0 rounded-xl border border-violet-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isOpen ? "− Hide" : "+ Cases"}
+              </button>
+            </div>
+            <div className="mx-3 mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className={`h-full rounded-full ${barTone}`} style={{ width: `${percentage}%` }} />
+            </div>
+            {isOpen ? (
+              <div className="max-h-44 space-y-1.5 overflow-y-auto border-t border-violet-100 p-2">
+                {gradeCases.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => onOpenCase?.(item)}
+                    className="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-white bg-white px-3 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
+                  >
+                    <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{item.caseId}</span>
+                    <span className="shrink-0 text-[10px] font-bold text-violet-700">{item.finalScore.toFixed(2)} ↗</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2587,7 +2735,7 @@ function PremiumLineChart({
   height?: number;
 }) {
   const width = 640;
-  const padding = 28;
+  const padding = 58;
   const values = data.map((d) => d.value);
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
@@ -2619,8 +2767,8 @@ function PremiumLineChart({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[640px] w-full">
+      <div className="min-w-0 overflow-hidden">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" preserveAspectRatio="xMidYMid meet">
           {[0, 1, 2, 3].map((line) => {
             const y = padding + (line * (height - padding * 2)) / 3;
             return (
@@ -2691,7 +2839,7 @@ function PremiumLineChart({
                   {item.value.toFixed(1)}
                 </text>
                 <text x={x} y={height - 8} textAnchor="middle" fontSize="11" fill="#64748b">
-                  {item.label}
+                  {formatCompactWeekLabel(item.label)}
                 </text>
               </g>
             );
@@ -5086,20 +5234,6 @@ export default function DashboardMockup({
     ];
   }, [dashboardCases, songkranTheme]);
 
-  const weakestTopics = useMemo(() => {
-    return summary.topicPerformance
-      .filter((item) => item.pct !== "-")
-      .sort((a, b) => Number(a.pct) - Number(b.pct))
-      .slice(0, 3);
-  }, [summary]);
-
-  const strongestTopics = useMemo(() => {
-    return summary.topicPerformance
-      .filter((item) => item.pct !== "-")
-      .sort((a, b) => Number(b.pct) - Number(a.pct))
-      .slice(0, 3);
-  }, [summary]);
-
   const weeklyTrendData = useMemo(() => {
     const weekMap = new Map<string, number[]>();
 
@@ -5405,7 +5539,7 @@ export default function DashboardMockup({
       </div>
       ) : null}
 
-      <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+      <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             <Panel className="qa-filter-dock-v38 !overflow-visible z-50">
               <PanelHeader
                 title="Quick Controls"
@@ -5434,8 +5568,8 @@ export default function DashboardMockup({
                     Current Month
                   </button>
                 </div>
-                <div data-dashboard-ui-polish-v42="true" className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
-                  <div className="min-w-0 xl:col-span-2">
+                <div data-responsive-dashboard-v46="true" className="grid min-w-0 gap-4 lg:grid-cols-2 2xl:grid-cols-12">
+                  <div className="min-w-0 2xl:col-span-2">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Year</div>
                     <CompactAlignedSelect
                       ariaLabel="Year"
@@ -5463,7 +5597,7 @@ export default function DashboardMockup({
                     />
                   </div>
 
-                  <div className="min-w-0 xl:col-span-3">
+                  <div className="min-w-0 2xl:col-span-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Month</div>
                     <CompactAlignedSelect
                       ariaLabel="Month"
@@ -5485,7 +5619,7 @@ export default function DashboardMockup({
                     />
                   </div>
 
-                  <div className="min-w-0 xl:col-span-4">
+                  <div className="min-w-0 2xl:col-span-4">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent Name</div>
                     {roleScopedAgentList.length ? (
                       <div className="flex h-12 min-w-0 items-center justify-center truncate rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-center text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
@@ -5509,7 +5643,7 @@ export default function DashboardMockup({
                     )}
                   </div>
 
-                  <div className="min-w-0 md:order-5 md:col-span-2 xl:col-span-12 xl:max-w-5xl">
+                  <div className="min-w-0 lg:order-5 lg:col-span-2 2xl:col-span-12">
                     <div className="relative mb-2 flex items-center justify-between gap-2">
                       <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
                       <button
@@ -5567,7 +5701,7 @@ export default function DashboardMockup({
                     </div>
                   </div>
 
-                  <div className="min-w-0 md:order-4 xl:col-span-3">
+                  <div className="min-w-0 lg:order-4 2xl:order-none 2xl:col-span-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date Range</div>
                     <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={updateDateRange} onClear={clearDateRange} />
                   </div>
@@ -5576,15 +5710,15 @@ export default function DashboardMockup({
             </Panel>
 
         <div className="mt-4 space-y-4">
-          <section className="qa-weekly-tabs-v36 rounded-[22px] border border-violet-100 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly Snapshot">
+          <section className="qa-weekly-tabs-v36 min-w-0 rounded-[22px] border border-violet-100 bg-gradient-to-r from-white via-violet-50/50 to-fuchsia-50/50 px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly Snapshot">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
                 <div className="text-sm font-semibold text-slate-900">Weekly Snapshot</div>
                 <div className="text-xs text-slate-500">Select a week to filter and jump to results</div>
               </div>
-              <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Weekly Snapshot">
-                <button type="button" role="tab" aria-selected={selectedWeek === "all"} onClick={() => selectWeeklySnapshot("all")} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${selectedWeek === "all" ? "border-violet-600 bg-violet-600 text-white shadow-sm" : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"}`}>All Weeks</button>
-                {weekLabels.map((week) => <button key={week} type="button" role="tab" aria-selected={selectedWeek === week} onClick={() => selectWeeklySnapshot(week)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${selectedWeek === week ? "border-violet-600 bg-violet-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50"}`}>{week}</button>)}
+              <div className="flex min-w-0 flex-1 flex-wrap gap-2" role="tablist" aria-label="Weekly Snapshot">
+                <button type="button" role="tab" aria-selected={selectedWeek === "all"} onClick={() => selectWeeklySnapshot("all")} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${selectedWeek === "all" ? "border-violet-600 bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm" : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"}`}>All Weeks</button>
+                {weekLabels.map((week) => <button key={week} type="button" role="tab" aria-selected={selectedWeek === week} onClick={() => selectWeeklySnapshot(week)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition ${selectedWeek === week ? "border-violet-600 bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50"}`}>{formatCompactWeekLabel(week)}</button>)}
               </div>
               <div className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-600">
                 <span>{dashboardCases.length} cases</span>
@@ -5800,11 +5934,27 @@ export default function DashboardMockup({
                   </>
                   ) : null}
 
-                  <div data-dashboard-priority-v41="true" className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.85fr)]">
+                  <div data-dashboard-priority-v46="true" className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.65fr)]">
                     <Panel>
-                      <PanelHeader title="Topic Performance" subtitle="Priority topic scores in the current view" />
+                      <PanelHeader title="Topic Performance" subtitle="Strongest to coaching focus · ranked by average percentage" />
                       <PanelBody>
                         <TopicPerformanceTable items={summary.topicPerformance} />
+                      </PanelBody>
+                    </Panel>
+
+                    <div className="min-w-0 space-y-6">
+                    <Panel>
+                      <PanelHeader title="Grade Mix" subtitle="Current grades · expand to view Case IDs" />
+                      <PanelBody className="!p-4">
+                        <GradeMix
+                          gradeCounts={summary.gradeCounts}
+                          cases={dashboardCases}
+                          onOpenCase={(item) => {
+                            setSelectedCaseKey(item.key);
+                            onOpenCaseDetail?.(item.caseId, item.agent);
+                            setSlideOverOpen(true);
+                          }}
+                        />
                       </PanelBody>
                     </Panel>
 
@@ -5895,6 +6045,7 @@ export default function DashboardMockup({
                         </div>
                       </PanelBody>
                     </Panel>
+                    </div>
 
                     {false ? (
                     <Panel>
@@ -6371,56 +6522,6 @@ export default function DashboardMockup({
                     data={weeklyTrendData}
                   />
 
-                  <Panel>
-                    <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
-                    <PanelBody>
-                      <GradeMix gradeCounts={summary.gradeCounts} />
-                    </PanelBody>
-                  </Panel>
-
-                  <div className="grid gap-6 xl:grid-cols-2">
-                    <Panel>
-                      <PanelHeader title="Strongest Topics" subtitle="Top 3 topics in current view" />
-                      <PanelBody className="space-y-3">
-                        {strongestTopics.length ? (
-                          strongestTopics.map((topic) => (
-                            <div
-                              key={topic.code}
-                              className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3"
-                            >
-                              <div className="text-sm font-bold text-slate-900">
-                                {topic.code} {topic.label}
-                              </div>
-                              <div className="mt-1 text-xs text-emerald-700">{topic.pct}% average</div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-slate-500">No data</div>
-                        )}
-                      </PanelBody>
-                    </Panel>
-
-                    <Panel>
-                      <PanelHeader title="Coaching Focus" subtitle="Top 3 weakest topics in current view" />
-                      <PanelBody className="space-y-3">
-                        {weakestTopics.length ? (
-                          weakestTopics.map((topic) => (
-                            <div
-                              key={topic.code}
-                              className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3"
-                            >
-                              <div className="text-sm font-bold text-slate-900">
-                                {topic.code} {topic.label}
-                              </div>
-                              <div className="mt-1 text-xs text-rose-700">{topic.pct}% average</div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-sm text-slate-500">No data</div>
-                        )}
-                      </PanelBody>
-                    </Panel>
-                  </div>
                 </>
               ) : (
                 <>

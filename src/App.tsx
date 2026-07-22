@@ -3078,6 +3078,7 @@ export default function App() {
   const lastSessionTouchRef = useRef(0);
   const usernameValidationRequestRef = useRef(0);
   const automaticLoginRequestRef = useRef(0);
+  const workspaceTabDragRef = useRef<WorkspaceTabKey | null>(null);
 
   // data-auth-workspace-reset-v40
   const resetWorkspaceSessionState = () => {
@@ -3782,6 +3783,25 @@ export default function App() {
       activateWorkspaceTab(fallback);
     }
   }, [activeWorkspaceTab, activateWorkspaceTab, openWorkspaceTabs]);
+
+  const reorderWorkspaceTab = useCallback((
+    sourceKey: WorkspaceTabKey,
+    targetKey: WorkspaceTabKey,
+    placeAfter: boolean
+  ) => {
+    if (sourceKey === "dashboard" || sourceKey === targetKey) return;
+    setOpenWorkspaceTabs((current) => {
+      if (!current.includes(sourceKey) || !current.includes(targetKey)) return current;
+      const next = current.filter((item) => item !== sourceKey);
+      const targetIndex = next.indexOf(targetKey);
+      const rawInsertIndex = targetKey === "dashboard"
+        ? 1
+        : targetIndex + (placeAfter ? 1 : 0);
+      const insertIndex = Math.min(Math.max(rawInsertIndex, 1), next.length);
+      next.splice(insertIndex, 0, sourceKey);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -6228,13 +6248,40 @@ export default function App() {
           users={effectiveUserAccounts}
         />
 
-        <div className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-white/95 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto" role="tablist" aria-label="Open workspace tabs">
+        <div data-workspace-tabs-draggable-v46="true" className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-gradient-to-r from-white via-violet-50/80 to-fuchsia-50/70 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-0.5" role="tablist" aria-label="Open workspace tabs">
             {openWorkspaceTabs.map((workspaceKey) => {
               const isActive = activeWorkspaceTab === workspaceKey;
               const label = WORKSPACE_TAB_LABELS[workspaceKey];
-              return <div key={workspaceKey} className={`group flex shrink-0 items-center rounded-xl border transition ${isActive ? "border-violet-500 bg-violet-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"}`}>
-                <button type="button" role="tab" aria-selected={isActive} aria-label={`Open ${label}`} onClick={() => activateWorkspaceTab(workspaceKey)} className="px-3 py-2 text-xs font-bold">{label}</button>
+              return <div
+                key={workspaceKey}
+                draggable={workspaceKey !== "dashboard"}
+                onDragStart={(event) => {
+                  if (workspaceKey === "dashboard") return;
+                  workspaceTabDragRef.current = workspaceKey;
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", workspaceKey);
+                }}
+                onDragOver={(event) => {
+                  if (!workspaceTabDragRef.current) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const sourceKey = normalizeWorkspaceTabKey(event.dataTransfer.getData("text/plain")) || workspaceTabDragRef.current;
+                  if (!sourceKey) return;
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  reorderWorkspaceTab(sourceKey, workspaceKey, event.clientX >= bounds.left + bounds.width / 2);
+                  workspaceTabDragRef.current = null;
+                }}
+                onDragEnd={() => {
+                  workspaceTabDragRef.current = null;
+                }}
+                className={`group flex shrink-0 items-center rounded-xl border transition ${workspaceKey === "dashboard" ? "cursor-default" : "cursor-grab active:cursor-grabbing"} ${isActive ? "border-violet-500 bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"}`}
+              >
+                {workspaceKey !== "dashboard" ? <span className={`ml-2 text-xs ${isActive ? "text-violet-100" : "text-slate-400"}`} aria-hidden="true">⠿</span> : null}
+                <button type="button" role="tab" aria-selected={isActive} aria-label={`Open ${label}`} onClick={() => activateWorkspaceTab(workspaceKey)} className="max-w-[220px] truncate px-3 py-2 text-xs font-bold">{label}</button>
                 {workspaceKey !== "dashboard" ? <button type="button" onClick={() => closeWorkspaceTab(workspaceKey)} aria-label={`Close ${label} tab`} className={`mr-1 flex h-6 w-6 items-center justify-center rounded-lg text-sm font-black transition ${isActive ? "text-violet-100 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-violet-100 hover:text-violet-700"}`}>×</button> : <span className={`mr-2 text-[9px] font-bold ${isActive ? "text-violet-200" : "text-slate-400"}`}>PIN</span>}
               </div>;
             })}
@@ -6470,8 +6517,5 @@ export default function App() {
     </>
   );
 }
-
-
-
 
 
