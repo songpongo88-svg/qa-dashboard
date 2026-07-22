@@ -2146,60 +2146,58 @@ function GradeMix({
   const totalCases = Math.max(cases.length, 1);
 
   if (!visibleGrades.length) {
-    return <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/60 px-4 py-5 text-center text-xs text-slate-500">No grade data in the current view</div>;
+    return <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/60 px-4 py-3 text-center text-xs text-slate-500">No grade data in the current view</div>;
   }
 
+  const openGradeCases = openGrade ? cases.filter((item) => item.grade === openGrade) : [];
+
   return (
-    <div data-grade-mix-case-drilldown-v46="true" className="space-y-2">
-      {visibleGrades.map((grade) => {
-        const gradeCases = cases.filter((item) => item.grade === grade);
-        const isOpen = openGrade === grade;
-        const percentage = Math.round((gradeCases.length / totalCases) * 100);
-        const barTone = grade === "A"
-          ? "bg-emerald-500"
-          : grade === "B"
-            ? "bg-sky-500"
-            : grade === "C"
-              ? "bg-amber-500"
-              : "bg-rose-500";
-        return (
-          <div key={grade} className={`overflow-hidden rounded-2xl border transition ${isOpen ? "border-violet-300 bg-violet-50/70" : "border-violet-100 bg-white"}`}>
-            <div className="flex min-w-0 items-center justify-between gap-2 px-3 py-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-semibold ${gradeTone(grade)}`}>{grade}</span>
-                <span className="truncate text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s) · {percentage}%</span>
-              </div>
+    <div data-grade-mix-case-drilldown-v49="true" className="min-w-0">
+      <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
+        {visibleGrades.map((grade) => {
+          const gradeCases = cases.filter((item) => item.grade === grade);
+          const isOpen = openGrade === grade;
+          const percentage = Math.round((gradeCases.length / totalCases) * 100);
+          return (
+            <button
+              key={grade}
+              type="button"
+              disabled={!gradeCases.length}
+              aria-expanded={isOpen}
+              onClick={() => setOpenGrade((current) => current === grade ? "" : grade)}
+              className={`flex min-w-0 items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                isOpen
+                  ? "border-violet-300 bg-violet-100/80 shadow-sm"
+                  : "border-violet-100 bg-white hover:border-violet-200 hover:bg-violet-50"
+              }`}
+            >
+              <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-semibold ${gradeTone(grade)}`}>{grade}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-slate-900">{gradeCounts[grade]} · {percentage}%</span>
+                <span className="mt-0.5 block text-[10px] font-bold text-violet-700">{isOpen ? "− Hide" : "+ Cases"}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {openGrade ? (
+        <div className="mt-3 max-h-44 overflow-y-auto rounded-2xl border border-violet-200 bg-violet-50/70 p-2">
+          <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
+            {openGradeCases.map((item) => (
               <button
+                key={item.key}
                 type="button"
-                disabled={!gradeCases.length}
-                aria-expanded={isOpen}
-                onClick={() => setOpenGrade((current) => current === grade ? "" : grade)}
-                className="shrink-0 rounded-xl border border-violet-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => onOpenCase?.(item)}
+                className="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-white bg-white px-3 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
               >
-                {isOpen ? "− Hide" : "+ Cases"}
+                <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{item.caseId}</span>
+                <span className="shrink-0 text-[10px] font-bold text-violet-700">{item.finalScore.toFixed(2)} ↗</span>
               </button>
-            </div>
-            <div className="mx-3 mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className={`h-full rounded-full ${barTone}`} style={{ width: `${percentage}%` }} />
-            </div>
-            {isOpen ? (
-              <div className="max-h-44 space-y-1.5 overflow-y-auto border-t border-violet-100 p-2">
-                {gradeCases.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => onOpenCase?.(item)}
-                    className="flex w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-white bg-white px-3 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
-                  >
-                    <span className="min-w-0 truncate text-xs font-semibold text-slate-800">{item.caseId}</span>
-                    <span className="shrink-0 text-[10px] font-bold text-violet-700">{item.finalScore.toFixed(2)} ↗</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            ))}
           </div>
-        );
-      })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -5938,15 +5936,38 @@ export default function DashboardMockup({
                   ) : null}
 
                   <div
-                    data-dashboard-priority-v48="true"
-                    className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]"
+                    data-dashboard-priority-v49="true"
+                    className="grid min-w-0 items-stretch gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]"
                   >
-                    <Panel>
-                      <PanelHeader title="Topic Performance" subtitle="Strongest to coaching focus · ranked by average percentage" />
-                      <PanelBody>
-                        <TopicPerformanceTable items={summary.topicPerformance} />
-                      </PanelBody>
-                    </Panel>
+                    <div className="min-w-0 space-y-4">
+                      <Panel>
+                        <PanelHeader title="Topic Performance" subtitle="Strongest to coaching focus · ranked by average percentage" />
+                        <PanelBody>
+                          <TopicPerformanceTable items={summary.topicPerformance} />
+                        </PanelBody>
+                      </Panel>
+
+                      <Panel>
+                        <div
+                          data-compact-grade-mix-v49="true"
+                          className="grid min-w-0 gap-3 px-4 py-4 lg:grid-cols-[minmax(150px,0.65fr)_minmax(0,3fr)] lg:items-center"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-base font-semibold text-slate-900">Grade Mix</div>
+                            <div className="mt-1 text-xs leading-5 text-slate-500">Select a grade to view Case IDs</div>
+                          </div>
+                          <GradeMix
+                            gradeCounts={summary.gradeCounts}
+                            cases={dashboardCases}
+                            onOpenCase={(item) => {
+                              setSelectedCaseKey(item.key);
+                              onOpenCaseDetail?.(item.caseId, item.agent);
+                              setSlideOverOpen(true);
+                            }}
+                          />
+                        </div>
+                      </Panel>
+                    </div>
 
                     <Panel>
                       <PanelHeader
@@ -6035,23 +6056,6 @@ export default function DashboardMockup({
                         </div>
                       </PanelBody>
                     </Panel>
-
-                    <div data-standalone-grade-mix-v48="true" className="min-w-0 xl:col-span-2">
-                      <Panel>
-                        <PanelHeader title="Grade Mix" subtitle="Current grades · expand to view Case IDs" />
-                        <PanelBody className="!p-4">
-                          <GradeMix
-                            gradeCounts={summary.gradeCounts}
-                            cases={dashboardCases}
-                            onOpenCase={(item) => {
-                              setSelectedCaseKey(item.key);
-                              onOpenCaseDetail?.(item.caseId, item.agent);
-                              setSlideOverOpen(true);
-                            }}
-                          />
-                        </PanelBody>
-                      </Panel>
-                    </div>
 
                     {false ? (
                     <Panel>
