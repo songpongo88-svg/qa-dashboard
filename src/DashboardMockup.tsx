@@ -1750,67 +1750,79 @@ function CaseNavigatorCard({
           onSelect();
         }
       }}
-      data-case-navigator-intent-v51="true"
-      className={`relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-200 ${
+      data-case-navigator-compact-v52="true"
+      className={`group relative flex h-full min-h-[210px] cursor-pointer flex-col overflow-hidden rounded-[20px] border px-3.5 py-3 text-left transition-all duration-200 ${
         isSelected
           ? songkranTheme
-            ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
-            : "border-violet-400 bg-gradient-to-br from-violet-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(109,40,217,0.16)]"
-          : "border-violet-100 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50/60 hover:shadow-[0_8px_18px_rgba(109,40,217,0.10)]"
+            ? "border-cyan-300 bg-gradient-to-br from-cyan-50 via-white to-fuchsia-50 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
+            : "border-violet-400 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 shadow-[0_10px_24px_rgba(109,40,217,0.16)]"
+          : "border-violet-200/80 bg-white hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_10px_22px_rgba(109,40,217,0.11)]"
       }`}
     >
-      {songkranTheme ? (
-        <span className="pointer-events-none absolute right-2 top-2 h-3 w-3 rounded-full bg-cyan-300/70" />
-      ) : null}
+      <span
+        className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${
+          songkranTheme
+            ? "bg-gradient-to-b from-cyan-400 via-sky-400 to-fuchsia-400"
+            : "bg-gradient-to-b from-sky-400 via-violet-400 to-emerald-400"
+        }`}
+        aria-hidden="true"
+      />
 
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
-          <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
-          <div className="mt-3 truncate text-[12px] font-semibold leading-5 text-slate-800">{item.agent || "Not recorded"}</div>
+          <div className="truncate text-[13px] font-black leading-5 text-slate-950">{item.caseId}</div>
+          <div className="mt-0.5 text-[11px] font-semibold text-slate-500">{item.auditDate}</div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex shrink-0 items-center gap-1.5">
           <span
-            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
+            className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[11px] font-black ${gradeTone(
               item.grade
             )}`}
           >
             {item.grade}
           </span>
-
-          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${reviewTone(item.reviewStatus)}`}>
+          <span
+            className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[10px] font-bold ${reviewTone(
+              item.reviewStatus
+            )}`}
+          >
             {item.reviewStatus}
           </span>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-2.5 flex items-center justify-between gap-3 pl-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.10)]" />
+          <span className="truncate text-[12px] font-bold text-slate-900">{item.agent || "Not recorded"}</span>
+        </div>
         <span
-          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
+          className={`inline-flex shrink-0 items-center rounded-xl border px-2.5 py-1.5 text-[12px] font-black tabular-nums shadow-sm ${scoreBadgeTone(
             item.finalScore
           )}`}
         >
-          Score {item.finalScore.toFixed(2)}
+          {item.finalScore.toFixed(2)}
         </span>
       </div>
 
-      <div className="mt-3 border-t border-slate-100 pt-3">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-600">Intent</div>
-        <div className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-[12px] font-semibold leading-5 text-slate-800">
+      <div className="mt-2.5 min-h-[76px] rounded-[15px] border border-violet-100 bg-gradient-to-br from-violet-50/95 to-fuchsia-50/70 px-3 py-2.5">
+        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-600">Intent</div>
+        <div className="mt-1 line-clamp-2 text-[12px] font-bold leading-[1.25rem] text-slate-900">
           {intent.thai}
         </div>
         {intent.english ? (
-          <div className="mt-1 line-clamp-2 min-h-[2.5rem] text-[11px] leading-5 text-slate-500">
+          <div className="mt-0.5 line-clamp-1 text-[11px] font-semibold leading-4 text-slate-500">
             {intent.english}
           </div>
         ) : null}
       </div>
 
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-3 text-[10px] text-slate-500">
-        <span>{item.weekLabel}</span>
-        <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-violet-700">
-          Open Case <span aria-hidden="true">→</span>
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-2.5 pl-1 text-[10px] font-semibold text-slate-500">
+        <span className="min-w-0 truncate">{item.weekLabel}</span>
+        <span className="inline-flex shrink-0 items-center gap-1 font-black text-violet-700">
+          Open Case
+          <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true">→</span>
         </span>
       </div>
     </div>
@@ -6596,11 +6608,19 @@ export default function DashboardMockup({
                   </Panel>
 
                   <Panel>
-                    <PanelHeader
-                      title="Case Navigator"
-                      subtitle="Select a case to open detailed topic scoring"
-                    />
-                    <PanelBody>
+                    <div
+                      data-case-navigator-header-v52="true"
+                      className="flex items-start justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-4 py-3.5 lg:px-5"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-[17px] font-black tracking-tight text-slate-950">Case Navigator</div>
+                        <div className="mt-0.5 text-xs font-semibold text-slate-500">เลือกเคสเพื่อดูรายละเอียดการประเมิน</div>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[11px] font-black text-sky-700 shadow-sm">
+                        {dashboardCases.length} Cases
+                      </span>
+                    </div>
+                    <PanelBody className="!p-3.5 lg:!p-4">
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
                           {effectiveSelectedAgent === "Anucha Makundin"
@@ -6608,7 +6628,7 @@ export default function DashboardMockup({
                             : "กรุณาเลือก Agent หรือค้นหา Case ID"}
                         </div>
                       ) : (
-                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                        <div data-case-navigator-grid-v52="true" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                           {dashboardCases.map((item) => (
                             <CaseNavigatorCard
                               key={item.key}
