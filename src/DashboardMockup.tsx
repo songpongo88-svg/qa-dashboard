@@ -1305,6 +1305,90 @@ function MetricCard({
   );
 }
 
+type PerformanceSummaryItem = {
+  label: string;
+  value: React.ReactNode;
+  sub: string;
+  valueClassName?: string;
+};
+
+function PerformanceSummaryBar({
+  scopeLabel,
+  items,
+}: {
+  scopeLabel: string;
+  items: PerformanceSummaryItem[];
+}) {
+  return (
+    <section
+      data-dashboard-summary-bar-v43="true"
+      className="overflow-hidden rounded-[24px] border border-violet-200/70 bg-violet-100 shadow-[0_10px_28px_rgba(76,29,149,0.08)]"
+      aria-label="Performance Summary"
+    >
+      <div className="flex flex-col gap-2 border-b border-violet-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-[17px] font-semibold tracking-tight text-slate-900">Performance Summary</div>
+          <div className="mt-1 text-xs text-slate-500">Score, grade, progress and final monthly result</div>
+        </div>
+        <span className="w-fit rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">
+          {scopeLabel}
+        </span>
+      </div>
+      <div className="grid gap-px bg-violet-100 sm:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => (
+          <div key={item.label} className="flex min-h-[150px] min-w-0 flex-col bg-white px-5 py-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{item.label}</div>
+            <div className={`mt-2 break-words text-2xl font-bold tracking-tight ${item.valueClassName || "text-slate-900"}`}>
+              {item.value}
+            </div>
+            <div className="mt-auto pt-3 text-xs leading-5 text-slate-500">{item.sub}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+type GradeGuideRow = {
+  range: string;
+  grade: Grade;
+};
+
+function getGradeGuideRows(monthKey: string): GradeGuideRow[] {
+  switch (getIncentivePolicyKey(monthKey)) {
+    case "JAN_FEB_2026":
+      return [
+        { range: "80-100", grade: "A" },
+        { range: "70-79", grade: "B" },
+        { range: "60-69", grade: "C" },
+        { range: "<60", grade: "D" },
+      ];
+    case "MAR_2026":
+      return [
+        { range: "90-100", grade: "A" },
+        { range: "80-89", grade: "B" },
+        { range: "70-79", grade: "C" },
+        { range: "60-69", grade: "D" },
+        { range: "<60", grade: "F" },
+      ];
+    default:
+      return [
+        { range: "90-100", grade: "A" },
+        { range: "85-89", grade: "B" },
+        { range: "80-84", grade: "C" },
+        { range: "<80", grade: "D" },
+      ];
+  }
+}
+
+function getGradePolicyLabel(monthKey: string) {
+  if (monthKey === "2026-01") return "January 2026 policy · Cash + RBH Promo";
+  if (monthKey === "2026-02") return "February 2026 policy";
+  if (monthKey === "2026-03") return "March-only policy";
+  if (monthKey === "2026-04") return "April 2026 policy · Cash + RBH Promo";
+  return "Current policy · April 2026 onward";
+}
+
 function WeeklySnapshotCard({
   label,
   caseCount,
@@ -3720,7 +3804,6 @@ export default function DashboardMockup({
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
-  const [gradeGuideOpen, setGradeGuideOpen] = useState(true);
 
   function closeCaseDetail() {
     setSlideOverOpen(false);
@@ -4625,12 +4708,17 @@ export default function DashboardMockup({
   }, [allCases, roleScopedAgentList]);
 
   const monthOptions = useMemo(() => {
-    const year = Number(selectedYear) || TODAY.getFullYear();
-    return Array.from({ length: 12 }, (_, index) => {
-      const date = new Date(year, index, 1);
-      return { value: getMonthKey(date), label: getMonthLabel(date) };
-    });
-  }, [selectedYear]);
+    return [...new Set(
+      agentCases
+        .map((item) => item.monthKey)
+        .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${selectedYear}-`))
+    )]
+      .sort((a, b) => a.localeCompare(b))
+      .map((monthKey) => ({
+        value: monthKey,
+        label: getMonthLabel(new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)),
+      }));
+  }, [agentCases, selectedYear]);
 
   useEffect(() => {
     if (!yearOptions.length || yearOptions.includes(selectedYear)) return;
@@ -4643,11 +4731,13 @@ export default function DashboardMockup({
   }, [yearOptions, selectedYear, onSelectedMonthKeyChange, onSelectedWeekChange]);
 
   useEffect(() => {
+    if (isLoading || !allCases.length) return;
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
-      setSelectedMonthKey("all");
-      onSelectedMonthKeyChange?.("all");
+      const fallbackMonthKey = monthOptions[monthOptions.length - 1]?.value || "all";
+      setSelectedMonthKey(fallbackMonthKey);
+      onSelectedMonthKeyChange?.(fallbackMonthKey);
     }
-  }, [selectedMonthKey, monthOptions, onSelectedMonthKeyChange]);
+  }, [selectedMonthKey, monthOptions, onSelectedMonthKeyChange, isLoading, allCases.length]);
 
   useEffect(() => {
     if (selectedMonthKey === "all") {
@@ -4876,12 +4966,15 @@ export default function DashboardMockup({
       ? "Calculated from new criteria (effective Apr 2026 onward)"
       : "Calculated from previous criteria";
 
+  const monthlyAgentCompleted = !isAllAgentsView && kpiScopeSummary.caseCount >= CASE_TARGET;
+  const monthlyAgentGrade: Grade | null = monthlyAgentCompleted
+    ? scoreToGrade(kpiScopeSummary.average, effectiveViewMonthKey)
+    : null;
   const incentiveResult = getIncentiveResult(
-    metricCaseCount,
-    Number(metricAverageDisplay),
+    kpiScopeSummary.caseCount,
+    kpiScopeSummary.average,
     effectiveViewMonthKey
   );
-  const incentiveDisplay = formatCurrencyTHB(incentiveResult.total);
 
   const overviewCaseSearchResults = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
@@ -5051,8 +5144,89 @@ export default function DashboardMockup({
 
   const currentViewingMonthLabel =
     selectedMonthKey === "all"
-      ? getMonthLabel(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
+      ? dateFrom || dateTo
+        ? getMonthLabel(new Date(Number(effectiveViewMonthKey.slice(0, 4)), Number(effectiveViewMonthKey.slice(5, 7)) - 1, 1))
+        : "All Months"
       : monthOptions.find((m) => m.value === selectedMonthKey)?.label || "-";
+
+  const kpiStatusLabel =
+    kpiScopeSummary.status === "passed"
+      ? "Passed"
+      : kpiScopeSummary.status === "not-passed"
+        ? "Not Passed"
+        : kpiScopeSummary.status === "in-progress"
+          ? "In Progress"
+          : "Not Started";
+  const incentiveSummaryValue = monthlyAgentCompleted
+    ? formatCurrencyTHB(incentiveResult.cash)
+    : "Pending";
+  const incentiveSummarySub = monthlyAgentCompleted
+    ? incentiveResult.promo > 0
+      ? `Eligible · + ${incentiveResult.promo.toLocaleString("en-US")} RBH Promo`
+      : incentiveResult.cash > 0
+        ? "Eligible · Monthly target completed"
+        : `Grade ${monthlyAgentGrade || "-"} · Not Eligible`
+    : `${kpiScopeSummary.caseCount}/${CASE_TARGET} evaluated · Complete the monthly target first`;
+  const performanceSummaryItems: PerformanceSummaryItem[] = [
+    {
+      label: "Average Score",
+      value: metricAverageDisplay,
+      sub: `${metricCaseCount} case(s) in current view`,
+      valueClassName: songkranTheme ? "text-cyan-700" : "text-violet-900",
+    },
+    {
+      label: isAllAgentsView ? "Team Grade" : "Agent Grade",
+      value: isAllAgentsView
+        ? currentGradeDisplay === "-"
+          ? "Pending"
+          : `${currentGradeDisplay} · ${currentGradeTone(currentGradeDisplay).level}`
+        : monthlyAgentCompleted && monthlyAgentGrade
+          ? `${monthlyAgentGrade} · ${currentGradeTone(monthlyAgentGrade).level}`
+          : "Pending",
+      sub: isAllAgentsView
+        ? currentGradeSub
+        : monthlyAgentCompleted
+          ? "Final monthly grade after completing the target"
+          : `${kpiScopeSummary.caseCount}/${CASE_TARGET} evaluated · Grade finalizes at monthly completion`,
+      valueClassName: isAllAgentsView
+        ? currentGradeTone(currentGradeDisplay).levelText
+        : monthlyAgentCompleted && monthlyAgentGrade
+          ? currentGradeTone(monthlyAgentGrade).levelText
+          : "text-amber-700",
+    },
+    {
+      label: "Evaluation Progress",
+      value: `${kpiScopeSummary.caseCount}/${kpiScopeSummary.volumeTarget}`,
+      sub: isAllAgentsView
+        ? `${visibleTargetAgents.length} agent(s) × ${CASE_TARGET} cases monthly target`
+        : kpiScopeSummary.volumePassed
+          ? "Monthly target completed"
+          : `${Math.max(0, CASE_TARGET - kpiScopeSummary.caseCount)} case(s) remaining`,
+      valueClassName: kpiScopeSummary.volumePassed ? "text-emerald-700" : "text-amber-700",
+    },
+    isAllAgentsView
+      ? {
+          label: "Team KPI",
+          value: kpiStatusLabel,
+          sub: `Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${kpiScopeSummary.volumeTarget}`,
+          valueClassName:
+            kpiScopeSummary.status === "passed"
+              ? "text-emerald-700"
+              : kpiScopeSummary.status === "not-passed"
+                ? "text-rose-700"
+                : kpiScopeSummary.status === "in-progress"
+                  ? "text-amber-700"
+                  : "text-slate-600",
+        }
+      : {
+          label: "Calculated Incentive",
+          value: incentiveSummaryValue,
+          sub: incentiveSummarySub,
+          valueClassName: monthlyAgentCompleted && incentiveResult.cash > 0 ? "text-emerald-700" : "text-amber-700",
+        },
+  ];
+  const gradeGuideRows = getGradeGuideRows(effectiveViewMonthKey);
+  const summaryScopeLabel = `${effectiveSelectedAgent || "All Agents"} · ${currentViewingMonthLabel}`;
 
   const quickYearOptions: CompactSelectOption[] = yearOptions.map((year) => ({ value: year, label: year }));
   const quickMonthOptions: CompactSelectOption[] = [
@@ -5166,7 +5340,15 @@ export default function DashboardMockup({
                       options={quickYearOptions}
                       onChange={(value) => {
                         setSelectedYear(value);
-                        const nextMonth = `${value}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
+                        const availableMonths = [...new Set(
+                          agentCases
+                            .map((item) => item.monthKey)
+                            .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${value}-`))
+                        )].sort((a, b) => a.localeCompare(b));
+                        const currentMonth = `${value}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
+                        const nextMonth = availableMonths.includes(currentMonth)
+                          ? currentMonth
+                          : availableMonths[availableMonths.length - 1] || "all";
                         setSelectedMonthKey(nextMonth);
                         onSelectedMonthKeyChange?.(nextMonth);
                         setSelectedWeek("all");
@@ -5339,6 +5521,13 @@ export default function DashboardMockup({
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
+                  <PerformanceSummaryBar
+                    scopeLabel={summaryScopeLabel}
+                    items={performanceSummaryItems}
+                  />
+
+                  {false ? (
+                  <>
                   <Panel>
                     <PanelHeader
                       title={isAllAgentsView ? "Team Overview Scope" : "Agent Overview Scope"}
@@ -5491,6 +5680,8 @@ export default function DashboardMockup({
                       }
                     />
                   </div>
+                  </>
+                  ) : null}
 
                   <div data-dashboard-priority-v41="true" className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.85fr)]">
                     <Panel>
@@ -5500,6 +5691,82 @@ export default function DashboardMockup({
                       </PanelBody>
                     </Panel>
 
+                    <Panel className="h-full">
+                      <PanelHeader
+                        title="Grade & Incentive"
+                        subtitle={getGradePolicyLabel(effectiveViewMonthKey)}
+                      />
+                      <PanelBody className="space-y-4">
+                        {!isAllAgentsView ? (
+                          <div
+                            data-agent-incentive-result-v43="true"
+                            className={`rounded-2xl border px-4 py-4 ${
+                              monthlyAgentCompleted
+                                ? incentiveResult.cash > 0
+                                  ? "border-emerald-200 bg-emerald-50"
+                                  : "border-slate-200 bg-slate-50"
+                                : "border-amber-200 bg-amber-50"
+                            }`}
+                          >
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              {effectiveSelectedAgent}
+                            </div>
+                            <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                              <div className="text-lg font-semibold text-slate-900">
+                                {monthlyAgentCompleted ? `Grade ${monthlyAgentGrade} · ${incentiveResult.remark}` : "Incentive Pending"}
+                              </div>
+                              <div className={`text-xl font-bold ${monthlyAgentCompleted && incentiveResult.cash > 0 ? "text-emerald-700" : "text-amber-700"}`}>
+                                {monthlyAgentCompleted ? formatCurrencyTHB(incentiveResult.cash) : `${kpiScopeSummary.caseCount}/${CASE_TARGET} cases`}
+                              </div>
+                            </div>
+                            <div className="mt-2 text-xs text-slate-600">
+                              {monthlyAgentCompleted
+                                ? incentiveResult.promo > 0
+                                  ? `Cash + ${incentiveResult.promo.toLocaleString("en-US")} RBH Promo Code`
+                                  : incentiveResult.cash > 0
+                                    ? "Eligible · Monthly target completed"
+                                    : "Not Eligible for an incentive"
+                                : "The final incentive appears after completing the monthly target."}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-xs leading-5 text-violet-700">
+                            Select an Agent to see the completed monthly grade and calculated incentive.
+                          </div>
+                        )}
+
+                        <div data-month-policy-guide-v43={effectiveViewMonthKey} className="overflow-hidden rounded-2xl border border-violet-100">
+                          {gradeGuideRows.map((row) => {
+                            const rowIncentive = getIncentiveByGrade(row.grade, effectiveViewMonthKey);
+                            const active = monthlyAgentCompleted && monthlyAgentGrade === row.grade;
+                            return (
+                              <div
+                                key={row.grade}
+                                className={`grid grid-cols-[40px_minmax(0,1fr)_minmax(105px,auto)] items-center gap-3 border-b border-violet-100 px-3 py-3 last:border-b-0 ${
+                                  active ? "bg-violet-100/80" : "bg-white"
+                                }`}
+                              >
+                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-semibold ${gradeTone(row.grade)}`}>
+                                  {row.grade}
+                                </span>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-slate-900">{row.range}</div>
+                                  <div className="mt-0.5 text-[11px] text-slate-500">{rowIncentive.remark}</div>
+                                </div>
+                                <div className="text-right text-xs font-semibold leading-5 text-slate-700">
+                                  {rowIncentive.label}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="text-xs leading-5 text-slate-500">
+                          Showing only {currentViewingMonthLabel}. January and April special promo conditions appear only when that month is selected.
+                        </div>
+                      </PanelBody>
+                    </Panel>
+
+                    {false ? (
                     <Panel>
                     <PanelHeader
                       title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
@@ -5535,8 +5802,67 @@ export default function DashboardMockup({
                       </div>
                     </PanelBody>
                     </Panel>
+                    ) : null}
                   </div>
 
+                  <div data-monthly-analytics-v43="true">
+                    <Panel>
+                      <PanelHeader
+                        title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
+                        subtitle={
+                          isAllAgentsView
+                            ? "Selected month and previous 2 calendar months for all visible agents"
+                            : "Selected month and previous 2 calendar months for the selected agent"
+                        }
+                      />
+                      <PanelBody>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          {recentMonthlyAnalytics.map((item) => (
+                            <div
+                              key={item.monthKey}
+                              className={`rounded-2xl border px-4 py-4 ${
+                                item.monthKey === effectiveViewMonthKey
+                                  ? "border-violet-300 bg-violet-50 shadow-sm"
+                                  : "border-slate-200 bg-white"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-sm font-semibold text-slate-900">{item.label}</div>
+                                {item.monthKey === effectiveViewMonthKey ? (
+                                  <span className="rounded-full bg-violet-700 px-2.5 py-1 text-[10px] font-semibold text-white">
+                                    Selected
+                                  </span>
+                                ) : null}
+                              </div>
+                              {item.cases > 0 ? (
+                                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                                  <div className="rounded-xl bg-white px-2 py-3">
+                                    <div className="text-[10px] font-semibold uppercase text-slate-500">Average</div>
+                                    <div className="mt-1 text-base font-bold text-violet-900">{item.average}</div>
+                                  </div>
+                                  <div className="rounded-xl bg-white px-2 py-3">
+                                    <div className="text-[10px] font-semibold uppercase text-slate-500">Cases</div>
+                                    <div className="mt-1 text-base font-bold text-sky-800">{item.cases}</div>
+                                  </div>
+                                  <div className="rounded-xl bg-white px-2 py-3">
+                                    <div className="text-[10px] font-semibold uppercase text-slate-500">Target</div>
+                                    <div className="mt-1 text-base font-bold text-emerald-700">{item.completion}%</div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs font-semibold text-slate-400">
+                                  No cases in this month
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </PanelBody>
+                    </Panel>
+                  </div>
+
+                  {false ? (
+                  <>
                   {!isAllAgentsView ? (
                     <Panel>
                       <PanelHeader title="Agent Additional Details" subtitle="Supporting information kept below the priority performance section" />
@@ -5842,6 +6168,8 @@ export default function DashboardMockup({
                     ) : null}
                   </Panel>
                   </div>
+                  </>
+                  ) : null}
 
                   <Panel>
                     <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
