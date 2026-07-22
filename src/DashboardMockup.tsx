@@ -1227,7 +1227,7 @@ function Panel({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}
+      className={`relative overflow-hidden rounded-[26px] border border-violet-200/70 bg-white/95 shadow-[0_10px_28px_rgba(76,29,149,0.08)] backdrop-blur-sm ${className}`}
     >
       {isSongkranThemeActive() ? (
         <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
@@ -1254,7 +1254,7 @@ function PanelHeader({
           : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"
       }`}
     >
-      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
+      <div className="text-[17px] font-semibold tracking-tight text-slate-900">{title}</div>
       {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
     </div>
   );
@@ -1287,19 +1287,19 @@ function MetricCard({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}
+      className={`relative h-full overflow-hidden rounded-[24px] border bg-gradient-to-br ${accent} shadow-[0_8px_24px_rgba(91,33,182,0.07)]`}
     >
-      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
+      <div className="h-1 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
       {isSongkranThemeActive() ? (
         <span className="pointer-events-none absolute right-3 top-3 h-3 w-3 rounded-full bg-cyan-300/70" />
       ) : null}
-      <div className="p-5 lg:p-6">
+      <div className="flex min-h-[188px] flex-col p-5 lg:p-6">
         <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>
+        <div className={`mt-3 text-3xl font-bold tracking-tight lg:text-[36px] ${valueClassName}`}>
           {value}
         </div>
         {helper ? <div className="mt-3">{helper}</div> : null}
-        <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
+        <div className="mt-auto pt-3 text-xs leading-5 text-slate-500">{sub}</div>
       </div>
     </div>
   );
@@ -1453,10 +1453,12 @@ function DateRangePicker({
   dateFrom,
   dateTo,
   onChange,
+  onClear,
 }: {
   dateFrom: string;
   dateTo: string;
   onChange: (nextFrom: string, nextTo: string) => void;
+  onClear: () => void;
 }) {
   const initialFrom = parseInputDateValue(dateFrom) || TODAY;
   const initialTo = parseInputDateValue(dateTo) || initialFrom;
@@ -1525,10 +1527,27 @@ function DateRangePicker({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
       }}
     >
-      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white px-10 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-        <span className="w-full min-w-0 truncate text-center">{formatDateRangeValue(dateFrom)} – {formatDateRangeValue(dateTo)}</span>
+      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white px-16 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+        <span className="w-full min-w-0 truncate text-center">{dateFrom && dateTo ? `${formatDateRangeValue(dateFrom)} – ${formatDateRangeValue(dateTo)}` : "Select date range"}</span>
         <svg viewBox="0 0 24 24" className="absolute right-4 h-5 w-5 shrink-0 text-violet-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
       </button>
+
+      {dateFrom || dateTo ? (
+        <button
+          type="button"
+          data-date-range-clear-v42="true"
+          aria-label="Clear Date Range"
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen(false);
+            setSelectingEnd(false);
+            onClear();
+          }}
+          className="absolute right-11 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-violet-50 hover:text-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-200"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      ) : null}
 
       {open ? (
         <div role="dialog" aria-label="Choose Date Range" className="absolute right-0 top-full z-[85] mt-2 w-[580px] max-w-[calc(100vw-2rem)] rounded-[20px] border border-violet-200 bg-white p-3.5 shadow-[0_22px_55px_rgba(30,41,59,0.24)]">
@@ -3701,7 +3720,7 @@ export default function DashboardMockup({
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
-  const [gradeGuideOpen, setGradeGuideOpen] = useState(false);
+  const [gradeGuideOpen, setGradeGuideOpen] = useState(true);
 
   function closeCaseDetail() {
     setSlideOverOpen(false);
@@ -4714,6 +4733,10 @@ export default function DashboardMockup({
     setSlideOverOpen(false);
   };
 
+  const clearDateRange = () => {
+    updateDateRange("", "");
+  };
+
   const dashboardCasesBase = useMemo(() => {
     if (selectedWeek === "all") return searchScopedCases;
     return searchScopedCases.filter((item) => item.weekLabel === selectedWeek);
@@ -4813,6 +4836,14 @@ export default function DashboardMockup({
       : CASE_TARGET;
     const scorePassed = caseCount > 0 && average >= kpiScoreTarget;
     const volumePassed = caseCount >= volumeTarget;
+    const status =
+      caseCount === 0
+        ? "not-started"
+        : !volumePassed
+          ? "in-progress"
+          : scorePassed
+            ? "passed"
+            : "not-passed";
 
     return {
       average,
@@ -4821,6 +4852,7 @@ export default function DashboardMockup({
       scorePassed,
       volumePassed,
       passed: scorePassed && volumePassed,
+      status,
     };
   }, [isAllAgentsView, kpiPeriodCases, kpiScoreTarget, visibleTargetAgents.length]);
 
@@ -5125,8 +5157,8 @@ export default function DashboardMockup({
                 subtitle="Responsive filters by year, month, agent name, case ID and date range"
               />
               <PanelBody className="!p-4 lg:!p-5">
-                <div className="grid gap-3 md:grid-cols-[minmax(110px,0.7fr)_minmax(170px,1fr)_minmax(220px,1.35fr)] 2xl:grid-cols-[minmax(105px,0.7fr)_minmax(160px,1fr)_minmax(230px,1.35fr)_minmax(300px,2fr)_minmax(230px,1.25fr)]">
-                  <div className="min-w-0">
+                <div data-dashboard-ui-polish-v42="true" className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
+                  <div className="min-w-0 xl:col-span-2">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Year</div>
                     <CompactAlignedSelect
                       ariaLabel="Year"
@@ -5145,7 +5177,7 @@ export default function DashboardMockup({
                     />
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 xl:col-span-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Month</div>
                     <CompactAlignedSelect
                       ariaLabel="Month"
@@ -5162,7 +5194,7 @@ export default function DashboardMockup({
                     />
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 xl:col-span-4">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent Name</div>
                     {roleScopedAgentList.length ? (
                       <div className="flex h-12 min-w-0 items-center justify-center truncate rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-center text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
@@ -5183,7 +5215,7 @@ export default function DashboardMockup({
                     )}
                   </div>
 
-                  <div className="min-w-0 md:col-span-2 2xl:col-span-1">
+                  <div className="min-w-0 md:order-5 md:col-span-2 xl:col-span-12 xl:max-w-5xl">
                     <div className="relative mb-2 flex items-center justify-between gap-2">
                       <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
                       <button
@@ -5241,9 +5273,9 @@ export default function DashboardMockup({
                     </div>
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 md:order-4 xl:col-span-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date Range</div>
-                    <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={updateDateRange} />
+                    <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={updateDateRange} onClear={clearDateRange} />
                   </div>
                 </div>
               </PanelBody>
@@ -5253,7 +5285,7 @@ export default function DashboardMockup({
           <section className="qa-weekly-tabs-v36 rounded-[22px] border border-violet-100 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly Snapshot">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
-                <div className="text-sm font-black text-slate-900">Weekly Snapshot</div>
+                <div className="text-sm font-semibold text-slate-900">Weekly Snapshot</div>
                 <div className="text-xs text-slate-500">Select a week to filter and jump to results</div>
               </div>
               <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Weekly Snapshot">
@@ -5275,7 +5307,7 @@ export default function DashboardMockup({
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div id="qa-current-case-search-title" className="text-sm font-black text-slate-900">Cases in Current View</div>
+                  <div id="qa-current-case-search-title" className="text-sm font-semibold text-slate-900">Cases in Current View</div>
                   <div className="mt-1 text-xs text-slate-500">Search result for “{caseIdSearch.trim().toUpperCase()}”</div>
                 </div>
                 <span className="w-fit rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-bold text-violet-700">
@@ -5344,7 +5376,7 @@ export default function DashboardMockup({
                     </PanelBody>
                   </Panel>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <MetricCard
                       title="Average Score"
                       value={metricAverageDisplay}
@@ -5386,26 +5418,52 @@ export default function DashboardMockup({
                       }
                     />
 
-                    <div data-dashboard-kpi-summary-v41="true">
+                    <div data-dashboard-kpi-summary-v41="true" data-dashboard-kpi-state-v42={kpiScopeSummary.status} className="h-full">
                       <MetricCard
                         title={isAllAgentsView ? "Team KPI" : "Agent KPI"}
-                        value={kpiScopeSummary.passed ? "Passed" : "Not Passed"}
+                        value={
+                          kpiScopeSummary.status === "passed"
+                            ? "Passed"
+                            : kpiScopeSummary.status === "not-passed"
+                              ? "Not Passed"
+                              : kpiScopeSummary.status === "in-progress"
+                                ? "In Progress"
+                                : "Not Started"
+                        }
                         sub={`Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${kpiScopeSummary.volumeTarget}`}
                         accent={
-                          kpiScopeSummary.passed
+                          kpiScopeSummary.status === "passed"
                             ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
-                            : "from-amber-50 via-white to-rose-50 border-amber-200"
+                            : kpiScopeSummary.status === "not-passed"
+                              ? "from-rose-50 via-white to-rose-100/60 border-rose-200"
+                              : kpiScopeSummary.status === "in-progress"
+                                ? "from-amber-50 via-white to-amber-100/60 border-amber-200"
+                                : "from-slate-50 via-white to-violet-50 border-slate-200"
                         }
-                        valueClassName={`${kpiScopeSummary.passed ? "text-emerald-700" : "text-amber-700"} !text-3xl`}
+                        valueClassName={`${
+                          kpiScopeSummary.status === "passed"
+                            ? "text-emerald-700"
+                            : kpiScopeSummary.status === "not-passed"
+                              ? "text-rose-700"
+                              : kpiScopeSummary.status === "in-progress"
+                                ? "text-amber-700"
+                                : "text-slate-600"
+                        } !text-[28px]`}
                         helper={
-                          <div className="flex flex-wrap gap-2">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${kpiScopeSummary.scorePassed ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-rose-200 bg-rose-100 text-rose-700"}`}>
-                              Score {kpiScopeSummary.scorePassed ? "✓" : "✕"}
+                          kpiScopeSummary.status === "passed" || kpiScopeSummary.status === "not-passed" ? (
+                            <div className="flex flex-wrap gap-2">
+                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${kpiScopeSummary.scorePassed ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-rose-200 bg-rose-100 text-rose-700"}`}>
+                                Score {kpiScopeSummary.scorePassed ? "✓" : "✕"}
+                              </span>
+                              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                Volume ✓
+                              </span>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${kpiScopeSummary.status === "in-progress" ? "border-amber-200 bg-amber-100 text-amber-700" : "border-slate-200 bg-slate-100 text-slate-600"}`}>
+                              {kpiScopeSummary.status === "in-progress" ? `${kpiScopeSummary.caseCount}/${kpiScopeSummary.volumeTarget} evaluated` : "Waiting for evaluations"}
                             </span>
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${kpiScopeSummary.volumePassed ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-rose-200 bg-rose-100 text-rose-700"}`}>
-                              Volume {kpiScopeSummary.volumePassed ? "✓" : "✕"}
-                            </span>
-                          </div>
+                          )
                         }
                       />
                     </div>
@@ -5456,19 +5514,19 @@ export default function DashboardMockup({
                         {recentMonthlyAnalytics.map((item) => (
                           <div key={item.monthKey} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-700">{item.label}</div>
+                              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">{item.label}</div>
                               <div className="grid grid-cols-3 gap-2 text-center">
                               <div className="rounded-xl bg-violet-50 px-2 py-2">
                                 <div className="text-[10px] font-bold text-violet-500">Avg</div>
-                                <div className="text-sm font-black text-violet-900">{item.average || "-"}</div>
+                                <div className="text-sm font-bold text-violet-900">{item.average || "-"}</div>
                               </div>
                               <div className="rounded-xl bg-sky-50 px-2 py-2">
                                 <div className="text-[10px] font-bold text-sky-500">Cases</div>
-                                <div className="text-sm font-black text-sky-900">{item.cases}</div>
+                                <div className="text-sm font-bold text-sky-900">{item.cases}</div>
                               </div>
                               <div className="rounded-xl bg-emerald-50 px-2 py-2">
                                 <div className="text-[10px] font-bold text-emerald-500">Target</div>
-                                <div className="text-sm font-black text-emerald-900">{item.completion}%</div>
+                                <div className="text-sm font-bold text-emerald-900">{item.completion}%</div>
                               </div>
                               </div>
                             </div>
@@ -5486,12 +5544,12 @@ export default function DashboardMockup({
                         <div className="grid gap-4 md:grid-cols-2">
                           <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
                             <div className="text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">Estimated Incentive</div>
-                            <div className="mt-2 text-2xl font-black text-fuchsia-800">{incentiveDisplay}</div>
+                            <div className="mt-2 text-2xl font-bold text-fuchsia-800">{incentiveDisplay}</div>
                             <div className="mt-1 text-xs text-fuchsia-700">{incentiveResult.remark}</div>
                           </div>
                           <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
                             <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700">Review Mix</div>
-                            <div className="mt-2 text-2xl font-black text-sky-800">{revisedCount}</div>
+                            <div className="mt-2 text-2xl font-bold text-sky-800">{revisedCount}</div>
                             <div className="mt-1 text-xs text-sky-700">Revised case(s) in current view</div>
                           </div>
                         </div>
@@ -5499,6 +5557,7 @@ export default function DashboardMockup({
                     </Panel>
                   ) : null}
 
+                  <div data-grade-guide-restored-v42="true">
                   <Panel>
                     <PanelHeader
                       title="QA Grade & Incentive Guide"
@@ -5514,7 +5573,7 @@ export default function DashboardMockup({
                       <button
                         type="button"
                         onClick={() => setGradeGuideOpen((open) => !open)}
-                        className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-100"
+                        className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
                         aria-expanded={gradeGuideOpen}
                       >
                         {gradeGuideOpen ? "Hide guide" : "Show guide"} {gradeGuideOpen ? "▴" : "▾"}
@@ -5782,6 +5841,7 @@ export default function DashboardMockup({
                       </PanelBody>
                     ) : null}
                   </Panel>
+                  </div>
 
                   <Panel>
                     <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
