@@ -207,7 +207,7 @@ type AppTab =
   | "usage-log"
   | "user-roles";
 
-type WorkspaceTabKey = AppTab | "performance-overview" | "case-detail";
+type WorkspaceTabKey = AppTab | "case-detail";
 
 type SidebarNavItem = {
   key: string;
@@ -295,9 +295,9 @@ const DEFAULT_BUILD_META: BuildMeta = {
 
 const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
 const ACTIVE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-tab-session";
-const OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY = "qa-dashboard:open-workspace-tabs-v35";
-const ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-workspace-tab-v35";
-const SIDEBAR_GROUPS_SESSION_STORAGE_KEY = "qa-dashboard:sidebar-groups-v35";
+const OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY = "qa-dashboard:open-workspace-tabs-v36";
+const ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-workspace-tab-v36";
+const SIDEBAR_GROUPS_SESSION_STORAGE_KEY = "qa-dashboard:sidebar-groups-v36";
 const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
@@ -326,13 +326,11 @@ function normalizeAppTab(value: string | null | undefined): AppTab | "" {
 
 const VALID_WORKSPACE_TAB_KEYS = new Set<WorkspaceTabKey>([
   ...Array.from(VALID_APP_TABS),
-  "performance-overview",
   "case-detail",
 ]);
 
 const WORKSPACE_TAB_LABELS: Record<WorkspaceTabKey, string> = {
   dashboard: "Dashboard",
-  "performance-overview": "Performance Overview",
   "case-detail": "Case Detail Workspace",
   appeal: "Appeals",
   "create-evaluation": "Create Evaluation",
@@ -3051,7 +3049,7 @@ export default function App() {
     return stored || (activeTab as WorkspaceTabKey) || "dashboard";
   });
   const [sidebarGroupsOpen, setSidebarGroupsOpen] = useState<Record<string, boolean>>(() => {
-    const defaults = { overview: true, qa: true, appeals: true, quality: true, tools: true, workspace: true, admin: true, account: true };
+    const defaults = { performance: true, qa: false, appeals: false, quality: false, tools: false, workspace: false, admin: false, account: false };
     try {
       const stored = JSON.parse(window.sessionStorage.getItem(SIDEBAR_GROUPS_SESSION_STORAGE_KEY) || "{}");
       return { ...defaults, ...(stored && typeof stored === "object" ? stored : {}) };
@@ -3059,7 +3057,6 @@ export default function App() {
       return defaults;
     }
   });
-  const [sidebarTooltip, setSidebarTooltip] = useState<{ title: string; description: string; top: number; left: number } | null>(null);
   const [accountMenuValue, setAccountMenuValue] = useState("");
 
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
@@ -3080,7 +3077,6 @@ export default function App() {
   const lastSessionTouchRef = useRef(0);
   const usernameValidationRequestRef = useRef(0);
   const automaticLoginRequestRef = useRef(0);
-  const sidebarTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activateUserSession = async (user: CurrentUser) => {
     try {
@@ -3651,9 +3647,7 @@ export default function App() {
       ? "dashboard"
       : options.workspaceKey || (nextTab === "dashboard" && requestedSubTab === "case-detail"
         ? "case-detail"
-        : nextTab === "dashboard" && requestedSubTab === "overview"
-          ? "performance-overview"
-          : nextTab);
+        : nextTab);
     setOpenWorkspaceTabs((current) => current.includes(nextWorkspaceTab) ? current : [...current, nextWorkspaceTab]);
     setActiveWorkspaceTab(nextWorkspaceTab);
 
@@ -3727,15 +3721,6 @@ export default function App() {
       navigateToTab("dashboard", {
         workspaceKey,
         params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" },
-      });
-      return;
-    }
-
-    if (workspaceKey === "performance-overview") {
-      setDashboardSubTab("overview");
-      navigateToTab("dashboard", {
-        workspaceKey,
-        params: { subTab: "overview", caseId: "", agent: selectedAgentGlobal || "" },
       });
       return;
     }
@@ -5971,54 +5956,17 @@ export default function App() {
     return <MaintenanceScreen state={maintenanceState} onLogout={handleLogout} showLogout />;
   }
 
-  const hideSidebarTooltip = () => {
-    if (sidebarTooltipTimerRef.current) {
-      clearTimeout(sidebarTooltipTimerRef.current);
-      sidebarTooltipTimerRef.current = null;
-    }
-    setSidebarTooltip(null);
-  };
-
-  const sidebarTooltipProps = (title: string, description: string) => ({
-    title: `${title} - ${description}`,
-    "aria-label": `${title}: ${description}`,
-    onMouseEnter: (event: React.MouseEvent<HTMLButtonElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      if (sidebarTooltipTimerRef.current) clearTimeout(sidebarTooltipTimerRef.current);
-      sidebarTooltipTimerRef.current = setTimeout(() => {
-        setSidebarTooltip({
-          title,
-          description,
-          top: Math.max(12, Math.min(rect.top, window.innerHeight - 92)),
-          left: rect.right + 12,
-        });
-      }, 300);
-    },
-    onMouseLeave: hideSidebarTooltip,
-    onFocus: (event: React.FocusEvent<HTMLButtonElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setSidebarTooltip({
-        title,
-        description,
-        top: Math.max(12, Math.min(rect.top, window.innerHeight - 92)),
-        left: rect.right + 12,
-      });
-    },
-    onBlur: hideSidebarTooltip,
-  });
-
   const toggleSidebarGroup = (groupId: string) => {
     setSidebarGroupsOpen((current) => ({ ...current, [groupId]: !current[groupId] }));
   };
 
   const sidebarGroups: SidebarNavGroup[] = [
     {
-      id: "overview",
-      title: "Overview",
+      id: "performance",
+      title: "Performance",
       description: "ภาพรวมผลการทำงานและข้อมูลสำคัญ",
       items: [
         { key: "dashboard", label: "Dashboard", description: "เปิดหน้าหลักและตัวชี้วัดภาพรวม", icon: "dashboard", visible: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
-        { key: "performance-overview", label: "Performance Overview", description: "ดูคะแนนและแนวโน้มการทำงาน", icon: "chart", visible: true, active: activeWorkspaceTab === "performance-overview", onClick: () => activateWorkspaceTab("performance-overview") },
         { key: "summary", label: "Summary", description: "ดูสรุปผลการประเมิน", icon: "chart", visible: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
       ],
     },
@@ -6097,14 +6045,14 @@ export default function App() {
         <style>{`
           :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "276px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
-          .qa-global-sidebar-v35 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
-          .qa-sidebar-nav-v35 { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.32) transparent; }
+          .qa-global-sidebar-v36 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
+          .qa-sidebar-nav-v36 { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.32) transparent; }
           @media (max-width: 900px) {
             :root { --qa-sidebar-width: 80px; }
             .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside className="qa-global-sidebar-v35 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
+        <aside className="qa-global-sidebar-v36 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
           <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -6122,18 +6070,18 @@ export default function App() {
             </div> : null}
           </div>
 
-          <nav className="qa-sidebar-nav-v35 mt-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Main navigation">
+          <nav className="qa-sidebar-nav-v36 mt-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Main navigation">
             {sidebarGroups.map((group) => {
               const visibleItems = group.items.filter((item) => item.visible);
               if (!visibleItems.length) return null;
               const isOpen = sidebarGroupsOpen[group.id] !== false;
               return <section key={group.id} className="rounded-xl">
-                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} {...sidebarTooltipProps(group.title, group.description)} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
+                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} aria-label={group.title} aria-expanded={isOpen} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
                   <span>{group.title}</span>
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                 </button> : null}
                 {(globalSidebarCollapsed || isOpen) ? <div className="space-y-0.5">
-                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={item.onClick} {...sidebarTooltipProps(item.label, item.description)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
+                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={item.onClick} aria-label={item.label} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
                     <SidebarGlyph name={item.icon} />
                     {!globalSidebarCollapsed ? <span className="qa-sidebar-label min-w-0 flex-1 truncate">{item.label}</span> : null}
                     {item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span> : null}
@@ -6144,7 +6092,7 @@ export default function App() {
           </nav>
 
           <div className="border-t border-white/15 pt-2">
-            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} {...sidebarTooltipProps(globalSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar", globalSidebarCollapsed ? "ขยายแถบเมนูเพื่อแสดงชื่อทั้งหมด" : "ย่อเมนูให้เหลือเฉพาะไอคอน")} className="flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
+            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} aria-label={globalSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
 
           <nav className="hidden" aria-hidden="true">
@@ -6154,7 +6102,6 @@ export default function App() {
                 {coachingAllowed ? <button type="button" onClick={() => handlePerformanceMenuChange("coaching")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "coaching" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16v10H8l-4 4z"/><path d="M8 10h8"/><path d="M8 13h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Coaching</span> : null}</button> : null}
                 <button type="button" onClick={() => handlePerformanceMenuChange("dashboard")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "dashboard" ? "bg-white/15 text-white" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Dashboard</span> : null}</button>
                 <button type="button" onClick={() => { setDashboardSubTab("case-detail"); navigateToTab("dashboard", { params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-1.5 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Case Detail Workspace</span> : null}</button>
-                <button type="button" onClick={() => { setDashboardSubTab("overview"); navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-1.5 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "overview" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 15 4-4 4 3 7-8"/><path d="M19 6v5h-5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Performance Overview</span> : null}</button>
                 <button type="button" onClick={() => handlePerformanceMenuChange("presentation-builder")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "presentation-builder" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21l4-4 4 4"/><path d="M8 8h8"/><path d="M8 12h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Presentation Builder</span> : null}</button>
                 <button type="button" onClick={() => handlePerformanceMenuChange("signature-center")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "signature-center" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17c3-6 5-10 7-10 3 0-1 9 2 9 2 0 3-5 5-5 1 0 0 4 4 4"/><path d="M3 21h18"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Signature Center</span> : null}</button>
                 <button type="button" onClick={() => handlePerformanceMenuChange("summary")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "summary" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M2 19h20"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Summary</span> : null}</button>
@@ -6193,11 +6140,6 @@ export default function App() {
             <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
         </aside>
-
-        {sidebarTooltip ? <div role="tooltip" className="pointer-events-none fixed z-[140] max-w-[280px] rounded-xl border border-violet-300/30 bg-violet-950 px-3 py-2 font-[Kanit] text-white shadow-[0_14px_36px_rgba(15,23,42,0.35)]" style={{ top: sidebarTooltip.top, left: sidebarTooltip.left }}>
-          <div className="text-xs font-black">{sidebarTooltip.title}</div>
-          <div className="mt-0.5 text-[11px] leading-5 text-violet-100">{sidebarTooltip.description}</div>
-        </div> : null}
 
       <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogoutNow={handleLogout} />
 
@@ -6244,14 +6186,14 @@ export default function App() {
           users={effectiveUserAccounts}
         />
 
-        <div className="qa-workspace-tabs-v35 sticky top-0 z-[70] border-b border-violet-200 bg-white/95 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
+        <div className="qa-workspace-tabs-v36 sticky top-0 z-[70] border-b border-violet-200 bg-white/95 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto" role="tablist" aria-label="Open workspace tabs">
             {openWorkspaceTabs.map((workspaceKey) => {
               const isActive = activeWorkspaceTab === workspaceKey;
               const label = WORKSPACE_TAB_LABELS[workspaceKey];
               return <div key={workspaceKey} className={`group flex shrink-0 items-center rounded-xl border transition ${isActive ? "border-violet-500 bg-violet-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"}`}>
-                <button type="button" role="tab" aria-selected={isActive} onClick={() => activateWorkspaceTab(workspaceKey)} title={`สลับไปหน้า ${label}`} className="px-3 py-2 text-xs font-bold">{label}</button>
-                {workspaceKey !== "dashboard" ? <button type="button" onClick={() => closeWorkspaceTab(workspaceKey)} title={`ปิดแท็บ ${label}`} aria-label={`Close ${label} tab`} className={`mr-1 flex h-6 w-6 items-center justify-center rounded-lg text-sm font-black transition ${isActive ? "text-violet-100 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-violet-100 hover:text-violet-700"}`}>×</button> : <span className={`mr-2 text-[9px] font-bold ${isActive ? "text-violet-200" : "text-slate-400"}`}>PIN</span>}
+                <button type="button" role="tab" aria-selected={isActive} aria-label={`Open ${label}`} onClick={() => activateWorkspaceTab(workspaceKey)} className="px-3 py-2 text-xs font-bold">{label}</button>
+                {workspaceKey !== "dashboard" ? <button type="button" onClick={() => closeWorkspaceTab(workspaceKey)} aria-label={`Close ${label} tab`} className={`mr-1 flex h-6 w-6 items-center justify-center rounded-lg text-sm font-black transition ${isActive ? "text-violet-100 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-violet-100 hover:text-violet-700"}`}>×</button> : <span className={`mr-2 text-[9px] font-bold ${isActive ? "text-violet-200" : "text-slate-400"}`}>PIN</span>}
               </div>;
             })}
           </div>
@@ -6486,13 +6428,6 @@ export default function App() {
     </>
   );
 }
-
-
-
-
-
-
-
 
 
 

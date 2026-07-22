@@ -1338,6 +1338,202 @@ function WeeklySnapshotCard({
   );
 }
 
+type CompactSelectOption = {
+  value: string;
+  label: string;
+  parts?: string[];
+};
+
+function CompactAlignedSelect({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  disabled = false,
+}: {
+  value: string;
+  options: CompactSelectOption[];
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value) || options[0];
+  const alignedOptions = options.filter((option) => (option.parts?.length || 0) > 1);
+  const firstColumnCharacters = alignedOptions.length
+    ? Math.max(...alignedOptions.map((option) => option.parts?.[0]?.length || 0)) + 1
+    : 0;
+
+  return (
+    <div
+      className="relative min-w-0"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-14 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-white px-4 text-left text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+      >
+        <span className="min-w-0 truncate">{selected?.label || "-"}</span>
+        <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+
+      {open ? (
+        <div role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-[80] mt-2 max-h-72 w-full min-w-max overflow-y-auto rounded-2xl border border-violet-200 bg-white p-1.5 shadow-[0_18px_45px_rgba(30,41,59,0.22)]">
+          {options.map((option) => {
+            const parts = option.parts?.filter(Boolean) || [option.label];
+            const aligned = firstColumnCharacters > 0 && parts.length > 1;
+            return (
+              <button
+                key={option.value || "all"}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`grid w-full items-center gap-x-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition ${option.value === value ? "bg-sky-300 text-slate-950" : "text-slate-700 hover:bg-violet-50 hover:text-violet-800"}`}
+                style={aligned ? { gridTemplateColumns: `${firstColumnCharacters}ch max-content` } : { gridTemplateColumns: "max-content" }}
+              >
+                {parts.length > 1 ? parts.map((part, index) => <span key={`${option.value}-${index}`} className="whitespace-nowrap">{part}</span>) : <span className="whitespace-nowrap">{option.label}</span>}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function parseInputDateValue(value: string) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateRangeValue(value: string) {
+  const date = parseInputDateValue(value);
+  if (!date) return "-";
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
+function getCalendarCells(monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = index - firstWeekday + 1;
+    return day >= 1 && day <= daysInMonth ? new Date(year, month, day) : null;
+  });
+}
+
+function DateRangePicker({
+  dateFrom,
+  dateTo,
+  onChange,
+}: {
+  dateFrom: string;
+  dateTo: string;
+  onChange: (nextFrom: string, nextTo: string) => void;
+}) {
+  const initialFrom = parseInputDateValue(dateFrom) || TODAY;
+  const initialTo = parseInputDateValue(dateTo) || initialFrom;
+  const [open, setOpen] = useState(false);
+  const [selectingEnd, setSelectingEnd] = useState(false);
+  const [leftMonth, setLeftMonth] = useState(() => new Date(initialFrom.getFullYear(), initialFrom.getMonth(), 1));
+  const [rightMonth, setRightMonth] = useState(() => {
+    const sameMonth = initialFrom.getFullYear() === initialTo.getFullYear() && initialFrom.getMonth() === initialTo.getMonth();
+    return sameMonth
+      ? new Date(initialFrom.getFullYear(), initialFrom.getMonth() + 1, 1)
+      : new Date(initialTo.getFullYear(), initialTo.getMonth(), 1);
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const nextFrom = parseInputDateValue(dateFrom) || TODAY;
+    const nextTo = parseInputDateValue(dateTo) || nextFrom;
+    setLeftMonth(new Date(nextFrom.getFullYear(), nextFrom.getMonth(), 1));
+    const sameMonth = nextFrom.getFullYear() === nextTo.getFullYear() && nextFrom.getMonth() === nextTo.getMonth();
+    setRightMonth(sameMonth ? new Date(nextFrom.getFullYear(), nextFrom.getMonth() + 1, 1) : new Date(nextTo.getFullYear(), nextTo.getMonth(), 1));
+  }, [open, dateFrom, dateTo]);
+
+  const startDate = parseInputDateValue(dateFrom);
+  const endDate = parseInputDateValue(dateTo);
+  const startTime = startDate?.getTime() || 0;
+  const endTime = endDate?.getTime() || 0;
+  const weekdayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  const chooseDate = (date: Date) => {
+    const nextValue = formatInputDate(date);
+    if (!selectingEnd || !startDate) {
+      onChange(nextValue, nextValue);
+      setSelectingEnd(true);
+      return;
+    }
+
+    if (date.getTime() < startDate.getTime()) onChange(nextValue, dateFrom);
+    else onChange(dateFrom, nextValue);
+    setSelectingEnd(false);
+  };
+
+  const renderMonth = (monthDate: Date, side: "left" | "right") => (
+    <section className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        {side === "left" ? <button type="button" aria-label="Previous month" onClick={() => setLeftMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-200 text-violet-700 transition hover:bg-violet-50"><span aria-hidden="true">‹</span></button> : <span className="h-9 w-9" aria-hidden="true" />}
+        <div className="text-sm font-bold text-slate-900">{getMonthLabel(monthDate)}</div>
+        {side === "right" ? <button type="button" aria-label="Next month" onClick={() => setRightMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-200 text-violet-700 transition hover:bg-violet-50"><span aria-hidden="true">›</span></button> : <span className="h-9 w-9" aria-hidden="true" />}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {weekdayLabels.map((label) => <div key={`${side}-${label}`} className="py-1 text-center text-[10px] font-bold uppercase text-slate-400">{label}</div>)}
+        {getCalendarCells(monthDate).map((date, index) => {
+          if (!date) return <span key={`${side}-empty-${index}`} className="h-9" aria-hidden="true" />;
+          const time = date.getTime();
+          const isEdge = time === startTime || time === endTime;
+          const inRange = Boolean(startTime && endTime && time > startTime && time < endTime);
+          return <button key={`${side}-${formatInputDate(date)}`} type="button" onClick={() => chooseDate(date)} aria-label={formatDateRangeValue(formatInputDate(date))} aria-pressed={isEdge} className={`h-9 rounded-xl text-xs font-bold transition ${isEdge ? "bg-violet-600 text-white shadow-sm" : inRange ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-violet-50 hover:text-violet-800"}`}>{date.getDate()}</button>;
+        })}
+      </div>
+    </section>
+  );
+
+  return (
+    <div
+      className="relative min-w-0"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
+      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-14 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-white px-4 text-left text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+        <span className="min-w-0 truncate">{formatDateRangeValue(dateFrom)} – {formatDateRangeValue(dateTo)}</span>
+        <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-violet-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      </button>
+
+      {open ? (
+        <div role="dialog" aria-label="Choose Date Range" className="absolute right-0 top-full z-[85] mt-2 w-[760px] max-w-[calc(100vw-2rem)] rounded-[24px] border border-violet-200 bg-white p-4 shadow-[0_22px_55px_rgba(30,41,59,0.24)]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div><div className="text-sm font-black text-slate-900">Choose Date Range</div><div className="mt-1 text-xs text-slate-500">{selectingEnd ? "Choose end date" : "Choose start date"}</div></div>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold"><span className="rounded-full bg-violet-50 px-3 py-1.5 text-violet-700">From {formatDateRangeValue(dateFrom)}</span><span className="rounded-full bg-sky-50 px-3 py-1.5 text-sky-700">To {formatDateRangeValue(dateTo)}</span></div>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {renderMonth(leftMonth, "left")}
+            {renderMonth(rightMonth, "right")}
+          </div>
+          <div className="mt-4 flex justify-end"><button type="button" onClick={() => setOpen(false)} className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-700">Done</button></div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CaseNavigatorCard({
   item,
   isSelected,
@@ -1388,9 +1584,8 @@ function CaseNavigatorCard({
               Score {item.finalScore.toFixed(2)}
             </span>
           </div>
-          <div className="mt-3 space-y-1 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-[10px] leading-4 text-slate-600">
-            <div className="flex min-w-0 gap-1.5"><span className="shrink-0 font-semibold text-slate-500">Agent:</span><span className="truncate font-bold text-slate-800">{item.agent || "Not recorded"}</span></div>
-            <div className="flex min-w-0 gap-1.5"><span className="shrink-0 font-semibold text-slate-500">Admin:</span><span className="truncate font-bold text-violet-700">{item.evaluatorName || "Not recorded"}</span></div>
+          <div className="mt-3 truncate rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-[11px] font-bold leading-4 text-slate-800">
+            {item.agent || "Not recorded"}
           </div>
         </div>
 
@@ -1731,41 +1926,6 @@ function GradeMix({ gradeCounts }: { gradeCounts: Record<Grade, number> }) {
             {grade}
           </span>
           <span className="text-sm font-semibold text-slate-900">{gradeCounts[grade]} Case(s)</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DataHealthChecks({
-  caseCount,
-  agentCount,
-  appealCount,
-}: {
-  caseCount: number;
-  agentCount: number;
-  appealCount: number;
-}) {
-  const tests = [
-    { name: "Raw data loaded", pass: caseCount > 0 },
-    { name: "Agent list built", pass: agentCount > 0 },
-    { name: "Appeal merge loaded", pass: appealCount > 0 },
-    { name: "Case URL available", pass: true },
-  ];
-
-  return (
-    <div className="space-y-2">
-      {tests.map((test) => (
-        <div
-          key={test.name}
-          className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
-            test.pass
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-rose-200 bg-rose-50 text-rose-800"
-          }`}
-        >
-          <span>{test.name}</span>
-          <span className="font-semibold">{test.pass ? "PASS" : "FAIL"}</span>
         </div>
       ))}
     </div>
@@ -4376,11 +4536,6 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (selectedMonthKey === "all") {
-      const scopedYear = Number(selectedYear) || TODAY.getFullYear();
-      const firstDay = new Date(scopedYear, 0, 1);
-      const lastDay = scopedYear === TODAY.getFullYear() ? TODAY : new Date(scopedYear, 11, 31);
-      setDateFrom(formatInputDate(firstDay));
-      setDateTo(formatInputDate(lastDay));
       return;
     }
 
@@ -4445,11 +4600,22 @@ export default function DashboardMockup({
     }
 
     window.requestAnimationFrame(() => {
-      document.getElementById("qa-dashboard-results-v35")?.scrollIntoView({
+      document.getElementById("qa-dashboard-results-v36")?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
     });
+  };
+
+  const updateDateRange = (nextFrom: string, nextTo: string) => {
+    setSelectedMonthKey("all");
+    onSelectedMonthKeyChange?.("all");
+    setDateFrom(nextFrom);
+    setDateTo(nextTo);
+    setSelectedWeek("all");
+    onSelectedWeekChange?.("all");
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
   };
 
   const dashboardCasesBase = useMemo(() => {
@@ -4747,6 +4913,26 @@ export default function DashboardMockup({
       ? getMonthLabel(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
       : monthOptions.find((m) => m.value === selectedMonthKey)?.label || "-";
 
+  const quickYearOptions: CompactSelectOption[] = yearOptions.map((year) => ({ value: year, label: year }));
+  const quickMonthOptions: CompactSelectOption[] = [
+    { value: "all", label: "All Months" },
+    ...monthOptions.map((item) => {
+      const match = item.label.match(/^(.+?)\s+(\d{4})$/);
+      return { ...item, parts: match ? [match[1], match[2]] : [item.label] };
+    }),
+  ];
+  const quickAgentOptions: CompactSelectOption[] = [
+    { value: "", label: "All Agents" },
+    ...visibleAgentList.map((agent) => {
+      const words = agent.trim().split(/\s+/).filter(Boolean);
+      return {
+        value: agent,
+        label: agent,
+        parts: words.length > 1 ? [words[0], words.slice(1).join(" ")] : [agent],
+      };
+    }),
+  ];
+
   if (isLoading) {
     return <LoadingMascot message="กำลังโหลดข้อมูล" subMessage="กรุณารอสักครู่..." />;
   }
@@ -4824,50 +5010,72 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-            <Panel className="qa-filter-dock-v35">
+            <Panel className="qa-filter-dock-v36 !overflow-visible">
               <PanelHeader
                 title="Quick Controls"
-                subtitle="Responsive filters by agent, year, month, week, case ID and date range"
+                subtitle="Responsive filters by year, month, agent name, case ID and date range"
               />
               <PanelBody className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-                  <div className="min-w-0">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent</div>
-                    {roleScopedAgentList.length ? (
-                      <div className="flex h-14 min-w-0 items-center truncate rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
-                    ) : (
-                      <select value={selectedAgent} onChange={(e) => { const value = e.target.value; setSelectedAgent(value); onSelectedAgentChange?.(value); setSelectedWeek("all"); onSelectedWeekChange?.("all"); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-                        <option value="">All Agents</option>
-                        {visibleAgentList.map((agent) => <option key={canonicalAgentKey(agent)} value={agent}>{agent}</option>)}
-                      </select>
-                    )}
-                  </div>
-
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="min-w-0">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Year</div>
-                    <select value={selectedYear} onChange={(e) => { const value = e.target.value; setSelectedYear(value); const nextMonth = `${value}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`; setSelectedMonthKey(nextMonth); onSelectedMonthKeyChange?.(nextMonth); setSelectedWeek("all"); onSelectedWeekChange?.("all"); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-                      {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
-                    </select>
+                    <CompactAlignedSelect
+                      ariaLabel="Year"
+                      value={selectedYear}
+                      options={quickYearOptions}
+                      onChange={(value) => {
+                        setSelectedYear(value);
+                        const nextMonth = `${value}-${String(TODAY.getMonth() + 1).padStart(2, "0")}`;
+                        setSelectedMonthKey(nextMonth);
+                        onSelectedMonthKeyChange?.(nextMonth);
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                    />
                   </div>
 
                   <div className="min-w-0">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Month</div>
-                    <select value={selectedMonthKey} onChange={(e) => { const value = e.target.value; setSelectedMonthKey(value); onSelectedMonthKeyChange?.(value); setSelectedWeek("all"); onSelectedWeekChange?.("all"); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-                      <option value="all">All Months</option>
-                      {monthOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                    </select>
+                    <CompactAlignedSelect
+                      ariaLabel="Month"
+                      value={selectedMonthKey}
+                      options={quickMonthOptions}
+                      onChange={(value) => {
+                        setSelectedMonthKey(value);
+                        onSelectedMonthKeyChange?.(value);
+                        setSelectedWeek("all");
+                        onSelectedWeekChange?.("all");
+                        setSelectedCaseKey("");
+                        setSlideOverOpen(false);
+                      }}
+                    />
                   </div>
 
                   <div className="min-w-0">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Week</div>
-                    <select value={selectedWeek} onChange={(e) => selectWeeklySnapshot(e.target.value)} className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" disabled={!searchScopedCases.length}>
-                      <option value="all">All Weeks</option>
-                      {weekLabels.map((week) => <option key={week} value={week}>{week}</option>)}
-                    </select>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent Name</div>
+                    {roleScopedAgentList.length ? (
+                      <div className="flex h-14 min-w-0 items-center truncate rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
+                    ) : (
+                      <CompactAlignedSelect
+                        ariaLabel="Agent Name"
+                        value={selectedAgent}
+                        options={quickAgentOptions}
+                        onChange={(value) => {
+                          setSelectedAgent(value);
+                          onSelectedAgentChange?.(value);
+                          setSelectedWeek("all");
+                          onSelectedWeekChange?.("all");
+                          setSelectedCaseKey("");
+                          setSlideOverOpen(false);
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)_minmax(220px,1fr)]">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
                   <div className="min-w-0">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
                     <div className="relative min-w-0">
@@ -4877,20 +5085,15 @@ export default function DashboardMockup({
                   </div>
 
                   <div className="min-w-0">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date From</div>
-                    <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date To</div>
-                    <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 text-sm font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date Range</div>
+                    <DateRangePicker dateFrom={dateFrom} dateTo={dateTo} onChange={updateDateRange} />
                   </div>
                 </div>
               </PanelBody>
             </Panel>
 
         <div className="mt-4 space-y-4">
-          <section className="qa-weekly-tabs-v35 rounded-[22px] border border-violet-100 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly Snapshot">
+          <section className="qa-weekly-tabs-v36 rounded-[22px] border border-violet-100 bg-white px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly Snapshot">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
                 <div className="text-sm font-black text-slate-900">Weekly Snapshot</div>
@@ -4907,7 +5110,7 @@ export default function DashboardMockup({
               </div>
             </div>
           </section>
-          <div id="qa-dashboard-results-v35" className="scroll-mt-4 space-y-6">
+          <div id="qa-dashboard-results-v36" className="scroll-mt-4 space-y-6">
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
@@ -5638,12 +5841,6 @@ export default function DashboardMockup({
     </div>
   );
 }
-
-
-
-
-
-
 
 
 
