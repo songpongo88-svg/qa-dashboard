@@ -207,6 +207,27 @@ type AppTab =
   | "usage-log"
   | "user-roles";
 
+type WorkspaceTabKey = AppTab | "performance-overview" | "case-detail";
+
+type SidebarNavItem = {
+  key: string;
+  label: string;
+  description: string;
+  icon: string;
+  visible: boolean;
+  active: boolean;
+  onClick: () => void;
+  badge?: number | string;
+  danger?: boolean;
+};
+
+type SidebarNavGroup = {
+  id: string;
+  title: string;
+  description: string;
+  items: SidebarNavItem[];
+};
+
 type MaintenanceState = {
   enabled: boolean;
   message: string;
@@ -274,6 +295,9 @@ const DEFAULT_BUILD_META: BuildMeta = {
 
 const QA_DATA_REFRESH_STORAGE_KEY = "qa-dashboard-data-refresh-key";
 const ACTIVE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-tab-session";
+const OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY = "qa-dashboard:open-workspace-tabs-v35";
+const ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-workspace-tab-v35";
+const SIDEBAR_GROUPS_SESSION_STORAGE_KEY = "qa-dashboard:sidebar-groups-v35";
 const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
@@ -298,6 +322,69 @@ const VALID_APP_TABS = new Set<AppTab>([
 function normalizeAppTab(value: string | null | undefined): AppTab | "" {
   const normalized = String(value || "").trim();
   return VALID_APP_TABS.has(normalized as AppTab) ? (normalized as AppTab) : "";
+}
+
+const VALID_WORKSPACE_TAB_KEYS = new Set<WorkspaceTabKey>([
+  ...Array.from(VALID_APP_TABS),
+  "performance-overview",
+  "case-detail",
+]);
+
+const WORKSPACE_TAB_LABELS: Record<WorkspaceTabKey, string> = {
+  dashboard: "Dashboard",
+  "performance-overview": "Performance Overview",
+  "case-detail": "Case Detail Workspace",
+  appeal: "Appeals",
+  "create-evaluation": "Create Evaluation",
+  "pre-test": "Pre-Test",
+  "training-attendance": "Training Attendance",
+  "appeal-requests": "Review Queue",
+  "appeal-override": "Appeal Override",
+  "task-inbox": "Work Queue",
+  "team-chat": "Team Chat",
+  "call-history": "Call History",
+  summary: "Summary",
+  "signature-center": "Signature Center",
+  "presentation-builder": "Presentation Builder",
+  coaching: "Coaching",
+  rubric: "Rubric",
+  "usage-log": "Activity Log",
+  "user-roles": "Users & Roles",
+};
+
+function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
+  const normalized = String(value || "").trim();
+  return VALID_WORKSPACE_TAB_KEYS.has(normalized as WorkspaceTabKey)
+    ? (normalized as WorkspaceTabKey)
+    : "";
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function SidebarGlyph({ name }: { name: string }) {
+  const paths: Record<string, string> = {
+    dashboard: "M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z",
+    chart: "M4 19V9 M10 19V5 M16 19v-7 M2 19h20",
+    document: "M6 3h9l3 3v15H6z M14 3v4h4 M9 12h6 M9 16h6",
+    add: "M12 5v14 M5 12h14",
+    queue: "M5 3h14v18H5z M8 8h8 M8 12h8 M8 16h5",
+    appeal: "M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5",
+    target: "M12 3v3 M12 18v3 M3 12h3 M18 12h3 M8 8a6 6 0 1 0 8 8",
+    chat: "M4 5h16v11H8l-4 4z M8 9h8 M8 12h5",
+    check: "M5 3h14v18H5z M8 12l3 3 5-6",
+    list: "M4 6h16 M4 12h16 M4 18h16",
+    presentation: "M3 3h18v14H3z M8 21l4-4 4 4 M8 8h8 M8 12h5",
+    signature: "M3 17c3-6 5-10 7-10 3 0-1 9 2 9 2 0 3-5 5-5 1 0 0 4 4 4 M3 21h18",
+    phone: "M5 4h4l2 5-3 2c2 4 4 6 8 8l2-3 3 2v3c0 1-1 2-2 2C10 21 3 14 3 6c0-1 1-2 2-2z",
+    users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 21c0-5 2-8 6-8s6 3 6 8 M17 7h4 M19 5v4",
+    clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
+    key: "M8 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M10 13l8-8 2 2-2 2 2 2-3 3-2-2-3 3",
+    logout: "M10 4H4v16h6 M14 8l4 4-4 4 M18 12H9",
+  };
+  return <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.document} /></svg>;
 }
 
 function compactCentralStoreText(value: unknown, fallback = "") {
@@ -2948,10 +3035,35 @@ export default function App() {
     }
   });
   const [dashboardSubTab, setDashboardSubTab] = useState<"overview" | "case-detail">("overview");
+  const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<WorkspaceTabKey[]>(() => {
+    try {
+      const stored = JSON.parse(window.sessionStorage.getItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY) || "[]");
+      const valid = Array.isArray(stored)
+        ? stored.map(normalizeWorkspaceTabKey).filter(Boolean) as WorkspaceTabKey[]
+        : [];
+      return ["dashboard", ...valid.filter((item) => item !== "dashboard")];
+    } catch {
+      return ["dashboard"];
+    }
+  });
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>(() => {
+    const stored = normalizeWorkspaceTabKey(window.sessionStorage.getItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY));
+    return stored || (activeTab as WorkspaceTabKey) || "dashboard";
+  });
+  const [sidebarGroupsOpen, setSidebarGroupsOpen] = useState<Record<string, boolean>>(() => {
+    const defaults = { overview: true, qa: true, appeals: true, quality: true, tools: true, workspace: true, admin: true, account: true };
+    try {
+      const stored = JSON.parse(window.sessionStorage.getItem(SIDEBAR_GROUPS_SESSION_STORAGE_KEY) || "{}");
+      return { ...defaults, ...(stored && typeof stored === "object" ? stored : {}) };
+    } catch {
+      return defaults;
+    }
+  });
+  const [sidebarTooltip, setSidebarTooltip] = useState<{ title: string; description: string; top: number; left: number } | null>(null);
   const [accountMenuValue, setAccountMenuValue] = useState("");
 
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
-  const [selectedMonthGlobal, setSelectedMonthGlobal] = useState("all");
+  const [selectedMonthGlobal, setSelectedMonthGlobal] = useState(() => getCurrentMonthKey());
   const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
   const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
@@ -2968,6 +3080,7 @@ export default function App() {
   const lastSessionTouchRef = useRef(0);
   const usernameValidationRequestRef = useRef(0);
   const automaticLoginRequestRef = useRef(0);
+  const sidebarTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activateUserSession = async (user: CurrentUser) => {
     try {
@@ -3520,6 +3633,7 @@ export default function App() {
     options: {
       replace?: boolean;
       params?: Record<string, string | undefined>;
+      workspaceKey?: WorkspaceTabKey;
     } = {}
   ) => {
     const blockedReason = getTabBlockedReason(tab);
@@ -3531,6 +3645,17 @@ export default function App() {
 
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
     setActiveTab(nextTab);
+
+    const requestedSubTab = options.params?.subTab;
+    const nextWorkspaceTab: WorkspaceTabKey = blockedReason
+      ? "dashboard"
+      : options.workspaceKey || (nextTab === "dashboard" && requestedSubTab === "case-detail"
+        ? "case-detail"
+        : nextTab === "dashboard" && requestedSubTab === "overview"
+          ? "performance-overview"
+          : nextTab);
+    setOpenWorkspaceTabs((current) => current.includes(nextWorkspaceTab) ? current : [...current, nextWorkspaceTab]);
+    setActiveWorkspaceTab(nextWorkspaceTab);
 
     const nextParams = new URLSearchParams(window.location.search);
     nextParams.set("tab", nextTab);
@@ -3545,7 +3670,7 @@ export default function App() {
 
     writeWorkspaceRoute(nextTab, {
       replace: options.replace || Boolean(blockedReason),
-      params: blockedReason ? {} : options.params,
+      params: blockedReason ? {} : { ...options.params, workspace: nextWorkspaceTab },
     });
   }, [applyRouteParams, getTabBlockedReason, writeWorkspaceRoute]);
 
@@ -3564,6 +3689,14 @@ export default function App() {
 
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, nextTab);
     setActiveTab(nextTab);
+    const routeWorkspaceTab = normalizeWorkspaceTabKey(params.get("workspace"));
+    const nextWorkspaceTab: WorkspaceTabKey = blockedReason
+      ? "dashboard"
+      : routeWorkspaceTab || (nextTab === "dashboard" && params.get("subTab") === "case-detail"
+        ? "case-detail"
+        : nextTab);
+    setOpenWorkspaceTabs((current) => current.includes(nextWorkspaceTab) ? current : [...current, nextWorkspaceTab]);
+    setActiveWorkspaceTab(nextWorkspaceTab);
     applyRouteParams(nextTab, params);
 
     const urlTab = normalizeAppTab(params.get("tab"));
@@ -3578,6 +3711,57 @@ export default function App() {
   useEffect(() => {
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY, JSON.stringify(openWorkspaceTabs));
+    window.sessionStorage.setItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY, activeWorkspaceTab);
+  }, [openWorkspaceTabs, activeWorkspaceTab]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(SIDEBAR_GROUPS_SESSION_STORAGE_KEY, JSON.stringify(sidebarGroupsOpen));
+  }, [sidebarGroupsOpen]);
+
+  const activateWorkspaceTab = useCallback((workspaceKey: WorkspaceTabKey) => {
+    if (workspaceKey === "case-detail") {
+      setDashboardSubTab("case-detail");
+      navigateToTab("dashboard", {
+        workspaceKey,
+        params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" },
+      });
+      return;
+    }
+
+    if (workspaceKey === "performance-overview") {
+      setDashboardSubTab("overview");
+      navigateToTab("dashboard", {
+        workspaceKey,
+        params: { subTab: "overview", caseId: "", agent: selectedAgentGlobal || "" },
+      });
+      return;
+    }
+
+    if (workspaceKey === "dashboard") {
+      setDashboardSubTab("overview");
+      navigateToTab("dashboard", {
+        workspaceKey,
+        params: { subTab: "overview", caseId: "", agent: "" },
+      });
+      return;
+    }
+
+    navigateToTab(workspaceKey as AppTab, { workspaceKey });
+  }, [navigateToTab, selectedAgentGlobal, selectedDashboardCaseId]);
+
+  const closeWorkspaceTab = useCallback((workspaceKey: WorkspaceTabKey) => {
+    if (workspaceKey === "dashboard") return;
+    const currentIndex = openWorkspaceTabs.indexOf(workspaceKey);
+    const nextTabs = openWorkspaceTabs.filter((item) => item !== workspaceKey);
+    setOpenWorkspaceTabs(nextTabs);
+    if (activeWorkspaceTab === workspaceKey) {
+      const fallback = nextTabs[Math.max(0, currentIndex - 1)] || "dashboard";
+      activateWorkspaceTab(fallback);
+    }
+  }, [activeWorkspaceTab, activateWorkspaceTab, openWorkspaceTabs]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -3637,11 +3821,6 @@ export default function App() {
     if (value === "training-attendance" && !trainingAttendanceAllowed) return;
     if (value === "appeal-requests" && !appealRequestsAllowed) return;
     if (value === "appeal-override" && !appealOverrideAllowed) return;
-    if (value === "create-evaluation") {
-      const evaluationUrl = buildWorkspaceUrl({ tab: "create-evaluation" });
-      window.open(evaluationUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
     if (value === "appeal" || value === "create-evaluation" || value === "pre-test" || value === "training-attendance" || value === "appeal-requests" || value === "appeal-override" || value === "rubric") {
       navigateToTab(value);
     }
@@ -4850,7 +5029,7 @@ export default function App() {
     setDashboardSubTab("overview");
     loginAgentScopeSeededRef.current = false;
     setSelectedAgentGlobal("");
-    setSelectedMonthGlobal("all");
+    setSelectedMonthGlobal(getCurrentMonthKey());
     setSelectedWeekGlobal("all");
     setChatMessages([]);
     setOnlineUsers([]);
@@ -5066,7 +5245,7 @@ export default function App() {
       syncRouteFromLocation({ replace: true });
       loginAgentScopeSeededRef.current = false;
       setSelectedAgentGlobal("");
-      setSelectedMonthGlobal("all");
+      setSelectedMonthGlobal(getCurrentMonthKey());
       setSelectedWeekGlobal("all");
       void loadRoleOverrides();
       return;
@@ -5146,7 +5325,7 @@ export default function App() {
         const initialAgentScope = matchedPermissions.viewAllAgents ? "" : nextUser.agentName;
         loginAgentScopeSeededRef.current = Boolean(initialAgentScope);
         setSelectedAgentGlobal(initialAgentScope);
-        setSelectedMonthGlobal("all");
+        setSelectedMonthGlobal(getCurrentMonthKey());
         setSelectedWeekGlobal("all");
         void loadRoleOverrides();
 
@@ -5249,7 +5428,7 @@ export default function App() {
     const initialAgentScope = matchedPermissions.viewAllAgents ? "" : matchedUser.agentName;
     loginAgentScopeSeededRef.current = Boolean(initialAgentScope);
     setSelectedAgentGlobal(initialAgentScope);
-    setSelectedMonthGlobal("all");
+    setSelectedMonthGlobal(getCurrentMonthKey());
     setSelectedWeekGlobal("all");
     void loadRoleOverrides();
 
@@ -5792,18 +5971,140 @@ export default function App() {
     return <MaintenanceScreen state={maintenanceState} onLogout={handleLogout} showLogout />;
   }
 
+  const hideSidebarTooltip = () => {
+    if (sidebarTooltipTimerRef.current) {
+      clearTimeout(sidebarTooltipTimerRef.current);
+      sidebarTooltipTimerRef.current = null;
+    }
+    setSidebarTooltip(null);
+  };
+
+  const sidebarTooltipProps = (title: string, description: string) => ({
+    title: `${title} - ${description}`,
+    "aria-label": `${title}: ${description}`,
+    onMouseEnter: (event: React.MouseEvent<HTMLButtonElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (sidebarTooltipTimerRef.current) clearTimeout(sidebarTooltipTimerRef.current);
+      sidebarTooltipTimerRef.current = setTimeout(() => {
+        setSidebarTooltip({
+          title,
+          description,
+          top: Math.max(12, Math.min(rect.top, window.innerHeight - 92)),
+          left: rect.right + 12,
+        });
+      }, 300);
+    },
+    onMouseLeave: hideSidebarTooltip,
+    onFocus: (event: React.FocusEvent<HTMLButtonElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setSidebarTooltip({
+        title,
+        description,
+        top: Math.max(12, Math.min(rect.top, window.innerHeight - 92)),
+        left: rect.right + 12,
+      });
+    },
+    onBlur: hideSidebarTooltip,
+  });
+
+  const toggleSidebarGroup = (groupId: string) => {
+    setSidebarGroupsOpen((current) => ({ ...current, [groupId]: !current[groupId] }));
+  };
+
+  const sidebarGroups: SidebarNavGroup[] = [
+    {
+      id: "overview",
+      title: "Overview",
+      description: "ภาพรวมผลการทำงานและข้อมูลสำคัญ",
+      items: [
+        { key: "dashboard", label: "Dashboard", description: "เปิดหน้าหลักและตัวชี้วัดภาพรวม", icon: "dashboard", visible: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
+        { key: "performance-overview", label: "Performance Overview", description: "ดูคะแนนและแนวโน้มการทำงาน", icon: "chart", visible: true, active: activeWorkspaceTab === "performance-overview", onClick: () => activateWorkspaceTab("performance-overview") },
+        { key: "summary", label: "Summary", description: "ดูสรุปผลการประเมิน", icon: "chart", visible: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
+      ],
+    },
+    {
+      id: "qa",
+      title: "QA Tasks",
+      description: "งานตรวจประเมินและคิวตรวจสอบ",
+      items: [
+        { key: "case-detail", label: "Case Detail Workspace", description: "ค้นหาและตรวจสอบรายละเอียดเคส", icon: "document", visible: true, active: activeWorkspaceTab === "case-detail", onClick: () => activateWorkspaceTab("case-detail") },
+        { key: "create-evaluation", label: "Create Evaluation", description: "สร้างการประเมินเคสใหม่", icon: "add", visible: createEvaluationAllowed, active: activeWorkspaceTab === "create-evaluation", onClick: () => activateWorkspaceTab("create-evaluation") },
+        { key: "appeal-requests", label: "Review Queue", description: "ดูรายการเคสที่รอการตรวจสอบ", icon: "queue", visible: appealRequestsAllowed, active: activeWorkspaceTab === "appeal-requests", onClick: () => activateWorkspaceTab("appeal-requests") },
+      ],
+    },
+    {
+      id: "appeals",
+      title: "Appeals",
+      description: "งานอุทธรณ์และการอนุมัติแก้ไข",
+      items: [
+        { key: "appeal-override", label: "Appeal Override", description: "อนุมัติหรือแก้ไขผลอุทธรณ์กรณีพิเศษ", icon: "target", visible: appealOverrideAllowed, active: activeWorkspaceTab === "appeal-override", onClick: () => activateWorkspaceTab("appeal-override") },
+        { key: "appeal", label: "Appeals", description: "ดูและจัดการเคสอุทธรณ์", icon: "appeal", visible: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
+      ],
+    },
+    {
+      id: "quality",
+      title: "Quality",
+      description: "เครื่องมือพัฒนาคุณภาพและการเรียนรู้",
+      items: [
+        { key: "coaching", label: "Coaching", description: "บันทึกและติดตามการโค้ช", icon: "chat", visible: coachingAllowed, active: activeWorkspaceTab === "coaching", onClick: () => activateWorkspaceTab("coaching") },
+        { key: "pre-test", label: "Pre-Test", description: "ทำและจัดการแบบทดสอบก่อนเริ่มงาน", icon: "check", visible: preTestAllowed, active: activeWorkspaceTab === "pre-test", onClick: () => activateWorkspaceTab("pre-test") },
+        { key: "rubric", label: "Rubric", description: "จัดการเกณฑ์และแบบฟอร์มให้คะแนน", icon: "list", visible: rubricAllowed, active: activeWorkspaceTab === "rubric", onClick: () => activateWorkspaceTab("rubric") },
+        { key: "training-attendance", label: "Training Attendance", description: "บันทึกและตรวจสอบการเข้าอบรม", icon: "check", visible: trainingAttendanceAllowed, active: activeWorkspaceTab === "training-attendance", onClick: () => activateWorkspaceTab("training-attendance") },
+      ],
+    },
+    {
+      id: "tools",
+      title: "Tools",
+      description: "เครื่องมือเอกสาร งานนำเสนอ และลายเซ็น",
+      items: [
+        { key: "presentation-builder", label: "Presentation Builder", description: "สร้างสไลด์สำหรับนำเสนอข้อมูล", icon: "presentation", visible: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
+        { key: "signature-center", label: "Signature Center", description: "ตรวจสอบและจัดการลายเซ็น", icon: "signature", visible: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
+      ],
+    },
+    {
+      id: "workspace",
+      title: "Workspace",
+      description: "พื้นที่ทำงานและการประสานงานของทีม",
+      items: [
+        { key: "call-history", label: "Call History", description: "ดูประวัติการโทรของเคส", icon: "phone", visible: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
+        { key: "team-chat", label: "Team Chat", description: "สนทนาและประสานงานภายในทีม", icon: "chat", visible: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
+        { key: "task-inbox", label: "Work Queue", description: "ดูงานที่ได้รับมอบหมายและงานค้าง", icon: "queue", visible: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
+      ],
+    },
+    {
+      id: "admin",
+      title: "Admin",
+      description: "จัดการผู้ใช้ สิทธิ์ และประวัติระบบ",
+      items: [
+        { key: "usage-log", label: "Activity Log", description: "ดูประวัติการใช้งานระบบ", icon: "clock", visible: usageLogAllowed, active: activeWorkspaceTab === "usage-log", onClick: () => activateWorkspaceTab("usage-log") },
+        { key: "reset-password", label: "Password Reset", description: "รีเซ็ตรหัสผ่านให้ผู้ใช้งาน", icon: "appeal", visible: passwordResetShortcutAllowed, active: false, onClick: () => handleAccountMenuChange("reset-password"), badge: pendingPasswordResetRequestCount },
+        { key: "user-roles", label: "Users & Roles", description: "จัดการผู้ใช้งานและสิทธิ์", icon: "users", visible: roleAdminAllowed, active: activeWorkspaceTab === "user-roles", onClick: () => activateWorkspaceTab("user-roles") },
+      ],
+    },
+    {
+      id: "account",
+      title: "Account",
+      description: "ตั้งค่าบัญชีและออกจากระบบ",
+      items: [
+        { key: "change-password", label: "Change Password", description: "เปลี่ยนรหัสผ่านของบัญชี", icon: "key", visible: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
+        { key: "logout", label: "Sign Out", description: "ออกจากระบบ", icon: "logout", visible: true, active: false, onClick: () => handleAccountMenuChange("logout"), danger: true },
+      ],
+    },
+  ];
+
   return (
     <>
         <style>{`
           :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "276px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
-          .qa-global-sidebar-v34 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
+          .qa-global-sidebar-v35 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
+          .qa-sidebar-nav-v35 { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.32) transparent; }
           @media (max-width: 900px) {
             :root { --qa-sidebar-width: 80px; }
             .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside className="qa-global-sidebar-v34 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-y-auto border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
+        <aside className="qa-global-sidebar-v35 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
           <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -5821,7 +6122,32 @@ export default function App() {
             </div> : null}
           </div>
 
-          <nav className="mt-4 space-y-4" aria-label="Main navigation">
+          <nav className="qa-sidebar-nav-v35 mt-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Main navigation">
+            {sidebarGroups.map((group) => {
+              const visibleItems = group.items.filter((item) => item.visible);
+              if (!visibleItems.length) return null;
+              const isOpen = sidebarGroupsOpen[group.id] !== false;
+              return <section key={group.id} className="rounded-xl">
+                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} {...sidebarTooltipProps(group.title, group.description)} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
+                  <span>{group.title}</span>
+                  <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                </button> : null}
+                {(globalSidebarCollapsed || isOpen) ? <div className="space-y-0.5">
+                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={item.onClick} {...sidebarTooltipProps(item.label, item.description)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
+                    <SidebarGlyph name={item.icon} />
+                    {!globalSidebarCollapsed ? <span className="qa-sidebar-label min-w-0 flex-1 truncate">{item.label}</span> : null}
+                    {item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span> : null}
+                  </button>)}
+                </div> : null}
+              </section>;
+            })}
+          </nav>
+
+          <div className="border-t border-white/15 pt-2">
+            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} {...sidebarTooltipProps(globalSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar", globalSidebarCollapsed ? "ขยายแถบเมนูเพื่อแสดงชื่อทั้งหมด" : "ย่อเมนูให้เหลือเฉพาะไอคอน")} className="flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
+          </div>
+
+          <nav className="hidden" aria-hidden="true">
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Performance</div> : null}
               <div className="mt-1.5 space-y-0.5">
@@ -5860,13 +6186,18 @@ export default function App() {
             </div>
           </nav>
 
-          <div className="mt-auto space-y-0.5 border-t border-white/15 pt-3">
+          <div className="hidden">
             <button type="button" onClick={() => handleAccountMenuChange("change-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="m10 13 8-8 2 2-2 2 2 2-3 3-2-2-3 3"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Change Password</span> : null}</button>
             {passwordResetShortcutAllowed ? <button type="button" onClick={() => handleAccountMenuChange("reset-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Password Reset</span> : null}{pendingPasswordResetRequestCount ? <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-violet-950">{pendingPasswordResetRequestCount}</span> : null}</button> : null}
             <button type="button" onClick={() => handleAccountMenuChange("logout")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-rose-100 transition hover:bg-rose-500/20"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 4H4v16h6"/><path d="m14 8 4 4-4 4"/><path d="M18 12H9"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Sign Out</span> : null}</button>
             <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
         </aside>
+
+        {sidebarTooltip ? <div role="tooltip" className="pointer-events-none fixed z-[140] max-w-[280px] rounded-xl border border-violet-300/30 bg-violet-950 px-3 py-2 font-[Kanit] text-white shadow-[0_14px_36px_rgba(15,23,42,0.35)]" style={{ top: sidebarTooltip.top, left: sidebarTooltip.left }}>
+          <div className="text-xs font-black">{sidebarTooltip.title}</div>
+          <div className="mt-0.5 text-[11px] leading-5 text-violet-100">{sidebarTooltip.description}</div>
+        </div> : null}
 
       <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogoutNow={handleLogout} />
 
@@ -5912,6 +6243,19 @@ export default function App() {
           currentUser={currentUser}
           users={effectiveUserAccounts}
         />
+
+        <div className="qa-workspace-tabs-v35 sticky top-0 z-[70] border-b border-violet-200 bg-white/95 px-3 py-2 shadow-[0_8px_24px_rgba(76,29,149,0.08)] backdrop-blur-md">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto" role="tablist" aria-label="Open workspace tabs">
+            {openWorkspaceTabs.map((workspaceKey) => {
+              const isActive = activeWorkspaceTab === workspaceKey;
+              const label = WORKSPACE_TAB_LABELS[workspaceKey];
+              return <div key={workspaceKey} className={`group flex shrink-0 items-center rounded-xl border transition ${isActive ? "border-violet-500 bg-violet-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"}`}>
+                <button type="button" role="tab" aria-selected={isActive} onClick={() => activateWorkspaceTab(workspaceKey)} title={`สลับไปหน้า ${label}`} className="px-3 py-2 text-xs font-bold">{label}</button>
+                {workspaceKey !== "dashboard" ? <button type="button" onClick={() => closeWorkspaceTab(workspaceKey)} title={`ปิดแท็บ ${label}`} aria-label={`Close ${label} tab`} className={`mr-1 flex h-6 w-6 items-center justify-center rounded-lg text-sm font-black transition ${isActive ? "text-violet-100 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-violet-100 hover:text-violet-700"}`}>×</button> : <span className={`mr-2 text-[9px] font-bold ${isActive ? "text-violet-200" : "text-slate-400"}`}>PIN</span>}
+              </div>;
+            })}
+          </div>
+        </div>
 
         {inboxReturnTitle && activeTab !== "task-inbox" ? (
           <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
@@ -5988,15 +6332,12 @@ export default function App() {
                   case_id: caseId,
                   target_agent: agentName || "",
                 });
-                const params = new URLSearchParams();
-                params.set("tab", "appeal");
-                params.set("caseId", caseId);
-                if (agentName) {
-                  params.set("agent", agentName);
-                }
-
-                const appealUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-                window.open(appealUrl, "_blank", "noopener,noreferrer");
+                setSelectedAppealCaseId(caseId);
+                if (agentName) setSelectedAgentGlobal(agentName);
+                navigateToTab("appeal", {
+                  workspaceKey: "appeal",
+                  params: { caseId, agent: agentName || "" },
+                });
               }}
               onGeneratePdf={(caseId, agentName, pdfType) => {
                 logUsageEvent(currentUser, "pdf_generate", {
