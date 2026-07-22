@@ -91,6 +91,15 @@ type Summary = {
   topicPerformance: TopicSummary[];
 };
 
+type AgentKpiRow = {
+  agent: string;
+  average: number;
+  caseCount: number;
+  scorePassed: boolean;
+  volumePassed: boolean;
+  passed: boolean;
+};
+
 type AppealMergeItem = {
   caseId: string;
   finalScore?: number;
@@ -369,6 +378,17 @@ const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 const JUNE_2026_POLICY_START_MONTH_KEY = "2026-06";
+
+function getKpiScoreTarget(monthKey: string) {
+  switch (getIncentivePolicyKey(monthKey)) {
+    case "JAN_FEB_2026":
+      return 70;
+    case "MAR_2026":
+      return 80;
+    default:
+      return 85;
+  }
+}
 
 const JAN_FEB_2026_TOPIC_MASTER = [
   { code: "1", label: "\u0E40\u0E1B\u0E34\u0E14-\u0E1B\u0E34\u0E14\u0E01\u0E32\u0E23\u0E2A\u0E19\u0E17\u0E19\u0E32", max: 10 },
@@ -1289,6 +1309,115 @@ function MetricCard({
         <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
       </div>
     </div>
+  );
+}
+
+// data-dashboard-kpi-v40
+function AgentKpiStatusPanel({
+  rows,
+  scoreTarget,
+  periodLabel,
+  scopeLabel,
+}: {
+  rows: AgentKpiRow[];
+  scoreTarget: number;
+  periodLabel: string;
+  scopeLabel: string;
+}) {
+  const passedCount = rows.filter((row) => row.passed).length;
+  const allPassed = rows.length > 0 && passedCount === rows.length;
+
+  return (
+    <Panel>
+      <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[17px] font-bold tracking-tight text-slate-900">KPI Status</div>
+            <div className="mt-1 text-xs text-slate-500">{scopeLabel} summary and KPI result by agent for {periodLabel}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-700">
+              Average ≥ {scoreTarget}
+            </span>
+            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-700">
+              Cases ≥ {CASE_TARGET}
+            </span>
+            <span
+              className={`rounded-full border px-3 py-1.5 ${
+                allPassed
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-amber-200 bg-amber-50 text-amber-700"
+              }`}
+            >
+              {scopeLabel}: {allPassed ? "Passed" : "Not passed"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <PanelBody className="space-y-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Agents passed KPI</div>
+            <div className="mt-1 text-3xl font-extrabold tracking-tight text-violet-900">
+              {passedCount}/{rows.length}
+            </div>
+          </div>
+          <div className="text-xs text-slate-500">ต้องผ่านทั้งคะแนนเฉลี่ยและจำนวนเคส</div>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Agent Name</th>
+                <th className="px-4 py-3 text-center">Average</th>
+                <th className="px-4 py-3 text-center">Cases</th>
+                <th className="px-4 py-3">KPI Result</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {rows.length ? rows.map((row) => {
+                const missingReasons = [
+                  !row.scorePassed ? `Score ${row.average.toFixed(2)}/${scoreTarget}` : "",
+                  !row.volumePassed ? `Cases ${row.caseCount}/${CASE_TARGET}` : "",
+                ].filter(Boolean);
+
+                return (
+                  <tr key={row.agent}>
+                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">{row.agent}</td>
+                    <td className={`px-4 py-3 text-center font-bold ${row.scorePassed ? "text-emerald-700" : "text-rose-700"}`}>
+                      {row.average.toFixed(2)}
+                    </td>
+                    <td className={`px-4 py-3 text-center font-bold ${row.volumePassed ? "text-emerald-700" : "text-amber-700"}`}>
+                      {row.caseCount}/{CASE_TARGET}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                            row.passed
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-rose-200 bg-rose-50 text-rose-700"
+                          }`}
+                        >
+                          {row.passed ? "Passed" : "Not passed"}
+                        </span>
+                        {!row.passed ? <span className="text-xs text-slate-500">{missingReasons.join(" • ")}</span> : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">No agent data in the selected period</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -2588,36 +2717,54 @@ function QuickCaseSearchCard({
   item: CaseItem;
   onOpen: () => void;
 }) {
+  const scoreTarget = getKpiScoreTarget(item.monthKey);
+  const scorePassed = item.finalScore >= scoreTarget;
+
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-3 text-left transition hover:border-violet-300 hover:bg-violet-50"
+    <div
+      className="relative w-full overflow-hidden rounded-2xl border border-violet-100 bg-white px-4 py-4 text-left transition hover:border-violet-300 hover:bg-violet-50"
     >
       {isSongkranThemeActive() ? (
         <span className="pointer-events-none absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-cyan-300/70" />
       ) : null}
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-sm font-bold text-slate-900">{item.caseId}</div>
           <div className="mt-1 text-[11px] text-slate-500">
             {item.agent} • {item.auditDate}
           </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700">
+              Score {item.finalScore.toFixed(2)}
+            </span>
+            <span className={`rounded-full border px-2.5 py-1 ${gradeTone(item.grade)}`}>
+              Grade {item.grade}
+            </span>
+            <span
+              className={`rounded-full border px-2.5 py-1 ${
+                scorePassed
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-rose-200 bg-rose-50 text-rose-700"
+              }`}
+            >
+              Case score KPI: {scorePassed ? "Passed" : "Not passed"}
+            </span>
+          </div>
         </div>
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
-            item.grade
-          )}`}
+        <button
+          type="button"
+          onClick={onOpen}
+          data-case-search-open-v40="true"
+          className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-100"
         >
-          {item.grade}
-        </span>
+          Open Case Detail
+          <svg viewBox="0 0 24 24" className="ml-2 h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+        </button>
       </div>
 
       <div className="mt-2 line-clamp-2 text-[12px] leading-5 text-slate-700">{item.inquiryTh}</div>
-
-      <div className="mt-3 text-[11px] font-semibold text-violet-700">Open in Case Detail</div>
-    </button>
+    </div>
   );
 }
 
@@ -4700,6 +4847,41 @@ export default function DashboardMockup({
       ? getMonthKey(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
       : selectedMonthKey;
 
+  const kpiScoreTarget = getKpiScoreTarget(effectiveViewMonthKey);
+  const kpiPeriodCases = useMemo(() => {
+    if (selectedMonthKey && selectedMonthKey !== "all") {
+      return agentCases.filter((item) => item.monthKey === selectedMonthKey);
+    }
+    return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
+  }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
+  const kpiAgentRows = useMemo<AgentKpiRow[]>(() => {
+    const agentNames = isAllAgentsView
+      ? visibleTargetAgents
+      : effectiveSelectedAgent
+      ? [effectiveSelectedAgent]
+      : [];
+
+    return dedupeAgentNames(agentNames)
+      .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }))
+      .map((agent) => {
+        const cases = kpiPeriodCases.filter((item) => isSameAgent(item.agent, agent));
+        const average = cases.length
+          ? cases.reduce((sum, item) => sum + item.finalScore, 0) / cases.length
+          : 0;
+        const scorePassed = cases.length > 0 && average >= kpiScoreTarget;
+        const volumePassed = cases.length >= CASE_TARGET;
+
+        return {
+          agent,
+          average,
+          caseCount: cases.length,
+          scorePassed,
+          volumePassed,
+          passed: scorePassed && volumePassed,
+        };
+      });
+  }, [effectiveSelectedAgent, isAllAgentsView, kpiPeriodCases, kpiScoreTarget, visibleTargetAgents]);
+
   const currentGradeDisplay =
     metricCaseCount === 0
       ? isNewPolicyMonth(effectiveViewMonthKey)
@@ -5270,6 +5452,13 @@ export default function DashboardMockup({
                     )}
                   </div>
 
+                  <AgentKpiStatusPanel
+                    rows={kpiAgentRows}
+                    scoreTarget={kpiScoreTarget}
+                    periodLabel={selectedMonthKey === "all" ? "the selected date range" : currentViewingMonthLabel}
+                    scopeLabel={isAllAgentsView ? "All Agents" : "Selected Agent"}
+                  />
+
                   <Panel>
                     <PanelHeader
                       title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
@@ -5839,6 +6028,3 @@ export default function DashboardMockup({
     </div>
   );
 }
-
-
-

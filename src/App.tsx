@@ -3079,6 +3079,33 @@ export default function App() {
   const usernameValidationRequestRef = useRef(0);
   const automaticLoginRequestRef = useRef(0);
 
+  // data-auth-workspace-reset-v40
+  const resetWorkspaceSessionState = () => {
+    setActiveTab("dashboard");
+    setDashboardSubTab("overview");
+    setOpenWorkspaceTabs(["dashboard"]);
+    setActiveWorkspaceTab("dashboard");
+    setSelectedDashboardCaseId("");
+    setSelectedAppealCaseId("");
+    setSelectedRubricCode("");
+    setAccountMenuValue("");
+    setShareLinkMessage("");
+
+    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_STORAGE_KEY, "dashboard");
+    window.sessionStorage.setItem(
+      OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY,
+      JSON.stringify(["dashboard"])
+    );
+    window.sessionStorage.setItem(ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY, "dashboard");
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.set("tab", "dashboard");
+    ["workspace", "subTab", "caseId", "agent", "rubricCode"].forEach((key) => {
+      cleanUrl.searchParams.delete(key);
+    });
+    window.history.replaceState({}, "", cleanUrl.toString());
+  };
+
   const activateUserSession = async (user: CurrentUser) => {
     try {
       const session = await createStoredUserSession(user);
@@ -3098,6 +3125,7 @@ export default function App() {
       } else {
         localStorage.removeItem(REMEMBERED_USERNAME_KEY);
       }
+      resetWorkspaceSessionState();
       setCurrentUser(authenticatedUser);
       return authenticatedUser;
     } catch (error) {
@@ -5003,6 +5031,7 @@ export default function App() {
 
   const clearLocalSession = (message = "") => {
     clearSessionTimers();
+    resetWorkspaceSessionState();
     setShowSessionWarning(false);
     setCurrentUser(null);
     const rememberedUsername = window.localStorage.getItem(REMEMBERED_USERNAME_KEY) || "";
@@ -6441,8 +6470,6 @@ export default function App() {
     </>
   );
 }
-
-
 
 
 
