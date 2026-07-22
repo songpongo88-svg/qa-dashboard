@@ -3453,6 +3453,10 @@ export default function DashboardMockup({
   const [loadError, setLoadError] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
   const [selectedMonthKey, setSelectedMonthKey] = useState<string>(externalSelectedMonthKey || "all");
+  const [selectedYear, setSelectedYear] = useState<string>(() => {
+    const externalYear = String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    return externalYear || String(TODAY.getFullYear());
+  });
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
@@ -3499,7 +3503,11 @@ export default function DashboardMockup({
     ) {
       setSelectedMonthKey(externalSelectedMonthKey);
     }
-  }, [externalSelectedMonthKey, selectedMonthKey]);
+    const externalYear = String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
+    if (externalYear && externalYear !== selectedYear) {
+      setSelectedYear(externalYear);
+    }
+  }, [externalSelectedMonthKey, selectedMonthKey, selectedYear]);
 
   useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
@@ -4268,6 +4276,20 @@ export default function DashboardMockup({
     return scopedCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
   }, [allCases, effectiveSelectedAgent, roleScopedAgentList]);
 
+  const yearOptions = useMemo(() => {
+    const sourceCases = roleScopedAgentList.length
+      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+      : allCases;
+
+    const years = [...new Set(
+      sourceCases
+        .map((item) => String(item.monthKey || "").slice(0, 4))
+        .filter((year) => /^\d{4}$/.test(year))
+    )].sort((a, b) => b.localeCompare(a));
+
+    return years.length ? years : [String(TODAY.getFullYear())];
+  }, [allCases, roleScopedAgentList]);
+
   const monthOptions = useMemo(() => {
     const sourceCases = roleScopedAgentList.length
       ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
@@ -4276,13 +4298,23 @@ export default function DashboardMockup({
     return Array.from(
       new Map(
         sourceCases
-          .filter((item) => item.monthKey !== "unknown")
+          .filter((item) => item.monthKey !== "unknown" && item.monthKey.startsWith(selectedYear + "-"))
           .map((item) => [item.monthKey, item.monthLabel])
       ).entries()
     )
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => a.value.localeCompare(b.value));
-  }, [allCases, roleScopedAgentList]);
+  }, [allCases, roleScopedAgentList, selectedYear]);
+
+  useEffect(() => {
+    if (!yearOptions.length || yearOptions.includes(selectedYear)) return;
+    const fallbackYear = yearOptions[0];
+    setSelectedYear(fallbackYear);
+    setSelectedMonthKey("all");
+    onSelectedMonthKeyChange?.("all");
+    setSelectedWeek("all");
+    onSelectedWeekChange?.("all");
+  }, [yearOptions, selectedYear, onSelectedMonthKeyChange, onSelectedWeekChange]);
 
   useEffect(() => {
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
@@ -4293,9 +4325,11 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (selectedMonthKey === "all") {
-      const firstDay = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+      const scopedYear = Number(selectedYear) || TODAY.getFullYear();
+      const firstDay = new Date(scopedYear, 0, 1);
+      const lastDay = scopedYear === TODAY.getFullYear() ? TODAY : new Date(scopedYear, 11, 31);
       setDateFrom(formatInputDate(firstDay));
-      setDateTo(formatInputDate(TODAY));
+      setDateTo(formatInputDate(lastDay));
       return;
     }
 
@@ -4307,7 +4341,7 @@ export default function DashboardMockup({
 
     setDateFrom(formatInputDate(firstDay));
     setDateTo(formatInputDate(lastDay));
-  }, [selectedMonthKey]);
+  }, [selectedMonthKey, selectedYear]);
 
   const dateFilteredCases = useMemo(() => {
     if (selectedMonthKey && selectedMonthKey !== "all") {
@@ -4705,237 +4739,89 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-            <Panel className="qa-filter-dock-v33">
+            <Panel className="qa-filter-dock-v34">
               <PanelHeader
                 title="Quick Controls"
-                subtitle="Filter by agent, month, case ID, date range and week"
+                subtitle="Responsive filters by agent, year, month, week, case ID and date range"
               />
-              <PanelBody className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.1fr_0.9fr_0.8fr_1.3fr_1.6fr] xl:items-end">
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Agent
-                  </div>
-                  {roleScopedAgentList.length ? (
-                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">
-                      {effectiveSelectedAgent || "-"}
-                    </div>
-                  ) : (
-                    <select
-                      value={selectedAgent}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSelectedAgent(value);
-                        onSelectedAgentChange?.(value);
-                        setSelectedWeek("all");
-                        onSelectedWeekChange?.("all");
-                        setSelectedCaseKey("");
-                        setSlideOverOpen(false);
-                      }}
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    >
-                      <option value="">All Agents</option>
-                      {visibleAgentList.map((agent) => (
-                        <option key={canonicalAgentKey(agent)} value={agent}>
-                          {agent}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Month
-                  </div>
-                  <select
-                    value={selectedMonthKey}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedMonthKey(value);
-                      onSelectedMonthKeyChange?.(value);
-                      setSelectedCaseKey("");
-                      setSlideOverOpen(false);
-                    }}
-                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                  >
-                    <option value="all">Current Month</option>
-                    {monthOptions.map((item) => (
-                      <option key={item.value} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="xl:order-4">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Search Case ID
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={caseIdSearch}
-                      onChange={(e) => {
-                        setCaseIdSearch(e.target.value);
-                        setSelectedCaseKey("");
-                        setSlideOverOpen(false);
-                      }}
-                      placeholder={"ค้นหาเลขเคสได้ทันที โดยไม่ต้องเลือกเดือน"}
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-12 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    />
-                    {caseIdSearch.trim() ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCaseIdSearch("");
-                          setSelectedCaseKey("");
-                          setSlideOverOpen(false);
-                        }}
-                        className="absolute inset-y-0 right-3 my-auto flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-base font-black leading-none text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
-                        aria-label="Clear case ID search"
-                        title="Clear search"
-                      >
-                        ×
-                      </button>
+              <PanelBody className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent</div>
+                    {roleScopedAgentList.length ? (
+                      <div className="min-w-0 truncate rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
                     ) : (
-                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </div>
+                      <select value={selectedAgent} onChange={(e) => { const value = e.target.value; setSelectedAgent(value); onSelectedAgentChange?.(value); setSelectedWeek("all"); onSelectedWeekChange?.("all"); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                        <option value="">All Agents</option>
+                        {visibleAgentList.map((agent) => <option key={canonicalAgentKey(agent)} value={agent}>{agent}</option>)}
+                      </select>
                     )}
                   </div>
+
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Year</div>
+                    <select value={selectedYear} onChange={(e) => { const value = e.target.value; setSelectedYear(value); setSelectedMonthKey("all"); onSelectedMonthKeyChange?.("all"); setSelectedWeek("all"); onSelectedWeekChange?.("all"); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                      {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Month</div>
+                    <select value={selectedMonthKey} onChange={(e) => { const value = e.target.value; setSelectedMonthKey(value); onSelectedMonthKeyChange?.(value); setSelectedWeek("all"); onSelectedWeekChange?.("all"); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                      <option value="all">All Months</option>
+                      {monthOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Week</div>
+                    <select value={selectedWeek} onChange={(e) => { const value = e.target.value; setSelectedWeek(value); onSelectedWeekChange?.(value); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" disabled={!searchScopedCases.length}>
+                      <option value="all">All Weeks</option>
+                      {weekLabels.map((week) => <option key={week} value={week}>{week}</option>)}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:order-5">
-                  <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                      Date From
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)_minmax(220px,1fr)]">
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
+                    <div className="relative min-w-0">
+                      <input type="text" value={caseIdSearch} onChange={(e) => { setCaseIdSearch(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} placeholder="Search any case ID without selecting a month" className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 pr-12 text-sm text-slate-800 outline-none transition placeholder:text-ellipsis focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+                      {caseIdSearch.trim() ? <button type="button" onClick={() => { setCaseIdSearch(""); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="absolute inset-y-0 right-3 my-auto flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-base font-black leading-none text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700" aria-label="Clear case ID search">x</button> : <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></div>}
                     </div>
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => {
-                        setDateFrom(e.target.value);
-                        setSelectedCaseKey("");
-                        setSlideOverOpen(false);
-                      }}
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    />
                   </div>
 
-                  <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                      Date To
-                    </div>
-                    <input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => {
-                        setDateTo(e.target.value);
-                        setSelectedCaseKey("");
-                        setSlideOverOpen(false);
-                      }}
-                      className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    />
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date From</div>
+                    <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Date To</div>
+                    <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
                   </div>
                 </div>
-
-                <div className="xl:order-3">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                    Week
-                  </div>
-                  <select
-                    value={selectedWeek}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedWeek(value);
-                      onSelectedWeekChange?.(value);
-                      setSelectedCaseKey("");
-                      setSlideOverOpen(false);
-                    }}
-                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-                    disabled={!searchScopedCases.length}
-                  >
-                    <option value="all">All Weeks</option>
-                    {weekLabels.map((week) => (
-                      <option key={week} value={week}>
-                        {week}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </PanelBody>
             </Panel>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="space-y-6">
-
-
-            <Panel>
-              <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />
-              <PanelBody className="space-y-3">
-                {!searchScopedCases.length ? (
-                  <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">{"ไม่พบข้อมูลในช่วงที่เลือก"}</div>
-                ) : (
-                  <>
-                    <WeeklySnapshotCard
-                      label="All Weeks"
-                      caseCount={searchScopedCases.length}
-                      averageDisplay={buildAgentSummary(searchScopedCases).averageDisplay}
-                      isActive={selectedWeek === "all"}
-                      onClick={() => {
-                        setSelectedWeek("all");
-                        onSelectedWeekChange?.("all");
-                      }}
-                    />
-
-                    {weekLabels.map((week) => {
-                      const weekCases = searchScopedCases.filter((item) => item.weekLabel === week);
-                      const weekSummary = buildAgentSummary(weekCases);
-
-                      return (
-                        <WeeklySnapshotCard
-                          key={week}
-                          label={week}
-                          caseCount={weekCases.length}
-                          averageDisplay={weekSummary.averageDisplay}
-                          isActive={selectedWeek === week}
-                          onClick={() => {
-                            setSelectedWeek(week);
-                            onSelectedWeekChange?.(week);
-                          }}
-                        />
-                      );
-                    })}
-                  </>
-                )}
-              </PanelBody>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Data Health Checks" subtitle="System and data validation status" />
-              <PanelBody>
-                <DataHealthChecks
-                  caseCount={allCases.length}
-                  agentCount={visibleAgentList.length}
-                  appealCount={appealMergeCount}
-                />
-              </PanelBody>
-            </Panel>
-          </div>
-
+        <div className="mt-4 space-y-4">
+          <details className="qa-weekly-snapshot-v34 rounded-[28px] border border-violet-100 bg-white shadow-[0_18px_45px_rgba(76,29,149,0.10)]">
+            <summary className="flex cursor-pointer list-none flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div><div className="text-base font-black text-slate-900">Weekly Snapshot</div><div className="mt-1 text-sm text-slate-500">Compact overview. Expand only when needed.</div></div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{selectedWeek === "all" ? "All Weeks" : selectedWeek}</span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-700">{searchScopedCases.length} cases</span>
+                <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-700">Avg {buildAgentSummary(searchScopedCases).averageDisplay}</span>
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-violet-700" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+              </div>
+            </summary>
+            <div className="grid gap-3 border-t border-violet-100 p-4 sm:grid-cols-2 xl:grid-cols-5">
+              {!searchScopedCases.length ? <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-4 text-sm text-slate-500">No data in the selected period.</div> : <>
+                <WeeklySnapshotCard label="All Weeks" caseCount={searchScopedCases.length} averageDisplay={buildAgentSummary(searchScopedCases).averageDisplay} isActive={selectedWeek === "all"} onClick={() => { setSelectedWeek("all"); onSelectedWeekChange?.("all"); }} />
+                {weekLabels.map((week) => { const weekCases = searchScopedCases.filter((item) => item.weekLabel === week); const weekSummary = buildAgentSummary(weekCases); return <WeeklySnapshotCard key={week} label={week} caseCount={weekCases.length} averageDisplay={weekSummary.averageDisplay} isActive={selectedWeek === week} onClick={() => { setSelectedWeek(week); onSelectedWeekChange?.(week); }} />; })}
+              </>}
+            </div>
+          </details>
           <div className="space-y-6">
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
