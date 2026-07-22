@@ -3844,24 +3844,16 @@ export default function DashboardMockup({
       externalSelectedAgent !== selectedAgent
     ) {
       setSelectedAgent(externalSelectedAgent);
-      setSelectedYear(String(TODAY.getFullYear()));
-      setSelectedMonthKey(currentMonthKey);
-      onSelectedMonthKeyChange?.(currentMonthKey);
       setSelectedWeek("all");
       onSelectedWeekChange?.("all");
-      setDateFrom(formatInputDate(firstDayOfCurrentMonth));
-      setDateTo(formatInputDate(TODAY));
       setCaseIdSearch("");
       setSelectedCaseKey("");
       setSlideOverOpen(false);
-      setCurrentPeriodNotice("");
     }
   }, [
     externalSelectedAgent,
     selectedAgent,
     roleScopedAgentList.length,
-    currentMonthKey,
-    onSelectedMonthKeyChange,
     onSelectedWeekChange,
   ]);
 
@@ -4732,17 +4724,29 @@ export default function DashboardMockup({
   }, [allCases, roleScopedAgentList]);
 
   const monthOptions = useMemo(() => {
-    return [...new Set(
+    const availableMonthKeys = [...new Set(
       agentCases
         .map((item) => item.monthKey)
         .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${selectedYear}-`))
-    )]
+    )];
+    const selectedMonthInYear =
+      selectedMonthKey !== "all" &&
+      /^\d{4}-\d{2}$/.test(selectedMonthKey) &&
+      selectedMonthKey.startsWith(`${selectedYear}-`)
+        ? selectedMonthKey
+        : "";
+    const monthKeys = selectedMonthInYear
+      ? [...new Set([...availableMonthKeys, selectedMonthInYear])]
+      : availableMonthKeys;
+
+    return monthKeys
       .sort((a, b) => b.localeCompare(a))
       .map((monthKey) => ({
         value: monthKey,
         label: getMonthLabel(new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)),
+        hasCases: availableMonthKeys.includes(monthKey),
       }));
-  }, [agentCases, selectedYear]);
+  }, [agentCases, selectedYear, selectedMonthKey]);
 
   const resetToCurrentPeriod = () => {
     setSelectedYear(String(TODAY.getFullYear()));
@@ -5291,14 +5295,22 @@ export default function DashboardMockup({
     ...monthOptions.map((item) => {
       const match = item.label.match(/^(.+?)\s+(\d{4})$/);
       const isCurrent = item.value === currentMonthKey;
+      const suffix = [isCurrent ? "Current" : "", item.hasCases ? "" : "No cases"].filter(Boolean).join(" · ");
       return {
         ...item,
-        label: isCurrent ? `${item.label} · Current` : item.label,
-        parts: match ? [match[1], `${match[2]}${isCurrent ? " · Current" : ""}`] : [item.label],
+        label: suffix ? `${item.label} · ${suffix}` : item.label,
+        parts: match ? [match[1], `${match[2]}${suffix ? ` · ${suffix}` : ""}`] : [item.label],
       };
     }),
     { value: "all", label: "All History" },
   ];
+  const selectedMonthHasCases =
+    selectedMonthKey === "all" || monthOptions.some((item) => item.value === selectedMonthKey && item.hasCases);
+  const visiblePeriodNotice =
+    currentPeriodNotice ||
+    (!selectedMonthHasCases && selectedMonthKey !== "all"
+      ? `No cases for ${effectiveSelectedAgent || "All Agents"} in ${currentViewingMonthLabel}`
+      : "");
   const todayDisplayLabel = TODAY.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "long",
@@ -5408,8 +5420,8 @@ export default function DashboardMockup({
                     <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 font-semibold text-violet-700">
                       Today · {todayDisplayLabel}
                     </span>
-                    {currentPeriodNotice ? (
-                      <span className="font-semibold text-amber-700">{currentPeriodNotice}</span>
+                    {visiblePeriodNotice ? (
+                      <span className="font-semibold text-amber-700">{visiblePeriodNotice}</span>
                     ) : (
                       <span className="text-slate-500">Current period is shown first</span>
                     )}
@@ -5485,7 +5497,13 @@ export default function DashboardMockup({
                         onChange={(value) => {
                           setSelectedAgent(value);
                           onSelectedAgentChange?.(value);
-                          resetToCurrentPeriod();
+                          setSelectedWeek("all");
+                          onSelectedWeekChange?.("all");
+                          setCaseIdSearch("");
+                          setCaseSearchHistoryOpen(false);
+                          setSelectedCaseKey("");
+                          setSlideOverOpen(false);
+                          setCurrentPeriodNotice("");
                         }}
                       />
                     )}
@@ -5624,47 +5642,6 @@ export default function DashboardMockup({
                       items={performanceSummaryItems}
                     />
                   </div>
-
-                  {!isAllAgentsView ? (
-                    <section
-                      data-agent-incentive-banner-v44="true"
-                      data-incentive-state={!isMonthlyView ? "select-month" : monthlyAgentCompleted ? "calculated" : "pending"}
-                      className={`grid gap-3 rounded-[22px] border px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
-                        !isMonthlyView
-                          ? "border-slate-200 bg-slate-50"
-                          : monthlyAgentCompleted
-                            ? incentiveResult.cash > 0
-                              ? "border-emerald-200 bg-emerald-50"
-                              : "border-slate-200 bg-slate-50"
-                            : "border-amber-200 bg-amber-50"
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-900">Calculated Incentive</div>
-                        <div className="mt-1 text-xs leading-5 text-slate-600">
-                          {!isMonthlyView
-                            ? "Select one month to calculate KPI, final grade and incentive."
-                            : incentiveSummarySub}
-                        </div>
-                      </div>
-                      <div className="text-left sm:text-right">
-                        <div className={`text-xl font-bold ${
-                          !isMonthlyView
-                            ? "text-slate-600"
-                            : monthlyAgentCompleted && incentiveResult.cash > 0
-                              ? "text-emerald-700"
-                              : "text-amber-700"
-                        }`}>
-                          {!isMonthlyView ? "Select Month" : incentiveSummaryValue}
-                        </div>
-                        {isMonthlyView && monthlyAgentCompleted && incentiveResult.promo > 0 ? (
-                          <div className="mt-1 text-xs font-semibold text-fuchsia-700">
-                            + {incentiveResult.promo.toLocaleString("en-US")} RBH Promo Code
-                          </div>
-                        ) : null}
-                      </div>
-                    </section>
-                  ) : null}
 
                   {false ? (
                   <>
@@ -5837,6 +5814,57 @@ export default function DashboardMockup({
                         subtitle={getGradePolicyLabel(effectiveViewMonthKey)}
                       />
                       <PanelBody className="space-y-4">
+                        {!isAllAgentsView ? (
+                          <div
+                            data-incentive-panel-restored-v45="true"
+                            data-incentive-state={!isMonthlyView ? "select-month" : monthlyAgentCompleted ? "calculated" : "pending"}
+                            className={`rounded-2xl border px-4 py-4 ${
+                              !isMonthlyView
+                                ? "border-slate-200 bg-slate-50"
+                                : monthlyAgentCompleted
+                                  ? incentiveResult.cash > 0
+                                    ? "border-emerald-200 bg-emerald-50"
+                                    : "border-slate-200 bg-slate-50"
+                                  : "border-amber-200 bg-amber-50"
+                            }`}
+                          >
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              {effectiveSelectedAgent}
+                            </div>
+                            <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                              <div className="text-lg font-semibold text-slate-900">
+                                {!isMonthlyView
+                                  ? "Select Month"
+                                  : monthlyAgentCompleted
+                                    ? `Grade ${monthlyAgentGrade} · ${incentiveResult.remark}`
+                                    : "Incentive Pending"}
+                              </div>
+                              <div className={`text-xl font-bold ${
+                                !isMonthlyView
+                                  ? "text-slate-600"
+                                  : monthlyAgentCompleted && incentiveResult.cash > 0
+                                    ? "text-emerald-700"
+                                    : "text-amber-700"
+                              }`}>
+                                {!isMonthlyView
+                                  ? "Monthly View"
+                                  : monthlyAgentCompleted
+                                    ? incentiveSummaryValue
+                                    : `${kpiScopeSummary.caseCount}/${CASE_TARGET} cases`}
+                              </div>
+                            </div>
+                            <div className="mt-2 text-xs leading-5 text-slate-600">
+                              {!isMonthlyView
+                                ? "Select one month to calculate KPI, final grade and incentive."
+                                : incentiveSummarySub}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-xs leading-5 text-violet-700">
+                            Select an Agent to see the completed monthly grade and calculated incentive.
+                          </div>
+                        )}
+
                         <div data-month-policy-guide-v43={effectiveViewMonthKey} className="overflow-hidden rounded-2xl border border-violet-100">
                           {gradeGuideRows.map((row) => {
                             const rowIncentive = getIncentiveByGrade(row.grade, effectiveViewMonthKey);
