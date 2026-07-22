@@ -1701,6 +1701,32 @@ function DateRangePicker({
   );
 }
 
+function splitCaseNavigatorIntent(thValue: string, enValue: string) {
+  const thaiSource = String(thValue || "").trim();
+  const englishSource = String(enValue || "").trim();
+  const combined = thaiSource || englishSource || "-";
+  const trailingEnglish = combined.match(/^([\s\S]*?)\s*\(([^()]*[A-Za-z][^()]*)\)\s*$/);
+
+  if (trailingEnglish) {
+    return {
+      thai: trailingEnglish[1].trim() || "-",
+      english: trailingEnglish[2].trim(),
+    };
+  }
+
+  if (englishSource && englishSource !== thaiSource) {
+    return {
+      thai: thaiSource || "-",
+      english: englishSource,
+    };
+  }
+
+  return {
+    thai: combined,
+    english: "",
+  };
+}
+
 function CaseNavigatorCard({
   item,
   isSelected,
@@ -1711,6 +1737,7 @@ function CaseNavigatorCard({
   onSelect: () => void;
 }) {
   const songkranTheme = isSongkranThemeActive();
+  const intent = splitCaseNavigatorIntent(item.inquiryTh, item.inquiryEn);
 
   return (
     <div
@@ -1723,7 +1750,8 @@ function CaseNavigatorCard({
           onSelect();
         }
       }}
-      className={`relative h-full cursor-pointer overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-200 ${
+      data-case-navigator-intent-v51="true"
+      className={`relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-200 ${
         isSelected
           ? songkranTheme
             ? "border-cyan-300 bg-gradient-to-br from-cyan-100 to-fuchsia-100 shadow-[0_10px_24px_rgba(34,211,238,0.16)]"
@@ -1739,24 +1767,10 @@ function CaseNavigatorCard({
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-slate-900">{item.caseId}</div>
           <div className="mt-0.5 text-[11px] text-slate-500">{item.auditDate}</div>
-          <div className="mt-1 truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500">
-            RawData: {item.rawDataSourceName || RAW_DATA_FILE_NAME}
-          </div>
-          <div className="mt-2">
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
-                item.finalScore
-              )}`}
-            >
-              Score {item.finalScore.toFixed(2)}
-            </span>
-          </div>
-          <div className="mt-3 truncate rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-[11px] font-bold leading-4 text-slate-800">
-            {item.agent || "Not recorded"}
-          </div>
+          <div className="mt-3 truncate text-[12px] font-semibold leading-5 text-slate-800">{item.agent || "Not recorded"}</div>
         </div>
 
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <span
             className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${gradeTone(
               item.grade
@@ -1765,27 +1779,39 @@ function CaseNavigatorCard({
             {item.grade}
           </span>
 
-          {item.reviewStatus === "Revised" ? (
-            <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
-              Revised
-            </span>
-          ) : null}
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${reviewTone(item.reviewStatus)}`}>
+            {item.reviewStatus}
+          </span>
         </div>
       </div>
 
-      <div className="mt-3 min-h-[2.75rem] text-[12px] font-medium leading-5 text-slate-800">
-        {item.inquiryTh}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm ${scoreBadgeTone(
+            item.finalScore
+          )}`}
+        >
+          Score {item.finalScore.toFixed(2)}
+        </span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-600">Intent</div>
+        <div className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-[12px] font-semibold leading-5 text-slate-800">
+          {intent.thai}
+        </div>
+        {intent.english ? (
+          <div className="mt-1 line-clamp-2 min-h-[2.5rem] text-[11px] leading-5 text-slate-500">
+            {intent.english}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-3 text-[10px] text-slate-500">
         <span>{item.weekLabel}</span>
-        {item.reviewStatus === "Revised" && typeof item.previousScore === "number" ? (
-          <span className="font-semibold text-violet-700">
-            {item.previousScore.toFixed(0)} → {item.finalScore.toFixed(0)}
-          </span>
-        ) : (
-          <span>{item.reviewStatus}</span>
-        )}
+        <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-violet-700">
+          Open Case <span aria-hidden="true">→</span>
+        </span>
       </div>
     </div>
   );
