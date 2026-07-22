@@ -1378,7 +1378,7 @@ function CompactAlignedSelect({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className="relative flex h-14 w-full min-w-0 items-center justify-center rounded-2xl border border-violet-200 bg-white px-10 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white px-10 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
       >
         <span className="w-full min-w-0 truncate text-center">{selected?.label || "-"}</span>
         <svg viewBox="0 0 24 24" className={`absolute right-4 h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
@@ -1487,19 +1487,19 @@ function DateRangePicker({
 
   const renderMonth = (monthDate: Date, side: "left" | "right") => (
     <section className="min-w-0">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        {side === "left" ? <button type="button" aria-label="Previous month" onClick={() => setLeftMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-200 text-violet-700 transition hover:bg-violet-50"><span aria-hidden="true">‹</span></button> : <span className="h-9 w-9" aria-hidden="true" />}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        {side === "left" ? <button type="button" aria-label="Previous month" onClick={() => setLeftMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-200 text-violet-700 transition hover:bg-violet-50"><span aria-hidden="true">‹</span></button> : <span className="h-8 w-8" aria-hidden="true" />}
         <div className="text-sm font-bold text-slate-900">{getMonthLabel(monthDate)}</div>
-        {side === "right" ? <button type="button" aria-label="Next month" onClick={() => setRightMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-200 text-violet-700 transition hover:bg-violet-50"><span aria-hidden="true">›</span></button> : <span className="h-9 w-9" aria-hidden="true" />}
+        {side === "right" ? <button type="button" aria-label="Next month" onClick={() => setRightMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-200 text-violet-700 transition hover:bg-violet-50"><span aria-hidden="true">›</span></button> : <span className="h-8 w-8" aria-hidden="true" />}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {weekdayLabels.map((label) => <div key={`${side}-${label}`} className="py-1 text-center text-[10px] font-bold uppercase text-slate-400">{label}</div>)}
         {getCalendarCells(monthDate).map((date, index) => {
-          if (!date) return <span key={`${side}-empty-${index}`} className="h-9" aria-hidden="true" />;
+          if (!date) return <span key={`${side}-empty-${index}`} className="h-8" aria-hidden="true" />;
           const time = date.getTime();
           const isEdge = time === startTime || time === endTime;
           const inRange = Boolean(startTime && endTime && time > startTime && time < endTime);
-          return <button key={`${side}-${formatInputDate(date)}`} type="button" onClick={() => chooseDate(date)} aria-label={formatDateRangeValue(formatInputDate(date))} aria-pressed={isEdge} className={`h-9 rounded-xl text-xs font-bold transition ${isEdge ? "bg-violet-600 text-white shadow-sm" : inRange ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-violet-50 hover:text-violet-800"}`}>{date.getDate()}</button>;
+          return <button key={`${side}-${formatInputDate(date)}`} type="button" onClick={() => chooseDate(date)} aria-label={formatDateRangeValue(formatInputDate(date))} aria-pressed={isEdge} className={`h-8 rounded-lg text-[11px] font-bold transition ${isEdge ? "bg-violet-600 text-white shadow-sm" : inRange ? "bg-violet-100 text-violet-800" : "text-slate-700 hover:bg-violet-50 hover:text-violet-800"}`}>{date.getDate()}</button>;
         })}
       </div>
     </section>
@@ -1512,22 +1512,22 @@ function DateRangePicker({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
       }}
     >
-      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-14 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-white px-4 text-left text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-        <span className="min-w-0 truncate">{formatDateRangeValue(dateFrom)} – {formatDateRangeValue(dateTo)}</span>
-        <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-violet-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <button type="button" aria-label="Date Range" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="relative flex h-12 w-full min-w-0 items-center justify-center rounded-xl border border-violet-200 bg-white px-10 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+        <span className="w-full min-w-0 truncate text-center">{formatDateRangeValue(dateFrom)} – {formatDateRangeValue(dateTo)}</span>
+        <svg viewBox="0 0 24 24" className="absolute right-4 h-5 w-5 shrink-0 text-violet-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
       </button>
 
       {open ? (
-        <div role="dialog" aria-label="Choose Date Range" className="absolute right-0 top-full z-[85] mt-2 w-[760px] max-w-[calc(100vw-2rem)] rounded-[24px] border border-violet-200 bg-white p-4 shadow-[0_22px_55px_rgba(30,41,59,0.24)]">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div role="dialog" aria-label="Choose Date Range" className="absolute right-0 top-full z-[85] mt-2 w-[580px] max-w-[calc(100vw-2rem)] rounded-[20px] border border-violet-200 bg-white p-3.5 shadow-[0_22px_55px_rgba(30,41,59,0.24)]">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div><div className="text-sm font-black text-slate-900">Choose Date Range</div><div className="mt-1 text-xs text-slate-500">{selectingEnd ? "Choose end date" : "Choose start date"}</div></div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-bold"><span className="rounded-full bg-violet-50 px-3 py-1.5 text-violet-700">From {formatDateRangeValue(dateFrom)}</span><span className="rounded-full bg-sky-50 px-3 py-1.5 text-sky-700">To {formatDateRangeValue(dateTo)}</span></div>
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {renderMonth(leftMonth, "left")}
             {renderMonth(rightMonth, "right")}
           </div>
-          <div className="mt-4 flex justify-end"><button type="button" onClick={() => setOpen(false)} className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-700">Done</button></div>
+          <div className="mt-3 flex justify-end"><button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-700">Done</button></div>
         </div>
       ) : null}
     </div>
@@ -5010,13 +5010,13 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-            <Panel className="qa-filter-dock-v37 !overflow-visible z-50">
+            <Panel className="qa-filter-dock-v38 !overflow-visible z-50">
               <PanelHeader
                 title="Quick Controls"
                 subtitle="Responsive filters by year, month, agent name, case ID and date range"
               />
-              <PanelBody className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
+              <PanelBody className="!p-4 lg:!p-5">
+                <div className="grid gap-3 md:grid-cols-[minmax(110px,0.7fr)_minmax(170px,1fr)_minmax(220px,1.35fr)] 2xl:grid-cols-[minmax(105px,0.7fr)_minmax(160px,1fr)_minmax(230px,1.35fr)_minmax(300px,2fr)_minmax(230px,1.25fr)]">
                   <div className="min-w-0">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Year</div>
                     <CompactAlignedSelect
@@ -5056,7 +5056,7 @@ export default function DashboardMockup({
                   <div className="min-w-0">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent Name</div>
                     {roleScopedAgentList.length ? (
-                      <div className="flex h-14 min-w-0 items-center justify-center truncate rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-center text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
+                      <div className="flex h-12 min-w-0 items-center justify-center truncate rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-center text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
                     ) : (
                       <CompactAlignedSelect
                         ariaLabel="Agent Name"
@@ -5073,13 +5073,11 @@ export default function DashboardMockup({
                       />
                     )}
                   </div>
-                </div>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-                  <div className="min-w-0">
+                  <div className="min-w-0 md:col-span-2 2xl:col-span-1">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
                     <div className="relative min-w-0">
-                      <input type="text" value={caseIdSearch} onChange={(e) => { setCaseIdSearch(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} placeholder="Search any case ID without selecting a month" className="h-14 w-full min-w-0 rounded-2xl border border-violet-200 bg-white px-4 pr-12 text-sm text-slate-800 outline-none transition placeholder:text-ellipsis focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+                      <input type="text" value={caseIdSearch} onChange={(e) => { setCaseIdSearch(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} placeholder="Search any case ID without selecting a month" className="h-12 w-full min-w-0 rounded-xl border border-violet-200 bg-white px-4 pr-12 text-sm text-slate-800 outline-none transition placeholder:text-ellipsis focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
                       {caseIdSearch.trim() ? <button type="button" onClick={() => { setCaseIdSearch(""); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="absolute inset-y-0 right-3 my-auto flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-base font-black leading-none text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700" aria-label="Clear case ID search">x</button> : <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></div>}
                     </div>
                   </div>
@@ -5841,7 +5839,6 @@ export default function DashboardMockup({
     </div>
   );
 }
-
 
 
 

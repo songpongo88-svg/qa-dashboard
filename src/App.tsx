@@ -6081,7 +6081,7 @@ export default function App() {
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                 </button> : null}
                 {(globalSidebarCollapsed || isOpen) ? <div className="space-y-0.5">
-                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={item.onClick} aria-label={item.label} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
+                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={item.onClick} aria-label={item.label} title={`${item.label} - ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
                     <SidebarGlyph name={item.icon} />
                     {!globalSidebarCollapsed ? <span className="qa-sidebar-label min-w-0 flex-1 truncate">{item.label}</span> : null}
                     {item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span> : null}
@@ -6428,7 +6428,6 @@ export default function App() {
     </>
   );
 }
-
 
 
 
