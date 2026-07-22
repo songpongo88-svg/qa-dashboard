@@ -4705,14 +4705,12 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-        <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <Panel className="sticky top-4">
+            <Panel className="qa-filter-dock-v33">
               <PanelHeader
                 title="Quick Controls"
                 subtitle="Filter by agent, month, case ID, date range and week"
               />
-              <PanelBody className="space-y-5">
+              <PanelBody className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.1fr_0.9fr_0.8fr_1.3fr_1.6fr] xl:items-end">
                 <div>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Agent
@@ -4769,7 +4767,7 @@ export default function DashboardMockup({
                   </select>
                 </div>
 
-                <div>
+                <div className="xl:order-4">
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Search Case ID
                   </div>
@@ -4820,7 +4818,7 @@ export default function DashboardMockup({
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 xl:order-5">
                   <div>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                       Date From
@@ -4854,7 +4852,7 @@ export default function DashboardMockup({
                   </div>
                 </div>
 
-                <div>
+                <div className="xl:order-3">
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
                     Week
                   </div>
@@ -4880,6 +4878,10 @@ export default function DashboardMockup({
                 </div>
               </PanelBody>
             </Panel>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="space-y-6">
+
 
             <Panel>
               <PanelHeader title="Weekly Snapshot" subtitle="Quick summary of visible weeks" />

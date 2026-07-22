@@ -5795,153 +5795,78 @@ export default function App() {
   return (
     <>
         <style>{`
-          :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "270px"}; }
+          :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "276px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
-          .qa-global-sidebar-v32 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
+          .qa-global-sidebar-v33 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
           @media (max-width: 900px) {
             :root { --qa-sidebar-width: 80px; }
-            .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-profile-detail, .qa-sidebar-badge-text { display: none !important; }
+            .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside className="qa-global-sidebar-v32 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-y-auto border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-4 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
-          <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3 px-2"}`}>
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
-              <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
-            </div>
-            {!globalSidebarCollapsed ? (
-              <div className="qa-sidebar-label min-w-0">
-                <div className="truncate text-sm font-black">Robinhood QA</div>
-                <div className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200">Monitoring Workspace</div>
+        <aside className="qa-global-sidebar-v33 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-y-auto border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
+          <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
+            <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
+            <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
+              <div className="relative shrink-0">
+                <button type="button" onClick={() => profilePhotoInputRef.current?.click()} disabled={workspaceProfilePhotoUploading} className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-white/15 text-sm font-black" aria-label={"Profile. Deploy Version " + (shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending"))}>
+                  {workspaceProfilePhoto ? <img src={workspaceProfilePhoto} alt={welcomeName ? welcomeName + " profile photo" : "Profile photo"} className="h-full w-full object-cover" /> : <span>{workspaceInitials}</span>}
+                </button>
+                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-violet-900 bg-emerald-400" aria-hidden="true" />
               </div>
-            ) : null}
+              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0"><div className="truncate text-sm font-black">{welcomeName}</div><div className="truncate text-[10px] font-bold text-violet-200">{currentUser.role}</div><div className="truncate text-[10px] font-semibold text-violet-300">{workspaceTeamName}</div></div> : null}
+            </div>
+            {!globalSidebarCollapsed ? <div className="qa-sidebar-deploy-block mt-3 flex items-center justify-between gap-2 border-t border-white/15 pt-2.5">
+              <div><div className="text-[9px] font-black uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-semibold text-violet-200">Current production</div></div>
+              <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-black tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>
+            </div> : null}
           </div>
 
-          <nav className="mt-6 space-y-5" aria-label="Main navigation">
+          <nav className="mt-4 space-y-4" aria-label="Main navigation">
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Performance</div> : null}
-              <div className="mt-2 space-y-1">
-                <button type="button" onClick={() => handlePerformanceMenuChange("summary")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "summary" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M2 19h20"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Summary</span> : null}
-                </button>
-                <button type="button" onClick={() => handlePerformanceMenuChange("dashboard")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "dashboard" ? "bg-white/15 text-white" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Dashboard</span> : null}
-                </button>
-                <button type="button" onClick={() => { setDashboardSubTab("overview"); navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-2 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "overview" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 15 4-4 4 3 7-8"/><path d="M19 6v5h-5"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Performance Overview</span> : null}
-                </button>
-                <button type="button" onClick={() => { setDashboardSubTab("case-detail"); navigateToTab("dashboard", { params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-2 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Case Detail Workspace</span> : null}
-                </button>
-                {coachingAllowed ? <button type="button" onClick={() => handlePerformanceMenuChange("coaching")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "coaching" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16v10H8l-4 4z"/><path d="M8 10h8"/><path d="M8 13h5"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Coaching</span> : null}
-                </button> : null}
+              <div className="mt-1.5 space-y-0.5">
+                <button type="button" onClick={() => handlePerformanceMenuChange("summary")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "summary" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M2 19h20"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Summary</span> : null}</button>
+                <button type="button" onClick={() => handlePerformanceMenuChange("dashboard")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "dashboard" ? "bg-white/15 text-white" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Dashboard</span> : null}</button>
+                <button type="button" onClick={() => { setDashboardSubTab("overview"); navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-1.5 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "overview" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 15 4-4 4 3 7-8"/><path d="M19 6v5h-5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Performance Overview</span> : null}</button>
+                <button type="button" onClick={() => { setDashboardSubTab("case-detail"); navigateToTab("dashboard", { params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-1.5 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Case Detail Workspace</span> : null}</button>
+                {coachingAllowed ? <button type="button" onClick={() => handlePerformanceMenuChange("coaching")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "coaching" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16v10H8l-4 4z"/><path d="M8 10h8"/><path d="M8 13h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Coaching</span> : null}</button> : null}
+                <button type="button" onClick={() => handlePerformanceMenuChange("signature-center")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "signature-center" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17c3-6 5-10 7-10 3 0-1 9 2 9 2 0 3-5 5-5 1 0 0 4 4 4"/><path d="M3 21h18"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Signature Center</span> : null}</button>
+                <button type="button" onClick={() => handlePerformanceMenuChange("presentation-builder")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "presentation-builder" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21l4-4 4 4"/><path d="M8 8h8"/><path d="M8 12h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Presentation Builder</span> : null}</button>
               </div>
             </div>
 
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">QA Review</div> : null}
-              <div className="mt-2 space-y-1">
-                <button type="button" onClick={() => handleReviewMenuChange("appeal")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeals</span> : null}
-                </button>
-                {appealRequestsAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-requests")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal-requests" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Review Queue</span> : null}
-                </button> : null}
-                {appealOverrideAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-override")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal-override" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v3"/><path d="M12 18v3"/><path d="m4.2 4.2 2.1 2.1"/><path d="m17.7 17.7 2.1 2.1"/><path d="M3 12h3"/><path d="M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeal Override</span> : null}
-                </button> : null}
-                {createEvaluationAllowed ? <button type="button" onClick={() => handleReviewMenuChange("create-evaluation")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "create-evaluation" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Create Evaluation</span> : null}
-                </button> : null}
-                {preTestAllowed ? <button type="button" onClick={() => handleReviewMenuChange("pre-test")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "pre-test" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="m13 7 4 4"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Pre-Test</span> : null}
-                </button> : null}
-                {rubricAllowed ? <button type="button" onClick={() => handleReviewMenuChange("rubric")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "rubric" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Rubric</span> : null}
-                </button> : null}
+              <div className="mt-1.5 space-y-0.5">
+                <button type="button" onClick={() => handleReviewMenuChange("appeal")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "appeal" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeals</span> : null}</button>
+                {appealRequestsAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-requests")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "appeal-requests" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Review Queue</span> : null}</button> : null}
+                {appealOverrideAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-override")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "appeal-override" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v3"/><path d="M12 18v3"/><path d="M3 12h3"/><path d="M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeal Override</span> : null}</button> : null}
+                {createEvaluationAllowed ? <button type="button" onClick={() => handleReviewMenuChange("create-evaluation")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "create-evaluation" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Create Evaluation</span> : null}</button> : null}
+                {preTestAllowed ? <button type="button" onClick={() => handleReviewMenuChange("pre-test")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "pre-test" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="m13 7 4 4"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Pre-Test</span> : null}</button> : null}
+                {trainingAttendanceAllowed ? <button type="button" onClick={() => handleReviewMenuChange("training-attendance")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "training-attendance" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Training Attendance</span> : null}</button> : null}
+                {rubricAllowed ? <button type="button" onClick={() => handleReviewMenuChange("rubric")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "rubric" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Rubric</span> : null}</button> : null}
               </div>
             </div>
 
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Workspace</div> : null}
-              <div className="mt-2 space-y-1">
-                <button type="button" onClick={openTaskInbox} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "task-inbox" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Work Queue</span> : null}{unreadInboxTaskCount ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{unreadInboxTaskCount}</span> : null}
-                </button>
-                {roleAdminAllowed ? <button type="button" onClick={() => handleAccountMenuChange("user-roles")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "user-roles" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-6 6-6s6 2 6 6"/><path d="M17 7h4"/><path d="M19 5v4"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Users &amp; Roles</span> : null}
-                </button> : null}
-                {usageLogAllowed ? <button type="button" onClick={() => handleAccountMenuChange("usage-log")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "usage-log" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Activity Log</span> : null}
-                </button> : null}
+              <div className="mt-1.5 space-y-0.5">
+                <button type="button" onClick={openTaskInbox} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "task-inbox" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Work Queue</span> : null}{unreadInboxTaskCount ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{unreadInboxTaskCount}</span> : null}</button>
+                {teamChatAllowed ? <button type="button" onClick={() => navigateToTab("team-chat")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "team-chat" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Team Chat</span> : null}</button> : null}
+                {teamChatAllowed ? <button type="button" onClick={() => navigateToTab("call-history")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "call-history" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-3 2c1.5 3 3 4.5 6 6l2-3 5 2v4c0 1-1 2-2 2C10 21 3 14 3 6c0-1 1-2 2-2z"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Call History</span> : null}</button> : null}
+                {roleAdminAllowed ? <button type="button" onClick={() => handleAccountMenuChange("user-roles")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "user-roles" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-6 6-6s6 2 6 6"/><path d="M17 7h4"/><path d="M19 5v4"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Users &amp; Roles</span> : null}</button> : null}
+                {usageLogAllowed ? <button type="button" onClick={() => handleAccountMenuChange("usage-log")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${activeTab === "usage-log" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Activity Log</span> : null}</button> : null}
               </div>
             </div>
           </nav>
 
-          <div className="mt-auto pt-5">
-            <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
-            <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3 rounded-2xl border border-white/15 bg-white/10 p-3"}`}>
-              <button type="button" onClick={() => profilePhotoInputRef.current?.click()} disabled={workspaceProfilePhotoUploading} className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-white/15 text-sm font-black" aria-label="Change profile photo">
-                {workspaceProfilePhoto ? <img src={workspaceProfilePhoto} alt={welcomeName ? welcomeName + " profile photo" : "Profile photo"} className="h-full w-full object-cover" /> : <span>{workspaceInitials}</span>}
-              </button>
-              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0"><div className="truncate text-sm font-black">{welcomeName}</div><div className="truncate text-[10px] font-bold text-violet-200">{currentUser.role}</div></div> : null}
-            </div>
-
-            {!globalSidebarCollapsed ? <div className="qa-sidebar-profile-detail mt-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-[10px] font-semibold leading-5 text-violet-100">
-              <div className="flex justify-between gap-2"><span>Team</span><span className="truncate text-right font-bold text-white">{workspaceTeamName}</span></div>
-              <div className="flex justify-between gap-2"><span>Team Lead</span><span className="truncate text-right font-bold text-white">{workspaceTeamLeadName}</span></div>
-              <div className="flex justify-between gap-2"><span>Version</span><span className="truncate text-right font-bold text-white">{buildMeta.displayVersion || buildMeta.version}{shortBuildHash ? ":" + shortBuildHash : ""}</span></div>
-              <div className="flex justify-between gap-2"><span>Login</span><span className="truncate text-right font-bold text-white">{formatHeaderDateTime(liveNow)}</span></div>
-            </div> : null}
-
-            <div className="mt-2 space-y-1">
-              {passwordResetShortcutAllowed ? <button type="button" onClick={() => handleAccountMenuChange("reset-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-                {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Password Reset</span> : null}{pendingPasswordResetRequestCount ? <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-violet-950">{pendingPasswordResetRequestCount}</span> : null}
-              </button> : null}
-              <button type="button" onClick={() => handleAccountMenuChange("change-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="m10 13 8-8 2 2-2 2 2 2-3 3-2-2-3 3"/></svg>
-                {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Change Password</span> : null}
-              </button>
-              <button type="button" onClick={() => handleAccountMenuChange("logout")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-rose-100 transition hover:bg-rose-500/20">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 4H4v16h6"/><path d="m14 8 4 4-4 4"/><path d="M18 12H9"/></svg>
-                {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Sign Out</span> : null}
-              </button>
-              <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>
-                {!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}
-              </button>
-            </div>
+          <div className="mt-auto space-y-0.5 border-t border-white/15 pt-3">
+            {passwordResetShortcutAllowed ? <button type="button" onClick={() => handleAccountMenuChange("reset-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Password Reset</span> : null}{pendingPasswordResetRequestCount ? <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-violet-950">{pendingPasswordResetRequestCount}</span> : null}</button> : null}
+            <button type="button" onClick={() => handleAccountMenuChange("change-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="m10 13 8-8 2 2-2 2 2 2-3 3-2-2-3 3"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Change Password</span> : null}</button>
+            <button type="button" onClick={() => handleAccountMenuChange("logout")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-rose-100 transition hover:bg-rose-500/20"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 4H4v16h6"/><path d="m14 8 4 4-4 4"/><path d="M18 12H9"/></svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Sign Out</span> : null}</button>
+            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
         </aside>
-
-        <div className="sticky top-0 z-[70] border-b border-violet-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-5 lg:px-6">
-          <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-black text-slate-950">{activeTab === "dashboard" ? (dashboardSubTab === "case-detail" ? "Case Detail Workspace" : "Performance Overview") : activeTab.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</div>
-              <div className="truncate text-xs font-semibold text-slate-500">Robinhood QA Monitoring Workspace</div>
-            </div>
-            <div className="ml-auto min-w-0 text-right">
-              <div className="truncate text-sm font-black text-slate-900">{currentUser.displayName || currentUser.username}</div>
-              <div className="truncate text-xs font-semibold text-violet-700">{currentUser.role}{currentUser.agentName ? " / " + currentUser.agentName : ""}</div>
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-black text-white">{workspaceProfilePhoto ? <img src={workspaceProfilePhoto} alt="Profile" className="h-full w-full object-cover" /> : (currentUser.displayName || currentUser.username || "U").slice(0, 2).toUpperCase()}</div>
-          </div>
-        </div>
 
       <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogoutNow={handleLogout} />
 
