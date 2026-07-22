@@ -91,15 +91,6 @@ type Summary = {
   topicPerformance: TopicSummary[];
 };
 
-type AgentKpiRow = {
-  agent: string;
-  average: number;
-  caseCount: number;
-  scorePassed: boolean;
-  volumePassed: boolean;
-  passed: boolean;
-};
-
 type AppealMergeItem = {
   caseId: string;
   finalScore?: number;
@@ -378,6 +369,8 @@ const TODAY = new Date();
 const SONGKRAN_THEME_END = new Date(2026, 4, 25, 23, 59, 59);
 const NEW_POLICY_START_MONTH_KEY = "2026-04";
 const JUNE_2026_POLICY_START_MONTH_KEY = "2026-06";
+const CASE_SEARCH_HISTORY_LIMIT = 5;
+const CASE_SEARCH_HISTORY_STORAGE_PREFIX = "qa-dashboard:case-search-history-v41";
 
 function getKpiScoreTarget(monthKey: string) {
   switch (getIncentivePolicyKey(monthKey)) {
@@ -1309,115 +1302,6 @@ function MetricCard({
         <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
       </div>
     </div>
-  );
-}
-
-// data-dashboard-kpi-v40
-function AgentKpiStatusPanel({
-  rows,
-  scoreTarget,
-  periodLabel,
-  scopeLabel,
-}: {
-  rows: AgentKpiRow[];
-  scoreTarget: number;
-  periodLabel: string;
-  scopeLabel: string;
-}) {
-  const passedCount = rows.filter((row) => row.passed).length;
-  const allPassed = rows.length > 0 && passedCount === rows.length;
-
-  return (
-    <Panel>
-      <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-[17px] font-bold tracking-tight text-slate-900">KPI Status</div>
-            <div className="mt-1 text-xs text-slate-500">{scopeLabel} summary and KPI result by agent for {periodLabel}</div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-700">
-              Average ≥ {scoreTarget}
-            </span>
-            <span className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-violet-700">
-              Cases ≥ {CASE_TARGET}
-            </span>
-            <span
-              className={`rounded-full border px-3 py-1.5 ${
-                allPassed
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-700"
-              }`}
-            >
-              {scopeLabel}: {allPassed ? "Passed" : "Not passed"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <PanelBody className="space-y-4">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Agents passed KPI</div>
-            <div className="mt-1 text-3xl font-extrabold tracking-tight text-violet-900">
-              {passedCount}/{rows.length}
-            </div>
-          </div>
-          <div className="text-xs text-slate-500">ต้องผ่านทั้งคะแนนเฉลี่ยและจำนวนเคส</div>
-        </div>
-
-        <div className="overflow-x-auto rounded-2xl border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Agent Name</th>
-                <th className="px-4 py-3 text-center">Average</th>
-                <th className="px-4 py-3 text-center">Cases</th>
-                <th className="px-4 py-3">KPI Result</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {rows.length ? rows.map((row) => {
-                const missingReasons = [
-                  !row.scorePassed ? `Score ${row.average.toFixed(2)}/${scoreTarget}` : "",
-                  !row.volumePassed ? `Cases ${row.caseCount}/${CASE_TARGET}` : "",
-                ].filter(Boolean);
-
-                return (
-                  <tr key={row.agent}>
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">{row.agent}</td>
-                    <td className={`px-4 py-3 text-center font-bold ${row.scorePassed ? "text-emerald-700" : "text-rose-700"}`}>
-                      {row.average.toFixed(2)}
-                    </td>
-                    <td className={`px-4 py-3 text-center font-bold ${row.volumePassed ? "text-emerald-700" : "text-amber-700"}`}>
-                      {row.caseCount}/{CASE_TARGET}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                            row.passed
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-rose-200 bg-rose-50 text-rose-700"
-                          }`}
-                        >
-                          {row.passed ? "Passed" : "Not passed"}
-                        </span>
-                        {!row.passed ? <span className="text-xs text-slate-500">{missingReasons.join(" • ")}</span> : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              }) : (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">No agent data in the selected period</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </PanelBody>
-    </Panel>
   );
 }
 
@@ -3810,11 +3694,14 @@ export default function DashboardMockup({
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [selectedCaseKey, setSelectedCaseKey] = useState<string>("");
   const [caseIdSearch, setCaseIdSearch] = useState<string>("");
+  const [caseSearchHistory, setCaseSearchHistory] = useState<string[]>([]);
+  const [caseSearchHistoryOpen, setCaseSearchHistoryOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState<string>(formatInputDate(firstDayOfCurrentMonth));
   const [dateTo, setDateTo] = useState<string>(formatInputDate(TODAY));
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+  const [gradeGuideOpen, setGradeGuideOpen] = useState(false);
 
   function closeCaseDetail() {
     setSlideOverOpen(false);
@@ -3826,6 +3713,12 @@ export default function DashboardMockup({
   }
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
+  const caseSearchHistoryStorageKey = useMemo(() => {
+    const identity = String(
+      currentUser?.username || currentUser?.email || currentUser?.displayName || currentUser?.name || "guest"
+    ).trim().toLowerCase();
+    return `${CASE_SEARCH_HISTORY_STORAGE_PREFIX}:${identity || "guest"}`;
+  }, [currentUser]);
   const roleScopedAgentList = useMemo(
     () => dedupeAgentNames((roleScopedAgentNames || []).map((name) => toTitleCaseName(String(name || "").trim())).filter(Boolean)),
     [roleScopedAgentNames]
@@ -3870,6 +3763,62 @@ export default function DashboardMockup({
       setCaseIdSearch(externalCaseIdSearch);
     }
   }, [externalCaseIdSearch, caseIdSearch]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(caseSearchHistoryStorageKey) || "[]");
+      const normalized = Array.isArray(stored)
+        ? stored
+            .map((value) => String(value || "").trim().toUpperCase())
+            .filter(Boolean)
+            .slice(0, CASE_SEARCH_HISTORY_LIMIT)
+        : [];
+      setCaseSearchHistory([...new Set(normalized)]);
+    } catch {
+      setCaseSearchHistory([]);
+    }
+  }, [caseSearchHistoryStorageKey]);
+
+  const rememberCaseSearch = (rawCaseId: string) => {
+    const normalized = String(rawCaseId || "").trim().toUpperCase();
+    if (!normalized) return;
+
+    setCaseSearchHistory((current) => {
+      const next = [normalized, ...current.filter((value) => value !== normalized)].slice(0, CASE_SEARCH_HISTORY_LIMIT);
+      try {
+        window.localStorage.setItem(caseSearchHistoryStorageKey, JSON.stringify(next));
+      } catch {
+        // Keep the in-memory history available when browser storage is blocked.
+      }
+      return next;
+    });
+  };
+
+  const runCaseSearch = (rawCaseId = caseIdSearch) => {
+    const normalized = String(rawCaseId || "").trim().toUpperCase();
+    setCaseIdSearch(normalized);
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
+    setCaseSearchHistoryOpen(false);
+    if (normalized) rememberCaseSearch(normalized);
+  };
+
+  const clearCaseSearch = () => {
+    setCaseIdSearch("");
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
+    setCaseSearchHistoryOpen(false);
+  };
+
+  const clearCaseSearchHistory = () => {
+    setCaseSearchHistory([]);
+    try {
+      window.localStorage.removeItem(caseSearchHistoryStorageKey);
+    } catch {
+      // Clearing the visible history should still work when browser storage is blocked.
+    }
+    setCaseSearchHistoryOpen(false);
+  };
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -4770,11 +4719,6 @@ export default function DashboardMockup({
     return searchScopedCases.filter((item) => item.weekLabel === selectedWeek);
   }, [searchScopedCases, selectedWeek]);
 
-  const revisedCount = useMemo(
-    () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
-    [dashboardCasesBase]
-  );
-
   const dashboardCases = useMemo(() => {
     let nextCases = dashboardCasesBase;
     if (overviewMode === "revisedOnly") {
@@ -4784,6 +4728,11 @@ export default function DashboardMockup({
     }
     return [...nextCases].sort(compareCaseAuditDateAndWaitingTime);
   }, [dashboardCasesBase, overviewMode]);
+
+  const revisedCount = useMemo(
+    () => dashboardCasesBase.filter((item) => item.reviewStatus === "Revised").length,
+    [dashboardCasesBase]
+  );
 
   useEffect(() => {
     if (dashboardSubTab !== "case-detail" || !externalCaseIdSearch || !dashboardCases.length) return;
@@ -4844,7 +4793,7 @@ export default function DashboardMockup({
 
   const effectiveViewMonthKey =
     selectedMonthKey === "all"
-      ? getMonthKey(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1))
+      ? getEffectiveMonthKeyFromDateRange(dateFrom, dateTo)
       : selectedMonthKey;
 
   const kpiScoreTarget = getKpiScoreTarget(effectiveViewMonthKey);
@@ -4854,33 +4803,26 @@ export default function DashboardMockup({
     }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
-  const kpiAgentRows = useMemo<AgentKpiRow[]>(() => {
-    const agentNames = isAllAgentsView
-      ? visibleTargetAgents
-      : effectiveSelectedAgent
-      ? [effectiveSelectedAgent]
-      : [];
+  const kpiScopeSummary = useMemo(() => {
+    const caseCount = kpiPeriodCases.length;
+    const average = caseCount
+      ? kpiPeriodCases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount
+      : 0;
+    const volumeTarget = isAllAgentsView
+      ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET
+      : CASE_TARGET;
+    const scorePassed = caseCount > 0 && average >= kpiScoreTarget;
+    const volumePassed = caseCount >= volumeTarget;
 
-    return dedupeAgentNames(agentNames)
-      .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }))
-      .map((agent) => {
-        const cases = kpiPeriodCases.filter((item) => isSameAgent(item.agent, agent));
-        const average = cases.length
-          ? cases.reduce((sum, item) => sum + item.finalScore, 0) / cases.length
-          : 0;
-        const scorePassed = cases.length > 0 && average >= kpiScoreTarget;
-        const volumePassed = cases.length >= CASE_TARGET;
-
-        return {
-          agent,
-          average,
-          caseCount: cases.length,
-          scorePassed,
-          volumePassed,
-          passed: scorePassed && volumePassed,
-        };
-      });
-  }, [effectiveSelectedAgent, isAllAgentsView, kpiPeriodCases, kpiScoreTarget, visibleTargetAgents]);
+    return {
+      average,
+      caseCount,
+      volumeTarget,
+      scorePassed,
+      volumePassed,
+      passed: scorePassed && volumePassed,
+    };
+  }, [isAllAgentsView, kpiPeriodCases, kpiScoreTarget, visibleTargetAgents.length]);
 
   const currentGradeDisplay =
     metricCaseCount === 0
@@ -4908,7 +4850,6 @@ export default function DashboardMockup({
     effectiveViewMonthKey
   );
   const incentiveDisplay = formatCurrencyTHB(incentiveResult.total);
-  const incentiveRemark = incentiveResult.remark;
 
   const overviewCaseSearchResults = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
@@ -4999,12 +4940,13 @@ export default function DashboardMockup({
   }, [searchScopedCases]);
 
   const recentMonthlyAnalytics = useMemo(() => {
-    const monthKeys = monthOptions
-      .map((item) => item.value)
-      .filter((key) => key && key !== "unknown")
-      .sort((a, b) => b.localeCompare(a))
-      .slice(0, 3)
-      .sort((a, b) => a.localeCompare(b));
+    const [anchorYear, anchorMonth] = effectiveViewMonthKey.split("-").map(Number);
+    const anchorDate = anchorYear && anchorMonth
+      ? new Date(anchorYear, anchorMonth - 1, 1)
+      : new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+    const monthKeys = [2, 1, 0].map((monthsBack) =>
+      getMonthKey(new Date(anchorDate.getFullYear(), anchorDate.getMonth() - monthsBack, 1))
+    );
 
     const currentScopeCases = agentCases.filter((item) => monthKeys.includes(item.monthKey));
 
@@ -5015,8 +4957,7 @@ export default function DashboardMockup({
       const caseCount = monthCases.length;
       return {
         monthKey,
-        label: monthOptions.find((month) => month.value === monthKey)?.label || monthKey,
-        shortLabel: monthOptions.find((month) => month.value === monthKey)?.label?.replace(" 2026", "") || monthKey,
+        label: getMonthLabel(new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)),
         average: monthScores.length
           ? Number((monthScores.reduce((sum, score) => sum + score, 0) / monthScores.length).toFixed(2))
           : 0,
@@ -5024,21 +4965,7 @@ export default function DashboardMockup({
         completion: monthTarget ? Number(((caseCount / monthTarget) * 100).toFixed(1)) : 0,
       };
     });
-  }, [agentCases, isAllAgentsView, monthOptions, visibleTargetAgents.length]);
-
-  const recentMonthlyScoreChartData = useMemo(() => {
-    return recentMonthlyAnalytics.map((item) => ({
-      label: item.shortLabel,
-      value: item.average,
-    }));
-  }, [recentMonthlyAnalytics]);
-
-  const recentMonthlyCaseChartData = useMemo(() => {
-    return recentMonthlyAnalytics.map((item) => ({
-      label: item.shortLabel,
-      value: item.cases,
-    }));
-  }, [recentMonthlyAnalytics]);
+  }, [agentCases, effectiveViewMonthKey, isAllAgentsView, visibleTargetAgents.length]);
 
   const agentAverageChartData = useMemo(() => {
     const agentMap = new Map<string, number[]>();
@@ -5257,10 +5184,60 @@ export default function DashboardMockup({
                   </div>
 
                   <div className="min-w-0 md:col-span-2 2xl:col-span-1">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
-                    <div className="relative min-w-0">
-                      <input type="text" value={caseIdSearch} onChange={(e) => { setCaseIdSearch(e.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} placeholder="Search any case ID without selecting a month" className="h-12 w-full min-w-0 rounded-xl border border-violet-200 bg-white px-4 pr-12 text-sm text-slate-800 outline-none transition placeholder:text-ellipsis focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
-                      {caseIdSearch.trim() ? <button type="button" onClick={() => { setCaseIdSearch(""); setSelectedCaseKey(""); setSlideOverOpen(false); }} className="absolute inset-y-0 right-3 my-auto flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-base font-black leading-none text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700" aria-label="Clear case ID search">x</button> : <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></div>}
+                    <div className="relative mb-2 flex items-center justify-between gap-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">Search Case ID</div>
+                      <button
+                        type="button"
+                        data-case-search-history-v41="true"
+                        onClick={() => setCaseSearchHistoryOpen((open) => !open)}
+                        className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-100"
+                        aria-expanded={caseSearchHistoryOpen}
+                      >
+                        History ({caseSearchHistory.length})
+                      </button>
+                      {caseSearchHistoryOpen ? (
+                        <div className="absolute right-0 top-8 z-[70] w-60 rounded-2xl border border-violet-100 bg-white p-3 shadow-[0_18px_45px_rgba(76,29,149,0.18)]">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900">Recent searches</span>
+                            {caseSearchHistory.length ? (
+                              <button type="button" onClick={clearCaseSearchHistory} className="text-[10px] font-bold text-rose-600 hover:text-rose-700">Clear history</button>
+                            ) : null}
+                          </div>
+                          <div className="space-y-1.5">
+                            {caseSearchHistory.length ? caseSearchHistory.map((caseId) => (
+                              <button
+                                key={caseId}
+                                type="button"
+                                onClick={() => runCaseSearch(caseId)}
+                                className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+                              >
+                                <span>{caseId}</span>
+                                <span aria-hidden="true">↗</span>
+                              </button>
+                            )) : (
+                              <div className="rounded-xl border border-dashed border-slate-200 px-3 py-3 text-center text-xs text-slate-400">No recent searches</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
+                      <input
+                        type="search"
+                        value={caseIdSearch}
+                        onChange={(event) => {
+                          setCaseIdSearch(event.target.value);
+                          setSelectedCaseKey("");
+                          setSlideOverOpen(false);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") runCaseSearch();
+                        }}
+                        placeholder="Search any case ID"
+                        className="h-12 min-w-0 rounded-xl border border-violet-200 bg-white px-4 text-sm text-slate-800 outline-none transition placeholder:text-ellipsis focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                      />
+                      <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-violet-600 px-4 text-xs font-bold text-white transition hover:bg-violet-700">Search</button>
+                      <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
                     </div>
                   </div>
 
@@ -5290,6 +5267,42 @@ export default function DashboardMockup({
               </div>
             </div>
           </section>
+          {dashboardSubTab === "overview" && caseIdSearch.trim() ? (
+            <section
+              data-case-search-results-v41="true"
+              className="rounded-[24px] border border-violet-200 border-l-4 border-l-violet-600 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 p-4 shadow-[0_12px_30px_rgba(76,29,149,0.08)]"
+              aria-labelledby="qa-current-case-search-title"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div id="qa-current-case-search-title" className="text-sm font-black text-slate-900">Cases in Current View</div>
+                  <div className="mt-1 text-xs text-slate-500">Search result for “{caseIdSearch.trim().toUpperCase()}”</div>
+                </div>
+                <span className="w-fit rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-bold text-violet-700">
+                  {overviewCaseSearchResults.length} result{overviewCaseSearchResults.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {overviewCaseSearchResults.length ? (
+                  overviewCaseSearchResults.map((item) => (
+                    <QuickCaseSearchCard
+                      key={item.key}
+                      item={item}
+                      onOpen={() => {
+                        rememberCaseSearch(item.caseId);
+                        setSelectedCaseKey(item.key);
+                        onOpenCaseDetail?.(item.caseId, item.agent);
+                        setSlideOverOpen(true);
+                      }}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">ไม่พบเลขเคสที่ค้นหา</div>
+                )}
+              </div>
+            </section>
+          ) : null}
           <div id="qa-dashboard-results-v36" className="scroll-mt-4 space-y-6">
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
@@ -5331,7 +5344,7 @@ export default function DashboardMockup({
                     </PanelBody>
                   </Panel>
 
-                  <div className={`grid gap-4 md:grid-cols-2 ${isAllAgentsView ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <MetricCard
                       title="Average Score"
                       value={metricAverageDisplay}
@@ -5373,6 +5386,30 @@ export default function DashboardMockup({
                       }
                     />
 
+                    <div data-dashboard-kpi-summary-v41="true">
+                      <MetricCard
+                        title={isAllAgentsView ? "Team KPI" : "Agent KPI"}
+                        value={kpiScopeSummary.passed ? "Passed" : "Not Passed"}
+                        sub={`Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${kpiScopeSummary.volumeTarget}`}
+                        accent={
+                          kpiScopeSummary.passed
+                            ? "from-emerald-50 via-white to-emerald-100/70 border-emerald-200"
+                            : "from-amber-50 via-white to-rose-50 border-amber-200"
+                        }
+                        valueClassName={`${kpiScopeSummary.passed ? "text-emerald-700" : "text-amber-700"} !text-3xl`}
+                        helper={
+                          <div className="flex flex-wrap gap-2">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${kpiScopeSummary.scorePassed ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-rose-200 bg-rose-100 text-rose-700"}`}>
+                              Score {kpiScopeSummary.scorePassed ? "✓" : "✕"}
+                            </span>
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${kpiScopeSummary.volumePassed ? "border-emerald-200 bg-emerald-100 text-emerald-700" : "border-rose-200 bg-rose-100 text-rose-700"}`}>
+                              Volume {kpiScopeSummary.volumePassed ? "✓" : "✕"}
+                            </span>
+                          </div>
+                        }
+                      />
+                    </div>
+
                     <MetricCard
                       title="Evaluation Progress"
                       value={`${progressCompleted}/${progressTarget}`}
@@ -5395,85 +5432,32 @@ export default function DashboardMockup({
                         </span>
                       }
                     />
-
-                    {isAllAgentsView ? (
-                      <MetricCard
-                        title="Reviewed Agents"
-                        value={`${evaluatedAgentNames.length}/${visibleTargetAgents.length}`}
-                        sub="Agent(s) with at least one evaluated case in current view"
-                        accent="from-white via-sky-50/50 to-emerald-50/60 border-sky-200"
-                        valueClassName="text-sky-700"
-                        helper={
-                          <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                            Team Coverage
-                          </span>
-                        }
-                      />
-                    ) : (
-                      <>
-                        <MetricCard
-                          title="Estimated Incentive"
-                          value={incentiveDisplay}
-                          sub={incentiveRemark}
-                          accent={
-                            songkranTheme
-                              ? "from-white via-cyan-50/50 to-fuchsia-100/60 border-cyan-200"
-                              : "from-white via-fuchsia-50/50 to-violet-100/60 border-fuchsia-200"
-                          }
-                          valueClassName={songkranTheme ? "text-cyan-700" : "text-fuchsia-700"}
-                          helper={
-                            <div className="flex flex-wrap gap-2">
-                              <span className="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-100 px-2.5 py-1 text-[11px] font-semibold text-fuchsia-700">
-                                Monthly Estimate
-                              </span>
-                              {incentiveResult.promo > 0 ? (
-                                <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-semibold text-cyan-700">
-                                  Cash {formatCurrencyTHB(incentiveResult.cash)} + Promo{" "}
-                                  {formatCurrencyTHB(incentiveResult.promo)}
-                                </span>
-                              ) : null}
-                            </div>
-                          }
-                        />
-
-                        <MetricCard
-                          title="Review Mix"
-                          value={`${revisedCount}`}
-                          sub="Revised case(s) in current view"
-                          accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
-                          valueClassName="text-sky-700"
-                          helper={
-                            <span className="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                              Revised Cases
-                            </span>
-                          }
-                        />
-                      </>
-                    )}
                   </div>
 
-                  <AgentKpiStatusPanel
-                    rows={kpiAgentRows}
-                    scoreTarget={kpiScoreTarget}
-                    periodLabel={selectedMonthKey === "all" ? "the selected date range" : currentViewingMonthLabel}
-                    scopeLabel={isAllAgentsView ? "All Agents" : "Selected Agent"}
-                  />
+                  <div data-dashboard-priority-v41="true" className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.85fr)]">
+                    <Panel>
+                      <PanelHeader title="Topic Performance" subtitle="Priority topic scores in the current view" />
+                      <PanelBody>
+                        <TopicPerformanceTable items={summary.topicPerformance} />
+                      </PanelBody>
+                    </Panel>
 
-                  <Panel>
+                    <Panel>
                     <PanelHeader
                       title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
                       subtitle={
                         isAllAgentsView
-                          ? "Last 3 months summary for all visible agents"
-                          : "Last 3 months summary for the selected agent"
+                          ? "Selected month and the previous 2 months for all visible agents"
+                          : "Selected month and the previous 2 months for the selected agent"
                       }
                     />
-                    <PanelBody className="space-y-5">
-                      <div className="grid gap-4 md:grid-cols-3">
+                    <PanelBody>
+                      <div className="grid gap-3">
                         {recentMonthlyAnalytics.map((item) => (
-                          <div key={item.monthKey} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
-                            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                          <div key={item.monthKey} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-700">{item.label}</div>
+                              <div className="grid grid-cols-3 gap-2 text-center">
                               <div className="rounded-xl bg-violet-50 px-2 py-2">
                                 <div className="text-[10px] font-bold text-violet-500">Avg</div>
                                 <div className="text-sm font-black text-violet-900">{item.average || "-"}</div>
@@ -5486,26 +5470,34 @@ export default function DashboardMockup({
                                 <div className="text-[10px] font-bold text-emerald-500">Target</div>
                                 <div className="text-sm font-black text-emerald-900">{item.completion}%</div>
                               </div>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <div className="grid gap-6 xl:grid-cols-2">
-                        <PremiumBarChart
-                          title="Average Score by Month"
-                          subtitle="Last 3 monthly average score"
-                          data={recentMonthlyScoreChartData}
-                          height={230}
-                        />
-                        <PremiumBarChart
-                          title="Case Volume by Month"
-                          subtitle="Last 3 monthly reviewed case count"
-                          data={recentMonthlyCaseChartData}
-                          height={230}
-                        />
-                      </div>
                     </PanelBody>
-                  </Panel>
+                    </Panel>
+                  </div>
+
+                  {!isAllAgentsView ? (
+                    <Panel>
+                      <PanelHeader title="Agent Additional Details" subtitle="Supporting information kept below the priority performance section" />
+                      <PanelBody>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">Estimated Incentive</div>
+                            <div className="mt-2 text-2xl font-black text-fuchsia-800">{incentiveDisplay}</div>
+                            <div className="mt-1 text-xs text-fuchsia-700">{incentiveResult.remark}</div>
+                          </div>
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4">
+                            <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700">Review Mix</div>
+                            <div className="mt-2 text-2xl font-black text-sky-800">{revisedCount}</div>
+                            <div className="mt-1 text-xs text-sky-700">Revised case(s) in current view</div>
+                          </div>
+                        </div>
+                      </PanelBody>
+                    </Panel>
+                  ) : null}
 
                   <Panel>
                     <PanelHeader
@@ -5518,7 +5510,18 @@ export default function DashboardMockup({
                             : "April 2026 onward uses the current grading policy. Monthly incentive is calculated only when the agent has at least 10 reviewed cases."
                       }
                     />
-                    <PanelBody className="space-y-6">
+                    <div className="flex justify-end px-5 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setGradeGuideOpen((open) => !open)}
+                        className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-bold text-violet-700 transition hover:bg-violet-100"
+                        aria-expanded={gradeGuideOpen}
+                      >
+                        {gradeGuideOpen ? "Hide guide" : "Show guide"} {gradeGuideOpen ? "▴" : "▾"}
+                      </button>
+                    </div>
+                    {gradeGuideOpen ? (
+                      <PanelBody className="space-y-6">
                       {getIncentivePolicyKey(effectiveViewMonthKey) === "APR_2026_ONWARD" ? (
                         <>
                           <div className="overflow-x-auto rounded-2xl border border-violet-100">
@@ -5776,7 +5779,8 @@ export default function DashboardMockup({
                           </table>
                         </div>
                       )}
-                    </PanelBody>
+                      </PanelBody>
+                    ) : null}
                   </Panel>
 
                   <Panel>
@@ -5826,33 +5830,6 @@ export default function DashboardMockup({
                         </button>
                       </div>
 
-                      {caseIdSearch.trim() ? (
-                        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                          <div className="text-xs font-bold uppercase tracking-wide text-violet-700">
-                            Quick Case Search Result
-                          </div>
-
-                          <div className="mt-3 space-y-3">
-                            {overviewCaseSearchResults.length ? (
-                              overviewCaseSearchResults.map((item) => (
-                                <QuickCaseSearchCard
-                                  key={item.key}
-                                  item={item}
-                                  onOpen={() => {
-                                    setSelectedCaseKey(item.key);
-                                    onOpenCaseDetail?.(item.caseId, item.agent);
-                                    setSlideOverOpen(true);
-                                  }}
-                                />
-                              ))
-                            ) : (
-                              <div className="rounded-xl border border-dashed border-violet-200 bg-white px-4 py-4 text-sm text-slate-500">
-                                {"ไม่พบเลขเคสที่ค้นหา"}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
                     </PanelBody>
                   </Panel>
 
@@ -5876,21 +5853,12 @@ export default function DashboardMockup({
                     data={weeklyTrendData}
                   />
 
-                  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-                    <Panel>
-                      <PanelHeader title="Topic Performance" subtitle="Average topic score in current view" />
-                      <PanelBody>
-                        <TopicPerformanceTable items={summary.topicPerformance} />
-                      </PanelBody>
-                    </Panel>
-
-                    <Panel>
-                      <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
-                      <PanelBody>
-                        <GradeMix gradeCounts={summary.gradeCounts} />
-                      </PanelBody>
-                    </Panel>
-                  </div>
+                  <Panel>
+                    <PanelHeader title="Grade Mix" subtitle="Current view grade distribution" />
+                    <PanelBody>
+                      <GradeMix gradeCounts={summary.gradeCounts} />
+                    </PanelBody>
+                  </Panel>
 
                   <div className="grid gap-6 xl:grid-cols-2">
                     <Panel>
