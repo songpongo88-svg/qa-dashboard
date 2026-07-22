@@ -1313,7 +1313,7 @@ export default function PreTestMockup({
       showToast("Only QA/Supervisor can clear Pre-Test history.");
       return;
     }
-    const ok = window.confirm("Clear all Pre-Test Results History? Old local results submitted before this reset will not sync back.");
+    const ok = window.confirm("Clear all Pre-Test Results? Old local results submitted before this reset will not sync back.");
     if (!ok) return;
     setSyncing(true);
     try {
@@ -1330,12 +1330,12 @@ export default function PreTestMockup({
       setResults([]);
       writeLocal(RESULTS_STORAGE_KEY, []);
       setResultScreen(null);
-      setHistoryStatusMessage("Pre-Test Results History cleared. Old local results before this reset will not sync back.");
-      showToast("Pre-Test Results History cleared.");
+      setHistoryStatusMessage("Pre-Test Results cleared. Old local results before this reset will not sync back.");
+      showToast("Pre-Test Results cleared.");
       await refreshCentralData();
     } catch (error) {
       console.warn("[Pre-Test] Clear results history failed.", error);
-      showToast("Clear Pre-Test Results History failed. Please try again.");
+      showToast("Clear Pre-Test Results failed. Please try again.");
     } finally {
       setSyncing(false);
     }
@@ -1621,7 +1621,7 @@ export default function PreTestMockup({
         doc.text("Pre-Test Result Report", left + 6, y + 9, { baseline: "top" });
         doc.setFont("THSarabunNew", "normal");
         doc.setFontSize(11);
-        doc.text(`Generated from Results History filters. Total records: ${historyRows.length}`, left + 6, y + 17, { baseline: "top" });
+        doc.text(`Generated from Results filters. Total records: ${historyRows.length}`, left + 6, y + 17, { baseline: "top" });
         doc.text(`Generated at: ${formatDateTime(new Date())}`, right - 58, y + 17, { baseline: "top" });
         y += 32;
       };
@@ -1781,7 +1781,7 @@ export default function PreTestMockup({
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <div className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-100">Learning & Readiness Center</div>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Pre-Test Management</h1>
+              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Pre-Test</h1>
               <p className="mt-2 max-w-4xl text-sm font-semibold leading-7 text-emerald-50">
                 สร้างชุดคำถาม ทำแบบทดสอบทีละข้อ แชร์ลิงก์ให้ผู้ใช้ และเก็บประวัติผลการทดสอบในรูปแบบพร้อมตรวจสอบสำหรับทีม QA
               </p>
@@ -1800,10 +1800,10 @@ export default function PreTestMockup({
               <TabButton active={workspaceTab === "take"} onClick={() => setWorkspaceTab("take")} label="Take Test" />
             ) : null}
             {canManagePreTest ? (
-              <TabButton active={workspaceTab === "sets"} onClick={() => setWorkspaceTab("sets")} label="Question Sets" />
+              <TabButton active={workspaceTab === "sets"} onClick={() => setWorkspaceTab("sets")} label="Test Sets" />
             ) : null}
             {canViewPreTestResults ? (
-              <TabButton active={workspaceTab === "history"} onClick={() => setWorkspaceTab("history")} label="Results History" />
+              <TabButton active={workspaceTab === "history"} onClick={() => setWorkspaceTab("history")} label="Results" />
             ) : null}
             <div className="ml-auto text-xs font-bold text-slate-500">
               {syncing ? "Syncing central records..." : "Ready"}
@@ -1940,7 +1940,7 @@ export default function PreTestMockup({
                     {resultScreen.result === "Pass" ? "ผ่านการทดสอบ" : "ไม่ผ่านการทดสอบ"}
                   </h2>
                   <p className="mx-auto mt-2 max-w-2xl text-sm font-semibold leading-7 text-slate-600">
-                    ระบบบันทึกผลเรียบร้อยแล้ว รายละเอียดคะแนนจะอยู่ใน Results History สำหรับผู้มีสิทธิ์ตรวจสอบ
+                    ระบบบันทึกผลเรียบร้อยแล้ว รายละเอียดคะแนนจะอยู่ใน Results สำหรับผู้มีสิทธิ์ตรวจสอบ
                   </p>
                   <button
                     type="button"
@@ -2261,7 +2261,7 @@ export default function PreTestMockup({
             <div className="rounded-[32px] border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-5 border-b border-slate-200 bg-slate-950 p-5 text-white">
                 <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">Results History</div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">Results</div>
                   <h2 className="mt-2 text-2xl font-black">Pre-Test Attempts</h2>
                   <p className="mt-1 text-xs font-semibold text-slate-300">
                     Filter by user or question set, then generate a PDF report with questions, selected answers, and pass/fail result.
@@ -2289,7 +2289,7 @@ export default function PreTestMockup({
                     onChange={(event) => setHistorySetFilter(event.target.value)}
                     className="h-12 rounded-2xl border border-white/15 bg-white px-4 text-sm font-black text-slate-950 outline-none"
                   >
-                    <option value="all">All Question Sets</option>
+                    <option value="all">All Test Sets</option>
                     {historySets.map(([setId, title]) => (
                       <option key={setId} value={setId}>{title}</option>
                     ))}

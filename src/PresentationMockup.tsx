@@ -504,8 +504,8 @@ export default function PresentationMockup({ currentUser, roleScopedAgentNames, 
         <div className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Performance Menu</div>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 lg:text-4xl">Presentation</h1>
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-700">Documents</div>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 lg:text-4xl">QA Slides</h1>
               <p className="mt-1 text-sm font-semibold text-slate-500">
                 เลือกสัปดาห์ เทมเพลต และหัวข้อ เพื่อสร้างพรีวิวสไลด์ 1 หน้า จากข้อมูล QA ล่าสุด
               </p>

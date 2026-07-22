@@ -6335,9 +6335,9 @@ export default function SummaryMockup({
 
       {songkranTheme ? <SongkranBackdrop /> : null}
       <PageHero
-        eyebrow="QA Summary"
-        title="QA Performance Comparison Center"
-        subtitle="Compare ผล QA แบบ Weekly, Monthly และ Yearly พร้อม Topic Performance และรายงานในหน้าเดียว"
+        eyebrow="Analytics"
+        title="QA Performance Analytics"
+        subtitle="เปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี พร้อมสร้างรายงาน"
         workspaceTitle="Quality Monitoring Workspace"
         workspaceSubtitle="Corporate dashboard for audit tracking and case review"
       />
@@ -6361,7 +6361,7 @@ export default function SummaryMockup({
                 )
               }
             >
-              Summary
+              Overview
             </button>
 
             <button
@@ -6381,7 +6381,7 @@ export default function SummaryMockup({
                 )
               }
             >
-              Team Performance
+              Teams
             </button>
           </div>
         </div>
@@ -6391,7 +6391,7 @@ export default function SummaryMockup({
         <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader
-              title={isAdminRole ? "My Team Performance" : "Team Performance"}
+              title={isAdminRole ? "My Team" : "Teams"}
               subtitle={
                 isAdminRole
                   ? "Admin สามารถดูได้เฉพาะ Average Score ของทีมตัวเอง"
@@ -6725,7 +6725,7 @@ export default function SummaryMockup({
           <div className="space-y-6">
             <Panel className="sticky top-4">
               <PanelHeader
-                title="Build Summary Report"
+                title="Report Builder"
                 subtitle="เลือก 1 ช่วงเพื่อดูรายงานปกติ หรือเลือกหลายช่วงเพื่อเปรียบเทียบ"
               />
               <PanelBody className="space-y-5">
@@ -6905,7 +6905,7 @@ export default function SummaryMockup({
 
           <div className="space-y-6">
             <Panel>
-              <PanelHeader title="Current Viewing Scope" subtitle="ข้อมูลที่กำลังแสดงในหน้า Summary" />
+              <PanelHeader title="Current View" subtitle="ขอบเขตข้อมูลที่กำลังแสดง" />
               <PanelBody>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
@@ -7889,7 +7889,7 @@ export default function SummaryMockup({
 
             <Panel>
               <PanelHeader
-                title="Summary Table"
+                title="Details"
                 subtitle={isComparisonMode ? "Comparison result based on selected periods" : "Summary result for selected period"}
               />
               <PanelBody>
@@ -7910,6 +7910,5 @@ export default function SummaryMockup({
     </div>
   );
 }
-
 
 

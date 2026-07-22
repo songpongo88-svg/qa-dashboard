@@ -1445,9 +1445,9 @@ th { background:#f5f3ff; color:#4c1d95; }
       className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 pb-12"
     >
       <PageHero
-        eyebrow="MONTHLY COACHING"
-        title="Agent Coaching Center"
-        subtitle="สรุป Feedback จาก Case Detail รายเดือน พร้อมคำแนะนำที่อ่านง่าย เคสอ้างอิง และประวัติ Coaching"
+        eyebrow="Quality"
+        title="Coaching"
+        subtitle="สรุป Feedback รายเดือน จุดแข็ง ประเด็นที่ต้องปรับ และประวัติการโค้ช"
       />
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-6 sm:px-6">

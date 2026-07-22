@@ -2899,7 +2899,7 @@ function QuickCaseSearchCard({
           data-case-search-open-v40="true"
           className="inline-flex shrink-0 items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-100"
         >
-          Open Case Detail
+          Open Case
           <svg viewBox="0 0 24 24" className="ml-2 h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
         </button>
       </div>
@@ -3558,7 +3558,7 @@ function SlideOverCaseDetail({
           <div className="flex items-center justify-between gap-4 px-5 py-4 lg:px-6">
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                Case Detail
+                Case Review
               </div>
               <div className="mt-1 truncate text-lg font-bold text-slate-900">{caseItem.caseId}</div>
             </div>
@@ -3862,7 +3862,7 @@ function SlideOverCaseDetail({
                     Review Feedback / Revised Comment
                   </div>
                   <div className="mt-1 text-xs leading-5 text-slate-500">
-                    ข้อความที่ผู้พิจารณาแก้ไขไว้ใน Review Queue — ผลอุทธรณ์ถูก Reject จึงไม่เปลี่ยนคะแนนเดิม
+                    ข้อความที่ผู้พิจารณาแก้ไขไว้ใน Appeal Review — ผลอุทธรณ์ถูก Reject จึงไม่เปลี่ยนคะแนนเดิม
                   </div>
 
                   <div className="mt-4 space-y-3">
@@ -5493,9 +5493,9 @@ export default function DashboardMockup({
       {songkranTheme ? <SongkranBackdrop /> : null}
 
       <PageHero
-        eyebrow="QA Dashboard"
-        title="Agent Performance Dashboard"
-        subtitle={"Dashboard / Case Detail พร้อมข้อมูล Original และ Revised จาก QA_RawData_January-February2026 + QA_RawData_March-May2026 + Appeal ROWDATA"}
+        eyebrow={dashboardSubTab === "overview" ? "Performance" : "QA Work"}
+        title={dashboardSubTab === "overview" ? "Performance Overview" : "Case Review"}
+        subtitle={dashboardSubTab === "overview" ? "ดูคะแนน เกรด KPI ความคืบหน้า และรายละเอียดผล QA ของช่วงที่เลือก" : "ค้นหาและตรวจสอบคะแนน Original, Revised และรายละเอียดของแต่ละเคส"}
       />
       {false ? (
       <div>
@@ -5543,8 +5543,8 @@ export default function DashboardMockup({
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
             <Panel className="qa-filter-dock-v38 !overflow-visible z-50">
               <PanelHeader
-                title="Quick Controls"
-                subtitle="Responsive filters by year, month, agent name, case ID and date range"
+                title="Filters"
+                subtitle="เลือกปี เดือน ผู้ถูกประเมิน เลขเคส และช่วงวันที่"
               />
               <PanelBody className="!p-4 lg:!p-5">
                 <div
@@ -5711,13 +5711,13 @@ export default function DashboardMockup({
             </Panel>
 
         <div className="mt-4 space-y-4">
-          <section className="qa-weekly-tabs-v36 min-w-0 rounded-[22px] border border-violet-100 bg-gradient-to-r from-white via-violet-50/50 to-fuchsia-50/50 px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly Snapshot">
+          <section className="qa-weekly-tabs-v36 min-w-0 rounded-[22px] border border-violet-100 bg-gradient-to-r from-white via-violet-50/50 to-fuchsia-50/50 px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly View">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
-                <div className="text-sm font-semibold text-slate-900">Weekly Snapshot</div>
+                <div className="text-sm font-semibold text-slate-900">Weekly View</div>
                 <div className="text-xs text-slate-500">Select a week to filter and jump to results</div>
               </div>
-              <div className="flex min-w-0 flex-1 flex-wrap gap-2" role="tablist" aria-label="Weekly Snapshot">
+              <div className="flex min-w-0 flex-1 flex-wrap gap-2" role="tablist" aria-label="Weekly View">
                 <button type="button" role="tab" aria-selected={selectedWeek === "all"} onClick={() => selectWeeklySnapshot("all")} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${selectedWeek === "all" ? "border-violet-600 bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm" : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"}`}>All Weeks</button>
                 {weekLabels.map((week) => <button key={week} type="button" role="tab" aria-selected={selectedWeek === week} onClick={() => selectWeeklySnapshot(week)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-bold transition ${selectedWeek === week ? "border-violet-600 bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50"}`}>{formatCompactWeekLabel(week)}</button>)}
               </div>
@@ -5941,7 +5941,7 @@ export default function DashboardMockup({
                   >
                     <div className="min-w-0 space-y-4">
                       <Panel>
-                        <PanelHeader title="Topic Performance" subtitle="Strongest to coaching focus · ranked by average percentage" />
+                        <PanelHeader title="Topic Scores" subtitle="เรียงคะแนนจากหัวข้อที่แข็งแรงไปยังหัวข้อที่ควรโค้ช" />
                         <PanelBody>
                           <TopicPerformanceTable items={summary.topicPerformance} />
                         </PanelBody>
@@ -6536,7 +6536,7 @@ export default function DashboardMockup({
               ) : (
                 <>
                   <Panel>
-                    <PanelHeader title="Current Viewing Scope" subtitle="Selected agent and period" />
+                    <PanelHeader title="Current View" subtitle="ผู้ถูกประเมินและช่วงเวลาที่เลือก" />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">

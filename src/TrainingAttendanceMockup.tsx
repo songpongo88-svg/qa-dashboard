@@ -470,11 +470,11 @@ export default function TrainingAttendanceMockup({
   return (
     <div className="space-y-6">
       <PageHero
-        eyebrow="Training Check-in"
-        title="Training Attendance"
-        subtitle="Create sessions, manage roster, and let each participant check in or check out from one central view."
-        workspaceTitle="Training operations workspace"
-        workspaceSubtitle="Central attendance log for QA training sessions"
+        eyebrow="Quality"
+        title="Training"
+        subtitle="สร้าง Session จัดรายชื่อ และบันทึกเวลาเข้าออกการอบรม"
+        workspaceTitle="Training Workspace"
+        workspaceSubtitle="ข้อมูลการเข้าอบรมของทีม QA"
       />
 
       <section className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-sm">

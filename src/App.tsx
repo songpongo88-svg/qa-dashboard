@@ -171,8 +171,8 @@ class SignatureCenterErrorBoundary extends React.Component<
       return (
         <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-6">
           <div className="mx-auto mt-10 max-w-3xl rounded-[28px] border border-rose-200 bg-white p-6 shadow-xl shadow-rose-100">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-600">Signature Center Error</p>
-            <h1 className="mt-2 text-2xl font-black text-slate-950">Signature Center เปิดไม่สำเร็จ</h1>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-600">Signatures Error</p>
+            <h1 className="mt-2 text-2xl font-black text-slate-950">Signatures เปิดไม่สำเร็จ</h1>
             <p className="mt-2 text-sm font-semibold text-slate-600">
               ระบบจับข้อผิดพลาดไว้แล้วเพื่อไม่ให้หน้าขาว กรุณา Refresh อีกครั้ง หรือส่งข้อความด้านล่างให้ผู้ดูแลระบบตรวจสอบ
             </p>
@@ -330,24 +330,24 @@ const VALID_WORKSPACE_TAB_KEYS = new Set<WorkspaceTabKey>([
 ]);
 
 const WORKSPACE_TAB_LABELS: Record<WorkspaceTabKey, string> = {
-  dashboard: "Dashboard",
-  "case-detail": "Case Detail Workspace",
-  appeal: "Appeals",
-  "create-evaluation": "Create Evaluation",
+  dashboard: "Overview",
+  "case-detail": "Cases",
+  appeal: "Appeal Cases",
+  "create-evaluation": "Evaluate",
   "pre-test": "Pre-Test",
-  "training-attendance": "Training Attendance",
-  "appeal-requests": "Review Queue",
-  "appeal-override": "Appeal Override",
-  "task-inbox": "Work Queue",
-  "team-chat": "Team Chat",
-  "call-history": "Call History",
-  summary: "Summary",
-  "signature-center": "Signature Center",
-  "presentation-builder": "Presentation Builder",
+  "training-attendance": "Training",
+  "appeal-requests": "Appeal Review",
+  "appeal-override": "Late Appeal",
+  "task-inbox": "Inbox",
+  "team-chat": "Chat",
+  "call-history": "Calls",
+  summary: "Analytics",
+  "signature-center": "Signatures",
+  "presentation-builder": "QA Slides",
   coaching: "Coaching",
-  rubric: "Rubric",
-  "usage-log": "Activity Log",
-  "user-roles": "Users & Roles",
+  rubric: "Rubrics",
+  "usage-log": "Login Log",
+  "user-roles": "System Setup",
 };
 
 function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
@@ -2564,11 +2564,11 @@ function TaskInboxMockup({
     <div className="min-h-screen bg-gradient-to-br from-[#f6f2ff] via-white to-[#f3e8ff] px-5 py-6 lg:px-8">
       <div className="mx-auto max-w-[1500px] overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
         <PageHero
-          eyebrow="Work Queue"
-          title="Work Queue"
-          subtitle="Unread work items, QA updates, password alerts, and review requests are collected here like an internal operations mailbox."
-          workspaceTitle="Operations Mailbox"
-          workspaceSubtitle="Read an item to clear the badge, then open the related workflow"
+          eyebrow="Workspace"
+          title="Inbox"
+          subtitle="รวมงานใหม่ ผล QA การแจ้งเตือนรหัสผ่าน และงานตรวจสอบไว้ในที่เดียว"
+          workspaceTitle="QA Inbox"
+          workspaceSubtitle="เปิดอ่านรายการเพื่อล้างแจ้งเตือนและไปยังงานที่เกี่ยวข้อง"
         />
 
         <div className="grid gap-4 border-b border-violet-100 bg-violet-50/60 px-5 py-5 md:grid-cols-3">
@@ -3563,14 +3563,14 @@ export default function App() {
   const missedCallHistoryCount = chatMessages.filter((message) => message.kind === "call" && message.callStatus === "missed").length;
   const accountOptions = canUseAdminAccountMenu
     ? [
-        ...(roleAdminAllowed ? [{ value: "user-roles", label: "User & Roles" }] : []),
+        ...(roleAdminAllowed ? [{ value: "user-roles", label: "System Setup" }] : []),
         ...(passwordResetShortcutAllowed ? [{ value: "reset-password", label: "Password Reset" }] : []),
-        ...(usageLogAllowed ? [{ value: "usage-log", label: "Activity Log" }] : []),
-        { value: "change-password", label: "Change Password" },
+        ...(usageLogAllowed ? [{ value: "usage-log", label: "Login Log" }] : []),
+        { value: "change-password", label: "My Password" },
         { value: "logout", label: "Sign Out" },
       ]
     : [
-        { value: "change-password", label: "Change Password" },
+        { value: "change-password", label: "My Password" },
         { value: "logout", label: "Sign Out" },
       ];
 
@@ -4101,7 +4101,7 @@ export default function App() {
             title: `Appeal result: ${item.caseId}`,
             description:
               item.status === "Approved"
-                ? "Your appeal was approved. Dashboard and Summary scores were updated automatically."
+                ? "Your appeal was approved. Overview and Analytics scores were updated automatically."
                 : "Your appeal was rejected. Open the case detail to review the decision summary.",
             badge: item.status,
             count: 1,
@@ -4286,7 +4286,7 @@ export default function App() {
           description:
             !hasRolePermission(currentUser, rolePermissions, "viewAllAgents")
               ? "New QA dashboard data has been published. Open your dashboard to review the latest evaluation result."
-              : "New QA dashboard data has been published. Open Dashboard to review the latest team results.",
+              : "New QA data has been published. Open Overview to review the latest team results.",
           badge: "QA Result",
           count: 1,
           unread: !readIds.includes(id),
@@ -6022,18 +6022,17 @@ export default function App() {
       title: "Performance",
       description: "ภาพรวมผลการทำงานและข้อมูลสำคัญ",
       items: [
-        { key: "dashboard", label: "Dashboard", description: "เปิดหน้าหลักและตัวชี้วัดภาพรวม", icon: "dashboard", allowed: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
-        { key: "summary", label: "Summary", description: "ดูสรุปผลการประเมิน", icon: "chart", allowed: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
+        { key: "summary", label: "Analytics", description: "วิเคราะห์และเปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี", icon: "chart", allowed: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
+        { key: "dashboard", label: "Overview", description: "ดูผล QA ปัจจุบัน คะแนน เกรด KPI และความคืบหน้า", icon: "dashboard", allowed: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
       ],
     },
     {
       id: "qa",
-      title: "QA Tasks",
-      description: "งานตรวจประเมินและคิวตรวจสอบ",
+      title: "QA Work",
+      description: "ค้นหาเคสและสร้างผลประเมิน QA",
       items: [
-        { key: "case-detail", label: "Case Detail Workspace", description: "ค้นหาและตรวจสอบรายละเอียดเคส", icon: "document", allowed: true, active: activeWorkspaceTab === "case-detail", onClick: () => activateWorkspaceTab("case-detail") },
-        { key: "create-evaluation", label: "Create Evaluation", description: "สร้างการประเมินเคสใหม่", icon: "add", allowed: createEvaluationAllowed, active: activeWorkspaceTab === "create-evaluation", onClick: () => activateWorkspaceTab("create-evaluation") },
-        { key: "appeal-requests", label: "Review Queue", description: "ดูรายการเคสที่รอการตรวจสอบ", icon: "queue", allowed: appealRequestsAllowed, active: activeWorkspaceTab === "appeal-requests", onClick: () => activateWorkspaceTab("appeal-requests") },
+        { key: "case-detail", label: "Cases", description: "ค้นหาและตรวจสอบคะแนนกับรายละเอียดของแต่ละเคส", icon: "document", allowed: true, active: activeWorkspaceTab === "case-detail", onClick: () => activateWorkspaceTab("case-detail") },
+        { key: "create-evaluation", label: "Evaluate", description: "สร้าง Draft ตรวจ Rubric แนบหลักฐาน และบันทึกผลประเมิน", icon: "add", allowed: createEvaluationAllowed, active: activeWorkspaceTab === "create-evaluation", onClick: () => activateWorkspaceTab("create-evaluation") },
       ],
     },
     {
@@ -6041,8 +6040,9 @@ export default function App() {
       title: "Appeals",
       description: "งานอุทธรณ์และการอนุมัติแก้ไข",
       items: [
-        { key: "appeal-override", label: "Appeal Override", description: "อนุมัติหรือแก้ไขผลอุทธรณ์กรณีพิเศษ", icon: "target", allowed: appealOverrideAllowed, active: activeWorkspaceTab === "appeal-override", onClick: () => activateWorkspaceTab("appeal-override") },
-        { key: "appeal", label: "Appeals", description: "ดูและจัดการเคสอุทธรณ์", icon: "appeal", allowed: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
+        { key: "appeal", label: "Appeal Cases", description: "ดูเคสอุทธรณ์ ผลตัดสิน Timeline และคะแนนที่แก้ไข", icon: "appeal", allowed: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
+        { key: "appeal-requests", label: "Appeal Review", description: "ตรวจคำขออุทธรณ์และบันทึกผลอนุมัติหรือปฏิเสธ", icon: "queue", allowed: appealRequestsAllowed, active: activeWorkspaceTab === "appeal-requests", onClick: () => activateWorkspaceTab("appeal-requests") },
+        { key: "appeal-override", label: "Late Appeal", description: "เปิดสิทธิ์ให้เคสยื่นอุทธรณ์หลังหมดเวลา", icon: "target", allowed: appealOverrideAllowed, active: activeWorkspaceTab === "appeal-override", onClick: () => activateWorkspaceTab("appeal-override") },
       ],
     },
     {
@@ -6051,18 +6051,18 @@ export default function App() {
       description: "เครื่องมือพัฒนาคุณภาพและการเรียนรู้",
       items: [
         { key: "coaching", label: "Coaching", description: "บันทึกและติดตามการโค้ช", icon: "chat", allowed: coachingAllowed, active: activeWorkspaceTab === "coaching", onClick: () => activateWorkspaceTab("coaching") },
-        { key: "pre-test", label: "Pre-Test", description: "ทำและจัดการแบบทดสอบก่อนเริ่มงาน", icon: "check", allowed: preTestAllowed, active: activeWorkspaceTab === "pre-test", onClick: () => activateWorkspaceTab("pre-test") },
-        { key: "rubric", label: "Rubric", description: "จัดการเกณฑ์และแบบฟอร์มให้คะแนน", icon: "list", allowed: rubricAllowed, active: activeWorkspaceTab === "rubric", onClick: () => activateWorkspaceTab("rubric") },
-        { key: "training-attendance", label: "Training Attendance", description: "บันทึกและตรวจสอบการเข้าอบรม", icon: "check", allowed: trainingAttendanceAllowed, active: activeWorkspaceTab === "training-attendance", onClick: () => activateWorkspaceTab("training-attendance") },
+        { key: "pre-test", label: "Pre-Test", description: "ทำข้อสอบ สร้างชุดคำถาม ตรวจผล และเปิด Retake", icon: "check", allowed: preTestAllowed, active: activeWorkspaceTab === "pre-test", onClick: () => activateWorkspaceTab("pre-test") },
+        { key: "rubric", label: "Rubrics", description: "จัดการเกณฑ์คะแนน แบบฟอร์ม และช่วงเวลาที่ใช้งาน", icon: "list", allowed: rubricAllowed, active: activeWorkspaceTab === "rubric", onClick: () => activateWorkspaceTab("rubric") },
+        { key: "training-attendance", label: "Training", description: "สร้าง Session จัดรายชื่อ และบันทึกเข้าออกอบรม", icon: "check", allowed: trainingAttendanceAllowed, active: activeWorkspaceTab === "training-attendance", onClick: () => activateWorkspaceTab("training-attendance") },
       ],
     },
     {
       id: "tools",
-      title: "Tools",
-      description: "เครื่องมือเอกสาร งานนำเสนอ และลายเซ็น",
+      title: "Documents",
+      description: "สไลด์ รายงาน และเอกสารลงนาม",
       items: [
-        { key: "presentation-builder", label: "Presentation Builder", description: "สร้างสไลด์สำหรับนำเสนอข้อมูล", icon: "presentation", allowed: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
-        { key: "signature-center", label: "Signature Center", description: "ตรวจสอบและจัดการลายเซ็น", icon: "signature", allowed: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
+        { key: "presentation-builder", label: "QA Slides", description: "สร้างสไลด์ QA รายสัปดาห์ Preview และส่งออก PDF", icon: "presentation", allowed: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
+        { key: "signature-center", label: "Signatures", description: "ติดตามการลงนาม เอกสาร Incentive และไฟล์ส่งออก", icon: "signature", allowed: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
       ],
     },
     {
@@ -6070,9 +6070,9 @@ export default function App() {
       title: "Workspace",
       description: "พื้นที่ทำงานและการประสานงานของทีม",
       items: [
-        { key: "call-history", label: "Call History", description: "ดูประวัติการโทรของเคส", icon: "phone", allowed: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
-        { key: "team-chat", label: "Team Chat", description: "สนทนาและประสานงานภายในทีม", icon: "chat", allowed: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
-        { key: "task-inbox", label: "Work Queue", description: "ดูงานที่ได้รับมอบหมายและงานค้าง", icon: "queue", allowed: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
+        { key: "call-history", label: "Calls", description: "ดูประวัติสายเข้า สายออก สายพลาด และสายที่จบแล้ว", icon: "phone", allowed: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
+        { key: "team-chat", label: "Chat", description: "สนทนาในห้องทีม ส่งข้อความส่วนตัว ไฟล์ และ Call Invite", icon: "chat", allowed: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
+        { key: "task-inbox", label: "Inbox", description: "ดูงานใหม่ ผล QA การแจ้งเตือน และงานตรวจสอบ", icon: "queue", allowed: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
       ],
     },
     {
@@ -6080,9 +6080,9 @@ export default function App() {
       title: "Admin",
       description: "จัดการผู้ใช้ สิทธิ์ และประวัติระบบ",
       items: [
-        { key: "usage-log", label: "Activity Log", description: "ดูประวัติการใช้งานระบบ", icon: "clock", allowed: usageLogAllowed, active: activeWorkspaceTab === "usage-log", onClick: () => activateWorkspaceTab("usage-log") },
+        { key: "usage-log", label: "Login Log", description: "ดูประวัติการเข้าสู่ระบบและออกจากระบบ", icon: "clock", allowed: usageLogAllowed, active: activeWorkspaceTab === "usage-log", onClick: () => activateWorkspaceTab("usage-log") },
         { key: "reset-password", label: "Password Reset", description: "รีเซ็ตรหัสผ่านให้ผู้ใช้งาน", icon: "appeal", allowed: passwordResetShortcutAllowed, active: false, onClick: () => handleAccountMenuChange("reset-password"), badge: pendingPasswordResetRequestCount },
-        { key: "user-roles", label: "Users & Roles", description: "จัดการผู้ใช้งานและสิทธิ์", icon: "users", allowed: roleAdminAllowed, active: activeWorkspaceTab === "user-roles", onClick: () => activateWorkspaceTab("user-roles") },
+        { key: "user-roles", label: "System Setup", description: "จัดการผู้ใช้ สิทธิ์ Role และ Maintenance", icon: "users", allowed: roleAdminAllowed, active: activeWorkspaceTab === "user-roles", onClick: () => activateWorkspaceTab("user-roles") },
       ],
     },
     {
@@ -6090,7 +6090,7 @@ export default function App() {
       title: "Account",
       description: "ตั้งค่าบัญชีและออกจากระบบ",
       items: [
-        { key: "change-password", label: "Change Password", description: "เปลี่ยนรหัสผ่านของบัญชี", icon: "key", allowed: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
+        { key: "change-password", label: "My Password", description: "เปลี่ยนรหัสผ่านของบัญชีตัวเอง", icon: "key", allowed: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
         { key: "logout", label: "Sign Out", description: "ออกจากระบบ", icon: "logout", allowed: true, active: false, onClick: () => handleAccountMenuChange("logout"), danger: true },
       ],
     },
@@ -6108,7 +6108,7 @@ export default function App() {
             .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
+        <aside data-navigation-labels-v50="true" className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
           <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -6131,7 +6131,7 @@ export default function App() {
               const visibleItems = group.items;
               const isOpen = sidebarGroupsOpen[group.id] !== false;
               return <section key={group.id} className="rounded-xl">
-                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} aria-label={group.title} aria-expanded={isOpen} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
+                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} aria-label={group.title} aria-expanded={isOpen} title={group.description} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
                   <span>{group.title}</span>
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                 </button> : null}
@@ -6292,7 +6292,7 @@ export default function App() {
           <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-5 lg:px-6 2xl:px-8">
             <div className="flex flex-col gap-3 rounded-[24px] border border-violet-200 bg-white px-4 py-3 shadow-[0_14px_36px_rgba(88,28,135,0.10)] sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from Work Queue</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opened from Inbox</div>
                 <div className="mt-1 text-sm font-bold text-slate-700">{inboxReturnTitle}</div>
               </div>
               <button
@@ -6300,7 +6300,7 @@ export default function App() {
                 onClick={openTaskInbox}
                 className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-violet-800"
               >
-                Back to Work Queue
+                Back to Inbox
               </button>
             </div>
           </div>
@@ -6517,5 +6517,3 @@ export default function App() {
     </>
   );
 }
-
-

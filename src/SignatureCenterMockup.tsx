@@ -4589,7 +4589,7 @@ export default function SignatureCenterMockup({
                   {actionSidebarMode === "expanded" ? (
                     <div className="min-w-0">
                       <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-violet-500">
-                        Signature Workspace
+                        Signatures
                       </div>
                       <div className="mt-0.5 text-sm font-semibold text-slate-950">Document Actions</div>
                     </div>
@@ -4726,7 +4726,7 @@ export default function SignatureCenterMockup({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-600">จัดการเอกสารลงนาม</div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Signature Workspace</h1>
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Signatures</h1>
               <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                 ติดตามเอกสารลงนาม แยกตามเดือนและสถานะ พร้อมตรวจสอบผู้ที่ยังต้องดำเนินการได้ในหน้าเดียว
               </p>
@@ -4741,7 +4741,7 @@ export default function SignatureCenterMockup({
                     : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
                 }`}
               >
-                คิวของฉัน ({filteredDocuments.length})
+                My Queue ({filteredDocuments.length})
               </button>
               <button
                 type="button"
@@ -4752,7 +4752,7 @@ export default function SignatureCenterMockup({
                     : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                {isQaUser ? "ติดตามเอกสาร" : "ประวัติ"} ({historyFilteredDocuments.length})
+                {isQaUser ? "Tracking" : "History"} ({historyFilteredDocuments.length})
               </button>
             </div>
           </div>
@@ -5494,7 +5494,7 @@ export default function SignatureCenterMockup({
                   : "border border-violet-100 bg-white text-violet-700 hover:bg-violet-50"
               }`}
             >
-              คิวของฉัน ({filteredDocuments.length})
+              My Queue ({filteredDocuments.length})
             </button>
             <button
               type="button"
@@ -6282,5 +6282,4 @@ export default function SignatureCenterMockup({
     </div>
   );
 }
-
 

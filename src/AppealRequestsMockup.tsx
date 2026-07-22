@@ -428,9 +428,9 @@ export default function AppealRequestsMockup({
     <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
       <div className="rounded-[32px] border border-violet-100 bg-white shadow-[0_22px_60px_rgba(80,36,140,0.10)]">
         <PageHero
-          eyebrow="Appeal Management"
-          title="Appeal Review Queue"
-          subtitle="Review submitted cases, then export results for Appeal ROWDATA."
+          eyebrow="Appeals"
+          title="Appeal Review"
+          subtitle="ตรวจคำขออุทธรณ์และบันทึกผลอนุมัติหรือปฏิเสธ"
         />
 
         <div className="grid gap-4 border-b border-violet-100 p-5 md:grid-cols-4">
@@ -693,6 +693,5 @@ export default function AppealRequestsMockup({
     </div>
   );
 }
-
 
 

@@ -209,9 +209,9 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
   return (
     <div className="min-h-screen bg-[#f7f3ff] text-slate-950">
       <PageHero
-        eyebrow="Appeal Management"
-        title="Appeal Exception Control"
-        subtitle="Allow selected cases to submit an appeal after the monthly deadline. Existing one-time submission rules still apply."
+        eyebrow="Appeals"
+        title="Late Appeal"
+        subtitle="เปิดสิทธิ์ให้เคสที่เลือกยื่นอุทธรณ์หลังหมดเวลา โดยคงกฎการส่งครั้งเดียว"
       />
 
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
@@ -251,7 +251,7 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
               disabled={busy}
               className="rounded-2xl bg-violet-700 px-6 py-3 text-sm font-extrabold text-white shadow-[0_12px_28px_rgba(109,40,217,0.25)] transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Add Override
+              Allow Appeal
             </button>
           </div>
 
@@ -319,4 +319,3 @@ export default function AppealOverrideMockup({ currentUser }: { currentUser: Cur
     </div>
   );
 }
-

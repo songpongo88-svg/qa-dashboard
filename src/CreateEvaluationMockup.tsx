@@ -1799,9 +1799,9 @@ export default function CreateEvaluationMockup({
   return (
     <div className="min-h-screen bg-[#eef5f1] text-slate-950" style={{ fontFamily: "Aptos, 'Noto Sans Thai', 'Segoe UI', sans-serif" }}>
       <PageHero
-        eyebrow="QA Operations"
-        title="Evaluation Workspace"
-        subtitle="Create, review, draft, and export QA evaluations from one CRM-style workspace."
+        eyebrow="QA Work"
+        title="New Evaluation"
+        subtitle="สร้าง Draft ตรวจ Rubric แนบหลักฐาน และบันทึกผลประเมิน QA"
         workspaceTitle="QA Rubric Active Period"
         workspaceSubtitle={`${activeRubric.code} - ${rubricPeriod}`}
       />
@@ -1831,7 +1831,7 @@ export default function CreateEvaluationMockup({
             <div className="border-b border-emerald-100 bg-gradient-to-br from-white via-slate-50 to-emerald-50/60 p-5 xl:border-b-0 xl:border-r">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Evaluation Workspace</div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">New Evaluation</div>
                   <div className="mt-1 text-xl font-black text-slate-950">{caseId || "New QA Evaluation"}</div>
                   <div className="mt-1 text-sm font-semibold text-slate-500">Evaluator: <span className="font-black text-slate-800">{evaluatorName}</span></div>
                 </div>
@@ -2691,5 +2691,4 @@ export default function CreateEvaluationMockup({
     </div>
   );
 }
-
 

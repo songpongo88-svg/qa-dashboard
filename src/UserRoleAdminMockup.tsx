@@ -1670,11 +1670,11 @@ export default function UserRoleAdminMockup({
   return (
     <div className="min-h-screen bg-[#fbf8ff] text-slate-950">
       <PageHero
-        eyebrow="CRM Admin"
-        title="Account Administration"
-        subtitle="Manage user accounts, access permissions, and system availability from one administration console."
-        workspaceTitle="Administration Console"
-        workspaceSubtitle="Controlled access management for QA Dashboard"
+        eyebrow="Admin"
+        title="System Setup"
+        subtitle="จัดการผู้ใช้ สิทธิ์ Role และสถานะการเปิดใช้งานระบบ"
+        workspaceTitle="Admin Console"
+        workspaceSubtitle="การตั้งค่าระบบ QA สำหรับผู้ดูแล"
       />
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
@@ -1692,7 +1692,7 @@ export default function UserRoleAdminMockup({
             {canViewUserDirectory ? (
               <AdminPrimaryTabButton
                 active={adminTab === "users"}
-                title="User Management"
+                title="Users"
                 description={canManageUsers ? "Manage user profiles and account status" : "View user profiles and account status"}
                 count={totalUsers}
                 onClick={() => setAdminTab("users")}
@@ -1701,7 +1701,7 @@ export default function UserRoleAdminMockup({
             {canManageRoles ? (
               <AdminPrimaryTabButton
                 active={adminTab === "roles"}
-                title="Access Control"
+                title="Access"
                 description="Configure roles and permissions"
                 count={roleDefinitions.length}
                 onClick={() => setAdminTab("roles")}
@@ -1710,7 +1710,7 @@ export default function UserRoleAdminMockup({
             {canManageMaintenance ? (
               <AdminPrimaryTabButton
                 active={adminTab === "maintenance"}
-                title="System Maintenance"
+                title="Maintenance"
                 description={maintenanceState.enabled ? "Maintenance mode is active" : "System is open for users"}
                 count={maintenanceState.enabled ? 1 : 0}
                 tone={maintenanceState.enabled ? "amber" : "slate"}
@@ -1735,7 +1735,7 @@ export default function UserRoleAdminMockup({
           <div className="mt-5 overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_18px_52px_rgba(88,28,135,0.10)]">
             <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50 to-fuchsia-50 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-5">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">User Management</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">Users</div>
                 <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">Corporate User Directory</div>
                 <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
                   {!canEditCurrentUserManagementView
@@ -1874,7 +1874,7 @@ export default function UserRoleAdminMockup({
           <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
             <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Access Control</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-700">Access</div>
                 <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Role & Permission Management</div>
                 <div className="mt-1 text-sm leading-6 text-slate-500">Create roles, update role descriptions, and control what each role can access.</div>
               </div>
@@ -1906,7 +1906,7 @@ export default function UserRoleAdminMockup({
           <div className="mt-5 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.07)]">
             <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">System Maintenance</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Maintenance</div>
                 <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Maintenance Control Center</div>
                 <div className="mt-1 text-sm leading-6 text-slate-500">Temporarily restrict access while updating system configuration or QA data.</div>
               </div>
@@ -3423,7 +3423,6 @@ function TextInput({
     />
   );
 }
-
 
 
 

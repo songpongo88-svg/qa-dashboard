@@ -148,9 +148,9 @@ export default function UsageLogMockup() {
       <div className="mx-auto max-w-[1600px] space-y-5">
         <div className="overflow-hidden rounded-[30px] border border-violet-200 bg-white shadow-[0_18px_50px_rgba(88,28,135,0.10)]">
           <PageHero
-            eyebrow="Administration"
-            title="System Activity Log"
-            subtitle="Audit user access by login and logout time only."
+            eyebrow="Admin"
+            title="Login Log"
+            subtitle="ตรวจสอบประวัติการเข้าสู่ระบบและออกจากระบบ"
           />
 
           <div className="grid gap-4 border-b border-violet-100 bg-violet-50/50 px-5 py-4 lg:grid-cols-[1fr_190px_190px_190px_140px_170px]">

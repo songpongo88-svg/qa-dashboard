@@ -68,7 +68,7 @@ export default function PresentationBuilderMockup({ currentUser }: { currentUser
   const exportPdf = () => { const pdf = new jsPDF({ orientation: "landscape", unit: "mm" }); try { registerTHSarabunNew(pdf); pdf.setFont("THSarabunNew"); } catch {} pdf.setFillColor(88,28,135); pdf.rect(0,0,297,24,"F"); pdf.setTextColor(255,255,255); pdf.setFontSize(18); pdf.text("Weekly QA Presentation", 12, 10); pdf.setFontSize(12); pdf.text(wLabel(week), 12, 18); pdf.setTextColor(15,23,42); pdf.setFontSize(16); pdf.text(`Cases ${current.length} | Avg ${score.toFixed(2)} | Pass ${pass.toFixed(1)}% | WoW ${(score-prevScore).toFixed(2)}`, 12, 40); let y=58; pdf.text("Agent Ranking",12,y); pdf.text("Focus Topics",154,y); y+=8; for(let i=0;i<5;i++){ if(agents[i]) pdf.text(`${i+1}. ${agents[i].name} ${agents[i].score.toFixed(2)}`,12,y); if(topics[i]) pdf.text(`${i+1}. ${topics[i].name} ${topics[i].score.toFixed(2)}`,154,y); y+=8;} pdf.save(`QA_Weekly_Presentation_${week}.pdf`); };
   const copy = async () => { const t = `Weekly QA Presentation\n${wLabel(week)}\nCases: ${current.length}\nAvg: ${score.toFixed(2)}\nPass: ${pass.toFixed(1)}%\nWoW: ${(score-prevScore).toFixed(2)}`; await navigator.clipboard.writeText(t).catch(()=>window.prompt("Copy", t)); setMsg("คัดลอก Summary แล้ว"); setTimeout(()=>setMsg(""),2000); };
   return <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
-    <PageHero eyebrow="Presentation Builder" title="สร้างสไลด์ QA รายสัปดาห์" description="เลือก Week, ติ๊กหัวข้อ, Preview และ Export PDF สำหรับประชุมประจำสัปดาห์" icon="🎞️" tone="violet" />
+    <PageHero eyebrow="Documents" title="QA Slides" description="เลือกสัปดาห์ หัวข้อ และ Template เพื่อ Preview และส่งออก PDF" icon="🎞️" tone="violet" />
     {msg ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700">{msg}</div> : null}
     <div className="mt-6 grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
       <div className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-[0_20px_54px_rgba(88,28,135,0.08)]">
@@ -82,4 +82,3 @@ export default function PresentationBuilderMockup({ currentUser }: { currentUser
     </div>
   </div>;
 }
-

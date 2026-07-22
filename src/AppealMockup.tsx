@@ -1840,8 +1840,8 @@ export default function AppealMockup({
           console.warn("Load Firebase appeal events failed", firebaseError);
           firebaseLoadError =
             firebaseError instanceof Error
-              ? `โหลดผล Approved จาก Review Queue ไม่สำเร็จ: ${firebaseError.message}`
-              : "โหลดผล Approved จาก Review Queue ไม่สำเร็จ";
+              ? `โหลดผล Approved จาก Appeal Review ไม่สำเร็จ: ${firebaseError.message}`
+              : "โหลดผล Approved จาก Appeal Review ไม่สำเร็จ";
         }
 
         const firebaseCaseIds = new Set(
@@ -2164,9 +2164,9 @@ export default function AppealMockup({
       {songkranTheme ? <SongkranBackdrop /> : null}
 
       <PageHero
-        eyebrow="Appeal Management"
-        title="Appeal Case Center"
-        subtitle="รวมผลการพิจารณาอุทธรณ์เคส QA พร้อมมุมมองรายเดือน รายชื่อเคส และรายละเอียดผลประเมินในหน้าเดียว"
+        eyebrow="Appeals"
+        title="Appeal Cases"
+        subtitle="ดูเคสอุทธรณ์ ผลตัดสิน Timeline และคะแนนที่แก้ไข"
       />
       {false ? (
       <div>
@@ -2228,10 +2228,10 @@ export default function AppealMockup({
             Approved Appeals Only
           </div>
           <div className="mt-1 text-sm font-semibold leading-6 text-emerald-900">
-            หน้านี้แสดงเฉพาะเคสที่ Review Queue อนุมัติแล้ว เคส Rejected จะแสดง Feedback ใน Case Detail แต่ไม่เข้าหน้า Appeals
+            หน้านี้แสดงเฉพาะเคสที่ Appeal Review อนุมัติแล้ว เคส Rejected จะแสดง Feedback ใน Case Review แต่ไม่เข้าหน้า Appeal Cases
           </div>
           <div className="mt-1 text-xs font-semibold text-slate-500">
-            Appeal ROWDATA: {approvedSourceInfo.staticCount} case(s) • Review Queue / Firebase: {approvedSourceInfo.firebaseCount} case(s)
+            Appeal ROWDATA: {approvedSourceInfo.staticCount} case(s) • Appeal Review / Firebase: {approvedSourceInfo.firebaseCount} case(s)
           </div>
           {approvedSourceInfo.error ? (
             <div className="mt-2 text-xs font-bold text-rose-700">
@@ -2286,7 +2286,7 @@ export default function AppealMockup({
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <Panel className="h-fit">
           <PanelHeader
-            title="Appeal Case List"
+            title="Cases"
             subtitle="เลือกเลขเคสจากรายการด้านซ้ายเพื่อเปิดดูรายละเอียด"
           />
           <PanelBody className="space-y-4">
@@ -2690,6 +2690,3 @@ export default function AppealMockup({
     </div>
   );
 }
-
-
-

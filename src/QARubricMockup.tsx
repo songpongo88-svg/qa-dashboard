@@ -1537,9 +1537,9 @@ export default function QARubricMockup({
         {songkranTheme ? <SongkranBackdrop /> : null}
         <div className="mb-6 overflow-hidden rounded-3xl">
           <PageHero
-            eyebrow="QA Policy Library"
-            title="QA Rubric Library"
-            subtitle={`Logged in as ${currentUser?.displayName || "-"} (${currentUser?.role || "-"})`}
+            eyebrow="Quality"
+            title="Rubrics"
+            subtitle={`เกณฑ์คะแนน แบบฟอร์ม และช่วงเวลาที่ใช้งาน · ${currentUser?.displayName || "-"} (${currentUser?.role || "-"})`}
           />
         </div>
 
