@@ -1,3 +1,15 @@
+@import url("https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800;900&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* qa-kanit-font-v32 */
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: "Kanit", ui-sans-serif, system-ui, sans-serif;
+}

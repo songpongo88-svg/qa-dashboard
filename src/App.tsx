@@ -5795,15 +5795,15 @@ export default function App() {
   return (
     <>
         <style>{`
-          :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "78px" : "242px"}; }
+          :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "270px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
-          .qa-global-sidebar-v31 { width: var(--qa-sidebar-width); }
+          .qa-global-sidebar-v32 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
           @media (max-width: 900px) {
-            :root { --qa-sidebar-width: 78px; }
-            .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-badge-text { display: none !important; }
+            :root { --qa-sidebar-width: 80px; }
+            .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-profile-detail, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside className="qa-global-sidebar-v31 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-y-auto border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-4 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200">
+        <aside className="qa-global-sidebar-v32 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-y-auto border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-4 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
           <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3 px-2"}`}>
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15">
               <img src="/robinhood-logo.png" alt="Robinhood" className="h-8 w-8 object-contain" />
@@ -5820,53 +5820,126 @@ export default function App() {
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Performance</div> : null}
               <div className="mt-2 space-y-1">
-                <button type="button" onClick={() => handlePerformanceMenuChange("summary")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "summary" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ–ฆ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Summary</span> : null}</button>
-                <button type="button" onClick={() => handlePerformanceMenuChange("dashboard")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "dashboard" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ—ซ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Dashboard</span> : null}</button>
-                {coachingAllowed ? <button type="button" onClick={() => handlePerformanceMenuChange("coaching")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "coaching" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ—</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Coaching</span> : null}</button> : null}
+                <button type="button" onClick={() => handlePerformanceMenuChange("summary")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "summary" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M2 19h20"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Summary</span> : null}
+                </button>
+                <button type="button" onClick={() => handlePerformanceMenuChange("dashboard")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "dashboard" ? "bg-white/15 text-white" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Dashboard</span> : null}
+                </button>
+                <button type="button" onClick={() => { setDashboardSubTab("overview"); navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-2 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "overview" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 15 4-4 4 3 7-8"/><path d="M19 6v5h-5"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Performance Overview</span> : null}
+                </button>
+                <button type="button" onClick={() => { setDashboardSubTab("case-detail"); navigateToTab("dashboard", { params: { subTab: "case-detail", caseId: selectedDashboardCaseId || "", agent: selectedAgentGlobal || "" } }); }} className={`flex w-full items-center gap-3 rounded-xl py-2 pl-8 pr-3 text-left text-xs font-bold transition ${activeTab === "dashboard" && dashboardSubTab === "case-detail" ? "bg-white text-violet-800" : "text-violet-100 hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Case Detail Workspace</span> : null}
+                </button>
+                {coachingAllowed ? <button type="button" onClick={() => handlePerformanceMenuChange("coaching")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "coaching" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16v10H8l-4 4z"/><path d="M8 10h8"/><path d="M8 13h5"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Coaching</span> : null}
+                </button> : null}
               </div>
             </div>
 
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">QA Review</div> : null}
               <div className="mt-2 space-y-1">
-                <button type="button" onClick={() => handleReviewMenuChange("appeal")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โบ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeals</span> : null}</button>
-                {appealRequestsAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-requests")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal-requests" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ“</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Review Queue</span> : null}</button> : null}
-                {appealOverrideAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-override")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal-override" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeal Override</span> : null}</button> : null}
-                {createEvaluationAllowed ? <button type="button" onClick={() => handleReviewMenuChange("create-evaluation")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "create-evaluation" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">๏ผ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Create Evaluation</span> : null}</button> : null}
-                {preTestAllowed ? <button type="button" onClick={() => handleReviewMenuChange("pre-test")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "pre-test" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Pre-Test</span> : null}</button> : null}
-                {rubricAllowed ? <button type="button" onClick={() => handleReviewMenuChange("rubric")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "rubric" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โฃ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Rubric</span> : null}</button> : null}
+                <button type="button" onClick={() => handleReviewMenuChange("appeal")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeals</span> : null}
+                </button>
+                {appealRequestsAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-requests")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal-requests" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Review Queue</span> : null}
+                </button> : null}
+                {appealOverrideAllowed ? <button type="button" onClick={() => handleReviewMenuChange("appeal-override")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "appeal-override" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v3"/><path d="M12 18v3"/><path d="m4.2 4.2 2.1 2.1"/><path d="m17.7 17.7 2.1 2.1"/><path d="M3 12h3"/><path d="M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Appeal Override</span> : null}
+                </button> : null}
+                {createEvaluationAllowed ? <button type="button" onClick={() => handleReviewMenuChange("create-evaluation")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "create-evaluation" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Create Evaluation</span> : null}
+                </button> : null}
+                {preTestAllowed ? <button type="button" onClick={() => handleReviewMenuChange("pre-test")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "pre-test" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="m13 7 4 4"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Pre-Test</span> : null}
+                </button> : null}
+                {rubricAllowed ? <button type="button" onClick={() => handleReviewMenuChange("rubric")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "rubric" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Rubric</span> : null}
+                </button> : null}
               </div>
             </div>
 
             <div>
               {!globalSidebarCollapsed ? <div className="qa-sidebar-section-label px-3 text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Workspace</div> : null}
               <div className="mt-2 space-y-1">
-                <button type="button" onClick={openTaskInbox} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "task-inbox" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ–ฃ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Work Queue</span> : null}{unreadInboxTaskCount ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{unreadInboxTaskCount}</span> : null}</button>
-                {roleAdminAllowed ? <button type="button" onClick={() => handleAccountMenuChange("user-roles")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "user-roles" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Users & Roles</span> : null}</button> : null}
-                {usageLogAllowed ? <button type="button" onClick={() => handleAccountMenuChange("usage-log")} className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "usage-log" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}><span className="w-7 shrink-0 text-center">โ—ด</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Activity Log</span> : null}</button> : null}
+                <button type="button" onClick={openTaskInbox} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "task-inbox" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Work Queue</span> : null}{unreadInboxTaskCount ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{unreadInboxTaskCount}</span> : null}
+                </button>
+                {roleAdminAllowed ? <button type="button" onClick={() => handleAccountMenuChange("user-roles")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "user-roles" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-6 6-6s6 2 6 6"/><path d="M17 7h4"/><path d="M19 5v4"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Users &amp; Roles</span> : null}
+                </button> : null}
+                {usageLogAllowed ? <button type="button" onClick={() => handleAccountMenuChange("usage-log")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${activeTab === "usage-log" ? "bg-white text-violet-800" : "text-white hover:bg-white/10"}`}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Activity Log</span> : null}
+                </button> : null}
               </div>
             </div>
           </nav>
 
-          <div className="mt-auto space-y-1 pt-5">
-            {passwordResetShortcutAllowed ? <button type="button" onClick={() => handleAccountMenuChange("reset-password")} className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white transition hover:bg-white/10"><span className="w-7 shrink-0 text-center">โ–ฃ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Password Reset</span> : null}{pendingPasswordResetRequestCount ? <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-violet-950">{pendingPasswordResetRequestCount}</span> : null}</button> : null}
-            <button type="button" onClick={() => handleAccountMenuChange("change-password")} className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-white transition hover:bg-white/10"><span className="w-7 shrink-0 text-center">โ—</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Change Password</span> : null}</button>
-            <button type="button" onClick={() => handleAccountMenuChange("logout")} className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-100 transition hover:bg-rose-500/20"><span className="w-7 shrink-0 text-center">โฅ</span>{!globalSidebarCollapsed ? <span className="qa-sidebar-label">Sign Out</span> : null}</button>
-            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-3 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-sm font-black text-white hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>{globalSidebarCollapsed ? "โฅ" : "โค"}</button>
+          <div className="mt-auto pt-5">
+            <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
+            <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3 rounded-2xl border border-white/15 bg-white/10 p-3"}`}>
+              <button type="button" onClick={() => profilePhotoInputRef.current?.click()} disabled={workspaceProfilePhotoUploading} className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-white/15 text-sm font-black" aria-label="Change profile photo">
+                {workspaceProfilePhoto ? <img src={workspaceProfilePhoto} alt={welcomeName ? welcomeName + " profile photo" : "Profile photo"} className="h-full w-full object-cover" /> : <span>{workspaceInitials}</span>}
+              </button>
+              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0"><div className="truncate text-sm font-black">{welcomeName}</div><div className="truncate text-[10px] font-bold text-violet-200">{currentUser.role}</div></div> : null}
+            </div>
+
+            {!globalSidebarCollapsed ? <div className="qa-sidebar-profile-detail mt-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2 text-[10px] font-semibold leading-5 text-violet-100">
+              <div className="flex justify-between gap-2"><span>Team</span><span className="truncate text-right font-bold text-white">{workspaceTeamName}</span></div>
+              <div className="flex justify-between gap-2"><span>Team Lead</span><span className="truncate text-right font-bold text-white">{workspaceTeamLeadName}</span></div>
+              <div className="flex justify-between gap-2"><span>Version</span><span className="truncate text-right font-bold text-white">{buildMeta.displayVersion || buildMeta.version}{shortBuildHash ? ":" + shortBuildHash : ""}</span></div>
+              <div className="flex justify-between gap-2"><span>Login</span><span className="truncate text-right font-bold text-white">{formatHeaderDateTime(liveNow)}</span></div>
+            </div> : null}
+
+            <div className="mt-2 space-y-1">
+              {passwordResetShortcutAllowed ? <button type="button" onClick={() => handleAccountMenuChange("reset-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Password Reset</span> : null}{pendingPasswordResetRequestCount ? <span className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-violet-950">{pendingPasswordResetRequestCount}</span> : null}
+              </button> : null}
+              <button type="button" onClick={() => handleAccountMenuChange("change-password")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-white transition hover:bg-white/10">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3"/><path d="m10 13 8-8 2 2-2 2 2 2-3 3-2-2-3 3"/></svg>
+                {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Change Password</span> : null}
+              </button>
+              <button type="button" onClick={() => handleAccountMenuChange("logout")} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold text-rose-100 transition hover:bg-rose-500/20">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 4H4v16h6"/><path d="m14 8 4 4-4 4"/><path d="M18 12H9"/></svg>
+                {!globalSidebarCollapsed ? <span className="qa-sidebar-label">Sign Out</span> : null}
+              </button>
+              <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>
+                {!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}
+              </button>
+            </div>
           </div>
         </aside>
 
         <div className="sticky top-0 z-[70] border-b border-violet-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-5 lg:px-6">
           <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4">
             <div className="min-w-0">
-              <div className="truncate text-sm font-black text-slate-950">{activeTab.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</div>
+              <div className="truncate text-sm font-black text-slate-950">{activeTab === "dashboard" ? (dashboardSubTab === "case-detail" ? "Case Detail Workspace" : "Performance Overview") : activeTab.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</div>
               <div className="truncate text-xs font-semibold text-slate-500">Robinhood QA Monitoring Workspace</div>
             </div>
             <div className="ml-auto min-w-0 text-right">
               <div className="truncate text-sm font-black text-slate-900">{currentUser.displayName || currentUser.username}</div>
-              <div className="truncate text-xs font-semibold text-violet-700">{currentUser.role}{currentUser.agentName ? ` ยท ${currentUser.agentName}` : ""}</div>
+              <div className="truncate text-xs font-semibold text-violet-700">{currentUser.role}{currentUser.agentName ? " / " + currentUser.agentName : ""}</div>
             </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-700 text-xs font-black text-white">{(currentUser.displayName || currentUser.username || "U").slice(0, 2).toUpperCase()}</div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-black text-white">{workspaceProfilePhoto ? <img src={workspaceProfilePhoto} alt="Profile" className="h-full w-full object-cover" /> : (currentUser.displayName || currentUser.username || "U").slice(0, 2).toUpperCase()}</div>
           </div>
         </div>
 
@@ -5909,244 +5982,6 @@ export default function App() {
       />
 
       <div className="min-h-screen bg-slate-100">
-        <div className={`relative border-b backdrop-blur-sm ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-white via-cyan-50/70 to-fuchsia-50/60" : "border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/30"}`}>
-          {songkranTheme ? <SongkranBackdrop compact /> : null}
-
-          <div className="mx-auto grid w-full max-w-[1380px] gap-3 px-4 py-3 sm:px-5 lg:px-6 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
-            <div className={`relative overflow-hidden rounded-[24px] border bg-white/95 px-4 py-3.5 shadow-[0_16px_44px_rgba(88,28,135,0.08)] ${songkranTheme ? "border-cyan-200/80" : "border-slate-200"}`}>
-              {songkranTheme ? <SongkranFlowerCorner className="-right-1 -top-1 scale-75 opacity-60" /> : null}
-
-              <div className="grid gap-5 xl:grid-cols-[max-content_460px] xl:items-center xl:justify-start">
-                <div className="flex min-w-0 items-stretch gap-4">
-                  <div className="flex w-[166px] shrink-0 items-stretch">
-                    <input
-                      ref={profilePhotoInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleWorkspaceProfilePhotoChange}
-                      className="hidden"
-                    />
-                    <div
-                      title={workspaceProfilePhotoError || "Change profile photo"}
-                      className="group relative flex h-[172px] w-[160px] items-center justify-center overflow-hidden rounded-[26px] border border-violet-200 bg-gradient-to-br from-violet-100 via-white to-fuchsia-100 text-violet-700 shadow-[0_16px_38px_rgba(88,28,135,0.14)] transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_22px_48px_rgba(88,28,135,0.20)]"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => profilePhotoInputRef.current?.click()}
-                        className="absolute inset-0 z-10"
-                        aria-label="Change profile photo"
-                      />
-
-                      {workspaceProfilePhoto ? (
-                        <img
-                          src={workspaceProfilePhoto}
-                          alt={welcomeName ? welcomeName + " profile photo" : "Profile photo"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-4xl font-black tracking-tight">{workspaceInitials}</span>
-                      )}
-
-                      <div className="absolute inset-x-3 bottom-3 z-20 grid grid-cols-2 gap-2.5 rounded-2xl bg-black/25 p-1.5 opacity-0 backdrop-blur-sm transition group-hover:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => profilePhotoInputRef.current?.click()}
-                          disabled={workspaceProfilePhotoUploading}
-                          className="w-full min-w-0 rounded-full bg-white/95 px-1.5 py-1.5 text-[9px] font-black uppercase tracking-[0.04em] text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Change
-                        </button>
-
-                        {workspaceProfilePhoto ? (
-                          <button
-                            type="button"
-                            onClick={handleWorkspaceProfilePhotoDefault}
-                            disabled={workspaceProfilePhotoUploading}
-                            className="w-full min-w-0 rounded-full bg-violet-700/95 px-1.5 py-1.5 text-[9px] font-black uppercase tracking-[0.04em] text-white shadow-sm transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            Default
-                          </button>
-                        ) : null}
-                      </div>
-
-                      {workspaceProfilePhotoUploading ? (
-                        <span className="absolute inset-0 z-30 flex items-center justify-center bg-white/80 text-[11px] font-black text-violet-700">
-                          Saving...
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="min-w-0 rounded-[22px] border border-violet-100 bg-white px-4 py-3 text-[11px] font-bold leading-5 text-slate-950 shadow-[0_10px_26px_rgba(88,28,135,0.08)]">
-                    <div className="text-xs font-black">Robinhood QA Workspace</div>
-                    <div>
-                      <span className="font-black text-slate-950">User:</span>{" "}
-                      <span className="font-black text-violet-700">{welcomeName}</span>
-                    </div>
-                    <div>
-                      <span className="font-black text-slate-950">Team Lead:</span>{" "}
-                      <span className="font-black text-violet-700">{workspaceTeamLeadName}</span>
-                    </div>
-                    <div>
-                      <span className="font-black text-slate-950">Team:</span>{" "}
-                      <span className="font-black text-violet-700">{workspaceTeamName}</span>
-                    </div>
-                    <div>
-                      <span className="font-black text-slate-950">Role:</span>{" "}
-                      <span className="font-black text-violet-700">{currentUser.role}</span>
-                    </div>
-                    <div className="whitespace-nowrap">
-                      <span className="font-black text-slate-950">Version:</span>{" "}
-                      <span className="font-black text-violet-700">
-                        {buildMeta.displayVersion || buildMeta.version}
-                        {shortBuildHash ? `:${shortBuildHash}` : ""}
-                      </span>
-                    </div>
-                    <div className="whitespace-nowrap">
-                      <span className="font-black text-slate-950">Login running time:</span>{" "}
-                      <span className="font-black text-violet-700">{formatHeaderDateTime(liveNow)}</span>
-                    </div>
-                    <div className="hidden mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                      <span>{currentUser.role}</span>
-                      <span className="text-slate-300">เนโฌเธ</span>
-                      <span className="truncate">{currentUser.agentName}</span>
-                    </div>
-                    <div className="hidden mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                      <span>{currentUser.role}</span>
-                      <span className="text-slate-300">เนโฌเธ</span>
-                      <span>{currentUser.agentName}</span>
-                    </div>
-                    <div className="hidden mt-1 text-sm text-slate-500">
-                      <span>{currentUser.role}</span>
-                      <span className="mx-2 text-slate-300">/</span>
-                      <span>{currentUser.agentName}</span>
-                      <span className="mx-2 text-slate-300">/</span>
-                      <span className="font-bold text-slate-700">
-                        Version {buildMeta.displayVersion || buildMeta.version}
-                        <span className="mx-1 text-slate-300">—</span>
-                        {buildMeta.updatedAt}
-                        {buildMeta.commitHash ? (
-                          <>
-                            <span className="mx-1 text-slate-300">—</span>
-                            {buildMeta.commitHash.slice(0, 7)}
-                          </>
-                        ) : null}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="hidden" aria-hidden="true" />
-              </div>
-            </div>
-            <div className="hidden">
-              <button
-                type="button"
-                onClick={openTaskInbox}
-                className="group relative overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-left text-white shadow-sm transition hover:shadow-md"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-100">Work Queue</div>
-                    <div className="mt-1 text-sm font-extrabold">Work Queue</div>
-                  </div>
-                  <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-white/30 bg-white px-2.5 py-1 text-sm font-extrabold text-violet-700">
-                    {unreadInboxTaskCount}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs font-semibold text-violet-100">
-                  {unreadInboxTaskCount ? `${unreadInboxTaskCount} unread item(s)` : "Queue is clear"}
-                </div>
-              </button>
-
-              <div className="grid grid-cols-5 gap-1.5">
-                {roleAdminAllowed ? (
-                  <button
-                    type="button"
-                    title="User & Roles"
-                    onClick={() => navigateToTab("user-roles")}
-                    className={`group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                      activeTab === "user-roles"
-                        ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
-                        : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                    }`}
-                  >
-                    <span className="text-[18px] leading-none">&#128101;</span>
-                    <span className="mt-1 text-[9.5px] font-black leading-tight">Users</span>
-                  </button>
-                ) : null}
-
-                {usageLogAllowed ? (
-                  <button
-                    type="button"
-                    title="Activity Log"
-                    onClick={() => navigateToTab("usage-log")}
-                    className={`group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border px-1.5 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                      activeTab === "usage-log"
-                        ? "border-violet-300 bg-gradient-to-br from-violet-700 to-fuchsia-600 text-white"
-                        : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50"
-                    }`}
-                  >
-                    <span className="text-[18px] leading-none">&#128338;</span>
-                    <span className="mt-1 text-[9.5px] font-black leading-tight">Log</span>
-                  </button>
-                ) : null}
-
-                <button
-                  type="button"
-                  title="Change Password"
-                  onClick={() => {
-                    resetChangePasswordState();
-                    setChangePasswordPromptReason("");
-                    setShowChangePasswordModal(true);
-                  }}
-                  className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
-                >
-                  <span className="text-[18px] leading-none">&#128272;</span>
-                  <span className="mt-1 text-[9.5px] font-black leading-tight">Password</span>
-                </button>
-
-                {passwordResetShortcutAllowed ? (
-                  <button
-                    type="button"
-                    title={pendingPasswordResetRequestCount ? `Password Reset: ${pendingPasswordResetRequestCount} pending request(s)` : "Password Reset"}
-                    onClick={() => {
-                      resetPasswordModalState();
-                      setShowResetPasswordModal(true);
-                      void loadPasswordResetRequests();
-                    }}
-                    className="group relative flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-violet-200 bg-white px-1.5 py-2 text-center text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50 hover:shadow-md"
-                  >
-                    {pendingPasswordResetRequestCount > 0 ? (
-                      <span className="absolute -right-1.5 -top-1.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-rose-600 px-1.5 text-[10px] font-black leading-none text-white shadow-md">
-                        {pendingPasswordResetRequestCount > 99 ? "99+" : pendingPasswordResetRequestCount}
-                      </span>
-                    ) : null}
-                    <span className="text-[18px] leading-none">&#8635;</span>
-                    <span className="mt-1 text-[9.5px] font-black leading-tight">Reset</span>
-                  </button>
-                ) : null}
-
-                <button
-                  type="button"
-                  title="Sign Out"
-                  onClick={handleLogout}
-                  className="group flex min-h-[54px] flex-col items-center justify-center rounded-2xl border border-rose-200 bg-white px-1.5 py-2 text-center text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md"
-                >
-                  <span className="inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10 17l5-5-5-5" />
-                        <path d="M15 12H3" />
-                        <path d="M12 3h6a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-6" />
-                      </svg>
-                    </span>
-                  <span className="mt-1 text-[9.5px] font-black leading-tight">Sign Out</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* data-announcement-hub-v2 */}
         <AnnouncementHub
           currentUser={currentUser}
@@ -6181,25 +6016,6 @@ export default function App() {
 
         {activeTab === "dashboard" ? (
           <div>
-            <div className="mx-auto w-full max-w-[1600px] px-4 pt-5 sm:px-5 lg:px-6 2xl:px-8">
-              <div className="flex flex-wrap gap-2">
-                <DashboardSubButton active={dashboardSubTab === "overview"} label="Performance Overview" onClick={() => {
-                  setDashboardSubTab("overview");
-                  navigateToTab("dashboard", { params: { subTab: "overview", caseId: "", agent: "" } });
-                }} songkranTheme={songkranTheme} />
-                <DashboardSubButton active={dashboardSubTab === "case-detail"} label="Case Detail Workspace" onClick={() => {
-                  setDashboardSubTab("case-detail");
-                  navigateToTab("dashboard", {
-                    params: {
-                      subTab: "case-detail",
-                      caseId: selectedDashboardCaseId || "",
-                      agent: selectedAgentGlobal || "",
-                    },
-                  });
-                }} songkranTheme={songkranTheme} />
-              </div>
-            </div>
-
             <DashboardMockup
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
