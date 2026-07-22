@@ -1827,7 +1827,8 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
           <col className="w-14" />
           <col className="hidden w-16 md:table-column" />
           <col />
-          <col className="hidden w-28 sm:table-column" />
+          <col className="hidden w-24 sm:table-column" />
+          <col className="hidden w-32 sm:table-column" />
           <col className="w-20" />
           <col className="hidden w-36 lg:table-column" />
         </colgroup>
@@ -1836,7 +1837,8 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
             <th className="px-3 py-3 text-center">Rank</th>
             <th className="hidden px-3 py-3 text-center md:table-cell">Topic</th>
             <th className="px-3 py-3 text-left">Description</th>
-            <th className="hidden px-3 py-3 text-center sm:table-cell">Score</th>
+            <th className="hidden px-3 py-3 text-center sm:table-cell">Max Score</th>
+            <th className="hidden px-3 py-3 text-center sm:table-cell">Score Received</th>
             <th className="px-3 py-3 text-center">Avg %</th>
             <th className="hidden px-3 py-3 text-left lg:table-cell">Focus</th>
           </tr>
@@ -1874,7 +1876,8 @@ function TopicPerformanceTable({ items }: { items: TopicSummary[] }) {
                     ) : null}
                   </div>
                 </td>
-                <td className="hidden border-t border-slate-200 px-3 py-3 text-center font-semibold text-slate-700 sm:table-cell">{entry.avgScore === "-" ? "-" : `${entry.avgScore} / ${entry.max}`}</td>
+                <td className="hidden border-t border-slate-200 px-3 py-3 text-center font-semibold text-slate-600 sm:table-cell">{entry.max}</td>
+                <td className="hidden border-t border-slate-200 px-3 py-3 text-center font-semibold text-slate-800 sm:table-cell">{entry.avgScore}</td>
                 <td className="border-t border-slate-200 px-3 py-3 text-center font-bold text-violet-800">{entry.pct === "-" ? "-" : `${entry.pct}%`}</td>
                 <td className="hidden border-t border-slate-200 px-3 py-3 lg:table-cell">
                   {focusLabel ? (
@@ -5935,8 +5938,8 @@ export default function DashboardMockup({
                   ) : null}
 
                   <div
-                    data-dashboard-priority-v47="true"
-                    className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.85fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.8fr)_minmax(280px,0.55fr)]"
+                    data-dashboard-priority-v48="true"
+                    className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]"
                   >
                     <Panel>
                       <PanelHeader title="Topic Performance" subtitle="Strongest to coaching focus · ranked by average percentage" />
@@ -6033,7 +6036,7 @@ export default function DashboardMockup({
                       </PanelBody>
                     </Panel>
 
-                    <div className="min-w-0 xl:col-start-2 2xl:col-start-auto">
+                    <div data-standalone-grade-mix-v48="true" className="min-w-0 xl:col-span-2">
                       <Panel>
                         <PanelHeader title="Grade Mix" subtitle="Current grades · expand to view Case IDs" />
                         <PanelBody className="!p-4">
