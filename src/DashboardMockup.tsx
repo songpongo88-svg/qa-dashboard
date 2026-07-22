@@ -1378,10 +1378,10 @@ function CompactAlignedSelect({
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className="flex h-14 w-full min-w-0 items-center justify-between gap-3 rounded-2xl border border-violet-200 bg-white px-4 text-left text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        className="relative flex h-14 w-full min-w-0 items-center justify-center rounded-2xl border border-violet-200 bg-white px-10 text-center text-sm font-medium text-slate-800 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
       >
-        <span className="min-w-0 truncate">{selected?.label || "-"}</span>
-        <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+        <span className="w-full min-w-0 truncate text-center">{selected?.label || "-"}</span>
+        <svg viewBox="0 0 24 24" className={`absolute right-4 h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
 
       {open ? (
@@ -5010,7 +5010,7 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
-            <Panel className="qa-filter-dock-v36 !overflow-visible">
+            <Panel className="qa-filter-dock-v37 !overflow-visible z-50">
               <PanelHeader
                 title="Quick Controls"
                 subtitle="Responsive filters by year, month, agent name, case ID and date range"
@@ -5056,7 +5056,7 @@ export default function DashboardMockup({
                   <div className="min-w-0">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent Name</div>
                     {roleScopedAgentList.length ? (
-                      <div className="flex h-14 min-w-0 items-center truncate rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
+                      <div className="flex h-14 min-w-0 items-center justify-center truncate rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-center text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
                     ) : (
                       <CompactAlignedSelect
                         ariaLabel="Agent Name"
