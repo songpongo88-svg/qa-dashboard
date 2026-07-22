@@ -214,7 +214,7 @@ type SidebarNavItem = {
   label: string;
   description: string;
   icon: string;
-  visible: boolean;
+  allowed: boolean;
   active: boolean;
   onClick: () => void;
   badge?: number | string;
@@ -3058,6 +3058,7 @@ export default function App() {
     }
   });
   const [accountMenuValue, setAccountMenuValue] = useState("");
+  const [sidebarPermissionNotice, setSidebarPermissionNotice] = useState("");
 
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
   const [selectedMonthGlobal, setSelectedMonthGlobal] = useState(() => getCurrentMonthKey());
@@ -3714,6 +3715,12 @@ export default function App() {
   useEffect(() => {
     window.sessionStorage.setItem(SIDEBAR_GROUPS_SESSION_STORAGE_KEY, JSON.stringify(sidebarGroupsOpen));
   }, [sidebarGroupsOpen]);
+
+  useEffect(() => {
+    if (!sidebarPermissionNotice) return;
+    const timer = window.setTimeout(() => setSidebarPermissionNotice(""), 4500);
+    return () => window.clearTimeout(timer);
+  }, [sidebarPermissionNotice]);
 
   const activateWorkspaceTab = useCallback((workspaceKey: WorkspaceTabKey) => {
     if (workspaceKey === "case-detail") {
@@ -5966,8 +5973,8 @@ export default function App() {
       title: "Performance",
       description: "ภาพรวมผลการทำงานและข้อมูลสำคัญ",
       items: [
-        { key: "dashboard", label: "Dashboard", description: "เปิดหน้าหลักและตัวชี้วัดภาพรวม", icon: "dashboard", visible: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
-        { key: "summary", label: "Summary", description: "ดูสรุปผลการประเมิน", icon: "chart", visible: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
+        { key: "dashboard", label: "Dashboard", description: "เปิดหน้าหลักและตัวชี้วัดภาพรวม", icon: "dashboard", allowed: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
+        { key: "summary", label: "Summary", description: "ดูสรุปผลการประเมิน", icon: "chart", allowed: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
       ],
     },
     {
@@ -5975,9 +5982,9 @@ export default function App() {
       title: "QA Tasks",
       description: "งานตรวจประเมินและคิวตรวจสอบ",
       items: [
-        { key: "case-detail", label: "Case Detail Workspace", description: "ค้นหาและตรวจสอบรายละเอียดเคส", icon: "document", visible: true, active: activeWorkspaceTab === "case-detail", onClick: () => activateWorkspaceTab("case-detail") },
-        { key: "create-evaluation", label: "Create Evaluation", description: "สร้างการประเมินเคสใหม่", icon: "add", visible: createEvaluationAllowed, active: activeWorkspaceTab === "create-evaluation", onClick: () => activateWorkspaceTab("create-evaluation") },
-        { key: "appeal-requests", label: "Review Queue", description: "ดูรายการเคสที่รอการตรวจสอบ", icon: "queue", visible: appealRequestsAllowed, active: activeWorkspaceTab === "appeal-requests", onClick: () => activateWorkspaceTab("appeal-requests") },
+        { key: "case-detail", label: "Case Detail Workspace", description: "ค้นหาและตรวจสอบรายละเอียดเคส", icon: "document", allowed: true, active: activeWorkspaceTab === "case-detail", onClick: () => activateWorkspaceTab("case-detail") },
+        { key: "create-evaluation", label: "Create Evaluation", description: "สร้างการประเมินเคสใหม่", icon: "add", allowed: createEvaluationAllowed, active: activeWorkspaceTab === "create-evaluation", onClick: () => activateWorkspaceTab("create-evaluation") },
+        { key: "appeal-requests", label: "Review Queue", description: "ดูรายการเคสที่รอการตรวจสอบ", icon: "queue", allowed: appealRequestsAllowed, active: activeWorkspaceTab === "appeal-requests", onClick: () => activateWorkspaceTab("appeal-requests") },
       ],
     },
     {
@@ -5985,8 +5992,8 @@ export default function App() {
       title: "Appeals",
       description: "งานอุทธรณ์และการอนุมัติแก้ไข",
       items: [
-        { key: "appeal-override", label: "Appeal Override", description: "อนุมัติหรือแก้ไขผลอุทธรณ์กรณีพิเศษ", icon: "target", visible: appealOverrideAllowed, active: activeWorkspaceTab === "appeal-override", onClick: () => activateWorkspaceTab("appeal-override") },
-        { key: "appeal", label: "Appeals", description: "ดูและจัดการเคสอุทธรณ์", icon: "appeal", visible: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
+        { key: "appeal-override", label: "Appeal Override", description: "อนุมัติหรือแก้ไขผลอุทธรณ์กรณีพิเศษ", icon: "target", allowed: appealOverrideAllowed, active: activeWorkspaceTab === "appeal-override", onClick: () => activateWorkspaceTab("appeal-override") },
+        { key: "appeal", label: "Appeals", description: "ดูและจัดการเคสอุทธรณ์", icon: "appeal", allowed: true, active: activeWorkspaceTab === "appeal", onClick: () => activateWorkspaceTab("appeal") },
       ],
     },
     {
@@ -5994,10 +6001,10 @@ export default function App() {
       title: "Quality",
       description: "เครื่องมือพัฒนาคุณภาพและการเรียนรู้",
       items: [
-        { key: "coaching", label: "Coaching", description: "บันทึกและติดตามการโค้ช", icon: "chat", visible: coachingAllowed, active: activeWorkspaceTab === "coaching", onClick: () => activateWorkspaceTab("coaching") },
-        { key: "pre-test", label: "Pre-Test", description: "ทำและจัดการแบบทดสอบก่อนเริ่มงาน", icon: "check", visible: preTestAllowed, active: activeWorkspaceTab === "pre-test", onClick: () => activateWorkspaceTab("pre-test") },
-        { key: "rubric", label: "Rubric", description: "จัดการเกณฑ์และแบบฟอร์มให้คะแนน", icon: "list", visible: rubricAllowed, active: activeWorkspaceTab === "rubric", onClick: () => activateWorkspaceTab("rubric") },
-        { key: "training-attendance", label: "Training Attendance", description: "บันทึกและตรวจสอบการเข้าอบรม", icon: "check", visible: trainingAttendanceAllowed, active: activeWorkspaceTab === "training-attendance", onClick: () => activateWorkspaceTab("training-attendance") },
+        { key: "coaching", label: "Coaching", description: "บันทึกและติดตามการโค้ช", icon: "chat", allowed: coachingAllowed, active: activeWorkspaceTab === "coaching", onClick: () => activateWorkspaceTab("coaching") },
+        { key: "pre-test", label: "Pre-Test", description: "ทำและจัดการแบบทดสอบก่อนเริ่มงาน", icon: "check", allowed: preTestAllowed, active: activeWorkspaceTab === "pre-test", onClick: () => activateWorkspaceTab("pre-test") },
+        { key: "rubric", label: "Rubric", description: "จัดการเกณฑ์และแบบฟอร์มให้คะแนน", icon: "list", allowed: rubricAllowed, active: activeWorkspaceTab === "rubric", onClick: () => activateWorkspaceTab("rubric") },
+        { key: "training-attendance", label: "Training Attendance", description: "บันทึกและตรวจสอบการเข้าอบรม", icon: "check", allowed: trainingAttendanceAllowed, active: activeWorkspaceTab === "training-attendance", onClick: () => activateWorkspaceTab("training-attendance") },
       ],
     },
     {
@@ -6005,8 +6012,8 @@ export default function App() {
       title: "Tools",
       description: "เครื่องมือเอกสาร งานนำเสนอ และลายเซ็น",
       items: [
-        { key: "presentation-builder", label: "Presentation Builder", description: "สร้างสไลด์สำหรับนำเสนอข้อมูล", icon: "presentation", visible: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
-        { key: "signature-center", label: "Signature Center", description: "ตรวจสอบและจัดการลายเซ็น", icon: "signature", visible: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
+        { key: "presentation-builder", label: "Presentation Builder", description: "สร้างสไลด์สำหรับนำเสนอข้อมูล", icon: "presentation", allowed: true, active: activeWorkspaceTab === "presentation-builder", onClick: () => activateWorkspaceTab("presentation-builder") },
+        { key: "signature-center", label: "Signature Center", description: "ตรวจสอบและจัดการลายเซ็น", icon: "signature", allowed: true, active: activeWorkspaceTab === "signature-center", onClick: () => activateWorkspaceTab("signature-center") },
       ],
     },
     {
@@ -6014,9 +6021,9 @@ export default function App() {
       title: "Workspace",
       description: "พื้นที่ทำงานและการประสานงานของทีม",
       items: [
-        { key: "call-history", label: "Call History", description: "ดูประวัติการโทรของเคส", icon: "phone", visible: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
-        { key: "team-chat", label: "Team Chat", description: "สนทนาและประสานงานภายในทีม", icon: "chat", visible: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
-        { key: "task-inbox", label: "Work Queue", description: "ดูงานที่ได้รับมอบหมายและงานค้าง", icon: "queue", visible: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
+        { key: "call-history", label: "Call History", description: "ดูประวัติการโทรของเคส", icon: "phone", allowed: teamChatAllowed, active: activeWorkspaceTab === "call-history", onClick: () => activateWorkspaceTab("call-history") },
+        { key: "team-chat", label: "Team Chat", description: "สนทนาและประสานงานภายในทีม", icon: "chat", allowed: teamChatAllowed, active: activeWorkspaceTab === "team-chat", onClick: () => activateWorkspaceTab("team-chat"), badge: totalChatUnreadCount },
+        { key: "task-inbox", label: "Work Queue", description: "ดูงานที่ได้รับมอบหมายและงานค้าง", icon: "queue", allowed: true, active: activeWorkspaceTab === "task-inbox", onClick: openTaskInbox, badge: unreadInboxTaskCount },
       ],
     },
     {
@@ -6024,9 +6031,9 @@ export default function App() {
       title: "Admin",
       description: "จัดการผู้ใช้ สิทธิ์ และประวัติระบบ",
       items: [
-        { key: "usage-log", label: "Activity Log", description: "ดูประวัติการใช้งานระบบ", icon: "clock", visible: usageLogAllowed, active: activeWorkspaceTab === "usage-log", onClick: () => activateWorkspaceTab("usage-log") },
-        { key: "reset-password", label: "Password Reset", description: "รีเซ็ตรหัสผ่านให้ผู้ใช้งาน", icon: "appeal", visible: passwordResetShortcutAllowed, active: false, onClick: () => handleAccountMenuChange("reset-password"), badge: pendingPasswordResetRequestCount },
-        { key: "user-roles", label: "Users & Roles", description: "จัดการผู้ใช้งานและสิทธิ์", icon: "users", visible: roleAdminAllowed, active: activeWorkspaceTab === "user-roles", onClick: () => activateWorkspaceTab("user-roles") },
+        { key: "usage-log", label: "Activity Log", description: "ดูประวัติการใช้งานระบบ", icon: "clock", allowed: usageLogAllowed, active: activeWorkspaceTab === "usage-log", onClick: () => activateWorkspaceTab("usage-log") },
+        { key: "reset-password", label: "Password Reset", description: "รีเซ็ตรหัสผ่านให้ผู้ใช้งาน", icon: "appeal", allowed: passwordResetShortcutAllowed, active: false, onClick: () => handleAccountMenuChange("reset-password"), badge: pendingPasswordResetRequestCount },
+        { key: "user-roles", label: "Users & Roles", description: "จัดการผู้ใช้งานและสิทธิ์", icon: "users", allowed: roleAdminAllowed, active: activeWorkspaceTab === "user-roles", onClick: () => activateWorkspaceTab("user-roles") },
       ],
     },
     {
@@ -6034,8 +6041,8 @@ export default function App() {
       title: "Account",
       description: "ตั้งค่าบัญชีและออกจากระบบ",
       items: [
-        { key: "change-password", label: "Change Password", description: "เปลี่ยนรหัสผ่านของบัญชี", icon: "key", visible: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
-        { key: "logout", label: "Sign Out", description: "ออกจากระบบ", icon: "logout", visible: true, active: false, onClick: () => handleAccountMenuChange("logout"), danger: true },
+        { key: "change-password", label: "Change Password", description: "เปลี่ยนรหัสผ่านของบัญชี", icon: "key", allowed: true, active: false, onClick: () => handleAccountMenuChange("change-password") },
+        { key: "logout", label: "Sign Out", description: "ออกจากระบบ", icon: "logout", allowed: true, active: false, onClick: () => handleAccountMenuChange("logout"), danger: true },
       ],
     },
   ];
@@ -6045,14 +6052,14 @@ export default function App() {
         <style>{`
           :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "276px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
-          .qa-global-sidebar-v36 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
-          .qa-sidebar-nav-v36 { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.32) transparent; }
+          .qa-global-sidebar-v39 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
+          .qa-sidebar-nav-v39 { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.32) transparent; }
           @media (max-width: 900px) {
             :root { --qa-sidebar-width: 80px; }
             .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside className="qa-global-sidebar-v36 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
+        <aside className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
           <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -6070,10 +6077,9 @@ export default function App() {
             </div> : null}
           </div>
 
-          <nav className="qa-sidebar-nav-v36 mt-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Main navigation">
+          <nav className="qa-sidebar-nav-v39 mt-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Main navigation">
             {sidebarGroups.map((group) => {
-              const visibleItems = group.items.filter((item) => item.visible);
-              if (!visibleItems.length) return null;
+              const visibleItems = group.items;
               const isOpen = sidebarGroupsOpen[group.id] !== false;
               return <section key={group.id} className="rounded-xl">
                 {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} aria-label={group.title} aria-expanded={isOpen} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
@@ -6081,10 +6087,11 @@ export default function App() {
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                 </button> : null}
                 {(globalSidebarCollapsed || isOpen) ? <div className="space-y-0.5">
-                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={item.onClick} aria-label={item.label} title={`${item.label} - ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
+                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={() => { if (!item.allowed) { setSidebarPermissionNotice(item.label); return; } setSidebarPermissionNotice(""); item.onClick(); }} aria-label={item.allowed ? item.label : `${item.label}. ไม่มีสิทธิ์ใช้งาน`} aria-disabled={!item.allowed} title={item.allowed ? `${item.label} - ${item.description}` : `${item.label} - ไม่มีสิทธิ์ใช้งาน: ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${!item.allowed ? "cursor-not-allowed border border-white/10 text-violet-300/70 hover:bg-white/5" : item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
                     <SidebarGlyph name={item.icon} />
                     {!globalSidebarCollapsed ? <span className="qa-sidebar-label min-w-0 flex-1 truncate">{item.label}</span> : null}
-                    {item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span> : null}
+                    {!item.allowed ? <svg viewBox="0 0 24 24" className="ml-auto h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> : null}
+                    {item.allowed && item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span> : null}
                   </button>)}
                 </div> : null}
               </section>;
@@ -6140,6 +6147,12 @@ export default function App() {
             <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} className="mt-2 flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10" aria-label={globalSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
         </aside>
+
+        {sidebarPermissionNotice ? <div className="qa-sidebar-permission-toast-v39 fixed right-6 top-24 z-[140] flex w-[min(360px,calc(100vw-2rem))] items-start gap-3 rounded-2xl border border-amber-200 bg-white p-4 text-slate-800 shadow-[0_18px_45px_rgba(30,41,59,0.22)]" role="status" aria-live="polite">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <div className="min-w-0 flex-1"><div className="font-black text-slate-900">ไม่มีสิทธิ์ใช้งาน {sidebarPermissionNotice}</div><div className="mt-1 text-sm text-slate-600">กรุณาติดต่อ Admin หากต้องการเปิดสิทธิ์เมนูนี้</div></div>
+          <button type="button" onClick={() => setSidebarPermissionNotice("")} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close permission notice">×</button>
+        </div> : null}
 
       <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogoutNow={handleLogout} />
 
@@ -6428,7 +6441,6 @@ export default function App() {
     </>
   );
 }
-
 
 
 
