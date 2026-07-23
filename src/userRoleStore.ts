@@ -11,6 +11,22 @@ const ROLE_DEFINITION_COLLECTION = "qa_role_definitions";
 const ROLE_PERMISSION_COLLECTION = "qa_role_permissions";
 const SYSTEM_SETTINGS_COLLECTION = "qa_system_settings";
 
+export type StoredHistoryChange = {
+  field: string;
+  before: string;
+  after: string;
+};
+
+export type StoredHistoryItem = {
+  id: string;
+  title: string;
+  detail: string;
+  createdAt: string;
+  updatedBy?: string;
+  category?: string;
+  changes?: StoredHistoryChange[];
+};
+
 export type StoredUserProfile = {
   username: string;
   displayName: string;
@@ -28,6 +44,9 @@ export type StoredUserProfile = {
   passwordKind?: string;
   passwordIssuedAt?: string;
   passwordExpiresAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  history?: StoredHistoryItem[];
 };
 
 export type StoredRoleDefinition = {
@@ -212,6 +231,24 @@ function toUserProfile(row: any): StoredUserProfile {
         row.password_expires_at ||
         ""
     ),
+    createdAt: String(
+      row.createdAt ||
+        row.created_at ||
+        row.userCreatedAt ||
+        ""
+    ),
+    updatedAt: String(
+      row.updatedAt ||
+        row.updated_at ||
+        ""
+    ),
+    history: (
+      Array.isArray(row.history)
+        ? row.history
+        : Array.isArray(row.profileHistory)
+          ? row.profileHistory
+          : []
+    ) as StoredHistoryItem[],
   };
 }
 
@@ -228,7 +265,9 @@ function fromUserProfile(profile: StoredUserProfile) {
     suspendReason: profile.suspendReason,
     suspendEffectiveDate:
       profile.suspendEffectiveDate || "",
-    updatedAt: new Date().toISOString(),
+    updatedAt:
+      profile.updatedAt ||
+      new Date().toISOString(),
     updatedAtServer: serverTimestamp(),
   };
 
@@ -242,6 +281,18 @@ function fromUserProfile(profile: StoredUserProfile) {
   ) {
     row.suspendAutoReactivate =
       profile.suspendAutoReactivate === true;
+  }
+
+  if (profile.createdAt) {
+    row.createdAt = profile.createdAt;
+    row.userCreatedAt =
+      profile.createdAt;
+  }
+
+  if (profile.history?.length) {
+    row.history = profile.history;
+    row.profileHistory =
+      profile.history;
   }
 
   if (profile.password) {

@@ -105,6 +105,7 @@ type UserMeta = {
   employmentEndDate: string;
   offboardingNote: string;
   history: HistoryItem[];
+  createdAt: string;
   passwordIssuedAt: string;
   updatedAt: string;
 };
@@ -185,6 +186,7 @@ function emptyMeta(): UserMeta {
     employmentEndDate: "",
     offboardingNote: "",
     history: [],
+    createdAt: "",
     passwordIssuedAt: "",
     updatedAt: "",
   };
@@ -224,24 +226,112 @@ function todayBangkok() {
   }).format(new Date());
 }
 
+function dateValueToIso(value: unknown) {
+  if (!value) return "";
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown })
+      .toDate === "function"
+  ) {
+    const date = (
+      value as { toDate: () => Date }
+    ).toDate();
+    return Number.isNaN(date.getTime())
+      ? ""
+      : date.toISOString();
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "seconds" in value
+  ) {
+    const seconds = Number(
+      (value as { seconds?: unknown })
+        .seconds
+    );
+    if (Number.isFinite(seconds)) {
+      return new Date(
+        seconds * 1000
+      ).toISOString();
+    }
+  }
+
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const date = new Date(text);
+  return Number.isNaN(date.getTime())
+    ? text
+    : date.toISOString();
+}
+
 function thaiDate(value: string) {
   if (!value) return "-";
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" }).format(date);
+
+  const direct = String(value).match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
+
+  if (direct) {
+    return `${direct[2]}/${direct[3]}/${direct[1]}`;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const parts =
+    new Intl.DateTimeFormat("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Bangkok",
+    }).formatToParts(date);
+  const map = Object.fromEntries(
+    parts.map((part) => [
+      part.type,
+      part.value,
+    ])
+  );
+
+  return `${map.month}/${map.day}/${map.year}`;
 }
 
 function formatDateTime(value: string) {
   if (!value) return "-";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("th-TH", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "Asia/Bangkok",
-      }).format(date);
+
+  const normalized =
+    dateValueToIso(value);
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const parts =
+    new Intl.DateTimeFormat("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: "Asia/Bangkok",
+    }).formatToParts(date);
+  const map = Object.fromEntries(
+    parts.map((part) => [
+      part.type,
+      part.value,
+    ])
+  );
+
+  return `${map.month}/${map.day}/${map.year} ${map.hour}:${map.minute}`;
 }
 
 function valueOrDash(value: unknown) {
@@ -503,13 +593,54 @@ function metaFromData(id: string, data: any): UserMeta {
           : "")
     ),
     offboardingNote: String(data?.offboardingNote || ""),
-    history: Array.isArray(data?.history)
-      ? data.history
-      : Array.isArray(data?.profileHistory)
-        ? data.profileHistory
+    history: (
+      Array.isArray(data?.history)
+        ? data.history
+        : Array.isArray(data?.profileHistory)
+          ? data.profileHistory
+          : []
+    ).map((item: any, index: number) => ({
+      ...item,
+      id: String(
+        item?.id ||
+          `history-${index + 1}`
+      ),
+      title: String(
+        item?.title ||
+          item?.category ||
+          "Profile Updated"
+      ),
+      detail: String(
+        item?.detail || ""
+      ),
+      createdAt: dateValueToIso(
+        item?.createdAt ||
+          item?.created_at ||
+          ""
+      ),
+      updatedBy: String(
+        item?.updatedBy ||
+          item?.updated_by ||
+          ""
+      ),
+      changes: Array.isArray(
+        item?.changes
+      )
+        ? item.changes
         : [],
-    passwordIssuedAt: String(data?.passwordIssuedAt || ""),
-    updatedAt: String(data?.updatedAt || ""),
+    })),
+    createdAt: dateValueToIso(
+      data?.createdAt ||
+        data?.userCreatedAt ||
+        data?.accountCreatedAt ||
+        ""
+    ),
+    passwordIssuedAt: dateValueToIso(
+      data?.passwordIssuedAt || ""
+    ),
+    updatedAt: dateValueToIso(
+      data?.updatedAt || ""
+    ),
   };
 }
 
@@ -992,24 +1123,384 @@ function auditHistoryTitle(
     );
 
     return cancelled
-      ? "ยกเลิกกำหนดการระงับบัญชี"
-      : "กำหนดวันระงับบัญชี";
+      ? "Suspension Schedule Cancelled"
+      : "Suspension Scheduled";
   }
 
   if (offboardingOnly) {
-    return "อัปเดต Offboarding";
+    return "Offboarding Updated";
   }
 
   if (deviceOnly) {
-    return "อัปเดตข้อมูลอุปกรณ์";
+    return "Device Updated";
   }
 
   if (accountOnly) {
-    return "แก้ไขข้อมูลบัญชี";
+    return "Profile Updated";
   }
 
-  return "แก้ไขข้อมูล Profile";
+  return "Profile Updated";
 }
+
+
+function inferUserCreatedAt(meta: UserMeta) {
+  if (meta.createdAt) {
+    return meta.createdAt;
+  }
+
+  const explicitHistory = meta.history
+    .filter((item) => {
+      const text = `${item.title || ""} ${item.category || ""}`.toLowerCase();
+      return (
+        text.includes("user created") ||
+        text.includes("created user") ||
+        text.includes("สร้าง user") ||
+        text.includes("เปิดใช้งานบัญชี")
+      );
+    })
+    .map((item) => dateValueToIso(item.createdAt))
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        new Date(a).getTime() -
+        new Date(b).getTime()
+    );
+
+  if (explicitHistory[0]) {
+    return explicitHistory[0];
+  }
+
+  const earliestKnown = [
+    ...meta.history.map((item) =>
+      dateValueToIso(item.createdAt)
+    ),
+    dateValueToIso(meta.passwordIssuedAt),
+    dateValueToIso(meta.updatedAt),
+  ]
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        new Date(a).getTime() -
+        new Date(b).getTime()
+    );
+
+  return earliestKnown[0] || "";
+}
+
+function historyTitleEnglish(item: HistoryItem) {
+  const source = `${item.title || ""} ${item.category || ""}`.toLowerCase();
+
+  if (
+    source.includes("user created") ||
+    source.includes("created user") ||
+    source.includes("สร้าง user") ||
+    source.includes("เปิดใช้งานบัญชี")
+  ) {
+    return "User Created";
+  }
+
+  if (
+    source.includes("device added") ||
+    source.includes("เพิ่มอุปกรณ์")
+  ) {
+    return "Device Added";
+  }
+
+  if (
+    source.includes("device") ||
+    source.includes("อุปกรณ์")
+  ) {
+    return "Device Updated";
+  }
+
+  if (
+    source.includes("offboarding")
+  ) {
+    return "Offboarding Updated";
+  }
+
+  if (
+    source.includes("suspension") ||
+    source.includes("suspend") ||
+    source.includes("ระงับ")
+  ) {
+    return source.includes("cancel") ||
+      source.includes("ยกเลิก")
+      ? "Suspension Schedule Cancelled"
+      : "Suspension Scheduled";
+  }
+
+  return "Profile Updated";
+}
+
+function historyFieldEnglish(value: string) {
+  const exact: Record<string, string> = {
+    "ชื่อ–นามสกุล": "Full Name",
+    "ชื่อเล่น": "Preferred Name",
+    "อีเมล": "Work Email",
+    "ทีม": "Team",
+    "หัวหน้าทีม": "Team Lead",
+    "สถานะบัญชี": "Account Status",
+    "รหัสพนักงาน": "Employee ID",
+    "เบอร์สำนักงาน": "Office Number",
+    "เบอร์ต่อภายใน": "Extension",
+    "หมายเลขสำนักงานสำรอง": "Backup Office Number",
+    "หมายเหตุการติดต่อ": "Contact Note",
+    "วันที่มีผลระงับบัญชี": "Suspension Effective Date",
+    "เหตุผลการระงับบัญชี": "Suspension Reason",
+    "สถานะ Offboarding": "Offboarding Status",
+    "วันที่สิ้นสุดงาน": "Employment End Date",
+    "หมายเหตุ Offboarding": "Offboarding Note",
+  };
+
+  if (exact[value]) {
+    return exact[value];
+  }
+
+  return value
+    .replace(/^อุปกรณ์เครื่องที่\s*(\d+)/, "Device $1")
+    .replace(" · สถานะ", " · Status")
+    .replace(" · รุ่น", " · Model")
+    .replace(" · วันที่มอบหมาย", " · Assigned Date")
+    .replace(" · สถานะการคืน", " · Return Status")
+    .replace(" · วันที่คืน", " · Return Date")
+    .replace(" · สภาพอุปกรณ์", " · Condition")
+    .replace(" · ผู้ส่งคืน", " · Returned By")
+    .replace(" · ผู้รับคืน", " · Received By")
+    .replace(" · รายการคืน", " · Returned Items");
+}
+
+function historyValueEnglish(value: string) {
+  const exact: Record<string, string> = {
+    "ไม่ได้ระบุ": "Not provided",
+    "ยังไม่ได้เริ่ม": "Not started",
+    "อยู่ระหว่าง Offboarding": "In progress",
+    "สิ้นสุดงานแล้ว": "Completed",
+    "กำลังใช้งาน": "In use",
+    "อยู่ระหว่างซ่อม": "Under repair",
+    "คืนอุปกรณ์แล้ว": "Returned",
+    "ยังไม่มีอุปกรณ์": "Not assigned",
+    "รอดำเนินการคืน": "Pending return",
+    "นัดหมายคืนแล้ว": "Return scheduled",
+    "คืนครบแล้ว": "Return complete",
+    "คืนไม่ครบ": "Return incomplete",
+    "อุปกรณ์สูญหาย": "Lost",
+    "ยังไม่ได้ตรวจสอบ": "Not checked",
+    "ปกติ": "Normal",
+    "มีรอยใช้งาน": "Used",
+    "ชำรุด": "Damaged",
+    "ต้องส่งซ่อม": "Repair required",
+  };
+
+  return exact[value] || value;
+}
+
+function historyTooltipThai(item: HistoryItem) {
+  const title = historyTitleEnglish(item);
+
+  if (title === "User Created") {
+    return "กดเพื่อดูข้อมูลพื้นฐานตอนสร้าง User รายการนี้";
+  }
+
+  if (
+    title === "Device Added" ||
+    title === "Device Updated"
+  ) {
+    return "กดเพื่อดูว่ามีการเพิ่มหรือแก้ไขข้อมูลอุปกรณ์อะไร";
+  }
+
+  if (
+    title.includes("Suspension")
+  ) {
+    return "กดเพื่อดูข้อมูลการกำหนดหรือยกเลิกวันระงับบัญชี";
+  }
+
+  if (
+    title === "Offboarding Updated"
+  ) {
+    return "กดเพื่อดูข้อมูล Offboarding ที่มีการแก้ไข";
+  }
+
+  return "กดเพื่อดูว่ารายการนี้แก้ไขข้อมูลอะไร จากค่าเดิมเป็นค่าใหม่";
+}
+
+function HistoryTimeline({
+  items,
+}: {
+  items: HistoryItem[];
+}) {
+  const [openHistoryId, setOpenHistoryId] =
+    useState("");
+  const closeTimerRef =
+    useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (
+        closeTimerRef.current !== null
+      ) {
+        window.clearTimeout(
+          closeTimerRef.current
+        );
+      }
+    };
+  }, []);
+
+  const toggleHistory = (id: string) => {
+    if (
+      closeTimerRef.current !== null
+    ) {
+      window.clearTimeout(
+        closeTimerRef.current
+      );
+      closeTimerRef.current = null;
+    }
+
+    setOpenHistoryId((current) => {
+      if (current === id) {
+        return "";
+      }
+
+      closeTimerRef.current =
+        window.setTimeout(() => {
+          setOpenHistoryId((active) =>
+            active === id ? "" : active
+          );
+          closeTimerRef.current = null;
+        }, 6000);
+
+      return id;
+    });
+  };
+
+  return (
+    <Section
+      id="profile-history"
+      icon="◔"
+      title="Account & Device History"
+      subtitle="Latest account, profile, and device updates."
+    >
+      <div
+        data-profile-history-v78="true"
+        className="relative ml-1 border-l-2 border-violet-100 pl-5"
+      >
+        {items.map((item, itemIndex) => {
+          const englishTitle =
+            historyTitleEnglish(item);
+          const created =
+            englishTitle === "User Created";
+          const open =
+            openHistoryId === item.id;
+
+          return (
+            <div
+              key={item.id}
+              className="relative pb-5 last:pb-0"
+            >
+              <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full bg-violet-600 ring-4 ring-violet-50" />
+
+              <div className="text-[10px] font-semibold text-violet-600">
+                {formatDateTime(
+                  item.createdAt
+                )}
+              </div>
+
+              <div className="mt-1 text-base font-semibold text-slate-950">
+                {englishTitle}
+              </div>
+
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+                <span>
+                  {created
+                    ? "Created by"
+                    : "Updated by"}{" "}
+                  {item.updatedBy ||
+                    "System"}
+                </span>
+
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-label="Open change information"
+                  onClick={() =>
+                    toggleHistory(item.id)
+                  }
+                  className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full text-sm font-semibold text-violet-600 hover:bg-violet-50"
+                >
+                  &gt;
+                  <span className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-64 -translate-x-1/2 translate-y-1 rounded-xl bg-slate-950 px-3 py-2 text-left text-[10px] font-normal leading-4 text-white opacity-0 shadow-xl transition group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+                    {historyTooltipThai(item)}
+                  </span>
+                </button>
+              </div>
+
+              {open ? (
+                <div className="mt-2 space-y-1 text-[11px] leading-5 text-slate-600">
+                  {item.changes?.length ? (
+                    item.changes.map(
+                      (change, index) => {
+                        const before =
+                          historyValueEnglish(
+                            change.before
+                          );
+                        const after =
+                          historyValueEnglish(
+                            change.after
+                          );
+                        const field =
+                          historyFieldEnglish(
+                            change.field
+                          );
+                        const added =
+                          before ===
+                            "Not provided" &&
+                          after !==
+                            "Not provided";
+                        const removed =
+                          after ===
+                            "Not provided" &&
+                          before !==
+                            "Not provided";
+
+                        return (
+                          <div
+                            key={`${item.id}-${change.field}-${index}`}
+                          >
+                            <b className="font-medium text-slate-900">
+                              {field}:
+                            </b>{" "}
+                            {added
+                              ? `Added ${after}`
+                              : removed
+                                ? `Removed ${before}`
+                                : `${before} → ${after}`}
+                          </div>
+                        );
+                      }
+                    )
+                  ) : item.detail ? (
+                    <div>{item.detail}</div>
+                  ) : (
+                    <div>
+                      No additional change
+                      information.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {itemIndex <
+              items.length - 1 ? (
+                <div className="mt-4 w-80 max-w-[88%] border-t-2 border-dashed border-violet-200" />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 function Section({
   id,
   icon,
@@ -1025,16 +1516,36 @@ function Section({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const grouped =
+    id === "profile-account" ||
+    id === "profile-contact" ||
+    id === "profile-devices";
+
   return (
-    <section id={id} className="scroll-mt-24 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+    <section
+      id={id}
+      className={
+        grouped
+          ? `scroll-mt-24 bg-white ${
+              id === "profile-account"
+                ? ""
+                : "border-t border-slate-200"
+            }`
+          : "scroll-mt-24 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm"
+      }
+    >
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-lg text-violet-700">
             {icon}
           </div>
           <div>
-            <div className="text-base font-semibold text-slate-950">{title}</div>
-            <div className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</div>
+            <div className="text-base font-semibold text-slate-950">
+              {title}
+            </div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">
+              {subtitle}
+            </div>
           </div>
         </div>
         {action}
@@ -1624,6 +2135,9 @@ export default function CorporateUserDirectoryProfile({
       docId:
         metaDraft.docId ||
         safeId(user.username),
+      createdAt:
+        metaDraft.createdAt ||
+        inferUserCreatedAt(savedMeta),
       updatedAt:
         new Date().toISOString(),
     };
@@ -1785,6 +2299,10 @@ export default function CorporateUserDirectoryProfile({
           history: nextMeta.history,
           profileHistory:
             nextMeta.history,
+          createdAt:
+            nextMeta.createdAt || "",
+          userCreatedAt:
+            nextMeta.createdAt || "",
           deviceStatus:
             primary?.status ||
             "Not Assigned",
@@ -2334,7 +2852,11 @@ export default function CorporateUserDirectoryProfile({
               </div>
 
               <div className="space-y-4 p-5 pb-28">
-                <Section id="profile-account" icon="◎" title="Account Information" subtitle="ข้อมูลบัญชี Role ทีม และสิทธิ์">
+                <div
+                  data-unified-profile-details-v78="true"
+                  className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm"
+                >
+                <Section id="profile-account" icon="◎" title="Account Information" subtitle="ข้อมูลบัญชี Role ทีม สิทธิ์ และวันที่สร้าง User">
                   <div className="grid gap-x-6 xl:grid-cols-2">
                     <Field label="ชื่อ–นามสกุล" value={account.displayName} editing={editing} onChange={(value) => updateAccount("displayName", value)} />
                     <Field
@@ -2349,6 +2871,30 @@ export default function CorporateUserDirectoryProfile({
                     <Field label="Username" value={account.username} editing={false} />
                     <Field label="อีเมลสำหรับงาน" value={account.email} editing={editing} onChange={(value) => updateAccount("email", value)} />
                     <Field label="รหัสพนักงาน" value={meta.employeeId} editing={editing} onChange={(value) => updateMeta("employeeId", value)} />
+                    <Field
+                      label="วันที่สร้าง User"
+                      value={formatDateTime(
+                        inferUserCreatedAt(
+                          savedMeta
+                        )
+                      )}
+                      editing={false}
+                    />
+                    <Field
+                      label="อัปเดตข้อมูลล่าสุด"
+                      value={formatDateTime(
+                        savedMeta.updatedAt
+                      )}
+                      editing={false}
+                    />
+                    <Field
+                      label="ผู้แก้ไขล่าสุด"
+                      value={
+                        savedMeta.history[0]
+                          ?.updatedBy || ""
+                      }
+                      editing={false}
+                    />
                     <Field label="Role" value={account.role} editing={editing} onChange={(value) => updateAccount("role", value)} options={accountOptions} />
                     <Field label="ทีม" value={account.teamName} editing={editing} onChange={(value) => updateAccount("teamName", value)} options={teamOptions} />
                     <Field label="หัวหน้าทีม" value={account.teamLead} editing={editing} onChange={(value) => updateAccount("teamLead", value)} />
@@ -2392,53 +2938,138 @@ export default function CorporateUserDirectoryProfile({
                 >
                   {meta.devices.length ? (
                     <>
-                      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-                        {meta.devices.map((device, index) => (
-                          <button
-                            key={device.id}
-                            type="button"
-                            title={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
-                            onClick={() => setSelectedDeviceId(device.id)}
-                            className={`rounded-[18px] border p-4 text-left ${
-                              selectedDevice?.id === device.id
-                                ? "border-violet-300 bg-violet-50"
-                                : "border-slate-200 bg-white"
-                            }`}
-                          >
-                            <div className="flex justify-between gap-2">
-                              <div>
-                                <div className="text-xs text-violet-700">อุปกรณ์เครื่องที่ {index + 1}</div>
-                                <div className="mt-1 font-semibold">
-                                  {[device.brand, device.model].filter(Boolean).join(" ") ||
-                                    (device.workSim
-                                      ? `Work SIM ${device.workSim}`
-                                      : `อุปกรณ์เครื่องที่ ${index + 1}`)}
+                                             {editing ? (
+                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                          {meta.devices.map((device, index) => (
+                            <button
+                              key={device.id}
+                              type="button"
+                              title={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
+                              onClick={() => setSelectedDeviceId(device.id)}
+                              className={`rounded-[18px] border p-4 text-left ${
+                                selectedDevice?.id === device.id
+                                  ? "border-violet-300 bg-violet-50"
+                                  : "border-slate-200 bg-white"
+                              }`}
+                            >
+                              <div className="flex justify-between gap-2">
+                                <div>
+                                  <div className="text-xs text-violet-700">
+                                    อุปกรณ์เครื่องที่ {index + 1}
+                                  </div>
+                                  <div className="mt-1 font-semibold">
+                                    {[device.brand, device.model]
+                                      .filter(Boolean)
+                                      .join(" ") ||
+                                      (device.workSim
+                                        ? `Work SIM ${device.workSim}`
+                                        : `อุปกรณ์เครื่องที่ ${index + 1}`)}
+                                  </div>
                                 </div>
+                                {device.isPrimary ? (
+                                  <span className="h-fit rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">
+                                    เครื่องหลัก
+                                  </span>
+                                ) : null}
                               </div>
-                              {device.isPrimary ? (
-                                <span className="h-fit rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">เครื่องหลัก</span>
-                              ) : null}
-                            </div>
-                            <div className="mt-2 text-xs text-slate-500">
-                              {[
-                                statusLabel(
-                                  effectiveDeviceStatus(device)
-                                ),
-                                device.assetId
-                                  ? `Asset ${device.assetId}`
+                              <div className="mt-2 text-xs text-slate-500">
+                                {[
+                                  statusLabel(
+                                    effectiveDeviceStatus(
+                                      device
+                                    )
+                                  ),
+                                  device.assetId
+                                    ? `Asset ${device.assetId}`
+                                    : "",
+                                  device.workSim
+                                    ? `Work SIM ${device.workSim}`
+                                    : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-[16px] border border-slate-200">
+                          {meta.devices.map((device, index) => {
+                            const details = [
+                              ["Asset ID", device.assetId],
+                              ["Work SIM", device.workSim],
+                              [
+                                "Assigned Date",
+                                device.assignedDate
+                                  ? thaiDate(
+                                      device.assignedDate
+                                    )
                                   : "",
-                                device.workSim
-                                  ? `Work SIM ${device.workSim}`
-                                  : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                              ],
+                              [
+                                "SIM Package",
+                                device.simPackage,
+                              ],
+                            ].filter(([, value]) =>
+                              String(value || "").trim()
+                            );
 
-                      {selectedDevice ? (
+                            return (
+                              <button
+                                key={device.id}
+                                type="button"
+                                title={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
+                                onClick={() =>
+                                  setSelectedDeviceId(
+                                    device.id
+                                  )
+                                }
+                                className="flex w-full flex-col gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 lg:flex-row lg:items-center"
+                              >
+                                <div className="min-w-[220px]">
+                                  <div className="text-[10px] font-medium text-violet-600">
+                                    Device {index + 1}
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-950">
+                                    {[device.brand, device.model]
+                                      .filter(Boolean)
+                                      .join(" ") ||
+                                      (device.workSim
+                                        ? `Work SIM ${device.workSim}`
+                                        : `Device ${index + 1}`)}
+                                  </div>
+                                  <span className="mt-1.5 inline-flex rounded-full bg-blue-50 px-2 py-1 text-[9px] font-medium text-blue-700">
+                                    {statusLabel(
+                                      effectiveDeviceStatus(
+                                        device
+                                      )
+                                    )}
+                                  </span>
+                                </div>
+
+                                {details.length ? (
+                                  <div className="grid flex-1 gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
+                                    {details.map(
+                                      ([label, value]) => (
+                                        <div key={label}>
+                                          <div className="text-[9px] text-slate-400">
+                                            {label}
+                                          </div>
+                                          <div className="mt-1 break-words text-[11px] font-medium text-slate-800">
+                                            {value}
+                                          </div>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {selectedDevice && editing ? (
                         <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 p-4">
                           {editing ? (
                             <div className="mb-3 flex justify-end gap-2">
@@ -2524,7 +3155,9 @@ export default function CorporateUserDirectoryProfile({
 
                                 ) : null}
 
-                                <Section
+                </div>
+
+                <Section
                   id="profile-lifecycle"
                   icon="◷"
                   title="กำหนดวันระงับบัญชี"
@@ -3059,80 +3692,9 @@ export default function CorporateUserDirectoryProfile({
                 ) : null}
 
                 {meta.history.length ? (
-                  <Section
-                    id="profile-history"
-                    icon="◔"
-                    title="Account & Device History"
-                    subtitle="Stamp วัน เวลา ผู้ดำเนินการ และค่าที่เปลี่ยนล่าสุด"
-                  >
-                    <div className="relative ml-1 border-l-2 border-violet-100 pl-5">
-                      {meta.history.map(
-                        (item) => (
-                          <div
-                            key={item.id}
-                            className="relative pb-6 last:pb-0"
-                          >
-                            <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full bg-violet-600 ring-4 ring-violet-50" />
-
-                            <div className="text-[10px] font-medium text-violet-600">
-                              {formatDateTime(
-                                item.createdAt
-                              )}
-                            </div>
-                            <div className="mt-1 text-sm font-semibold text-slate-900">
-                              {item.title}
-                            </div>
-                            <div className="mt-1 text-[11px] text-slate-500">
-                              ดำเนินการโดย{" "}
-                              {item.updatedBy ||
-                                "System"}
-                            </div>
-
-                            {item.changes?.length ? (
-                              <div className="mt-3 overflow-hidden rounded-[15px] border border-slate-200 bg-slate-50">
-                                {item.changes.map(
-                                  (
-                                    change,
-                                    index
-                                  ) => (
-                                    <div
-                                      key={`${item.id}-${change.field}-${index}`}
-                                      className="grid gap-2 border-b border-slate-200 px-3 py-2.5 last:border-0 md:grid-cols-[150px_minmax(0,1fr)]"
-                                    >
-                                      <span className="text-[10px] text-slate-500">
-                                        {
-                                          change.field
-                                        }
-                                      </span>
-                                      <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                                        <span className="rounded-lg bg-white px-2 py-1 text-slate-500">
-                                          {
-                                            change.before
-                                          }
-                                        </span>
-                                        <span className="text-violet-500">
-                                          →
-                                        </span>
-                                        <b className="rounded-lg bg-violet-50 px-2 py-1 font-medium text-violet-700">
-                                          {
-                                            change.after
-                                          }
-                                        </b>
-                                      </div>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            ) : item.detail ? (
-                              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                                {item.detail}
-                              </div>
-                            ) : null}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </Section>
+                  <HistoryTimeline
+                    items={meta.history}
+                  />
                 ) : null}
               </div>
 

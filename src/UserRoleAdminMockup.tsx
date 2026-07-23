@@ -14,6 +14,7 @@ import {
   upsertStoredRoleDefinition,
   upsertStoredRolePermissions,
   upsertStoredUserProfiles,
+  type StoredUserProfile,
 } from "./userRoleStore";
 
 type UserRole = string;
@@ -527,7 +528,17 @@ function buildRoleDefinitionsFromStore(rows: Array<{
   return Array.from(roleMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function editableToStoredProfile(user: EditableUser) {
+function editableToStoredProfile(
+  user: EditableUser,
+  metadata: Partial<
+    Pick<
+      StoredUserProfile,
+      "createdAt" |
+        "updatedAt" |
+        "history"
+    >
+  > = {}
+): StoredUserProfile {
   const suspended =
     user.status === "Suspended";
 
@@ -542,6 +553,7 @@ function editableToStoredProfile(user: EditableUser) {
     status: user.status,
     suspendReason: user.suspendReason,
     suspendEffectiveDate: user.suspendEffectiveDate,
+    ...metadata,
   };
 }
 
@@ -1352,6 +1364,36 @@ export default function UserRoleAdminMockup({
       newUserDraft.displayName.trim();
     const temporaryPassword =
       generateTemporaryPassword();
+    const createdAt =
+      new Date().toISOString();
+    const createdBy =
+      currentUser?.displayName ||
+      currentUser?.username ||
+      "System";
+    const creationHistory = [
+      {
+        id: `history-created-${Date.now()}`,
+        title: "User Created",
+        detail: "",
+        createdAt,
+        updatedBy: createdBy,
+        category: "User Created",
+        changes: [
+          {
+            field: "Account",
+            before: "Not created",
+            after: `${newUserDraft.username.trim()} · Active`,
+          },
+          {
+            field: "Role",
+            before: "Not assigned",
+            after: normalizeRoleName(
+              newUserDraft.role
+            ),
+          },
+        ],
+      },
+    ];
     const cleanedUser: EditableUser = {
       ...newUserDraft,
       username:
@@ -1405,7 +1447,12 @@ export default function UserRoleAdminMockup({
     try {
       await upsertStoredUserProfiles([
         editableToStoredProfile(
-          cleanedUser
+          cleanedUser,
+          {
+            createdAt,
+            updatedAt: createdAt,
+            history: creationHistory,
+          }
         ),
       ]);
 
@@ -1423,12 +1470,12 @@ export default function UserRoleAdminMockup({
               currentUser?.username ||
               "",
             updatedAt:
-              new Date().toISOString(),
+              createdAt,
           },
         }
       );
 
-      const issuedAt = new Date();
+      const issuedAt = new Date(createdAt);
 
       await logUsageEventBestEffort(
         currentUser,
