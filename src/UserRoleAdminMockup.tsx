@@ -2058,7 +2058,7 @@ export default function UserRoleAdminMockup({
                         แก้ไขข้อมูลผู้ใช้หลายบัญชี
                       </div>
                       <div className="mt-1 text-sm text-slate-500">
-                        ใช้สำหรับแก้ Role ทีม สถานะบัญชี และสร้างรหัสผ่านชั่วคราว
+                        เลือกและอัปเดต Role ทีม สถานะบัญชี วันระงับ และรหัสผ่านชั่วคราวให้หลายบัญชีพร้อมกัน
                       </div>
                     </div>
 
@@ -2145,6 +2145,7 @@ export default function UserRoleAdminMockup({
 
                 <EditableDirectoryTable
                   users={visibleDraftUsers}
+                  allUsers={draftUsers}
                   saving={saving}
                   roleOptions={activeRoleOptions}
                   onChange={updateDraftUser}
@@ -5169,119 +5170,850 @@ function MiniAccessCard({ label, value }: { label: string; value: number }) {
 
 function EditableDirectoryTable({
   users,
+  allUsers,
   saving,
   roleOptions,
   onChange,
   onGeneratePassword,
 }: {
-  users: Array<{ user: EditableUser; index: number }>;
+  users: Array<{
+    user: EditableUser;
+    index: number;
+  }>;
+  allUsers: EditableUser[];
   saving: boolean;
   roleOptions: string[];
-  onChange: (index: number, key: keyof EditableUser, value: string) => void;
-  onGeneratePassword: (index: number) => void;
+  onChange: (
+    index: number,
+    key: keyof EditableUser,
+    value: string
+  ) => void;
+  onGeneratePassword: (
+    index: number
+  ) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const [teamFilter, setTeamFilter] =
+    useState("all");
+  const [
+    selectedUsernames,
+    setSelectedUsernames,
+  ] = useState<string[]>([]);
+  const [bulkRole, setBulkRole] =
+    useState("");
+  const [bulkTeam, setBulkTeam] =
+    useState("");
+  const [bulkStatus, setBulkStatus] =
+    useState("");
+  const [bulkDate, setBulkDate] =
+    useState("");
+
+  const teamOptions = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        name: string;
+        teamLead: string;
+      }
+    >();
+
+    allUsers
+      .filter(
+        (user) =>
+          user.status === "Active" &&
+          user.teamName.trim()
+      )
+      .forEach((user) => {
+        const name = user.teamName.trim();
+        const existing = map.get(name);
+
+        if (!existing) {
+          map.set(name, {
+            name,
+            teamLead:
+              user.teamLead.trim(),
+          });
+          return;
+        }
+
+        if (
+          !existing.teamLead &&
+          user.teamLead.trim()
+        ) {
+          map.set(name, {
+            ...existing,
+            teamLead:
+              user.teamLead.trim(),
+          });
+        }
+      });
+
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        a.name.localeCompare(b.name)
+    );
+  }, [allUsers]);
+
+  const visibleUsers = useMemo(() => {
+    const keyword =
+      search.trim().toLowerCase();
+
+    return users.filter(({ user }) => {
+      const matchesTeam =
+        teamFilter === "all" ||
+        user.teamName === teamFilter;
+
+      if (!matchesTeam) return false;
+      if (!keyword) return true;
+
+      return [
+        user.username,
+        user.displayName,
+        user.agentName,
+        user.email,
+        user.teamLead,
+        user.teamName,
+        user.role,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword);
+    });
+  }, [search, teamFilter, users]);
+
+  const selectedKeys = useMemo(
+    () =>
+      new Set(
+        selectedUsernames.map(
+          normalizeUsername
+        )
+      ),
+    [selectedUsernames]
+  );
+
+  useEffect(() => {
+    const available = new Set(
+      allUsers.map((user) =>
+        normalizeUsername(user.username)
+      )
+    );
+
+    setSelectedUsernames((current) =>
+      current.filter((username) =>
+        available.has(
+          normalizeUsername(username)
+        )
+      )
+    );
+  }, [allUsers]);
+
+  const selectedCount =
+    selectedUsernames.length;
+
+  const allVisibleSelected =
+    visibleUsers.length > 0 &&
+    visibleUsers.every(({ user }) =>
+      selectedKeys.has(
+        normalizeUsername(user.username)
+      )
+    );
+
+  const toggleUser = (
+    username: string
+  ) => {
+    const key = normalizeUsername(username);
+
+    setSelectedUsernames((current) => {
+      const exists = current.some(
+        (item) =>
+          normalizeUsername(item) === key
+      );
+
+      return exists
+        ? current.filter(
+            (item) =>
+              normalizeUsername(item) !== key
+          )
+        : [...current, username];
+    });
+  };
+
+  const toggleAllVisible = () => {
+    if (allVisibleSelected) {
+      const visibleKeys = new Set(
+        visibleUsers.map(({ user }) =>
+          normalizeUsername(user.username)
+        )
+      );
+
+      setSelectedUsernames((current) =>
+        current.filter(
+          (username) =>
+            !visibleKeys.has(
+              normalizeUsername(username)
+            )
+        )
+      );
+      return;
+    }
+
+    setSelectedUsernames((current) => {
+      const map = new Map(
+        current.map((username) => [
+          normalizeUsername(username),
+          username,
+        ])
+      );
+
+      visibleUsers.forEach(({ user }) => {
+        map.set(
+          normalizeUsername(user.username),
+          user.username
+        );
+      });
+
+      return Array.from(map.values());
+    });
+  };
+
+  const selectedEntries = () => {
+    const selected = new Set(
+      selectedUsernames.map(
+        normalizeUsername
+      )
+    );
+
+    return allUsers
+      .map((user, index) => ({
+        user,
+        index,
+      }))
+      .filter(({ user }) =>
+        selected.has(
+          normalizeUsername(user.username)
+        )
+      );
+  };
+
+  const applyBulkRole = (
+    role: string
+  ) => {
+    if (!role || !selectedCount) return;
+
+    selectedEntries().forEach(
+      ({ index }) =>
+        onChange(index, "role", role)
+    );
+    setBulkRole("");
+  };
+
+  const applyBulkTeam = (
+    teamName: string
+  ) => {
+    if (!selectedCount) return;
+
+    const selectedTeam =
+      teamOptions.find(
+        (team) => team.name === teamName
+      );
+
+    selectedEntries().forEach(
+      ({ user, index }) => {
+        if (
+          user.status === "Suspended"
+        ) {
+          return;
+        }
+
+        onChange(
+          index,
+          "teamName",
+          teamName
+        );
+        onChange(
+          index,
+          "teamLead",
+          selectedTeam?.teamLead || ""
+        );
+      }
+    );
+    setBulkTeam("");
+  };
+
+  const applyBulkStatus = (
+    status: string
+  ) => {
+    if (!status || !selectedCount) {
+      return;
+    }
+
+    selectedEntries().forEach(
+      ({ index }) => {
+        onChange(index, "status", status);
+
+        if (status === "Suspended") {
+          onChange(index, "teamName", "");
+          onChange(index, "teamLead", "");
+        }
+      }
+    );
+    setBulkStatus("");
+  };
+
+  const applyBulkDate = () => {
+    if (!selectedCount) return;
+
+    selectedEntries().forEach(
+      ({ index }) =>
+        onChange(
+          index,
+          "suspendEffectiveDate",
+          bulkDate
+        )
+    );
+  };
+
+  const generateSelectedPasswords =
+    () => {
+      if (!selectedCount) return;
+
+      selectedEntries().forEach(
+        ({ user, index }) => {
+          if (user.username) {
+            onGeneratePassword(index);
+          }
+        }
+      );
+  };
+
+  const selectClass =
+    "rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400";
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[1380px] table-fixed border-collapse text-left text-xs">
-        <thead>
-          <tr className="bg-slate-950 text-white">
-            <th className="px-3 py-3 font-bold">Username</th>
-            <th className="px-3 py-3 font-bold">Agent Name</th>
-            <th className="px-3 py-3 font-bold">Email</th>
-            <th className="px-3 py-3 font-bold">Team Lead</th>
-            <th className="px-3 py-3 font-bold">Team Name</th>
-            <th className="px-3 py-3 font-bold">Role</th>
-            <th className="px-3 py-3 font-bold">Status</th>
-            <th className="px-3 py-3 font-bold">Suspend Date / End Date</th>
-            <th className="px-3 py-3 font-bold">Suspend Reason</th>
-            <th className="px-3 py-3 font-bold">Access Password</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map(({ user, index }) => {
-            const isSongpon = normalizeUsername(user.username) === "songpon";
-            return (
-              <tr key={`${user.username || "new"}-${index}`} className="border-b border-slate-100 last:border-b-0">
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.username} disabled={saving || isSongpon} onChange={(value) => onChange(index, "username", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.agentName} disabled={saving} onChange={(value) => onChange(index, "agentName", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.email} disabled={saving} onChange={(value) => onChange(index, "email", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.teamLead} disabled={saving} onChange={(value) => onChange(index, "teamLead", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.teamName} disabled={saving} onChange={(value) => onChange(index, "teamName", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <select
-                    value={user.role}
-                    disabled={saving || isSongpon}
-                    onChange={(event) => onChange(index, "role", event.target.value)}
-                    className="w-full rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+    <div
+      data-bulk-account-editor-modern-v74="true"
+      className="bg-gradient-to-b from-white to-slate-50"
+    >
+      <div className="border-b border-slate-200 bg-white px-4 py-4">
+        <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_190px_230px]">
+          <label className="relative block">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              ⌕
+            </span>
+            <input
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="ค้นหาชื่อ Username อีเมล หรือ Role"
+              title="ค้นหาผู้ใช้ในรายการแก้ไข"
+              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-9 pr-3 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
+          </label>
+
+          <select
+            value={teamFilter}
+            onChange={(event) =>
+              setTeamFilter(
+                event.target.value
+              )
+            }
+            title="กรองผู้ใช้ตามทีม"
+            className={selectClass}
+          >
+            <option value="all">
+              ทุกทีม
+            </option>
+            {teamOptions.map((team) => (
+              <option
+                key={team.name}
+                value={team.name}
+              >
+                {team.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-[10px] leading-5 text-blue-700">
+            หน้านี้ใช้แก้หลายบัญชีพร้อมกัน
+            ข้อมูลรายบุคคลให้แก้จากหน้า User
+            Directory
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-slate-200 bg-[#fbfbfe] px-4 py-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-slate-600">
+              เลือกแล้ว{" "}
+              <b className="text-violet-700">
+                {selectedCount}
+              </b>{" "}
+              รายการ
+            </span>
+
+            <button
+              type="button"
+              onClick={toggleAllVisible}
+              disabled={
+                saving ||
+                !visibleUsers.length
+              }
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-medium text-slate-600 disabled:opacity-40"
+            >
+              {allVisibleSelected
+                ? "ยกเลิกเลือกหน้านี้"
+                : `เลือกทั้งหมด (${visibleUsers.length})`}
+            </button>
+
+            {selectedCount ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedUsernames([])
+                }
+                className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] font-medium text-rose-600"
+              >
+                ล้างรายการที่เลือก
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={bulkRole}
+              disabled={
+                saving || !selectedCount
+              }
+              onChange={(event) => {
+                const value =
+                  event.target.value;
+                setBulkRole(value);
+                applyBulkRole(value);
+              }}
+              title="เปลี่ยน Role ให้ผู้ใช้ที่เลือก"
+              className={selectClass}
+            >
+              <option value="">
+                เปลี่ยน Role
+              </option>
+              {roleOptions.map((role) => (
+                <option
+                  key={role}
+                  value={role}
+                >
+                  {role}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={bulkTeam}
+              disabled={
+                saving || !selectedCount
+              }
+              onChange={(event) => {
+                const value =
+                  event.target.value;
+                setBulkTeam(value);
+                applyBulkTeam(value);
+              }}
+              title="ย้ายผู้ใช้ที่เลือกไปทีมปัจจุบัน"
+              className={selectClass}
+            >
+              <option value="">
+                ย้ายทีม
+              </option>
+              <option value="">
+                ยังไม่ระบุทีม
+              </option>
+              {teamOptions.map((team) => (
+                <option
+                  key={team.name}
+                  value={team.name}
+                >
+                  {team.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={bulkStatus}
+              disabled={
+                saving || !selectedCount
+              }
+              onChange={(event) => {
+                const value =
+                  event.target.value;
+                setBulkStatus(value);
+                applyBulkStatus(value);
+              }}
+              title="เปลี่ยนสถานะผู้ใช้ที่เลือก"
+              className={selectClass}
+            >
+              <option value="">
+                เปลี่ยนสถานะ
+              </option>
+              {STATUS_OPTIONS.map(
+                (status) => (
+                  <option
+                    key={status}
+                    value={status}
                   >
-                    {roleOptions.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <select
-                    value={user.status}
-                    disabled={saving || isSongpon}
-                    onChange={(event) => onChange(index, "status", event.target.value)}
-                    className="w-full rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                    {status}
+                  </option>
+                )
+              )}
+            </select>
+
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={bulkDate}
+                disabled={
+                  saving || !selectedCount
+                }
+                onChange={(event) =>
+                  setBulkDate(
+                    event.target.value
+                  )
+                }
+                title="กำหนดวันระงับให้ผู้ใช้ที่เลือก"
+                className={selectClass}
+              />
+              <button
+                type="button"
+                disabled={
+                  saving || !selectedCount
+                }
+                onClick={applyBulkDate}
+                className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-[10px] font-medium text-violet-700 disabled:opacity-40"
+              >
+                กำหนดวัน
+              </button>
+            </div>
+
+            <button
+              type="button"
+              disabled={
+                saving || !selectedCount
+              }
+              onClick={
+                generateSelectedPasswords
+              }
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[10px] font-medium text-amber-700 disabled:opacity-40"
+            >
+              สร้างรหัสผ่านชั่วคราว
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto p-3">
+        <div className="min-w-[1320px] overflow-hidden rounded-[20px] border border-slate-200 bg-white">
+          <div className="grid grid-cols-[44px_150px_minmax(220px,1.15fr)_170px_210px_160px_130px_170px_250px] items-center gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
+            <div>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisible}
+                aria-label="เลือกผู้ใช้ทั้งหมดที่แสดง"
+                className="h-4 w-4 rounded border-white/40 accent-violet-500"
+              />
+            </div>
+            <div>Username</div>
+            <div>ชื่อผู้ใช้งาน</div>
+            <div>Team Lead</div>
+            <div>ทีม</div>
+            <div>Role</div>
+            <div>สถานะ</div>
+            <div>วันที่ระงับ</div>
+            <div>รหัสผ่านชั่วคราว</div>
+          </div>
+
+          <div>
+            {visibleUsers.map(
+              ({ user, index }) => {
+                const isSongpon =
+                  normalizeUsername(
+                    user.username
+                  ) === "songpon";
+                const selected =
+                  selectedKeys.has(
+                    normalizeUsername(
+                      user.username
+                    )
+                  );
+                const suspended =
+                  user.status ===
+                  "Suspended";
+
+                return (
+                  <div
+                    key={`${user.username || "new"}-${index}`}
+                    className={`grid grid-cols-[44px_150px_minmax(220px,1.15fr)_170px_210px_160px_130px_170px_250px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-0 ${
+                      selected
+                        ? "bg-violet-50/50"
+                        : "bg-white hover:bg-slate-50/70"
+                    }`}
                   >
-                    {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput type="date" value={user.suspendEffectiveDate} disabled={saving} onChange={(value) => onChange(index, "suspendEffectiveDate", value)} />
-                  <div className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
-                    Leave blank if this user has no scheduled suspension.
+                    <div>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() =>
+                          toggleUser(
+                            user.username
+                          )
+                        }
+                        aria-label={`เลือก ${user.displayName || user.username}`}
+                        className="h-4 w-4 rounded border-slate-300 accent-violet-600"
+                      />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-semibold text-slate-900">
+                        {user.username}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-semibold text-slate-900">
+                        {user.displayName ||
+                          user.agentName}
+                      </div>
+                      <div className="mt-1 truncate text-[10px] text-slate-400">
+                        {user.email || "-"}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-medium text-slate-700">
+                        {user.teamLead || "-"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <select
+                        value={
+                          suspended
+                            ? ""
+                            : user.teamName
+                        }
+                        disabled={
+                          saving || suspended
+                        }
+                        onChange={(event) => {
+                          const teamName =
+                            event.target.value;
+                          const team =
+                            teamOptions.find(
+                              (item) =>
+                                item.name ===
+                                teamName
+                            );
+
+                          onChange(
+                            index,
+                            "teamName",
+                            teamName
+                          );
+                          onChange(
+                            index,
+                            "teamLead",
+                            team?.teamLead || ""
+                          );
+                        }}
+                        title={
+                          suspended
+                            ? "บัญชี Suspended ไม่มีทีม"
+                            : `เลือกทีมของ ${user.displayName}`
+                        }
+                        className={selectClass}
+                      >
+                        <option value="">
+                          ยังไม่ระบุทีม
+                        </option>
+                        {teamOptions.map(
+                          (team) => (
+                            <option
+                              key={
+                                team.name
+                              }
+                              value={
+                                team.name
+                              }
+                            >
+                              {team.name}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <select
+                        value={user.role}
+                        disabled={
+                          saving || isSongpon
+                        }
+                        onChange={(event) =>
+                          onChange(
+                            index,
+                            "role",
+                            event.target.value
+                          )
+                        }
+                        title={`เลือก Role ของ ${user.displayName}`}
+                        className={selectClass}
+                      >
+                        {roleOptions.map(
+                          (role) => (
+                            <option
+                              key={role}
+                              value={role}
+                            >
+                              {role}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <select
+                        value={user.status}
+                        disabled={
+                          saving || isSongpon
+                        }
+                        onChange={(event) => {
+                          const status =
+                            event.target.value;
+                          onChange(
+                            index,
+                            "status",
+                            status
+                          );
+
+                          if (
+                            status ===
+                            "Suspended"
+                          ) {
+                            onChange(
+                              index,
+                              "teamName",
+                              ""
+                            );
+                            onChange(
+                              index,
+                              "teamLead",
+                              ""
+                            );
+                          }
+                        }}
+                        title={`เปลี่ยนสถานะของ ${user.displayName}`}
+                        className={selectClass}
+                      >
+                        {STATUS_OPTIONS.map(
+                          (status) => (
+                            <option
+                              key={status}
+                              value={status}
+                            >
+                              {status}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <input
+                        type="date"
+                        value={
+                          user.suspendEffectiveDate
+                        }
+                        disabled={saving}
+                        onChange={(event) =>
+                          onChange(
+                            index,
+                            "suspendEffectiveDate",
+                            event.target.value
+                          )
+                        }
+                        title="เว้นว่างเมื่อไม่กำหนดวันระงับ"
+                        className={selectClass}
+                      />
+                      <div className="mt-1 text-[9px] text-slate-400">
+                        เว้นว่าง = ไม่กำหนด
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={
+                            user.temporaryPassword
+                          }
+                          disabled={saving}
+                          onChange={(event) =>
+                            onChange(
+                              index,
+                              "temporaryPassword",
+                              event.target.value
+                            )
+                          }
+                          placeholder="คลิกสร้างรหัสผ่าน"
+                          title="รหัสผ่านชั่วคราวมีอายุ 15 วัน"
+                          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                        />
+                        <button
+                          type="button"
+                          disabled={
+                            saving ||
+                            !user.username
+                          }
+                          onClick={() =>
+                            onGeneratePassword(
+                              index
+                            )
+                          }
+                          title="สร้างรหัสผ่านชั่วคราว"
+                          className="shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[10px] font-medium text-amber-700 disabled:opacity-40"
+                        >
+                          สร้าง
+                        </button>
+                      </div>
+                      <div className="mt-1 text-[9px] text-slate-400">
+                        รหัสผ่านมีอายุ 15 วัน
+                      </div>
+                    </div>
                   </div>
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <TextInput value={user.suspendReason} disabled={saving || user.status === "Active"} onChange={(value) => onChange(index, "suspendReason", value)} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <div className="flex min-w-[260px] items-center gap-2">
-                    <input
-                      type="text"
-                      value={user.temporaryPassword}
-                      disabled={saving}
-                      onChange={(event) => onChange(index, "temporaryPassword", event.target.value)}
-                      placeholder="Generate temporary password"
-                      className="min-w-[150px] flex-1 rounded-xl border border-violet-100 bg-white px-2 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                    />
-                    <button
-                      type="button"
-                      disabled={saving || !user.username}
-                      onClick={() => onGeneratePassword(index)}
-                      className="shrink-0 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-[11px] font-black text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Generate
-                    </button>
-                  </div>
-                  <div className="mt-1 max-w-[220px] text-[10px] font-semibold leading-4 text-slate-500">
-                    Temporary password expires in 15 days and forces password setup after login.
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                );
+              }
+            )}
+
+            {!visibleUsers.length ? (
+              <div className="px-6 py-14 text-center text-sm text-slate-400">
+                ไม่พบผู้ใช้ตามตัวกรอง
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          แสดง {visibleUsers.length} จาก{" "}
+          {users.length} รายการ
+        </span>
+        <span>
+          Team เป็นรายการทีมปัจจุบัน
+          และจะอัปเดต Team Lead ตามทีมที่เลือก
+        </span>
+      </div>
     </div>
   );
 }
