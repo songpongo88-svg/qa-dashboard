@@ -3,7 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
-import CorporateUserDirectoryProfile from "./CorporateUserDirectoryProfile";
+import CorporateUserDirectoryProfile, { type CorporateUserAccountUpdate } from "./CorporateUserDirectoryProfile";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
 import {
@@ -69,6 +69,8 @@ type UserAccount = {
   status?: UserStatus;
   suspendReason?: string;
   suspendEffectiveDate?: string;
+  suspendEndDate?: string;
+  suspendAutoReactivate?: boolean;
 };
 
 type EditableUser = {
@@ -1405,6 +1407,87 @@ export default function UserRoleAdminMockup({
     setAccessMessage(`${cleanedUser.displayName || cleanedUser.username}: ${cleanedUser.temporaryPassword}`);
   };
 
+  const saveSingleUserAccount = async (
+    update: CorporateUserAccountUpdate
+  ) => {
+    const original = rows.find(
+      (row) =>
+        normalizeUsername(row.username) ===
+        normalizeUsername(update.username)
+    );
+
+    if (!original) {
+      throw new Error(
+        `ไม่พบผู้ใช้ ${update.username}`
+      );
+    }
+
+    if (
+      normalizeUsername(update.username) ===
+        "songpon" &&
+      (normalizeRoleName(update.role) !==
+        "Quality Assurance" ||
+        update.status !== "Active")
+    ) {
+      throw new Error(
+        "Songpon ต้องคงสถานะ Active และ Role Quality Assurance เพื่อรักษาสิทธิ์เจ้าของระบบ"
+      );
+    }
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      await upsertStoredUserProfiles([
+        {
+          username: original.username,
+          displayName:
+            update.displayName.trim(),
+          agentName:
+            update.agentName.trim() ||
+            update.displayName.trim(),
+          email: update.email.trim(),
+          role: normalizeRoleName(update.role),
+          teamLead: update.teamLead.trim(),
+          teamName: update.teamName.trim(),
+          status: update.status,
+          suspendReason:
+            update.suspendReason.trim(),
+          suspendEffectiveDate:
+            update.suspendEffectiveDate,
+          suspendEndDate:
+            update.suspendEndDate,
+          suspendAutoReactivate:
+            update.suspendAutoReactivate,
+        },
+      ]);
+
+      await logUsageEventBestEffort(
+        currentUser,
+        "user_profile_saved",
+        {
+          tab: "user-roles",
+          target_agent: original.username,
+          details: {
+            ...update,
+            updatedBy:
+              currentUser?.displayName ||
+              currentUser?.username ||
+              "",
+            updatedAt:
+              new Date().toISOString(),
+          },
+        }
+      );
+
+      await onRolesChanged();
+      setMessage(
+        `บันทึกโปรไฟล์ ${update.displayName} แล้ว`
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
   const handleSaveDirectory = async () => {
     const cleanedUsers = draftUsers.map((item) => ({
       ...item,
@@ -2051,6 +2134,7 @@ export default function UserRoleAdminMockup({
                   startEditingUserManagementView("team-management");
                   setUserManagementView("team-management");
                 }}
+                onSaveAccount={saveSingleUserAccount}
               />
             )}
           </div>
@@ -3314,6 +3398,7 @@ function ReadOnlyDirectoryTable({
   onEditDirectory,
   onOpenTeams,
   onManageTeams,
+  onSaveAccount,
 }: {
   rows: Array<
     UserAccount & {
@@ -3332,6 +3417,9 @@ function ReadOnlyDirectoryTable({
   onEditDirectory: () => void;
   onOpenTeams: () => void;
   onManageTeams: () => void;
+  onSaveAccount: (
+    update: CorporateUserAccountUpdate
+  ) => Promise<void>;
 }) {
   return (
     <CorporateUserDirectoryProfile
@@ -3346,6 +3434,7 @@ function ReadOnlyDirectoryTable({
       onEditDirectory={onEditDirectory}
       onOpenTeams={onOpenTeams}
       onManageTeams={onManageTeams}
+      onSaveAccount={onSaveAccount}
     />
   );
 }

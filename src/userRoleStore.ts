@@ -1,4 +1,4 @@
-﻿import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
 const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
@@ -22,6 +22,8 @@ export type StoredUserProfile = {
   status: "Active" | "Suspended";
   suspendReason: string;
   suspendEffectiveDate?: string;
+  suspendEndDate?: string;
+  suspendAutoReactivate?: boolean;
   password?: string;
   passwordKind?: string;
   passwordIssuedAt?: string;
@@ -111,22 +113,105 @@ function writeSingleCache<T>(key: string, row: T | null) {
   }
 }
 
+function bangkokToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Bangkok",
+  }).format(new Date());
+}
+
 function toUserProfile(row: any): StoredUserProfile {
+  const suspendEffectiveDate = String(
+    row.suspendEffectiveDate ||
+      row.suspend_effective_date ||
+      row.suspendDate ||
+      row.suspend_date ||
+      ""
+  );
+  const suspendEndDate = String(
+    row.suspendEndDate ||
+      row.suspend_end_date ||
+      ""
+  );
+  const suspendAutoReactivate =
+    row.suspendAutoReactivate === true ||
+    row.suspend_auto_reactivate === true;
+
+  let status: "Active" | "Suspended" =
+    row.status === "Suspended" ? "Suspended" : "Active";
+
+  const today = bangkokToday();
+
+  if (
+    status === "Active" &&
+    suspendEffectiveDate &&
+    suspendEffectiveDate <= today
+  ) {
+    status = "Suspended";
+  }
+
+  if (
+    status === "Suspended" &&
+    suspendAutoReactivate &&
+    suspendEndDate &&
+    suspendEndDate <= today
+  ) {
+    status = "Active";
+  }
+
   return {
     username: String(row.username || ""),
-    displayName: String(row.displayName || row.display_name || row.username || ""),
-    agentName: String(row.agentName || row.agent_name || row.displayName || row.display_name || row.username || ""),
+    displayName: String(
+      row.displayName ||
+        row.display_name ||
+        row.username ||
+        ""
+    ),
+    agentName: String(
+      row.agentName ||
+        row.agent_name ||
+        row.displayName ||
+        row.display_name ||
+        row.username ||
+        ""
+    ),
     email: String(row.email || ""),
-    role: normalizeRoleName(row.role || "Admin Live Chat"),
-    teamLead: String(row.teamLead || row.team_lead || ""),
-    teamName: String(row.teamName || row.team_name || ""),
-    status: row.status === "Suspended" ? "Suspended" : "Active",
-    suspendReason: String(row.suspendReason || row.suspend_reason || ""),
-    suspendEffectiveDate: String(row.suspendEffectiveDate || row.suspend_effective_date || row.suspendDate || row.suspend_date || ""),
+    role: normalizeRoleName(
+      row.role || "Admin Live Chat"
+    ),
+    teamLead: String(
+      row.teamLead || row.team_lead || ""
+    ),
+    teamName: String(
+      row.teamName || row.team_name || ""
+    ),
+    status,
+    suspendReason: String(
+      row.suspendReason ||
+        row.suspend_reason ||
+        ""
+    ),
+    suspendEffectiveDate,
+    suspendEndDate,
+    suspendAutoReactivate,
     password: String(row.password || ""),
-    passwordKind: String(row.passwordKind || row.password_kind || ""),
-    passwordIssuedAt: String(row.passwordIssuedAt || row.password_issued_at || ""),
-    passwordExpiresAt: String(row.passwordExpiresAt || row.password_expires_at || ""),
+    passwordKind: String(
+      row.passwordKind ||
+        row.password_kind ||
+        ""
+    ),
+    passwordIssuedAt: String(
+      row.passwordIssuedAt ||
+        row.password_issued_at ||
+        ""
+    ),
+    passwordExpiresAt: String(
+      row.passwordExpiresAt ||
+        row.password_expires_at ||
+        ""
+    ),
   };
 }
 
@@ -141,21 +226,37 @@ function fromUserProfile(profile: StoredUserProfile) {
     teamName: profile.teamName,
     status: profile.status,
     suspendReason: profile.suspendReason,
-    suspendEffectiveDate: profile.suspendEffectiveDate || "",
+    suspendEffectiveDate:
+      profile.suspendEffectiveDate || "",
     updatedAt: new Date().toISOString(),
     updatedAtServer: serverTimestamp(),
   };
 
+  if (profile.suspendEndDate !== undefined) {
+    row.suspendEndDate =
+      profile.suspendEndDate || "";
+  }
+
+  if (
+    profile.suspendAutoReactivate !== undefined
+  ) {
+    row.suspendAutoReactivate =
+      profile.suspendAutoReactivate === true;
+  }
+
   if (profile.password) {
     row.password = profile.password;
-    row.passwordKind = profile.passwordKind || "temporary";
-    row.passwordIssuedAt = profile.passwordIssuedAt || new Date().toISOString();
-    row.passwordExpiresAt = profile.passwordExpiresAt || "";
+    row.passwordKind =
+      profile.passwordKind || "temporary";
+    row.passwordIssuedAt =
+      profile.passwordIssuedAt ||
+      new Date().toISOString();
+    row.passwordExpiresAt =
+      profile.passwordExpiresAt || "";
   }
 
   return row;
 }
-
 function toRoleDefinition(row: any): StoredRoleDefinition {
   return {
     name: normalizeRoleName(row.name),

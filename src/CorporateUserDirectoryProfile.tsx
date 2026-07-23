@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import {
-  collection,
-  doc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
+import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { jsPDF } from "jspdf";
 import { firebaseDb } from "./firebaseClient";
+import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 
 type DirectoryStatusView = "active" | "suspended";
+type LifecycleMode = "active" | "scheduled" | "suspended" | "offboarding";
+type DeviceStatus = "Assigned" | "Not Assigned" | "Repair" | "Returned";
+type ReturnStatus = "Pending" | "Scheduled" | "Complete" | "Incomplete" | "Lost";
+type DeviceCondition = "Not Checked" | "Normal" | "Used" | "Damaged" | "Repair Required";
 
 type DirectoryUserRow = {
   username: string;
@@ -21,42 +21,83 @@ type DirectoryUserRow = {
   status: "Active" | "Suspended";
   suspendReason?: string;
   suspendEffectiveDate?: string;
+  suspendEndDate?: string;
+  suspendAutoReactivate?: boolean;
   effectiveRole: string;
   normalizedUsername: string;
 };
 
-type DeviceStatus =
-  | "Assigned"
-  | "Not Assigned"
-  | "Repair"
-  | "Returned";
+export type CorporateUserAccountUpdate = {
+  username: string;
+  displayName: string;
+  agentName: string;
+  email: string;
+  role: string;
+  teamLead: string;
+  teamName: string;
+  status: "Active" | "Suspended";
+  suspendReason: string;
+  suspendEffectiveDate: string;
+  suspendEndDate: string;
+  suspendAutoReactivate: boolean;
+};
 
-type UserProfileMeta = {
-  docId: string;
-  employeeId: string;
-  officeContactNumber: string;
-  officeExtension: string;
-  officeContactUsage: string;
-  secondaryOfficeContact: string;
-  officeContactNote: string;
-  deviceStatus: DeviceStatus;
-  deviceBrand: string;
-  deviceModel: string;
-  deviceSeries: string;
-  operatingSystem: string;
+type WorkDevice = {
+  id: string;
+  isPrimary: boolean;
+  status: DeviceStatus;
+  brand: string;
+  model: string;
+  series: string;
+  os: string;
   assetId: string;
   serialNumber: string;
   imei: string;
   imei2: string;
-  workSimNumber: string;
+  workSim: string;
   assignedDate: string;
-  deviceNote: string;
-  passwordKind: string;
+  note: string;
+  returnStatus: ReturnStatus;
+  returnDate: string;
+  returnedBy: string;
+  receivedBy: string;
+  condition: DeviceCondition;
+  returnNote: string;
+  returnedItems: Record<string, boolean>;
+};
+
+type HistoryItem = {
+  id: string;
+  title: string;
+  detail: string;
+  createdAt: string;
+};
+
+type UserMeta = {
+  docId: string;
+  employeeId: string;
+  officeNumber: string;
+  extension: string;
+  officeUsage: string;
+  backupOfficeNumber: string;
+  contactNote: string;
+  devices: WorkDevice[];
+  lifecycleMode: LifecycleMode;
+  suspendReason: string;
+  effectiveDate: string;
+  endDate: string;
+  autoReactivate: boolean;
+  approver: string;
+  lifecycleNote: string;
+  offboardingStatus: "Working" | "In Progress" | "Completed";
+  employmentEndDate: string;
+  offboardingNote: string;
+  history: HistoryItem[];
   passwordIssuedAt: string;
   updatedAt: string;
 };
 
-type CorporateUserDirectoryProfileProps = {
+type Props = {
   rows: DirectoryUserRow[];
   canManageUsers: boolean;
   canManageTeams: boolean;
@@ -68,344 +109,400 @@ type CorporateUserDirectoryProfileProps = {
   onEditDirectory: () => void;
   onOpenTeams: () => void;
   onManageTeams: () => void;
+  onSaveAccount: (update: CorporateUserAccountUpdate) => Promise<void>;
 };
 
-const EMPTY_META: UserProfileMeta = {
-  docId: "",
-  employeeId: "",
-  officeContactNumber: "",
-  officeExtension: "",
-  officeContactUsage:
-    "ใช้สำหรับโทรออกและติดต่อประสานงานผ่านสำนักงาน",
-  secondaryOfficeContact: "",
-  officeContactNote: "",
-  deviceStatus: "Not Assigned",
-  deviceBrand: "",
-  deviceModel: "",
-  deviceSeries: "",
-  operatingSystem: "",
-  assetId: "",
-  serialNumber: "",
-  imei: "",
-  imei2: "",
-  workSimNumber: "",
-  assignedDate: "",
-  deviceNote: "",
-  passwordKind: "",
-  passwordIssuedAt: "",
-  updatedAt: "",
+const EMPTY_ITEMS = {
+  device: false,
+  workSim: false,
+  cable: false,
+  adapter: false,
+  accessories: false,
+  companyDataWiped: false,
 };
+
+const CONTACT_USAGE = "ใช้สำหรับโทรออกและติดต่อประสานงานผ่านสำนักงาน";
+
+function emptyDevice(index = 0): WorkDevice {
+  return {
+    id: `device-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    isPrimary: index === 0,
+    status: "Not Assigned",
+    brand: "",
+    model: "",
+    series: "",
+    os: "",
+    assetId: "",
+    serialNumber: "",
+    imei: "",
+    imei2: "",
+    workSim: "",
+    assignedDate: "",
+    note: "",
+    returnStatus: "Pending",
+    returnDate: "",
+    returnedBy: "",
+    receivedBy: "",
+    condition: "Not Checked",
+    returnNote: "",
+    returnedItems: { ...EMPTY_ITEMS },
+  };
+}
+
+function emptyMeta(): UserMeta {
+  return {
+    docId: "",
+    employeeId: "",
+    officeNumber: "",
+    extension: "",
+    officeUsage: CONTACT_USAGE,
+    backupOfficeNumber: "",
+    contactNote: "",
+    devices: [],
+    lifecycleMode: "active",
+    suspendReason: "",
+    effectiveDate: "",
+    endDate: "",
+    autoReactivate: false,
+    approver: "",
+    lifecycleNote: "",
+    offboardingStatus: "Working",
+    employmentEndDate: "",
+    offboardingNote: "",
+    history: [],
+    passwordIssuedAt: "",
+    updatedAt: "",
+  };
+}
+
+function safeId(value: unknown) {
+  return String(value || "").trim().replace(/\//g, "__").replace(/\s+/g, " ") || "unknown";
+}
 
 function normalizeUsername(value: unknown) {
   return String(value || "").trim().toLowerCase();
 }
 
-function safeDocId(value: unknown) {
-  return (
-    String(value || "")
-      .trim()
-      .replace(/\//g, "__")
-      .replace(/\s+/g, " ") || "unknown"
-  );
+function cloneMeta(value: UserMeta) {
+  return JSON.parse(JSON.stringify(value)) as UserMeta;
 }
 
 function initials(value: string) {
-  const parts = String(value || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (!parts.length) return "U";
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  return parts.length ? parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("") : "U";
 }
 
 function avatarClass(role: string) {
-  if (role === "Quality Assurance") {
-    return "from-fuchsia-500 to-violet-700";
-  }
-  if (role === "Supervisor") {
-    return "from-sky-500 to-blue-700";
-  }
-  if (role === "Senior") {
-    return "from-amber-400 to-orange-600";
-  }
-  if (role === "Virtual Rider") {
-    return "from-emerald-400 to-teal-700";
-  }
+  if (role === "Quality Assurance") return "from-fuchsia-500 to-violet-700";
+  if (role === "Supervisor") return "from-sky-500 to-blue-700";
+  if (role === "Senior") return "from-amber-400 to-orange-600";
+  if (role === "Virtual Rider") return "from-emerald-400 to-teal-700";
   return "from-violet-500 to-indigo-700";
+}
+
+function todayBangkok() {
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Bangkok",
+  }).format(new Date());
+}
+
+function thaiDate(value: string) {
+  if (!value) return "-";
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("th-TH", { dateStyle: "long", timeZone: "Asia/Bangkok" }).format(date);
 }
 
 function formatDateTime(value: string) {
   if (!value) return "-";
-
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("th-TH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Bangkok",
-  }).format(date);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("th-TH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Bangkok",
+      }).format(date);
 }
 
-function fieldValue(value: string | undefined) {
+function valueOrDash(value: unknown) {
   return String(value || "").trim() || "-";
 }
 
-function profileMetaFromData(
-  docId: string,
-  data: any
-): UserProfileMeta {
+function deviceFromData(raw: any, index: number): WorkDevice {
+  const returnedItems = raw?.returnedItems || raw?.returnChecklist || {};
   return {
-    docId,
-    employeeId: String(
-      data.employeeId || data.employee_id || ""
-    ),
-    officeContactNumber: String(
-      data.officeContactNumber ||
-        data.office_contact_number ||
-        ""
-    ),
-    officeExtension: String(
-      data.officeExtension || data.office_extension || ""
-    ),
-    officeContactUsage: String(
-      data.officeContactUsage ||
-        data.office_contact_usage ||
-        "ใช้สำหรับโทรออกและติดต่อประสานงานผ่านสำนักงาน"
-    ),
-    secondaryOfficeContact: String(
-      data.secondaryOfficeContact ||
-        data.secondary_office_contact ||
-        ""
-    ),
-    officeContactNote: String(
-      data.officeContactNote ||
-        data.office_contact_note ||
-        ""
-    ),
-    deviceStatus:
-      data.deviceStatus === "Assigned" ||
-      data.deviceStatus === "Repair" ||
-      data.deviceStatus === "Returned"
-        ? data.deviceStatus
-        : "Not Assigned",
-    deviceBrand: String(
-      data.deviceBrand || data.device_brand || ""
-    ),
-    deviceModel: String(
-      data.deviceModel || data.device_model || ""
-    ),
-    deviceSeries: String(
-      data.deviceSeries || data.device_series || ""
-    ),
-    operatingSystem: String(
-      data.operatingSystem ||
-        data.operating_system ||
-        ""
-    ),
-    assetId: String(data.assetId || data.asset_id || ""),
-    serialNumber: String(
-      data.serialNumber || data.serial_number || ""
-    ),
-    imei: String(data.imei || ""),
-    imei2: String(data.imei2 || data.imei_2 || ""),
-    workSimNumber: String(
-      data.workSimNumber ||
-        data.work_sim_number ||
-        ""
-    ),
-    assignedDate: String(
-      data.assignedDate || data.assigned_date || ""
-    ),
-    deviceNote: String(
-      data.deviceNote || data.device_note || ""
-    ),
-    passwordKind: String(
-      data.passwordKind || data.password_kind || ""
-    ),
-    passwordIssuedAt: String(
-      data.passwordIssuedAt ||
-        data.password_issued_at ||
-        ""
-    ),
-    updatedAt: String(
-      data.updatedAt || data.updated_at || ""
-    ),
+    id: String(raw?.id || `device-${index + 1}`),
+    isPrimary: raw?.isPrimary === true || index === 0,
+    status:
+      raw?.status === "Assigned" || raw?.deviceStatus === "Assigned"
+        ? "Assigned"
+        : raw?.status === "Repair" || raw?.deviceStatus === "Repair"
+          ? "Repair"
+          : raw?.status === "Returned" || raw?.deviceStatus === "Returned"
+            ? "Returned"
+            : "Not Assigned",
+    brand: String(raw?.brand || raw?.deviceBrand || ""),
+    model: String(raw?.model || raw?.deviceModel || ""),
+    series: String(raw?.series || raw?.deviceSeries || ""),
+    os: String(raw?.os || raw?.operatingSystem || ""),
+    assetId: String(raw?.assetId || ""),
+    serialNumber: String(raw?.serialNumber || ""),
+    imei: String(raw?.imei || ""),
+    imei2: String(raw?.imei2 || ""),
+    workSim: String(raw?.workSim || raw?.workSimNumber || ""),
+    assignedDate: String(raw?.assignedDate || ""),
+    note: String(raw?.note || raw?.deviceNote || ""),
+    returnStatus:
+      raw?.returnStatus === "Scheduled" ||
+      raw?.returnStatus === "Complete" ||
+      raw?.returnStatus === "Incomplete" ||
+      raw?.returnStatus === "Lost"
+        ? raw.returnStatus
+        : "Pending",
+    returnDate: String(raw?.returnDate || ""),
+    returnedBy: String(raw?.returnedBy || ""),
+    receivedBy: String(raw?.receivedBy || ""),
+    condition:
+      raw?.condition === "Normal" ||
+      raw?.condition === "Used" ||
+      raw?.condition === "Damaged" ||
+      raw?.condition === "Repair Required"
+        ? raw.condition
+        : "Not Checked",
+    returnNote: String(raw?.returnNote || ""),
+    returnedItems: {
+      device: returnedItems.device === true,
+      workSim: returnedItems.workSim === true,
+      cable: returnedItems.cable === true,
+      adapter: returnedItems.adapter === true,
+      accessories: returnedItems.accessories === true,
+      companyDataWiped: returnedItems.companyDataWiped === true,
+    },
   };
 }
 
-function SectionCard({
+function metaFromData(id: string, data: any): UserMeta {
+  let devices: WorkDevice[] = Array.isArray(data?.devices)
+    ? data.devices.map(deviceFromData)
+    : [];
+
+  if (!devices.length && (data?.deviceBrand || data?.deviceModel || data?.assetId || data?.serialNumber)) {
+    devices = [
+      deviceFromData(
+        {
+          id: "legacy-primary",
+          isPrimary: true,
+          deviceStatus: data.deviceStatus,
+          deviceBrand: data.deviceBrand,
+          deviceModel: data.deviceModel,
+          deviceSeries: data.deviceSeries,
+          operatingSystem: data.operatingSystem,
+          assetId: data.assetId,
+          serialNumber: data.serialNumber,
+          imei: data.imei,
+          imei2: data.imei2,
+          workSimNumber: data.workSimNumber,
+          assignedDate: data.assignedDate,
+          deviceNote: data.deviceNote,
+        },
+        0
+      ),
+    ];
+  }
+
+  if (devices.length && !devices.some((device) => device.isPrimary)) {
+    devices[0].isPrimary = true;
+  }
+
+  return {
+    docId: id,
+    employeeId: String(data?.employeeId || ""),
+    officeNumber: String(data?.officeNumber || data?.officeContactNumber || ""),
+    extension: String(data?.extension || data?.officeExtension || ""),
+    officeUsage: String(data?.officeUsage || data?.officeContactUsage || CONTACT_USAGE),
+    backupOfficeNumber: String(data?.backupOfficeNumber || data?.secondaryOfficeContact || ""),
+    contactNote: String(data?.contactNote || data?.officeContactNote || ""),
+    devices,
+    lifecycleMode:
+      data?.lifecycleMode === "scheduled" ||
+      data?.lifecycleMode === "suspended" ||
+      data?.lifecycleMode === "offboarding"
+        ? data.lifecycleMode
+        : "active",
+    suspendReason: String(data?.suspendReason || ""),
+    effectiveDate: String(data?.effectiveDate || data?.suspendEffectiveDate || ""),
+    endDate: String(data?.endDate || data?.suspendEndDate || ""),
+    autoReactivate: data?.autoReactivate === true || data?.suspendAutoReactivate === true,
+    approver: String(data?.approver || data?.lifecycleApprover || ""),
+    lifecycleNote: String(data?.lifecycleNote || data?.lifecycleDetail || ""),
+    offboardingStatus:
+      data?.offboardingStatus === "In Progress" || data?.offboardingStatus === "Completed"
+        ? data.offboardingStatus
+        : "Working",
+    employmentEndDate: String(data?.employmentEndDate || data?.offboardingEndDate || ""),
+    offboardingNote: String(data?.offboardingNote || ""),
+    history: Array.isArray(data?.history)
+      ? data.history
+      : Array.isArray(data?.profileHistory)
+        ? data.profileHistory
+        : [],
+    passwordIssuedAt: String(data?.passwordIssuedAt || ""),
+    updatedAt: String(data?.updatedAt || ""),
+  };
+}
+
+function hydrateMeta(meta: UserMeta, user: DirectoryUserRow): UserMeta {
+  const effectiveDate = meta.effectiveDate || user.suspendEffectiveDate || "";
+  let lifecycleMode = meta.lifecycleMode;
+  if (lifecycleMode === "active" && user.status === "Suspended") lifecycleMode = "suspended";
+  if (lifecycleMode === "active" && user.status === "Active" && effectiveDate) {
+    lifecycleMode = effectiveDate > todayBangkok() ? "scheduled" : "suspended";
+  }
+  return {
+    ...meta,
+    lifecycleMode,
+    suspendReason: meta.suspendReason || user.suspendReason || "",
+    effectiveDate,
+    endDate: meta.endDate || user.suspendEndDate || "",
+    autoReactivate: meta.autoReactivate || user.suspendAutoReactivate === true,
+  };
+}
+
+function lifecycleLabel(mode: LifecycleMode, status: "Active" | "Suspended") {
+  if (mode === "scheduled") return "ตั้งเวลาระงับ";
+  if (mode === "offboarding") return "Offboarding";
+  if (mode === "suspended" || status === "Suspended") return "Suspended";
+  return "Active";
+}
+
+function lifecycleClass(mode: LifecycleMode, status: "Active" | "Suspended") {
+  if (mode === "scheduled" || mode === "offboarding") return "bg-amber-50 text-amber-700";
+  if (mode === "suspended" || status === "Suspended") return "bg-rose-50 text-rose-700";
+  return "bg-emerald-50 text-emerald-700";
+}
+
+function statusLabel(value: DeviceStatus) {
+  if (value === "Assigned") return "รับอุปกรณ์แล้ว";
+  if (value === "Repair") return "อยู่ระหว่างซ่อม";
+  if (value === "Returned") return "คืนอุปกรณ์แล้ว";
+  return "ยังไม่มีอุปกรณ์";
+}
+
+function returnLabel(value: ReturnStatus) {
+  if (value === "Scheduled") return "นัดหมายคืนแล้ว";
+  if (value === "Complete") return "คืนครบแล้ว";
+  if (value === "Incomplete") return "คืนไม่ครบ";
+  if (value === "Lost") return "อุปกรณ์สูญหาย";
+  return "รอดำเนินการคืน";
+}
+
+function conditionLabel(value: DeviceCondition) {
+  if (value === "Normal") return "ปกติ";
+  if (value === "Used") return "มีรอยใช้งาน";
+  if (value === "Damaged") return "ชำรุด";
+  if (value === "Repair Required") return "ต้องส่งซ่อม";
+  return "ยังไม่ได้ตรวจสอบ";
+}
+
+function Section({
+  id,
+  icon,
   title,
   subtitle,
-  icon,
+  action,
   children,
 }: {
+  id: string;
+  icon: string;
   title: string;
   subtitle: string;
-  icon: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-lg text-violet-700">
-          {icon}
-        </div>
-        <div>
-          <div className="text-base font-semibold text-slate-950">
-            {title}
+    <section id={id} className="scroll-mt-24 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-lg text-violet-700">
+            {icon}
           </div>
-          <div className="mt-1 text-xs leading-5 text-slate-500">
-            {subtitle}
+          <div>
+            <div className="text-base font-semibold text-slate-950">{title}</div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</div>
           </div>
         </div>
+        {action}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
 
-function DisplayRow({
-  label,
-  value,
-  badge,
-}: {
-  label: string;
-  value: string;
-  badge?: "green" | "violet" | "amber" | "slate";
-}) {
-  const badgeClass =
-    badge === "green"
-      ? "bg-emerald-50 text-emerald-700"
-      : badge === "violet"
-        ? "bg-violet-50 text-violet-700"
-        : badge === "amber"
-          ? "bg-amber-50 text-amber-700"
-          : "bg-slate-100 text-slate-700";
-
-  return (
-    <div className="grid grid-cols-[minmax(150px,0.75fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-2.5 last:border-0">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="min-w-0 break-words text-sm font-medium text-slate-900">
-        {badge ? (
-          <span
-            className={`inline-flex rounded-full px-2.5 py-1 text-xs ${badgeClass}`}
-          >
-            {value}
-          </span>
-        ) : (
-          value
-        )}
-      </div>
-    </div>
-  );
-}
-
-function InlineTextRow({
+function Field({
   label,
   value,
   editing,
   onChange,
-  placeholder,
   type = "text",
+  options,
+  textarea,
+  placeholder,
 }: {
   label: string;
   value: string;
   editing: boolean;
-  onChange: (value: string) => void;
-  placeholder?: string;
+  onChange?: (value: string) => void;
   type?: string;
+  options?: Array<{ value: string; label: string }>;
+  textarea?: boolean;
+  placeholder?: string;
 }) {
+  const display = options?.find((option) => option.value === value)?.label || valueOrDash(value);
   return (
-    <div className="grid grid-cols-[minmax(150px,0.75fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-2.5 last:border-0">
+    <div className="grid grid-cols-[minmax(145px,0.75fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-2.5 last:border-0">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="min-w-0">
-        {editing ? (
-          <input
-            type={type}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder={placeholder}
-            title={`แก้ไข${label}`}
-            className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-          />
+        {editing && onChange ? (
+          options ? (
+            <select
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              title={`เลือก${label}`}
+              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            >
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : textarea ? (
+            <textarea
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder={placeholder}
+              title={`แก้ไข${label}`}
+              className="min-h-[82px] w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
+          ) : (
+            <input
+              type={type}
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder={placeholder}
+              title={`แก้ไข${label}`}
+              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
+          )
         ) : (
-          <div className="break-words text-sm font-medium text-slate-900">
-            {fieldValue(value)}
-          </div>
+          <div className="break-words text-sm font-medium leading-6 text-slate-900">{display}</div>
         )}
       </div>
-    </div>
-  );
-}
-
-function DeviceStatusRow({
-  value,
-  editing,
-  onChange,
-}: {
-  value: DeviceStatus;
-  editing: boolean;
-  onChange: (value: DeviceStatus) => void;
-}) {
-  const label =
-    value === "Assigned"
-      ? "รับอุปกรณ์แล้ว"
-      : value === "Repair"
-        ? "อยู่ระหว่างซ่อม"
-        : value === "Returned"
-          ? "คืนอุปกรณ์แล้ว"
-          : "ยังไม่มีอุปกรณ์";
-
-  const badge =
-    value === "Assigned"
-      ? "green"
-      : value === "Repair"
-        ? "amber"
-        : "slate";
-
-  if (!editing) {
-    return (
-      <DisplayRow
-        label="สถานะอุปกรณ์"
-        value={label}
-        badge={badge}
-      />
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-[minmax(150px,0.75fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-2.5">
-      <div className="text-xs text-slate-500">
-        สถานะอุปกรณ์
-      </div>
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value as DeviceStatus)
-        }
-        title="เลือกสถานะปัจจุบันของอุปกรณ์ที่บริษัทมอบหมาย"
-        aria-label="สถานะอุปกรณ์"
-        className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-      >
-        <option value="Not Assigned">
-          ยังไม่มีอุปกรณ์
-        </option>
-        <option value="Assigned">
-          รับอุปกรณ์แล้ว
-        </option>
-        <option value="Repair">
-          อยู่ระหว่างซ่อม
-        </option>
-        <option value="Returned">
-          คืนอุปกรณ์แล้ว
-        </option>
-      </select>
     </div>
   );
 }
@@ -422,52 +519,40 @@ export default function CorporateUserDirectoryProfile({
   onEditDirectory,
   onOpenTeams,
   onManageTeams,
-}: CorporateUserDirectoryProfileProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  const [metaByUsername, setMetaByUsername] = useState<
-    Record<string, UserProfileMeta>
-  >({});
+  onSaveAccount,
+}: Props) {
+  const manageRef = useRef<HTMLDivElement | null>(null);
+  const pdfRef = useRef<HTMLDivElement | null>(null);
+  const [metaMap, setMetaMap] = useState<Record<string, UserMeta>>({});
   const [selectedUsername, setSelectedUsername] = useState("");
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
   const [deviceFilter, setDeviceFilter] = useState("all");
-  const [managementOpen, setManagementOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [editDraft, setEditDraft] =
-    useState<UserProfileMeta>(EMPTY_META);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [accountDraft, setAccountDraft] = useState<CorporateUserAccountUpdate | null>(null);
+  const [metaDraft, setMetaDraft] = useState<UserMeta>(emptyMeta());
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadProfileMetadata() {
-      try {
-        const snapshot = await getDocs(
-          collection(firebaseDb, "qa_user_profiles")
-        );
-        const next: Record<string, UserProfileMeta> = {};
-
+    getDocs(collection(firebaseDb, "qa_user_profiles"))
+      .then((snapshot) => {
+        const next: Record<string, UserMeta> = {};
         snapshot.docs.forEach((item) => {
           const data = item.data() as any;
-          const username = normalizeUsername(
-            data.username || item.id
-          );
-
-          if (!username) return;
-          next[username] = profileMetaFromData(item.id, data);
+          const username = normalizeUsername(data.username || item.id);
+          if (username) next[username] = metaFromData(item.id, data);
         });
-
-        if (!cancelled) setMetaByUsername(next);
-      } catch {
-        if (!cancelled) setMetaByUsername({});
-      }
-    }
-
-    void loadProfileMetadata();
-
+        if (!cancelled) setMetaMap(next);
+      })
+      .catch(() => {
+        if (!cancelled) setMetaMap({});
+      });
     return () => {
       cancelled = true;
     };
@@ -475,475 +560,531 @@ export default function CorporateUserDirectoryProfile({
 
   useEffect(() => {
     if (!toast) return;
-
-    const timer = window.setTimeout(
-      () => setToast(""),
-      2600
-    );
-
+    const timer = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
-        setManagementOpen(false);
-      }
+    const closeMenus = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (manageRef.current && !manageRef.current.contains(target)) setManageOpen(false);
+      if (pdfRef.current && !pdfRef.current.contains(target)) setPdfOpen(false);
     };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
-    };
+    document.addEventListener("mousedown", closeMenus);
+    return () => document.removeEventListener("mousedown", closeMenus);
   }, []);
 
-  const activeCount = rows.filter(
-    (row) => row.status === "Active"
-  ).length;
-  const suspendedCount = rows.filter(
-    (row) => row.status === "Suspended"
-  ).length;
+  const hydrated = useMemo(() => {
+    const next: Record<string, UserMeta> = {};
+    rows.forEach((row) => {
+      next[row.normalizedUsername] = hydrateMeta(metaMap[row.normalizedUsername] || emptyMeta(), row);
+    });
+    return next;
+  }, [metaMap, rows]);
 
   const roles = useMemo(
-    () =>
-      Array.from(
-        new Set(rows.map((row) => row.effectiveRole))
-      )
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b)),
+    () => Array.from(new Set(rows.map((row) => row.effectiveRole))).filter(Boolean).sort((a, b) => a.localeCompare(b)),
     [rows]
   );
-
   const teams = useMemo(
     () =>
-      Array.from(
-        new Set(
-          rows.map(
-            (row) => row.teamName || "Unassigned Team"
-          )
-        )
-      ).sort((a, b) => a.localeCompare(b)),
+      Array.from(new Set(rows.map((row) => row.teamName || "Unassigned Team"))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
     [rows]
   );
 
   const filteredRows = useMemo(() => {
+    const expectedStatus = statusView === "active" ? "Active" : "Suspended";
     const keyword = search.trim().toLowerCase();
-    const expectedStatus =
-      statusView === "active" ? "Active" : "Suspended";
-
     return rows
       .filter((row) => {
         if (row.status !== expectedStatus) return false;
-
-        const meta =
-          metaByUsername[row.normalizedUsername] || EMPTY_META;
-
+        const meta = hydrated[row.normalizedUsername] || emptyMeta();
+        const deviceText = meta.devices
+          .map((device) =>
+            [device.brand, device.model, device.assetId, device.serialNumber, device.imei, device.workSim].join(" ")
+          )
+          .join(" ");
         const searchable = [
           row.displayName,
           row.username,
-          row.agentName,
           row.email,
           row.teamName,
-          row.teamLead,
           row.effectiveRole,
-          meta.employeeId,
-          meta.officeContactNumber,
-          meta.officeExtension,
-          meta.deviceBrand,
-          meta.deviceModel,
-          meta.assetId,
-          meta.serialNumber,
+          meta.officeNumber,
+          meta.extension,
+          deviceText,
         ]
           .join(" ")
           .toLowerCase();
-
-        const matchesSearch =
-          !keyword || searchable.includes(keyword);
-        const matchesRole =
-          roleFilter === "all" ||
-          row.effectiveRole === roleFilter;
-        const matchesTeam =
-          teamFilter === "all" ||
-          (row.teamName || "Unassigned Team") ===
-            teamFilter;
-        const matchesDevice =
-          deviceFilter === "all" ||
-          (deviceFilter === "assigned"
-            ? meta.deviceStatus === "Assigned"
-            : meta.deviceStatus !== "Assigned");
-
+        const assigned = meta.devices.some((device) => device.status === "Assigned");
         return (
-          matchesSearch &&
-          matchesRole &&
-          matchesTeam &&
-          matchesDevice
+          (!keyword || searchable.includes(keyword)) &&
+          (roleFilter === "all" || row.effectiveRole === roleFilter) &&
+          (teamFilter === "all" || (row.teamName || "Unassigned Team") === teamFilter) &&
+          (deviceFilter === "all" || (deviceFilter === "assigned" ? assigned : !assigned))
         );
       })
-      .sort((a, b) =>
-        a.displayName.localeCompare(b.displayName)
-      );
-  }, [
-    deviceFilter,
-    metaByUsername,
-    roleFilter,
-    rows,
-    search,
-    statusView,
-    teamFilter,
-  ]);
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [deviceFilter, hydrated, roleFilter, rows, search, statusView, teamFilter]);
 
   useEffect(() => {
-    if (
-      filteredRows.some(
-        (row) =>
-          row.normalizedUsername === selectedUsername
-      )
-    ) {
-      return;
-    }
-
-    setSelectedUsername(
-      filteredRows[0]?.normalizedUsername || ""
-    );
+    if (filteredRows.some((row) => row.normalizedUsername === selectedUsername)) return;
+    setSelectedUsername(filteredRows[0]?.normalizedUsername || "");
   }, [filteredRows, selectedUsername]);
 
-  const selectedUser =
-    filteredRows.find(
-      (row) =>
-        row.normalizedUsername === selectedUsername
-    ) || null;
+  const user = filteredRows.find((row) => row.normalizedUsername === selectedUsername) || null;
+  const savedMeta = user ? hydrated[user.normalizedUsername] || emptyMeta() : emptyMeta();
+  const meta = editing ? metaDraft : savedMeta;
+  const account =
+    editing && accountDraft
+      ? accountDraft
+      : user
+        ? {
+            username: user.username,
+            displayName: user.displayName,
+            agentName: user.agentName,
+            email: user.email || "",
+            role: user.effectiveRole,
+            teamLead: user.teamLead || "",
+            teamName: user.teamName || "",
+            status: user.status,
+            suspendReason: savedMeta.suspendReason,
+            suspendEffectiveDate: savedMeta.effectiveDate,
+            suspendEndDate: savedMeta.endDate,
+            suspendAutoReactivate: savedMeta.autoReactivate,
+          }
+        : null;
 
-  const selectedMeta = selectedUser
-    ? metaByUsername[selectedUser.normalizedUsername] ||
-      EMPTY_META
-    : EMPTY_META;
+  const selectedDevice =
+    meta.devices.find((device) => device.id === selectedDeviceId) ||
+    meta.devices.find((device) => device.isPrimary) ||
+    meta.devices[0] ||
+    null;
 
-  const currentMeta = editingProfile
-    ? editDraft
-    : selectedMeta;
+  useEffect(() => {
+    const next = savedMeta.devices.find((device) => device.isPrimary) || savedMeta.devices[0];
+    setSelectedDeviceId(next?.id || "");
+  }, [savedMeta.devices, user?.normalizedUsername]);
 
-  const permissionCount = selectedUser
-    ? Object.values(
-        rolePermissions[selectedUser.effectiveRole] || {}
-      ).filter(Boolean).length
+  const permissionCount = user
+    ? Object.values(rolePermissions[user.effectiveRole] || {}).filter(Boolean).length
     : 0;
 
-  const updateDraft = (
-    key: keyof UserProfileMeta,
-    value: string
-  ) => {
-    setEditDraft((current) => ({
-      ...current,
-      [key]: value,
-    }));
+  const discard = () =>
+    !editing ||
+    window.confirm("มีข้อมูลในโปรไฟล์ที่ยังไม่ได้บันทึก ต้องการยกเลิกการแก้ไขหรือไม่?");
+
+  const changeView = (view: DirectoryStatusView) => {
+    if (view === statusView || !discard()) return;
+    setEditing(false);
+    onStatusViewChange(view);
   };
 
-  const clearFilters = () => {
-    setSearch("");
-    setRoleFilter("all");
-    setTeamFilter("all");
-    setDeviceFilter("all");
-  };
-
-  const confirmDiscardChanges = () => {
-    if (!editingProfile) return true;
-
-    return window.confirm(
-      "มีข้อมูลโปรไฟล์ที่ยังไม่ได้บันทึก ต้องการยกเลิกการแก้ไขหรือไม่?"
-    );
-  };
-
-  const selectStatusView = (
-    nextStatus: DirectoryStatusView
-  ) => {
-    if (
-      nextStatus === statusView ||
-      !confirmDiscardChanges()
-    ) {
-      return;
-    }
-
-    setEditingProfile(false);
-    onStatusViewChange(nextStatus);
-  };
-
-  const selectUser = (username: string) => {
-    if (
-      username === selectedUsername ||
-      !confirmDiscardChanges()
-    ) {
-      return;
-    }
-
-    setEditingProfile(false);
+  const chooseUser = (username: string) => {
+    if (username === selectedUsername || !discard()) return;
+    setEditing(false);
     setSelectedUsername(username);
   };
 
-  const beginInlineEdit = () => {
-    if (!selectedUser) return;
-
-    setEditDraft({
-      ...EMPTY_META,
-      ...selectedMeta,
-      docId:
-        selectedMeta.docId ||
-        safeDocId(selectedUser.username),
+  const beginEdit = () => {
+    if (!user) return;
+    setAccountDraft({
+      username: user.username,
+      displayName: user.displayName,
+      agentName: user.agentName || user.displayName,
+      email: user.email || "",
+      role: user.effectiveRole,
+      teamLead: user.teamLead || "",
+      teamName: user.teamName || "",
+      status: user.status,
+      suspendReason: savedMeta.suspendReason,
+      suspendEffectiveDate: savedMeta.effectiveDate,
+      suspendEndDate: savedMeta.endDate,
+      suspendAutoReactivate: savedMeta.autoReactivate,
     });
-    setEditingProfile(true);
-    setToast(
-      "เปิดโหมดแก้ไขบนหน้าเดิมแล้ว"
-    );
+    setMetaDraft(cloneMeta(savedMeta));
+    setEditing(true);
+    setToast("เปิดโหมดแก้ไขทั้งโปรไฟล์บนหน้าเดิมแล้ว");
   };
 
-  const cancelInlineEdit = () => {
-    setEditingProfile(false);
-    setEditDraft(EMPTY_META);
-    setToast("ยกเลิกการแก้ไขแล้ว");
+  const updateMeta = <K extends keyof UserMeta>(key: K, value: UserMeta[K]) => {
+    setMetaDraft((current) => ({ ...current, [key]: value }));
   };
 
-  const saveProfile = async () => {
-    if (!selectedUser) return;
+  const updateAccount = <K extends keyof CorporateUserAccountUpdate>(
+    key: K,
+    value: CorporateUserAccountUpdate[K]
+  ) => {
+    setAccountDraft((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  const updateDevice = <K extends keyof WorkDevice>(id: string, key: K, value: WorkDevice[K]) => {
+    setMetaDraft((current) => ({
+      ...current,
+      devices: current.devices.map((device) => (device.id === id ? { ...device, [key]: value } : device)),
+    }));
+  };
+
+  const addDevice = () => {
+    const next = emptyDevice(metaDraft.devices.length);
+    setMetaDraft((current) => ({ ...current, devices: [...current.devices, next] }));
+    setSelectedDeviceId(next.id);
+    setToast(`เพิ่มอุปกรณ์เครื่องที่ ${metaDraft.devices.length + 1} แล้ว`);
+  };
+
+  const removeDevice = (id: string) => {
+    if (!window.confirm("ต้องการลบอุปกรณ์เครื่องนี้ออกจากโปรไฟล์หรือไม่?")) return;
+    setMetaDraft((current) => {
+      const removed = current.devices.find((device) => device.id === id);
+      const remaining = current.devices.filter((device) => device.id !== id);
+      if (removed?.isPrimary && remaining.length) remaining[0] = { ...remaining[0], isPrimary: true };
+      return { ...current, devices: remaining };
+    });
+    setSelectedDeviceId(metaDraft.devices.find((device) => device.id !== id)?.id || "");
+  };
+
+  const makePrimary = (id: string) => {
+    setMetaDraft((current) => ({
+      ...current,
+      devices: current.devices.map((device) => ({ ...device, isPrimary: device.id === id })),
+    }));
+    setToast("ตั้งเป็นอุปกรณ์หลักแล้ว");
+  };
+
+  const chooseLifecycle = (mode: LifecycleMode) => {
+    if (!editing) return;
+    setMetaDraft((current) => {
+      const next = { ...current, lifecycleMode: mode };
+      if (mode === "active") {
+        next.suspendReason = "";
+        next.effectiveDate = "";
+        next.endDate = "";
+        next.autoReactivate = false;
+      } else if (!next.effectiveDate) {
+        next.effectiveDate = todayBangkok();
+      }
+      if (mode === "offboarding") {
+        next.suspendReason = next.suspendReason || "ลาออก";
+        next.offboardingStatus = next.offboardingStatus === "Working" ? "In Progress" : next.offboardingStatus;
+        next.employmentEndDate = next.employmentEndDate || next.effectiveDate;
+      }
+      return next;
+    });
+  };
+
+  const save = async () => {
+    if (!user || !accountDraft) return;
+    if (!accountDraft.displayName.trim()) {
+      setToast("กรุณาระบุชื่อ–นามสกุล");
+      return;
+    }
+    if (metaDraft.lifecycleMode !== "active" && (!metaDraft.effectiveDate || !metaDraft.suspendReason.trim())) {
+      setToast("กรุณาระบุวันที่มีผลและเหตุผลของสถานะบัญชี");
+      document.getElementById("profile-lifecycle")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    if (
+      metaDraft.autoReactivate &&
+      (!metaDraft.endDate || metaDraft.endDate <= metaDraft.effectiveDate)
+    ) {
+      setToast("วันที่เปิดบัญชีกลับต้องอยู่หลังวันที่เริ่มระงับ");
+      return;
+    }
+
+    const due = !metaDraft.effectiveDate || metaDraft.effectiveDate <= todayBangkok();
+    const nextStatus: "Active" | "Suspended" =
+      metaDraft.lifecycleMode === "suspended"
+        ? "Suspended"
+        : metaDraft.lifecycleMode === "scheduled" || metaDraft.lifecycleMode === "offboarding"
+          ? due
+            ? "Suspended"
+            : "Active"
+          : "Active";
+
+    const historyItem: HistoryItem = {
+      id: `history-${Date.now()}`,
+      title:
+        metaDraft.lifecycleMode === "active"
+          ? "เปิดใช้งานบัญชี"
+          : metaDraft.lifecycleMode === "scheduled"
+            ? `ตั้งเวลาระงับบัญชี — ${thaiDate(metaDraft.effectiveDate)}`
+            : metaDraft.lifecycleMode === "offboarding"
+              ? `อัปเดต Offboarding — ${thaiDate(metaDraft.effectiveDate)}`
+              : `ระงับบัญชี — ${thaiDate(metaDraft.effectiveDate)}`,
+      detail: [metaDraft.suspendReason, `${metaDraft.devices.length} อุปกรณ์`, accountDraft.role, accountDraft.teamName]
+        .filter(Boolean)
+        .join(" · "),
+      createdAt: new Date().toISOString(),
+    };
+
+    const nextMeta: UserMeta = {
+      ...metaDraft,
+      docId: metaDraft.docId || safeId(user.username),
+      updatedAt: new Date().toISOString(),
+      history: [historyItem, ...metaDraft.history].slice(0, 50),
+    };
+    const primary = nextMeta.devices.find((device) => device.isPrimary) || nextMeta.devices[0];
+
+    const update: CorporateUserAccountUpdate = {
+      ...accountDraft,
+      displayName: accountDraft.displayName.trim(),
+      agentName: accountDraft.agentName.trim() || accountDraft.displayName.trim(),
+      email: accountDraft.email.trim(),
+      role: accountDraft.role.trim(),
+      teamLead: accountDraft.teamLead.trim(),
+      teamName: accountDraft.teamName.trim(),
+      status: nextStatus,
+      suspendReason: metaDraft.lifecycleMode === "active" ? "" : metaDraft.suspendReason.trim(),
+      suspendEffectiveDate: metaDraft.lifecycleMode === "active" ? "" : metaDraft.effectiveDate,
+      suspendEndDate: metaDraft.lifecycleMode === "active" ? "" : metaDraft.endDate,
+      suspendAutoReactivate: metaDraft.lifecycleMode !== "active" && metaDraft.autoReactivate,
+    };
 
     setSaving(true);
-
     try {
-      const docId =
-        editDraft.docId ||
-        safeDocId(selectedUser.username);
-
-      const nextMeta: UserProfileMeta = {
-        ...editDraft,
-        docId,
-        updatedAt: new Date().toISOString(),
-      };
-
       await setDoc(
-        doc(firebaseDb, "qa_user_profiles", docId),
+        doc(firebaseDb, "qa_user_profiles", nextMeta.docId),
         {
-          username: selectedUser.username,
+          username: user.username,
           employeeId: nextMeta.employeeId,
-          officeContactNumber:
-            nextMeta.officeContactNumber,
-          officeExtension: nextMeta.officeExtension,
-          officeContactUsage:
-            nextMeta.officeContactUsage,
-          secondaryOfficeContact:
-            nextMeta.secondaryOfficeContact,
-          officeContactNote:
-            nextMeta.officeContactNote,
-          deviceStatus: nextMeta.deviceStatus,
-          deviceBrand: nextMeta.deviceBrand,
-          deviceModel: nextMeta.deviceModel,
-          deviceSeries: nextMeta.deviceSeries,
-          operatingSystem:
-            nextMeta.operatingSystem,
-          assetId: nextMeta.assetId,
-          serialNumber: nextMeta.serialNumber,
-          imei: nextMeta.imei,
-          imei2: nextMeta.imei2,
-          workSimNumber: nextMeta.workSimNumber,
-          assignedDate: nextMeta.assignedDate,
-          deviceNote: nextMeta.deviceNote,
+          officeNumber: nextMeta.officeNumber,
+          officeContactNumber: nextMeta.officeNumber,
+          extension: nextMeta.extension,
+          officeExtension: nextMeta.extension,
+          officeUsage: nextMeta.officeUsage,
+          officeContactUsage: nextMeta.officeUsage,
+          backupOfficeNumber: nextMeta.backupOfficeNumber,
+          secondaryOfficeContact: nextMeta.backupOfficeNumber,
+          contactNote: nextMeta.contactNote,
+          officeContactNote: nextMeta.contactNote,
+          devices: nextMeta.devices,
+          lifecycleMode: nextMeta.lifecycleMode,
+          suspendReason: update.suspendReason,
+          effectiveDate: update.suspendEffectiveDate,
+          suspendEffectiveDate: update.suspendEffectiveDate,
+          endDate: update.suspendEndDate,
+          suspendEndDate: update.suspendEndDate,
+          autoReactivate: update.suspendAutoReactivate,
+          suspendAutoReactivate: update.suspendAutoReactivate,
+          approver: nextMeta.approver,
+          lifecycleNote: nextMeta.lifecycleNote,
+          offboardingStatus: nextMeta.offboardingStatus,
+          employmentEndDate: nextMeta.employmentEndDate,
+          offboardingNote: nextMeta.offboardingNote,
+          history: nextMeta.history,
+          profileHistory: nextMeta.history,
+          deviceStatus: primary?.status || "Not Assigned",
+          deviceBrand: primary?.brand || "",
+          deviceModel: primary?.model || "",
+          deviceSeries: primary?.series || "",
+          operatingSystem: primary?.os || "",
+          assetId: primary?.assetId || "",
+          serialNumber: primary?.serialNumber || "",
+          imei: primary?.imei || "",
+          imei2: primary?.imei2 || "",
+          workSimNumber: primary?.workSim || "",
+          assignedDate: primary?.assignedDate || "",
+          deviceNote: primary?.note || "",
           updatedAt: nextMeta.updatedAt,
           updatedAtServer: serverTimestamp(),
         },
         { merge: true }
       );
 
-      setMetaByUsername((current) => ({
-        ...current,
-        [selectedUser.normalizedUsername]: nextMeta,
-      }));
-      setEditingProfile(false);
-      setEditDraft(EMPTY_META);
-      setToast(
-        "บันทึกข้อมูลโปรไฟล์และอุปกรณ์แล้ว"
-      );
+      await onSaveAccount(update);
+      setMetaMap((current) => ({ ...current, [user.normalizedUsername]: nextMeta }));
+      setEditing(false);
+      setAccountDraft(null);
+      setToast("บันทึกโปรไฟล์ สถานะบัญชี และอุปกรณ์แล้ว");
+      onStatusViewChange(nextStatus === "Suspended" ? "suspended" : "active");
     } catch (error) {
-      setToast(
-        error instanceof Error
-          ? error.message
-          : "บันทึกข้อมูลไม่สำเร็จ"
-      );
+      setToast(error instanceof Error ? error.message : "บันทึกข้อมูลไม่สำเร็จ");
     } finally {
       setSaving(false);
     }
   };
 
   const copyContact = async () => {
-    if (!selectedUser) return;
-
+    if (!user) return;
+    const primary = savedMeta.devices.find((device) => device.isPrimary) || savedMeta.devices[0];
     const text = [
-      selectedUser.displayName,
-      selectedMeta.officeContactNumber
-        ? `เบอร์สำนักงาน: ${selectedMeta.officeContactNumber}`
-        : "",
-      selectedMeta.officeExtension
-        ? `เบอร์ต่อ: ${selectedMeta.officeExtension}`
-        : "",
-      selectedMeta.workSimNumber
-        ? `Work SIM: ${selectedMeta.workSimNumber}`
-        : "",
+      user.displayName,
+      savedMeta.officeNumber ? `เบอร์สำนักงาน: ${savedMeta.officeNumber}` : "",
+      savedMeta.extension ? `เบอร์ต่อ: ${savedMeta.extension}` : "",
+      primary?.workSim ? `Work SIM: ${primary.workSim}` : "",
     ]
       .filter(Boolean)
       .join("\n");
-
     if (!text) {
       setToast("ยังไม่มีข้อมูลติดต่อให้คัดลอก");
       return;
     }
-
-    try {
-      await navigator.clipboard?.writeText(text);
-      setToast("คัดลอกข้อมูลติดต่อแล้ว");
-    } catch {
-      setToast("ไม่สามารถคัดลอกข้อมูลได้");
-    }
+    await navigator.clipboard?.writeText(text);
+    setToast("คัดลอกข้อมูลติดต่อแล้ว");
   };
+
+  const exportUserPdf = (kind: "profile" | "suspension" | "offboarding") => {
+    if (!user) return;
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    registerTHSarabunNew(pdf);
+    let y = 18;
+    const add = (label: string, value: string) => {
+      const lines = pdf.splitTextToSize(`${label}: ${value || "-"}`, 175) as string[];
+      if (y + lines.length * 6 > 280) {
+        pdf.addPage();
+        y = 18;
+      }
+      pdf.setFont("THSarabunNew", "normal");
+      pdf.setFontSize(12);
+      pdf.text(lines, 15, y);
+      y += Math.max(6, lines.length * 6);
+    };
+    const section = (title: string) => {
+      if (y > 270) {
+        pdf.addPage();
+        y = 18;
+      }
+      pdf.setFont("THSarabunNew", "bold");
+      pdf.setFontSize(15);
+      pdf.text(title, 15, y);
+      y += 8;
+    };
+
+    pdf.setFont("THSarabunNew", "bold");
+    pdf.setFontSize(20);
+    pdf.text(
+      kind === "profile"
+        ? "Corporate User Profile"
+        : kind === "suspension"
+          ? "Suspended Account Report"
+          : "Offboarding & Device Return Form",
+      15,
+      y
+    );
+    y += 10;
+    add("User", user.displayName);
+    add("Username", user.username);
+
+    if (kind === "profile") {
+      section("Account & Contact");
+      add("Email", user.email || "-");
+      add("Role", user.effectiveRole);
+      add("Team", user.teamName || "-");
+      add("Office Number", savedMeta.officeNumber);
+      add("Extension", savedMeta.extension);
+    }
+
+    if (kind !== "offboarding") {
+      section("Account Lifecycle");
+      add("Status", lifecycleLabel(savedMeta.lifecycleMode, user.status));
+      add("Effective Date", thaiDate(savedMeta.effectiveDate));
+      add("End Date", thaiDate(savedMeta.endDate));
+      add("Reason", savedMeta.suspendReason);
+      add("Approver", savedMeta.approver);
+    }
+
+    section(`Devices (${savedMeta.devices.length})`);
+    savedMeta.devices.forEach((device, index) => {
+      add(
+        `Device ${index + 1}`,
+        [device.brand, device.model, device.assetId, returnLabel(device.returnStatus), conditionLabel(device.condition)]
+          .filter(Boolean)
+          .join(" · ")
+      );
+    });
+
+    pdf.save(`${user.username}-${kind}-${todayBangkok()}.pdf`);
+    setPdfOpen(false);
+    setToast("สร้างเอกสาร PDF แล้ว");
+  };
+
+  const accountOptions = roles.map((role) => ({ value: role, label: role }));
+  const teamOptions = [
+    { value: "", label: "ยังไม่ระบุทีม" },
+    ...teams.filter((team) => team !== "Unassigned Team").map((team) => ({ value: team, label: team })),
+  ];
 
   return (
     <div
-      data-corporate-user-directory-v63="true"
-      data-unsaved-changes={
-        editingProfile ? "true" : "false"
-      }
+      data-corporate-user-directory-v65="true"
+      data-unsaved-changes={editing ? "true" : "false"}
       className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(58,34,111,0.09)]"
     >
       {toast ? (
-        <div className="fixed right-5 top-5 z-[230] rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
+        <div className="fixed right-5 top-5 z-[240] rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
           {toast}
         </div>
       ) : null}
 
-      <header className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-start lg:justify-between lg:px-6">
+      <header className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-700">
-            Users
-          </div>
-          <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-            Corporate User Directory
-          </div>
-          <div className="mt-1 text-sm leading-6 text-slate-500">
-            โปรไฟล์ผู้ใช้งาน บัญชี สิทธิ์ เบอร์สำนักงาน และอุปกรณ์สำหรับการทำงาน
+          <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-700">Users</div>
+          <div className="mt-1 text-2xl font-semibold text-slate-950">Corporate User Directory</div>
+          <div className="mt-1 text-sm text-slate-500">
+            แก้บัญชี เบอร์สำนักงาน อุปกรณ์หลายเครื่อง Suspended และ Offboarding ได้ในหน้าเดียว
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-2">
           {canManageUsers ? (
             <button
               type="button"
-              title="สร้างบัญชีผู้ใช้งานใหม่ พร้อมกำหนด Role ทีม และสถานะบัญชี"
-              aria-label="เพิ่มผู้ใช้ใหม่"
+              title="สร้างบัญชีผู้ใช้งานใหม่"
               onClick={onCreateUser}
-              className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-medium text-white shadow-[0_12px_28px_rgba(109,40,217,0.22)] transition hover:opacity-95"
+              className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-medium text-white"
             >
               + เพิ่มผู้ใช้
             </button>
           ) : null}
-
-          <div ref={menuRef} className="relative">
+          <div ref={manageRef} className="relative">
             <button
               type="button"
-              title="เปิดเมนูส่งออก PDF แก้ไขข้อมูลหลายบัญชี และจัดการทีม"
-              aria-label="เปิดเมนูการจัดการ"
-              onClick={() =>
-                setManagementOpen((current) => !current)
-              }
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-violet-200 hover:text-violet-700"
+              title="เปิดเมนูจัดการหลายบัญชีและทีม"
+              onClick={() => setManageOpen((current) => !current)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700"
             >
               ⚙ การจัดการ ▾
             </button>
-
-            {managementOpen ? (
-              <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
-                <button
-                  type="button"
-                  title="ส่งออกข้อมูล Directory เป็นไฟล์ PDF โดยไม่แสดงรหัสผ่าน"
-                  onClick={() => {
-                    setManagementOpen(false);
-                    onExportPdf();
-                  }}
-                  className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-violet-50"
-                >
-                  <span className="text-violet-700">⇩</span>
-                  <span>
-                    <span className="block text-sm font-medium text-slate-900">
-                      ส่งออก PDF
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                      ส่งออกข้อมูลผู้ใช้โดยไม่รวมรหัสผ่าน
-                    </span>
-                  </span>
-                </button>
-
+            {manageOpen ? (
+              <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                 {canManageUsers ? (
                   <button
                     type="button"
-                    title="เปิดหน้าจอแก้ไขข้อมูลบัญชี Role ทีม และสถานะของผู้ใช้หลายคน"
+                    title="เปิดหน้าจัดการหลายบัญชีสำหรับงาน Bulk"
                     onClick={() => {
-                      setManagementOpen(false);
+                      setManageOpen(false);
                       onEditDirectory();
                     }}
-                    className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-violet-50"
+                    className="w-full rounded-xl px-3 py-3 text-left text-sm hover:bg-violet-50"
                   >
-                    <span className="text-violet-700">✎</span>
-                    <span>
-                      <span className="block text-sm font-medium text-slate-900">
-                        แก้ไขข้อมูลหลายบัญชี
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                        แก้ Role ทีม สถานะ และข้อมูลบัญชีแบบรวม
-                      </span>
-                    </span>
+                    <b>จัดการหลายบัญชี</b>
+                    <span className="mt-1 block text-xs text-slate-500">ใช้เฉพาะงาน Bulk ที่ต้องแก้หลายคนพร้อมกัน</span>
                   </button>
                 ) : null}
-
                 <button
                   type="button"
-                  title="เปิดมุมมองสรุปสมาชิกแยกตามทีม"
+                  title="เปิดมุมมองทีม"
                   onClick={() => {
-                    setManagementOpen(false);
+                    setManageOpen(false);
                     onOpenTeams();
                   }}
-                  className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-violet-50"
+                  className="w-full rounded-xl px-3 py-3 text-left text-sm hover:bg-violet-50"
                 >
-                  <span className="text-violet-700">▦</span>
-                  <span>
-                    <span className="block text-sm font-medium text-slate-900">
-                      มุมมองทีม
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                      ดูสมาชิก หัวหน้าทีม และ Role ของแต่ละทีม
-                    </span>
-                  </span>
+                  <b>มุมมองทีม</b>
                 </button>
-
                 {canManageTeams ? (
                   <button
                     type="button"
-                    title="เปิดหน้าจัดการชื่อทีม หัวหน้าทีม และการมอบหมายสมาชิก"
+                    title="เปิดหน้าจัดการทีม"
                     onClick={() => {
-                      setManagementOpen(false);
+                      setManageOpen(false);
                       onManageTeams();
                     }}
-                    className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-violet-50"
+                    className="w-full rounded-xl px-3 py-3 text-left text-sm hover:bg-violet-50"
                   >
-                    <span className="text-violet-700">⚙</span>
-                    <span>
-                      <span className="block text-sm font-medium text-slate-900">
-                        จัดการทีม
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                        สร้างทีม แก้หัวหน้าทีม และย้ายสมาชิก
-                      </span>
-                    </span>
+                    <b>จัดการทีม</b>
                   </button>
                 ) : null}
               </div>
@@ -952,321 +1093,172 @@ export default function CorporateUserDirectoryProfile({
         </div>
       </header>
 
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-5">
-        <div className="inline-flex w-fit gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="inline-flex w-fit gap-1 rounded-2xl border border-slate-200 bg-white p-1">
           <button
             type="button"
-            title="แสดงเฉพาะบัญชีผู้ใช้งานที่มีสถานะ Active"
-            onClick={() => selectStatusView("active")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-              statusView === "active"
-                ? "bg-gradient-to-r from-violet-700 to-fuchsia-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+            title="แสดงบัญชี Active รวมบัญชีที่ตั้งเวลาระงับในอนาคต"
+            onClick={() => changeView("active")}
+            className={`rounded-xl px-4 py-2.5 text-sm font-medium ${
+              statusView === "active" ? "bg-violet-700 text-white" : "text-slate-600"
             }`}
           >
-            ผู้ใช้งานปัจจุบัน
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs ${
-                statusView === "active"
-                  ? "bg-white text-slate-950"
-                  : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {activeCount}
-            </span>
+            ผู้ใช้งานปัจจุบัน {rows.filter((row) => row.status === "Active").length}
           </button>
-
           <button
             type="button"
-            title="แสดงเฉพาะบัญชีที่ถูกระงับการใช้งาน"
-            onClick={() => selectStatusView("suspended")}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-              statusView === "suspended"
-                ? "bg-gradient-to-r from-rose-600 to-pink-500 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+            title="แสดงบัญชีที่ถูกระงับแล้ว"
+            onClick={() => changeView("suspended")}
+            className={`rounded-xl px-4 py-2.5 text-sm font-medium ${
+              statusView === "suspended" ? "bg-rose-600 text-white" : "text-slate-600"
             }`}
           >
-            บัญชี Suspended
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs ${
-                statusView === "suspended"
-                  ? "bg-white text-slate-950"
-                  : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {suspendedCount}
-            </span>
+            บัญชี Suspended {rows.filter((row) => row.status === "Suspended").length}
           </button>
         </div>
-
         <div className="text-xs text-slate-500">
-          {statusView === "active"
-            ? "แสดงเฉพาะผู้ใช้งานที่เข้าใช้ระบบได้"
-            : "แยกบัญชีที่ระงับออกจากรายชื่อผู้ใช้งานปัจจุบัน"}
+          Scheduled Suspend จะอยู่ในผู้ใช้งานปัจจุบันจนถึงวันที่มีผล
         </div>
       </div>
 
-      <div className="grid min-h-[690px] xl:grid-cols-[390px_minmax(0,1fr)]">
+      <div className="grid min-h-[760px] xl:grid-cols-[390px_minmax(0,1fr)]">
         <aside className="border-b border-slate-200 bg-[#fcfcff] xl:border-b-0 xl:border-r">
           <div className="border-b border-slate-200 p-4">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                ⌕
-              </span>
-              <input
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="ค้นหาชื่อ Username อีเมล หรืออุปกรณ์"
-                title="ค้นหาผู้ใช้จากชื่อ Username อีเมล เบอร์สำนักงาน หรือข้อมูลอุปกรณ์"
-                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-10 text-sm text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-              />
-
-              {search ? (
-                <button
-                  type="button"
-                  title="ล้างข้อความค้นหา"
-                  aria-label="ล้างข้อความค้นหา"
-                  onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                >
-                  ✕
-                </button>
-              ) : null}
-            </div>
-
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="ค้นหาชื่อ Username อีเมล หรืออุปกรณ์"
+              title="ค้นหาผู้ใช้จากชื่อ Username อีเมล เบอร์สำนักงาน หรือข้อมูลอุปกรณ์"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            />
             <div className="mt-3 grid grid-cols-2 gap-2">
               <select
                 value={roleFilter}
-                onChange={(event) =>
-                  setRoleFilter(event.target.value)
-                }
+                onChange={(event) => setRoleFilter(event.target.value)}
                 title="กรองรายชื่อตาม Role"
-                aria-label="กรองรายชื่อตาม Role"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none"
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs"
               >
                 <option value="all">ทุก Role</option>
                 {roles.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
+                  <option key={role} value={role}>{role}</option>
                 ))}
               </select>
-
               <select
                 value={teamFilter}
-                onChange={(event) =>
-                  setTeamFilter(event.target.value)
-                }
+                onChange={(event) => setTeamFilter(event.target.value)}
                 title="กรองรายชื่อตามทีม"
-                aria-label="กรองรายชื่อตามทีม"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none"
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs"
               >
                 <option value="all">ทุกทีม</option>
                 {teams.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
+                  <option key={team} value={team}>{team}</option>
                 ))}
               </select>
-
               <select
                 value={deviceFilter}
-                onChange={(event) =>
-                  setDeviceFilter(event.target.value)
-                }
-                title="กรองผู้ใช้ตามสถานะการรับอุปกรณ์"
-                aria-label="กรองผู้ใช้ตามสถานะการรับอุปกรณ์"
-                className="col-span-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none"
+                onChange={(event) => setDeviceFilter(event.target.value)}
+                title="กรองผู้ใช้ตามสถานะอุปกรณ์"
+                className="col-span-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs"
               >
                 <option value="all">ทุกสถานะอุปกรณ์</option>
-                <option value="assigned">
-                  รับอุปกรณ์แล้ว
-                </option>
-                <option value="unassigned">
-                  ยังไม่มีอุปกรณ์หรือไม่ได้อยู่ในสถานะ Assigned
-                </option>
+                <option value="assigned">มีอุปกรณ์ที่รับมอบหมาย</option>
+                <option value="unassigned">ยังไม่มีอุปกรณ์ที่รับมอบหมาย</option>
               </select>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="text-xs text-slate-500">
-                พบ {filteredRows.length} รายการ
-              </div>
-              <button
-                type="button"
-                title="ล้างคำค้นหาและตัวกรองทั้งหมด"
-                onClick={clearFilters}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:border-violet-200 hover:text-violet-700"
-              >
-                ล้างตัวกรอง
-              </button>
             </div>
           </div>
 
-          <div className="max-h-[610px] space-y-2 overflow-y-auto p-3">
+          <div className="max-h-[680px] space-y-2 overflow-y-auto p-3">
             {filteredRows.map((row) => {
-              const meta =
-                metaByUsername[row.normalizedUsername] ||
-                EMPTY_META;
-              const selected =
-                row.normalizedUsername ===
-                selectedUsername;
-
+              const rowMeta = hydrated[row.normalizedUsername] || emptyMeta();
+              const primary = rowMeta.devices.find((device) => device.isPrimary) || rowMeta.devices[0];
               return (
                 <button
                   key={row.username}
                   type="button"
                   title={`เปิดโปรไฟล์ของ ${row.displayName}`}
-                  aria-label={`เปิดโปรไฟล์ของ ${row.displayName}`}
-                  onClick={() =>
-                    selectUser(row.normalizedUsername)
-                  }
-                  className={`w-full rounded-[20px] border p-3 text-left transition ${
-                    selected
-                      ? "border-violet-300 bg-white shadow-[0_12px_28px_rgba(109,40,217,0.12)]"
-                      : "border-transparent bg-transparent hover:border-violet-200 hover:bg-white"
+                  onClick={() => chooseUser(row.normalizedUsername)}
+                  className={`w-full rounded-[20px] border p-3 text-left ${
+                    selectedUsername === row.normalizedUsername
+                      ? "border-violet-300 bg-white shadow-sm"
+                      : "border-transparent hover:border-violet-200 hover:bg-white"
                   }`}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex gap-3">
                     <div
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-semibold text-white ${avatarClass(
                         row.effectiveRole
                       )}`}
                     >
-                      {initials(
-                        row.displayName || row.username
-                      )}
+                      {initials(row.displayName)}
                     </div>
-
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-950">
-                            {row.displayName}
-                          </div>
-                          <div className="mt-0.5 truncate text-xs text-slate-500">
-                            {row.username}
-                          </div>
+                        <div>
+                          <div className="truncate text-sm font-semibold text-slate-950">{row.displayName}</div>
+                          <div className="text-xs text-slate-500">{row.username}</div>
                         </div>
-
-                        <span
-                          title={
-                            row.status === "Active"
-                              ? "บัญชีเปิดใช้งาน"
-                              : "บัญชีถูกระงับ"
-                          }
-                          className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                            row.status === "Active"
-                              ? "bg-emerald-500"
-                              : "bg-rose-500"
-                          }`}
-                        />
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] font-medium text-violet-700">
-                          {row.effectiveRole}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-600">
-                          {row.teamName || "ยังไม่ระบุทีม"}
+                        <span className={`rounded-full px-2 py-1 text-[10px] ${lifecycleClass(rowMeta.lifecycleMode, row.status)}`}>
+                          {lifecycleLabel(rowMeta.lifecycleMode, row.status)}
                         </span>
                       </div>
-
-                      <div className="mt-2 grid gap-1 text-[11px] text-slate-500">
-                        <div className="truncate">
-                          ☎{" "}
-                          {meta.officeContactNumber ||
-                            "ยังไม่ระบุเบอร์สำนักงาน"}
-                        </div>
-                        <div className="truncate">
-                          ▣{" "}
-                          {meta.deviceStatus === "Assigned"
-                            ? [
-                                meta.deviceBrand,
-                                meta.deviceModel,
-                              ]
-                                .filter(Boolean)
-                                .join(" ") ||
-                              "รับอุปกรณ์แล้ว"
-                            : "ยังไม่ระบุอุปกรณ์"}
-                        </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">{row.effectiveRole}</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-600">{row.teamName || "ยังไม่ระบุทีม"}</span>
+                      </div>
+                      <div className="mt-2 text-[11px] text-slate-500">
+                        ▣ {rowMeta.devices.length} เครื่อง
+                        {primary ? ` · ${[primary.brand, primary.model].filter(Boolean).join(" ") || "ยังไม่ระบุรุ่น"}` : ""}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="mt-3 text-right text-xs font-medium text-violet-700">
-                    ดูโปรไฟล์ →
                   </div>
                 </button>
               );
             })}
-
-            {!filteredRows.length ? (
-              <div className="rounded-[20px] border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
-                ไม่พบผู้ใช้ที่ตรงกับการค้นหาหรือตัวกรอง
-              </div>
-            ) : null}
           </div>
         </aside>
 
-        <main className="min-w-0 bg-gradient-to-b from-white to-slate-50/50 p-4 lg:p-5">
-          {selectedUser ? (
-            <div className="space-y-4">
-              {selectedUser.status === "Suspended" ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  บัญชีนี้ถูกระงับการใช้งาน
-                  {selectedUser.suspendEffectiveDate
-                    ? ` มีผลวันที่ ${selectedUser.suspendEffectiveDate}`
-                    : ""}
-                  {selectedUser.suspendReason
-                    ? ` — ${selectedUser.suspendReason}`
-                    : ""}
-                </div>
-              ) : null}
+        <main className="min-w-0 bg-gradient-to-b from-white to-slate-50">
+          {user && account ? (
+            <>
+              <div className="border-b border-slate-200 bg-white p-5">
+                {(savedMeta.lifecycleMode !== "active" || user.status === "Suspended") ? (
+                  <div
+                    className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+                      user.status === "Suspended"
+                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {savedMeta.lifecycleMode === "scheduled"
+                      ? `บัญชีนี้ถูกตั้งให้เปลี่ยนเป็น Suspended วันที่ ${thaiDate(savedMeta.effectiveDate)} — ${
+                          savedMeta.suspendReason || "-"
+                        }`
+                      : savedMeta.lifecycleMode === "offboarding"
+                        ? `บัญชีนี้อยู่ระหว่าง Offboarding มีผลวันที่ ${thaiDate(savedMeta.effectiveDate)}`
+                        : `บัญชีนี้ถูกระงับการใช้งาน มีผลวันที่ ${thaiDate(savedMeta.effectiveDate)} — ${
+                            savedMeta.suspendReason || "-"
+                          }`}
+                  </div>
+                ) : null}
 
-              <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex items-center gap-4">
                     <div
-                      className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br text-xl font-semibold text-white shadow-lg ${avatarClass(
-                        selectedUser.effectiveRole
+                      className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br text-xl font-semibold text-white ${avatarClass(
+                        account.role
                       )}`}
                     >
-                      {initials(
-                        selectedUser.displayName ||
-                          selectedUser.username
-                      )}
+                      {initials(account.displayName)}
                     </div>
-
-                    <div className="min-w-0">
+                    <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                          {selectedUser.displayName}
-                        </h2>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            selectedUser.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-rose-50 text-rose-700"
-                          }`}
-                        >
-                          {selectedUser.status}
+                        <h2 className="text-2xl font-semibold text-slate-950">{account.displayName}</h2>
+                        <span className={`rounded-full px-2.5 py-1 text-xs ${lifecycleClass(meta.lifecycleMode, account.status)}`}>
+                          {lifecycleLabel(meta.lifecycleMode, account.status)}
                         </span>
                       </div>
-
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                        <span>{selectedUser.username}</span>
-                        <span>•</span>
-                        <span className="text-violet-700">
-                          {selectedUser.effectiveRole}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          {selectedUser.teamName ||
-                            "ยังไม่ระบุทีม"}
-                        </span>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {account.username} · {account.role} · {account.teamName || "ยังไม่ระบุทีม"}
                       </div>
                     </div>
                   </div>
@@ -1274,19 +1266,70 @@ export default function CorporateUserDirectoryProfile({
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      title="คัดลอกเบอร์สำนักงาน เบอร์ต่อ และหมายเลข Work SIM ของผู้ใช้นี้"
+                      title="คัดลอกเบอร์สำนักงาน เบอร์ต่อ และ Work SIM ของอุปกรณ์หลัก"
                       onClick={() => void copyContact()}
-                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:border-violet-200 hover:text-violet-700"
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
                     >
                       ⧉ คัดลอกข้อมูลติดต่อ
                     </button>
-
-                    {canManageUsers && !editingProfile ? (
+                    <div ref={pdfRef} className="relative">
                       <button
                         type="button"
-                        title="แก้ไขเบอร์สำนักงานและข้อมูลอุปกรณ์บนหน้าเดิมโดยไม่เปิดหน้าต่างใหม่"
-                        onClick={beginInlineEdit}
-                        className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-medium text-white shadow-[0_12px_28px_rgba(109,40,217,0.22)]"
+                        title="เลือกประเภทเอกสาร PDF ที่ต้องการส่งออก"
+                        onClick={() => setPdfOpen((current) => !current)}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
+                      >
+                        ⇩ ส่งออกเอกสาร ▾
+                      </button>
+                      {pdfOpen ? (
+                        <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-80 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                          <button
+                            type="button"
+                            title="สร้าง PDF โปรไฟล์ผู้ใช้"
+                            onClick={() => exportUserPdf("profile")}
+                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-violet-50"
+                          >
+                            <b>User Profile PDF</b>
+                            <span className="mt-1 block text-xs text-slate-500">บัญชี เบอร์สำนักงาน อุปกรณ์ และสถานะ</span>
+                          </button>
+                          <button
+                            type="button"
+                            title="สร้างรายงาน Suspended"
+                            onClick={() => exportUserPdf("suspension")}
+                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-violet-50"
+                          >
+                            <b>Suspended Account Report</b>
+                            <span className="mt-1 block text-xs text-slate-500">เหตุผล วันที่มีผล วันที่เปิดกลับ และผู้อนุมัติ</span>
+                          </button>
+                          <button
+                            type="button"
+                            title="สร้างแบบฟอร์ม Offboarding และส่งคืนอุปกรณ์"
+                            onClick={() => exportUserPdf("offboarding")}
+                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-violet-50"
+                          >
+                            <b>Offboarding & Device Return</b>
+                            <span className="mt-1 block text-xs text-slate-500">อุปกรณ์ทุกเครื่อง สถานะคืน สภาพ และผู้รับคืน</span>
+                          </button>
+                          <button
+                            type="button"
+                            title="ส่งออก Directory ตาม Tab และตัวกรองปัจจุบัน"
+                            onClick={() => {
+                              setPdfOpen(false);
+                              onExportPdf();
+                            }}
+                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-violet-50"
+                          >
+                            <b>Directory Current View</b>
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    {canManageUsers && !editing ? (
+                      <button
+                        type="button"
+                        title="แก้บัญชี เบอร์สำนักงาน อุปกรณ์หลายเครื่อง Suspended และ Offboarding บนหน้าเดียว"
+                        onClick={beginEdit}
+                        className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-medium text-white"
                       >
                         ✎ แก้ไขโปรไฟล์
                       </button>
@@ -1294,359 +1337,441 @@ export default function CorporateUserDirectoryProfile({
                   </div>
                 </div>
 
-                {editingProfile ? (
-                  <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm leading-6 text-violet-800">
-                    กำลังแก้ไขข้อมูลบนหน้าเดิม ระบบจะยังไม่เปลี่ยนข้อมูลจนกว่าจะกดบันทึก ส่วน Role ทีม และสถานะบัญชีให้ใช้เมนู “แก้ไขข้อมูลหลายบัญชี”
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {[
+                    ["profile-account", "ข้อมูลบัญชี"],
+                    ["profile-contact", "เบอร์สำนักงาน"],
+                    ["profile-devices", "อุปกรณ์"],
+                    ["profile-lifecycle", "สถานะบัญชี"],
+                    ["profile-offboarding", "Offboarding"],
+                    ["profile-history", "ประวัติ"],
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      title={`เลื่อนไปยังส่วน${label}`}
+                      onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {editing ? (
+                  <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+                    กำลังแก้ไขทั้งโปรไฟล์ รวมบัญชี เบอร์สำนักงาน อุปกรณ์หลายเครื่อง Suspended และ Offboarding
                   </div>
                 ) : null}
-              </section>
-
-              <div className="grid gap-4 2xl:grid-cols-2">
-                <SectionCard
-                  icon="◎"
-                  title="Account Information"
-                  subtitle="ข้อมูลบัญชีและสถานะการเข้าถึงระบบ"
-                >
-                  <DisplayRow
-                    label="ชื่อ–นามสกุล"
-                    value={fieldValue(
-                      selectedUser.displayName
-                    )}
-                  />
-                  <DisplayRow
-                    label="Username"
-                    value={fieldValue(
-                      selectedUser.username
-                    )}
-                  />
-                  <DisplayRow
-                    label="อีเมลสำหรับงาน"
-                    value={fieldValue(selectedUser.email)}
-                  />
-                  <InlineTextRow
-                    label="รหัสพนักงาน"
-                    value={currentMeta.employeeId}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("employeeId", value)
-                    }
-                  />
-                  <DisplayRow
-                    label="Role"
-                    value={fieldValue(
-                      selectedUser.effectiveRole
-                    )}
-                    badge="violet"
-                  />
-                  <DisplayRow
-                    label="ทีม"
-                    value={fieldValue(
-                      selectedUser.teamName
-                    )}
-                  />
-                  <DisplayRow
-                    label="หัวหน้าทีม"
-                    value={fieldValue(
-                      selectedUser.teamLead
-                    )}
-                  />
-                  <DisplayRow
-                    label="สถานะบัญชี"
-                    value={selectedUser.status}
-                    badge={
-                      selectedUser.status === "Active"
-                        ? "green"
-                        : "amber"
-                    }
-                  />
-                  <DisplayRow
-                    label="สถานะรหัสผ่าน"
-                    value="ตั้งค่าแล้ว"
-                    badge="green"
-                  />
-                  <DisplayRow
-                    label="อัปเดตรหัสผ่านล่าสุด"
-                    value={formatDateTime(
-                      selectedMeta.passwordIssuedAt
-                    )}
-                  />
-                </SectionCard>
-
-                <SectionCard
-                  icon="☎"
-                  title="Work Contact Information"
-                  subtitle="หมายเลขที่สำนักงานจัดให้ใช้โทรออกและติดต่อประสานงาน"
-                >
-                  <InlineTextRow
-                    label="เบอร์โทรศัพท์สำนักงานสำหรับโทรออก"
-                    value={
-                      currentMeta.officeContactNumber
-                    }
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "officeContactNumber",
-                        value
-                      )
-                    }
-                    placeholder="เช่น 02-xxx-xxxx"
-                  />
-                  <InlineTextRow
-                    label="เบอร์ต่อภายใน"
-                    value={currentMeta.officeExtension}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "officeExtension",
-                        value
-                      )
-                    }
-                    placeholder="เช่น 1234"
-                  />
-                  <InlineTextRow
-                    label="วัตถุประสงค์การใช้งาน"
-                    value={
-                      currentMeta.officeContactUsage
-                    }
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "officeContactUsage",
-                        value
-                      )
-                    }
-                  />
-                  <InlineTextRow
-                    label="หมายเลขสำนักงานสำรอง"
-                    value={
-                      currentMeta.secondaryOfficeContact
-                    }
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "secondaryOfficeContact",
-                        value
-                      )
-                    }
-                  />
-                  <InlineTextRow
-                    label="หมายเหตุ"
-                    value={
-                      currentMeta.officeContactNote
-                    }
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "officeContactNote",
-                        value
-                      )
-                    }
-                  />
-                </SectionCard>
-
-                <SectionCard
-                  icon="▣"
-                  title="Assigned Work Device"
-                  subtitle="ข้อมูลอุปกรณ์และเลขประจำเครื่องที่บริษัทมอบหมาย"
-                >
-                  <DeviceStatusRow
-                    value={currentMeta.deviceStatus}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "deviceStatus",
-                        value
-                      )
-                    }
-                  />
-                  <InlineTextRow
-                    label="ยี่ห้อ"
-                    value={currentMeta.deviceBrand}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("deviceBrand", value)
-                    }
-                    placeholder="เช่น Samsung"
-                  />
-                  <InlineTextRow
-                    label="รุ่น / Model"
-                    value={currentMeta.deviceModel}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("deviceModel", value)
-                    }
-                    placeholder="เช่น Galaxy S23"
-                  />
-                  <InlineTextRow
-                    label="Series"
-                    value={currentMeta.deviceSeries}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("deviceSeries", value)
-                    }
-                  />
-                  <InlineTextRow
-                    label="ระบบปฏิบัติการ"
-                    value={currentMeta.operatingSystem}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "operatingSystem",
-                        value
-                      )
-                    }
-                    placeholder="เช่น Android 14"
-                  />
-                  <InlineTextRow
-                    label="Asset ID / เลขทรัพย์สิน"
-                    value={currentMeta.assetId}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("assetId", value)
-                    }
-                  />
-                  <InlineTextRow
-                    label="Serial Number"
-                    value={currentMeta.serialNumber}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "serialNumber",
-                        value
-                      )
-                    }
-                  />
-                  <InlineTextRow
-                    label="IMEI"
-                    value={currentMeta.imei}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("imei", value)
-                    }
-                  />
-                  <InlineTextRow
-                    label="IMEI 2"
-                    value={currentMeta.imei2}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("imei2", value)
-                    }
-                  />
-                  <InlineTextRow
-                    label="หมายเลข Work SIM"
-                    value={currentMeta.workSimNumber}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "workSimNumber",
-                        value
-                      )
-                    }
-                  />
-                  <InlineTextRow
-                    label="วันที่มอบหมายอุปกรณ์"
-                    value={currentMeta.assignedDate}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft(
-                        "assignedDate",
-                        value
-                      )
-                    }
-                    type="date"
-                  />
-                  <InlineTextRow
-                    label="หมายเหตุอุปกรณ์"
-                    value={currentMeta.deviceNote}
-                    editing={editingProfile}
-                    onChange={(value) =>
-                      updateDraft("deviceNote", value)
-                    }
-                  />
-                </SectionCard>
-
-                <SectionCard
-                  icon="◇"
-                  title="Access Summary"
-                  subtitle="สรุป Role สิทธิ์ และสถานะการ Login"
-                >
-                  <DisplayRow
-                    label="Role"
-                    value={fieldValue(
-                      selectedUser.effectiveRole
-                    )}
-                    badge="violet"
-                  />
-                  <DisplayRow
-                    label="สิทธิ์ที่เปิดใช้งาน"
-                    value={`${permissionCount} สิทธิ์`}
-                  />
-                  <DisplayRow
-                    label="ขอบเขตทีม"
-                    value={fieldValue(
-                      selectedUser.teamName || "ตาม Role"
-                    )}
-                  />
-                  <DisplayRow
-                    label="สถานะ Login"
-                    value={
-                      selectedUser.status === "Active"
-                        ? "สามารถเข้าสู่ระบบได้"
-                        : "ระงับการเข้าสู่ระบบ"
-                    }
-                    badge={
-                      selectedUser.status === "Active"
-                        ? "green"
-                        : "amber"
-                    }
-                  />
-                  <DisplayRow
-                    label="ระดับความปลอดภัย"
-                    value="Corporate Standard"
-                    badge="slate"
-                  />
-                  <DisplayRow
-                    label="อัปเดตโปรไฟล์ล่าสุด"
-                    value={formatDateTime(
-                      selectedMeta.updatedAt
-                    )}
-                  />
-                </SectionCard>
               </div>
 
-              {editingProfile ? (
-                <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-[20px] border border-violet-200 bg-white/95 px-4 py-3 shadow-[0_20px_55px_rgba(70,42,130,0.20)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm font-medium text-violet-800">
-                    มีข้อมูลโปรไฟล์ที่ยังไม่ได้บันทึก
+              <div className="space-y-4 p-5 pb-28">
+                <Section id="profile-account" icon="◎" title="Account Information" subtitle="ข้อมูลบัญชี Role ทีม และสิทธิ์">
+                  <div className="grid gap-x-6 xl:grid-cols-2">
+                    <Field label="ชื่อ–นามสกุล" value={account.displayName} editing={editing} onChange={(value) => updateAccount("displayName", value)} />
+                    <Field label="Username" value={account.username} editing={false} />
+                    <Field label="อีเมลสำหรับงาน" value={account.email} editing={editing} onChange={(value) => updateAccount("email", value)} />
+                    <Field label="รหัสพนักงาน" value={meta.employeeId} editing={editing} onChange={(value) => updateMeta("employeeId", value)} />
+                    <Field label="Role" value={account.role} editing={editing} onChange={(value) => updateAccount("role", value)} options={accountOptions} />
+                    <Field label="ทีม" value={account.teamName} editing={editing} onChange={(value) => updateAccount("teamName", value)} options={teamOptions} />
+                    <Field label="หัวหน้าทีม" value={account.teamLead} editing={editing} onChange={(value) => updateAccount("teamLead", value)} />
+                    <Field label="สถานะรหัสผ่าน" value="ตั้งค่าแล้ว" editing={false} />
+                    <Field label="สิทธิ์ที่เปิดใช้งาน" value={`${permissionCount} สิทธิ์`} editing={false} />
+                    <Field label="อัปเดตรหัสผ่านล่าสุด" value={formatDateTime(savedMeta.passwordIssuedAt)} editing={false} />
+                  </div>
+                </Section>
+
+                <Section id="profile-contact" icon="☎" title="Work Contact Information" subtitle="หมายเลขที่สำนักงานจัดให้ใช้โทรออกและประสานงาน">
+                  <div className="grid gap-x-6 xl:grid-cols-2">
+                    <Field label="เบอร์โทรศัพท์สำนักงานสำหรับโทรออก" value={meta.officeNumber} editing={editing} onChange={(value) => updateMeta("officeNumber", value)} />
+                    <Field label="เบอร์ต่อภายใน" value={meta.extension} editing={editing} onChange={(value) => updateMeta("extension", value)} />
+                    <Field label="หมายเลขสำนักงานสำรอง" value={meta.backupOfficeNumber} editing={editing} onChange={(value) => updateMeta("backupOfficeNumber", value)} />
+                    <Field label="วัตถุประสงค์การใช้งาน" value={meta.officeUsage} editing={editing} onChange={(value) => updateMeta("officeUsage", value)} />
+                    <Field label="หมายเหตุ" value={meta.contactNote} editing={editing} onChange={(value) => updateMeta("contactNote", value)} textarea />
+                  </div>
+                </Section>
+
+                <Section
+                  id="profile-devices"
+                  icon="▣"
+                  title="Assigned Work Devices"
+                  subtitle="รองรับอุปกรณ์มากกว่า 1 เครื่อง และกำหนดเครื่องหลักได้"
+                  action={
+                    editing ? (
+                      <button
+                        type="button"
+                        title="เพิ่มอุปกรณ์เครื่องใหม่ในโปรไฟล์"
+                        onClick={addDevice}
+                        className="rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-medium text-white"
+                      >
+                        + เพิ่มอุปกรณ์
+                      </button>
+                    ) : null
+                  }
+                >
+                  {meta.devices.length ? (
+                    <>
+                      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                        {meta.devices.map((device, index) => (
+                          <button
+                            key={device.id}
+                            type="button"
+                            title={`เปิดข้อมูลอุปกรณ์เครื่องที่ ${index + 1}`}
+                            onClick={() => setSelectedDeviceId(device.id)}
+                            className={`rounded-[18px] border p-4 text-left ${
+                              selectedDevice?.id === device.id
+                                ? "border-violet-300 bg-violet-50"
+                                : "border-slate-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex justify-between gap-2">
+                              <div>
+                                <div className="text-xs text-violet-700">อุปกรณ์เครื่องที่ {index + 1}</div>
+                                <div className="mt-1 font-semibold">
+                                  {[device.brand, device.model].filter(Boolean).join(" ") || "ยังไม่ระบุรุ่น"}
+                                </div>
+                              </div>
+                              {device.isPrimary ? (
+                                <span className="h-fit rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">เครื่องหลัก</span>
+                              ) : null}
+                            </div>
+                            <div className="mt-2 text-xs text-slate-500">{statusLabel(device.status)} · {device.assetId || "-"}</div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {selectedDevice ? (
+                        <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+                          {editing ? (
+                            <div className="mb-3 flex justify-end gap-2">
+                              {!selectedDevice.isPrimary ? (
+                                <button
+                                  type="button"
+                                  title="ตั้งอุปกรณ์เครื่องนี้เป็นเครื่องหลัก"
+                                  onClick={() => makePrimary(selectedDevice.id)}
+                                  className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs text-violet-700"
+                                >
+                                  ตั้งเป็นเครื่องหลัก
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                title="ลบอุปกรณ์เครื่องนี้ออกจากโปรไฟล์"
+                                onClick={() => removeDevice(selectedDevice.id)}
+                                className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs text-rose-600"
+                              >
+                                ลบอุปกรณ์
+                              </button>
+                            </div>
+                          ) : null}
+
+                          <div className="grid gap-x-6 xl:grid-cols-2">
+                            <Field
+                              label="สถานะอุปกรณ์"
+                              value={selectedDevice.status}
+                              editing={editing}
+                              onChange={(value) => updateDevice(selectedDevice.id, "status", value as DeviceStatus)}
+                              options={[
+                                { value: "Not Assigned", label: "ยังไม่มีอุปกรณ์" },
+                                { value: "Assigned", label: "รับอุปกรณ์แล้ว" },
+                                { value: "Repair", label: "อยู่ระหว่างซ่อม" },
+                                { value: "Returned", label: "คืนอุปกรณ์แล้ว" },
+                              ]}
+                            />
+                            {[
+                              ["ยี่ห้อ", "brand"],
+                              ["รุ่น / Model", "model"],
+                              ["Series", "series"],
+                              ["ระบบปฏิบัติการ", "os"],
+                              ["Asset ID / เลขทรัพย์สิน", "assetId"],
+                              ["Serial Number", "serialNumber"],
+                              ["IMEI", "imei"],
+                              ["IMEI 2", "imei2"],
+                              ["หมายเลข Work SIM", "workSim"],
+                              ["วันที่มอบหมายอุปกรณ์", "assignedDate"],
+                            ].map(([label, key]) => (
+                              <Field
+                                key={key}
+                                label={label}
+                                value={String(selectedDevice[key as keyof WorkDevice] || "")}
+                                editing={editing}
+                                onChange={(value) => updateDevice(selectedDevice.id, key as keyof WorkDevice, value)}
+                                type={key === "assignedDate" ? "date" : "text"}
+                              />
+                            ))}
+                            <Field
+                              label="หมายเหตุอุปกรณ์"
+                              value={selectedDevice.note}
+                              editing={editing}
+                              onChange={(value) => updateDevice(selectedDevice.id, "note", value)}
+                              textarea
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
+                      ยังไม่มีอุปกรณ์ กด “แก้ไขโปรไฟล์” แล้วเลือก “+ เพิ่มอุปกรณ์”
+                    </div>
+                  )}
+                </Section>
+
+                <Section id="profile-lifecycle" icon="⚙" title="Account Lifecycle & Suspension" subtitle="ตั้งค่า Active, Scheduled Suspend, Suspended และ Offboarding">
+                  <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                    {[
+                      ["active", "Active", "เปิดบัญชีและอนุญาตให้ Login"],
+                      ["scheduled", "Scheduled Suspend", "ตั้งวันที่ระงับล่วงหน้า"],
+                      ["suspended", "Suspended", "ระงับบัญชีทันที"],
+                      ["offboarding", "Offboarding", "ลาออกและติดตามการคืนอุปกรณ์"],
+                    ].map(([mode, title, description]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        disabled={!editing}
+                        title={`${title}: ${description}`}
+                        onClick={() => chooseLifecycle(mode as LifecycleMode)}
+                        className={`rounded-[16px] border p-4 text-left ${
+                          meta.lifecycleMode === mode
+                            ? mode === "suspended"
+                              ? "border-rose-300 bg-rose-50"
+                              : mode === "active"
+                                ? "border-emerald-300 bg-emerald-50"
+                                : "border-amber-300 bg-amber-50"
+                            : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <b className="text-sm">{title}</b>
+                        <span className="mt-1 block text-xs text-slate-500">{description}</span>
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="mt-4 grid gap-x-6 xl:grid-cols-2">
+                    <Field
+                      label="วันที่มีผล"
+                      value={meta.effectiveDate}
+                      editing={editing && meta.lifecycleMode !== "active"}
+                      onChange={(value) => updateMeta("effectiveDate", value)}
+                      type="date"
+                    />
+                    <Field
+                      label="วันที่เปิดบัญชีกลับ"
+                      value={meta.endDate}
+                      editing={editing && meta.lifecycleMode !== "active"}
+                      onChange={(value) => updateMeta("endDate", value)}
+                      type="date"
+                    />
+                    <Field
+                      label="เหตุผลหลัก"
+                      value={meta.suspendReason}
+                      editing={editing && meta.lifecycleMode !== "active"}
+                      onChange={(value) => updateMeta("suspendReason", value)}
+                      options={[
+                        { value: "", label: "เลือกเหตุผล" },
+                        { value: "สิ้นสุดการปฏิบัติงาน", label: "สิ้นสุดการปฏิบัติงาน" },
+                        { value: "ลาออก", label: "ลาออก" },
+                        { value: "พักงานชั่วคราว", label: "พักงานชั่วคราว" },
+                        { value: "ตรวจสอบสิทธิ์บัญชี", label: "ตรวจสอบสิทธิ์บัญชี" },
+                        { value: "อื่น ๆ", label: "อื่น ๆ" },
+                      ]}
+                    />
+                    <Field
+                      label="ผู้อนุมัติ / ผู้แจ้ง"
+                      value={meta.approver}
+                      editing={editing && meta.lifecycleMode !== "active"}
+                      onChange={(value) => updateMeta("approver", value)}
+                    />
+                    <Field
+                      label="เปิดบัญชีกลับอัตโนมัติ"
+                      value={meta.autoReactivate ? "yes" : "no"}
+                      editing={editing && meta.lifecycleMode !== "active"}
+                      onChange={(value) => updateMeta("autoReactivate", value === "yes")}
+                      options={[
+                        { value: "no", label: "ปิด" },
+                        { value: "yes", label: "เปิด" },
+                      ]}
+                    />
+                    <Field
+                      label="รายละเอียดเพิ่มเติม"
+                      value={meta.lifecycleNote}
+                      editing={editing && meta.lifecycleMode !== "active"}
+                      onChange={(value) => updateMeta("lifecycleNote", value)}
+                      textarea
+                    />
+                  </div>
+                </Section>
+
+                <Section id="profile-offboarding" icon="↩" title="Offboarding & Device Return" subtitle="บันทึกการลาออกและการคืนอุปกรณ์ทุกเครื่องแยกกัน">
+                  <div className="grid gap-x-6 xl:grid-cols-2">
+                    <Field
+                      label="สถานะ Offboarding"
+                      value={meta.offboardingStatus}
+                      editing={editing}
+                      onChange={(value) => updateMeta("offboardingStatus", value as UserMeta["offboardingStatus"])}
+                      options={[
+                        { value: "Working", label: "ยังทำงาน" },
+                        { value: "In Progress", label: "อยู่ระหว่าง Offboarding" },
+                        { value: "Completed", label: "สิ้นสุดงานแล้ว" },
+                      ]}
+                    />
+                    <Field
+                      label="วันที่สิ้นสุดงาน"
+                      value={meta.employmentEndDate}
+                      editing={editing}
+                      onChange={(value) => updateMeta("employmentEndDate", value)}
+                      type="date"
+                    />
+                    <Field
+                      label="หมายเหตุ Offboarding"
+                      value={meta.offboardingNote}
+                      editing={editing}
+                      onChange={(value) => updateMeta("offboardingNote", value)}
+                      textarea
+                    />
+                  </div>
+
+                  <div className="mt-5 space-y-4">
+                    {meta.devices.map((device, index) => (
+                      <div key={device.id} className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+                        <div className="mb-3 flex flex-col gap-2 border-b border-slate-200 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="text-sm font-semibold">
+                              อุปกรณ์เครื่องที่ {index + 1}: {[device.brand, device.model].filter(Boolean).join(" ") || "ยังไม่ระบุรุ่น"}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              Asset ID {device.assetId || "-"} · Work SIM {device.workSim || "-"}
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
+                            {returnLabel(device.returnStatus)}
+                          </span>
+                        </div>
+
+                        <div className="grid gap-x-6 xl:grid-cols-2">
+                          <Field
+                            label="สถานะการคืน"
+                            value={device.returnStatus}
+                            editing={editing}
+                            onChange={(value) => updateDevice(device.id, "returnStatus", value as ReturnStatus)}
+                            options={[
+                              { value: "Pending", label: "รอดำเนินการคืน" },
+                              { value: "Scheduled", label: "นัดหมายคืนแล้ว" },
+                              { value: "Complete", label: "คืนครบแล้ว" },
+                              { value: "Incomplete", label: "คืนไม่ครบ" },
+                              { value: "Lost", label: "อุปกรณ์สูญหาย" },
+                            ]}
+                          />
+                          <Field label="วันที่คืน" value={device.returnDate} editing={editing} onChange={(value) => updateDevice(device.id, "returnDate", value)} type="date" />
+                          <Field label="ผู้ส่งคืน" value={device.returnedBy} editing={editing} onChange={(value) => updateDevice(device.id, "returnedBy", value)} />
+                          <Field label="ผู้รับคืน" value={device.receivedBy} editing={editing} onChange={(value) => updateDevice(device.id, "receivedBy", value)} />
+                          <Field
+                            label="สภาพอุปกรณ์"
+                            value={device.condition}
+                            editing={editing}
+                            onChange={(value) => updateDevice(device.id, "condition", value as DeviceCondition)}
+                            options={[
+                              { value: "Not Checked", label: "ยังไม่ได้ตรวจสอบ" },
+                              { value: "Normal", label: "ปกติ" },
+                              { value: "Used", label: "มีรอยใช้งาน" },
+                              { value: "Damaged", label: "ชำรุด" },
+                              { value: "Repair Required", label: "ต้องส่งซ่อม" },
+                            ]}
+                          />
+                          <Field label="หมายเหตุการส่งคืน" value={device.returnNote} editing={editing} onChange={(value) => updateDevice(device.id, "returnNote", value)} textarea />
+                        </div>
+
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {[
+                            ["device", "ตัวเครื่อง"],
+                            ["workSim", "Work SIM"],
+                            ["cable", "สายชาร์จ"],
+                            ["adapter", "หัวชาร์จ"],
+                            ["accessories", "เคส / อุปกรณ์เสริม"],
+                            ["companyDataWiped", "ล้างข้อมูลบริษัทแล้ว"],
+                          ].map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs">
+                              <input
+                                type="checkbox"
+                                disabled={!editing}
+                                checked={device.returnedItems[key] === true}
+                                onChange={(event) =>
+                                  updateDevice(device.id, "returnedItems", {
+                                    ...device.returnedItems,
+                                    [key]: event.target.checked,
+                                  })
+                                }
+                                title={`ทำเครื่องหมายเมื่อได้รับ${label}แล้ว`}
+                                className="accent-violet-600"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {!meta.devices.length ? (
+                      <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+                        ยังไม่มีอุปกรณ์ให้บันทึกการส่งคืน
+                      </div>
+                    ) : null}
+                  </div>
+                </Section>
+
+                <Section id="profile-history" icon="◷" title="Account & Device History" subtitle="ประวัติการเปลี่ยนสถานะ โปรไฟล์ และอุปกรณ์">
+                  {meta.history.length ? (
+                    <div className="space-y-4">
+                      {meta.history.map((item) => (
+                        <div key={item.id} className="grid grid-cols-[12px_minmax(0,1fr)] gap-3">
+                          <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-violet-600" />
+                          <div>
+                            <div className="text-sm font-semibold">{item.title}</div>
+                            <div className="mt-1 text-xs text-slate-500">{item.detail || "-"}</div>
+                            <div className="mt-1 text-[11px] text-slate-400">{formatDateTime(item.createdAt)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+                      ยังไม่มีประวัติการเปลี่ยนแปลง
+                    </div>
+                  )}
+                </Section>
+              </div>
+
+              {editing ? (
+                <div className="fixed bottom-4 left-1/2 z-[220] flex w-[min(1050px,calc(100vw-2rem))] -translate-x-1/2 flex-col gap-3 rounded-[20px] border border-violet-200 bg-white/95 px-4 py-3 shadow-[0_20px_55px_rgba(70,42,130,0.20)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm font-medium text-violet-800">มีข้อมูลในโปรไฟล์ที่ยังไม่ได้บันทึก</div>
+                  <div className="flex justify-end gap-2">
                     <button
                       type="button"
-                      title="ยกเลิกการแก้ไขและคืนค่าก่อนหน้า"
+                      title="ยกเลิกการแก้ไขทั้งหมด"
                       disabled={saving}
-                      onClick={cancelInlineEdit}
-                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      onClick={() => {
+                        setEditing(false);
+                        setAccountDraft(null);
+                        setToast("ยกเลิกการแก้ไขแล้ว");
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
                     >
                       ยกเลิก
                     </button>
                     <button
                       type="button"
-                      title="บันทึกข้อมูลติดต่อสำนักงานและข้อมูลอุปกรณ์ที่แก้ไข"
+                      title="บันทึกบัญชี เบอร์สำนักงาน อุปกรณ์ทุกเครื่อง Suspended และ Offboarding"
                       disabled={saving}
-                      onClick={() => void saveProfile()}
-                      className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+                      onClick={() => void save()}
+                      className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
                     >
-                      {saving
-                        ? "กำลังบันทึก..."
-                        : "บันทึกการเปลี่ยนแปลง"}
+                      {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
                     </button>
                   </div>
                 </div>
               ) : null}
-            </div>
+            </>
           ) : (
-            <div className="flex min-h-[560px] items-center justify-center rounded-[22px] border border-dashed border-slate-200 bg-white text-sm text-slate-500">
+            <div className="flex min-h-[620px] items-center justify-center text-sm text-slate-500">
               ไม่พบผู้ใช้ในมุมมองนี้
             </div>
           )}
