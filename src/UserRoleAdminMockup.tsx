@@ -764,12 +764,11 @@ export default function UserRoleAdminMockup({
         useTeamChat: true,
       }
     : rolePermissions[currentUser?.role || "Admin Live Chat"] || getDefaultRolePermissions(currentUser?.role || "Admin Live Chat");
-  const canViewUserDirectory = Boolean(currentPermissions.viewUserDirectory || currentPermissions.manageUsers);
-  const canViewAllTeams = Boolean(currentPermissions.viewAllTeams || currentPermissions.manageTeams || currentPermissions.manageUsers);
-  const canViewOwnTeam = Boolean(currentPermissions.viewOwnTeam || canViewAllTeams);
-  const canManageUsers = Boolean(currentPermissions.manageUsers);
-  const canManageTeams = Boolean(currentPermissions.manageTeams || currentPermissions.manageUsers);
-  const canManageRoles = Boolean(currentPermissions.manageRoles);
+  const canViewUserDirectory = Boolean(currentUser);
+  const canViewAllTeams = isSongponSuperAdmin;
+  const canViewOwnTeam = false;
+  const canManageUsers = isSongponSuperAdmin;
+  const canManageTeams = isSongponSuperAdmin;  const canManageRoles = Boolean(currentPermissions.manageRoles);
   const canManageMaintenance = Boolean(currentPermissions.manageMaintenance);
 
   const loadRoleDefinitions = async () => {
@@ -863,12 +862,13 @@ export default function UserRoleAdminMockup({
   const supervisorUsers = rows.filter((row) => row.effectiveRole === "Supervisor").length;
   const qaUsers = rows.filter((row) => row.effectiveRole === "Quality Assurance").length;
   const currentTeamName = rows.find((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username))?.teamName || "";
-  const scopedRows = canViewAllTeams
+  const scopedRows = isSongponSuperAdmin
     ? rows
-    : canViewOwnTeam && currentTeamName
-      ? rows.filter((row) => row.teamName === currentTeamName)
-      : rows.filter((row) => normalizeUsername(row.username) === normalizeUsername(currentUser.username));
-  const activeScopedRows = scopedRows.filter((row) => row.status === "Active");
+    : rows.filter(
+        (row) =>
+          normalizeUsername(row.username) ===
+          normalizeUsername(currentUser.username)
+      );  const activeScopedRows = scopedRows.filter((row) => row.status === "Active");
   const teamGroups = buildTeamGroups(activeScopedRows);
   const roleFilteredScopedRows =
     directoryRoleFilter === "all"

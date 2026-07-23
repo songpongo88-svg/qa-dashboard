@@ -3558,10 +3558,7 @@ export default function App() {
       request.status === "Pending" &&
       request.username.trim().toLowerCase() !== currentUsernameKey
   ).length;
-  const userDirectoryAllowed = Boolean(currentUser) && (
-    hasRolePermission(currentUser, rolePermissions, "viewUserDirectory") ||
-    hasRolePermission(currentUser, rolePermissions, "manageUsers")
-  );
+  const userDirectoryAllowed = Boolean(currentUser);
   const roleManagementAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageRoles");
   const maintenanceAdminAllowed = Boolean(currentUser) && hasRolePermission(currentUser, rolePermissions, "manageMaintenance");
   const roleAdminAllowed = Boolean(currentUser) && (

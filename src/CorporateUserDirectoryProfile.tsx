@@ -55,6 +55,7 @@ type WorkDevice = {
   imei: string;
   imei2: string;
   workSim: string;
+  simPackage: string;
   assignedDate: string;
   note: string;
   returnStatus: ReturnStatus;
@@ -75,6 +76,7 @@ type HistoryItem = {
 
 type UserMeta = {
   docId: string;
+  preferredName: string;
   employeeId: string;
   officeNumber: string;
   extension: string;
@@ -137,6 +139,7 @@ function emptyDevice(index = 0): WorkDevice {
     imei: "",
     imei2: "",
     workSim: "",
+    simPackage: "",
     assignedDate: "",
     note: "",
     returnStatus: "Pending",
@@ -152,6 +155,7 @@ function emptyDevice(index = 0): WorkDevice {
 function emptyMeta(): UserMeta {
   return {
     docId: "",
+    preferredName: "",
     employeeId: "",
     officeNumber: "",
     extension: "",
@@ -233,6 +237,45 @@ function valueOrDash(value: unknown) {
   return String(value || "").trim() || "-";
 }
 
+function digitsOnly(value: unknown) {
+  return String(value || "").replace(/\D+/g, "");
+}
+
+function cleanContactNote(value: unknown) {
+  return String(value || "")
+    .replace(
+      /(?:^|\s*[|•·]\s*)ชื่อเรียก\s+[^|•·]+/gi,
+      ""
+    )
+    .replace(/\s*[|•·]\s*(?=\s*[|•·]|$)/g, "")
+    .replace(/^[\s|•·-]+|[\s|•·-]+$/g, "")
+    .trim();
+}
+
+function extractSimPackage(
+  noteValue: unknown,
+  fallbackValue: unknown
+) {
+  const fallback = String(fallbackValue || "").trim();
+  if (fallback) return fallback;
+
+  const match = String(noteValue || "").match(
+    /แพ็กเกจ\s*Work\s*SIM\s*([A-Za-z0-9._/-]+)/i
+  );
+
+  return match?.[1] || "";
+}
+
+function cleanDeviceNote(value: unknown) {
+  return String(value || "")
+    .replace(
+      /(?:^|\s*[|•·]\s*)แพ็กเกจ\s*Work\s*SIM\s*[A-Za-z0-9._/-]+/gi,
+      ""
+    )
+    .replace(/\s*[|•·]\s*(?=\s*[|•·]|$)/g, "")
+    .replace(/^[\s|•·-]+|[\s|•·-]+$/g, "")
+    .trim();
+}
 function normalizeSuspensionDate(value: string) {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -313,9 +356,20 @@ function deviceFromData(raw: any, index: number): WorkDevice {
     serialNumber: String(raw?.serialNumber || ""),
     imei: String(raw?.imei || ""),
     imei2: String(raw?.imei2 || ""),
-    workSim: String(raw?.workSim || raw?.workSimNumber || ""),
+    workSim: digitsOnly(
+      raw?.workSim || raw?.workSimNumber || ""
+    ),
+    simPackage: extractSimPackage(
+      raw?.note || raw?.deviceNote || "",
+      raw?.simPackage ||
+        raw?.workSimPackage ||
+        raw?.phonePackage ||
+        ""
+    ),
     assignedDate: String(raw?.assignedDate || ""),
-    note: String(raw?.note || raw?.deviceNote || ""),
+    note: cleanDeviceNote(
+      raw?.note || raw?.deviceNote || ""
+    ),
     returnStatus:
       raw?.returnStatus === "Scheduled" ||
       raw?.returnStatus === "Complete" ||
@@ -366,6 +420,8 @@ function metaFromData(id: string, data: any): UserMeta {
           imei: data.imei,
           imei2: data.imei2,
           workSimNumber: data.workSimNumber,
+          workSimPackage:
+            data.workSimPackage || data.phonePackage,
           assignedDate: data.assignedDate,
           deviceNote: data.deviceNote,
         },
@@ -380,12 +436,32 @@ function metaFromData(id: string, data: any): UserMeta {
 
   return {
     docId: id,
+    preferredName: String(data?.preferredName || ""),
     employeeId: String(data?.employeeId || ""),
-    officeNumber: String(data?.officeNumber || data?.officeContactNumber || ""),
-    extension: String(data?.extension || data?.officeExtension || ""),
-    officeUsage: String(data?.officeUsage || data?.officeContactUsage || CONTACT_USAGE),
-    backupOfficeNumber: String(data?.backupOfficeNumber || data?.secondaryOfficeContact || ""),
-    contactNote: String(data?.contactNote || data?.officeContactNote || ""),
+    officeNumber: digitsOnly(
+      data?.officeNumber ||
+        data?.officeContactNumber ||
+        data?.outboundCallerNumber ||
+        ""
+    ),
+    extension: digitsOnly(
+      data?.extension || data?.officeExtension || ""
+    ),
+    officeUsage: String(
+      data?.officeUsage ||
+        data?.officeContactUsage ||
+        CONTACT_USAGE
+    ),
+    backupOfficeNumber: digitsOnly(
+      data?.backupOfficeNumber ||
+        data?.secondaryOfficeContact ||
+        ""
+    ),
+    contactNote: cleanContactNote(
+      data?.contactNote ||
+        data?.officeContactNote ||
+        ""
+    ),
     devices,
     lifecycleMode:
       data?.lifecycleMode === "scheduled" ||
@@ -914,11 +990,40 @@ export default function CorporateUserDirectoryProfile({
       createdAt: new Date().toISOString(),
     };
 
+    const normalizedDevices =
+      metaDraft.devices.map((device) => ({
+        ...device,
+        workSim: digitsOnly(device.workSim),
+        simPackage: String(
+          device.simPackage || ""
+        ).trim(),
+        note: cleanDeviceNote(device.note),
+      }));
+
     const nextMeta: UserMeta = {
       ...metaDraft,
-      docId: metaDraft.docId || safeId(user.username),
+      preferredName: String(
+        metaDraft.preferredName || ""
+      ).trim(),
+      officeNumber: digitsOnly(
+        metaDraft.officeNumber
+      ),
+      extension: digitsOnly(metaDraft.extension),
+      backupOfficeNumber: digitsOnly(
+        metaDraft.backupOfficeNumber
+      ),
+      contactNote: cleanContactNote(
+        metaDraft.contactNote
+      ),
+      devices: normalizedDevices,
+      docId:
+        metaDraft.docId ||
+        safeId(user.username),
       updatedAt: new Date().toISOString(),
-      history: [historyItem, ...metaDraft.history].slice(0, 50),
+      history: [
+        historyItem,
+        ...metaDraft.history,
+      ].slice(0, 50),
     };
     const primary = nextMeta.devices.find((device) => device.isPrimary) || nextMeta.devices[0];
 
@@ -943,6 +1048,7 @@ export default function CorporateUserDirectoryProfile({
         doc(firebaseDb, "qa_user_profiles", nextMeta.docId),
         {
           username: user.username,
+          preferredName: nextMeta.preferredName,
           employeeId: nextMeta.employeeId,
           officeNumber: nextMeta.officeNumber,
           officeContactNumber: nextMeta.officeNumber,
@@ -980,7 +1086,16 @@ export default function CorporateUserDirectoryProfile({
           imei: primary?.imei || "",
           imei2: primary?.imei2 || "",
           workSimNumber: primary?.workSim || "",
-          assignedDate: primary?.assignedDate || "",
+          workPhoneNumber: primary?.workSim || "",
+          phoneNumber: primary?.workSim || "",
+          workSimPackage:
+            primary?.simPackage || "",
+          phonePackage:
+            primary?.simPackage || "",
+          outboundCallerNumber:
+            nextMeta.officeNumber,
+          assignedDate:
+            primary?.assignedDate || "",
           deviceNote: primary?.note || "",
           updatedAt: nextMeta.updatedAt,
           updatedAtServer: serverTimestamp(),
@@ -1060,6 +1175,7 @@ export default function CorporateUserDirectoryProfile({
     );
     y += 10;
     add("User", user.displayName);
+    add("Preferred Name", savedMeta.preferredName);
     add("Username", user.username);
 
     if (kind === "profile") {
@@ -1444,6 +1560,15 @@ export default function CorporateUserDirectoryProfile({
                 <Section id="profile-account" icon="◎" title="Account Information" subtitle="ข้อมูลบัญชี Role ทีม และสิทธิ์">
                   <div className="grid gap-x-6 xl:grid-cols-2">
                     <Field label="ชื่อ–นามสกุล" value={account.displayName} editing={editing} onChange={(value) => updateAccount("displayName", value)} />
+                    <Field
+                      label="Preferred Name / ชื่อเล่น"
+                      value={meta.preferredName}
+                      editing={editing}
+                      onChange={(value) =>
+                        updateMeta("preferredName", value)
+                      }
+                      placeholder="กรอกชื่อเล่นภาษาอังกฤษ"
+                    />
                     <Field label="Username" value={account.username} editing={false} />
                     <Field label="อีเมลสำหรับงาน" value={account.email} editing={editing} onChange={(value) => updateAccount("email", value)} />
                     <Field label="รหัสพนักงาน" value={meta.employeeId} editing={editing} onChange={(value) => updateMeta("employeeId", value)} />
@@ -1563,6 +1688,7 @@ export default function CorporateUserDirectoryProfile({
                               ["IMEI", "imei"],
                               ["IMEI 2", "imei2"],
                               ["หมายเลข Work SIM", "workSim"],
+                              ["แพ็กเกจ / โปรโมชัน Work SIM", "simPackage"],
                               ["วันที่มอบหมายอุปกรณ์", "assignedDate"],
                             ].map(([label, key]) => (
                               <Field
