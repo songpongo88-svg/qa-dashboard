@@ -3006,7 +3006,7 @@ function RoleManagementPanel({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div data-role-card-text-fit-v59-fix4="true" className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {visibleRoles.map((role) => {
           const selected = selectedRole?.name === role.name;
           const userCount = roleUserCounts[role.name] || 0;
@@ -3018,19 +3018,18 @@ function RoleManagementPanel({
               key={role.name}
               type="button"
               onClick={() => setSelectedRoleName(role.name)}
-              className={`rounded-[22px] border px-4 py-4 text-left transition ${
+              className={`min-h-[178px] rounded-[22px] border px-4 py-4 text-left transition ${
                 selected
                   ? "border-violet-300 bg-white shadow-[0_16px_34px_rgba(109,40,217,0.14)]"
                   : "border-slate-200 bg-white hover:border-violet-200 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-medium text-white ${roleAvatarClass(role.name)}`}>
                     {userInitials(role.name)}
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-lg font-semibold text-slate-950">{role.name}</div>
+                  <div className="min-w-0 flex-1">`r`n                    <div title={role.name} className="min-h-10 whitespace-normal break-words text-base font-semibold leading-5 text-slate-950">{role.name}</div>
                     <div
                       className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
                         role.active ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"
@@ -3041,7 +3040,7 @@ function RoleManagementPanel({
                   </div>
                 </div>
                 {selected ? (
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-600 text-sm font-medium text-white">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-medium text-white">
                     ✓
                   </span>
                 ) : null}
@@ -3062,7 +3061,7 @@ function RoleManagementPanel({
         })}
 
         {!visibleRoles.length ? (
-          <div className="sm:col-span-2 xl:col-span-6 rounded-[22px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-medium text-slate-500">
+          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-5 rounded-[22px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-medium text-slate-500">
             ไม่พบบทบาทที่ค้นหา
           </div>
         ) : null}
