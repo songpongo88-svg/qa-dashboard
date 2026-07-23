@@ -68,11 +68,20 @@ type WorkDevice = {
   returnedItems: Record<string, boolean>;
 };
 
+type HistoryChange = {
+  field: string;
+  before: string;
+  after: string;
+};
+
 type HistoryItem = {
   id: string;
   title: string;
   detail: string;
   createdAt: string;
+  updatedBy?: string;
+  category?: string;
+  changes?: HistoryChange[];
 };
 
 type UserMeta = {
@@ -102,6 +111,7 @@ type UserMeta = {
 
 type Props = {
   rows: DirectoryUserRow[];
+  updatedByName: string;
   canManageUsers: boolean;
   canManageTeams: boolean;
   rolePermissions: Record<string, Record<string, boolean>>;
@@ -477,10 +487,21 @@ function metaFromData(id: string, data: any): UserMeta {
     approver: String(data?.approver || data?.lifecycleApprover || ""),
     lifecycleNote: String(data?.lifecycleNote || data?.lifecycleDetail || ""),
     offboardingStatus:
-      data?.offboardingStatus === "In Progress" || data?.offboardingStatus === "Completed"
+      data?.offboardingStatus === "In Progress" ||
+      data?.offboardingStatus === "Completed"
         ? data.offboardingStatus
-        : "Working",
-    employmentEndDate: String(data?.employmentEndDate || data?.offboardingEndDate || ""),
+        : data?.lifecycleMode === "offboarding"
+          ? "In Progress"
+          : "Working",
+    employmentEndDate: String(
+      data?.employmentEndDate ||
+        data?.offboardingEndDate ||
+        (data?.lifecycleMode === "offboarding"
+          ? data?.effectiveDate ||
+            data?.suspendEffectiveDate ||
+            ""
+          : "")
+    ),
     offboardingNote: String(data?.offboardingNote || ""),
     history: Array.isArray(data?.history)
       ? data.history
@@ -504,20 +525,12 @@ function hydrateMeta(meta: UserMeta, user: DirectoryUserRow): UserMeta {
     );
   const effectiveDate =
     normalizedSuspension.effectiveDate;
-  let lifecycleMode = meta.lifecycleMode;
+  let lifecycleMode: LifecycleMode =
+    "active";
 
-  if (
-    lifecycleMode === "active" &&
-    user.status === "Suspended"
-  ) {
+  if (user.status === "Suspended") {
     lifecycleMode = "suspended";
-  }
-
-  if (
-    lifecycleMode === "active" &&
-    user.status === "Active" &&
-    effectiveDate
-  ) {
+  } else if (effectiveDate) {
     lifecycleMode =
       effectiveDate > todayBangkok()
         ? "scheduled"
@@ -541,19 +554,18 @@ function hydrateMeta(meta: UserMeta, user: DirectoryUserRow): UserMeta {
 }
 function lifecycleLabel(mode: LifecycleMode, status: "Active" | "Suspended") {
   if (mode === "scheduled") return "ตั้งเวลาระงับ";
-  if (mode === "offboarding") return "Offboarding";
   if (mode === "suspended" || status === "Suspended") return "Suspended";
   return "Active";
 }
 
 function lifecycleClass(mode: LifecycleMode, status: "Active" | "Suspended") {
-  if (mode === "scheduled" || mode === "offboarding") return "bg-amber-50 text-amber-700";
+  if (mode === "scheduled") return "bg-amber-50 text-amber-700";
   if (mode === "suspended" || status === "Suspended") return "bg-rose-50 text-rose-700";
   return "bg-emerald-50 text-emerald-700";
 }
 
 function statusLabel(value: DeviceStatus) {
-  if (value === "Assigned") return "รับอุปกรณ์แล้ว";
+  if (value === "Assigned") return "กำลังใช้งาน";
   if (value === "Repair") return "อยู่ระหว่างซ่อม";
   if (value === "Returned") return "คืนอุปกรณ์แล้ว";
   return "ยังไม่มีอุปกรณ์";
@@ -575,6 +587,429 @@ function conditionLabel(value: DeviceCondition) {
   return "ยังไม่ได้ตรวจสอบ";
 }
 
+
+function hasDeviceData(device: WorkDevice) {
+  return Boolean(
+    [
+      device.brand,
+      device.model,
+      device.series,
+      device.os,
+      device.assetId,
+      device.serialNumber,
+      device.imei,
+      device.imei2,
+      device.workSim,
+      device.simPackage,
+      device.assignedDate,
+      device.note,
+    ].some((value) => String(value || "").trim())
+  );
+}
+
+function effectiveDeviceStatus(
+  device: WorkDevice
+): DeviceStatus {
+  if (
+    device.status === "Not Assigned" &&
+    hasDeviceData(device)
+  ) {
+    return "Assigned";
+  }
+
+  return device.status;
+}
+
+function auditText(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text || "ไม่ได้ระบุ";
+}
+
+function deviceAuditSummary(
+  device: WorkDevice
+) {
+  return [
+    [device.brand, device.model]
+      .filter(Boolean)
+      .join(" "),
+    device.assetId
+      ? `Asset ${device.assetId}`
+      : "",
+    device.workSim
+      ? `Work SIM ${device.workSim}`
+      : "",
+    statusLabel(
+      effectiveDeviceStatus(device)
+    ),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function buildProfileAuditChanges(
+  beforeAccount: CorporateUserAccountUpdate,
+  afterAccount: CorporateUserAccountUpdate,
+  beforeMeta: UserMeta,
+  afterMeta: UserMeta
+): HistoryChange[] {
+  const changes: HistoryChange[] = [];
+
+  const add = (
+    field: string,
+    before: unknown,
+    after: unknown,
+    formatter: (
+      value: unknown
+    ) => string = auditText
+  ) => {
+    const beforeText = formatter(before);
+    const afterText = formatter(after);
+
+    if (beforeText === afterText) return;
+
+    changes.push({
+      field,
+      before: beforeText,
+      after: afterText,
+    });
+  };
+
+  const dateFormatter = (value: unknown) => {
+    const text = String(value || "").trim();
+    return text ? thaiDate(text) : "ไม่ได้ระบุ";
+  };
+
+  add(
+    "ชื่อ–นามสกุล",
+    beforeAccount.displayName,
+    afterAccount.displayName
+  );
+  add(
+    "Agent Name",
+    beforeAccount.agentName,
+    afterAccount.agentName
+  );
+  add(
+    "อีเมล",
+    beforeAccount.email,
+    afterAccount.email
+  );
+  add(
+    "Role",
+    beforeAccount.role,
+    afterAccount.role
+  );
+  add(
+    "ทีม",
+    beforeAccount.teamName,
+    afterAccount.teamName
+  );
+  add(
+    "หัวหน้าทีม",
+    beforeAccount.teamLead,
+    afterAccount.teamLead
+  );
+  add(
+    "สถานะบัญชี",
+    beforeAccount.status,
+    afterAccount.status
+  );
+
+  add(
+    "ชื่อเล่น",
+    beforeMeta.preferredName,
+    afterMeta.preferredName
+  );
+  add(
+    "รหัสพนักงาน",
+    beforeMeta.employeeId,
+    afterMeta.employeeId
+  );
+  add(
+    "เบอร์สำนักงาน",
+    beforeMeta.officeNumber,
+    afterMeta.officeNumber
+  );
+  add(
+    "เบอร์ต่อภายใน",
+    beforeMeta.extension,
+    afterMeta.extension
+  );
+  add(
+    "หมายเลขสำนักงานสำรอง",
+    beforeMeta.backupOfficeNumber,
+    afterMeta.backupOfficeNumber
+  );
+  add(
+    "หมายเหตุการติดต่อ",
+    beforeMeta.contactNote,
+    afterMeta.contactNote
+  );
+
+  add(
+    "วันที่มีผลระงับบัญชี",
+    beforeMeta.effectiveDate,
+    afterMeta.effectiveDate,
+    dateFormatter
+  );
+  add(
+    "เหตุผลการระงับบัญชี",
+    beforeMeta.suspendReason,
+    afterMeta.suspendReason
+  );
+
+  add(
+    "สถานะ Offboarding",
+    beforeMeta.offboardingStatus,
+    afterMeta.offboardingStatus,
+    (value) =>
+      value === "In Progress"
+        ? "อยู่ระหว่าง Offboarding"
+        : value === "Completed"
+          ? "สิ้นสุดงานแล้ว"
+          : "ยังไม่ได้เริ่ม"
+  );
+  add(
+    "วันที่สิ้นสุดงาน",
+    beforeMeta.employmentEndDate,
+    afterMeta.employmentEndDate,
+    dateFormatter
+  );
+  add(
+    "หมายเหตุ Offboarding",
+    beforeMeta.offboardingNote,
+    afterMeta.offboardingNote
+  );
+
+  const deviceCount = Math.max(
+    beforeMeta.devices.length,
+    afterMeta.devices.length
+  );
+
+  for (
+    let index = 0;
+    index < deviceCount;
+    index += 1
+  ) {
+    const beforeDevice =
+      beforeMeta.devices[index];
+    const afterDevice =
+      afterMeta.devices[index];
+    const prefix =
+      `อุปกรณ์เครื่องที่ ${index + 1}`;
+
+    if (!beforeDevice && afterDevice) {
+      add(
+        prefix,
+        "",
+        deviceAuditSummary(afterDevice)
+      );
+      continue;
+    }
+
+    if (beforeDevice && !afterDevice) {
+      add(
+        prefix,
+        deviceAuditSummary(beforeDevice),
+        ""
+      );
+      continue;
+    }
+
+    if (!beforeDevice || !afterDevice) {
+      continue;
+    }
+
+    add(
+      `${prefix} · สถานะ`,
+      statusLabel(
+        effectiveDeviceStatus(beforeDevice)
+      ),
+      statusLabel(
+        effectiveDeviceStatus(afterDevice)
+      )
+    );
+    add(
+      `${prefix} · รุ่น`,
+      [beforeDevice.brand, beforeDevice.model]
+        .filter(Boolean)
+        .join(" "),
+      [afterDevice.brand, afterDevice.model]
+        .filter(Boolean)
+        .join(" ")
+    );
+    add(
+      `${prefix} · Asset ID`,
+      beforeDevice.assetId,
+      afterDevice.assetId
+    );
+    add(
+      `${prefix} · Serial Number`,
+      beforeDevice.serialNumber,
+      afterDevice.serialNumber
+    );
+    add(
+      `${prefix} · IMEI`,
+      beforeDevice.imei,
+      afterDevice.imei
+    );
+    add(
+      `${prefix} · Work SIM`,
+      beforeDevice.workSim,
+      afterDevice.workSim
+    );
+    add(
+      `${prefix} · แพ็กเกจ Work SIM`,
+      beforeDevice.simPackage,
+      afterDevice.simPackage
+    );
+    add(
+      `${prefix} · วันที่มอบหมาย`,
+      beforeDevice.assignedDate,
+      afterDevice.assignedDate,
+      dateFormatter
+    );
+    add(
+      `${prefix} · สถานะการคืน`,
+      returnLabel(beforeDevice.returnStatus),
+      returnLabel(afterDevice.returnStatus)
+    );
+    add(
+      `${prefix} · วันที่คืน`,
+      beforeDevice.returnDate,
+      afterDevice.returnDate,
+      dateFormatter
+    );
+    add(
+      `${prefix} · สภาพอุปกรณ์`,
+      conditionLabel(beforeDevice.condition),
+      conditionLabel(afterDevice.condition)
+    );
+    add(
+      `${prefix} · ผู้ส่งคืน`,
+      beforeDevice.returnedBy,
+      afterDevice.returnedBy
+    );
+    add(
+      `${prefix} · ผู้รับคืน`,
+      beforeDevice.receivedBy,
+      afterDevice.receivedBy
+    );
+    add(
+      `${prefix} · รายการคืน`,
+      JSON.stringify(
+        beforeDevice.returnedItems
+      ),
+      JSON.stringify(
+        afterDevice.returnedItems
+      ),
+      (value) => {
+        try {
+          const parsed = JSON.parse(
+            String(value || "{}")
+          ) as Record<string, boolean>;
+          const labels: Record<
+            string,
+            string
+          > = {
+            device: "ตัวเครื่อง",
+            workSim: "Work SIM",
+            cable: "สายชาร์จ",
+            adapter: "หัวชาร์จ",
+            accessories:
+              "เคส / อุปกรณ์เสริม",
+            companyDataWiped:
+              "ล้างข้อมูลบริษัทแล้ว",
+          };
+
+          const selected = Object.entries(
+            parsed
+          )
+            .filter(([, checked]) => checked)
+            .map(
+              ([key]) => labels[key] || key
+            );
+
+          return selected.length
+            ? selected.join(", ")
+            : "ยังไม่มีรายการที่คืน";
+        } catch {
+          return "ยังไม่มีรายการที่คืน";
+        }
+      }
+    );
+  }
+
+  return changes.slice(0, 80);
+}
+
+function auditHistoryTitle(
+  changes: HistoryChange[]
+) {
+  const fields = changes.map(
+    (change) => change.field
+  );
+  const suspensionOnly = fields.every(
+    (field) =>
+      field.includes("ระงับบัญชี") ||
+      field === "สถานะบัญชี"
+  );
+  const offboardingOnly = fields.every(
+    (field) =>
+      field.includes("Offboarding") ||
+      field.includes("สิ้นสุดงาน") ||
+      field.includes("อุปกรณ์เครื่องที่")
+  );
+  const deviceOnly = fields.every(
+    (field) =>
+      field.includes("อุปกรณ์เครื่องที่")
+  );
+  const accountOnly = fields.every(
+    (field) =>
+      [
+        "ชื่อ–นามสกุล",
+        "Agent Name",
+        "อีเมล",
+        "Role",
+        "ทีม",
+        "หัวหน้าทีม",
+        "ชื่อเล่น",
+        "รหัสพนักงาน",
+        "เบอร์สำนักงาน",
+        "เบอร์ต่อภายใน",
+        "หมายเลขสำนักงานสำรอง",
+        "หมายเหตุการติดต่อ",
+      ].includes(field)
+  );
+
+  if (suspensionOnly) {
+    const cancelled = changes.some(
+      (change) =>
+        change.field.includes(
+          "วันที่มีผลระงับบัญชี"
+        ) &&
+        change.after === "ไม่ได้ระบุ"
+    );
+
+    return cancelled
+      ? "ยกเลิกกำหนดการระงับบัญชี"
+      : "กำหนดวันระงับบัญชี";
+  }
+
+  if (offboardingOnly) {
+    return "อัปเดต Offboarding";
+  }
+
+  if (deviceOnly) {
+    return "อัปเดตข้อมูลอุปกรณ์";
+  }
+
+  if (accountOnly) {
+    return "แก้ไขข้อมูลบัญชี";
+  }
+
+  return "แก้ไขข้อมูล Profile";
+}
 function Section({
   id,
   icon,
@@ -628,6 +1063,16 @@ function Field({
   textarea?: boolean;
   placeholder?: string;
 }) {
+  const rawValue = String(value || "").trim();
+  const emptyInView =
+    !rawValue ||
+    rawValue === "-" ||
+    rawValue === "ยังไม่ระบุ";
+
+  if (!editing && emptyInView) {
+    return null;
+  }
+
   const display =
     options?.find(
       (option) => option.value === value
@@ -681,6 +1126,7 @@ function Field({
 
 export default function CorporateUserDirectoryProfile({
   rows,
+  updatedByName,
   canManageUsers,
   canManageTeams,
   rolePermissions,
@@ -911,6 +1357,30 @@ export default function CorporateUserDirectoryProfile({
     ? Object.values(rolePermissions[user.effectiveRole] || {}).filter(Boolean).length
     : 0;
 
+  const contactHasData = Boolean(
+    [
+      meta.officeNumber,
+      meta.extension,
+      meta.backupOfficeNumber,
+      meta.contactNote,
+    ].some((value) =>
+      String(value || "").trim()
+    )
+  );
+  const offboardingStarted =
+    meta.offboardingStatus !== "Working" ||
+    Boolean(
+      meta.employmentEndDate ||
+        meta.offboardingNote
+    );
+  const suspensionConfigured =
+    Boolean(
+      meta.effectiveDate ||
+        meta.suspendReason
+    ) ||
+    account.status === "Suspended";
+
+
   const discard = () =>
     !editing ||
     window.confirm("มีข้อมูลในโปรไฟล์ที่ยังไม่ได้บันทึก ต้องการยกเลิกการแก้ไขหรือไม่?");
@@ -992,83 +1462,134 @@ export default function CorporateUserDirectoryProfile({
     setToast("ตั้งเป็นอุปกรณ์หลักแล้ว");
   };
 
-  const chooseLifecycle = (mode: LifecycleMode) => {
+  const clearSuspension = () => {
     if (!editing) return;
-    setMetaDraft((current) => {
-      const next = { ...current, lifecycleMode: mode };
-      if (mode === "active") {
-        next.suspendReason = "";
-        next.effectiveDate = "";
-        next.endDate = "";
-        next.autoReactivate = false;
-      } else if (!next.effectiveDate) {
-        next.effectiveDate = todayBangkok();
-      }
-      if (mode === "offboarding") {
-        next.suspendReason = next.suspendReason || "ลาออก";
-        next.offboardingStatus = next.offboardingStatus === "Working" ? "In Progress" : next.offboardingStatus;
-        next.employmentEndDate = next.employmentEndDate || next.effectiveDate;
-      }
-      return next;
-    });
+
+    updateMeta("effectiveDate", "");
+    updateMeta("suspendReason", "");
+    updateMeta("endDate", "");
+    updateMeta("autoReactivate", false);
+    updateMeta("approver", "");
+    updateMeta("lifecycleNote", "");
+    updateMeta("lifecycleMode", "active");
+    updateAccount("status", "Active");
+    setToast(
+      "ยกเลิกกำหนดการระงับแล้ว กดบันทึกการเปลี่ยนแปลงเพื่อยืนยัน"
+    );
+  };
+
+  const startOffboarding = () => {
+    if (!editing) return;
+
+    updateMeta(
+      "offboardingStatus",
+      "In Progress"
+    );
+    setToast(
+      "เริ่ม Offboarding แล้ว กรุณากรอกข้อมูลที่เกี่ยวข้อง"
+    );
+  };
+
+  const cancelOffboarding = () => {
+    if (!editing) return;
+
+    updateMeta(
+      "offboardingStatus",
+      "Working"
+    );
+    updateMeta("employmentEndDate", "");
+    updateMeta("offboardingNote", "");
+    setToast(
+      "ยกเลิก Offboarding แล้ว กดบันทึกการเปลี่ยนแปลงเพื่อยืนยัน"
+    );
   };
 
   const save = async () => {
     if (!user || !accountDraft) return;
+
     if (!accountDraft.displayName.trim()) {
-      setToast("กรุณาระบุชื่อ–นามสกุล");
+      setToast(
+        "กรุณาระบุชื่อ–นามสกุล"
+      );
       return;
     }
-    if (metaDraft.lifecycleMode !== "active" && (!metaDraft.effectiveDate || !metaDraft.suspendReason.trim())) {
-      setToast("กรุณาระบุวันที่มีผลและเหตุผลของสถานะบัญชี");
-      document.getElementById("profile-lifecycle")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
+
+    const hasSuspensionInput = Boolean(
+      metaDraft.effectiveDate ||
+        metaDraft.suspendReason.trim()
+    );
+
     if (
-      metaDraft.autoReactivate &&
-      (!metaDraft.endDate || metaDraft.endDate <= metaDraft.effectiveDate)
+      hasSuspensionInput &&
+      (!metaDraft.effectiveDate ||
+        !metaDraft.suspendReason.trim())
     ) {
-      setToast("วันที่เปิดบัญชีกลับต้องอยู่หลังวันที่เริ่มระงับ");
+      setToast(
+        "กรุณาระบุวันที่มีผลและเหตุผลการระงับให้ครบ"
+      );
+      document
+        .getElementById(
+          "profile-lifecycle"
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+        });
       return;
     }
 
-    const due = !metaDraft.effectiveDate || metaDraft.effectiveDate <= todayBangkok();
-    const nextStatus: "Active" | "Suspended" =
-      metaDraft.lifecycleMode === "suspended"
-        ? "Suspended"
-        : metaDraft.lifecycleMode === "scheduled" || metaDraft.lifecycleMode === "offboarding"
-          ? due
-            ? "Suspended"
-            : "Active"
-          : "Active";
+    const suspensionDue =
+      hasSuspensionInput &&
+      metaDraft.effectiveDate <=
+        todayBangkok();
 
-    const historyItem: HistoryItem = {
-      id: `history-${Date.now()}`,
-      title:
-        metaDraft.lifecycleMode === "active"
-          ? "เปิดใช้งานบัญชี"
-          : metaDraft.lifecycleMode === "scheduled"
-            ? `ตั้งเวลาระงับบัญชี — ${thaiDate(metaDraft.effectiveDate)}`
-            : metaDraft.lifecycleMode === "offboarding"
-              ? `อัปเดต Offboarding — ${thaiDate(metaDraft.effectiveDate)}`
-              : `ระงับบัญชี — ${thaiDate(metaDraft.effectiveDate)}`,
-      detail: [metaDraft.suspendReason, `${metaDraft.devices.length} อุปกรณ์`, accountDraft.role, accountDraft.teamName]
-        .filter(Boolean)
-        .join(" · "),
-      createdAt: new Date().toISOString(),
-    };
+    const nextStatus:
+      | "Active"
+      | "Suspended" =
+      hasSuspensionInput
+        ? suspensionDue
+          ? "Suspended"
+          : "Active"
+        : accountDraft.status;
+
+    const nextLifecycleMode:
+      LifecycleMode =
+      hasSuspensionInput
+        ? nextStatus === "Suspended"
+          ? "suspended"
+          : "scheduled"
+        : nextStatus === "Suspended"
+          ? "suspended"
+          : "active";
 
     const normalizedDevices =
-      metaDraft.devices.map((device) => ({
-        ...device,
-        workSim: digitsOnly(device.workSim),
-        simPackage: String(
-          device.simPackage || ""
-        ).trim(),
-        note: cleanDeviceNote(device.note),
-      }));
+      metaDraft.devices.map(
+        (device) => {
+          const normalized = {
+            ...device,
+            workSim: digitsOnly(
+              device.workSim
+            ),
+            simPackage: String(
+              device.simPackage || ""
+            ).trim(),
+            note: cleanDeviceNote(
+              device.note
+            ),
+          };
 
-    const nextMeta: UserMeta = {
+          return {
+            ...normalized,
+            status:
+              normalized.status ===
+                "Not Assigned" &&
+              hasDeviceData(normalized)
+                ? "Assigned"
+                : normalized.status,
+          };
+        }
+      );
+
+    const nextMetaBase: UserMeta = {
       ...metaDraft,
       preferredName: String(
         metaDraft.preferredName || ""
@@ -1076,7 +1597,9 @@ export default function CorporateUserDirectoryProfile({
       officeNumber: digitsOnly(
         metaDraft.officeNumber
       ),
-      extension: digitsOnly(metaDraft.extension),
+      extension: digitsOnly(
+        metaDraft.extension
+      ),
       backupOfficeNumber: digitsOnly(
         metaDraft.backupOfficeNumber
       ),
@@ -1084,78 +1607,207 @@ export default function CorporateUserDirectoryProfile({
         metaDraft.contactNote
       ),
       devices: normalizedDevices,
+      lifecycleMode:
+        nextLifecycleMode,
+      suspendReason:
+        hasSuspensionInput
+          ? metaDraft.suspendReason.trim()
+          : "",
+      effectiveDate:
+        hasSuspensionInput
+          ? metaDraft.effectiveDate
+          : "",
+      endDate: "",
+      autoReactivate: false,
+      approver: "",
+      lifecycleNote: "",
       docId:
         metaDraft.docId ||
         safeId(user.username),
-      updatedAt: new Date().toISOString(),
+      updatedAt:
+        new Date().toISOString(),
+    };
+
+    const update: CorporateUserAccountUpdate =
+      {
+        ...accountDraft,
+        displayName:
+          accountDraft.displayName.trim(),
+        agentName:
+          accountDraft.agentName.trim() ||
+          accountDraft.displayName.trim(),
+        email: accountDraft.email.trim(),
+        role: accountDraft.role.trim(),
+        teamLead:
+          accountDraft.teamLead.trim(),
+        teamName:
+          accountDraft.teamName.trim(),
+        status: nextStatus,
+        suspendReason:
+          nextMetaBase.suspendReason,
+        suspendEffectiveDate:
+          nextMetaBase.effectiveDate,
+        suspendEndDate: "",
+        suspendAutoReactivate: false,
+      };
+
+    const originalAccount:
+      CorporateUserAccountUpdate = {
+      username: user.username,
+      displayName: user.displayName,
+      agentName:
+        user.agentName ||
+        user.displayName,
+      email: user.email || "",
+      role: user.effectiveRole,
+      teamLead: user.teamLead || "",
+      teamName: user.teamName || "",
+      status: user.status,
+      suspendReason:
+        savedMeta.suspendReason,
+      suspendEffectiveDate:
+        savedMeta.effectiveDate,
+      suspendEndDate:
+        savedMeta.endDate,
+      suspendAutoReactivate:
+        savedMeta.autoReactivate,
+    };
+
+    const auditChanges =
+      buildProfileAuditChanges(
+        originalAccount,
+        update,
+        savedMeta,
+        nextMetaBase
+      );
+
+    if (!auditChanges.length) {
+      setToast(
+        "ยังไม่มีข้อมูลที่เปลี่ยนแปลง"
+      );
+      setEditing(false);
+      setAccountDraft(null);
+      return;
+    }
+
+    const historyItem: HistoryItem = {
+      id: `history-${Date.now()}`,
+      title:
+        auditHistoryTitle(
+          auditChanges
+        ),
+      detail: auditChanges
+        .slice(0, 3)
+        .map(
+          (change) =>
+            `${change.field}: ${change.before} → ${change.after}`
+        )
+        .join(" · "),
+      createdAt:
+        new Date().toISOString(),
+      updatedBy:
+        updatedByName ||
+        "System",
+      category: auditHistoryTitle(
+        auditChanges
+      ),
+      changes: auditChanges,
+    };
+
+    const nextMeta: UserMeta = {
+      ...nextMetaBase,
       history: [
         historyItem,
         ...metaDraft.history,
-      ].slice(0, 50),
+      ].slice(0, 80),
     };
-    const primary = nextMeta.devices.find((device) => device.isPrimary) || nextMeta.devices[0];
 
-    const update: CorporateUserAccountUpdate = {
-      ...accountDraft,
-      displayName: accountDraft.displayName.trim(),
-      agentName: accountDraft.agentName.trim() || accountDraft.displayName.trim(),
-      email: accountDraft.email.trim(),
-      role: accountDraft.role.trim(),
-      teamLead: accountDraft.teamLead.trim(),
-      teamName: accountDraft.teamName.trim(),
-      status: nextStatus,
-      suspendReason: metaDraft.lifecycleMode === "active" ? "" : metaDraft.suspendReason.trim(),
-      suspendEffectiveDate: metaDraft.lifecycleMode === "active" ? "" : metaDraft.effectiveDate,
-      suspendEndDate: metaDraft.lifecycleMode === "active" ? "" : metaDraft.endDate,
-      suspendAutoReactivate: metaDraft.lifecycleMode !== "active" && metaDraft.autoReactivate,
-    };
+    const primary =
+      nextMeta.devices.find(
+        (device) => device.isPrimary
+      ) || nextMeta.devices[0];
 
     setSaving(true);
+
     try {
       await setDoc(
-        doc(firebaseDb, "qa_user_profiles", nextMeta.docId),
+        doc(
+          firebaseDb,
+          "qa_user_profiles",
+          nextMeta.docId
+        ),
         {
           username: user.username,
-          preferredName: nextMeta.preferredName,
-          employeeId: nextMeta.employeeId,
-          officeNumber: nextMeta.officeNumber,
-          officeContactNumber: nextMeta.officeNumber,
+          preferredName:
+            nextMeta.preferredName,
+          employeeId:
+            nextMeta.employeeId,
+          officeNumber:
+            nextMeta.officeNumber,
+          officeContactNumber:
+            nextMeta.officeNumber,
           extension: nextMeta.extension,
-          officeExtension: nextMeta.extension,
-          officeUsage: nextMeta.officeUsage,
-          officeContactUsage: nextMeta.officeUsage,
-          backupOfficeNumber: nextMeta.backupOfficeNumber,
-          secondaryOfficeContact: nextMeta.backupOfficeNumber,
-          contactNote: nextMeta.contactNote,
-          officeContactNote: nextMeta.contactNote,
+          officeExtension:
+            nextMeta.extension,
+          officeUsage:
+            nextMeta.officeUsage,
+          officeContactUsage:
+            nextMeta.officeUsage,
+          backupOfficeNumber:
+            nextMeta.backupOfficeNumber,
+          secondaryOfficeContact:
+            nextMeta.backupOfficeNumber,
+          contactNote:
+            nextMeta.contactNote,
+          officeContactNote:
+            nextMeta.contactNote,
           devices: nextMeta.devices,
-          lifecycleMode: nextMeta.lifecycleMode,
-          suspendReason: update.suspendReason,
-          effectiveDate: update.suspendEffectiveDate,
-          suspendEffectiveDate: update.suspendEffectiveDate,
-          endDate: update.suspendEndDate,
-          suspendEndDate: update.suspendEndDate,
-          autoReactivate: update.suspendAutoReactivate,
-          suspendAutoReactivate: update.suspendAutoReactivate,
-          approver: nextMeta.approver,
-          lifecycleNote: nextMeta.lifecycleNote,
-          offboardingStatus: nextMeta.offboardingStatus,
-          employmentEndDate: nextMeta.employmentEndDate,
-          offboardingNote: nextMeta.offboardingNote,
+          lifecycleMode:
+            nextMeta.lifecycleMode,
+          suspendReason:
+            update.suspendReason,
+          effectiveDate:
+            update.suspendEffectiveDate,
+          suspendEffectiveDate:
+            update.suspendEffectiveDate,
+          endDate: "",
+          suspendEndDate: "",
+          autoReactivate: false,
+          suspendAutoReactivate: false,
+          approver: "",
+          lifecycleNote: "",
+          offboardingStatus:
+            nextMeta.offboardingStatus,
+          employmentEndDate:
+            nextMeta.employmentEndDate,
+          offboardingNote:
+            nextMeta.offboardingNote,
           history: nextMeta.history,
-          profileHistory: nextMeta.history,
-          deviceStatus: primary?.status || "Not Assigned",
-          deviceBrand: primary?.brand || "",
-          deviceModel: primary?.model || "",
-          deviceSeries: primary?.series || "",
-          operatingSystem: primary?.os || "",
-          assetId: primary?.assetId || "",
-          serialNumber: primary?.serialNumber || "",
+          profileHistory:
+            nextMeta.history,
+          deviceStatus:
+            primary?.status ||
+            "Not Assigned",
+          deviceBrand:
+            primary?.brand || "",
+          deviceModel:
+            primary?.model || "",
+          deviceSeries:
+            primary?.series || "",
+          operatingSystem:
+            primary?.os || "",
+          assetId:
+            primary?.assetId || "",
+          serialNumber:
+            primary?.serialNumber || "",
           imei: primary?.imei || "",
           imei2: primary?.imei2 || "",
-          workSimNumber: primary?.workSim || "",
-          workPhoneNumber: primary?.workSim || "",
-          phoneNumber: primary?.workSim || "",
+          workSimNumber:
+            primary?.workSim || "",
+          workPhoneNumber:
+            primary?.workSim || "",
+          phoneNumber:
+            primary?.workSim || "",
           workSimPackage:
             primary?.simPackage || "",
           phonePackage:
@@ -1164,21 +1816,38 @@ export default function CorporateUserDirectoryProfile({
             nextMeta.officeNumber,
           assignedDate:
             primary?.assignedDate || "",
-          deviceNote: primary?.note || "",
-          updatedAt: nextMeta.updatedAt,
-          updatedAtServer: serverTimestamp(),
+          deviceNote:
+            primary?.note || "",
+          updatedAt:
+            nextMeta.updatedAt,
+          updatedAtServer:
+            serverTimestamp(),
         },
         { merge: true }
       );
 
       await onSaveAccount(update);
-      setMetaMap((current) => ({ ...current, [user.normalizedUsername]: nextMeta }));
+      setMetaMap((current) => ({
+        ...current,
+        [user.normalizedUsername]:
+          nextMeta,
+      }));
       setEditing(false);
       setAccountDraft(null);
-      setToast("บันทึกโปรไฟล์ สถานะบัญชี และอุปกรณ์แล้ว");
-      onStatusViewChange(nextStatus === "Suspended" ? "suspended" : "active");
+      setToast(
+        "บันทึกข้อมูลและเพิ่มประวัติการแก้ไขแล้ว"
+      );
+      onStatusViewChange(
+        nextStatus === "Suspended"
+          ? "suspended"
+          : "active"
+      );
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "บันทึกข้อมูลไม่สำเร็จ");
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "บันทึกข้อมูลไม่สำเร็จ"
+      );
     } finally {
       setSaving(false);
     }
@@ -1209,7 +1878,9 @@ export default function CorporateUserDirectoryProfile({
     registerTHSarabunNew(pdf);
     let y = 18;
     const add = (label: string, value: string) => {
-      const lines = pdf.splitTextToSize(`${label}: ${value || "-"}`, 175) as string[];
+      const cleanedValue = String(value || "").trim();
+      if (!cleanedValue || cleanedValue === "-") return;
+      const lines = pdf.splitTextToSize(`${label}: ${cleanedValue}`, 175) as string[];
       if (y + lines.length * 6 > 280) {
         pdf.addPage();
         y = 18;
@@ -1616,7 +2287,7 @@ export default function CorporateUserDirectoryProfile({
                     {canManageUsers && !editing ? (
                       <button
                         type="button"
-                        title="แก้บัญชี เบอร์สำนักงาน อุปกรณ์หลายเครื่อง Suspended และ Offboarding บนหน้าเดียว"
+                        title="แก้ไขข้อมูล Profile และบันทึกประวัติการเปลี่ยนแปลง"
                         onClick={beginEdit}
                         className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-medium text-white"
                       >
@@ -1629,11 +2300,19 @@ export default function CorporateUserDirectoryProfile({
                 <div className="mt-4 flex flex-wrap gap-2">
                   {[
                     ["profile-account", "ข้อมูลบัญชี"],
-                    ["profile-contact", "เบอร์สำนักงาน"],
-                    ["profile-devices", "อุปกรณ์"],
-                    ["profile-lifecycle", "สถานะบัญชี"],
-                    ["profile-offboarding", "Offboarding"],
-                    ["profile-history", "ประวัติ"],
+                    ...(editing || contactHasData
+                      ? [["profile-contact", "เบอร์สำนักงาน"]]
+                      : []),
+                    ...(editing || meta.devices.length
+                      ? [["profile-devices", "อุปกรณ์"]]
+                      : []),
+                    ["profile-lifecycle", "กำหนดระงับบัญชี"],
+                    ...(editing || offboardingStarted
+                      ? [["profile-offboarding", "Offboarding"]]
+                      : []),
+                    ...(meta.history.length
+                      ? [["profile-history", "ประวัติ"]]
+                      : []),
                   ].map(([id, label]) => (
                     <button
                       key={id}
@@ -1649,7 +2328,7 @@ export default function CorporateUserDirectoryProfile({
 
                 {editing ? (
                   <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
-                    กำลังแก้ไขทั้งโปรไฟล์ รวมบัญชี เบอร์สำนักงาน อุปกรณ์หลายเครื่อง Suspended และ Offboarding
+                    กำลังแก้ไข Profile ระบบจะซ่อนข้อมูลว่างในโหมดดู และบันทึกทุกการเปลี่ยนแปลงลงประวัติ
                   </div>
                 ) : null}
               </div>
@@ -1679,7 +2358,8 @@ export default function CorporateUserDirectoryProfile({
                   </div>
                 </Section>
 
-                <Section id="profile-contact" icon="☎" title="Work Contact Information" subtitle="หมายเลขที่สำนักงานจัดให้ใช้โทรออกและประสานงาน">
+                {editing || contactHasData ? (
+<Section id="profile-contact" icon="☎" title="Work Contact Information" subtitle="หมายเลขที่สำนักงานจัดให้ใช้โทรออกและประสานงาน">
                   <div className="grid gap-x-6 xl:grid-cols-2">
                     <Field label="เบอร์โทรศัพท์สำนักงานสำหรับโทรออก" value={meta.officeNumber} editing={editing} onChange={(value) => updateMeta("officeNumber", value)} />
                     <Field label="เบอร์ต่อภายใน" value={meta.extension} editing={editing} onChange={(value) => updateMeta("extension", value)} />
@@ -1689,11 +2369,14 @@ export default function CorporateUserDirectoryProfile({
                   </div>
                 </Section>
 
-                <Section
+                                ) : null}
+
+                {editing || meta.devices.length > 0 ? (
+<Section
                   id="profile-devices"
                   icon="▣"
-                  title="Assigned Work Devices"
-                  subtitle="รองรับอุปกรณ์มากกว่า 1 เครื่อง และกำหนดเครื่องหลักได้"
+                  title="อุปกรณ์ที่กำลังใช้งาน"
+                  subtitle="User Active จะแสดงอุปกรณ์เป็นกำลังใช้งาน และติดตามการคืนเมื่อเริ่ม Offboarding"
                   action={
                     editing ? (
                       <button
@@ -1726,14 +2409,31 @@ export default function CorporateUserDirectoryProfile({
                               <div>
                                 <div className="text-xs text-violet-700">อุปกรณ์เครื่องที่ {index + 1}</div>
                                 <div className="mt-1 font-semibold">
-                                  {[device.brand, device.model].filter(Boolean).join(" ") || "ยังไม่ระบุรุ่น"}
+                                  {[device.brand, device.model].filter(Boolean).join(" ") ||
+                                    (device.workSim
+                                      ? `Work SIM ${device.workSim}`
+                                      : `อุปกรณ์เครื่องที่ ${index + 1}`)}
                                 </div>
                               </div>
                               {device.isPrimary ? (
                                 <span className="h-fit rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">เครื่องหลัก</span>
                               ) : null}
                             </div>
-                            <div className="mt-2 text-xs text-slate-500">{statusLabel(device.status)} · {device.assetId || "-"}</div>
+                            <div className="mt-2 text-xs text-slate-500">
+                              {[
+                                statusLabel(
+                                  effectiveDeviceStatus(device)
+                                ),
+                                device.assetId
+                                  ? `Asset ${device.assetId}`
+                                  : "",
+                                device.workSim
+                                  ? `Work SIM ${device.workSim}`
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -1766,7 +2466,13 @@ export default function CorporateUserDirectoryProfile({
                           <div className="grid gap-x-6 xl:grid-cols-2">
                             <Field
                               label="สถานะอุปกรณ์"
-                              value={selectedDevice.status}
+                              value={
+                                editing
+                                  ? selectedDevice.status
+                                  : effectiveDeviceStatus(
+                                      selectedDevice
+                                    )
+                              }
                               editing={editing}
                               onChange={(value) => updateDevice(selectedDevice.id, "status", value as DeviceStatus)}
                               options={[
@@ -1816,227 +2522,618 @@ export default function CorporateUserDirectoryProfile({
                   )}
                 </Section>
 
-                <Section id="profile-lifecycle" icon="⚙" title="Account Lifecycle & Suspension" subtitle="ตั้งค่า Active, Scheduled Suspend, Suspended และ Offboarding">
-                  <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
-                    {[
-                      ["active", "Active", "เปิดบัญชีและอนุญาตให้ Login"],
-                      ["scheduled", "Scheduled Suspend", "ตั้งวันที่ระงับล่วงหน้า"],
-                      ["suspended", "Suspended", "ระงับบัญชีทันที"],
-                      ["offboarding", "Offboarding", "ลาออกและติดตามการคืนอุปกรณ์"],
-                    ].map(([mode, title, description]) => (
+                                ) : null}
+
+                                <Section
+                  id="profile-lifecycle"
+                  icon="◷"
+                  title="กำหนดวันระงับบัญชี"
+                  subtitle="ระบุวันที่มีผลและเหตุผล ระบบจะคำนวณสถานะบัญชีให้อัตโนมัติ"
+                  action={
+                    editing &&
+                    suspensionConfigured ? (
                       <button
-                        key={mode}
                         type="button"
-                        disabled={!editing}
-                        title={`${title}: ${description}`}
-                        onClick={() => chooseLifecycle(mode as LifecycleMode)}
-                        className={`rounded-[16px] border p-4 text-left ${
-                          meta.lifecycleMode === mode
-                            ? mode === "suspended"
-                              ? "border-rose-300 bg-rose-50"
-                              : mode === "active"
-                                ? "border-emerald-300 bg-emerald-50"
-                                : "border-amber-300 bg-amber-50"
-                            : "border-slate-200 bg-white"
-                        }`}
+                        onClick={clearSuspension}
+                        className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-600"
                       >
-                        <b className="text-sm">{title}</b>
-                        <span className="mt-1 block text-xs text-slate-500">{description}</span>
+                        ยกเลิกกำหนดการ
                       </button>
-                    ))}
+                    ) : undefined
+                  }
+                >
+                  <div
+                    data-profile-lifecycle-audit-v77="true"
+                    className={`rounded-[18px] border px-4 py-3 ${
+                      account.status ===
+                      "Suspended"
+                        ? "border-rose-200 bg-rose-50"
+                        : meta.effectiveDate
+                          ? "border-amber-200 bg-amber-50"
+                          : "border-emerald-200 bg-emerald-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                          account.status ===
+                          "Suspended"
+                            ? "bg-rose-500"
+                            : meta.effectiveDate
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                        }`}
+                      />
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {account.status ===
+                          "Suspended"
+                            ? "บัญชีถูกระงับ"
+                            : meta.effectiveDate
+                              ? "บัญชียัง Active จนถึงวันที่กำหนด"
+                              : "บัญชียัง Active"}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {meta.effectiveDate
+                            ? `วันที่มีผล ${thaiDate(
+                                meta.effectiveDate
+                              )}`
+                            : "ยังไม่ได้กำหนดวันระงับบัญชี"}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="mt-4 grid gap-x-6 xl:grid-cols-2">
-                    <Field
-                      label="วันที่มีผล"
-                      value={meta.effectiveDate}
-                      editing={editing && meta.lifecycleMode !== "active"}
-                      onChange={(value) => updateMeta("effectiveDate", value)}
-                      type="date"
-                    />
-                    <Field
-                      label="วันที่เปิดบัญชีกลับ"
-                      value={meta.endDate}
-                      editing={editing && meta.lifecycleMode !== "active"}
-                      onChange={(value) => updateMeta("endDate", value)}
-                      type="date"
-                    />
-                    <Field
-                      label="เหตุผลหลัก"
-                      value={meta.suspendReason}
-                      editing={editing && meta.lifecycleMode !== "active"}
-                      onChange={(value) => updateMeta("suspendReason", value)}
-                      options={[
-                        { value: "", label: "เลือกเหตุผล" },
-                        { value: "สิ้นสุดการปฏิบัติงาน", label: "สิ้นสุดการปฏิบัติงาน" },
-                        { value: "ลาออก", label: "ลาออก" },
-                        { value: "พักงานชั่วคราว", label: "พักงานชั่วคราว" },
-                        { value: "ตรวจสอบสิทธิ์บัญชี", label: "ตรวจสอบสิทธิ์บัญชี" },
-                        { value: "อื่น ๆ", label: "อื่น ๆ" },
-                      ]}
-                    />
-                    <Field
-                      label="ผู้อนุมัติ / ผู้แจ้ง"
-                      value={meta.approver}
-                      editing={editing && meta.lifecycleMode !== "active"}
-                      onChange={(value) => updateMeta("approver", value)}
-                    />
-                    <Field
-                      label="เปิดบัญชีกลับอัตโนมัติ"
-                      value={meta.autoReactivate ? "yes" : "no"}
-                      editing={editing && meta.lifecycleMode !== "active"}
-                      onChange={(value) => updateMeta("autoReactivate", value === "yes")}
-                      options={[
-                        { value: "no", label: "ปิด" },
-                        { value: "yes", label: "เปิด" },
-                      ]}
-                    />
-                    <Field
-                      label="รายละเอียดเพิ่มเติม"
-                      value={meta.lifecycleNote}
-                      editing={editing && meta.lifecycleMode !== "active"}
-                      onChange={(value) => updateMeta("lifecycleNote", value)}
-                      textarea
-                    />
-                  </div>
+                  {editing ? (
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <label className="block">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                          วันที่มีผล
+                        </span>
+                        <input
+                          type="date"
+                          value={
+                            meta.effectiveDate
+                          }
+                          onChange={(event) =>
+                            updateMeta(
+                              "effectiveDate",
+                              event.target.value
+                            )
+                          }
+                          className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                          เหตุผลการระงับ
+                        </span>
+                        <input
+                          list="profile-suspension-reasons-v77"
+                          value={
+                            meta.suspendReason
+                          }
+                          onChange={(event) =>
+                            updateMeta(
+                              "suspendReason",
+                              event.target.value
+                            )
+                          }
+                          placeholder="เลือกหรือพิมพ์เหตุผล"
+                          className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                        />
+                        <datalist id="profile-suspension-reasons-v77">
+                          <option value="สิ้นสุดการปฏิบัติงาน" />
+                          <option value="สิ้นสุดสัญญาจ้าง" />
+                          <option value="พักงานชั่วคราว" />
+                          <option value="ตรวจสอบสิทธิ์บัญชี" />
+                          <option value="ย้ายหน้าที่" />
+                        </datalist>
+                      </label>
+                    </div>
+                  ) : suspensionConfigured ? (
+                    <div className="mt-4 grid gap-x-6 md:grid-cols-2">
+                      <Field
+                        label="วันที่มีผล"
+                        value={
+                          meta.effectiveDate
+                        }
+                        editing={false}
+                        type="date"
+                      />
+                      <Field
+                        label="เหตุผลการระงับ"
+                        value={
+                          meta.suspendReason
+                        }
+                        editing={false}
+                      />
+                    </div>
+                  ) : null}
                 </Section>
 
-                <Section id="profile-offboarding" icon="↩" title="Offboarding & Device Return" subtitle="บันทึกการลาออกและการคืนอุปกรณ์ทุกเครื่องแยกกัน">
-                  <div className="grid gap-x-6 xl:grid-cols-2">
-                    <Field
-                      label="สถานะ Offboarding"
-                      value={meta.offboardingStatus}
-                      editing={editing}
-                      onChange={(value) => updateMeta("offboardingStatus", value as UserMeta["offboardingStatus"])}
-                      options={[
-                        { value: "Working", label: "ยังทำงาน" },
-                        { value: "In Progress", label: "อยู่ระหว่าง Offboarding" },
-                        { value: "Completed", label: "สิ้นสุดงานแล้ว" },
-                      ]}
-                    />
-                    <Field
-                      label="วันที่สิ้นสุดงาน"
-                      value={meta.employmentEndDate}
-                      editing={editing}
-                      onChange={(value) => updateMeta("employmentEndDate", value)}
-                      type="date"
-                    />
-                    <Field
-                      label="หมายเหตุ Offboarding"
-                      value={meta.offboardingNote}
-                      editing={editing}
-                      onChange={(value) => updateMeta("offboardingNote", value)}
-                      textarea
-                    />
-                  </div>
-
-                  <div className="mt-5 space-y-4">
-                    {meta.devices.map((device, index) => (
-                      <div key={device.id} className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
-                        <div className="mb-3 flex flex-col gap-2 border-b border-slate-200 pb-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <div className="text-sm font-semibold">
-                              อุปกรณ์เครื่องที่ {index + 1}: {[device.brand, device.model].filter(Boolean).join(" ") || "ยังไม่ระบุรุ่น"}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-500">
-                              Asset ID {device.assetId || "-"} · Work SIM {device.workSim || "-"}
-                            </div>
-                          </div>
-                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
-                            {returnLabel(device.returnStatus)}
-                          </span>
+                {(editing ||
+                  offboardingStarted) ? (
+                  <Section
+                    id="profile-offboarding"
+                    icon="↩"
+                    title="Offboarding & Device Return"
+                    subtitle="เริ่มกระบวนการเมื่อต้องสิ้นสุดการทำงานและติดตามการคืนอุปกรณ์"
+                    action={
+                      editing ? (
+                        offboardingStarted ? (
+                          <button
+                            type="button"
+                            onClick={
+                              cancelOffboarding
+                            }
+                            className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-medium text-rose-600"
+                          >
+                            ยกเลิก Offboarding
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={
+                              startOffboarding
+                            }
+                            className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-medium text-white"
+                          >
+                            เริ่ม Offboarding
+                          </button>
+                        )
+                      ) : undefined
+                    }
+                  >
+                    {!offboardingStarted ? (
+                      <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-9 text-center">
+                        <div className="text-sm font-medium text-slate-700">
+                          ยังไม่ได้เริ่มกระบวนการ Offboarding
                         </div>
-
+                        <div className="mt-1 text-xs text-slate-400">
+                          User ยังทำงานอยู่ จึงไม่มีสถานะรอดำเนินการคืนอุปกรณ์
+                        </div>
+                      </div>
+                    ) : (
+                      <>
                         <div className="grid gap-x-6 xl:grid-cols-2">
                           <Field
-                            label="สถานะการคืน"
-                            value={device.returnStatus}
+                            label="สถานะ Offboarding"
+                            value={
+                              meta.offboardingStatus
+                            }
                             editing={editing}
-                            onChange={(value) => updateDevice(device.id, "returnStatus", value as ReturnStatus)}
+                            onChange={(value) =>
+                              updateMeta(
+                                "offboardingStatus",
+                                value as UserMeta["offboardingStatus"]
+                              )
+                            }
                             options={[
-                              { value: "Pending", label: "รอดำเนินการคืน" },
-                              { value: "Scheduled", label: "นัดหมายคืนแล้ว" },
-                              { value: "Complete", label: "คืนครบแล้ว" },
-                              { value: "Incomplete", label: "คืนไม่ครบ" },
-                              { value: "Lost", label: "อุปกรณ์สูญหาย" },
+                              {
+                                value:
+                                  "In Progress",
+                                label:
+                                  "อยู่ระหว่าง Offboarding",
+                              },
+                              {
+                                value:
+                                  "Completed",
+                                label:
+                                  "สิ้นสุดงานแล้ว",
+                              },
                             ]}
                           />
-                          <Field label="วันที่คืน" value={device.returnDate} editing={editing} onChange={(value) => updateDevice(device.id, "returnDate", value)} type="date" />
-                          <Field label="ผู้ส่งคืน" value={device.returnedBy} editing={editing} onChange={(value) => updateDevice(device.id, "returnedBy", value)} />
-                          <Field label="ผู้รับคืน" value={device.receivedBy} editing={editing} onChange={(value) => updateDevice(device.id, "receivedBy", value)} />
                           <Field
-                            label="สภาพอุปกรณ์"
-                            value={device.condition}
+                            label="วันที่สิ้นสุดงาน"
+                            value={
+                              meta.employmentEndDate
+                            }
                             editing={editing}
-                            onChange={(value) => updateDevice(device.id, "condition", value as DeviceCondition)}
-                            options={[
-                              { value: "Not Checked", label: "ยังไม่ได้ตรวจสอบ" },
-                              { value: "Normal", label: "ปกติ" },
-                              { value: "Used", label: "มีรอยใช้งาน" },
-                              { value: "Damaged", label: "ชำรุด" },
-                              { value: "Repair Required", label: "ต้องส่งซ่อม" },
-                            ]}
+                            onChange={(value) =>
+                              updateMeta(
+                                "employmentEndDate",
+                                value
+                              )
+                            }
+                            type="date"
                           />
-                          <Field label="หมายเหตุการส่งคืน" value={device.returnNote} editing={editing} onChange={(value) => updateDevice(device.id, "returnNote", value)} textarea />
+                          <Field
+                            label="หมายเหตุ Offboarding"
+                            value={
+                              meta.offboardingNote
+                            }
+                            editing={editing}
+                            onChange={(value) =>
+                              updateMeta(
+                                "offboardingNote",
+                                value
+                              )
+                            }
+                            textarea
+                          />
                         </div>
 
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                          {[
-                            ["device", "ตัวเครื่อง"],
-                            ["workSim", "Work SIM"],
-                            ["cable", "สายชาร์จ"],
-                            ["adapter", "หัวชาร์จ"],
-                            ["accessories", "เคส / อุปกรณ์เสริม"],
-                            ["companyDataWiped", "ล้างข้อมูลบริษัทแล้ว"],
-                          ].map(([key, label]) => (
-                            <label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs">
-                              <input
-                                type="checkbox"
-                                disabled={!editing}
-                                checked={device.returnedItems[key] === true}
-                                onChange={(event) =>
-                                  updateDevice(device.id, "returnedItems", {
-                                    ...device.returnedItems,
-                                    [key]: event.target.checked,
-                                  })
-                                }
-                                title={`ทำเครื่องหมายเมื่อได้รับ${label}แล้ว`}
-                                className="accent-violet-600"
-                              />
-                              {label}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    {!meta.devices.length ? (
-                      <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
-                        ยังไม่มีอุปกรณ์ให้บันทึกการส่งคืน
-                      </div>
-                    ) : null}
-                  </div>
-                </Section>
+                        <div className="mt-5 space-y-4">
+                          {meta.devices.map(
+                            (device, index) => (
+                              <div
+                                key={device.id}
+                                className="rounded-[20px] border border-amber-200 bg-amber-50/60 p-4"
+                              >
+                                <div className="mb-3 flex flex-col gap-2 border-b border-amber-200 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <div className="text-sm font-semibold">
+                                      อุปกรณ์เครื่องที่{" "}
+                                      {index + 1}
+                                      {[
+                                        device.brand,
+                                        device.model,
+                                      ]
+                                        .filter(
+                                          Boolean
+                                        )
+                                        .join(" ")
+                                        ? `: ${[
+                                            device.brand,
+                                            device.model,
+                                          ]
+                                            .filter(
+                                              Boolean
+                                            )
+                                            .join(" ")}`
+                                        : ""}
+                                    </div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                      {[
+                                        device.assetId
+                                          ? `Asset ID ${device.assetId}`
+                                          : "",
+                                        device.workSim
+                                          ? `Work SIM ${device.workSim}`
+                                          : "",
+                                      ]
+                                        .filter(
+                                          Boolean
+                                        )
+                                        .join(" · ")}
+                                    </div>
+                                  </div>
+                                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
+                                    {returnLabel(
+                                      device.returnStatus
+                                    )}
+                                  </span>
+                                </div>
 
-                <Section id="profile-history" icon="◷" title="Account & Device History" subtitle="ประวัติการเปลี่ยนสถานะ โปรไฟล์ และอุปกรณ์">
-                  {meta.history.length ? (
-                    <div className="space-y-4">
-                      {meta.history.map((item) => (
-                        <div key={item.id} className="grid grid-cols-[12px_minmax(0,1fr)] gap-3">
-                          <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-violet-600" />
-                          <div>
-                            <div className="text-sm font-semibold">{item.title}</div>
-                            <div className="mt-1 text-xs text-slate-500">{item.detail || "-"}</div>
-                            <div className="mt-1 text-[11px] text-slate-400">{formatDateTime(item.createdAt)}</div>
+                                <div className="grid gap-x-6 xl:grid-cols-2">
+                                  <Field
+                                    label="สถานะการคืน"
+                                    value={
+                                      device.returnStatus
+                                    }
+                                    editing={
+                                      editing
+                                    }
+                                    onChange={(value) =>
+                                      updateDevice(
+                                        device.id,
+                                        "returnStatus",
+                                        value as ReturnStatus
+                                      )
+                                    }
+                                    options={[
+                                      {
+                                        value:
+                                          "Pending",
+                                        label:
+                                          "รอดำเนินการคืน",
+                                      },
+                                      {
+                                        value:
+                                          "Scheduled",
+                                        label:
+                                          "นัดหมายคืนแล้ว",
+                                      },
+                                      {
+                                        value:
+                                          "Complete",
+                                        label:
+                                          "คืนครบแล้ว",
+                                      },
+                                      {
+                                        value:
+                                          "Incomplete",
+                                        label:
+                                          "คืนไม่ครบ",
+                                      },
+                                      {
+                                        value:
+                                          "Lost",
+                                        label:
+                                          "อุปกรณ์สูญหาย",
+                                      },
+                                    ]}
+                                  />
+                                  <Field
+                                    label="วันที่คืน"
+                                    value={
+                                      device.returnDate
+                                    }
+                                    editing={
+                                      editing
+                                    }
+                                    onChange={(value) =>
+                                      updateDevice(
+                                        device.id,
+                                        "returnDate",
+                                        value
+                                      )
+                                    }
+                                    type="date"
+                                  />
+                                  <Field
+                                    label="ผู้ส่งคืน"
+                                    value={
+                                      device.returnedBy
+                                    }
+                                    editing={
+                                      editing
+                                    }
+                                    onChange={(value) =>
+                                      updateDevice(
+                                        device.id,
+                                        "returnedBy",
+                                        value
+                                      )
+                                    }
+                                  />
+                                  <Field
+                                    label="ผู้รับคืน"
+                                    value={
+                                      device.receivedBy
+                                    }
+                                    editing={
+                                      editing
+                                    }
+                                    onChange={(value) =>
+                                      updateDevice(
+                                        device.id,
+                                        "receivedBy",
+                                        value
+                                      )
+                                    }
+                                  />
+                                  <Field
+                                    label="สภาพอุปกรณ์"
+                                    value={
+                                      device.condition
+                                    }
+                                    editing={
+                                      editing
+                                    }
+                                    onChange={(value) =>
+                                      updateDevice(
+                                        device.id,
+                                        "condition",
+                                        value as DeviceCondition
+                                      )
+                                    }
+                                    options={[
+                                      {
+                                        value:
+                                          "Not Checked",
+                                        label:
+                                          "ยังไม่ได้ตรวจสอบ",
+                                      },
+                                      {
+                                        value:
+                                          "Normal",
+                                        label:
+                                          "ปกติ",
+                                      },
+                                      {
+                                        value:
+                                          "Used",
+                                        label:
+                                          "มีรอยใช้งาน",
+                                      },
+                                      {
+                                        value:
+                                          "Damaged",
+                                        label:
+                                          "ชำรุด",
+                                      },
+                                      {
+                                        value:
+                                          "Repair Required",
+                                        label:
+                                          "ต้องส่งซ่อม",
+                                      },
+                                    ]}
+                                  />
+                                  <Field
+                                    label="หมายเหตุการส่งคืน"
+                                    value={
+                                      device.returnNote
+                                    }
+                                    editing={
+                                      editing
+                                    }
+                                    onChange={(value) =>
+                                      updateDevice(
+                                        device.id,
+                                        "returnNote",
+                                        value
+                                      )
+                                    }
+                                    textarea
+                                  />
+                                </div>
+
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                  {[
+                                    [
+                                      "device",
+                                      "ตัวเครื่อง",
+                                    ],
+                                    [
+                                      "workSim",
+                                      "Work SIM",
+                                    ],
+                                    [
+                                      "cable",
+                                      "สายชาร์จ",
+                                    ],
+                                    [
+                                      "adapter",
+                                      "หัวชาร์จ",
+                                    ],
+                                    [
+                                      "accessories",
+                                      "เคส / อุปกรณ์เสริม",
+                                    ],
+                                    [
+                                      "companyDataWiped",
+                                      "ล้างข้อมูลบริษัทแล้ว",
+                                    ],
+                                  ].map(
+                                    ([
+                                      key,
+                                      label,
+                                    ]) => (
+                                      <label
+                                        key={
+                                          key
+                                        }
+                                        className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-xs"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          disabled={
+                                            !editing
+                                          }
+                                          checked={
+                                            device
+                                              .returnedItems[
+                                              key
+                                            ] ===
+                                            true
+                                          }
+                                          onChange={(
+                                            event
+                                          ) =>
+                                            updateDevice(
+                                              device.id,
+                                              "returnedItems",
+                                              {
+                                                ...device.returnedItems,
+                                                [key]:
+                                                  event
+                                                    .target
+                                                    .checked,
+                                              }
+                                            )
+                                          }
+                                          className="accent-violet-600"
+                                        />
+                                        {label}
+                                      </label>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          )}
+
+                          {!meta.devices.length ? (
+                            <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+                              ไม่มีอุปกรณ์ที่ต้องติดตามการคืน
+                            </div>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                  </Section>
+                ) : null}
+
+                {meta.history.length ? (
+                  <Section
+                    id="profile-history"
+                    icon="◔"
+                    title="Account & Device History"
+                    subtitle="Stamp วัน เวลา ผู้ดำเนินการ และค่าที่เปลี่ยนล่าสุด"
+                  >
+                    <div className="relative ml-1 border-l-2 border-violet-100 pl-5">
+                      {meta.history.map(
+                        (item) => (
+                          <div
+                            key={item.id}
+                            className="relative pb-6 last:pb-0"
+                          >
+                            <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full bg-violet-600 ring-4 ring-violet-50" />
+
+                            <div className="text-[10px] font-medium text-violet-600">
+                              {formatDateTime(
+                                item.createdAt
+                              )}
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-slate-900">
+                              {item.title}
+                            </div>
+                            <div className="mt-1 text-[11px] text-slate-500">
+                              ดำเนินการโดย{" "}
+                              {item.updatedBy ||
+                                "System"}
+                            </div>
+
+                            {item.changes?.length ? (
+                              <div className="mt-3 overflow-hidden rounded-[15px] border border-slate-200 bg-slate-50">
+                                {item.changes.map(
+                                  (
+                                    change,
+                                    index
+                                  ) => (
+                                    <div
+                                      key={`${item.id}-${change.field}-${index}`}
+                                      className="grid gap-2 border-b border-slate-200 px-3 py-2.5 last:border-0 md:grid-cols-[150px_minmax(0,1fr)]"
+                                    >
+                                      <span className="text-[10px] text-slate-500">
+                                        {
+                                          change.field
+                                        }
+                                      </span>
+                                      <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                                        <span className="rounded-lg bg-white px-2 py-1 text-slate-500">
+                                          {
+                                            change.before
+                                          }
+                                        </span>
+                                        <span className="text-violet-500">
+                                          →
+                                        </span>
+                                        <b className="rounded-lg bg-violet-50 px-2 py-1 font-medium text-violet-700">
+                                          {
+                                            change.after
+                                          }
+                                        </b>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            ) : item.detail ? (
+                              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                                {item.detail}
+                              </div>
+                            ) : null}
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
-                  ) : (
-                    <div className="rounded-[18px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
-                      ยังไม่มีประวัติการเปลี่ยนแปลง
-                    </div>
-                  )}
-                </Section>
+                  </Section>
+                ) : null}
               </div>
 
               {editing ? (
@@ -2058,7 +3155,7 @@ export default function CorporateUserDirectoryProfile({
                     </button>
                     <button
                       type="button"
-                      title="บันทึกบัญชี เบอร์สำนักงาน อุปกรณ์ทุกเครื่อง Suspended และ Offboarding"
+                      title="บันทึกข้อมูล Profile และเพิ่ม Audit History"
                       disabled={saving}
                       onClick={() => void save()}
                       className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"

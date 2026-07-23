@@ -3536,6 +3536,11 @@ function ReadOnlyDirectoryTable({
 }) {
   return (
     <CorporateUserDirectoryProfile
+                updatedByName={
+                  currentUser?.displayName ||
+                  currentUser?.username ||
+                  "System"
+                }
       rows={rows}
       canManageUsers={canManageUsers}
       canManageTeams={canManageTeams}
