@@ -666,7 +666,7 @@ function createBlankUser(): EditableUser {
     viewStatus: "Active",
     suspendReason: "",
     suspendEffectiveDate: "",
-    temporaryPassword: generateTemporaryPassword(),
+    temporaryPassword: "",
   };
 }
 
@@ -1347,34 +1347,55 @@ export default function UserRoleAdminMockup({
   };
 
   const saveNewUser = async () => {
-  const cleanedUser = {
+    const agentName =
+      newUserDraft.agentName.trim() ||
+      newUserDraft.displayName.trim();
+    const temporaryPassword =
+      generateTemporaryPassword();
+    const cleanedUser: EditableUser = {
       ...newUserDraft,
-      username: newUserDraft.username.trim(),
-      displayName: newUserDraft.displayName.trim(),
-      agentName: newUserDraft.agentName.trim() || newUserDraft.displayName.trim(),
+      username:
+        newUserDraft.username.trim(),
+      displayName: agentName,
+      agentName,
       email: newUserDraft.email.trim(),
-      role: normalizeRoleName(newUserDraft.role),
+      role: normalizeRoleName(
+        newUserDraft.role
+      ),
       teamLead:
-        newUserDraft.status === "Suspended"
-          ? ""
-          : newUserDraft.teamLead.trim(),
+        newUserDraft.teamLead.trim(),
       teamName:
-        newUserDraft.status === "Suspended"
-          ? ""
-          : newUserDraft.teamName.trim(),
-      suspendReason: newUserDraft.suspendReason.trim(),
-      suspendEffectiveDate: newUserDraft.suspendEffectiveDate.trim(),
-      temporaryPassword: newUserDraft.temporaryPassword || generateTemporaryPassword(),
+        newUserDraft.teamName.trim(),
+      status: "Active",
+      viewStatus: "Active",
+      suspendReason: "",
+      suspendEffectiveDate: "",
+      temporaryPassword,
     };
 
-    if (!cleanedUser.username || !cleanedUser.displayName) {
-      setMessage("Username and display name are required before creating a user.");
-      return;
+    if (
+      !cleanedUser.username ||
+      !cleanedUser.agentName
+    ) {
+      setMessage(
+        "Agent Name และ Username จำเป็นสำหรับการสร้าง User"
+      );
+      return null;
     }
 
-    if (rows.some((row) => normalizeUsername(row.username) === normalizeUsername(cleanedUser.username))) {
-      setMessage(`Username already exists: ${cleanedUser.username}`);
-      return;
+    if (
+      rows.some(
+        (row) =>
+          normalizeUsername(row.username) ===
+          normalizeUsername(
+            cleanedUser.username
+          )
+      )
+    ) {
+      setMessage(
+        `Username already exists: ${cleanedUser.username}`
+      );
+      return null;
     }
 
     setSaving(true);
@@ -1382,46 +1403,100 @@ export default function UserRoleAdminMockup({
     setAccessMessage("");
 
     try {
-      await upsertStoredUserProfiles([editableToStoredProfile(cleanedUser)]);
-    } catch {
-      // Legacy log fallback keeps created users available before the new table exists.
+      await upsertStoredUserProfiles([
+        editableToStoredProfile(
+          cleanedUser
+        ),
+      ]);
+
+      await logUsageEventBestEffort(
+        currentUser,
+        "user_profile_saved",
+        {
+          tab: "user-roles",
+          target_agent:
+            cleanedUser.username,
+          details: {
+            ...cleanedUser,
+            updatedBy:
+              currentUser?.displayName ||
+              currentUser?.username ||
+              "",
+            updatedAt:
+              new Date().toISOString(),
+          },
+        }
+      );
+
+      const issuedAt = new Date();
+
+      await logUsageEventBestEffort(
+        currentUser,
+        "password_reset_approved",
+        {
+          tab: "user-roles",
+          target_agent:
+            cleanedUser.username,
+          details: {
+            requestId:
+              `directory-access-${normalizeUsername(
+                cleanedUser.username
+              )}-${Date.now()}`,
+            username:
+              cleanedUser.username,
+            displayName:
+              cleanedUser.displayName,
+            email: cleanedUser.email,
+            password:
+              temporaryPassword,
+            passwordKind: "temporary",
+            issuedAt:
+              issuedAt.toISOString(),
+            expiresAt:
+              addDays(
+                issuedAt,
+                15
+              ).toISOString(),
+            resetMode:
+              "directory-access",
+            approvedBy:
+              currentUser?.displayName ||
+              currentUser?.username ||
+              "",
+            approvedAt:
+              issuedAt.toISOString(),
+          },
+        }
+      );
+
+      await onRolesChanged();
+      setDirectoryTab("active");
+      setMessage(
+        `Created user ${cleanedUser.displayName}.`
+      );
+      setAccessMessage(
+        `${cleanedUser.displayName}: ${temporaryPassword}`
+      );
+
+      return {
+        username:
+          cleanedUser.username,
+        displayName:
+          cleanedUser.displayName,
+        temporaryPassword,
+      };
+    } catch (error) {
+      setMessage(
+        `Create user failed: ${
+          error instanceof Error
+            ? error.message
+            : String(error)
+        }`
+      );
+      return null;
+    } finally {
+      setSaving(false);
     }
-
-    await logUsageEventBestEffort(currentUser, "user_profile_saved", {
-      tab: "user-roles",
-      target_agent: cleanedUser.username,
-      details: {
-        ...cleanedUser,
-        updatedBy: currentUser?.displayName || currentUser?.username || "",
-        updatedAt: new Date().toISOString(),
-      },
-    });
-
-    const issuedAt = new Date();
-    await logUsageEventBestEffort(currentUser, "password_reset_approved", {
-      tab: "user-roles",
-      target_agent: cleanedUser.username,
-      details: {
-        requestId: `directory-access-${normalizeUsername(cleanedUser.username)}-${Date.now()}`,
-        username: cleanedUser.username,
-        displayName: cleanedUser.displayName,
-        email: cleanedUser.email,
-        password: cleanedUser.temporaryPassword,
-        passwordKind: "temporary",
-        issuedAt: issuedAt.toISOString(),
-        expiresAt: addDays(issuedAt, 15).toISOString(),
-        resetMode: "directory-access",
-        approvedBy: currentUser?.displayName || currentUser?.username || "",
-        approvedAt: issuedAt.toISOString(),
-      },
-    });
-
-    await onRolesChanged();
-    setSaving(false);
-    setCreateUserOpen(false);
-    setDirectoryTab(cleanedUser.status === "Suspended" ? "suspended" : "active");
-    setMessage(`Created user ${cleanedUser.displayName}.`);
-    setAccessMessage(`${cleanedUser.displayName || cleanedUser.username}: ${cleanedUser.temporaryPassword}`);
   };
 
   const saveSingleUserAccount = async (
@@ -2234,6 +2309,7 @@ export default function UserRoleAdminMockup({
       {createUserOpen ? (
         <CreateUserModal
           user={newUserDraft}
+          existingUsers={draftUsers}
           saving={saving}
           roleOptions={activeRoleOptions}
           onChange={updateNewUserDraft}
@@ -5876,126 +5952,904 @@ function EditableDirectoryTable({
 
 function CreateUserModal({
   user,
+  existingUsers,
   saving,
   roleOptions,
   onChange,
-  onGeneratePassword,
+  onGeneratePassword: _onGeneratePassword,
   onCancel,
   onSave,
 }: {
   user: EditableUser;
+  existingUsers: EditableUser[];
   saving: boolean;
   roleOptions: string[];
-  onChange: (key: keyof EditableUser, value: string) => void;
-  onGeneratePassword: () => void;
+  onChange: (
+    key: keyof EditableUser,
+    value: string
+  ) => void;
+  onGeneratePassword?: () => void;
   onCancel: () => void;
-  onSave: () => void;
+  onSave: () => Promise<{
+    username: string;
+    displayName: string;
+    temporaryPassword: string;
+  } | null>;
 }) {
+  const [usernameEdited, setUsernameEdited] =
+    useState(false);
+  const [emailEdited, setEmailEdited] =
+    useState(false);
+  const [addTeamOpen, setAddTeamOpen] =
+    useState(false);
+  const [newTeamName, setNewTeamName] =
+    useState("");
+  const [newTeamLead, setNewTeamLead] =
+    useState("");
+  const [customTeams, setCustomTeams] =
+    useState<
+      Array<{
+        name: string;
+        teamLead: string;
+      }>
+    >([]);
+  const [createdResult, setCreatedResult] =
+    useState<{
+      username: string;
+      displayName: string;
+      temporaryPassword: string;
+    } | null>(null);
+  const [copied, setCopied] =
+    useState(false);
+
+  const activeUsers = useMemo(
+    () =>
+      existingUsers
+        .filter(
+          (item) =>
+            item.status === "Active"
+        )
+        .sort((a, b) =>
+          (
+            a.displayName ||
+            a.agentName ||
+            a.username
+          ).localeCompare(
+            b.displayName ||
+              b.agentName ||
+              b.username
+          )
+        ),
+    [existingUsers]
+  );
+
+  const leadOptions = useMemo(
+    () =>
+      activeUsers.map((item) => ({
+        value:
+          item.displayName ||
+          item.agentName ||
+          item.username,
+        label: `${
+          item.displayName ||
+          item.agentName ||
+          item.username
+        } · ${item.username}`,
+      })),
+    [activeUsers]
+  );
+
+  const teamOptions = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        name: string;
+        teamLead: string;
+      }
+    >();
+
+    activeUsers.forEach((item) => {
+      const name =
+        item.teamName.trim();
+
+      if (!name) return;
+
+      const existing = map.get(name);
+
+      if (!existing) {
+        map.set(name, {
+          name,
+          teamLead:
+            item.teamLead.trim(),
+        });
+        return;
+      }
+
+      if (
+        !existing.teamLead &&
+        item.teamLead.trim()
+      ) {
+        map.set(name, {
+          ...existing,
+          teamLead:
+            item.teamLead.trim(),
+        });
+      }
+    });
+
+    customTeams.forEach((team) => {
+      map.set(team.name, team);
+    });
+
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        a.name.localeCompare(b.name)
+    );
+  }, [activeUsers, customTeams]);
+
+  const existingUsernameSet =
+    useMemo(
+      () =>
+        new Set(
+          existingUsers.map((item) =>
+            normalizeUsername(
+              item.username
+            )
+          )
+        ),
+      [existingUsers]
+    );
+
+  const buildUsername = (
+    agentName: string
+  ) => {
+    const firstName =
+      agentName
+        .trim()
+        .split(/s+/)[0]
+        ?.toLowerCase()
+        .replace(
+          /[^a-z0-9._-]/g,
+          ""
+        ) || "";
+
+    if (!firstName) return "";
+    if (
+      !existingUsernameSet.has(
+        firstName
+      )
+    ) {
+      return firstName;
+    }
+
+    let suffix = 2;
+
+    while (
+      existingUsernameSet.has(
+        `${firstName}${suffix}`
+      )
+    ) {
+      suffix += 1;
+    }
+
+    return `${firstName}${suffix}`;
+  };
+
+  const handleAgentNameChange = (
+    value: string
+  ) => {
+    onChange("agentName", value);
+    onChange("displayName", value);
+
+    const nextUsername =
+      usernameEdited
+        ? user.username
+        : buildUsername(value);
+
+    if (!usernameEdited) {
+      onChange(
+        "username",
+        nextUsername
+      );
+    }
+
+    if (!emailEdited) {
+      onChange(
+        "email",
+        nextUsername
+          ? `${nextUsername}@robinhood.co.th`
+          : ""
+      );
+    }
+
+    if (
+      user.teamLead ===
+        user.agentName.trim() ||
+      user.teamLead ===
+        user.displayName.trim()
+    ) {
+      onChange(
+        "teamLead",
+        value.trim()
+      );
+    }
+  };
+
+  const handleUsernameChange = (
+    value: string
+  ) => {
+    const cleaned = value
+      .toLowerCase()
+      .replace(
+        /[^a-z0-9._-]/g,
+        ""
+      );
+
+    setUsernameEdited(true);
+    onChange("username", cleaned);
+
+    if (!emailEdited) {
+      onChange(
+        "email",
+        cleaned
+          ? `${cleaned}@robinhood.co.th`
+          : ""
+      );
+    }
+  };
+
+  const handleTeamChange = (
+    value: string
+  ) => {
+    if (value === "__add_team__") {
+      setAddTeamOpen(true);
+      return;
+    }
+
+    const selected =
+      teamOptions.find(
+        (team) => team.name === value
+      );
+
+    onChange("teamName", value);
+    onChange(
+      "teamLead",
+      selected?.teamLead || ""
+    );
+  };
+
+  const handleLeadChange = (
+    value: string
+  ) => {
+    if (value === "__self_lead__") {
+      onChange(
+        "teamLead",
+        user.agentName.trim()
+      );
+      return;
+    }
+
+    onChange("teamLead", value);
+  };
+
+  const addNewTeam = () => {
+    const name = newTeamName.trim();
+
+    if (!name) return;
+
+    const nextTeam = {
+      name,
+      teamLead:
+        newTeamLead.trim(),
+    };
+
+    setCustomTeams((current) => [
+      ...current.filter(
+        (item) =>
+          item.name.toLowerCase() !==
+          name.toLowerCase()
+      ),
+      nextTeam,
+    ]);
+    onChange("teamName", name);
+    onChange(
+      "teamLead",
+      nextTeam.teamLead
+    );
+    setNewTeamName("");
+    setNewTeamLead("");
+    setAddTeamOpen(false);
+  };
+
+  const handleCreate = async () => {
+    const result = await onSave();
+
+    if (result) {
+      setCreatedResult(result);
+      setCopied(false);
+    }
+  };
+
+  const resetForAnother = () => {
+    [
+      ["username", ""],
+      ["displayName", ""],
+      ["agentName", ""],
+      ["email", ""],
+      ["teamLead", ""],
+      ["teamName", ""],
+      [
+        "role",
+        roleOptions[0] ||
+          "Admin Live Chat",
+      ],
+      ["status", "Active"],
+      ["viewStatus", "Active"],
+      ["suspendReason", ""],
+      ["suspendEffectiveDate", ""],
+      ["temporaryPassword", ""],
+    ].forEach(([key, value]) =>
+      onChange(
+        key as keyof EditableUser,
+        value
+      )
+    );
+
+    setUsernameEdited(false);
+    setEmailEdited(false);
+    setAddTeamOpen(false);
+    setNewTeamName("");
+    setNewTeamLead("");
+    setCreatedResult(null);
+    setCopied(false);
+  };
+
+  const copyPassword = async () => {
+    if (!createdResult) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        createdResult.temporaryPassword
+      );
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const selectedRole =
+    user.role ||
+    roleOptions[0] ||
+    "Admin Live Chat";
+  const selfLeadValue =
+    user.agentName.trim();
+  const leadValueExists =
+    !user.teamLead ||
+    leadOptions.some(
+      (option) =>
+        option.value === user.teamLead
+    ) ||
+    user.teamLead === selfLeadValue;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-3xl overflow-hidden rounded-[30px] bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
-        <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white">
-          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-200">New Access</div>
-          <div className="mt-2 text-2xl font-black">Create User</div>
-          <div className="mt-1 text-sm font-semibold text-violet-100">
-            Create a new dashboard account with role, status, email, and temporary password.
-          </div>
-        </div>
+    <div
+      data-create-user-redesign-v76="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:px-5"
+    >
+      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-[30px] border border-white/50 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.38)]">
+        {createdResult ? (
+          <div className="overflow-y-auto px-6 py-10 text-center sm:px-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-emerald-50 text-3xl font-semibold text-emerald-600">
+              ✓
+            </div>
 
-        <div className="grid gap-4 p-6 md:grid-cols-2">
-          <ModalField label="Username" value={user.username} onChange={(value) => onChange("username", value)} placeholder="e.g. anucha" />
-          <ModalField label="Display Name" value={user.displayName} onChange={(value) => onChange("displayName", value)} placeholder="Full name" />
-          <ModalField label="Agent Name" value={user.agentName} onChange={(value) => onChange("agentName", value)} placeholder="Name used in RawData" />
-          <ModalField label="Email" value={user.email} onChange={(value) => onChange("email", value)} placeholder="name@robinhood.co.th" />
-          <ModalField label="Team Lead" value={user.teamLead} onChange={(value) => onChange("teamLead", value)} placeholder="e.g. Anucha Makundin" />
-          <ModalField label="Team Name" value={user.teamName} onChange={(value) => onChange("teamName", value)} placeholder="e.g. Sweet Warriors" />
+            <div className="mt-4 text-2xl font-semibold text-slate-950">
+              สร้าง User สำเร็จ
+            </div>
+            <div className="mt-2 text-sm text-slate-500">
+              {createdResult.displayName}
+              ถูกเพิ่มใน User Directory
+              และพร้อมสำหรับการตั้งค่า Profile ต่อ
+            </div>
 
-          <label className="block">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Role</span>
-            <select
-              value={user.role}
-              disabled={saving}
-              onChange={(event) => onChange("role", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-            >
-              {roleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          </label>
+            <div className="mx-auto mt-6 max-w-xl rounded-[22px] border border-violet-200 bg-violet-50 p-5 text-left">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                Temporary Password
+              </div>
 
-          <label className="block">
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Status</span>
-            <select
-              value={user.status}
-              disabled={saving}
-              onChange={(event) => onChange("status", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-semibold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-            >
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <ModalField
-            label="Suspend Date / End Date"
-            type="date"
-            value={user.suspendEffectiveDate}
-            onChange={(value) => onChange("suspendEffectiveDate", value)}
-            placeholder="YYYY-MM-DD"
-            disabled={saving}
-          />
-
-          <div className="md:col-span-2">
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Temporary Password</span>
-              <div className="mt-2 flex gap-2">
-                <input
-                  type="text"
-                  value={user.temporaryPassword}
-                  disabled={saving}
-                  onChange={(event) => onChange("temporaryPassword", event.target.value)}
-                  className="w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-                />
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <div className="flex-1 rounded-xl border border-violet-200 bg-white px-4 py-3 text-base font-semibold tracking-wide text-slate-900">
+                  {
+                    createdResult.temporaryPassword
+                  }
+                </div>
                 <button
                   type="button"
-                  disabled={saving}
-                  onClick={onGeneratePassword}
-                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() =>
+                    void copyPassword()
+                  }
+                  className="rounded-xl bg-violet-700 px-4 py-3 text-xs font-medium text-white"
                 >
-                  Generate
+                  {copied
+                    ? "คัดลอกแล้ว"
+                    : "คัดลอก"}
                 </button>
               </div>
-              <div className="mt-2 text-xs font-semibold text-slate-500">
-                This password expires in 15 days. User must create a new password after login.
+
+              <div className="mt-2 text-[11px] leading-5 text-violet-700">
+                รหัสผ่านมีอายุ 15 วัน
+                และผู้ใช้ต้องตั้งรหัสใหม่หลัง
+                Login ครั้งแรก
               </div>
-            </label>
-          </div>
+            </div>
 
-          <div className="md:col-span-2">
-            <ModalField
-              label="Suspend Reason"
-              value={user.suspendReason}
-              onChange={(value) => onChange("suspendReason", value)}
-              placeholder="Required only when status is Suspended"
-              disabled={saving || user.status === "Active"}
-            />
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={resetForAnother}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600"
+              >
+                สร้าง User เพิ่ม
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-medium text-white"
+              >
+                ไปที่ User Directory
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3 border-b border-violet-200 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div>
+                <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-violet-200">
+                  New User
+                </div>
+                <div className="mt-1 text-2xl font-semibold">
+                  Create User
+                </div>
+                <div className="mt-1 text-xs text-violet-100">
+                  สร้างบัญชีพื้นฐานก่อน
+                  แล้วเพิ่มชื่อเล่น เบอร์
+                  และอุปกรณ์ใน Profile
+                </div>
+              </div>
 
-        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
-          <button type="button" onClick={onCancel} disabled={saving} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
-            Cancel
-          </button>
-          <button type="button" onClick={onSave} disabled={saving} className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">
-            {saving ? "Creating..." : "Create User"}
-          </button>
-        </div>
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-[10px] font-medium">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-violet-700">
+                  1
+                </span>
+                ข้อมูลสำหรับสร้างบัญชี
+              </div>
+            </div>
+
+            <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[minmax(0,1.55fr)_minmax(290px,0.75fr)]">
+              <div className="overflow-y-auto p-5 sm:p-6">
+                <section className="border-b border-slate-100 pb-5">
+                  <div className="text-sm font-semibold text-slate-900">
+                    1. ข้อมูลผู้ใช้งาน
+                  </div>
+                  <div className="mt-1 text-[11px] leading-5 text-slate-500">
+                    กรอกชื่อจริงเพียงครั้งเดียว
+                    ระบบใช้เป็น Agent Name และ
+                    Display Name อัตโนมัติ
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <label className="block md:col-span-2">
+                      <span className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                        Agent Name / ชื่อ–นามสกุล
+                        <small className="normal-case tracking-normal text-slate-400">
+                          ใช้เป็น Display Name
+                        </small>
+                      </span>
+                      <input
+                        value={user.agentName}
+                        disabled={saving}
+                        onChange={(event) =>
+                          handleAgentNameChange(
+                            event.target.value
+                          )
+                        }
+                        placeholder="เช่น Jureeporn Piddum"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                        Username สำหรับ Login
+                        <small className="normal-case tracking-normal text-slate-400">
+                          สร้างอัตโนมัติ
+                        </small>
+                      </span>
+                      <input
+                        value={user.username}
+                        disabled={saving}
+                        onChange={(event) =>
+                          handleUsernameChange(
+                            event.target.value
+                          )
+                        }
+                        placeholder="จะแสดงจากชื่อจริง"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      />
+                      <div className="mt-1.5 text-[10px] leading-4 text-slate-400">
+                        แก้ได้เมื่อรูปแบบอัตโนมัติไม่ตรง
+                        และระบบตรวจชื่อซ้ำก่อนสร้าง
+                      </div>
+                    </label>
+
+                    <label className="block">
+                      <span className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                        Email
+                        <small className="normal-case tracking-normal text-slate-400">
+                          แก้ไขได้
+                        </small>
+                      </span>
+                      <input
+                        value={user.email}
+                        disabled={saving}
+                        onChange={(event) => {
+                          setEmailEdited(true);
+                          onChange(
+                            "email",
+                            event.target.value
+                          );
+                        }}
+                        placeholder="username@robinhood.co.th"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="pt-5">
+                  <div className="text-sm font-semibold text-slate-900">
+                    2. Role และการมอบหมายทีม
+                  </div>
+                  <div className="mt-1 text-[11px] leading-5 text-slate-500">
+                    Role จะเชื่อมสิทธิ์
+                    รายชื่อในแบบประเมิน
+                    และส่วนงานที่เกี่ยวข้อง
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <label className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                        Role
+                      </span>
+                      <select
+                        value={selectedRole}
+                        disabled={saving}
+                        onChange={(event) =>
+                          onChange(
+                            "role",
+                            event.target.value
+                          )
+                        }
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      >
+                        {roleOptions.map(
+                          (role) => (
+                            <option
+                              key={role}
+                              value={role}
+                            >
+                              {role}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                        Team Name
+                      </span>
+                      <select
+                        value={user.teamName}
+                        disabled={saving}
+                        onChange={(event) =>
+                          handleTeamChange(
+                            event.target.value
+                          )
+                        }
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      >
+                        <option value="">
+                          ยังไม่เลือกทีม
+                        </option>
+                        {teamOptions.map(
+                          (team) => (
+                            <option
+                              key={team.name}
+                              value={team.name}
+                            >
+                              {team.name}
+                            </option>
+                          )
+                        )}
+                        <option value="__add_team__">
+                          ＋ เพิ่มทีมใหม่...
+                        </option>
+                      </select>
+                      <div className="mt-1.5 text-[10px] leading-4 text-slate-400">
+                        เลือกรายการสุดท้ายเพื่อสร้างทีม
+                        โดยไม่ต้องออกจากหน้านี้
+                      </div>
+                    </label>
+
+                    <label className="block md:col-span-2">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-violet-700">
+                        Team Lead
+                      </span>
+                      <select
+                        value={
+                          leadValueExists
+                            ? user.teamLead
+                            : ""
+                        }
+                        disabled={saving}
+                        onChange={(event) =>
+                          handleLeadChange(
+                            event.target.value
+                          )
+                        }
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                      >
+                        <option value="">
+                          ยังไม่เลือกหัวหน้าทีม
+                        </option>
+                        {leadOptions.map(
+                          (option) => (
+                            <option
+                              key={`${option.value}-${option.label}`}
+                              value={option.value}
+                            >
+                              {option.label}
+                            </option>
+                          )
+                        )}
+                        {selfLeadValue &&
+                        !leadOptions.some(
+                          (option) =>
+                            option.value ===
+                            selfLeadValue
+                        ) ? (
+                          <option value={selfLeadValue}>
+                            {selfLeadValue} · User ใหม่นี้
+                          </option>
+                        ) : null}
+                        <option value="__self_lead__">
+                          ＋ ใช้ User ใหม่นี้เป็น Team Lead
+                        </option>
+                      </select>
+                      <div className="mt-1.5 text-[10px] leading-4 text-slate-400">
+                        เมื่อเลือกทีมเดิม
+                        ระบบเลือก Team Lead
+                        ตามข้อมูลทีมให้อัตโนมัติ
+                      </div>
+                    </label>
+                  </div>
+
+                  {addTeamOpen ? (
+                    <div className="mt-4 rounded-[18px] border border-violet-200 bg-violet-50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-semibold text-violet-900">
+                            เพิ่มทีมใหม่
+                          </div>
+                          <div className="mt-1 text-[10px] text-violet-600">
+                            ทีมจะปรากฏในส่วนจัดการทีม
+                            หลังสร้าง User สำเร็จ
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAddTeamOpen(false)
+                          }
+                          className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-white"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                        <input
+                          value={newTeamName}
+                          disabled={saving}
+                          onChange={(event) =>
+                            setNewTeamName(
+                              event.target.value
+                            )
+                          }
+                          placeholder="ชื่อทีมใหม่"
+                          className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                        />
+
+                        <select
+                          value={newTeamLead}
+                          disabled={saving}
+                          onChange={(event) => {
+                            const value =
+                              event.target.value;
+
+                            setNewTeamLead(
+                              value ===
+                                "__self_lead__"
+                                ? selfLeadValue
+                                : value
+                            );
+                          }}
+                          className="rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                        >
+                          <option value="">
+                            เลือกหัวหน้าทีม
+                          </option>
+                          {leadOptions.map(
+                            (option) => (
+                              <option
+                                key={`new-${option.value}-${option.label}`}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </option>
+                            )
+                          )}
+                          <option value="__self_lead__">
+                            ＋ ใช้ User ใหม่นี้เป็น Team Lead
+                          </option>
+                        </select>
+
+                        <button
+                          type="button"
+                          disabled={
+                            saving ||
+                            !newTeamName.trim()
+                          }
+                          onClick={addNewTeam}
+                          className="rounded-xl bg-violet-700 px-4 py-2.5 text-xs font-medium text-white disabled:opacity-40"
+                        >
+                          เพิ่มและเลือกทีมนี้
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-[10px] leading-5 text-blue-700">
+                    Status จะเป็น Active
+                    อัตโนมัติ และ Temporary
+                    Password จะแสดงหลังจากกด
+                    Create User สำเร็จ
+                  </div>
+                </section>
+              </div>
+
+              <aside className="overflow-y-auto border-t border-slate-200 bg-gradient-to-b from-violet-50/70 to-white p-5 lg:border-l lg:border-t-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-700">
+                  Account Preview
+                </div>
+
+                <div className="mt-3 rounded-[22px] border border-violet-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-[17px] bg-gradient-to-br from-violet-500 to-violet-800 text-sm font-semibold text-white">
+                      {userInitials(
+                        user.agentName ||
+                          "New User"
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-slate-950">
+                        {user.agentName ||
+                          "New User"}
+                      </div>
+                      <div className="mt-1 truncate text-[10px] font-medium text-violet-600">
+                        @{user.username ||
+                          "username"}
+                      </div>
+                      <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-medium text-emerald-700">
+                        Active
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 divide-y divide-slate-100">
+                    {[
+                      [
+                        "Display Name",
+                        user.agentName ||
+                          "ใช้ชื่อเดียวกับ Agent Name",
+                      ],
+                      [
+                        "Role",
+                        selectedRole,
+                      ],
+                      [
+                        "Team",
+                        user.teamName ||
+                          "ยังไม่เลือกทีม",
+                      ],
+                      [
+                        "Team Lead",
+                        user.teamLead || "-",
+                      ],
+                      [
+                        "Email",
+                        user.email || "-",
+                      ],
+                    ].map(
+                      ([label, value]) => (
+                        <div
+                          key={label}
+                          className="flex items-start justify-between gap-4 py-2.5 text-[10px]"
+                        >
+                          <span className="text-slate-400">
+                            {label}
+                          </span>
+                          <b className="max-w-[170px] break-words text-right font-medium text-slate-800">
+                            {value}
+                          </b>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3 text-[10px] leading-5 text-emerald-700">
+                  Role ที่เลือกจะใช้กับสิทธิ์
+                  รายชื่อในแบบประเมิน
+                  และส่วนงานที่เกี่ยวข้อง
+                </div>
+
+                <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-3 text-[10px] leading-5 text-amber-700">
+                  หลังสร้างเสร็จ User จะขึ้นใน
+                  User Directory และสามารถเข้า
+                  Profile เพื่อเพิ่มชื่อเล่น
+                  เบอร์สำนักงาน Work SIM
+                  และอุปกรณ์ได้
+                </div>
+              </aside>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="text-[10px] text-slate-500">
+                ไม่มี Status, Suspend Date
+                และ Password ในขั้นตอนเริ่มต้น
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={saving}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleCreate()
+                  }
+                  disabled={
+                    saving ||
+                    !user.agentName.trim() ||
+                    !user.username.trim()
+                  }
+                  className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {saving
+                    ? "กำลังสร้าง..."
+                    : "Create User"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
