@@ -1993,21 +1993,49 @@ export default function CorporateUserDirectoryProfile({
     [rows]
   );
 
-  const filteredRows = useMemo(
+  const activeRows = useMemo(
     () =>
-      [...rows].sort((a, b) =>
-        a.displayName.localeCompare(
-          b.displayName
+      rows
+        .filter(
+          (row) =>
+            row.status === "Active"
         )
-      ),
+        .sort((a, b) =>
+          a.displayName.localeCompare(
+            b.displayName
+          )
+        ),
     [rows]
+  );
+
+  const suspendedRows = useMemo(
+    () =>
+      rows
+        .filter(
+          (row) =>
+            row.status === "Suspended"
+        )
+        .sort((a, b) =>
+          a.displayName.localeCompare(
+            b.displayName
+          )
+        ),
+    [rows]
+  );
+
+  const filteredRows = useMemo(
+    () => [
+      ...activeRows,
+      ...suspendedRows,
+    ],
+    [activeRows, suspendedRows]
   );
 
   const searchResults = useMemo(() => {
     const keyword =
       search.trim().toLowerCase();
 
-    const ranked = filteredRows
+    return filteredRows
       .map((row) => {
         const meta =
           hydrated[
@@ -2039,20 +2067,23 @@ export default function CorporateUserDirectoryProfile({
           row,
           matched,
           rank: startsWith ? 0 : 1,
+          statusRank:
+            row.status === "Active"
+              ? 0
+              : 1,
         };
       })
       .filter((item) => item.matched)
       .sort(
         (a, b) =>
+          a.statusRank -
+            b.statusRank ||
           a.rank - b.rank ||
           a.row.displayName.localeCompare(
             b.row.displayName
           )
-      );
-
-    return ranked.map(
-      (item) => item.row
-    );
+      )
+      .map((item) => item.row);
   }, [
     filteredRows,
     hydrated,
@@ -2185,20 +2216,21 @@ export default function CorporateUserDirectoryProfile({
     setHighlightedIndex(0);
   };
 
-  const currentUserIndex =
-    filteredRows.findIndex(
+  const currentActiveIndex =
+    activeRows.findIndex(
       (row) =>
         row.normalizedUsername ===
         selectedUsername
     );
 
-  const moveUser = (
+  const moveActiveUser = (
     direction: -1 | 1
   ) => {
     const nextIndex =
-      currentUserIndex + direction;
+      currentActiveIndex +
+      direction;
     const nextUser =
-      filteredRows[nextIndex];
+      activeRows[nextIndex];
 
     if (!nextUser) return;
 
@@ -2913,10 +2945,10 @@ export default function CorporateUserDirectoryProfile({
                 title="เปิด User ก่อนหน้า"
                 aria-label="เปิด User ก่อนหน้า"
                 disabled={
-                  currentUserIndex <= 0
+                  currentActiveIndex <= 0
                 }
                 onClick={() =>
-                  moveUser(-1)
+                  moveActiveUser(-1)
                 }
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-medium text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
               >
@@ -3057,12 +3089,12 @@ export default function CorporateUserDirectoryProfile({
                 title="เปิด User ถัดไป"
                 aria-label="เปิด User ถัดไป"
                 disabled={
-                  currentUserIndex < 0 ||
-                  currentUserIndex >=
-                    filteredRows.length - 1
+                  currentActiveIndex < 0 ||
+                  currentActiveIndex >=
+                    activeRows.length - 1
                 }
                 onClick={() =>
-                  moveUser(1)
+                  moveActiveUser(1)
                 }
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-medium text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
               >
@@ -3071,7 +3103,10 @@ export default function CorporateUserDirectoryProfile({
             </div>
 
             {searchOpen ? (
-              <div className="absolute left-0 right-0 top-[60px] z-50 max-h-[470px] overflow-y-auto rounded-[18px] border border-violet-100 bg-white p-2 shadow-[0_24px_60px_rgba(34,22,70,0.22)]">
+              <div
+                  data-active-suspended-dropdown-v81="true"
+                  className="absolute left-0 right-0 top-[60px] z-50 max-h-[470px] overflow-y-auto rounded-[18px] border border-violet-100 bg-white p-2 shadow-[0_24px_60px_rgba(34,22,70,0.22)]"
+                >
                 {searchResults.length ? (
                   searchResults.map(
                     (row, index) => {
@@ -3084,10 +3119,24 @@ export default function CorporateUserDirectoryProfile({
                       const highlighted =
                         index ===
                         highlightedIndex;
+                      const startsSuspendedGroup =
+                        row.status ===
+                          "Suspended" &&
+                        index > 0 &&
+                        searchResults[
+                          index - 1
+                        ]?.status ===
+                          "Active";
 
                       return (
-                        <button
+                        <React.Fragment
                           key={row.username}
+                        >
+                          {startsSuspendedGroup ? (
+                            <div className="mx-2 my-2 w-80 max-w-[82%] border-t-2 border-dashed border-rose-200" />
+                          ) : null}
+
+                        <button
                           type="button"
                           title={`เปิดโปรไฟล์ของ ${row.displayName}`}
                           onMouseEnter={() =>
@@ -3185,6 +3234,7 @@ export default function CorporateUserDirectoryProfile({
                             )}
                           </span>
                         </button>
+                        </React.Fragment>
                       );
                     }
                   )

@@ -2009,13 +2009,51 @@ export default function UserRoleAdminMockup({
 
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
         {adminTab === "users" ? (
-          <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-            <MetricCard label="Total Users" value={totalUsers} tone="text-violet-600" />
-            <MetricCard label="Active" value={activeUsers} tone="text-emerald-600" />
-            <MetricCard label="Suspended" value={suspendedUsers} tone="text-rose-600" />
-            <MetricCard label="Senior" value={seniorUsers} tone="text-amber-600" />
-            <MetricCard label="Supervisors" value={supervisorUsers} tone="text-sky-600" />
-            <MetricCard label="Quality Assurance" value={qaUsers} tone="text-fuchsia-600" />
+          <div
+            data-user-metrics-inline-v81="true"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-violet-100 pb-3 text-xs"
+          >
+            <span className="font-semibold text-violet-600">
+              TOTAL USERS{" "}
+              <b className="text-base text-slate-950">
+                {totalUsers}
+              </b>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-emerald-600">
+              ACTIVE{" "}
+              <b className="text-base text-slate-950">
+                {activeUsers}
+              </b>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-rose-600">
+              SUSPENDED{" "}
+              <b className="text-base text-slate-950">
+                {suspendedUsers}
+              </b>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-amber-600">
+              SENIOR{" "}
+              <b className="text-base text-slate-950">
+                {seniorUsers}
+              </b>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-sky-600">
+              SUPERVISORS{" "}
+              <b className="text-base text-slate-950">
+                {supervisorUsers}
+              </b>
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-fuchsia-600">
+              QUALITY ASSURANCE{" "}
+              <b className="text-base text-slate-950">
+                {qaUsers}
+              </b>
+            </span>
           </div>
         ) : null}
 
