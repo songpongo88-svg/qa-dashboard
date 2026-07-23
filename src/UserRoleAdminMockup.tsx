@@ -528,14 +528,17 @@ function buildRoleDefinitionsFromStore(rows: Array<{
 }
 
 function editableToStoredProfile(user: EditableUser) {
+  const suspended =
+    user.status === "Suspended";
+
   return {
     username: user.username,
     displayName: user.displayName,
     agentName: user.agentName || user.displayName,
     email: user.email,
     role: normalizeRoleName(user.role),
-    teamLead: user.teamLead,
-    teamName: user.teamName,
+    teamLead: suspended ? "" : user.teamLead,
+    teamName: suspended ? "" : user.teamName,
     status: user.status,
     suspendReason: user.suspendReason,
     suspendEffectiveDate: user.suspendEffectiveDate,
@@ -569,6 +572,8 @@ function getRowRole(row: { role?: UserRole; effectiveRole?: UserRole }) {
 function buildTeamGroups<T extends { teamName?: string; teamLead?: string; status?: UserStatus; role?: UserRole; effectiveRole?: UserRole }>(rows: T[]) {
   const teamMap = new Map<string, { teamName: string; teamLead: string; users: T[]; activeCount: number; suspendedCount: number; assignedRole: string; roleCounts: Record<string, number> }>();
   rows.forEach((row) => {
+    if (row.status === "Suspended") return;
+
     const teamName = row.teamName?.trim() || "Unassigned Team";
     const existing = teamMap.get(teamName) || {
       teamName,
@@ -1349,8 +1354,14 @@ export default function UserRoleAdminMockup({
       agentName: newUserDraft.agentName.trim() || newUserDraft.displayName.trim(),
       email: newUserDraft.email.trim(),
       role: normalizeRoleName(newUserDraft.role),
-      teamLead: newUserDraft.teamLead.trim(),
-      teamName: newUserDraft.teamName.trim(),
+      teamLead:
+        newUserDraft.status === "Suspended"
+          ? ""
+          : newUserDraft.teamLead.trim(),
+      teamName:
+        newUserDraft.status === "Suspended"
+          ? ""
+          : newUserDraft.teamName.trim(),
       suspendReason: newUserDraft.suspendReason.trim(),
       suspendEffectiveDate: newUserDraft.suspendEffectiveDate.trim(),
       temporaryPassword: newUserDraft.temporaryPassword || generateTemporaryPassword(),
@@ -1454,8 +1465,14 @@ export default function UserRoleAdminMockup({
             update.displayName.trim(),
           email: update.email.trim(),
           role: normalizeRoleName(update.role),
-          teamLead: update.teamLead.trim(),
-          teamName: update.teamName.trim(),
+          teamLead:
+            update.status === "Suspended"
+              ? ""
+              : update.teamLead.trim(),
+          teamName:
+            update.status === "Suspended"
+              ? ""
+              : update.teamName.trim(),
           status: update.status,
           suspendReason:
             update.suspendReason.trim(),
@@ -1476,6 +1493,14 @@ export default function UserRoleAdminMockup({
           target_agent: original.username,
           details: {
             ...update,
+            teamLead:
+              update.status === "Suspended"
+                ? ""
+                : update.teamLead.trim(),
+            teamName:
+              update.status === "Suspended"
+                ? ""
+                : update.teamName.trim(),
             updatedBy:
               currentUser?.displayName ||
               currentUser?.username ||
@@ -1502,8 +1527,14 @@ export default function UserRoleAdminMockup({
       agentName: item.agentName.trim() || item.displayName.trim(),
       email: item.email.trim(),
       role: normalizeRoleName(item.role),
-      teamLead: item.teamLead.trim(),
-      teamName: item.teamName.trim(),
+      teamLead:
+        item.status === "Suspended"
+          ? ""
+          : item.teamLead.trim(),
+      teamName:
+        item.status === "Suspended"
+          ? ""
+          : item.teamName.trim(),
       suspendReason: item.suspendReason.trim(),
       suspendEffectiveDate: item.suspendEffectiveDate.trim(),
     }));
@@ -3569,7 +3600,12 @@ function TeamManagementPanel({
       }
     >();
 
-    users.forEach((entry) => {
+    users
+      .filter(
+        ({ user }) =>
+          user.status === "Active"
+      )
+      .forEach((entry) => {
       const teamName =
         entry.user.teamName.trim() ||
         "Unassigned Team";
@@ -3659,6 +3695,10 @@ function TeamManagementPanel({
       const usernames = Array.from(
         new Set(
           users
+            .filter(
+              ({ user }) =>
+                user.status === "Active"
+            )
             .map(({ user }) => user.username)
             .filter(Boolean)
         )
@@ -4007,16 +4047,12 @@ function TeamManagementPanel({
                       </b>{" "}
                       Active
                     </span>
-                    {selectedTeam.suspendedCount ? (
-                      <span className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[10px] text-rose-700">
-                        <b>
-                          {
-                            selectedTeam.suspendedCount
-                          }
-                        </b>{" "}
-                        Suspended
-                      </span>
-                    ) : null}
+                    <span
+                      data-suspended-profile-only-v72="true"
+                      className="rounded-full border border-violet-100 bg-violet-50 px-2.5 py-1 text-[10px] text-violet-700"
+                    >
+                      เฉพาะสมาชิก Active
+                    </span>
                   </div>
                 </div>
 
