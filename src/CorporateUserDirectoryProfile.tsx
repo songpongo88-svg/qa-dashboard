@@ -4,6 +4,7 @@ import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/fire
 import { jsPDF } from "jspdf";
 import { firebaseDb } from "./firebaseClient";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { fetchStoredProfilePhoto } from "./profilePhotoStore";
 
 type DirectoryStatusView = "active" | "suspended";
 type LifecycleMode = "active" | "scheduled" | "suspended" | "offboarding";
@@ -708,6 +709,73 @@ export default function CorporateUserDirectoryProfile({
   const [metaDraft, setMetaDraft] = useState<UserMeta>(emptyMeta());
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [profilePhotos, setProfilePhotos] = useState<
+    Record<string, string>
+  >({});
+
+  useEffect(() => {
+    let cancelled = false;
+    let requestNumber = 0;
+
+    const loadProfilePhotos = async () => {
+      const currentRequest = ++requestNumber;
+      const usernames = Array.from(
+        new Set(
+          rows
+            .map((row) => row.username)
+            .filter(Boolean)
+        )
+      );
+
+      const entries = await Promise.all(
+        usernames.map(async (username) => {
+          const storedPhoto =
+            await fetchStoredProfilePhoto(username);
+
+          return [
+            normalizeUsername(username),
+            storedPhoto?.photoDataUrl || "",
+          ] as const;
+        })
+      );
+
+      if (
+        !cancelled &&
+        currentRequest === requestNumber
+      ) {
+        setProfilePhotos(
+          Object.fromEntries(entries)
+        );
+      }
+    };
+
+    const refreshProfilePhotos: EventListener =
+      () => {
+        void loadProfilePhotos();
+      };
+
+    void loadProfilePhotos();
+    window.addEventListener(
+      "focus",
+      refreshProfilePhotos
+    );
+    window.addEventListener(
+      "qa-profile-photo-updated",
+      refreshProfilePhotos
+    );
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        "focus",
+        refreshProfilePhotos
+      );
+      window.removeEventListener(
+        "qa-profile-photo-updated",
+        refreshProfilePhotos
+      );
+    };
+  }, [rows]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1175,7 +1243,7 @@ export default function CorporateUserDirectoryProfile({
     );
     y += 10;
     add("User", user.displayName);
-    add("Preferred Name", savedMeta.preferredName);
+    add("ชื่อเล่น", savedMeta.preferredName);
     add("Username", user.username);
 
     if (kind === "profile") {
@@ -1396,11 +1464,26 @@ export default function CorporateUserDirectoryProfile({
                 >
                   <div className="flex gap-3">
                     <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-semibold text-white ${avatarClass(
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-sm font-semibold text-white ${avatarClass(
                         row.effectiveRole
                       )}`}
                     >
-                      {initials(row.displayName)}
+                      {profilePhotos[
+                        row.normalizedUsername
+                      ] ? (
+                        <img
+                          src={
+                            profilePhotos[
+                              row.normalizedUsername
+                            ]
+                          }
+                          alt={`รูปโปรไฟล์ของ ${row.displayName}`}
+                          draggable={false}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        initials(row.displayName)
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
@@ -1435,11 +1518,26 @@ export default function CorporateUserDirectoryProfile({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br text-xl font-semibold text-white ${avatarClass(
+                      className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[22px] bg-gradient-to-br text-xl font-semibold text-white ${avatarClass(
                         account.role
                       )}`}
                     >
-                      {initials(account.displayName)}
+                      {profilePhotos[
+                        user.normalizedUsername
+                      ] ? (
+                        <img
+                          src={
+                            profilePhotos[
+                              user.normalizedUsername
+                            ]
+                          }
+                          alt={`รูปโปรไฟล์ของ ${account.displayName}`}
+                          draggable={false}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        initials(account.displayName)
+                      )}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1561,7 +1659,7 @@ export default function CorporateUserDirectoryProfile({
                   <div className="grid gap-x-6 xl:grid-cols-2">
                     <Field label="ชื่อ–นามสกุล" value={account.displayName} editing={editing} onChange={(value) => updateAccount("displayName", value)} />
                     <Field
-                      label="Preferred Name / ชื่อเล่น"
+                      label="ชื่อเล่น"
                       value={meta.preferredName}
                       editing={editing}
                       onChange={(value) =>

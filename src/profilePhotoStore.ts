@@ -1,4 +1,4 @@
-﻿import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 
 const PROFILE_PHOTO_COLLECTION = "qa_user_profile_photos";
@@ -42,6 +42,16 @@ function writeCache(profile: StoredProfilePhoto) {
   }
 }
 
+function emitProfilePhotoUpdated(username: string) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent("qa-profile-photo-updated", {
+      detail: { username },
+    })
+  );
+}
+
 function toProfilePhoto(username: string, row: any): StoredProfilePhoto {
   return {
     username: String(row.username || username || ""),
@@ -81,6 +91,7 @@ export async function upsertStoredProfilePhoto(profile: StoredProfilePhoto) {
 
   await setDoc(doc(firebaseDb, PROFILE_PHOTO_COLLECTION, safeDocId(normalizedUsername)), row, { merge: true });
   writeCache({ ...profile, username: normalizedUsername, updatedAt: row.updatedAt });
+  emitProfilePhotoUpdated(normalizedUsername);
 }
 
 
@@ -105,4 +116,6 @@ export async function clearStoredProfilePhoto(username: string, updatedBy = "") 
       // Cache is fallback only.
     }
   }
+
+  emitProfilePhotoUpdated(normalizedUsername);
 }
