@@ -2058,7 +2058,7 @@ export default function UserRoleAdminMockup({
                         แก้ไขข้อมูลผู้ใช้หลายบัญชี
                       </div>
                       <div className="mt-1 text-sm text-slate-500">
-                        เลือกและอัปเดต Role ทีม สถานะบัญชี วันระงับ และรหัสผ่านชั่วคราวให้หลายบัญชีพร้อมกัน
+                        เลือกและอัปเดต Role สถานะบัญชี วันระงับ เหตุผล และรหัสผ่านชั่วคราวให้หลายบัญชีพร้อมกัน
                       </div>
                     </div>
 
@@ -2145,7 +2145,6 @@ export default function UserRoleAdminMockup({
 
                 <EditableDirectoryTable
                   users={visibleDraftUsers}
-                  allUsers={draftUsers}
                   saving={saving}
                   roleOptions={activeRoleOptions}
                   onChange={updateDraftUser}
@@ -5170,7 +5169,6 @@ function MiniAccessCard({ label, value }: { label: string; value: number }) {
 
 function EditableDirectoryTable({
   users,
-  allUsers,
   saving,
   roleOptions,
   onChange,
@@ -5180,7 +5178,6 @@ function EditableDirectoryTable({
     user: EditableUser;
     index: number;
   }>;
-  allUsers: EditableUser[];
   saving: boolean;
   roleOptions: string[];
   onChange: (
@@ -5193,93 +5190,40 @@ function EditableDirectoryTable({
   ) => void;
 }) {
   const [search, setSearch] = useState("");
-  const [teamFilter, setTeamFilter] =
-    useState("all");
   const [
     selectedUsernames,
     setSelectedUsernames,
   ] = useState<string[]>([]);
   const [bulkRole, setBulkRole] =
     useState("");
-  const [bulkTeam, setBulkTeam] =
-    useState("");
   const [bulkStatus, setBulkStatus] =
     useState("");
   const [bulkDate, setBulkDate] =
     useState("");
-
-  const teamOptions = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        name: string;
-        teamLead: string;
-      }
-    >();
-
-    allUsers
-      .filter(
-        (user) =>
-          user.status === "Active" &&
-          user.teamName.trim()
-      )
-      .forEach((user) => {
-        const name = user.teamName.trim();
-        const existing = map.get(name);
-
-        if (!existing) {
-          map.set(name, {
-            name,
-            teamLead:
-              user.teamLead.trim(),
-          });
-          return;
-        }
-
-        if (
-          !existing.teamLead &&
-          user.teamLead.trim()
-        ) {
-          map.set(name, {
-            ...existing,
-            teamLead:
-              user.teamLead.trim(),
-          });
-        }
-      });
-
-    return Array.from(map.values()).sort(
-      (a, b) =>
-        a.name.localeCompare(b.name)
-    );
-  }, [allUsers]);
+  const [bulkReason, setBulkReason] =
+    useState("");
 
   const visibleUsers = useMemo(() => {
     const keyword =
       search.trim().toLowerCase();
 
-    return users.filter(({ user }) => {
-      const matchesTeam =
-        teamFilter === "all" ||
-        user.teamName === teamFilter;
+    if (!keyword) return users;
 
-      if (!matchesTeam) return false;
-      if (!keyword) return true;
-
-      return [
+    return users.filter(({ user }) =>
+      [
         user.username,
         user.displayName,
         user.agentName,
         user.email,
-        user.teamLead,
-        user.teamName,
         user.role,
+        user.status,
+        user.suspendReason,
       ]
         .join(" ")
         .toLowerCase()
-        .includes(keyword);
-    });
-  }, [search, teamFilter, users]);
+        .includes(keyword)
+    );
+  }, [search, users]);
 
   const selectedKeys = useMemo(
     () =>
@@ -5293,7 +5237,7 @@ function EditableDirectoryTable({
 
   useEffect(() => {
     const available = new Set(
-      allUsers.map((user) =>
+      users.map(({ user }) =>
         normalizeUsername(user.username)
       )
     );
@@ -5305,7 +5249,7 @@ function EditableDirectoryTable({
         )
       )
     );
-  }, [allUsers]);
+  }, [users]);
 
   const selectedCount =
     selectedUsernames.length;
@@ -5383,16 +5327,11 @@ function EditableDirectoryTable({
       )
     );
 
-    return allUsers
-      .map((user, index) => ({
-        user,
-        index,
-      }))
-      .filter(({ user }) =>
-        selected.has(
-          normalizeUsername(user.username)
-        )
-      );
+    return users.filter(({ user }) =>
+      selected.has(
+        normalizeUsername(user.username)
+      )
+    );
   };
 
   const applyBulkRole = (
@@ -5401,43 +5340,17 @@ function EditableDirectoryTable({
     if (!role || !selectedCount) return;
 
     selectedEntries().forEach(
-      ({ index }) =>
-        onChange(index, "role", role)
-    );
-    setBulkRole("");
-  };
-
-  const applyBulkTeam = (
-    teamName: string
-  ) => {
-    if (!selectedCount) return;
-
-    const selectedTeam =
-      teamOptions.find(
-        (team) => team.name === teamName
-      );
-
-    selectedEntries().forEach(
       ({ user, index }) => {
         if (
-          user.status === "Suspended"
+          normalizeUsername(
+            user.username
+          ) !== "songpon"
         ) {
-          return;
+          onChange(index, "role", role);
         }
-
-        onChange(
-          index,
-          "teamName",
-          teamName
-        );
-        onChange(
-          index,
-          "teamLead",
-          selectedTeam?.teamLead || ""
-        );
       }
     );
-    setBulkTeam("");
+    setBulkRole("");
   };
 
   const applyBulkStatus = (
@@ -5448,7 +5361,15 @@ function EditableDirectoryTable({
     }
 
     selectedEntries().forEach(
-      ({ index }) => {
+      ({ user, index }) => {
+        if (
+          normalizeUsername(
+            user.username
+          ) === "songpon"
+        ) {
+          return;
+        }
+
         onChange(index, "status", status);
 
         if (status === "Suspended") {
@@ -5473,6 +5394,19 @@ function EditableDirectoryTable({
     );
   };
 
+  const applyBulkReason = () => {
+    if (!selectedCount) return;
+
+    selectedEntries().forEach(
+      ({ index }) =>
+        onChange(
+          index,
+          "suspendReason",
+          bulkReason
+        )
+    );
+  };
+
   const generateSelectedPasswords =
     () => {
       if (!selectedCount) return;
@@ -5484,20 +5418,20 @@ function EditableDirectoryTable({
           }
         }
       );
-  };
+    };
 
-  const selectClass =
+  const fieldClass =
     "rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400";
 
   return (
     <div
-      data-bulk-account-editor-modern-v74="true"
-      className="bg-gradient-to-b from-white to-slate-50"
+      data-bulk-account-editor-no-team-v75="true"
+      className="bg-gradient-to-b from-white to-violet-50/20"
     >
-      <div className="border-b border-slate-200 bg-white px-4 py-4">
-        <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_190px_230px]">
+      <div className="border-b border-violet-100 bg-gradient-to-r from-white via-violet-50/40 to-fuchsia-50/40 px-4 py-4">
+        <div className="grid gap-3 xl:grid-cols-[minmax(320px,1fr)_minmax(320px,0.8fr)]">
           <label className="relative block">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-violet-400">
               ⌕
             </span>
             <input
@@ -5505,45 +5439,23 @@ function EditableDirectoryTable({
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="ค้นหาชื่อ Username อีเมล หรือ Role"
+              placeholder="ค้นหาชื่อ Username อีเมล Role หรือสถานะ"
               title="ค้นหาผู้ใช้ในรายการแก้ไข"
-              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-9 pr-3 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              className="w-full rounded-xl border border-violet-100 bg-white py-3 pl-9 pr-3 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             />
           </label>
 
-          <select
-            value={teamFilter}
-            onChange={(event) =>
-              setTeamFilter(
-                event.target.value
-              )
-            }
-            title="กรองผู้ใช้ตามทีม"
-            className={selectClass}
-          >
-            <option value="all">
-              ทุกทีม
-            </option>
-            {teamOptions.map((team) => (
-              <option
-                key={team.name}
-                value={team.name}
-              >
-                {team.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-[10px] leading-5 text-blue-700">
-            หน้านี้ใช้แก้หลายบัญชีพร้อมกัน
-            ข้อมูลรายบุคคลให้แก้จากหน้า User
-            Directory
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-[10px] leading-5 text-blue-700">
+            หน้า Bulk ใช้จัดการ Role สถานะ
+            วันระงับ เหตุผล และรหัสผ่านเท่านั้น
+            ส่วนทีมให้แก้จาก User Directory
+            หรือจัดการทีมและสมาชิก
           </div>
         </div>
       </div>
 
-      <div className="border-b border-slate-200 bg-[#fbfbfe] px-4 py-3">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="border-b border-violet-100 bg-white px-4 py-3">
+        <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-slate-600">
               เลือกแล้ว{" "}
@@ -5560,10 +5472,10 @@ function EditableDirectoryTable({
                 saving ||
                 !visibleUsers.length
               }
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-medium text-slate-600 disabled:opacity-40"
+              className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-[10px] font-medium text-violet-700 disabled:opacity-40"
             >
               {allVisibleSelected
-                ? "ยกเลิกเลือกหน้านี้"
+                ? "ยกเลิกเลือกทั้งหมด"
                 : `เลือกทั้งหมด (${visibleUsers.length})`}
             </button>
 
@@ -5593,7 +5505,7 @@ function EditableDirectoryTable({
                 applyBulkRole(value);
               }}
               title="เปลี่ยน Role ให้ผู้ใช้ที่เลือก"
-              className={selectClass}
+              className={fieldClass}
             >
               <option value="">
                 เปลี่ยน Role
@@ -5604,36 +5516,6 @@ function EditableDirectoryTable({
                   value={role}
                 >
                   {role}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={bulkTeam}
-              disabled={
-                saving || !selectedCount
-              }
-              onChange={(event) => {
-                const value =
-                  event.target.value;
-                setBulkTeam(value);
-                applyBulkTeam(value);
-              }}
-              title="ย้ายผู้ใช้ที่เลือกไปทีมปัจจุบัน"
-              className={selectClass}
-            >
-              <option value="">
-                ย้ายทีม
-              </option>
-              <option value="">
-                ยังไม่ระบุทีม
-              </option>
-              {teamOptions.map((team) => (
-                <option
-                  key={team.name}
-                  value={team.name}
-                >
-                  {team.name}
                 </option>
               ))}
             </select>
@@ -5650,7 +5532,7 @@ function EditableDirectoryTable({
                 applyBulkStatus(value);
               }}
               title="เปลี่ยนสถานะผู้ใช้ที่เลือก"
-              className={selectClass}
+              className={fieldClass}
             >
               <option value="">
                 เปลี่ยนสถานะ
@@ -5680,7 +5562,7 @@ function EditableDirectoryTable({
                   )
                 }
                 title="กำหนดวันระงับให้ผู้ใช้ที่เลือก"
-                className={selectClass}
+                className={fieldClass}
               />
               <button
                 type="button"
@@ -5691,6 +5573,33 @@ function EditableDirectoryTable({
                 className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-[10px] font-medium text-violet-700 disabled:opacity-40"
               >
                 กำหนดวัน
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <input
+                value={bulkReason}
+                disabled={
+                  saving || !selectedCount
+                }
+                onChange={(event) =>
+                  setBulkReason(
+                    event.target.value
+                  )
+                }
+                placeholder="เหตุผลการระงับ"
+                title="ระบุเหตุผลให้บัญชีที่เลือก"
+                className={fieldClass}
+              />
+              <button
+                type="button"
+                disabled={
+                  saving || !selectedCount
+                }
+                onClick={applyBulkReason}
+                className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[10px] font-medium text-rose-700 disabled:opacity-40"
+              >
+                ใช้เหตุผล
               </button>
             </div>
 
@@ -5711,8 +5620,8 @@ function EditableDirectoryTable({
       </div>
 
       <div className="overflow-x-auto p-3">
-        <div className="min-w-[1320px] overflow-hidden rounded-[20px] border border-slate-200 bg-white">
-          <div className="grid grid-cols-[44px_150px_minmax(220px,1.15fr)_170px_210px_160px_130px_170px_250px] items-center gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
+        <div className="min-w-[1180px] overflow-hidden rounded-[20px] border border-violet-100 bg-white shadow-sm">
+          <div className="grid grid-cols-[44px_150px_minmax(230px,1.25fr)_170px_140px_170px_220px_260px] items-center gap-3 border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-900 to-fuchsia-900 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
             <div>
               <input
                 type="checkbox"
@@ -5724,11 +5633,10 @@ function EditableDirectoryTable({
             </div>
             <div>Username</div>
             <div>ชื่อผู้ใช้งาน</div>
-            <div>Team Lead</div>
-            <div>ทีม</div>
             <div>Role</div>
             <div>สถานะ</div>
             <div>วันที่ระงับ</div>
+            <div>เหตุผลการระงับ</div>
             <div>รหัสผ่านชั่วคราว</div>
           </div>
 
@@ -5745,16 +5653,13 @@ function EditableDirectoryTable({
                       user.username
                     )
                   );
-                const suspended =
-                  user.status ===
-                  "Suspended";
 
                 return (
                   <div
                     key={`${user.username || "new"}-${index}`}
-                    className={`grid grid-cols-[44px_150px_minmax(220px,1.15fr)_170px_210px_160px_130px_170px_250px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-0 ${
+                    className={`grid grid-cols-[44px_150px_minmax(230px,1.25fr)_170px_140px_170px_220px_260px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-0 ${
                       selected
-                        ? "bg-violet-50/50"
+                        ? "bg-violet-50/70"
                         : "bg-white hover:bg-slate-50/70"
                     }`}
                   >
@@ -5772,10 +5677,8 @@ function EditableDirectoryTable({
                       />
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="truncate text-xs font-semibold text-slate-900">
-                        {user.username}
-                      </div>
+                    <div className="truncate text-xs font-semibold text-slate-900">
+                      {user.username}
                     </div>
 
                     <div className="min-w-0">
@@ -5788,145 +5691,77 @@ function EditableDirectoryTable({
                       </div>
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="truncate text-xs font-medium text-slate-700">
-                        {user.teamLead || "-"}
-                      </div>
-                    </div>
+                    <select
+                      value={user.role}
+                      disabled={
+                        saving || isSongpon
+                      }
+                      onChange={(event) =>
+                        onChange(
+                          index,
+                          "role",
+                          event.target.value
+                        )
+                      }
+                      title={`เลือก Role ของ ${user.displayName}`}
+                      className={fieldClass}
+                    >
+                      {roleOptions.map(
+                        (role) => (
+                          <option
+                            key={role}
+                            value={role}
+                          >
+                            {role}
+                          </option>
+                        )
+                      )}
+                    </select>
 
-                    <div>
-                      <select
-                        value={
-                          suspended
-                            ? ""
-                            : user.teamName
-                        }
-                        disabled={
-                          saving || suspended
-                        }
-                        onChange={(event) => {
-                          const teamName =
-                            event.target.value;
-                          const team =
-                            teamOptions.find(
-                              (item) =>
-                                item.name ===
-                                teamName
-                            );
+                    <select
+                      value={user.status}
+                      disabled={
+                        saving || isSongpon
+                      }
+                      onChange={(event) => {
+                        const status =
+                          event.target.value;
+                        onChange(
+                          index,
+                          "status",
+                          status
+                        );
 
+                        if (
+                          status ===
+                          "Suspended"
+                        ) {
                           onChange(
                             index,
                             "teamName",
-                            teamName
+                            ""
                           );
                           onChange(
                             index,
                             "teamLead",
-                            team?.teamLead || ""
+                            ""
                           );
-                        }}
-                        title={
-                          suspended
-                            ? "บัญชี Suspended ไม่มีทีม"
-                            : `เลือกทีมของ ${user.displayName}`
                         }
-                        className={selectClass}
-                      >
-                        <option value="">
-                          ยังไม่ระบุทีม
-                        </option>
-                        {teamOptions.map(
-                          (team) => (
-                            <option
-                              key={
-                                team.name
-                              }
-                              value={
-                                team.name
-                              }
-                            >
-                              {team.name}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <select
-                        value={user.role}
-                        disabled={
-                          saving || isSongpon
-                        }
-                        onChange={(event) =>
-                          onChange(
-                            index,
-                            "role",
-                            event.target.value
-                          )
-                        }
-                        title={`เลือก Role ของ ${user.displayName}`}
-                        className={selectClass}
-                      >
-                        {roleOptions.map(
-                          (role) => (
-                            <option
-                              key={role}
-                              value={role}
-                            >
-                              {role}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-
-                    <div>
-                      <select
-                        value={user.status}
-                        disabled={
-                          saving || isSongpon
-                        }
-                        onChange={(event) => {
-                          const status =
-                            event.target.value;
-                          onChange(
-                            index,
-                            "status",
-                            status
-                          );
-
-                          if (
-                            status ===
-                            "Suspended"
-                          ) {
-                            onChange(
-                              index,
-                              "teamName",
-                              ""
-                            );
-                            onChange(
-                              index,
-                              "teamLead",
-                              ""
-                            );
-                          }
-                        }}
-                        title={`เปลี่ยนสถานะของ ${user.displayName}`}
-                        className={selectClass}
-                      >
-                        {STATUS_OPTIONS.map(
-                          (status) => (
-                            <option
-                              key={status}
-                              value={status}
-                            >
-                              {status}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
+                      }}
+                      title={`เปลี่ยนสถานะของ ${user.displayName}`}
+                      className={fieldClass}
+                    >
+                      {STATUS_OPTIONS.map(
+                        (status) => (
+                          <option
+                            key={status}
+                            value={status}
+                          >
+                            {status}
+                          </option>
+                        )
+                      )}
+                    </select>
 
                     <div>
                       <input
@@ -5943,12 +5778,34 @@ function EditableDirectoryTable({
                           )
                         }
                         title="เว้นว่างเมื่อไม่กำหนดวันระงับ"
-                        className={selectClass}
+                        className={fieldClass}
                       />
                       <div className="mt-1 text-[9px] text-slate-400">
                         เว้นว่าง = ไม่กำหนด
                       </div>
                     </div>
+
+                    <input
+                      value={user.suspendReason}
+                      disabled={
+                        saving ||
+                        user.status === "Active"
+                      }
+                      onChange={(event) =>
+                        onChange(
+                          index,
+                          "suspendReason",
+                          event.target.value
+                        )
+                      }
+                      placeholder={
+                        user.status === "Active"
+                          ? "ใช้เมื่อ Suspended"
+                          : "ระบุเหตุผล"
+                      }
+                      title="เหตุผลการระงับบัญชี"
+                      className={fieldClass}
+                    />
 
                     <div>
                       <div className="flex items-center gap-2">
@@ -5997,21 +5854,20 @@ function EditableDirectoryTable({
 
             {!visibleUsers.length ? (
               <div className="px-6 py-14 text-center text-sm text-slate-400">
-                ไม่พบผู้ใช้ตามตัวกรอง
+                ไม่พบผู้ใช้ตามคำค้นหา
               </div>
             ) : null}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 border-t border-violet-100 bg-white px-4 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <span>
           แสดง {visibleUsers.length} จาก{" "}
           {users.length} รายการ
         </span>
         <span>
-          Team เป็นรายการทีมปัจจุบัน
-          และจะอัปเดต Team Lead ตามทีมที่เลือก
+          Team และ Team Lead ไม่ได้แก้จากหน้านี้
         </span>
       </div>
     </div>
