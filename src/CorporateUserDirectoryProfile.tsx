@@ -1144,13 +1144,11 @@ function auditHistoryTitle(
 
 
 function inferUserCreatedAt(meta: UserMeta) {
-  if (meta.createdAt) {
-    return meta.createdAt;
-  }
-
   const explicitHistory = meta.history
     .filter((item) => {
-      const text = `${item.title || ""} ${item.category || ""}`.toLowerCase();
+      const text =
+        `${item.title || ""} ${item.category || ""}`.toLowerCase();
+
       return (
         text.includes("user created") ||
         text.includes("created user") ||
@@ -1158,7 +1156,9 @@ function inferUserCreatedAt(meta: UserMeta) {
         text.includes("เปิดใช้งานบัญชี")
       );
     })
-    .map((item) => dateValueToIso(item.createdAt))
+    .map((item) =>
+      dateValueToIso(item.createdAt)
+    )
     .filter(Boolean)
     .sort(
       (a, b) =>
@@ -1170,21 +1170,24 @@ function inferUserCreatedAt(meta: UserMeta) {
     return explicitHistory[0];
   }
 
-  const earliestKnown = [
-    ...meta.history.map((item) =>
-      dateValueToIso(item.createdAt)
-    ),
-    dateValueToIso(meta.passwordIssuedAt),
-    dateValueToIso(meta.updatedAt),
-  ]
-    .filter(Boolean)
-    .sort(
-      (a, b) =>
-        new Date(a).getTime() -
-        new Date(b).getTime()
-    );
+  const createdAt =
+    dateValueToIso(meta.createdAt);
+  const updatedAt =
+    dateValueToIso(meta.updatedAt);
 
-  return earliestKnown[0] || "";
+  if (!createdAt) {
+    return "";
+  }
+
+  if (
+    updatedAt &&
+    new Date(createdAt).getTime() ===
+      new Date(updatedAt).getTime()
+  ) {
+    return "";
+  }
+
+  return createdAt;
 }
 
 function historyTitleEnglish(item: HistoryItem) {
@@ -1635,6 +1638,42 @@ function Field({
   );
 }
 
+
+function highlightSearchText(
+  value: string,
+  query: string
+) {
+  const text = String(value || "");
+  const keyword = query.trim();
+
+  if (!keyword) {
+    return text;
+  }
+
+  const index = text
+    .toLowerCase()
+    .indexOf(keyword.toLowerCase());
+
+  if (index < 0) {
+    return text;
+  }
+
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="rounded bg-violet-100 px-0.5 text-violet-800">
+        {text.slice(
+          index,
+          index + keyword.length
+        )}
+      </mark>
+      {text.slice(
+        index + keyword.length
+      )}
+    </>
+  );
+}
+
 export default function CorporateUserDirectoryProfile({
   rows,
   updatedByName,
@@ -1652,13 +1691,13 @@ export default function CorporateUserDirectoryProfile({
 }: Props) {
   const manageRef = useRef<HTMLDivElement | null>(null);
   const pdfRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLDivElement | null>(null);
   const [metaMap, setMetaMap] = useState<Record<string, UserMeta>>({});
   const [selectedUsername, setSelectedUsername] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [teamFilter, setTeamFilter] = useState("all");
-  const [deviceFilter, setDeviceFilter] = useState("all");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [manageOpen, setManageOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -1765,6 +1804,7 @@ export default function CorporateUserDirectoryProfile({
       const target = event.target as Node;
       if (manageRef.current && !manageRef.current.contains(target)) setManageOpen(false);
       if (pdfRef.current && !pdfRef.current.contains(target)) setPdfOpen(false);
+      if (searchRef.current && !searchRef.current.contains(target)) setSearchOpen(false);
     };
     document.addEventListener("mousedown", closeMenus);
     return () => document.removeEventListener("mousedown", closeMenus);
@@ -1778,56 +1818,102 @@ export default function CorporateUserDirectoryProfile({
     return next;
   }, [metaMap, rows]);
 
-  const roles = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.effectiveRole))).filter(Boolean).sort((a, b) => a.localeCompare(b)),
-    [rows]
-  );
-  const teams = useMemo(
-    () =>
-      Array.from(new Set(rows.map((row) => row.teamName || "Unassigned Team"))).sort((a, b) =>
-        a.localeCompare(b)
-      ),
-    [rows]
-  );
-
   const filteredRows = useMemo(() => {
-    const expectedStatus = statusView === "active" ? "Active" : "Suspended";
-    const keyword = search.trim().toLowerCase();
+    const expectedStatus =
+      statusView === "active"
+        ? "Active"
+        : "Suspended";
+
     return rows
-      .filter((row) => {
-        if (row.status !== expectedStatus) return false;
-        const meta = hydrated[row.normalizedUsername] || emptyMeta();
-        const deviceText = meta.devices
-          .map((device) =>
-            [device.brand, device.model, device.assetId, device.serialNumber, device.imei, device.workSim].join(" ")
-          )
-          .join(" ");
-        const searchable = [
+      .filter(
+        (row) =>
+          row.status === expectedStatus
+      )
+      .sort((a, b) =>
+        a.displayName.localeCompare(
+          b.displayName
+        )
+      );
+  }, [rows, statusView]);
+
+  const searchResults = useMemo(() => {
+    const keyword =
+      search.trim().toLowerCase();
+
+    const ranked = filteredRows
+      .map((row) => {
+        const meta =
+          hydrated[
+            row.normalizedUsername
+          ] || emptyMeta();
+        const values = [
           row.displayName,
+          row.agentName,
           row.username,
-          row.email,
-          row.teamName,
-          row.effectiveRole,
-          meta.officeNumber,
-          meta.extension,
-          deviceText,
-        ]
-          .join(" ")
-          .toLowerCase();
-        const assigned = meta.devices.some((device) => device.status === "Assigned");
-        return (
-          (!keyword || searchable.includes(keyword)) &&
-          (roleFilter === "all" || row.effectiveRole === roleFilter) &&
-          (teamFilter === "all" || (row.teamName || "Unassigned Team") === teamFilter) &&
-          (deviceFilter === "all" || (deviceFilter === "assigned" ? assigned : !assigned))
+          row.email || "",
+          meta.preferredName,
+        ].map((value) =>
+          String(value || "")
+            .trim()
+            .toLowerCase()
         );
+        const matched =
+          !keyword ||
+          values.some((value) =>
+            value.includes(keyword)
+          );
+        const startsWith =
+          Boolean(keyword) &&
+          values.some((value) =>
+            value.startsWith(keyword)
+          );
+
+        return {
+          row,
+          matched,
+          rank: startsWith ? 0 : 1,
+        };
       })
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [deviceFilter, hydrated, roleFilter, rows, search, statusView, teamFilter]);
+      .filter((item) => item.matched)
+      .sort(
+        (a, b) =>
+          a.rank - b.rank ||
+          a.row.displayName.localeCompare(
+            b.row.displayName
+          )
+      );
+
+    return ranked.map(
+      (item) => item.row
+    );
+  }, [
+    filteredRows,
+    hydrated,
+    search,
+  ]);
 
   useEffect(() => {
-    if (filteredRows.some((row) => row.normalizedUsername === selectedUsername)) return;
-    setSelectedUsername(filteredRows[0]?.normalizedUsername || "");
+    if (
+      filteredRows.some(
+        (row) =>
+          row.normalizedUsername ===
+          selectedUsername
+      )
+    ) {
+      return;
+    }
+
+    const first =
+      filteredRows[0] || null;
+
+    setSelectedUsername(
+      first?.normalizedUsername || ""
+    );
+    setSearch(
+      first?.displayName || ""
+    );
+    setSearchOpen(false);
+    setHighlightedIndex(0);
   }, [filteredRows, selectedUsername]);
 
   const user = filteredRows.find((row) => row.normalizedUsername === selectedUsername) || null;
@@ -1899,13 +1985,59 @@ export default function CorporateUserDirectoryProfile({
   const changeView = (view: DirectoryStatusView) => {
     if (view === statusView || !discard()) return;
     setEditing(false);
+    setSearch("");
+    setSearchOpen(false);
+    setHighlightedIndex(0);
     onStatusViewChange(view);
   };
 
   const chooseUser = (username: string) => {
-    if (username === selectedUsername || !discard()) return;
+    const nextUser =
+      filteredRows.find(
+        (row) =>
+          row.normalizedUsername ===
+          username
+      ) || null;
+
+    if (username === selectedUsername) {
+      setSearch(
+        nextUser?.displayName || ""
+      );
+      setSearchOpen(false);
+      return;
+    }
+
+    if (!discard()) return;
+
     setEditing(false);
     setSelectedUsername(username);
+    setSearch(
+      nextUser?.displayName || ""
+    );
+    setSearchOpen(false);
+    setHighlightedIndex(0);
+  };
+
+  const currentUserIndex =
+    filteredRows.findIndex(
+      (row) =>
+        row.normalizedUsername ===
+        selectedUsername
+    );
+
+  const moveUser = (
+    direction: -1 | 1
+  ) => {
+    const nextIndex =
+      currentUserIndex + direction;
+    const nextUser =
+      filteredRows[nextIndex];
+
+    if (!nextUser) return;
+
+    chooseUser(
+      nextUser.normalizedUsername
+    );
   };
 
   const beginEdit = () => {
@@ -2590,113 +2722,309 @@ export default function CorporateUserDirectoryProfile({
       </div>
 
       <div className="grid min-h-[760px] xl:grid-cols-[390px_minmax(0,1fr)]">
-        <aside className="border-b border-slate-200 bg-[#fcfcff] xl:border-b-0 xl:border-r">
-          <div className="border-b border-slate-200 p-4">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="ค้นหาชื่อ Username อีเมล หรืออุปกรณ์"
-              title="ค้นหาผู้ใช้จากชื่อ Username อีเมล เบอร์สำนักงาน หรือข้อมูลอุปกรณ์"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-            />
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <select
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                title="กรองรายชื่อตาม Role"
-                className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs"
+        <aside
+          data-user-search-combobox-v79="true"
+          className="relative border-b border-slate-200 bg-[#fcfcff] xl:border-b-0 xl:border-r"
+        >
+          <div
+            ref={searchRef}
+            className="relative border-b border-slate-200 p-4"
+          >
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                title="เปิด User ก่อนหน้า"
+                aria-label="เปิด User ก่อนหน้า"
+                disabled={
+                  currentUserIndex <= 0
+                }
+                onClick={() =>
+                  moveUser(-1)
+                }
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-medium text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
               >
-                <option value="all">ทุก Role</option>
-                {roles.map((role) => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
-              <select
-                value={teamFilter}
-                onChange={(event) => setTeamFilter(event.target.value)}
-                title="กรองรายชื่อตามทีม"
-                className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs"
+                &lt;
+              </button>
+
+              <div className="relative min-w-0 flex-1">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base text-violet-500">
+                  ⌕
+                </span>
+
+                <input
+                  value={search}
+                  autoComplete="off"
+                  onFocus={(event) => {
+                    if (
+                      user &&
+                      search
+                        .trim()
+                        .toLowerCase() ===
+                        user.displayName
+                          .trim()
+                          .toLowerCase()
+                    ) {
+                      setSearch("");
+                    }
+
+                    setHighlightedIndex(0);
+                    setSearchOpen(true);
+
+                    window.setTimeout(
+                      () =>
+                        event.currentTarget.select(),
+                      0
+                    );
+                  }}
+                  onChange={(event) => {
+                    setSearch(
+                      event.target.value
+                    );
+                    setHighlightedIndex(0);
+                    setSearchOpen(true);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key ===
+                      "ArrowDown"
+                    ) {
+                      event.preventDefault();
+                      setSearchOpen(true);
+                      setHighlightedIndex(
+                        (current) =>
+                          Math.min(
+                            current + 1,
+                            Math.max(
+                              searchResults.length -
+                                1,
+                              0
+                            )
+                          )
+                      );
+                    }
+
+                    if (
+                      event.key ===
+                      "ArrowUp"
+                    ) {
+                      event.preventDefault();
+                      setSearchOpen(true);
+                      setHighlightedIndex(
+                        (current) =>
+                          Math.max(
+                            current - 1,
+                            0
+                          )
+                      );
+                    }
+
+                    if (
+                      event.key ===
+                        "Enter" &&
+                      searchResults[
+                        highlightedIndex
+                      ]
+                    ) {
+                      event.preventDefault();
+                      chooseUser(
+                        searchResults[
+                          highlightedIndex
+                        ].normalizedUsername
+                      );
+                    }
+
+                    if (
+                      event.key ===
+                      "Escape"
+                    ) {
+                      setSearchOpen(false);
+                    }
+                  }}
+                  placeholder="ค้นหาหรือเลือกรายชื่อ User"
+                  title="ค้นหาได้จากชื่อ–นามสกุล ชื่อเล่น Username หรืออีเมล"
+                  className="h-12 w-full rounded-2xl border border-violet-300 bg-white py-3 pl-11 pr-11 text-sm outline-none shadow-[0_0_0_4px_rgba(124,58,237,0.08)] focus:border-violet-500"
+                />
+
+                <button
+                  type="button"
+                  title="เปิดหรือปิดรายชื่อ User"
+                  aria-label="เปิดหรือปิดรายชื่อ User"
+                  onClick={() => {
+                    const nextOpen =
+                      !searchOpen;
+
+                    if (
+                      nextOpen &&
+                      user &&
+                      search
+                        .trim()
+                        .toLowerCase() ===
+                        user.displayName
+                          .trim()
+                          .toLowerCase()
+                    ) {
+                      setSearch("");
+                    }
+
+                    setHighlightedIndex(0);
+                    setSearchOpen(nextOpen);
+                  }}
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-sm text-slate-500 hover:bg-violet-50 hover:text-violet-700"
+                >
+                  {searchOpen ? "⌃" : "⌄"}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                title="เปิด User ถัดไป"
+                aria-label="เปิด User ถัดไป"
+                disabled={
+                  currentUserIndex < 0 ||
+                  currentUserIndex >=
+                    filteredRows.length - 1
+                }
+                onClick={() =>
+                  moveUser(1)
+                }
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-xl font-medium text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:shadow-none"
               >
-                <option value="all">ทุกทีม</option>
-                {teams.map((team) => (
-                  <option key={team} value={team}>{team}</option>
-                ))}
-              </select>
-              <select
-                value={deviceFilter}
-                onChange={(event) => setDeviceFilter(event.target.value)}
-                title="กรองผู้ใช้ตามสถานะอุปกรณ์"
-                className="col-span-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs"
-              >
-                <option value="all">ทุกสถานะอุปกรณ์</option>
-                <option value="assigned">มีอุปกรณ์ที่รับมอบหมาย</option>
-                <option value="unassigned">ยังไม่มีอุปกรณ์ที่รับมอบหมาย</option>
-              </select>
+                &gt;
+              </button>
             </div>
+
+            {searchOpen ? (
+              <div className="absolute left-4 right-4 top-[76px] z-50 max-h-[470px] overflow-y-auto rounded-[18px] border border-violet-100 bg-white p-2 shadow-[0_24px_60px_rgba(34,22,70,0.22)]">
+                {searchResults.length ? (
+                  searchResults.map(
+                    (row, index) => {
+                      const rowMeta =
+                        hydrated[
+                          row.normalizedUsername
+                        ] || emptyMeta();
+                      const preferredName =
+                        rowMeta.preferredName;
+                      const highlighted =
+                        index ===
+                        highlightedIndex;
+
+                      return (
+                        <button
+                          key={row.username}
+                          type="button"
+                          title={`เปิดโปรไฟล์ของ ${row.displayName}`}
+                          onMouseEnter={() =>
+                            setHighlightedIndex(
+                              index
+                            )
+                          }
+                          onClick={() =>
+                            chooseUser(
+                              row.normalizedUsername
+                            )
+                          }
+                          className={`flex w-full items-center gap-3 rounded-[14px] p-2.5 text-left transition ${
+                            highlighted
+                              ? "bg-violet-50"
+                              : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br text-xs font-semibold text-white ${avatarClass(
+                              row.effectiveRole
+                            )}`}
+                          >
+                            {profilePhotos[
+                              row
+                                .normalizedUsername
+                            ] ? (
+                              <img
+                                src={
+                                  profilePhotos[
+                                    row
+                                      .normalizedUsername
+                                  ]
+                                }
+                                alt={`รูปโปรไฟล์ของ ${row.displayName}`}
+                                draggable={false}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              initials(
+                                row.displayName
+                              )
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold text-slate-950">
+                              {highlightSearchText(
+                                row.displayName,
+                                search
+                              )}
+                            </div>
+                            <div className="mt-0.5 truncate text-[11px] text-slate-500">
+                              {preferredName
+                                ? highlightSearchText(
+                                    preferredName,
+                                    search
+                                  )
+                                : highlightSearchText(
+                                    row.username,
+                                    search
+                                  )}
+                              {preferredName
+                                ? " · "
+                                : ""}
+                              {preferredName
+                                ? highlightSearchText(
+                                    row.username,
+                                    search
+                                  )
+                                : null}
+                            </div>
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              <span className="rounded-full bg-violet-100 px-2 py-1 text-[9px] text-violet-700">
+                                {
+                                  row.effectiveRole
+                                }
+                              </span>
+                              <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-600">
+                                {row.teamName ||
+                                  "ยังไม่ระบุทีม"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-1 text-[9px] ${lifecycleClass(
+                              rowMeta.lifecycleMode,
+                              row.status
+                            )}`}
+                          >
+                            {lifecycleLabel(
+                              rowMeta.lifecycleMode,
+                              row.status
+                            )}
+                          </span>
+                        </button>
+                      );
+                    }
+                  )
+                ) : (
+                  <div className="px-4 py-10 text-center text-sm text-slate-400">
+                    ไม่พบรายชื่อที่ค้นหา
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
-          <div className="max-h-[680px] space-y-2 overflow-y-auto p-3">
-            {filteredRows.map((row) => {
-              const rowMeta = hydrated[row.normalizedUsername] || emptyMeta();
-              const primary = rowMeta.devices.find((device) => device.isPrimary) || rowMeta.devices[0];
-              return (
-                <button
-                  key={row.username}
-                  type="button"
-                  title={`เปิดโปรไฟล์ของ ${row.displayName}`}
-                  onClick={() => chooseUser(row.normalizedUsername)}
-                  className={`w-full rounded-[20px] border p-3 text-left ${
-                    selectedUsername === row.normalizedUsername
-                      ? "border-violet-300 bg-white shadow-sm"
-                      : "border-transparent hover:border-violet-200 hover:bg-white"
-                  }`}
-                >
-                  <div className="flex gap-3">
-                    <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br text-sm font-semibold text-white ${avatarClass(
-                        row.effectiveRole
-                      )}`}
-                    >
-                      {profilePhotos[
-                        row.normalizedUsername
-                      ] ? (
-                        <img
-                          src={
-                            profilePhotos[
-                              row.normalizedUsername
-                            ]
-                          }
-                          alt={`รูปโปรไฟล์ของ ${row.displayName}`}
-                          draggable={false}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        initials(row.displayName)
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="truncate text-sm font-semibold text-slate-950">{row.displayName}</div>
-                          <div className="text-xs text-slate-500">{row.username}</div>
-                        </div>
-                        <span className={`rounded-full px-2 py-1 text-[10px] ${lifecycleClass(rowMeta.lifecycleMode, row.status)}`}>
-                          {lifecycleLabel(rowMeta.lifecycleMode, row.status)}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] text-violet-700">{row.effectiveRole}</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-600">{row.teamName || "ยังไม่ระบุทีม"}</span>
-                      </div>
-                      <div className="mt-2 text-[11px] text-slate-500">
-                        ▣ {rowMeta.devices.length} เครื่อง
-                        {primary ? ` · ${[primary.brand, primary.model].filter(Boolean).join(" ") || "ยังไม่ระบุรุ่น"}` : ""}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="px-5 py-4 text-[11px] leading-5 text-slate-400">
+            พิมพ์ชื่อ ชื่อเล่น หรือ Username
+            เพื่อค้นหา แล้วเลือกจาก Dropdown
+            หรือใช้ปุ่ม &lt; &gt;
+            เพื่อเปิด User ก่อนหน้าและถัดไป
           </div>
         </aside>
 
