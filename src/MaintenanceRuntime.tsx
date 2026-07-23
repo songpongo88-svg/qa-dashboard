@@ -68,6 +68,7 @@ export default function MaintenanceRuntime() {
     useState<CurrentUserSnapshot | null>(() => readCurrentUser());
   const [canBypass, setCanBypass] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [loginNoticeDismissed, setLoginNoticeDismissed] = useState(false);
 
   const syncRuntimeState = useCallback(async () => {
     if (syncing.current) return;
@@ -205,6 +206,18 @@ export default function MaintenanceRuntime() {
     };
   }, [currentUser]);
 
+  useEffect(() => {
+    setLoginNoticeDismissed(false);
+  }, [
+    control.enabled,
+    control.status,
+    control.updatedAt,
+    control.scheduledStartAt,
+    control.scheduledEndAt,
+    control.title,
+    control.message,
+  ]);
+
   const scheduledCountdown = useMemo(
     () => getCountdown(control.scheduledStartAt, now),
     [control.scheduledStartAt, now]
@@ -336,50 +349,82 @@ export default function MaintenanceRuntime() {
     );
   }
 
-  if (!currentUser) {
+  if (!currentUser && !loginNoticeDismissed) {
     return (
-      <div className={`fixed left-4 top-4 z-[210] w-[min(480px,calc(100vw-2rem))] overflow-hidden rounded-[26px] border bg-white/95 shadow-[0_26px_80px_rgba(15,23,42,0.24)] backdrop-blur ${severityClass}`}>
-        <div className={`h-1.5 w-full ${accentClass}`} />
-        <div className="p-5">
-          <div className="flex items-start gap-4">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl text-white ${accentClass}`}>
-              {active ? "!" : "⏱"}
-            </div>
+      <div className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/28 p-4 backdrop-blur-[1px]">
+        <div className={`relative w-full max-w-[680px] overflow-hidden rounded-[30px] border bg-white shadow-[0_32px_100px_rgba(15,23,42,0.22)] ${severityClass}`}>
+          <div className={`h-2 w-full ${accentClass}`} />
+          <button
+            type="button"
+            aria-label="ปิดข้อความแจ้งเตือน"
+            onClick={() => setLoginNoticeDismissed(true)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-700"
+          >
+            ✕
+          </button>
 
-            <div className="min-w-0 flex-1">
-              <div className="inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-                {active ? "ปิดระบบชั่วคราว" : "แจ้งล่วงหน้า"}
-              </div>
-              <div className="mt-2 text-xl font-semibold text-slate-950">
-                {active
-                  ? control.title || "ระบบอยู่ระหว่างการปรับปรุง"
-                  : "ระบบจะปิดปรับปรุงเร็ว ๆ นี้"}
-              </div>
-              <div className="mt-2 text-sm leading-6 text-slate-600">
-                {control.message || control.reasonName}
+          <div className="p-6 md:p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start">
+              <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] text-3xl text-white shadow-lg ${accentClass}`}>
+                {active ? "!" : "⏱"}
               </div>
 
-              <div className="mt-4 rounded-2xl border border-white/80 bg-white/80 p-3">
-                <div className="text-xs text-slate-500">
-                  {active ? "คาดว่าจะเปิดระบบ" : "กำหนดปิดระบบ"}
-                </div>
-                <div className="mt-1 text-sm font-semibold text-slate-950">
-                  {formatThaiDateTime(
-                    active
-                      ? control.scheduledEndAt
-                      : control.scheduledStartAt
-                  )}
-                </div>
-
-                <div className="mt-3 text-xs font-medium text-slate-600">
+              <div className="min-w-0 flex-1">
+                <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                   {active
-                    ? `เหลือประมาณ ${reopenCountdown.days} วัน ${reopenCountdown.hours} ชม. ${reopenCountdown.minutes} นาที`
-                    : `อีก ${scheduledCountdown.days} วัน ${scheduledCountdown.hours} ชม. ${scheduledCountdown.minutes} นาที`}
+                    ? control.reasonName || "ปิดระบบชั่วคราว"
+                    : "แจ้งล่วงหน้า"}
                 </div>
-              </div>
 
-              <div className="mt-3 text-[11px] text-slate-500">
-                ผู้ดูแลระบบและเจ้าของระบบยังสามารถเข้าสู่ระบบได้
+                <div className="mt-3 text-[28px] font-semibold leading-tight tracking-tight text-slate-950">
+                  {active
+                    ? control.title || "ระบบอยู่ระหว่างการปรับปรุง"
+                    : "ระบบจะปิดปรับปรุงเร็ว ๆ นี้"}
+                </div>
+
+                <div className="mt-3 text-base leading-8 text-slate-600">
+                  {control.message ||
+                    "ขณะนี้ระบบอยู่ระหว่างการอัปเดตและปรับปรุงประสิทธิภาพ กรุณากลับมาใช้งานอีกครั้งตามเวลาที่แจ้ง"}
+                </div>
+
+                <div className="mt-5 rounded-[24px] border border-white/90 bg-white/90 p-5 shadow-sm">
+                  <div className="text-sm font-medium text-slate-500">
+                    {active ? "คาดว่าจะเปิดระบบ" : "กำหนดปิดระบบ"}
+                  </div>
+                  <div className="mt-2 text-2xl font-semibold text-slate-950">
+                    {formatThaiDateTime(
+                      active
+                        ? control.scheduledEndAt
+                        : control.scheduledStartAt
+                    )}
+                  </div>
+                  <div className="mt-3 text-sm font-medium text-slate-500">
+                    {active
+                      ? `เหลือประมาณ ${reopenCountdown.days} วัน ${reopenCountdown.hours} ชม. ${reopenCountdown.minutes} นาที`
+                      : `อีก ${scheduledCountdown.days} วัน ${scheduledCountdown.hours} ชม. ${scheduledCountdown.minutes} นาที`}
+                  </div>
+                </div>
+
+                <div className="mt-4 text-xs leading-6 text-slate-500">
+                  ผู้ดูแลระบบและเจ้าของระบบยังสามารถเข้าสู่ระบบได้
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLoginNoticeDismissed(true)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
+                  >
+                    ปิดข้อความ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void syncRuntimeState()}
+                    className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white"
+                  >
+                    ตรวจสอบสถานะอีกครั้ง
+                  </button>
+                </div>
               </div>
             </div>
           </div>
