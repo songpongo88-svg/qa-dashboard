@@ -2229,6 +2229,11 @@ export default function UserRoleAdminMockup({
             ) : (
               <ReadOnlyDirectoryTable
                 rows={scopedRows}
+                updatedByName={
+                  currentUser?.displayName ||
+                  currentUser?.username ||
+                  "System"
+                }
                 canManageUsers={canManageUsers}
                 canManageTeams={canManageTeams}
                 rolePermissions={rolePermissions}
@@ -3501,6 +3506,7 @@ async function loadFirebasePasswordMapForExport() {
 }
 function ReadOnlyDirectoryTable({
   rows,
+  updatedByName,
   canManageUsers,
   canManageTeams,
   rolePermissions,
@@ -3520,6 +3526,7 @@ function ReadOnlyDirectoryTable({
       status: UserStatus;
     }
   >;
+  updatedByName: string;
   canManageUsers: boolean;
   canManageTeams: boolean;
   rolePermissions: RolePermissionMap;
@@ -3536,11 +3543,8 @@ function ReadOnlyDirectoryTable({
 }) {
   return (
     <CorporateUserDirectoryProfile
-                updatedByName={
-                  currentUser?.displayName ||
-                  currentUser?.username ||
-                  "System"
-                }
+      data-v77-white-screen-final="true"
+      updatedByName={updatedByName}
       rows={rows}
       canManageUsers={canManageUsers}
       canManageTeams={canManageTeams}
