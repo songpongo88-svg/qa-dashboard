@@ -1552,7 +1552,6 @@ export default function UserRoleAdminMockup({
   const handleExportPdf = async () => {
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
     registerTHSarabunNew(doc);
-    const passwordMap = await loadFirebasePasswordMapForExport();
     const exportContext =
       adminTab === "roles"
         ? "access_control"
@@ -1709,23 +1708,15 @@ export default function UserRoleAdminMockup({
       });
         } else {
       drawTable(
-        ["User", "Email", "Team", "Role", "Status", "Password"],
-        [44, 64, 50, 38, 22, 48],
-        visibleRows.map((row) => {
-          const exportPassword =
-            passwordMap[row.username.trim().toLowerCase()] ||
-            passwordMap[String(row.displayName || "").trim().toLowerCase()] ||
-            "-";
-
-          return [
-            row.displayName || row.username,
-            row.email || "-",
-            row.teamName || "-",
-            row.effectiveRole,
-            row.status,
-            exportPassword,
-          ];
-        })
+        ["User", "Email", "Team", "Role", "Status"],
+        [58, 82, 58, 48, 30],
+        visibleRows.map((row) => [
+          row.displayName || row.username,
+          row.email || "-",
+          row.teamName || "-",
+          row.effectiveRole,
+          row.status,
+        ])
       );
     }    const fileName = `QA_${exportContext}_${new Date().toISOString().slice(0, 10)}.pdf`;
     doc.save(fileName);
@@ -1827,148 +1818,240 @@ export default function UserRoleAdminMockup({
           </div>
         ) : null}
         {accessMessage ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-            Temporary access password(s): {accessMessage}
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            มีการสร้างหรืออัปเดตรหัสผ่านชั่วคราวแล้ว ระบบจะไม่แสดงรหัสผ่านในหน้า Directory
           </div>
         ) : null}
 
         {adminTab === "users" && canViewUserDirectory ? (
-          <div className="mt-5 overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_18px_52px_rgba(88,28,135,0.10)]">
-            <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50 to-fuchsia-50 px-4 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-5">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600">Users</div>
-                <div className="mt-1 text-3xl font-black tracking-tight text-slate-950">Corporate User Directory</div>
-                <div className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                  {!canEditCurrentUserManagementView
-                    ? "Read-only access for this view. You can review the information without changing records."
-                    : isEditingUsers
-                    ? "Edit account information and save all directory changes in one action."
-                    : isEditingTeamManagement
-                    ? "Edit team names, team leads, assigned roles, and user team assignments in one controlled view."
-                    : "Review user profiles, registered emails, assigned roles, and account availability."}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                {isEditing ? (
-                  <>
-                    {isEditingTeamManagement && canManageTeams ? (
-                      <button type="button" onClick={openCreateTeamModal} className="rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(245,158,11,0.24)] transition hover:bg-amber-600">
-                        Create Team
+          <div className="mt-5">
+            {userManagementView === "teams" ? (
+              <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(58,34,111,0.08)]">
+                <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-700">
+                      Team View
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold text-slate-950">
+                      ภาพรวมทีมและสมาชิก
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500">
+                      ดูสมาชิก หัวหน้าทีม และ Role ที่ใช้งานในแต่ละทีม
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      title="กลับไปยังหน้าโปรไฟล์ผู้ใช้งาน"
+                      onClick={() => switchUserManagementView("users")}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:border-violet-200 hover:text-violet-700"
+                    >
+                      ← กลับโปรไฟล์ผู้ใช้
+                    </button>
+                    {canManageTeams ? (
+                      <button
+                        type="button"
+                        title="เปิดหน้าจัดการทีม หัวหน้าทีม และสมาชิก"
+                        onClick={() => {
+                          startEditingUserManagementView("team-management");
+                          setUserManagementView("team-management");
+                        }}
+                        className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-medium text-white"
+                      >
+                        จัดการทีม
                       </button>
                     ) : null}
-                    <button type="button" onClick={handleCancelEdit} className="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(225,29,72,0.28)] transition hover:bg-rose-700">
-                      Cancel
+                  </div>
+                </div>
+                <TeamOverviewPanel teamGroups={teamGroups} />
+              </div>
+            ) : userManagementView === "team-management" ? (
+              <div
+                data-unsaved-changes={isEditingTeamManagement ? "true" : "false"}
+                className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(58,34,111,0.08)]"
+              >
+                <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-700">
+                      Team Management
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold text-slate-950">
+                      จัดการทีมและสมาชิก
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500">
+                      แก้ชื่อทีม หัวหน้าทีม Role และการมอบหมายสมาชิก
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      title="สร้างทีมใหม่และเลือกสมาชิก"
+                      onClick={openCreateTeamModal}
+                      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-700"
+                    >
+                      + เพิ่มทีม
                     </button>
                     <button
                       type="button"
+                      title="ยกเลิกการแก้ไขทีมและกลับไปหน้าโปรไฟล์ผู้ใช้"
+                      onClick={() => {
+                        handleCancelEdit();
+                        switchUserManagementView("users");
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      title="บันทึกการเปลี่ยนแปลงทีมและสมาชิกทั้งหมด"
                       onClick={handleSaveDirectory}
                       disabled={saving}
-                      className="rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-400"
+                      className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
                     >
-                      {saving ? "Saving..." : currentUserManagementSaveLabel}
+                      {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
                     </button>
-                  </>
-                ) : (
-                  <>
-                    {userManagementView === "users" && canManageUsers ? (
-                      <button type="button" title="สร้างบัญชีผู้ใช้งานใหม่ พร้อมกำหนด Role ทีม และสถานะบัญชี" aria-label="เพิ่มผู้ใช้ใหม่" onClick={openCreateUserModal} className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600">
-                        Create User
-                      </button>
-                    ) : null}
-                    {userManagementView === "team-management" && canManageTeams ? (
-                      <button type="button" onClick={openCreateTeamModal} className="rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(245,158,11,0.24)] transition hover:bg-amber-600">
-                        Create Team
-                      </button>
-                    ) : null}
-                    <button type="button" title="ส่งออกข้อมูลของหน้าปัจจุบันเป็นไฟล์ PDF โดยไม่แสดงรหัสผ่าน" aria-label="ส่งออกข้อมูลเป็น PDF" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
-                      Export PDF
-                    </button>
-                    {canEditCurrentUserManagementView ? (
+                  </div>
+                </div>
+                <TeamManagementPanel
+                  users={visibleDraftUsers}
+                  saving={saving}
+                  onChange={updateDraftUser}
+                  onTeamChange={updateDraftTeam}
+                  roleOptions={activeRoleOptions}
+                  canManageTeams={canManageTeams}
+                  isEditing={isEditingTeamManagement}
+                />
+              </div>
+            ) : isEditingUsers ? (
+              <div
+                data-unsaved-changes="true"
+                className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(58,34,111,0.08)]"
+              >
+                <div className="border-b border-slate-200 bg-white px-5 py-5">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-violet-700">
+                        Bulk Account Editor
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-slate-950">
+                        แก้ไขข้อมูลผู้ใช้หลายบัญชี
+                      </div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        ใช้สำหรับแก้ Role ทีม สถานะบัญชี และสร้างรหัสผ่านชั่วคราว
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => startEditingUserManagementView(userManagementView)}
-                        className="rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_16px_34px_rgba(217,70,239,0.32)] transition hover:scale-[1.02]"
+                        title="ยกเลิกการแก้ไขทั้งหมดและกลับหน้าโปรไฟล์ผู้ใช้"
+                        onClick={handleCancelEdit}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
                       >
-                        {currentUserManagementEditLabel}
+                        ยกเลิก
                       </button>
-                    ) : (
-                      <div className="rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-black text-violet-700 shadow-sm">
-                        Read Only
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+                      <button
+                        type="button"
+                        title="บันทึกข้อมูลบัญชีที่แก้ไขทั้งหมด"
+                        onClick={handleSaveDirectory}
+                        disabled={saving}
+                        className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                      >
+                        {saving ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
+                      </button>
+                    </div>
+                  </div>
 
-            <div className="border-b border-violet-200 bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-4 py-3">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
-                  <DirectoryTabButton active={userManagementView === "users"} label="All Users" count={roleFilteredScopedRows.length} onClick={() => switchUserManagementView("users")} />
-                  {userManagementView === "users" ? (
-                    <>
+                  <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="inline-flex w-fit gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                      <button
+                        type="button"
+                        title="แสดงและแก้ไขเฉพาะบัญชี Active"
+                        onClick={() => setDirectoryTab("active")}
+                        className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                          directoryTab === "active"
+                            ? "bg-violet-700 text-white"
+                            : "text-slate-600"
+                        }`}
+                      >
+                        Active {activeUsers}
+                      </button>
+                      <button
+                        type="button"
+                        title="แสดงและแก้ไขเฉพาะบัญชี Suspended"
+                        onClick={() => setDirectoryTab("suspended")}
+                        className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                          directoryTab === "suspended"
+                            ? "bg-rose-600 text-white"
+                            : "text-slate-600"
+                        }`}
+                      >
+                        Suspended {suspendedUsers}
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
                       <select
                         value={directoryRoleFilter}
-                        onChange={(event) => setDirectoryRoleFilter(event.target.value as UserRole | "all")}
-                        className="rounded-2xl border border-violet-200 bg-white px-4 py-2.5 text-xs font-black text-violet-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                        onChange={(event) =>
+                          setDirectoryRoleFilter(
+                            event.target.value as UserRole | "all"
+                          )
+                        }
+                        title="กรองรายการแก้ไขตาม Role"
+                        aria-label="กรองรายการแก้ไขตาม Role"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none"
                       >
-                        <option value="all">All Roles</option>
+                        <option value="all">ทุก Role</option>
                         {activeRoleOptions.map((role) => (
-                          <option key={role} value={role}>{role}</option>
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
                         ))}
                       </select>
-                      {isEditingUsers ? (
-                        <button
-                          type="button"
-                          onClick={generateDraftPasswordsForSelectedRole}
-                          className="rounded-2xl border border-amber-300 bg-amber-100 px-4 py-2.5 text-xs font-black text-amber-800 transition hover:bg-amber-200"
-                        >
-                          Gen Password
-                        </button>
-                      ) : null}
-                    </>
-                  ) : null}
-                  <DirectoryTabButton active={userManagementView === "teams"} label="All Teams" count={teamGroups.length} onClick={() => switchUserManagementView("teams")} tone="slate" />
-                  {canManageTeams ? (
-                    <DirectoryTabButton
-                      active={userManagementView === "team-management"}
-                      label="Team Management"
-                      count={teamGroups.length}
-                      onClick={() => switchUserManagementView("team-management")}
-                      tone="amber"
-                    />
-                  ) : null}
-                </div>
-                <div className="inline-flex flex-wrap gap-2 rounded-[24px] border border-violet-200 bg-white/75 p-1.5 shadow-[0_14px_35px_rgba(109,40,217,0.12)]">
-                  <DirectoryTabButton active={directoryTab === "active"} label="Active Accounts" count={activeUsers} onClick={() => setDirectoryTab("active")} />
-                  <DirectoryTabButton active={directoryTab === "suspended"} label="Suspended Accounts" count={suspendedUsers} onClick={() => setDirectoryTab("suspended")} tone="rose" />
-                </div>
-              </div>
-            </div>
 
-            {userManagementView === "teams" ? (
-              <TeamOverviewPanel teamGroups={teamGroups} />
-            ) : userManagementView === "team-management" ? (
-              <TeamManagementPanel
-                users={visibleDraftUsers}
-                saving={saving}
-                onChange={updateDraftUser}
-                onTeamChange={updateDraftTeam}
-                roleOptions={activeRoleOptions}
-                canManageTeams={canManageTeams}
-                isEditing={isEditingTeamManagement}
-              />
-            ) : isEditingUsers ? (
-              <EditableDirectoryTable
-                users={visibleDraftUsers}
-                saving={saving}
-                roleOptions={activeRoleOptions}
-                onChange={updateDraftUser}
-                onGeneratePassword={generateDraftPassword}
-              />
+                      <button
+                        type="button"
+                        title="สร้างรหัสผ่านชั่วคราวให้ผู้ใช้ใน Role และสถานะที่เลือก"
+                        onClick={generateDraftPasswordsForSelectedRole}
+                        className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-700"
+                      >
+                        สร้างรหัสผ่านชั่วคราวตาม Role
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <EditableDirectoryTable
+                  users={visibleDraftUsers}
+                  saving={saving}
+                  roleOptions={activeRoleOptions}
+                  onChange={updateDraftUser}
+                  onGeneratePassword={generateDraftPassword}
+                />
+              </div>
             ) : (
-              <ReadOnlyDirectoryTable rows={scopedRows} canManageUsers={canManageUsers} rolePermissions={rolePermissions} />
+              <ReadOnlyDirectoryTable
+                rows={scopedRows}
+                canManageUsers={canManageUsers}
+                canManageTeams={canManageTeams}
+                rolePermissions={rolePermissions}
+                statusView={directoryTab}
+                onStatusViewChange={setDirectoryTab}
+                onCreateUser={openCreateUserModal}
+                onExportPdf={() => void handleExportPdf()}
+                onEditDirectory={() =>
+                  startEditingUserManagementView("users")
+                }
+                onOpenTeams={() =>
+                  switchUserManagementView("teams")
+                }
+                onManageTeams={() => {
+                  startEditingUserManagementView("team-management");
+                  setUserManagementView("team-management");
+                }}
+              />
             )}
           </div>
         ) : adminTab === "roles" && canManageRoles ? (
@@ -3222,7 +3305,15 @@ async function loadFirebasePasswordMapForExport() {
 function ReadOnlyDirectoryTable({
   rows,
   canManageUsers,
+  canManageTeams,
   rolePermissions,
+  statusView,
+  onStatusViewChange,
+  onCreateUser,
+  onExportPdf,
+  onEditDirectory,
+  onOpenTeams,
+  onManageTeams,
 }: {
   rows: Array<
     UserAccount & {
@@ -3232,13 +3323,29 @@ function ReadOnlyDirectoryTable({
     }
   >;
   canManageUsers: boolean;
+  canManageTeams: boolean;
   rolePermissions: RolePermissionMap;
+  statusView: DirectoryTab;
+  onStatusViewChange: (value: DirectoryTab) => void;
+  onCreateUser: () => void;
+  onExportPdf: () => void;
+  onEditDirectory: () => void;
+  onOpenTeams: () => void;
+  onManageTeams: () => void;
 }) {
   return (
     <CorporateUserDirectoryProfile
       rows={rows}
       canManageUsers={canManageUsers}
+      canManageTeams={canManageTeams}
       rolePermissions={rolePermissions}
+      statusView={statusView}
+      onStatusViewChange={onStatusViewChange}
+      onCreateUser={onCreateUser}
+      onExportPdf={onExportPdf}
+      onEditDirectory={onEditDirectory}
+      onOpenTeams={onOpenTeams}
+      onManageTeams={onManageTeams}
     />
   );
 }
