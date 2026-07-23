@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { fetchStoredProfilePhoto } from "./profilePhotoStore";
+import { appendUserProfileHistory } from "./profileHistoryStore";
+
+// data-profile-access-team-history-v83
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import CorporateUserDirectoryProfile, { type CorporateUserAccountUpdate } from "./CorporateUserDirectoryProfile";
@@ -1756,6 +1759,27 @@ export default function UserRoleAdminMockup({
         })
       );
 
+      await Promise.all(
+        passwordUsers.map((user) =>
+          appendUserProfileHistory({
+            username: user.username,
+            title: "Password Reset",
+            updatedBy:
+              currentUser?.displayName ||
+              currentUser?.username ||
+              "System",
+            changes: [
+              {
+                field: "Password",
+                before: "Protected",
+                after:
+                  "Temporary password issued",
+              },
+            ],
+          })
+        )
+      );
+
       await onRolesChanged();
 
       setEditingUserManagementView(null);
@@ -2314,6 +2338,14 @@ export default function UserRoleAdminMockup({
             ) : (
               <ReadOnlyDirectoryTable
                 rows={scopedRows}
+                teamRows={rows}
+                currentUsername={
+                  currentUser?.username ||
+                  ""
+                }
+                isOwner={
+                  isSongponSuperAdmin
+                }
                 updatedByName={
                   currentUser?.displayName ||
                   currentUser?.username ||
@@ -3591,7 +3623,10 @@ async function loadFirebasePasswordMapForExport() {
 }
 function ReadOnlyDirectoryTable({
   rows,
+  teamRows,
   updatedByName,
+  currentUsername,
+  isOwner,
   canManageUsers,
   canManageTeams,
   rolePermissions,
@@ -3611,7 +3646,16 @@ function ReadOnlyDirectoryTable({
       status: UserStatus;
     }
   >;
+  teamRows: Array<
+    UserAccount & {
+      effectiveRole: UserRole;
+      normalizedUsername: string;
+      status: UserStatus;
+    }
+  >;
   updatedByName: string;
+  currentUsername: string;
+  isOwner: boolean;
   canManageUsers: boolean;
   canManageTeams: boolean;
   rolePermissions: RolePermissionMap;
@@ -3630,9 +3674,16 @@ function ReadOnlyDirectoryTable({
     <CorporateUserDirectoryProfile
       data-v77-white-screen-final="true"
       updatedByName={updatedByName}
+      currentUsername={currentUsername}
+      isOwner={isOwner}
       rows={rows}
-      canManageUsers={canManageUsers}
-      canManageTeams={canManageTeams}
+      teamRows={teamRows}
+      canManageUsers={
+        isOwner && canManageUsers
+      }
+      canManageTeams={
+        isOwner && canManageTeams
+      }
       rolePermissions={rolePermissions}
       statusView={statusView}
       onStatusViewChange={onStatusViewChange}

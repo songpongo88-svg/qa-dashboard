@@ -1,5 +1,8 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { appendUserProfileHistory } from "./profileHistoryStore";
+
+// data-profile-photo-history-v83
 
 const PROFILE_PHOTO_COLLECTION = "qa_user_profile_photos";
 const PROFILE_PHOTO_CACHE_PREFIX = "qa-dashboard:profile-photo:";
@@ -81,6 +84,11 @@ export async function upsertStoredProfilePhoto(profile: StoredProfilePhoto) {
   const normalizedUsername = String(profile.username || "").trim();
   if (!normalizedUsername) return;
 
+  const previous =
+    await fetchStoredProfilePhoto(
+      normalizedUsername
+    );
+
   const row = {
     username: normalizedUsername,
     photoDataUrl: profile.photoDataUrl || "",
@@ -92,12 +100,39 @@ export async function upsertStoredProfilePhoto(profile: StoredProfilePhoto) {
   await setDoc(doc(firebaseDb, PROFILE_PHOTO_COLLECTION, safeDocId(normalizedUsername)), row, { merge: true });
   writeCache({ ...profile, username: normalizedUsername, updatedAt: row.updatedAt });
   emitProfilePhotoUpdated(normalizedUsername);
+
+  await appendUserProfileHistory({
+    username: normalizedUsername,
+    title: "Profile Photo Updated",
+    updatedBy:
+      profile.updatedBy ||
+      normalizedUsername,
+    createdAt: row.updatedAt,
+    changes: [
+      {
+        field: "Profile Photo",
+        before:
+          previous?.photoDataUrl
+            ? "Existing photo"
+            : "Not provided",
+        after:
+          previous?.photoDataUrl
+            ? "Changed"
+            : "Added",
+      },
+    ],
+  });
 }
 
 
 export async function clearStoredProfilePhoto(username: string, updatedBy = "") {
   const normalizedUsername = String(username || "").trim();
   if (!normalizedUsername) return;
+
+  const previous =
+    await fetchStoredProfilePhoto(
+      normalizedUsername
+    );
 
   const row = {
     username: normalizedUsername,
@@ -118,4 +153,22 @@ export async function clearStoredProfilePhoto(username: string, updatedBy = "") 
   }
 
   emitProfilePhotoUpdated(normalizedUsername);
+
+  if (previous?.photoDataUrl) {
+    await appendUserProfileHistory({
+      username: normalizedUsername,
+      title: "Profile Photo Updated",
+      updatedBy:
+        updatedBy ||
+        normalizedUsername,
+      createdAt: row.updatedAt,
+      changes: [
+        {
+          field: "Profile Photo",
+          before: "Existing photo",
+          after: "Not provided",
+        },
+      ],
+    });
+  }
 }

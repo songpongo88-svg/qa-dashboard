@@ -43,6 +43,9 @@ import {
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { firebaseDb } from "./firebaseClient";
 import { clearStoredProfilePhoto, fetchStoredProfilePhoto, upsertStoredProfilePhoto } from "./profilePhotoStore";
+import { appendUserProfileHistory } from "./profileHistoryStore";
+
+// data-password-history-v83
 import {
   createStoredUserSession,
   revokeAllStoredUserSessions,
@@ -1210,6 +1213,60 @@ function savePasswordOverride(username: string, newPassword: string) {
   const current = readPasswordOverrides();
   current[username.trim().toLowerCase()] = newPassword;
   writePasswordOverrides(current);
+
+  let actorUsername = username;
+  let actorName = username;
+
+  try {
+    const currentUserRaw =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
+    const currentUser =
+      currentUserRaw
+        ? JSON.parse(currentUserRaw)
+        : null;
+
+    actorUsername =
+      String(
+        currentUser?.username ||
+          username
+      ).trim() || username;
+    actorName =
+      String(
+        currentUser?.displayName ||
+          currentUser?.username ||
+          username
+      ).trim() || username;
+  } catch {
+    actorUsername = username;
+    actorName = username;
+  }
+
+  const resetByAnotherUser =
+    actorUsername
+      .trim()
+      .toLowerCase() !==
+    username
+      .trim()
+      .toLowerCase();
+
+  void appendUserProfileHistory({
+    username,
+    title: resetByAnotherUser
+      ? "Password Reset"
+      : "Password Changed",
+    updatedBy: actorName,
+    changes: [
+      {
+        field: "Password",
+        before: "Protected",
+        after: resetByAnotherUser
+          ? "Temporary password issued"
+          : "Updated successfully",
+      },
+    ],
+  });
 }
 
 function removePasswordOverride(username: string) {

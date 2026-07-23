@@ -112,7 +112,10 @@ type UserMeta = {
 
 type Props = {
   rows: DirectoryUserRow[];
+  teamRows: DirectoryUserRow[];
   updatedByName: string;
+  currentUsername: string;
+  isOwner: boolean;
   canManageUsers: boolean;
   canManageTeams: boolean;
   rolePermissions: Record<string, Record<string, boolean>>;
@@ -1336,6 +1339,25 @@ function historyTitleEnglish(item: HistoryItem) {
   const source = `${item.title || ""} ${item.category || ""}`.toLowerCase();
 
   if (
+    source.includes("profile photo")
+  ) {
+    return "Profile Photo Updated";
+  }
+
+  if (
+    source.includes("password reset")
+  ) {
+    return "Password Reset";
+  }
+
+  if (
+    source.includes("password changed") ||
+    source.includes("password updated")
+  ) {
+    return "Password Changed";
+  }
+
+  if (
     source.includes("user created") ||
     source.includes("created user") ||
     source.includes("สร้าง user") ||
@@ -1448,6 +1470,19 @@ function historyTooltipThai(item: HistoryItem) {
   }
 
   if (
+    title === "Profile Photo Updated"
+  ) {
+    return "กดเพื่อดูว่ามีการเพิ่ม เปลี่ยน หรือลบรูปโปรไฟล์เมื่อไร";
+  }
+
+  if (
+    title === "Password Changed" ||
+    title === "Password Reset"
+  ) {
+    return "กดเพื่อดูวัน เวลา และผู้ดำเนินการ โดยระบบจะไม่เก็บรหัสผ่านเดิมหรือรหัสผ่านใหม่";
+  }
+
+  if (
     title === "Device Added" ||
     title === "Device Updated"
   ) {
@@ -1534,6 +1569,16 @@ function HistoryTimeline({
             historyTitleEnglish(item);
           const created =
             englishTitle === "User Created";
+          const actorPrefix =
+            created
+              ? "Created by"
+              : englishTitle ===
+                    "Password Changed"
+                ? "Changed by"
+                : englishTitle ===
+                      "Password Reset"
+                  ? "Reset by"
+                  : "Updated by";
           const open =
             openHistoryId === item.id;
 
@@ -1556,9 +1601,7 @@ function HistoryTimeline({
 
               <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
                 <span>
-                  {created
-                    ? "Created by"
-                    : "Updated by"}{" "}
+                  {actorPrefix}{" "}
                   {item.updatedBy ||
                     "System"}
                 </span>
@@ -1781,6 +1824,124 @@ function Field({
 }
 
 
+function TeamConnection({
+  members,
+  currentUsername,
+  teamLead,
+  profilePhotos,
+}: {
+  members: DirectoryUserRow[];
+  currentUsername: string;
+  teamLead: string;
+  profilePhotos: Record<string, string>;
+}) {
+  if (!members.length) {
+    return null;
+  }
+
+  const leadKey =
+    normalizeUsername(teamLead);
+
+  const isLead = (
+    member: DirectoryUserRow
+  ) =>
+    Boolean(leadKey) &&
+    [
+      member.username,
+      member.displayName,
+      member.agentName,
+    ].some(
+      (value) =>
+        normalizeUsername(value) ===
+        leadKey
+    );
+
+  return (
+    <Section
+      id="profile-team"
+      icon="⌘"
+      title="Team Connection"
+      subtitle="สมาชิก Active ในทีมเดียวกัน หัวหน้าทีมอยู่ลำดับแรก และ Profile ปัจจุบันถูกไฮไลต์"
+    >
+      <div
+        data-profile-team-connection-v83="true"
+        className="overflow-x-auto pb-2"
+      >
+        <div className="relative flex min-w-max items-start gap-8 px-3 py-3 before:absolute before:left-12 before:right-12 before:top-[45px] before:border-t-2 before:border-violet-200">
+          {members.map((member) => {
+            const key =
+              member.normalizedUsername;
+            const current =
+              key ===
+              normalizeUsername(
+                currentUsername
+              );
+            const lead = isLead(member);
+            const photo =
+              profilePhotos[key];
+
+            return (
+              <div
+                key={member.username}
+                className="relative z-10 w-28 text-center"
+              >
+                <div
+                  title={member.displayName}
+                  className={`mx-auto flex h-[74px] w-[74px] items-center justify-center overflow-hidden rounded-full border-[5px] border-white bg-gradient-to-br text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.15)] ${avatarClass(
+                    member.effectiveRole
+                  )} ${
+                    current
+                      ? "ring-4 ring-violet-400"
+                      : lead
+                        ? "ring-2 ring-amber-400"
+                        : "ring-2 ring-violet-100"
+                  }`}
+                >
+                  {photo ? (
+                    <img
+                      src={photo}
+                      alt={`รูปโปรไฟล์ของ ${member.displayName}`}
+                      draggable={false}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials(
+                      member.displayName ||
+                        member.username
+                    )
+                  )}
+                </div>
+
+                <div className="mt-2 break-words text-[11px] font-semibold leading-4 text-slate-900">
+                  {member.displayName}
+                </div>
+                <div className="mt-1 text-[9px] text-slate-500">
+                  {member.effectiveRole}
+                </div>
+
+                {lead || current ? (
+                  <span
+                    className={`mt-1.5 inline-flex rounded-full px-2 py-1 text-[8px] font-medium ${
+                      current
+                        ? "bg-violet-100 text-violet-700"
+                        : "bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {current
+                      ? "Current Profile"
+                      : "Team Lead"}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+
 function highlightSearchText(
   value: string,
   query: string
@@ -1818,7 +1979,10 @@ function highlightSearchText(
 
 export default function CorporateUserDirectoryProfile({
   rows,
+  teamRows,
   updatedByName,
+  currentUsername,
+  isOwner,
   canManageUsers,
   canManageTeams,
   rolePermissions,
@@ -1859,7 +2023,7 @@ export default function CorporateUserDirectoryProfile({
       const currentRequest = ++requestNumber;
       const usernames = Array.from(
         new Set(
-          rows
+          [...rows, ...teamRows]
             .map((row) => row.username)
             .filter(Boolean)
         )
@@ -1913,25 +2077,73 @@ export default function CorporateUserDirectoryProfile({
         refreshProfilePhotos
       );
     };
-  }, [rows]);
+  }, [rows, teamRows]);
 
   useEffect(() => {
     let cancelled = false;
-    getDocs(collection(firebaseDb, "qa_user_profiles"))
-      .then((snapshot) => {
-        const next: Record<string, UserMeta> = {};
-        snapshot.docs.forEach((item) => {
-          const data = item.data() as any;
-          const username = normalizeUsername(data.username || item.id);
-          if (username) next[username] = metaFromData(item.id, data);
-        });
-        if (!cancelled) setMetaMap(next);
-      })
-      .catch(() => {
-        if (!cancelled) setMetaMap({});
-      });
+
+    const loadProfileMetadata =
+      async () => {
+        try {
+          const snapshot =
+            await getDocs(
+              collection(
+                firebaseDb,
+                "qa_user_profiles"
+              )
+            );
+          const next: Record<
+            string,
+            UserMeta
+          > = {};
+
+          snapshot.docs.forEach(
+            (item) => {
+              const data =
+                item.data() as any;
+              const username =
+                normalizeUsername(
+                  data.username ||
+                    item.id
+                );
+
+              if (username) {
+                next[username] =
+                  metaFromData(
+                    item.id,
+                    data
+                  );
+              }
+            }
+          );
+
+          if (!cancelled) {
+            setMetaMap(next);
+          }
+        } catch {
+          if (!cancelled) {
+            setMetaMap({});
+          }
+        }
+      };
+
+    const refreshHistory:
+      EventListener = () => {
+        void loadProfileMetadata();
+      };
+
+    void loadProfileMetadata();
+    window.addEventListener(
+      "qa-profile-history-updated",
+      refreshHistory
+    );
+
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        "qa-profile-history-updated",
+        refreshHistory
+      );
     };
   }, []);
 
@@ -2091,6 +2303,29 @@ export default function CorporateUserDirectoryProfile({
   ]);
 
   useEffect(() => {
+    if (!isOwner) {
+      const self =
+        filteredRows.find(
+          (row) =>
+            row.normalizedUsername ===
+            normalizeUsername(
+              currentUsername
+            )
+        ) ||
+        filteredRows[0] ||
+        null;
+
+      setSelectedUsername(
+        self?.normalizedUsername || ""
+      );
+      setSearch(
+        self?.displayName || ""
+      );
+      setSearchOpen(false);
+      setHighlightedIndex(0);
+      return;
+    }
+
     if (
       filteredRows.some(
         (row) =>
@@ -2112,10 +2347,99 @@ export default function CorporateUserDirectoryProfile({
     );
     setSearchOpen(false);
     setHighlightedIndex(0);
-  }, [filteredRows, selectedUsername]);
+  }, [
+    currentUsername,
+    filteredRows,
+    isOwner,
+    selectedUsername,
+  ]);
 
   const user = filteredRows.find((row) => row.normalizedUsername === selectedUsername) || null;
   const savedMeta = user ? hydrated[user.normalizedUsername] || emptyMeta() : emptyMeta();
+
+  const teamMembers = useMemo(() => {
+    if (
+      !user ||
+      !user.teamName
+    ) {
+      return [];
+    }
+
+    const leadKey =
+      normalizeUsername(
+        user.teamLead
+      );
+    const currentKey =
+      user.normalizedUsername;
+    const roleRank: Record<
+      string,
+      number
+    > = {
+      Supervisor: 10,
+      Senior: 20,
+      "Quality Assurance": 30,
+      "Virtual Rider": 40,
+      "Admin Live Chat": 50,
+    };
+
+    const isLead = (
+      member: DirectoryUserRow
+    ) =>
+      Boolean(leadKey) &&
+      [
+        member.username,
+        member.displayName,
+        member.agentName,
+      ].some(
+        (value) =>
+          normalizeUsername(value) ===
+          leadKey
+      );
+
+    return teamRows
+      .filter(
+        (member) =>
+          member.status === "Active" &&
+          member.teamName ===
+            user.teamName
+      )
+      .sort((a, b) => {
+        const aLead = isLead(a);
+        const bLead = isLead(b);
+
+        if (aLead !== bLead) {
+          return aLead ? -1 : 1;
+        }
+
+        const aCurrent =
+          a.normalizedUsername ===
+          currentKey;
+        const bCurrent =
+          b.normalizedUsername ===
+          currentKey;
+
+        if (aCurrent !== bCurrent) {
+          return aCurrent ? -1 : 1;
+        }
+
+        const roleDifference =
+          (roleRank[
+            a.effectiveRole
+          ] || 99) -
+          (roleRank[
+            b.effectiveRole
+          ] || 99);
+
+        if (roleDifference) {
+          return roleDifference;
+        }
+
+        return a.displayName.localeCompare(
+          b.displayName
+        );
+      });
+  }, [teamRows, user]);
+
   const meta = editing ? metaDraft : savedMeta;
   const account =
     editing && accountDraft
@@ -2934,7 +3258,8 @@ export default function CorporateUserDirectoryProfile({
                     </div>
                   </div>
 
-                                    <div
+                                    {isOwner ? (
+<div
                     data-profile-header-search-v80="true"
                     ref={searchRef}
                     className="relative w-full max-w-[590px]"
@@ -3247,6 +3572,18 @@ export default function CorporateUserDirectoryProfile({
               </div>
             ) : null}
           </div>
+                ) : (
+                  <div
+                    data-profile-permission-team-history-v83="true"
+                    className="rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm text-violet-700"
+                  >
+                    Viewing your profile ·{" "}
+                    <b>
+                      {user?.displayName ||
+                        currentUsername}
+                    </b>
+                  </div>
+                )}
 
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -3325,6 +3662,9 @@ export default function CorporateUserDirectoryProfile({
                 <div className="mt-4 flex flex-wrap gap-2">
                   {[
                     ["profile-account", "ข้อมูลบัญชี"],
+                    ...(teamMembers.length
+                      ? [["profile-team", "สมาชิกทีม"]]
+                      : []),
                     ...(editing || contactHasData
                       ? [["profile-contact", "เบอร์สำนักงาน"]]
                       : []),
@@ -3663,6 +4003,22 @@ export default function CorporateUserDirectoryProfile({
                                 ) : null}
 
                 </div>
+
+                {teamMembers.length ? (
+                  <TeamConnection
+                    members={teamMembers}
+                    currentUsername={
+                      user?.username ||
+                      currentUsername
+                    }
+                    teamLead={
+                      user?.teamLead || ""
+                    }
+                    profilePhotos={
+                      profilePhotos
+                    }
+                  />
+                ) : null}
 
                 <Section
                   id="profile-lifecycle"
