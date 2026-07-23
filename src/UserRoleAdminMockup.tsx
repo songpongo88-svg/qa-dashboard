@@ -3,6 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
+import CorporateUserDirectoryProfile from "./CorporateUserDirectoryProfile";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { fetchUsageLogsByEventTypes, logUsageEvent, UsageLogEvent } from "./usageLog";
 import {
@@ -1871,7 +1872,7 @@ export default function UserRoleAdminMockup({
                 ) : (
                   <>
                     {userManagementView === "users" && canManageUsers ? (
-                      <button type="button" onClick={openCreateUserModal} className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600">
+                      <button type="button" title="สร้างบัญชีผู้ใช้งานใหม่ พร้อมกำหนด Role ทีม และสถานะบัญชี" aria-label="เพิ่มผู้ใช้ใหม่" onClick={openCreateUserModal} className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.28)] transition hover:bg-emerald-600">
                         Create User
                       </button>
                     ) : null}
@@ -1880,7 +1881,7 @@ export default function UserRoleAdminMockup({
                         Create Team
                       </button>
                     ) : null}
-                    <button type="button" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+                    <button type="button" title="ส่งออกข้อมูลของหน้าปัจจุบันเป็นไฟล์ PDF โดยไม่แสดงรหัสผ่าน" aria-label="ส่งออกข้อมูลเป็น PDF" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                       Export PDF
                     </button>
                     {canEditCurrentUserManagementView ? (
@@ -1967,7 +1968,7 @@ export default function UserRoleAdminMockup({
                 onGeneratePassword={generateDraftPassword}
               />
             ) : (
-              <ReadOnlyDirectoryTable rows={visibleRows} />
+              <ReadOnlyDirectoryTable rows={scopedRows} canManageUsers={canManageUsers} rolePermissions={rolePermissions} />
             )}
           </div>
         ) : adminTab === "roles" && canManageRoles ? (
@@ -1978,7 +1979,7 @@ export default function UserRoleAdminMockup({
                 <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Role & Permission Management</div>
                 <div className="mt-1 text-sm leading-6 text-slate-500">Create roles, update role descriptions, and control what each role can access.</div>
               </div>
-              <button type="button" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+              <button type="button" title="ส่งออกข้อมูลของหน้าปัจจุบันเป็นไฟล์ PDF โดยไม่แสดงรหัสผ่าน" aria-label="ส่งออกข้อมูลเป็น PDF" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                 Export PDF
               </button>
             </div>
@@ -2011,7 +2012,7 @@ export default function UserRoleAdminMockup({
                 <div className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Maintenance Control Center</div>
                 <div className="mt-1 text-sm leading-6 text-slate-500">Temporarily restrict access while updating system configuration or QA data.</div>
               </div>
-              <button type="button" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
+              <button type="button" title="ส่งออกข้อมูลของหน้าปัจจุบันเป็นไฟล์ PDF โดยไม่แสดงรหัสผ่าน" aria-label="ส่งออกข้อมูลเป็น PDF" onClick={() => void handleExportPdf()} className="rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_28px_rgba(14,165,233,0.26)] transition hover:bg-sky-600">
                 Export PDF
               </button>
             </div>
@@ -3215,173 +3216,32 @@ function DirectoryTabButton({
 
 
 async function loadFirebasePasswordMapForExport() {
-  try {
-    const snapshot = await getDocs(collection(firebaseDb, "qa_user_profiles"));
-    const passwordMap: Record<string, string> = {};
-
-    snapshot.forEach((item) => {
-      const data = item.data() as any;
-      const username = String(data.username || item.id || "").trim().toLowerCase();
-      const password = String(data.password || "").trim();
-      if (username && password) passwordMap[username] = password;
-    });
-
-    return passwordMap;
-  } catch {
-    return {};
-  }
+  // Passwords are intentionally excluded from directory screens and exports.
+  return {} as Record<string, string>;
 }
-function ReadOnlyDirectoryTable({ rows }: { rows: Array<UserAccount & { effectiveRole: UserRole; normalizedUsername: string; status: UserStatus }> }) {
-  const [firebasePasswords, setFirebasePasswords] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadPasswords() {
-      try {
-        const snapshot = await getDocs(collection(firebaseDb, "qa_user_profiles"));
-        const next: Record<string, string> = {};
-
-        snapshot.forEach((item) => {
-          const data = item.data() as any;
-          const username = String(data.username || item.id || "").trim().toLowerCase();
-          const password = String(data.password || "").trim();
-          if (username && password) next[username] = password;
-        });
-
-        if (!cancelled) setFirebasePasswords(next);
-      } catch {
-        if (!cancelled) setFirebasePasswords({});
-      }
+function ReadOnlyDirectoryTable({
+  rows,
+  canManageUsers,
+  rolePermissions,
+}: {
+  rows: Array<
+    UserAccount & {
+      effectiveRole: UserRole;
+      normalizedUsername: string;
+      status: UserStatus;
     }
-
-    void loadPasswords();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const activeCount = rows.filter((row) => row.status === "Active").length;
-  const suspendedCount = rows.length - activeCount;
-  const roleCount = new Set(rows.map((row) => row.effectiveRole)).size;
-
+  >;
+  canManageUsers: boolean;
+  rolePermissions: RolePermissionMap;
+}) {
   return (
-    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
-      <div className="mb-5 grid gap-3 md:grid-cols-3">
-        <div className="rounded-[24px] border border-violet-100 bg-gradient-to-br from-white to-violet-50 px-5 py-4 shadow-[0_16px_34px_rgba(109,40,217,0.10)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">Directory View</div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <div className="text-3xl font-black text-slate-950">{rows.length}</div>
-            <div className="rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white">user(s)</div>
-          </div>
-        </div>
-
-        <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-white to-emerald-50 px-5 py-4 shadow-[0_16px_34px_rgba(16,185,129,0.10)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Active Accounts</div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <div className="text-3xl font-black text-slate-950">{activeCount}</div>
-            <div className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">available</div>
-          </div>
-        </div>
-
-        <div className="rounded-[24px] border border-fuchsia-100 bg-gradient-to-br from-white to-fuchsia-50 px-5 py-4 shadow-[0_16px_34px_rgba(217,70,239,0.10)]">
-          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-fuchsia-600">Access Groups</div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <div className="text-3xl font-black text-slate-950">{roleCount}</div>
-            <div className="rounded-full bg-fuchsia-500 px-3 py-1 text-xs font-black text-white">{suspendedCount} suspended</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto">
-        <div className="min-w-[1180px] space-y-3">
-          <div className="grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px_180px] items-center gap-4 rounded-[20px] bg-gradient-to-r from-violet-100 via-fuchsia-50 to-sky-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
-            <div>User Profile</div>
-            <div>Agent Name</div>
-            <div>Registered Email</div>
-            <div>Team</div>
-            <div>Role</div>
-            <div>Status</div>
-            <div>Password</div>
-          </div>
-
-          {rows.map((row) => {
-            const password = firebasePasswords[row.username.trim().toLowerCase()] || "";
-
-            return (
-              <div
-                key={row.username}
-                className={`grid grid-cols-[minmax(210px,1.1fr)_minmax(170px,0.8fr)_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_110px_180px] items-center gap-4 rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${
-                  row.status === "Active" ? "border-white bg-white" : "border-rose-100 bg-rose-50/70"
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-black text-white shadow-lg ${roleAvatarClass(row.effectiveRole)}`}>
-                    {userInitials(row.displayName || row.username)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="min-w-0 truncate text-base font-black text-slate-950">{row.displayName}</div>
-                    <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{row.username}</div>
-                  </div>
-                </div>
-
-                <div className="min-w-0">
-                  <div className="min-w-0 truncate font-bold text-slate-700">{row.agentName || "-"}</div>
-                  <div className="mt-1 text-xs font-semibold text-slate-400">QA profile owner</div>
-                </div>
-
-                <div className="min-w-0">
-                  <div className="min-w-0 truncate rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
-                    {row.email || "No email assigned"}
-                  </div>
-                </div>
-
-                <div className="min-w-0">
-                  <div className="min-w-0 truncate font-black text-slate-800">{row.teamName || "Unassigned Team"}</div>
-                  <div className="mt-1 truncate text-xs font-semibold text-slate-400">Lead: {row.teamLead || "-"}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-black text-slate-800">{row.effectiveRole}</div>
-                  <div className="mt-1 text-xs font-semibold text-slate-400">Access role</div>
-                </div>
-
-                <div>
-                  <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black ${row.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                    <span className={`h-2 w-2 rounded-full ${row.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
-                    {row.status}
-                  </div>
-                  {row.suspendEffectiveDate ? <div className="mt-1 text-xs font-semibold text-rose-600">Suspend date: {row.suspendEffectiveDate}</div> : null}
-                  {row.suspendReason ? <div className="mt-1 text-xs text-slate-500">{row.suspendReason}</div> : null}
-                </div>
-
-                <div className="min-w-0">
-                  {password ? (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 font-mono text-xs font-black text-amber-800">
-                      {password}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-400">
-                      -
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {!rows.length ? (
-            <div className="rounded-[24px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">
-              No users found in this view.
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
+    <CorporateUserDirectoryProfile
+      rows={rows}
+      canManageUsers={canManageUsers}
+      rolePermissions={rolePermissions}
+    />
   );
 }
-
 function TeamOverviewPanel({
   teamGroups,
 }: {
