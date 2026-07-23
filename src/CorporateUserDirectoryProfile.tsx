@@ -102,6 +102,7 @@ type UserMeta = {
 
 type Props = {
   rows: DirectoryUserRow[];
+  teamRows: DirectoryUserRow[];
   canManageUsers: boolean;
   canManageTeams: boolean;
   rolePermissions: Record<string, Record<string, boolean>>;
@@ -681,6 +682,7 @@ function Field({
 
 export default function CorporateUserDirectoryProfile({
   rows,
+  teamRows,
   canManageUsers,
   canManageTeams,
   rolePermissions,
@@ -721,7 +723,7 @@ export default function CorporateUserDirectoryProfile({
       const currentRequest = ++requestNumber;
       const usernames = Array.from(
         new Set(
-          rows
+          [...rows, ...teamRows]
             .map((row) => row.username)
             .filter(Boolean)
         )
@@ -775,7 +777,7 @@ export default function CorporateUserDirectoryProfile({
         refreshProfilePhotos
       );
     };
-  }, [rows]);
+  }, [rows, teamRows]);
 
   useEffect(() => {
     let cancelled = false;
@@ -895,6 +897,69 @@ export default function CorporateUserDirectoryProfile({
             suspendAutoReactivate: savedMeta.autoReactivate,
           }
         : null;
+
+  const teamConnectionMembers = useMemo(() => {
+    if (!user || !user.teamName.trim()) return [];
+
+    const selectedUserKey =
+      normalizeUsername(user.username);
+    const teamLeadKey =
+      normalizeUsername(user.teamLead || "");
+    const roleRank: Record<string, number> = {
+      Supervisor: 10,
+      Senior: 20,
+      "Quality Assurance": 30,
+      "Virtual Rider": 40,
+      "Admin Live Chat": 50,
+    };
+
+    const isTeamLead = (
+      member: DirectoryUserRow
+    ) =>
+      Boolean(teamLeadKey) &&
+      [
+        member.username,
+        member.displayName,
+        member.agentName,
+      ].some(
+        (value) =>
+          normalizeUsername(value || "") ===
+          teamLeadKey
+      );
+
+    return teamRows
+      .filter(
+        (member) =>
+          member.teamName === user.teamName
+      )
+      .sort((a, b) => {
+        const aLead = isTeamLead(a);
+        const bLead = isTeamLead(b);
+
+        if (aLead !== bLead) return aLead ? -1 : 1;
+
+        const aCurrent =
+          normalizeUsername(a.username) ===
+          selectedUserKey;
+        const bCurrent =
+          normalizeUsername(b.username) ===
+          selectedUserKey;
+
+        if (aCurrent !== bCurrent) {
+          return aCurrent ? -1 : 1;
+        }
+
+        const roleDifference =
+          (roleRank[a.effectiveRole] || 99) -
+          (roleRank[b.effectiveRole] || 99);
+
+        if (roleDifference) return roleDifference;
+
+        return a.displayName.localeCompare(
+          b.displayName
+        );
+      });
+  }, [teamRows, user]);
 
   const selectedDevice =
     meta.devices.find((device) => device.id === selectedDeviceId) ||
@@ -1629,6 +1694,7 @@ export default function CorporateUserDirectoryProfile({
                 <div className="mt-4 flex flex-wrap gap-2">
                   {[
                     ["profile-account", "ข้อมูลบัญชี"],
+                    ["profile-team", "ทีม"],
                     ["profile-contact", "เบอร์สำนักงาน"],
                     ["profile-devices", "อุปกรณ์"],
                     ["profile-lifecycle", "สถานะบัญชี"],
@@ -1676,6 +1742,174 @@ export default function CorporateUserDirectoryProfile({
                     <Field label="สถานะรหัสผ่าน" value="ตั้งค่าแล้ว" editing={false} />
                     <Field label="สิทธิ์ที่เปิดใช้งาน" value={`${permissionCount} สิทธิ์`} editing={false} />
                     <Field label="อัปเดตรหัสผ่านล่าสุด" value={formatDateTime(savedMeta.passwordIssuedAt)} editing={false} />
+                  </div>
+                </Section>
+
+                <Section
+                  id="profile-team"
+                  icon="◌"
+                  title="สมาชิกในทีมเดียวกัน"
+                  subtitle="หัวหน้าทีมอยู่ลำดับแรก ตามด้วยโปรไฟล์นี้ และสมาชิกคนอื่นตามลำดับ Role"
+                  action={
+                    canManageTeams ? (
+                      <button
+                        type="button"
+                        title="เปิดมุมมองทีมในเมนูการจัดการ"
+                        onClick={onOpenTeams}
+                        className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700"
+                      >
+                        เปิดมุมมองทีม
+                      </button>
+                    ) : undefined
+                  }
+                >
+                  <div
+                    data-profile-team-connection-v70="true"
+                    className="overflow-hidden rounded-[20px] border border-slate-200 bg-gradient-to-b from-white to-violet-50/30"
+                  >
+                    {teamConnectionMembers.length ? (
+                      <>
+                        <div className="overflow-x-auto px-3 py-5">
+                          <div className="relative flex min-w-max items-start gap-5 px-4 pb-2 pt-4">
+                            <div className="absolute left-12 right-12 top-[52px] h-px bg-gradient-to-r from-violet-200 via-fuchsia-200 to-violet-200" />
+
+                            {teamConnectionMembers.map(
+                              (member) => {
+                                const memberKey =
+                                  normalizeUsername(
+                                    member.username
+                                  );
+                                const isCurrent =
+                                  memberKey ===
+                                  normalizeUsername(
+                                    user.username
+                                  );
+                                const teamLeadKey =
+                                  normalizeUsername(
+                                    user.teamLead || ""
+                                  );
+                                const isLead =
+                                  Boolean(teamLeadKey) &&
+                                  [
+                                    member.username,
+                                    member.displayName,
+                                    member.agentName,
+                                  ].some(
+                                    (value) =>
+                                      normalizeUsername(
+                                        value || ""
+                                      ) === teamLeadKey
+                                  );
+                                const memberMeta =
+                                  hydrateMeta(
+                                    metaMap[
+                                      member.normalizedUsername
+                                    ] || emptyMeta(),
+                                    member
+                                  );
+                                const memberPhoto =
+                                  profilePhotos[
+                                    member.normalizedUsername
+                                  ];
+
+                                return (
+                                  <div
+                                    key={member.username}
+                                    className="relative z-10 w-[132px] text-center"
+                                  >
+                                    <div className="mb-2 flex h-5 items-center justify-center">
+                                      {isLead || isCurrent ? (
+                                        <span
+                                          className={`rounded-full px-2 py-1 text-[9px] font-medium ${
+                                            isLead
+                                              ? "bg-amber-50 text-amber-700"
+                                              : "bg-violet-100 text-violet-700"
+                                          }`}
+                                        >
+                                          {isLead && isCurrent
+                                            ? "หัวหน้าทีม · โปรไฟล์นี้"
+                                            : isLead
+                                              ? "หัวหน้าทีม"
+                                              : "โปรไฟล์นี้"}
+                                        </span>
+                                      ) : null}
+                                    </div>
+
+                                    <div
+                                      className={`mx-auto flex items-center justify-center overflow-hidden border-[5px] border-white bg-gradient-to-br font-semibold text-white shadow-lg ${
+                                        isCurrent
+                                          ? `h-[76px] w-[76px] rounded-[25px] ring-2 ring-violet-300 ${avatarClass(
+                                              member.effectiveRole
+                                            )}`
+                                          : isLead
+                                            ? "h-16 w-16 rounded-[22px] bg-gradient-to-br from-amber-400 to-orange-600"
+                                            : `h-16 w-16 rounded-[22px] ${avatarClass(
+                                                member.effectiveRole
+                                              )}`
+                                      }`}
+                                    >
+                                      {memberPhoto ? (
+                                        <img
+                                          src={memberPhoto}
+                                          alt={`รูปโปรไฟล์ของ ${member.displayName}`}
+                                          draggable={false}
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        initials(
+                                          member.displayName
+                                        )
+                                      )}
+                                    </div>
+
+                                    <div className="mt-2 truncate text-xs font-semibold text-slate-900">
+                                      {member.displayName}
+                                    </div>
+                                    <div className="mt-1 truncate text-[10px] font-medium text-violet-600">
+                                      {memberMeta.preferredName ||
+                                        member.agentName ||
+                                        "-"}
+                                    </div>
+                                    <div className="mt-1 text-[10px] leading-4 text-slate-500">
+                                      {member.effectiveRole}
+                                    </div>
+                                    <span
+                                      className={`mt-2 inline-flex rounded-full px-2 py-1 text-[9px] font-medium ${
+                                        member.status ===
+                                        "Suspended"
+                                          ? "bg-rose-50 text-rose-700"
+                                          : "bg-emerald-50 text-emerald-700"
+                                      }`}
+                                    >
+                                      {member.status}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 border-t border-slate-200 bg-white/80 px-4 py-3 text-[10px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                          <span>
+                            ทีม {user.teamName} ·{" "}
+                            {teamConnectionMembers.length} คน
+                          </span>
+                          <span>
+                            ใช้รูปโปรไฟล์จริงของแต่ละ User และแสดงอักษรย่อเมื่อยังไม่มีรูป
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="px-5 py-10 text-center">
+                        <div className="text-sm font-medium text-slate-700">
+                          ยังไม่พบสมาชิกในทีมเดียวกัน
+                        </div>
+                        <div className="mt-1 text-xs text-slate-400">
+                          กรุณาตรวจสอบชื่อทีมและหัวหน้าทีมในข้อมูลบัญชี
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Section>
 
