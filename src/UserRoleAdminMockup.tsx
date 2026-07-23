@@ -2072,75 +2072,1052 @@ function MaintenancePanel({
   onMessageChange: (value: string) => void;
   onSaveMaintenanceMode: (enabled: boolean) => void | Promise<void>;
 }) {
+  const currentUserRaw =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("qa_current_user")
+      : "";
+
+  let currentUserName = "System Administrator";
+  try {
+    const currentUser = currentUserRaw
+      ? JSON.parse(currentUserRaw)
+      : null;
+    currentUserName =
+      String(currentUser?.displayName || currentUser?.username || "").trim() ||
+      "System Administrator";
+  } catch {
+    currentUserName = "System Administrator";
+  }
+
+  const toLocalDateTimeValue = (date: Date) => {
+    const offset = date.getTimezoneOffset();
+    return new Date(date.getTime() - offset * 60_000)
+      .toISOString()
+      .slice(0, 16);
+  };
+
+  const formatThaiDateTime = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return new Intl.DateTimeFormat("th-TH", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "Asia/Bangkok",
+    }).format(date);
+  };
+
+  const [controlState, setControlState] =
+    useState<AdvancedMaintenanceState>({
+      enabled: maintenanceState.enabled,
+      status: maintenanceState.enabled ? "active" : "open",
+      message: maintenanceMessage,
+      title: "ระบบอยู่ระหว่างการปรับปรุง",
+      reasonId: "",
+      reasonName: "",
+      severity: "planned",
+      scheduledStartAt: "",
+      scheduledEndAt: "",
+      autoOpenEnabled: false,
+      updatedAt: maintenanceState.updatedAt,
+      updatedBy: maintenanceState.updatedBy,
+    });
+
+  const [templates, setTemplates] =
+    useState<MaintenanceReasonTemplate[]>(
+      DEFAULT_MAINTENANCE_REASONS
+    );
+  const [selectedReasonId, setSelectedReasonId] = useState("");
+  const [title, setTitle] = useState(
+    "ระบบอยู่ระหว่างการปรับปรุง"
+  );
+  const [message, setMessage] = useState(maintenanceMessage);
+  const [severity, setSeverity] =
+    useState<MaintenanceSeverity>("planned");
+  const [startMode, setStartMode] =
+    useState<"now" | "scheduled">("now");
+  const [scheduledStartAt, setScheduledStartAt] = useState(
+    toLocalDateTimeValue(new Date(Date.now() + 5 * 60_000))
+  );
+  const [autoOpenEnabled, setAutoOpenEnabled] = useState(true);
+  const [scheduledEndAt, setScheduledEndAt] = useState(
+    toLocalDateTimeValue(new Date(Date.now() + 60 * 60_000))
+  );
+  const [templateDrawerOpen, setTemplateDrawerOpen] =
+    useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateTitle, setNewTemplateTitle] = useState(
+    "ระบบอยู่ระหว่างการปรับปรุง"
+  );
+  const [newTemplateMessage, setNewTemplateMessage] =
+    useState("");
+  const [newTemplateSeverity, setNewTemplateSeverity] =
+    useState<MaintenanceSeverity>("planned");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [savingLocal, setSavingLocal] = useState(false);
+  const [toast, setToast] = useState("");
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      fetchMaintenanceControlState(),
+      fetchMaintenanceReasonTemplates(),
+    ]).then(([storedState, storedTemplates]) => {
+      if (cancelled) return;
+
+      setControlState(storedState);
+      setTemplates(storedTemplates);
+      setSelectedReasonId(storedState.reasonId || "");
+      setTitle(
+        storedState.title || "ระบบอยู่ระหว่างการปรับปรุง"
+      );
+      setMessage(storedState.message || maintenanceMessage || "");
+      setSeverity(storedState.severity || "planned");
+      setAutoOpenEnabled(storedState.autoOpenEnabled);
+
+      if (storedState.scheduledStartAt) {
+        setScheduledStartAt(
+          toLocalDateTimeValue(
+            new Date(storedState.scheduledStartAt)
+          )
+        );
+      }
+
+      if (storedState.scheduledEndAt) {
+        setScheduledEndAt(
+          toLocalDateTimeValue(
+            new Date(storedState.scheduledEndAt)
+          )
+        );
+      }
+
+      setStartMode(
+        storedState.status === "scheduled" ? "scheduled" : "now"
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(""), 2600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const active = Boolean(
+    maintenanceState.enabled || controlState.enabled
+  );
+
+  const selectedTemplate =
+    templates.find((item) => item.id === selectedReasonId) ||
+    null;
+
+  const applyTemplate = (templateId: string) => {
+    setSelectedReasonId(templateId);
+
+    const template = templates.find(
+      (item) => item.id === templateId
+    );
+    if (!template) return;
+
+    setTitle(template.title);
+    setMessage(template.message);
+    setSeverity(template.severity);
+    onMessageChange(template.message);
+  };
+
+  const setQuickDuration = (minutes: number) => {
+    const startDate =
+      startMode === "scheduled"
+        ? new Date(scheduledStartAt)
+        : new Date();
+
+    const safeStart = Number.isNaN(startDate.getTime())
+      ? new Date()
+      : startDate;
+
+    setScheduledEndAt(
+      toLocalDateTimeValue(
+        new Date(safeStart.getTime() + minutes * 60_000)
+      )
+    );
+    setAutoOpenEnabled(true);
+  };
+
+  const saveTemplates = async (
+    nextTemplates: MaintenanceReasonTemplate[]
+  ) => {
+    setSavingLocal(true);
+    try {
+      const saved = await saveMaintenanceReasonTemplates(
+        nextTemplates
+      );
+      setTemplates(saved);
+      setToast("บันทึกสาเหตุ Maintenance แล้ว");
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "บันทึกสาเหตุไม่สำเร็จ"
+      );
+    } finally {
+      setSavingLocal(false);
+    }
+  };
+
+  const createTemplate = async () => {
+    const name = newTemplateName.trim();
+    const templateMessage = newTemplateMessage.trim();
+
+    if (!name || !templateMessage) {
+      setToast("กรุณากรอกชื่อสาเหตุและข้อความให้ครบ");
+      return;
+    }
+
+    const nextTemplate: MaintenanceReasonTemplate = {
+      id: `custom-${Date.now()}`,
+      name,
+      title:
+        newTemplateTitle.trim() ||
+        "ระบบอยู่ระหว่างการปรับปรุง",
+      message: templateMessage,
+      severity: newTemplateSeverity,
+      active: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveTemplates([...templates, nextTemplate]);
+    setSelectedReasonId(nextTemplate.id);
+    setTitle(nextTemplate.title);
+    setMessage(nextTemplate.message);
+    setSeverity(nextTemplate.severity);
+    onMessageChange(nextTemplate.message);
+    setNewTemplateName("");
+    setNewTemplateMessage("");
+    setTemplateDrawerOpen(false);
+  };
+
+  const removeTemplate = async (templateId: string) => {
+    const nextTemplates = templates.filter(
+      (item) => item.id !== templateId
+    );
+    await saveTemplates(nextTemplates);
+
+    if (selectedReasonId === templateId) {
+      setSelectedReasonId("");
+    }
+  };
+
+  const validateBeforeSave = () => {
+    if (!selectedReasonId) {
+      setToast("กรุณาเลือกสาเหตุการปิดระบบ");
+      return false;
+    }
+
+    if (!title.trim() || !message.trim()) {
+      setToast("กรุณากรอกหัวข้อและข้อความแจ้งผู้ใช้งาน");
+      return false;
+    }
+
+    const startDate =
+      startMode === "scheduled"
+        ? new Date(scheduledStartAt)
+        : new Date();
+    const endDate = new Date(scheduledEndAt);
+
+    if (
+      startMode === "scheduled" &&
+      Number.isNaN(startDate.getTime())
+    ) {
+      setToast("กรุณาระบุวันและเวลาเริ่ม Maintenance");
+      return false;
+    }
+
+    if (
+      autoOpenEnabled &&
+      (Number.isNaN(endDate.getTime()) ||
+        endDate.getTime() <= startDate.getTime())
+    ) {
+      setToast("เวลาเปิดระบบต้องอยู่หลังเวลาเริ่ม Maintenance");
+      return false;
+    }
+
+    return true;
+  };
+
+  const commitMaintenance = async () => {
+    if (!validateBeforeSave()) return;
+
+    const template =
+      templates.find((item) => item.id === selectedReasonId) ||
+      selectedTemplate;
+
+    const startDate =
+      startMode === "scheduled"
+        ? new Date(scheduledStartAt)
+        : new Date();
+
+    const scheduled =
+      startMode === "scheduled" &&
+      startDate.getTime() > Date.now();
+
+    const nextState: AdvancedMaintenanceState = {
+      enabled: !scheduled,
+      status: scheduled ? "scheduled" : "active",
+      message: message.trim(),
+      title: title.trim(),
+      reasonId: selectedReasonId,
+      reasonName:
+        template?.name || "Maintenance",
+      severity,
+      scheduledStartAt: startDate.toISOString(),
+      scheduledEndAt: autoOpenEnabled
+        ? new Date(scheduledEndAt).toISOString()
+        : "",
+      autoOpenEnabled,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUserName,
+    };
+
+    setSavingLocal(true);
+    try {
+      await saveMaintenanceControlState(nextState);
+      onMessageChange(nextState.message);
+
+      await onSaveMaintenanceMode(!scheduled);
+
+      setControlState(nextState);
+      setConfirmOpen(false);
+      setToast(
+        scheduled
+          ? "ตั้งเวลา Maintenance เรียบร้อยแล้ว"
+          : "เปิด Maintenance เรียบร้อยแล้ว"
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("qa-maintenance-state-updated", {
+          detail: nextState,
+        })
+      );
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "บันทึก Maintenance ไม่สำเร็จ"
+      );
+    } finally {
+      setSavingLocal(false);
+    }
+  };
+
+  const turnOffMaintenance = async () => {
+    const nextState: AdvancedMaintenanceState = {
+      ...controlState,
+      enabled: false,
+      status: "completed",
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUserName,
+    };
+
+    setSavingLocal(true);
+    try {
+      await saveMaintenanceControlState(nextState);
+      await onSaveMaintenanceMode(false);
+      setControlState(nextState);
+      setToast("เปิดระบบกลับมาใช้งานตามปกติแล้ว");
+    } catch (error) {
+      setToast(
+        error instanceof Error
+          ? error.message
+          : "เปิดระบบไม่สำเร็จ"
+      );
+    } finally {
+      setSavingLocal(false);
+    }
+  };
+
+  const severityStyles =
+    severity === "emergency"
+      ? {
+          border: "border-rose-300",
+          panel: "from-rose-50 via-white to-orange-50",
+          badge: "bg-rose-100 text-rose-700",
+          icon: "bg-rose-600",
+        }
+      : severity === "important"
+        ? {
+            border: "border-amber-300",
+            panel: "from-amber-50 via-white to-orange-50",
+            badge: "bg-amber-100 text-amber-700",
+            icon: "bg-amber-500",
+          }
+        : {
+            border: "border-violet-300",
+            panel: "from-violet-50 via-white to-fuchsia-50",
+            badge: "bg-violet-100 text-violet-700",
+            icon: "bg-violet-600",
+          };
+
+  const previewTarget =
+    autoOpenEnabled && scheduledEndAt
+      ? new Date(scheduledEndAt).getTime()
+      : 0;
+
+  const previewSeconds = previewTarget
+    ? Math.max(0, Math.floor((previewTarget - now) / 1000))
+    : 0;
+
+  const previewDays = Math.floor(previewSeconds / 86400);
+  const previewHours = Math.floor(
+    (previewSeconds % 86400) / 3600
+  );
+  const previewMinutes = Math.floor(
+    (previewSeconds % 3600) / 60
+  );
+  const previewSecondsOnly = previewSeconds % 60;
+
+  const busy = saving || savingLocal;
+
   return (
-    <div className="bg-slate-50/70 p-5 lg:p-6">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className={`rounded-[28px] border bg-white p-6 shadow-sm ${maintenanceState.enabled ? "border-amber-200" : "border-slate-200"}`}>
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Operational Control</div>
-              <div className="mt-2 text-2xl font-black text-slate-950">
-                {maintenanceState.enabled ? "Maintenance Mode is ON" : "Maintenance Mode is OFF"}
-              </div>
-              <div className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                When enabled, non-admin users cannot access QA Dashboard and usage logging is paused for them. Use this while editing data, roles, or system configuration.
-              </div>
-            </div>
-            <div className={`inline-flex rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] ${
-              maintenanceState.enabled
-                ? "border-amber-200 bg-amber-50 text-amber-700"
-                : "border-emerald-200 bg-emerald-50 text-emerald-700"
-            }`}>
-              {maintenanceState.enabled ? "Protected" : "Open"}
-            </div>
+    <div
+      data-unsaved-changes={
+        savingLocal ? "true" : "false"
+      }
+      className="min-h-full bg-gradient-to-br from-slate-50 via-white to-violet-50/40 p-5 lg:p-6"
+    >
+      {toast ? (
+        <div className="fixed right-5 top-5 z-[240] rounded-2xl border border-violet-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
+          {toast}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-violet-600">
+            System Operations
           </div>
-
-          <label className="mt-6 block">
-            <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Message shown to users</div>
-            <textarea
-              value={maintenanceMessage}
-              onChange={(event) => onMessageChange(event.target.value)}
-              className="mt-3 min-h-[120px] w-full rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
-            />
-          </label>
-
-          {maintenanceState.updatedBy ? (
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
-              Last updated by {maintenanceState.updatedBy}
-            </div>
-          ) : null}
+          <div className="mt-1 text-[32px] font-semibold tracking-tight text-slate-950">
+            Maintenance Control Center
+          </div>
+          <div className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+            จัดการการปิดระบบ เลือกหรือสร้างสาเหตุ กำหนดเวลาเริ่ม และเปิดระบบกลับอัตโนมัติ
+          </div>
         </div>
 
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Action Panel</div>
-          <div className="mt-2 text-xl font-black text-slate-950">Maintenance Switch</div>
-          <div className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            Turn maintenance on before making large edits. Turn it off when the system is ready for everyone.
-          </div>
-          <div className="mt-6 grid gap-3">
-            <button
-              type="button"
-              disabled={saving || maintenanceState.enabled}
-              onClick={() => void onSaveMaintenanceMode(true)}
-              className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Turn On Maintenance
-            </button>
-            <button
-              type="button"
-              disabled={saving || !maintenanceState.enabled}
-              onClick={() => void onSaveMaintenanceMode(false)}
-              className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Turn Off Maintenance
-            </button>
+        <div
+          className={`inline-flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+            active
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : controlState.status === "scheduled"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              active
+                ? "bg-rose-500"
+                : controlState.status === "scheduled"
+                  ? "bg-amber-500"
+                  : "bg-emerald-500"
+            }`}
+          />
+          <div>
+            <div className="text-xs font-medium">
+              สถานะปัจจุบัน
+            </div>
+            <div className="mt-0.5 text-sm font-semibold">
+              {active
+                ? "Maintenance เปิดอยู่"
+                : controlState.status === "scheduled"
+                  ? "ตั้งเวลา Maintenance แล้ว"
+                  : "ระบบเปิดใช้งานปกติ"}
+            </div>
           </div>
         </div>
       </div>
+
+      {active || controlState.status === "scheduled" ? (
+        <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-4 md:grid-cols-4">
+            <div>
+              <div className="text-xs text-slate-400">สาเหตุ</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
+                {controlState.reasonName || "-"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400">เริ่ม</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
+                {formatThaiDateTime(
+                  controlState.scheduledStartAt
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400">เปิดกลับ</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
+                {controlState.autoOpenEnabled
+                  ? formatThaiDateTime(
+                      controlState.scheduledEndAt
+                    )
+                  : "เปิดด้วยตนเอง"}
+              </div>
+            </div>
+            <div className="flex items-end justify-start md:justify-end">
+              {active ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void turnOffMaintenance()}
+                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  เปิดระบบตอนนี้
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="space-y-5">
+          <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">
+                  รายละเอียด Maintenance
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  เลือกสาเหตุเดิมหรือสร้าง Template ใหม่ไว้ใช้ครั้งต่อไป
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setTemplateDrawerOpen((current) => !current)
+                }
+                className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-700"
+              >
+                จัดการสาเหตุ
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4">
+              <label className="block">
+                <span className="text-xs font-medium text-slate-600">
+                  สาเหตุการปิดระบบ *
+                </span>
+                <select
+                  value={selectedReasonId}
+                  onChange={(event) =>
+                    applyTemplate(event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                >
+                  <option value="">เลือกสาเหตุการปิดระบบ</option>
+                  {templates
+                    .filter((item) => item.active)
+                    .map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-slate-600">
+                  หัวข้อที่แสดงบนหน้า Login
+                </span>
+                <input
+                  value={title}
+                  onChange={(event) =>
+                    setTitle(event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium text-slate-600">
+                  ข้อความแจ้งผู้ใช้งาน
+                </span>
+                <textarea
+                  value={message}
+                  onChange={(event) => {
+                    setMessage(event.target.value);
+                    onMessageChange(event.target.value);
+                  }}
+                  className="mt-2 min-h-[125px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-800 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                />
+              </label>
+
+              <div>
+                <div className="text-xs font-medium text-slate-600">
+                  ระดับการแจ้งเตือน
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {[
+                    ["planned", "Planned"],
+                    ["important", "Important"],
+                    ["emergency", "Emergency"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() =>
+                        setSeverity(
+                          value as MaintenanceSeverity
+                        )
+                      }
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-medium ${
+                        severity === value
+                          ? value === "emergency"
+                            ? "border-rose-300 bg-rose-50 text-rose-700"
+                            : value === "important"
+                              ? "border-amber-300 bg-amber-50 text-amber-700"
+                              : "border-violet-300 bg-violet-50 text-violet-700"
+                          : "border-slate-200 bg-white text-slate-500"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-lg font-semibold text-slate-950">
+              กำหนดวันและเวลา
+            </div>
+            <div className="mt-1 text-sm text-slate-500">
+              ตั้งให้เริ่มทันทีหรือเริ่มในอนาคต และกำหนดเวลาเปิดระบบกลับ
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setStartMode("now")}
+                className={`rounded-2xl border px-4 py-3 text-left ${
+                  startMode === "now"
+                    ? "border-violet-300 bg-violet-50"
+                    : "border-slate-200 bg-white"
+                }`}
+              >
+                <div className="text-sm font-semibold text-slate-900">
+                  เปิด Maintenance ทันที
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  มีผลหลังยืนยัน
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStartMode("scheduled")}
+                className={`rounded-2xl border px-4 py-3 text-left ${
+                  startMode === "scheduled"
+                    ? "border-violet-300 bg-violet-50"
+                    : "border-slate-200 bg-white"
+                }`}
+              >
+                <div className="text-sm font-semibold text-slate-900">
+                  กำหนดเวลาเริ่ม
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  ระบบเริ่มตามเวลาที่ตั้งไว้
+                </div>
+              </button>
+            </div>
+
+            {startMode === "scheduled" ? (
+              <label className="mt-4 block">
+                <span className="text-xs font-medium text-slate-600">
+                  วันและเวลาเริ่ม Maintenance
+                </span>
+                <input
+                  type="datetime-local"
+                  value={scheduledStartAt}
+                  onChange={(event) =>
+                    setScheduledStartAt(event.target.value)
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                />
+              </label>
+            ) : null}
+
+            <label className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">
+                  เปิดระบบกลับอัตโนมัติ
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  เมื่อถึงเวลาที่กำหนด ระบบจะเปลี่ยนสถานะเป็นเปิดใช้งาน
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={autoOpenEnabled}
+                onChange={(event) =>
+                  setAutoOpenEnabled(event.target.checked)
+                }
+                className="h-5 w-5 accent-violet-600"
+              />
+            </label>
+
+            {autoOpenEnabled ? (
+              <>
+                <label className="mt-4 block">
+                  <span className="text-xs font-medium text-slate-600">
+                    วันและเวลาเปิดระบบกลับ
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={scheduledEndAt}
+                    onChange={(event) =>
+                      setScheduledEndAt(event.target.value)
+                    }
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                  />
+                </label>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    [15, "15 นาที"],
+                    [30, "30 นาที"],
+                    [60, "1 ชั่วโมง"],
+                    [120, "2 ชั่วโมง"],
+                    [240, "4 ชั่วโมง"],
+                  ].map(([minutes, label]) => (
+                    <button
+                      key={String(minutes)}
+                      type="button"
+                      onClick={() =>
+                        setQuickDuration(Number(minutes))
+                      }
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+
+            <div className="mt-5 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm leading-6 text-violet-800">
+              {startMode === "scheduled"
+                ? `ระบบจะเริ่ม Maintenance วันที่ ${formatThaiDateTime(
+                    scheduledStartAt
+                  )}`
+                : "ระบบจะเริ่ม Maintenance ทันทีหลังยืนยัน"}
+              {autoOpenEnabled
+                ? ` และเปิดกลับอัตโนมัติวันที่ ${formatThaiDateTime(
+                    scheduledEndAt
+                  )}`
+                : " และต้องเปิดระบบกลับด้วยตนเอง"}
+            </div>
+          </section>
+        </div>
+
+        <div className="space-y-5">
+          <section
+            className={`overflow-hidden rounded-[28px] border bg-gradient-to-br ${severityStyles.border} ${severityStyles.panel} shadow-sm`}
+          >
+            <div className={`h-1.5 ${severityStyles.icon}`} />
+            <div className="p-5">
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                Login Preview
+              </div>
+
+              <div className="mt-4 flex items-start gap-4">
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl text-white shadow-lg ${severityStyles.icon}`}>
+                  !
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${severityStyles.badge}`}>
+                    {selectedTemplate?.name || "Maintenance"}
+                  </div>
+                  <div className="mt-2 text-xl font-semibold text-slate-950">
+                    {title || "ระบบอยู่ระหว่างการปรับปรุง"}
+                  </div>
+                  <div className="mt-2 text-sm leading-6 text-slate-600">
+                    {message || "ข้อความแจ้งผู้ใช้งานจะแสดงตรงนี้"}
+                  </div>
+                </div>
+              </div>
+
+              {autoOpenEnabled ? (
+                <div className="mt-5 rounded-2xl border border-white/80 bg-white/80 p-4">
+                  <div className="text-xs text-slate-500">
+                    ระบบจะเปิดให้ใช้งานอีกครั้ง
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-950">
+                    {formatThaiDateTime(scheduledEndAt)}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-4 gap-2">
+                    {[
+                      ["วัน", previewDays],
+                      ["ชั่วโมง", previewHours],
+                      ["นาที", previewMinutes],
+                      ["วินาที", previewSecondsOnly],
+                    ].map(([label, value]) => (
+                      <div
+                        key={String(label)}
+                        className="rounded-xl border border-slate-200 bg-white px-2 py-3 text-center"
+                      >
+                        <div className="text-lg font-semibold text-slate-950">
+                          {String(value).padStart(2, "0")}
+                        </div>
+                        <div className="mt-1 text-[10px] text-slate-500">
+                          {label}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4 rounded-xl bg-white/70 px-3 py-2 text-xs text-slate-500">
+                เจ้าของระบบและ Role ที่มีสิทธิ์ Manage Maintenance ยัง Login และใช้งานได้
+              </div>
+            </div>
+          </section>
+
+          <section className="sticky top-5 rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-lg font-semibold text-slate-950">
+              ตรวจสอบก่อนดำเนินการ
+            </div>
+            <div className="mt-3 space-y-3 text-sm text-slate-600">
+              <div className="flex justify-between gap-4">
+                <span>สาเหตุ</span>
+                <span className="text-right font-medium text-slate-900">
+                  {selectedTemplate?.name || "-"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>เริ่ม</span>
+                <span className="text-right font-medium text-slate-900">
+                  {startMode === "now"
+                    ? "ทันที"
+                    : formatThaiDateTime(scheduledStartAt)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>เปิดกลับ</span>
+                <span className="text-right font-medium text-slate-900">
+                  {autoOpenEnabled
+                    ? formatThaiDateTime(scheduledEndAt)
+                    : "เปิดด้วยตนเอง"}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (validateBeforeSave()) setConfirmOpen(true);
+              }}
+              className="mt-5 w-full rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-3.5 text-sm font-medium text-white shadow-[0_14px_30px_rgba(109,40,217,0.22)] disabled:opacity-50"
+            >
+              {startMode === "scheduled"
+                ? "ตั้งเวลา Maintenance"
+                : "เปิด Maintenance"}
+            </button>
+          </section>
+        </div>
+      </div>
+
+      {templateDrawerOpen ? (
+        <div className="fixed inset-0 z-[230] flex justify-end bg-slate-950/35 backdrop-blur-sm">
+          <button
+            type="button"
+            aria-label="ปิด"
+            onClick={() => setTemplateDrawerOpen(false)}
+            className="absolute inset-0"
+          />
+          <div className="relative h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-2xl font-semibold text-slate-950">
+                  Maintenance Reasons
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  สร้างและจัดการสาเหตุไว้ใช้ในครั้งต่อไป
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTemplateDrawerOpen(false)}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500"
+              >
+                ปิด
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+              <div className="text-sm font-semibold text-slate-900">
+                เพิ่มสาเหตุใหม่
+              </div>
+              <div className="mt-4 grid gap-3">
+                <input
+                  value={newTemplateName}
+                  onChange={(event) =>
+                    setNewTemplateName(event.target.value)
+                  }
+                  placeholder="ชื่อสาเหตุ"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
+                />
+                <input
+                  value={newTemplateTitle}
+                  onChange={(event) =>
+                    setNewTemplateTitle(event.target.value)
+                  }
+                  placeholder="หัวข้อบนหน้า Login"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
+                />
+                <textarea
+                  value={newTemplateMessage}
+                  onChange={(event) =>
+                    setNewTemplateMessage(event.target.value)
+                  }
+                  placeholder="ข้อความเริ่มต้น"
+                  className="min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
+                />
+                <select
+                  value={newTemplateSeverity}
+                  onChange={(event) =>
+                    setNewTemplateSeverity(
+                      event.target.value as MaintenanceSeverity
+                    )
+                  }
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none"
+                >
+                  <option value="planned">Planned</option>
+                  <option value="important">Important</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void createTemplate()}
+                  className="rounded-xl bg-violet-700 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  บันทึกสาเหตุใหม่
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-900">
+                        {template.name}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {template.title}
+                      </div>
+                      <div className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                        {template.message}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void removeTemplate(template.id)
+                      }
+                      className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600 disabled:opacity-50"
+                    >
+                      ลบ
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmOpen ? (
+        <div className="fixed inset-0 z-[240] flex items-center justify-center bg-slate-950/45 p-5 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="text-xl font-semibold text-slate-950">
+              ยืนยันการตั้งค่า Maintenance
+            </div>
+            <div className="mt-2 text-sm leading-6 text-slate-500">
+              กรุณาตรวจสอบสาเหตุ วันและเวลาให้ถูกต้องก่อนดำเนินการ
+            </div>
+
+            <div className="mt-5 space-y-3 rounded-2xl bg-slate-50 p-4 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-500">สาเหตุ</span>
+                <span className="text-right font-medium text-slate-900">
+                  {selectedTemplate?.name}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-500">เริ่ม</span>
+                <span className="text-right font-medium text-slate-900">
+                  {startMode === "now"
+                    ? "ทันที"
+                    : formatThaiDateTime(scheduledStartAt)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-500">เปิดกลับ</span>
+                <span className="text-right font-medium text-slate-900">
+                  {autoOpenEnabled
+                    ? formatThaiDateTime(scheduledEndAt)
+                    : "เปิดด้วยตนเอง"}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void commitMaintenance()}
+                className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+              >
+                ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
-
 function AdminPrimaryTabButton({
   active,
   title,
@@ -2677,6 +3654,16 @@ function TeamManagementPanel({
 }
 
 // data-role-permission-readable-font-v58
+import {
+  DEFAULT_MAINTENANCE_REASONS,
+  fetchMaintenanceControlState,
+  fetchMaintenanceReasonTemplates,
+  MaintenanceControlState as AdvancedMaintenanceState,
+  MaintenanceReasonTemplate,
+  MaintenanceSeverity,
+  saveMaintenanceControlState,
+  saveMaintenanceReasonTemplates,
+} from "./maintenanceControlStore";
 // data-role-permission-column-layout-v59
 function PermissionThaiTooltip({
   label,
