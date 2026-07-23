@@ -277,7 +277,7 @@ function thaiDate(value: string) {
   );
 
   if (direct) {
-    return `${direct[2]}/${direct[3]}/${direct[1]}`;
+    return `${direct[3]}/${direct[2]}/${direct[1]}`;
   }
 
   const date = new Date(value);
@@ -300,7 +300,7 @@ function thaiDate(value: string) {
     ])
   );
 
-  return `${map.month}/${map.day}/${map.year}`;
+  return `${map.day}/${map.month}/${map.year}`;
 }
 
 function formatDateTime(value: string) {
@@ -331,7 +331,7 @@ function formatDateTime(value: string) {
     ])
   );
 
-  return `${map.month}/${map.day}/${map.year} ${map.hour}:${map.minute}`;
+  return `${map.day}/${map.month}/${map.year} ${map.hour}:${map.minute}`;
 }
 
 function valueOrDash(value: unknown) {
@@ -796,7 +796,9 @@ function buildProfileAuditChanges(
     const beforeText = formatter(before);
     const afterText = formatter(after);
 
-    if (beforeText === afterText) return;
+    if (beforeText === afterText) {
+      return;
+    }
 
     changes.push({
       field,
@@ -805,13 +807,120 @@ function buildProfileAuditChanges(
     });
   };
 
-  const dateFormatter = (value: unknown) => {
-    const text = String(value || "").trim();
-    return text ? thaiDate(text) : "ไม่ได้ระบุ";
+  const dateFormatter = (
+    value: unknown
+  ) => {
+    const text = String(
+      value || ""
+    ).trim();
+
+    return text
+      ? thaiDate(text)
+      : "Not provided";
+  };
+
+  const booleanFormatter = (
+    value: unknown
+  ) =>
+    value === true ||
+    value === "true"
+      ? "Yes"
+      : "No";
+
+  const lifecycleFormatter = (
+    value: unknown
+  ) => {
+    const labels: Record<
+      string,
+      string
+    > = {
+      active: "Active",
+      scheduled: "Scheduled",
+      suspended: "Suspended",
+      offboarding: "Offboarding",
+    };
+
+    return (
+      labels[String(value || "")] ||
+      auditText(value)
+    );
+  };
+
+  const offboardingFormatter = (
+    value: unknown
+  ) => {
+    const labels: Record<
+      string,
+      string
+    > = {
+      Working: "Not started",
+      "In Progress": "In progress",
+      Completed: "Completed",
+    };
+
+    return (
+      labels[String(value || "")] ||
+      auditText(value)
+    );
+  };
+
+  const returnedItemsFormatter = (
+    value: unknown
+  ) => {
+    let parsed: Record<
+      string,
+      boolean
+    > = {};
+
+    if (
+      typeof value === "string"
+    ) {
+      try {
+        parsed = JSON.parse(value);
+      } catch {
+        parsed = {};
+      }
+    } else if (
+      value &&
+      typeof value === "object"
+    ) {
+      parsed = value as Record<
+        string,
+        boolean
+      >;
+    }
+
+    const labels: Record<
+      string,
+      string
+    > = {
+      device: "Device",
+      workSim: "Work SIM",
+      cable: "Charging cable",
+      adapter: "Power adapter",
+      accessories: "Case / Accessories",
+      companyDataWiped:
+        "Company data wiped",
+    };
+
+    const selected =
+      Object.entries(parsed)
+        .filter(
+          ([, checked]) =>
+            checked === true
+        )
+        .map(
+          ([key]) =>
+            labels[key] || key
+        );
+
+    return selected.length
+      ? selected.join(", ")
+      : "Not provided";
   };
 
   add(
-    "ชื่อ–นามสกุล",
+    "Full Name",
     beforeAccount.displayName,
     afterAccount.displayName
   );
@@ -821,7 +930,7 @@ function buildProfileAuditChanges(
     afterAccount.agentName
   );
   add(
-    "อีเมล",
+    "Work Email",
     beforeAccount.email,
     afterAccount.email
   );
@@ -831,83 +940,111 @@ function buildProfileAuditChanges(
     afterAccount.role
   );
   add(
-    "ทีม",
+    "Team",
     beforeAccount.teamName,
     afterAccount.teamName
   );
   add(
-    "หัวหน้าทีม",
+    "Team Lead",
     beforeAccount.teamLead,
     afterAccount.teamLead
   );
   add(
-    "สถานะบัญชี",
+    "Account Status",
     beforeAccount.status,
     afterAccount.status
   );
 
   add(
-    "ชื่อเล่น",
+    "Preferred Name",
     beforeMeta.preferredName,
     afterMeta.preferredName
   );
   add(
-    "รหัสพนักงาน",
+    "Employee ID",
     beforeMeta.employeeId,
     afterMeta.employeeId
   );
   add(
-    "เบอร์สำนักงาน",
+    "Office Number",
     beforeMeta.officeNumber,
     afterMeta.officeNumber
   );
   add(
-    "เบอร์ต่อภายใน",
+    "Extension",
     beforeMeta.extension,
     afterMeta.extension
   );
   add(
-    "หมายเลขสำนักงานสำรอง",
+    "Office Usage",
+    beforeMeta.officeUsage,
+    afterMeta.officeUsage
+  );
+  add(
+    "Backup Office Number",
     beforeMeta.backupOfficeNumber,
     afterMeta.backupOfficeNumber
   );
   add(
-    "หมายเหตุการติดต่อ",
+    "Contact Note",
     beforeMeta.contactNote,
     afterMeta.contactNote
   );
 
   add(
-    "วันที่มีผลระงับบัญชี",
+    "Lifecycle Mode",
+    beforeMeta.lifecycleMode,
+    afterMeta.lifecycleMode,
+    lifecycleFormatter
+  );
+  add(
+    "Suspension Effective Date",
     beforeMeta.effectiveDate,
     afterMeta.effectiveDate,
     dateFormatter
   );
   add(
-    "เหตุผลการระงับบัญชี",
+    "Suspension Reason",
     beforeMeta.suspendReason,
     afterMeta.suspendReason
   );
-
   add(
-    "สถานะ Offboarding",
-    beforeMeta.offboardingStatus,
-    afterMeta.offboardingStatus,
-    (value) =>
-      value === "In Progress"
-        ? "อยู่ระหว่าง Offboarding"
-        : value === "Completed"
-          ? "สิ้นสุดงานแล้ว"
-          : "ยังไม่ได้เริ่ม"
+    "Suspension End Date",
+    beforeMeta.endDate,
+    afterMeta.endDate,
+    dateFormatter
   );
   add(
-    "วันที่สิ้นสุดงาน",
+    "Auto Reactivate",
+    beforeMeta.autoReactivate,
+    afterMeta.autoReactivate,
+    booleanFormatter
+  );
+  add(
+    "Approver",
+    beforeMeta.approver,
+    afterMeta.approver
+  );
+  add(
+    "Lifecycle Note",
+    beforeMeta.lifecycleNote,
+    afterMeta.lifecycleNote
+  );
+
+  add(
+    "Offboarding Status",
+    beforeMeta.offboardingStatus,
+    afterMeta.offboardingStatus,
+    offboardingFormatter
+  );
+  add(
+    "Employment End Date",
     beforeMeta.employmentEndDate,
     afterMeta.employmentEndDate,
     dateFormatter
   );
   add(
-    "หมายเหตุ Offboarding",
+    "Offboarding Note",
     beforeMeta.offboardingNote,
     afterMeta.offboardingNote
   );
@@ -927,151 +1064,148 @@ function buildProfileAuditChanges(
     const afterDevice =
       afterMeta.devices[index];
     const prefix =
-      `อุปกรณ์เครื่องที่ ${index + 1}`;
-
-    if (!beforeDevice && afterDevice) {
-      add(
-        prefix,
-        "",
-        deviceAuditSummary(afterDevice)
-      );
-      continue;
-    }
-
-    if (beforeDevice && !afterDevice) {
-      add(
-        prefix,
-        deviceAuditSummary(beforeDevice),
-        ""
-      );
-      continue;
-    }
-
-    if (!beforeDevice || !afterDevice) {
-      continue;
-    }
+      `Device ${index + 1}`;
 
     add(
-      `${prefix} · สถานะ`,
-      statusLabel(
-        effectiveDeviceStatus(beforeDevice)
-      ),
-      statusLabel(
-        effectiveDeviceStatus(afterDevice)
-      )
+      `${prefix} · Primary`,
+      beforeDevice?.isPrimary,
+      afterDevice?.isPrimary,
+      booleanFormatter
     );
     add(
-      `${prefix} · รุ่น`,
-      [beforeDevice.brand, beforeDevice.model]
-        .filter(Boolean)
-        .join(" "),
-      [afterDevice.brand, afterDevice.model]
-        .filter(Boolean)
-        .join(" ")
+      `${prefix} · Status`,
+      beforeDevice
+        ? statusLabel(
+            effectiveDeviceStatus(
+              beforeDevice
+            )
+          )
+        : "",
+      afterDevice
+        ? statusLabel(
+            effectiveDeviceStatus(
+              afterDevice
+            )
+          )
+        : ""
+    );
+    add(
+      `${prefix} · Brand`,
+      beforeDevice?.brand,
+      afterDevice?.brand
+    );
+    add(
+      `${prefix} · Model`,
+      beforeDevice?.model,
+      afterDevice?.model
+    );
+    add(
+      `${prefix} · Series`,
+      beforeDevice?.series,
+      afterDevice?.series
+    );
+    add(
+      `${prefix} · Operating System`,
+      beforeDevice?.os,
+      afterDevice?.os
     );
     add(
       `${prefix} · Asset ID`,
-      beforeDevice.assetId,
-      afterDevice.assetId
+      beforeDevice?.assetId,
+      afterDevice?.assetId
     );
     add(
       `${prefix} · Serial Number`,
-      beforeDevice.serialNumber,
-      afterDevice.serialNumber
+      beforeDevice?.serialNumber,
+      afterDevice?.serialNumber
     );
     add(
       `${prefix} · IMEI`,
-      beforeDevice.imei,
-      afterDevice.imei
+      beforeDevice?.imei,
+      afterDevice?.imei
+    );
+    add(
+      `${prefix} · IMEI 2`,
+      beforeDevice?.imei2,
+      afterDevice?.imei2
     );
     add(
       `${prefix} · Work SIM`,
-      beforeDevice.workSim,
-      afterDevice.workSim
+      beforeDevice?.workSim,
+      afterDevice?.workSim
     );
     add(
-      `${prefix} · แพ็กเกจ Work SIM`,
-      beforeDevice.simPackage,
-      afterDevice.simPackage
+      `${prefix} · SIM Package`,
+      beforeDevice?.simPackage,
+      afterDevice?.simPackage
     );
     add(
-      `${prefix} · วันที่มอบหมาย`,
-      beforeDevice.assignedDate,
-      afterDevice.assignedDate,
+      `${prefix} · Assigned Date`,
+      beforeDevice?.assignedDate,
+      afterDevice?.assignedDate,
       dateFormatter
     );
     add(
-      `${prefix} · สถานะการคืน`,
-      returnLabel(beforeDevice.returnStatus),
-      returnLabel(afterDevice.returnStatus)
+      `${prefix} · Device Note`,
+      beforeDevice?.note,
+      afterDevice?.note
     );
     add(
-      `${prefix} · วันที่คืน`,
-      beforeDevice.returnDate,
-      afterDevice.returnDate,
-      dateFormatter
-    );
-    add(
-      `${prefix} · สภาพอุปกรณ์`,
-      conditionLabel(beforeDevice.condition),
-      conditionLabel(afterDevice.condition)
-    );
-    add(
-      `${prefix} · ผู้ส่งคืน`,
-      beforeDevice.returnedBy,
-      afterDevice.returnedBy
-    );
-    add(
-      `${prefix} · ผู้รับคืน`,
-      beforeDevice.receivedBy,
-      afterDevice.receivedBy
-    );
-    add(
-      `${prefix} · รายการคืน`,
-      JSON.stringify(
-        beforeDevice.returnedItems
-      ),
-      JSON.stringify(
-        afterDevice.returnedItems
-      ),
-      (value) => {
-        try {
-          const parsed = JSON.parse(
-            String(value || "{}")
-          ) as Record<string, boolean>;
-          const labels: Record<
-            string,
-            string
-          > = {
-            device: "ตัวเครื่อง",
-            workSim: "Work SIM",
-            cable: "สายชาร์จ",
-            adapter: "หัวชาร์จ",
-            accessories:
-              "เคส / อุปกรณ์เสริม",
-            companyDataWiped:
-              "ล้างข้อมูลบริษัทแล้ว",
-          };
-
-          const selected = Object.entries(
-            parsed
+      `${prefix} · Return Status`,
+      beforeDevice
+        ? returnLabel(
+            beforeDevice.returnStatus
           )
-            .filter(([, checked]) => checked)
-            .map(
-              ([key]) => labels[key] || key
-            );
-
-          return selected.length
-            ? selected.join(", ")
-            : "ยังไม่มีรายการที่คืน";
-        } catch {
-          return "ยังไม่มีรายการที่คืน";
-        }
-      }
+        : "",
+      afterDevice
+        ? returnLabel(
+            afterDevice.returnStatus
+          )
+        : ""
+    );
+    add(
+      `${prefix} · Return Date`,
+      beforeDevice?.returnDate,
+      afterDevice?.returnDate,
+      dateFormatter
+    );
+    add(
+      `${prefix} · Returned By`,
+      beforeDevice?.returnedBy,
+      afterDevice?.returnedBy
+    );
+    add(
+      `${prefix} · Received By`,
+      beforeDevice?.receivedBy,
+      afterDevice?.receivedBy
+    );
+    add(
+      `${prefix} · Condition`,
+      beforeDevice
+        ? conditionLabel(
+            beforeDevice.condition
+          )
+        : "",
+      afterDevice
+        ? conditionLabel(
+            afterDevice.condition
+          )
+        : ""
+    );
+    add(
+      `${prefix} · Return Note`,
+      beforeDevice?.returnNote,
+      afterDevice?.returnNote
+    );
+    add(
+      `${prefix} · Returned Items`,
+      beforeDevice?.returnedItems,
+      afterDevice?.returnedItems,
+      returnedItemsFormatter
     );
   }
 
-  return changes.slice(0, 80);
+  return changes;
 }
 
 function auditHistoryTitle(
@@ -1080,63 +1214,71 @@ function auditHistoryTitle(
   const fields = changes.map(
     (change) => change.field
   );
-  const suspensionOnly = fields.every(
-    (field) =>
-      field.includes("ระงับบัญชี") ||
-      field === "สถานะบัญชี"
-  );
-  const offboardingOnly = fields.every(
-    (field) =>
-      field.includes("Offboarding") ||
-      field.includes("สิ้นสุดงาน") ||
-      field.includes("อุปกรณ์เครื่องที่")
-  );
-  const deviceOnly = fields.every(
-    (field) =>
-      field.includes("อุปกรณ์เครื่องที่")
-  );
-  const accountOnly = fields.every(
-    (field) =>
-      [
-        "ชื่อ–นามสกุล",
-        "Agent Name",
-        "อีเมล",
-        "Role",
-        "ทีม",
-        "หัวหน้าทีม",
-        "ชื่อเล่น",
-        "รหัสพนักงาน",
-        "เบอร์สำนักงาน",
-        "เบอร์ต่อภายใน",
-        "หมายเลขสำนักงานสำรอง",
-        "หมายเหตุการติดต่อ",
-      ].includes(field)
-  );
+
+  const suspensionOnly =
+    fields.length > 0 &&
+    fields.every(
+      (field) =>
+        field ===
+          "Account Status" ||
+        field ===
+          "Lifecycle Mode" ||
+        field.startsWith(
+          "Suspension "
+        ) ||
+        field ===
+          "Auto Reactivate" ||
+        field === "Approver" ||
+        field ===
+          "Lifecycle Note"
+    );
 
   if (suspensionOnly) {
-    const cancelled = changes.some(
-      (change) =>
-        change.field.includes(
-          "วันที่มีผลระงับบัญชี"
-        ) &&
-        change.after === "ไม่ได้ระบุ"
-    );
+    const cancelled =
+      changes.some(
+        (change) =>
+          change.field ===
+            "Suspension Effective Date" &&
+          change.after ===
+            "Not provided"
+      );
 
     return cancelled
       ? "Suspension Schedule Cancelled"
       : "Suspension Scheduled";
   }
 
+  const offboardingOnly =
+    fields.length > 0 &&
+    fields.every(
+      (field) =>
+        field.startsWith(
+          "Offboarding "
+        ) ||
+        field ===
+          "Employment End Date"
+    );
+
   if (offboardingOnly) {
     return "Offboarding Updated";
   }
 
-  if (deviceOnly) {
-    return "Device Updated";
-  }
+  const deviceOnly =
+    fields.length > 0 &&
+    fields.every((field) =>
+      field.startsWith("Device ")
+    );
 
-  if (accountOnly) {
-    return "Profile Updated";
+  if (deviceOnly) {
+    return changes.some(
+      (change) =>
+        change.before ===
+          "Not provided" &&
+        change.after !==
+          "Not provided"
+    )
+      ? "Device Added"
+      : "Device Updated";
   }
 
   return "Profile Updated";
@@ -1851,23 +1993,15 @@ export default function CorporateUserDirectoryProfile({
     [rows]
   );
 
-  const filteredRows = useMemo(() => {
-    const expectedStatus =
-      statusView === "active"
-        ? "Active"
-        : "Suspended";
-
-    return rows
-      .filter(
-        (row) =>
-          row.status === expectedStatus
-      )
-      .sort((a, b) =>
+  const filteredRows = useMemo(
+    () =>
+      [...rows].sort((a, b) =>
         a.displayName.localeCompare(
           b.displayName
         )
-      );
-  }, [rows, statusView]);
+      ),
+    [rows]
+  );
 
   const searchResults = useMemo(() => {
     const keyword =
@@ -2726,43 +2860,53 @@ export default function CorporateUserDirectoryProfile({
         </div>
       </header>
 
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex w-fit gap-1 rounded-2xl border border-slate-200 bg-white p-1">
-          <button
-            type="button"
-            title="แสดงบัญชี Active รวมบัญชีที่ตั้งเวลาระงับในอนาคต"
-            onClick={() => changeView("active")}
-            className={`rounded-xl px-4 py-2.5 text-sm font-medium ${
-              statusView === "active" ? "bg-violet-700 text-white" : "text-slate-600"
-            }`}
-          >
-            ผู้ใช้งานปัจจุบัน {rows.filter((row) => row.status === "Active").length}
-          </button>
-          <button
-            type="button"
-            title="แสดงบัญชีที่ถูกระงับแล้ว"
-            onClick={() => changeView("suspended")}
-            className={`rounded-xl px-4 py-2.5 text-sm font-medium ${
-              statusView === "suspended" ? "bg-rose-600 text-white" : "text-slate-600"
-            }`}
-          >
-            บัญชี Suspended {rows.filter((row) => row.status === "Suspended").length}
-          </button>
-        </div>
-        <div className="text-xs text-slate-500">
-          Scheduled Suspend จะอยู่ในผู้ใช้งานปัจจุบันจนถึงวันที่มีผล
-        </div>
-      </div>
+      <div className="min-h-[760px]">
+        <main className="min-w-0 bg-gradient-to-b from-white to-slate-50">
+          {user && account ? (
+            <>
+              <div className="border-b border-slate-200 bg-white p-5">
+                <div className="grid gap-4 xl:grid-cols-[minmax(260px,1fr)_minmax(380px,590px)_auto] xl:items-center">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[22px] bg-gradient-to-br text-xl font-semibold text-white ${avatarClass(
+                        account.role
+                      )}`}
+                    >
+                      {profilePhotos[
+                        user.normalizedUsername
+                      ] ? (
+                        <img
+                          src={
+                            profilePhotos[
+                              user.normalizedUsername
+                            ]
+                          }
+                          alt={`รูปโปรไฟล์ของ ${account.displayName}`}
+                          draggable={false}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        initials(account.displayName)
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-semibold text-slate-950">{account.displayName}</h2>
+                        <span className={`rounded-full px-2.5 py-1 text-xs ${lifecycleClass(meta.lifecycleMode, account.status)}`}>
+                          {lifecycleLabel(meta.lifecycleMode, account.status)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-sm text-slate-500">
+                        {account.username} · {account.role} · {account.teamName || "ยังไม่ระบุทีม"}
+                      </div>
+                    </div>
+                  </div>
 
-      <div className="grid min-h-[760px] xl:grid-cols-[390px_minmax(0,1fr)]">
-        <aside
-          data-user-search-combobox-v79="true"
-          className="relative border-b border-slate-200 bg-[#fcfcff] xl:border-b-0 xl:border-r"
-        >
-          <div
-            ref={searchRef}
-            className="relative border-b border-slate-200 p-4"
-          >
+                                    <div
+                    data-profile-header-search-v80="true"
+                    ref={searchRef}
+                    className="relative w-full max-w-[590px]"
+                  >
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -2927,7 +3071,7 @@ export default function CorporateUserDirectoryProfile({
             </div>
 
             {searchOpen ? (
-              <div className="absolute left-4 right-4 top-[76px] z-50 max-h-[470px] overflow-y-auto rounded-[18px] border border-violet-100 bg-white p-2 shadow-[0_24px_60px_rgba(34,22,70,0.22)]">
+              <div className="absolute left-0 right-0 top-[60px] z-50 max-h-[470px] overflow-y-auto rounded-[18px] border border-violet-100 bg-white p-2 shadow-[0_24px_60px_rgba(34,22,70,0.22)]">
                 {searchResults.length ? (
                   searchResults.map(
                     (row, index) => {
@@ -3052,55 +3196,6 @@ export default function CorporateUserDirectoryProfile({
               </div>
             ) : null}
           </div>
-
-          <div className="px-5 py-4 text-[11px] leading-5 text-slate-400">
-            พิมพ์ชื่อ ชื่อเล่น หรือ Username
-            เพื่อค้นหา แล้วเลือกจาก Dropdown
-            หรือใช้ปุ่ม &lt; &gt;
-            เพื่อเปิด User ก่อนหน้าและถัดไป
-          </div>
-        </aside>
-
-        <main className="min-w-0 bg-gradient-to-b from-white to-slate-50">
-          {user && account ? (
-            <>
-              <div className="border-b border-slate-200 bg-white p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[22px] bg-gradient-to-br text-xl font-semibold text-white ${avatarClass(
-                        account.role
-                      )}`}
-                    >
-                      {profilePhotos[
-                        user.normalizedUsername
-                      ] ? (
-                        <img
-                          src={
-                            profilePhotos[
-                              user.normalizedUsername
-                            ]
-                          }
-                          alt={`รูปโปรไฟล์ของ ${account.displayName}`}
-                          draggable={false}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        initials(account.displayName)
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-2xl font-semibold text-slate-950">{account.displayName}</h2>
-                        <span className={`rounded-full px-2.5 py-1 text-xs ${lifecycleClass(meta.lifecycleMode, account.status)}`}>
-                          {lifecycleLabel(meta.lifecycleMode, account.status)}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-sm text-slate-500">
-                        {account.username} · {account.role} · {account.teamName || "ยังไม่ระบุทีม"}
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="flex flex-wrap gap-2">
                     <button
