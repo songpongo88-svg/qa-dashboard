@@ -2010,49 +2010,49 @@ export default function UserRoleAdminMockup({
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-5 lg:px-6 2xl:px-8">
         {adminTab === "users" ? (
           <div
-            data-user-metrics-inline-v81="true"
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-violet-100 pb-3 text-xs"
+            data-user-metrics-inline-v82="true"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-violet-100 pb-3 text-[11px] font-normal"
           >
-            <span className="font-semibold text-violet-600">
-              TOTAL USERS{" "}
-              <b className="text-base text-slate-950">
+            <span className="text-violet-600">
+              TOTAL USERS :{" "}
+              <span className="text-slate-700">
                 {totalUsers}
-              </b>
+              </span>
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-emerald-600">
-              ACTIVE{" "}
-              <b className="text-base text-slate-950">
+            <span className="text-emerald-600">
+              ACTIVE :{" "}
+              <span className="text-slate-700">
                 {activeUsers}
-              </b>
+              </span>
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-rose-600">
-              SUSPENDED{" "}
-              <b className="text-base text-slate-950">
+            <span className="text-rose-600">
+              SUSPENDED :{" "}
+              <span className="text-slate-700">
                 {suspendedUsers}
-              </b>
+              </span>
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-amber-600">
-              SENIOR{" "}
-              <b className="text-base text-slate-950">
+            <span className="text-amber-600">
+              SENIOR :{" "}
+              <span className="text-slate-700">
                 {seniorUsers}
-              </b>
+              </span>
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-sky-600">
-              SUPERVISORS{" "}
-              <b className="text-base text-slate-950">
+            <span className="text-sky-600">
+              SUPERVISORS :{" "}
+              <span className="text-slate-700">
                 {supervisorUsers}
-              </b>
+              </span>
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-fuchsia-600">
-              QUALITY ASSURANCE{" "}
-              <b className="text-base text-slate-950">
+            <span className="text-fuchsia-600">
+              QUALITY ASSURANCE :{" "}
+              <span className="text-slate-700">
                 {qaUsers}
-              </b>
+              </span>
             </span>
           </div>
         ) : null}

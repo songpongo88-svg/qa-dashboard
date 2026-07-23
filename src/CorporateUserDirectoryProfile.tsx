@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { jsPDF } from "jspdf";
@@ -3129,8 +3129,9 @@ export default function CorporateUserDirectoryProfile({
                           "Active";
 
                       return (
-                        <React.Fragment
+                        <Fragment
                           key={row.username}
+                          data-dropdown-runtime-fix-v82="true"
                         >
                           {startsSuspendedGroup ? (
                             <div className="mx-2 my-2 w-80 max-w-[82%] border-t-2 border-dashed border-rose-200" />
@@ -3234,7 +3235,7 @@ export default function CorporateUserDirectoryProfile({
                             )}
                           </span>
                         </button>
-                        </React.Fragment>
+                        </Fragment>
                       );
                     }
                   )
