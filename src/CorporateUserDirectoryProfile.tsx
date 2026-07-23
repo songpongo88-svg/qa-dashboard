@@ -1828,11 +1828,13 @@ function TeamConnection({
   members,
   currentUsername,
   teamLead,
+  teamName,
   profilePhotos,
 }: {
   members: DirectoryUserRow[];
   currentUsername: string;
   teamLead: string;
+  teamName: string;
   profilePhotos: Record<string, string>;
 }) {
   if (!members.length) {
@@ -1860,11 +1862,15 @@ function TeamConnection({
     <Section
       id="profile-team"
       icon="⌘"
-      title="Team Connection"
-      subtitle="สมาชิก Active ในทีมเดียวกัน หัวหน้าทีมอยู่ลำดับแรก และ Profile ปัจจุบันถูกไฮไลต์"
+      title={`Team Connection : ${
+        teamName ||
+        "Unassigned Team"
+      }`}
+      subtitle="หัวหน้าทีมอยู่ลำดับแรก จากนั้นลูกทีม Active เรียงชื่อ A–Z และ Profile ปัจจุบันถูกไฮไลต์"
     >
       <div
         data-profile-team-connection-v83="true"
+        data-team-connection-order-v84="true"
         className="overflow-x-auto pb-2"
       >
         <div className="relative flex min-w-max items-start gap-8 px-3 py-3 before:absolute before:left-12 before:right-12 before:top-[45px] before:border-t-2 before:border-violet-200">
@@ -2365,22 +2371,14 @@ export default function CorporateUserDirectoryProfile({
       return [];
     }
 
+    const selectedTeamName =
+      String(user.teamName || "")
+        .trim()
+        .toLowerCase();
     const leadKey =
       normalizeUsername(
         user.teamLead
       );
-    const currentKey =
-      user.normalizedUsername;
-    const roleRank: Record<
-      string,
-      number
-    > = {
-      Supervisor: 10,
-      Senior: 20,
-      "Quality Assurance": 30,
-      "Virtual Rider": 40,
-      "Admin Live Chat": 50,
-    };
 
     const isLead = (
       member: DirectoryUserRow
@@ -2396,48 +2394,54 @@ export default function CorporateUserDirectoryProfile({
           leadKey
       );
 
-    return teamRows
-      .filter(
+    const leadMember =
+      teamRows.find(
         (member) =>
           member.status === "Active" &&
-          member.teamName ===
-            user.teamName
-      )
-      .sort((a, b) => {
-        const aLead = isLead(a);
-        const bLead = isLead(b);
+          isLead(member)
+      ) || null;
 
-        if (aLead !== bLead) {
-          return aLead ? -1 : 1;
+    const teamMemberRows = teamRows
+      .filter((member) => {
+        if (
+          member.status !== "Active"
+        ) {
+          return false;
         }
 
-        const aCurrent =
-          a.normalizedUsername ===
-          currentKey;
-        const bCurrent =
-          b.normalizedUsername ===
-          currentKey;
-
-        if (aCurrent !== bCurrent) {
-          return aCurrent ? -1 : 1;
+        if (
+          leadMember &&
+          member.normalizedUsername ===
+            leadMember.normalizedUsername
+        ) {
+          return false;
         }
 
-        const roleDifference =
-          (roleRank[
-            a.effectiveRole
-          ] || 99) -
-          (roleRank[
-            b.effectiveRole
-          ] || 99);
-
-        if (roleDifference) {
-          return roleDifference;
-        }
-
-        return a.displayName.localeCompare(
-          b.displayName
+        return (
+          String(
+            member.teamName || ""
+          )
+            .trim()
+            .toLowerCase() ===
+          selectedTeamName
         );
-      });
+      })
+      .sort((a, b) =>
+        a.displayName.localeCompare(
+          b.displayName,
+          "en",
+          {
+            sensitivity: "base",
+          }
+        )
+      );
+
+    return leadMember
+      ? [
+          leadMember,
+          ...teamMemberRows,
+        ]
+      : teamMemberRows;
   }, [teamRows, user]);
 
   const meta = editing ? metaDraft : savedMeta;
@@ -3161,7 +3165,12 @@ export default function CorporateUserDirectoryProfile({
               + เพิ่มผู้ใช้
             </button>
           ) : null}
-          <div ref={manageRef} className="relative">
+          {isOwner ? (
+          <div
+            data-owner-management-only-v84="true"
+            ref={manageRef}
+            className="relative"
+          >
             <button
               type="button"
               title="เปิดเมนูจัดการหลายบัญชีและทีม"
@@ -3213,6 +3222,7 @@ export default function CorporateUserDirectoryProfile({
               </div>
             ) : null}
           </div>
+        ) : null}
         </div>
       </header>
 
@@ -4013,6 +4023,9 @@ export default function CorporateUserDirectoryProfile({
                     }
                     teamLead={
                       user?.teamLead || ""
+                    }
+                    teamName={
+                      user?.teamName || ""
                     }
                     profilePhotos={
                       profilePhotos
