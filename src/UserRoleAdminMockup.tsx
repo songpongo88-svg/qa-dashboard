@@ -3029,7 +3029,8 @@ function RoleManagementPanel({
                   <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-medium text-white ${roleAvatarClass(role.name)}`}>
                     {userInitials(role.name)}
                   </div>
-                  <div className="min-w-0 flex-1">`r`n                    <div title={role.name} className="min-h-10 whitespace-normal break-words text-base font-semibold leading-5 text-slate-950">{role.name}</div>
+                  <div className="min-w-0 flex-1">
+                    <div title={role.name} className="min-h-10 whitespace-normal break-words text-base font-semibold leading-5 text-slate-950">{role.name}</div>
                     <div
                       className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${
                         role.active ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"
