@@ -2938,7 +2938,7 @@ function RoleManagementPanel({
   const canDelete = selectedRole ? !selectedRole.locked && selectedUserCount === 0 : false;
 
   return (
-    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] p-5">
+    <div data-unsaved-changes={totalDirtyCount > 0 ? "true" : "false"} className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] p-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-violet-600">Access</div>
