@@ -1871,6 +1871,7 @@ function TeamConnection({
       <div
         data-profile-team-connection-v83="true"
         data-team-connection-order-v84="true"
+        data-team-lead-members-v86="true"
         className="overflow-x-auto pb-2"
       >
         <div className="relative flex min-w-max items-start gap-8 px-3 py-3 before:absolute before:left-12 before:right-12 before:top-[45px] before:border-t-2 before:border-violet-200">
@@ -2368,27 +2369,142 @@ export default function CorporateUserDirectoryProfile({
   const user = filteredRows.find((row) => row.normalizedUsername === selectedUsername) || null;
   const savedMeta = user ? hydrated[user.normalizedUsername] || emptyMeta() : emptyMeta();
 
-  const teamMembers = useMemo(() => {
-    if (
-      !user ||
-      !user.teamName
-    ) {
-      return [];
+  const teamConnection = useMemo(() => {
+    const emptyConnection = {
+      members: [] as DirectoryUserRow[],
+      teamName: "",
+      teamLead: "",
+    };
+
+    if (!user) {
+      return emptyConnection;
     }
 
-    const selectedTeamName =
-      String(user.teamName || "")
+    const profileKeys = new Set(
+      [
+        user.username,
+        user.displayName,
+        user.agentName,
+      ]
+        .map((value) =>
+          normalizeUsername(value)
+        )
+        .filter(Boolean)
+    );
+
+    const ledTeamMap = new Map<
+      string,
+      {
+        teamName: string;
+        activeCount: number;
+      }
+    >();
+
+    teamRows.forEach((member) => {
+      if (
+        member.status !== "Active" ||
+        !member.teamName
+      ) {
+        return;
+      }
+
+      const memberLeadKey =
+        normalizeUsername(
+          member.teamLead
+        );
+
+      if (
+        !memberLeadKey ||
+        !profileKeys.has(memberLeadKey)
+      ) {
+        return;
+      }
+
+      const normalizedTeamName =
+        String(member.teamName)
+          .trim()
+          .toLowerCase();
+      const existing =
+        ledTeamMap.get(
+          normalizedTeamName
+        );
+
+      ledTeamMap.set(
+        normalizedTeamName,
+        {
+          teamName:
+            existing?.teamName ||
+            String(member.teamName).trim(),
+          activeCount:
+            (existing?.activeCount || 0) +
+            1,
+        }
+      );
+    });
+
+    const ledTeams = Array.from(
+      ledTeamMap.values()
+    ).sort(
+      (a, b) =>
+        b.activeCount -
+          a.activeCount ||
+        a.teamName.localeCompare(
+          b.teamName,
+          "en",
+          {
+            sensitivity: "base",
+          }
+        )
+    );
+
+    const ownTeamName = String(
+      user.teamName || ""
+    ).trim();
+    const ownTeamKey =
+      ownTeamName.toLowerCase();
+    const ownLedTeam =
+      ledTeams.find(
+        (item) =>
+          item.teamName
+            .trim()
+            .toLowerCase() ===
+          ownTeamKey
+      ) || null;
+    const selectedLedTeam =
+      ownLedTeam ||
+      ledTeams[0] ||
+      null;
+    const profileIsTeamLead =
+      Boolean(selectedLedTeam);
+    const resolvedTeamName =
+      selectedLedTeam?.teamName ||
+      ownTeamName;
+
+    if (!resolvedTeamName) {
+      return emptyConnection;
+    }
+
+    const normalizedTeamName =
+      resolvedTeamName
         .trim()
         .toLowerCase();
-    const leadKey =
+    const resolvedTeamLead =
+      profileIsTeamLead
+        ? user.displayName ||
+          user.agentName ||
+          user.username
+        : String(
+            user.teamLead || ""
+          ).trim();
+    const resolvedLeadKey =
       normalizeUsername(
-        user.teamLead
+        resolvedTeamLead
       );
 
-    const isLead = (
+    const matchesResolvedLead = (
       member: DirectoryUserRow
     ) =>
-      Boolean(leadKey) &&
+      Boolean(resolvedLeadKey) &&
       [
         member.username,
         member.displayName,
@@ -2396,17 +2512,27 @@ export default function CorporateUserDirectoryProfile({
       ].some(
         (value) =>
           normalizeUsername(value) ===
-          leadKey
+          resolvedLeadKey
       );
 
     const leadMember =
-      teamRows.find(
-        (member) =>
-          member.status === "Active" &&
-          isLead(member)
-      ) || null;
+      profileIsTeamLead &&
+      user.status === "Active"
+        ? teamRows.find(
+            (member) =>
+              member.status ===
+                "Active" &&
+              member.normalizedUsername ===
+                user.normalizedUsername
+          ) || user
+        : teamRows.find(
+            (member) =>
+              member.status ===
+                "Active" &&
+              matchesResolvedLead(member)
+          ) || null;
 
-    const teamMemberRows = teamRows
+    const memberRows = teamRows
       .filter((member) => {
         if (
           member.status !== "Active"
@@ -2428,7 +2554,7 @@ export default function CorporateUserDirectoryProfile({
           )
             .trim()
             .toLowerCase() ===
-          selectedTeamName
+          normalizedTeamName
         );
       })
       .sort((a, b) =>
@@ -2441,13 +2567,19 @@ export default function CorporateUserDirectoryProfile({
         )
       );
 
-    return leadMember
-      ? [
-          leadMember,
-          ...teamMemberRows,
-        ]
-      : teamMemberRows;
+    const members = leadMember
+      ? [leadMember, ...memberRows]
+      : memberRows;
+
+    return {
+      members,
+      teamName: resolvedTeamName,
+      teamLead: resolvedTeamLead,
+    };
   }, [teamRows, user]);
+
+  const teamMembers =
+    teamConnection.members;
 
   const meta = editing ? metaDraft : savedMeta;
   const account =
@@ -4027,10 +4159,10 @@ export default function CorporateUserDirectoryProfile({
                       currentUsername
                     }
                     teamLead={
-                      user?.teamLead || ""
+                      teamConnection.teamLead
                     }
                     teamName={
-                      user?.teamName || ""
+                      teamConnection.teamName
                     }
                     profilePhotos={
                       profilePhotos
