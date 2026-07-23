@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { fetchStoredProfilePhoto } from "./profilePhotoStore";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import CorporateUserDirectoryProfile, { type CorporateUserAccountUpdate } from "./CorporateUserDirectoryProfile";
@@ -878,7 +879,12 @@ export default function UserRoleAdminMockup({
   const visibleDraftUsers = draftUsers
     .map((user, index) => ({ user, index }))
     .filter(({ user }) => {
-      if (userManagementView !== "users") return user.status === "Active";
+      if (userManagementView === "teams") {
+        return user.status === "Active";
+      }
+      if (userManagementView === "team-management") {
+        return true;
+      }
 
       const statusForView = isEditingUsers ? user.viewStatus || user.status : user.status;
       const statusMatches = directoryTab === "active" ? statusForView === "Active" : statusForView === "Suspended";
@@ -3511,200 +3517,910 @@ function TeamManagementPanel({
   roleOptions,
   isEditing,
 }: {
-  users: Array<{ user: EditableUser; index: number }>;
+  users: Array<{
+    user: EditableUser;
+    index: number;
+  }>;
   saving: boolean;
-  onChange: (index: number, key: keyof EditableUser, value: string) => void;
+  onChange: (
+    index: number,
+    key: keyof EditableUser,
+    value: string
+  ) => void;
   canManageTeams: boolean;
-  onTeamChange: (teamName: string, key: "teamLead" | "teamName" | "role" | "roleMode", value: string) => void;
+  onTeamChange: (
+    teamName: string,
+    key:
+      | "teamLead"
+      | "teamName"
+      | "role"
+      | "roleMode",
+    value: string
+  ) => void;
   roleOptions: UserRole[];
   isEditing: boolean;
 }) {
-  const [teamRoleModes, setTeamRoleModes] = useState<Record<string, "keep" | "sync">>({});
+  const [selectedTeamName, setSelectedTeamName] =
+    useState("");
+  const [teamSearch, setTeamSearch] = useState("");
+  const [memberSearch, setMemberSearch] =
+    useState("");
+  const [teamRoleModes, setTeamRoleModes] =
+    useState<
+      Record<string, "keep" | "sync">
+    >({});
+  const [profilePhotos, setProfilePhotos] =
+    useState<Record<string, string>>({});
+
   const teamGroups = useMemo(() => {
-    const map = new Map<string, { teamName: string; teamLead: string; assignedRole: string; roleCounts: Record<string, number>; members: Array<{ user: EditableUser; index: number }> }>();
+    const map = new Map<
+      string,
+      {
+        teamName: string;
+        teamLead: string;
+        assignedRole: string;
+        roleCounts: Record<string, number>;
+        members: Array<{
+          user: EditableUser;
+          index: number;
+        }>;
+        activeCount: number;
+        suspendedCount: number;
+      }
+    >();
+
     users.forEach((entry) => {
-      const teamName = entry.user.teamName.trim() || "Unassigned Team";
-      const existing = map.get(teamName) || {
-        teamName,
-        teamLead: entry.user.teamLead.trim() || "",
-        assignedRole: "-",
-        roleCounts: {},
-        members: [],
-      };
-      if (!existing.teamLead && entry.user.teamLead) existing.teamLead = entry.user.teamLead;
-      if (entry.user.role) existing.roleCounts[entry.user.role] = (existing.roleCounts[entry.user.role] || 0) + 1;
+      const teamName =
+        entry.user.teamName.trim() ||
+        "Unassigned Team";
+      const existing =
+        map.get(teamName) || {
+          teamName,
+          teamLead:
+            entry.user.teamLead.trim() || "",
+          assignedRole: "-",
+          roleCounts: {},
+          members: [],
+          activeCount: 0,
+          suspendedCount: 0,
+        };
+
+      if (
+        !existing.teamLead &&
+        entry.user.teamLead
+      ) {
+        existing.teamLead =
+          entry.user.teamLead;
+      }
+
+      if (entry.user.role) {
+        existing.roleCounts[
+          entry.user.role
+        ] =
+          (existing.roleCounts[
+            entry.user.role
+          ] || 0) + 1;
+      }
+
+      if (
+        entry.user.status === "Suspended"
+      ) {
+        existing.suspendedCount += 1;
+      } else {
+        existing.activeCount += 1;
+      }
+
       existing.members.push(entry);
       map.set(teamName, existing);
     });
+
     return Array.from(map.values())
       .map((team) => {
-        const roles = Object.keys(team.roleCounts);
+        const roles = Object.keys(
+          team.roleCounts
+        );
+
         return {
           ...team,
-          assignedRole: roles.length === 1 ? roles[0] : roles.length > 1 ? "Mixed Roles" : "-",
+          assignedRole:
+            roles.length === 1
+              ? roles[0]
+              : roles.length > 1
+                ? "Mixed Roles"
+                : "-",
         };
       })
-      .sort((a, b) => a.teamName.localeCompare(b.teamName));
+      .sort((a, b) =>
+        a.teamName.localeCompare(b.teamName)
+      );
   }, [users]);
-  const teamOptions = teamGroups.map((team) => team.teamName);
-  const editable = canManageTeams && isEditing && !saving;
-  const getTeamRoleMode = (teamName: string, assignedRole: string) =>
-    teamRoleModes[teamName] || (assignedRole === "Mixed Roles" ? "keep" : "sync");
-  const setTeamRoleMode = (teamName: string, mode: "keep" | "sync") => {
-    setTeamRoleModes((current) => ({ ...current, [teamName]: mode }));
+
+  useEffect(() => {
+    if (
+      teamGroups.some(
+        (team) =>
+          team.teamName === selectedTeamName
+      )
+    ) {
+      return;
+    }
+
+    setSelectedTeamName(
+      teamGroups[0]?.teamName || ""
+    );
+  }, [selectedTeamName, teamGroups]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let requestNumber = 0;
+
+    const loadPhotos = async () => {
+      const request = ++requestNumber;
+      const usernames = Array.from(
+        new Set(
+          users
+            .map(({ user }) => user.username)
+            .filter(Boolean)
+        )
+      );
+
+      const entries = await Promise.all(
+        usernames.map(async (username) => {
+          const stored =
+            await fetchStoredProfilePhoto(
+              username
+            );
+
+          return [
+            normalizeUsername(username),
+            stored?.photoDataUrl || "",
+          ] as const;
+        })
+      );
+
+      if (
+        !cancelled &&
+        request === requestNumber
+      ) {
+        setProfilePhotos(
+          Object.fromEntries(entries)
+        );
+      }
+    };
+
+    const refresh: EventListener = () => {
+      void loadPhotos();
+    };
+
+    void loadPhotos();
+    window.addEventListener(
+      "qa-profile-photo-updated",
+      refresh
+    );
+    window.addEventListener(
+      "focus",
+      refresh
+    );
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        "qa-profile-photo-updated",
+        refresh
+      );
+      window.removeEventListener(
+        "focus",
+        refresh
+      );
+    };
+  }, [users]);
+
+  const visibleTeams = useMemo(() => {
+    const keyword =
+      teamSearch.trim().toLowerCase();
+
+    if (!keyword) return teamGroups;
+
+    return teamGroups.filter((team) =>
+      [
+        team.teamName,
+        team.teamLead,
+        ...team.members.flatMap(
+          ({ user }) => [
+            user.displayName,
+            user.username,
+            user.agentName,
+          ]
+        ),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [teamGroups, teamSearch]);
+
+  const selectedTeam =
+    teamGroups.find(
+      (team) =>
+        team.teamName === selectedTeamName
+    ) ||
+    visibleTeams[0] ||
+    teamGroups[0] ||
+    null;
+
+  const editable =
+    canManageTeams &&
+    isEditing &&
+    !saving;
+
+  const getTeamRoleMode = (
+    teamName: string,
+    assignedRole: string
+  ) =>
+    teamRoleModes[teamName] ||
+    (assignedRole === "Mixed Roles"
+      ? "keep"
+      : "sync");
+
+  const setTeamRoleMode = (
+    teamName: string,
+    mode: "keep" | "sync"
+  ) => {
+    setTeamRoleModes((current) => ({
+      ...current,
+      [teamName]: mode,
+    }));
   };
 
-  return (
-    <div className="bg-gradient-to-br from-[#fbf7ff] via-white to-[#f3fbff] px-5 py-5">
-      <div className={`mb-5 rounded-[26px] border px-5 py-4 text-sm font-bold leading-6 ${
-        isEditing
-          ? "border-amber-200 bg-amber-50 text-amber-800"
-          : "border-sky-200 bg-sky-50 text-sky-800"
-      }`}>
-        {isEditing
-          ? "You are editing Team Management only. Keep individual roles for mixed-position teams, or sync one role to every active user in that team."
-          : "Review team structure here. Press Edit Teams to update team names, team leads, role mode, or move users between teams."}
-      </div>
+  const teamOptions = teamGroups.map(
+    (team) => team.teamName
+  );
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        {teamGroups.map((team) => (
-          <div key={team.members.map(({ user }) => user.username).sort().join("|") || team.teamName} className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_50px_rgba(88,28,135,0.10)]">
-            <div className="bg-gradient-to-r from-slate-950 via-violet-950 to-fuchsia-900 px-5 py-5 text-white">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-black uppercase tracking-[0.24em] text-violet-200">Team Structure</div>
-                  {isEditing ? (
-                    <input
-                      value={team.teamName}
-                      disabled={!editable}
-                      onChange={(event) => onTeamChange(team.teamName, "teamName", event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-xl font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
-                    />
-                  ) : (
-                    <div className="mt-1 truncate text-2xl font-black">{team.teamName}</div>
-                  )}
+  const selectedLeadKey =
+    normalizeUsername(
+      selectedTeam?.teamLead || ""
+    );
+
+  const isLead = (
+    user: EditableUser
+  ) =>
+    Boolean(selectedLeadKey) &&
+    [
+      user.username,
+      user.displayName,
+      user.agentName,
+    ].some(
+      (value) =>
+        normalizeUsername(value || "") ===
+        selectedLeadKey
+    );
+
+  const orderedMembers = useMemo(() => {
+    if (!selectedTeam) return [];
+
+    const keyword =
+      memberSearch.trim().toLowerCase();
+    const roleRank: Record<string, number> = {
+      Supervisor: 10,
+      Senior: 20,
+      "Quality Assurance": 30,
+      "Virtual Rider": 40,
+      "Admin Live Chat": 50,
+    };
+
+    return [...selectedTeam.members]
+      .filter(({ user }) => {
+        if (!keyword) return true;
+
+        return [
+          user.displayName,
+          user.username,
+          user.agentName,
+          user.email,
+          user.role,
+          user.status,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(keyword);
+      })
+      .sort((a, b) => {
+        const aLead = isLead(a.user);
+        const bLead = isLead(b.user);
+
+        if (aLead !== bLead) {
+          return aLead ? -1 : 1;
+        }
+
+        const roleDifference =
+          (roleRank[a.user.role] || 99) -
+          (roleRank[b.user.role] || 99);
+
+        if (roleDifference) {
+          return roleDifference;
+        }
+
+        return a.user.displayName.localeCompare(
+          b.user.displayName
+        );
+      });
+  }, [
+    memberSearch,
+    selectedLeadKey,
+    selectedTeam,
+  ]);
+
+  const leadEntry =
+    selectedTeam?.members.find(
+      ({ user }) => isLead(user)
+    ) || null;
+
+  return (
+    <div
+      data-team-management-clean-v71="true"
+      className="grid min-h-[660px] bg-gradient-to-b from-white to-slate-50 lg:grid-cols-[300px_minmax(0,1fr)]"
+    >
+      <aside className="border-b border-slate-200 bg-[#fcfcff] p-4 lg:border-b-0 lg:border-r">
+        <input
+          value={teamSearch}
+          onChange={(event) =>
+            setTeamSearch(event.target.value)
+          }
+          placeholder="ค้นหาทีมหรือหัวหน้าทีม"
+          title="ค้นหาทีม หัวหน้าทีม หรือสมาชิก"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+        />
+
+        <div className="mt-4 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+          <span>ทีมทั้งหมด</span>
+          <span>{visibleTeams.length} ทีม</span>
+        </div>
+
+        <div className="mt-2 max-h-[570px] space-y-2 overflow-y-auto pr-1">
+          {visibleTeams.map((team) => (
+            <button
+              key={team.teamName}
+              type="button"
+              title={`เปิดทีม ${team.teamName}`}
+              onClick={() => {
+                setSelectedTeamName(
+                  team.teamName
+                );
+                setMemberSearch("");
+              }}
+              className={`w-full rounded-[18px] border p-3 text-left transition ${
+                selectedTeam?.teamName ===
+                team.teamName
+                  ? "border-violet-300 bg-white shadow-sm"
+                  : "border-transparent hover:border-violet-200 hover:bg-white"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-slate-900">
+                    {team.teamName}
+                  </div>
+                  <div className="mt-1 truncate text-[11px] text-slate-500">
+                    หัวหน้าทีม{" "}
+                    {team.teamLead || "-"}
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-right">
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Members</div>
-                  <div className="mt-1 text-3xl font-black">{team.members.length}</div>
-                </div>
+
+                <span className="shrink-0 rounded-full bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700">
+                  {team.members.length}
+                </span>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Team Lead</div>
+              <div className="mt-3 flex items-center">
+                {team.members
+                  .slice(0, 4)
+                  .map(({ user }) => {
+                    const photo =
+                      profilePhotos[
+                        normalizeUsername(
+                          user.username
+                        )
+                      ];
+
+                    return (
+                      <span
+                        key={user.username}
+                        title={user.displayName}
+                        className={`-mr-1.5 flex h-7 w-7 items-center justify-center overflow-hidden rounded-[10px] border-2 border-white bg-gradient-to-br text-[9px] font-semibold text-white ${roleAvatarClass(
+                          user.role
+                        )}`}
+                      >
+                        {photo ? (
+                          <img
+                            src={photo}
+                            alt=""
+                            draggable={false}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          userInitials(
+                            user.displayName ||
+                              user.username
+                          )
+                        )}
+                      </span>
+                    );
+                  })}
+
+                {team.members.length > 4 ? (
+                  <span className="ml-3 text-[10px] text-slate-400">
+                    +{team.members.length - 4}
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          ))}
+
+          {!visibleTeams.length ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-xs text-slate-400">
+              ไม่พบทีมที่ค้นหา
+            </div>
+          ) : null}
+        </div>
+      </aside>
+
+      <main className="min-w-0 p-4 lg:p-5">
+        {selectedTeam ? (
+          <>
+            <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-600">
+                    Selected Team
+                  </div>
+
                   {isEditing ? (
                     <input
-                      value={team.teamLead}
+                      value={selectedTeam.teamName}
                       disabled={!editable}
-                      onChange={(event) => onTeamChange(team.teamName, "teamLead", event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
-                      placeholder="Assign team lead"
+                      onChange={(event) =>
+                        onTeamChange(
+                          selectedTeam.teamName,
+                          "teamName",
+                          event.target.value
+                        )
+                      }
+                      title="แก้ไขชื่อทีม"
+                      className="mt-2 w-full max-w-xl rounded-2xl border border-violet-200 bg-white px-4 py-3 text-xl font-semibold text-slate-950 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
                     />
                   ) : (
-                    <div className="mt-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90">{team.teamLead || "-"}</div>
+                    <div className="mt-1 truncate text-2xl font-semibold text-slate-950">
+                      {selectedTeam.teamName}
+                    </div>
                   )}
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] text-slate-600">
+                      <b className="text-slate-900">
+                        {selectedTeam.members.length}
+                      </b>{" "}
+                      สมาชิก
+                    </span>
+                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-700">
+                      <b>
+                        {selectedTeam.activeCount}
+                      </b>{" "}
+                      Active
+                    </span>
+                    {selectedTeam.suspendedCount ? (
+                      <span className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-[10px] text-rose-700">
+                        <b>
+                          {
+                            selectedTeam.suspendedCount
+                          }
+                        </b>{" "}
+                        Suspended
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Role Mode</div>
+
+                <div className="w-full max-w-md rounded-[18px] border border-violet-100 bg-violet-50/70 p-3">
+                  <div className="text-[10px] font-medium text-violet-600">
+                    หัวหน้าทีม
+                  </div>
+
                   {isEditing ? (
-                    <select
-                      value={getTeamRoleMode(team.teamName, team.assignedRole)}
+                    <input
+                      value={selectedTeam.teamLead}
                       disabled={!editable}
-                      onChange={(event) => {
-                        const mode = event.target.value === "sync" ? "sync" : "keep";
-                        setTeamRoleMode(team.teamName, mode);
-                        if (mode === "keep") return;
-                        const fallbackRole = roleOptions.includes(team.assignedRole) ? team.assignedRole : roleOptions[0];
-                        if (fallbackRole) onTeamChange(team.teamName, "role", fallbackRole);
-                      }}
-                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
-                    >
-                      <option value="keep">Keep individual roles</option>
-                      <option value="sync">Sync one role to all members</option>
-                    </select>
+                      onChange={(event) =>
+                        onTeamChange(
+                          selectedTeam.teamName,
+                          "teamLead",
+                          event.target.value
+                        )
+                      }
+                      placeholder="ระบุชื่อหัวหน้าทีม"
+                      title="แก้ไขหัวหน้าทีม"
+                      className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                    />
                   ) : (
-                    <div className="mt-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90">
-                      {team.assignedRole === "Mixed Roles" ? "Keep individual roles" : "Synced role"}
+                    <div className="mt-2 flex items-center gap-3">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[15px] bg-gradient-to-br text-xs font-semibold text-white ${roleAvatarClass(
+                          leadEntry?.user.role ||
+                            "Supervisor"
+                        )}`}
+                      >
+                        {leadEntry &&
+                        profilePhotos[
+                          normalizeUsername(
+                            leadEntry.user.username
+                          )
+                        ] ? (
+                          <img
+                            src={
+                              profilePhotos[
+                                normalizeUsername(
+                                  leadEntry.user
+                                    .username
+                                )
+                              ]
+                            }
+                            alt=""
+                            draggable={false}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          userInitials(
+                            leadEntry?.user
+                              .displayName ||
+                              selectedTeam.teamLead ||
+                              "Team Lead"
+                          )
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">
+                          {leadEntry?.user
+                            .displayName ||
+                            selectedTeam.teamLead ||
+                            "-"}
+                        </div>
+                        <div className="mt-1 text-[10px] text-slate-500">
+                          {leadEntry?.user.role ||
+                            "ยังไม่พบโปรไฟล์หัวหน้าทีม"}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-200">Assigned Role</div>
-                  {isEditing ? (
+              </div>
+
+              {isEditing ? (
+                <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 md:grid-cols-2">
+                  <label>
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                      การจัดการ Role
+                    </span>
                     <select
-                      value={roleOptions.includes(team.assignedRole) ? team.assignedRole : ""}
-                      disabled={!editable || getTeamRoleMode(team.teamName, team.assignedRole) === "keep"}
+                      value={getTeamRoleMode(
+                        selectedTeam.teamName,
+                        selectedTeam.assignedRole
+                      )}
+                      disabled={!editable}
                       onChange={(event) => {
-                        if (event.target.value) onTeamChange(team.teamName, "role", event.target.value);
+                        const mode =
+                          event.target.value ===
+                          "sync"
+                            ? "sync"
+                            : "keep";
+
+                        setTeamRoleMode(
+                          selectedTeam.teamName,
+                          mode
+                        );
+
+                        if (mode === "keep") {
+                          return;
+                        }
+
+                        const fallbackRole =
+                          roleOptions.includes(
+                            selectedTeam.assignedRole
+                          )
+                            ? selectedTeam.assignedRole
+                            : roleOptions[0];
+
+                        if (fallbackRole) {
+                          onTeamChange(
+                            selectedTeam.teamName,
+                            "role",
+                            fallbackRole
+                          );
+                        }
                       }}
-                      className="mt-2 w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-sm font-black text-slate-950 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-300/20 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white"
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
                     >
-                      <option value="" disabled>{team.assignedRole === "Mixed Roles" ? "Mixed Roles - keep as-is" : "Select role"}</option>
+                      <option value="keep">
+                        คง Role ของแต่ละคน
+                      </option>
+                      <option value="sync">
+                        ใช้ Role เดียวกันทั้งทีม
+                      </option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                      Role ของทีม
+                    </span>
+                    <select
+                      value={
+                        roleOptions.includes(
+                          selectedTeam.assignedRole
+                        )
+                          ? selectedTeam.assignedRole
+                          : ""
+                      }
+                      disabled={
+                        !editable ||
+                        getTeamRoleMode(
+                          selectedTeam.teamName,
+                          selectedTeam.assignedRole
+                        ) === "keep"
+                      }
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          onTeamChange(
+                            selectedTeam.teamName,
+                            "role",
+                            event.target.value
+                          );
+                        }
+                      }}
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50 disabled:text-slate-400"
+                    >
+                      <option value="" disabled>
+                        เลือก Role
+                      </option>
                       {roleOptions.map((role) => (
-                        <option key={role} value={role}>{role}</option>
+                        <option
+                          key={role}
+                          value={role}
+                        >
+                          {role}
+                        </option>
                       ))}
                     </select>
-                  ) : (
-                    <div className="mt-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90">{team.assignedRole}</div>
-                  )}
+                  </label>
                 </div>
-              </div>
-            </div>
+              ) : null}
+            </section>
 
-            <div className="space-y-3 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/40 p-4">
-              <div className="grid grid-cols-[minmax(220px,1fr)_170px_minmax(180px,0.8fr)] gap-3 rounded-2xl bg-white/80 px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                <div>User</div>
-                <div>Role</div>
-                <div>Assigned Team</div>
-              </div>
-              {team.members.map(({ user, index }) => (
-                <div key={`${user.username}-${index}`} className="grid grid-cols-[minmax(220px,1fr)_170px_minmax(180px,0.8fr)] items-center gap-3 rounded-[22px] border border-white bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-black text-white ${roleAvatarClass(user.role)}`}>
-                      {userInitials(user.displayName || user.username)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="min-w-0 truncate text-sm font-black text-slate-950">{user.displayName || user.username}</div>
-                      <div className="min-w-0 truncate text-xs font-semibold text-slate-500">{user.email || "-"}</div>
-                      <div className="mt-1 text-[11px] font-bold text-slate-400">Lead: {user.teamLead || team.teamLead || "-"}</div>
-                    </div>
+            <section className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white">
+              <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    สมาชิกในทีม
                   </div>
-                  <div>
-                    <div className="text-sm font-black text-slate-800">{user.role}</div>
-                    <div className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${user.status === "Active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-                      {user.status}
-                    </div>
-                  </div>
-                  <div>
-                    {isEditing ? (
-                      <select
-                        value={user.teamName.trim() || "Unassigned Team"}
-                        disabled={!editable}
-                        onChange={(event) => onChange(index, "teamName", event.target.value === "Unassigned Team" ? "" : event.target.value)}
-                        className="w-full rounded-xl border border-violet-100 bg-white px-3 py-2 text-xs font-black text-slate-800 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-                      >
-                        {teamOptions.map((option) => (
-                          <option key={option} value={option}>{option}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-black text-violet-800">
-                        {user.teamName || "Unassigned Team"}
-                      </div>
-                    )}
+                  <div className="mt-1 text-[11px] text-slate-400">
+                    หัวหน้าทีมอยู่ลำดับแรก
+                    จากนั้นเรียงตาม Role
                   </div>
                 </div>
-              ))}
+
+                <input
+                  value={memberSearch}
+                  onChange={(event) =>
+                    setMemberSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="ค้นหาชื่อ Username หรือ Role"
+                  title="ค้นหาสมาชิกในทีม"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 sm:max-w-[280px]"
+                />
+              </div>
+
+              <div className="hidden grid-cols-[minmax(0,1.35fr)_150px_120px_170px] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-400 xl:grid">
+                <div>ผู้ใช้งาน</div>
+                <div>Role</div>
+                <div>สถานะ</div>
+                <div>ทีมที่มอบหมาย</div>
+              </div>
+
+              <div>
+                {orderedMembers.map(
+                  ({ user, index }) => {
+                    const lead = isLead(user);
+                    const photo =
+                      profilePhotos[
+                        normalizeUsername(
+                          user.username
+                        )
+                      ];
+                    const keepIndividualRoles =
+                      getTeamRoleMode(
+                        selectedTeam.teamName,
+                        selectedTeam.assignedRole
+                      ) === "keep";
+
+                    return (
+                      <div
+                        key={`${user.username}-${index}`}
+                        className="grid gap-3 border-b border-slate-100 px-4 py-3 last:border-0 xl:grid-cols-[minmax(0,1.35fr)_150px_120px_170px] xl:items-center"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-gradient-to-br text-[11px] font-semibold text-white ${roleAvatarClass(
+                              user.role
+                            )}`}
+                          >
+                            {photo ? (
+                              <img
+                                src={photo}
+                                alt={`รูปโปรไฟล์ของ ${user.displayName}`}
+                                draggable={false}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              userInitials(
+                                user.displayName ||
+                                  user.username
+                              )
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="truncate text-sm font-medium text-slate-900">
+                                {user.displayName ||
+                                  user.username}
+                              </span>
+                              {lead ? (
+                                <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-medium text-amber-700">
+                                  หัวหน้าทีม
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 truncate text-[11px] text-slate-400">
+                              {user.username}
+                              {user.email
+                                ? ` · ${user.email}`
+                                : ""}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isEditing &&
+                          keepIndividualRoles ? (
+                            <select
+                              value={user.role}
+                              disabled={!editable}
+                              onChange={(event) =>
+                                onChange(
+                                  index,
+                                  "role",
+                                  event.target.value
+                                )
+                              }
+                              title={`แก้ไข Role ของ ${user.displayName}`}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                            >
+                              {roleOptions.map(
+                                (role) => (
+                                  <option
+                                    key={role}
+                                    value={role}
+                                  >
+                                    {role}
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          ) : (
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-medium ${roleBadgeClass(
+                                user.role
+                              )}`}
+                            >
+                              {user.role}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                              user.status ===
+                              "Suspended"
+                                ? "bg-rose-50 text-rose-700"
+                                : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {user.status}
+                          </span>
+                        </div>
+
+                        <div>
+                          {isEditing ? (
+                            <select
+                              value={
+                                user.teamName.trim() ||
+                                "Unassigned Team"
+                              }
+                              disabled={!editable}
+                              onChange={(event) =>
+                                onChange(
+                                  index,
+                                  "teamName",
+                                  event.target.value ===
+                                    "Unassigned Team"
+                                    ? ""
+                                    : event.target.value
+                                )
+                              }
+                              title={`ย้ายทีมของ ${user.displayName}`}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-50"
+                            >
+                              {teamOptions.map(
+                                (option) => (
+                                  <option
+                                    key={option}
+                                    value={option}
+                                  >
+                                    {option}
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-600">
+                              {user.teamName ||
+                                "Unassigned Team"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+
+                {!orderedMembers.length ? (
+                  <div className="px-5 py-12 text-center text-xs text-slate-400">
+                    ไม่พบสมาชิกที่ค้นหา
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            {isEditing ? (
+              <div className="sticky bottom-0 z-20 mt-4 flex flex-col gap-2 rounded-[18px] border border-violet-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-xs font-medium text-slate-800">
+                    กำลังแก้ไขทีมและสมาชิก
+                  </div>
+                  <div className="mt-1 text-[10px] text-slate-500">
+                    ตรวจสอบข้อมูลแล้วกด
+                    “บันทึกการเปลี่ยนแปลง”
+                    ด้านบน
+                  </div>
+                </div>
+                <span className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700">
+                  ยังไม่บันทึก
+                </span>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="rounded-[22px] border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
+            <div className="text-sm font-medium text-slate-700">
+              ยังไม่มีข้อมูลทีม
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              เพิ่มทีมและมอบหมายสมาชิกเพื่อเริ่มใช้งาน
             </div>
           </div>
-        ))}
-        {!teamGroups.length ? (
-          <div className="rounded-[24px] border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm font-bold text-slate-500">
-            No active users found for team management.
-          </div>
-        ) : null}
-      </div>
+        )}
+      </main>
     </div>
   );
 }
