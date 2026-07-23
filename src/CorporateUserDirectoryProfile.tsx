@@ -1818,6 +1818,39 @@ export default function CorporateUserDirectoryProfile({
     return next;
   }, [metaMap, rows]);
 
+  const roles = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rows
+            .map(
+              (row) =>
+                row.effectiveRole
+            )
+            .filter(Boolean)
+        )
+      ).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [rows]
+  );
+
+  const teams = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rows.map(
+            (row) =>
+              row.teamName ||
+              "Unassigned Team"
+          )
+        )
+      ).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [rows]
+  );
+
   const filteredRows = useMemo(() => {
     const expectedStatus =
       statusView === "active"
