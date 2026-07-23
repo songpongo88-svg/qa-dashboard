@@ -1926,17 +1926,22 @@ function TeamConnection({
                 </div>
 
                 {lead || current ? (
-                  <span
-                    className={`mt-1.5 inline-flex rounded-full px-2 py-1 text-[8px] font-medium ${
-                      current
-                        ? "bg-violet-100 text-violet-700"
-                        : "bg-amber-50 text-amber-700"
-                    }`}
+                  <div
+                    data-team-lead-current-badges-v85="true"
+                    className="mt-1.5 flex flex-wrap justify-center gap-1"
                   >
-                    {current
-                      ? "Current Profile"
-                      : "Team Lead"}
-                  </span>
+                    {lead ? (
+                      <span className="inline-flex rounded-full bg-amber-50 px-2 py-1 text-[8px] font-medium text-amber-700">
+                        Team Lead
+                      </span>
+                    ) : null}
+
+                    {current ? (
+                      <span className="inline-flex rounded-full bg-violet-100 px-2 py-1 text-[8px] font-medium text-violet-700">
+                        Current Profile
+                      </span>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             );
