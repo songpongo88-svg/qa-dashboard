@@ -233,6 +233,65 @@ function valueOrDash(value: unknown) {
   return String(value || "").trim() || "-";
 }
 
+function normalizeSuspensionDate(value: string) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+
+  const slashMatch = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/);
+  if (slashMatch) {
+    return `${slashMatch[3]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[1].padStart(2, "0")}`;
+  }
+
+  return "";
+}
+
+function splitLegacySuspensionFields(
+  reasonValue: string,
+  effectiveDateValue: string
+) {
+  const originalReason = String(reasonValue || "").trim();
+  let effectiveDate = normalizeSuspensionDate(
+    effectiveDateValue
+  );
+
+  if (!effectiveDate) {
+    effectiveDate = normalizeSuspensionDate(
+      originalReason
+    );
+  }
+
+  const legacyLabelPattern =
+    /terminate\s*\/\s*suspend\s*date|terminate\s*date|suspend\s*date/i;
+  const isLegacyCombinedValue =
+    legacyLabelPattern.test(originalReason);
+
+  let suspendReason = originalReason;
+
+  if (isLegacyCombinedValue) {
+    suspendReason = originalReason
+      .replace(
+        /(?:--|—|–|-)?\s*(?:terminate\s*\/\s*suspend\s*date|terminate\s*date|suspend\s*date)\s*[:\-]?\s*(?:\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})?/gi,
+        ""
+      )
+      .replace(/^[\s—–\-:]+|[\s—–\-:]+$/g, "")
+      .trim();
+
+    if (!suspendReason) {
+      suspendReason =
+        "สิ้นสุดการปฏิบัติงาน";
+    }
+  }
+
+  return {
+    suspendReason,
+    effectiveDate,
+  };
+}
 function deviceFromData(raw: any, index: number): WorkDevice {
   const returnedItems = raw?.returnedItems || raw?.returnChecklist || {};
   return {
@@ -357,22 +416,52 @@ function metaFromData(id: string, data: any): UserMeta {
 }
 
 function hydrateMeta(meta: UserMeta, user: DirectoryUserRow): UserMeta {
-  const effectiveDate = meta.effectiveDate || user.suspendEffectiveDate || "";
+  const normalizedSuspension =
+    splitLegacySuspensionFields(
+      meta.suspendReason ||
+        user.suspendReason ||
+        "",
+      meta.effectiveDate ||
+        user.suspendEffectiveDate ||
+        ""
+    );
+  const effectiveDate =
+    normalizedSuspension.effectiveDate;
   let lifecycleMode = meta.lifecycleMode;
-  if (lifecycleMode === "active" && user.status === "Suspended") lifecycleMode = "suspended";
-  if (lifecycleMode === "active" && user.status === "Active" && effectiveDate) {
-    lifecycleMode = effectiveDate > todayBangkok() ? "scheduled" : "suspended";
+
+  if (
+    lifecycleMode === "active" &&
+    user.status === "Suspended"
+  ) {
+    lifecycleMode = "suspended";
   }
+
+  if (
+    lifecycleMode === "active" &&
+    user.status === "Active" &&
+    effectiveDate
+  ) {
+    lifecycleMode =
+      effectiveDate > todayBangkok()
+        ? "scheduled"
+        : "suspended";
+  }
+
   return {
     ...meta,
     lifecycleMode,
-    suspendReason: meta.suspendReason || user.suspendReason || "",
+    suspendReason:
+      normalizedSuspension.suspendReason,
     effectiveDate,
-    endDate: meta.endDate || user.suspendEndDate || "",
-    autoReactivate: meta.autoReactivate || user.suspendAutoReactivate === true,
+    endDate:
+      meta.endDate ||
+      user.suspendEndDate ||
+      "",
+    autoReactivate:
+      meta.autoReactivate ||
+      user.suspendAutoReactivate === true,
   };
 }
-
 function lifecycleLabel(mode: LifecycleMode, status: "Active" | "Suspended") {
   if (mode === "scheduled") return "ตั้งเวลาระงับ";
   if (mode === "offboarding") return "Offboarding";
@@ -462,7 +551,13 @@ function Field({
   textarea?: boolean;
   placeholder?: string;
 }) {
-  const display = options?.find((option) => option.value === value)?.label || valueOrDash(value);
+  const display =
+    options?.find(
+      (option) => option.value === value
+    )?.label ||
+    (type === "date" && value
+      ? thaiDate(value)
+      : valueOrDash(value));
   return (
     <div className="grid grid-cols-[minmax(145px,0.75fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-2.5 last:border-0">
       <div className="text-xs text-slate-500">{label}</div>
@@ -1221,26 +1316,6 @@ export default function CorporateUserDirectoryProfile({
           {user && account ? (
             <>
               <div className="border-b border-slate-200 bg-white p-5">
-                {(savedMeta.lifecycleMode !== "active" || user.status === "Suspended") ? (
-                  <div
-                    className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
-                      user.status === "Suspended"
-                        ? "border-rose-200 bg-rose-50 text-rose-700"
-                        : "border-amber-200 bg-amber-50 text-amber-800"
-                    }`}
-                  >
-                    {savedMeta.lifecycleMode === "scheduled"
-                      ? `บัญชีนี้ถูกตั้งให้เปลี่ยนเป็น Suspended วันที่ ${thaiDate(savedMeta.effectiveDate)} — ${
-                          savedMeta.suspendReason || "-"
-                        }`
-                      : savedMeta.lifecycleMode === "offboarding"
-                        ? `บัญชีนี้อยู่ระหว่าง Offboarding มีผลวันที่ ${thaiDate(savedMeta.effectiveDate)}`
-                        : `บัญชีนี้ถูกระงับการใช้งาน มีผลวันที่ ${thaiDate(savedMeta.effectiveDate)} — ${
-                            savedMeta.suspendReason || "-"
-                          }`}
-                  </div>
-                ) : null}
-
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-4">
                     <div
