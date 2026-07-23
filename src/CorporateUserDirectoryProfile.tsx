@@ -1378,7 +1378,7 @@ export default function CorporateUserDirectoryProfile({
       meta.effectiveDate ||
         meta.suspendReason
     ) ||
-    account.status === "Suspended";
+    account?.status === "Suspended";
 
 
   const discard = () =>
