@@ -1219,6 +1219,602 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
+function AnalyticsOverviewV89({
+  summary,
+  cases,
+  topics,
+  trendRows,
+}: {
+  summary: SummaryCards;
+  cases: CaseItem[];
+  topics: TopicSummary[];
+  trendRows: Array<
+    PeriodRow & {
+      scoreDelta?: number | null;
+    }
+  >;
+}) {
+  const evaluatedCases =
+    cases.length;
+  const passedCases =
+    cases.filter(
+      (item) =>
+        item.finalScore >=
+        PERFORMANCE_KPI_TARGET
+    ).length;
+  const passRate =
+    evaluatedCases > 0
+      ? Number(
+          (
+            (passedCases /
+              evaluatedCases) *
+            100
+          ).toFixed(2)
+        )
+      : 0;
+  const revisedRate =
+    evaluatedCases > 0
+      ? Number(
+          (
+            (summary.revisedCount /
+              evaluatedCases) *
+            100
+          ).toFixed(2)
+        )
+      : 0;
+
+  const gradeColors: Record<
+    string,
+    string
+  > = {
+    A: "#55c98a",
+    B: "#64b5f6",
+    C: "#f7c84b",
+    D: "#f3a447",
+    F: "#ed4568",
+    G: "#94a3b8",
+  };
+  const gradeOrder = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "F",
+    "G",
+  ];
+  const gradeRows = gradeOrder
+    .map((grade) => {
+      const count =
+        cases.filter(
+          (item) =>
+            String(item.grade) ===
+            grade
+        ).length;
+      return {
+        grade,
+        count,
+        pct:
+          evaluatedCases > 0
+            ? (count /
+                evaluatedCases) *
+              100
+            : 0,
+        color:
+          gradeColors[grade],
+      };
+    })
+    .filter(
+      (item) =>
+        item.count > 0
+    );
+
+  let gradeCursor = 0;
+  const gradeGradient =
+    gradeRows.length > 0
+      ? `conic-gradient(${gradeRows
+          .map((item) => {
+            const start =
+              gradeCursor;
+            gradeCursor +=
+              item.pct;
+            return `${item.color} ${start}% ${gradeCursor}%`;
+          })
+          .join(", ")})`
+      : "#e2e8f0";
+
+  const visibleTrend =
+    trendRows.slice(-7);
+  const trendScores =
+    visibleTrend.map(
+      (row) => row.avgScore
+    );
+  const pointRows =
+    visibleTrend.map(
+      (row, index) => {
+        const x =
+          visibleTrend.length <= 1
+            ? 365
+            : 50 +
+              (index /
+                (visibleTrend.length -
+                  1)) *
+                630;
+        const y =
+          190 -
+          Math.max(
+            0,
+            Math.min(
+              100,
+              row.avgScore
+            )
+          ) *
+            1.6;
+
+        return {
+          ...row,
+          x,
+          y,
+        };
+      }
+    );
+  const points =
+    pointRows
+      .map(
+        (row) =>
+          `${row.x},${row.y}`
+      )
+      .join(" ");
+
+  const strongestTopics = [
+    ...topics,
+  ]
+    .sort(
+      (a, b) =>
+        b.pct - a.pct
+    )
+    .slice(0, 4);
+  const lowestTopic = [
+    ...topics,
+  ].sort(
+    (a, b) =>
+      a.pct - b.pct
+  )[0];
+
+  const metricItems = [
+    {
+      title:
+        "Quality Score (Avg.)",
+      value: `${summary.avgScore.toFixed(
+        2
+      )}%`,
+      note:
+        summary.avgScore >=
+        PERFORMANCE_KPI_TARGET
+          ? "On target"
+          : `Target ${PERFORMANCE_KPI_TARGET}%`,
+      icon: "☆",
+      tone:
+        "bg-violet-50 text-violet-600",
+    },
+    {
+      title: "Cases Evaluated",
+      value: String(
+        summary.caseCount
+      ),
+      note: `${Math.min(
+        summary.caseCount,
+        CASE_TARGET
+      )}/${CASE_TARGET} case target`,
+      icon: "▤",
+      tone:
+        "bg-sky-50 text-sky-600",
+    },
+    {
+      title: "KPI Pass Rate",
+      value: `${passRate.toFixed(
+        2
+      )}%`,
+      note: `${passedCases} passed cases`,
+      icon: "✓",
+      tone:
+        "bg-emerald-50 text-emerald-600",
+    },
+    {
+      title: "Revised Rate",
+      value: `${revisedRate.toFixed(
+        2
+      )}%`,
+      note: `${summary.revisedCount} revised cases`,
+      icon: "↻",
+      tone:
+        "bg-rose-50 text-rose-600",
+    },
+    {
+      title: "Overall Grade",
+      value: summary.grade,
+      note: "Current selection",
+      icon: "◇",
+      tone:
+        "bg-amber-50 text-amber-600",
+    },
+  ];
+
+  return (
+    <div
+      data-analytics-overview-v89="true"
+      className="space-y-5"
+    >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {metricItems.map(
+          (item) => (
+            <div
+              key={item.title}
+              className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-normal text-slate-500">
+                    {item.title}
+                  </div>
+                  <div className="mt-2 text-[28px] font-semibold tracking-tight text-slate-900">
+                    {item.value}
+                  </div>
+                </div>
+
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-full text-xl font-normal ${item.tone}`}
+                >
+                  {item.icon}
+                </div>
+              </div>
+
+              <div className="mt-2 text-[10px] font-normal text-slate-500">
+                {item.note}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.85fr)]">
+        <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[15px] font-semibold text-slate-900">
+                Quality Score Trend
+              </div>
+              <div className="mt-1 text-[10px] font-normal text-slate-500">
+                Average score by selected period
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-normal text-slate-500">
+              Last{" "}
+              {Math.max(
+                1,
+                visibleTrend.length
+              )}{" "}
+              period(s)
+            </div>
+          </div>
+
+          <div className="mt-5 h-[250px]">
+            {pointRows.length ? (
+              <>
+                <svg
+                  viewBox="0 0 720 220"
+                  preserveAspectRatio="none"
+                  className="h-[210px] w-full overflow-visible"
+                  aria-label="Quality Score Trend"
+                >
+                  {[0, 1, 2, 3, 4, 5].map(
+                    (index) => {
+                      const y =
+                        30 +
+                        index * 32;
+                      const label =
+                        100 -
+                        index * 20;
+
+                      return (
+                        <g key={label}>
+                          <line
+                            x1="42"
+                            x2="700"
+                            y1={y}
+                            y2={y}
+                            stroke="#e8edf5"
+                            strokeDasharray="3 4"
+                          />
+                          <text
+                            x="4"
+                            y={y + 4}
+                            fill="#94a3b8"
+                            fontSize="10"
+                          >
+                            {label}%
+                          </text>
+                        </g>
+                      );
+                    }
+                  )}
+
+                  <polyline
+                    points={points}
+                    fill="none"
+                    stroke="#7c3aed"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {pointRows.map(
+                    (row) => (
+                      <g
+                        key={`point-${row.label}`}
+                      >
+                        <circle
+                          cx={row.x}
+                          cy={row.y}
+                          r="5"
+                          fill="#7c3aed"
+                          stroke="#ffffff"
+                          strokeWidth="3"
+                        />
+                        <text
+                          x={row.x}
+                          y={Math.max(
+                            15,
+                            row.y - 12
+                          )}
+                          textAnchor="middle"
+                          fill="#475569"
+                          fontSize="10"
+                        >
+                          {row.avgScore.toFixed(
+                            2
+                          )}
+                        </text>
+                      </g>
+                    )
+                  )}
+                </svg>
+
+                <div
+                  className="grid gap-2 text-center text-[10px] font-normal text-slate-500"
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.max(
+                      1,
+                      pointRows.length
+                    )}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {pointRows.map(
+                    (row) => (
+                      <div
+                        key={`label-${row.label}`}
+                        className="truncate"
+                        title={row.label}
+                      >
+                        {row.label}
+                      </div>
+                    )
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm font-normal text-slate-400">
+                No trend data
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+          <div className="text-[15px] font-semibold text-slate-900">
+            Grade Distribution
+          </div>
+          <div className="mt-1 text-[10px] font-normal text-slate-500">
+            Distribution from the current selection
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-7 sm:flex-row sm:items-center">
+            <div
+              className="relative h-44 w-44 shrink-0 rounded-full"
+              style={{
+                background:
+                  gradeGradient,
+              }}
+            >
+              <div className="absolute inset-[30px] flex flex-col items-center justify-center rounded-full bg-white">
+                <div className="text-2xl font-semibold text-slate-900">
+                  {evaluatedCases}
+                </div>
+                <div className="text-[9px] font-normal uppercase tracking-wide text-slate-400">
+                  Cases
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full space-y-3">
+              {gradeRows.length ? (
+                gradeRows.map(
+                  (item) => (
+                    <div
+                      key={item.grade}
+                      className="flex items-center justify-between gap-4 text-[11px]"
+                    >
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <span
+                          className="h-3 w-3 rounded-sm"
+                          style={{
+                            backgroundColor:
+                              item.color,
+                          }}
+                        />
+                        Grade{" "}
+                        {item.grade}
+                      </div>
+                      <div className="font-normal text-slate-500">
+                        {item.pct.toFixed(
+                          0
+                        )}
+                        % ({item.count})
+                      </div>
+                    </div>
+                  )
+                )
+              ) : (
+                <div className="text-sm font-normal text-slate-400">
+                  No grade data
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
+        <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="text-[15px] font-semibold text-slate-900">
+              Top Performance by Topic
+            </div>
+          </div>
+
+          <div className="overflow-x-auto px-5 pb-3">
+            <table className="min-w-[620px] w-full text-[11px]">
+              <thead>
+                <tr className="text-left font-normal text-slate-400">
+                  <th className="px-2 py-3">
+                    Topic
+                  </th>
+                  <th className="px-2 py-3 text-right">
+                    Score
+                  </th>
+                  <th className="px-2 py-3 text-right">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {strongestTopics.map(
+                  (topic, index) => (
+                    <tr
+                      key={topic.code}
+                      className="border-t border-slate-100"
+                    >
+                      <td className="px-2 py-3 text-slate-700">
+                        <span className="mr-3 text-slate-400">
+                          {index + 1}
+                        </span>
+                        {topic.label}
+                      </td>
+                      <td className="px-2 py-3 text-right font-medium text-slate-700">
+                        {topic.pct.toFixed(
+                          2
+                        )}
+                        %
+                      </td>
+                      <td className="px-2 py-3 text-right">
+                        <span
+                          className={
+                            topic.pct >=
+                            PERFORMANCE_KPI_TARGET
+                              ? "text-emerald-600"
+                              : "text-amber-600"
+                          }
+                        >
+                          {topic.pct >=
+                          PERFORMANCE_KPI_TARGET
+                            ? "On target"
+                            : "Watch"}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                )}
+
+                {!strongestTopics.length ? (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="border-t border-slate-100 px-2 py-8 text-center text-slate-400"
+                    >
+                      No topic data
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[15px] font-semibold text-slate-900">
+              Alerts & Insights
+            </div>
+            <div className="text-[10px] font-normal text-violet-600">
+              Current view
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-slate-200 px-4 py-3">
+              <div className="text-[11px] font-medium text-slate-700">
+                {summary.avgScore >=
+                PERFORMANCE_KPI_TARGET
+                  ? "Quality score is on target"
+                  : "Quality score is below target"}
+              </div>
+              <div className="mt-1 text-[10px] font-normal text-slate-500">
+                Current{" "}
+                {summary.avgScore.toFixed(
+                  2
+                )}
+                % · Target{" "}
+                {PERFORMANCE_KPI_TARGET}%
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 px-4 py-3">
+              <div className="text-[11px] font-medium text-slate-700">
+                {summary.revisedCount
+                  ? `${summary.revisedCount} revised case(s)`
+                  : "No revised cases"}
+              </div>
+              <div className="mt-1 text-[10px] font-normal text-slate-500">
+                Revised rate{" "}
+                {revisedRate.toFixed(
+                  2
+                )}
+                %
+              </div>
+            </div>
+
+            {lowestTopic ? (
+              <div className="rounded-xl border border-slate-200 px-4 py-3">
+                <div className="text-[11px] font-medium text-slate-700">
+                  Lowest topic:{" "}
+                  {lowestTopic.label}
+                </div>
+                <div className="mt-1 text-[10px] font-normal text-slate-500">
+                  Current score{" "}
+                  {lowestTopic.pct.toFixed(
+                    2
+                  )}
+                  %
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getViewLabel(viewMode: SummaryView) {
   switch (viewMode) {
     case "weekly-dashboard":
@@ -1264,14 +1860,15 @@ export default function SummaryMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [accountProfiles, setAccountProfiles] = useState<SummaryAccount[]>([]);
-  const [viewMode, setViewMode] = useState<SummaryView>("weekly-dashboard");
+  const [viewMode, setViewMode] = useState<SummaryView>("monthly-dashboard");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "all");
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
-  const [reportPdfView, setReportPdfView] = useState<SummaryView>("weekly-dashboard");
-  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">("weekly");
+  const [reportPdfView, setReportPdfView] = useState<SummaryView>("monthly-dashboard");
+  const [analyticsCustomizeOpen, setAnalyticsCustomizeOpen] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">("monthly");
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
   const [periodFilterYear, setPeriodFilterYear] = useState<string>("all");
   const [periodFilterMonth, setPeriodFilterMonth] = useState<string>("all");
@@ -6281,7 +6878,7 @@ export default function SummaryMockup({
   }
 
   return (
-    <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"}`}>
+    <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}>
       {reportPdfDialogOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
@@ -6334,25 +6931,61 @@ export default function SummaryMockup({
 
       {songkranTheme ? <SongkranBackdrop /> : null}
       <div
-        data-analytics-header-v88="true"
+        data-analytics-header-v89="true"
         className="mx-auto max-w-[1720px] px-6 pt-7 lg:px-8 lg:pt-8"
       >
-        <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-violet-600">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 lg:text-[30px]">
               Analytics
-            </div>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 lg:text-[28px]">
-              QA Performance Analytics
             </h1>
             <p className="mt-2 text-sm font-normal text-slate-500">
-              เปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี พร้อมติดตามแนวโน้มจากข้อมูลปัจจุบัน
+              Monitor performance and quality metrics
             </p>
           </div>
 
-          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-normal text-slate-500 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Live Analytics Workspace
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-normal text-slate-500 shadow-sm">
+              Data as of{" "}
+              {new Intl.DateTimeFormat(
+                "en-GB",
+                {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                }
+              ).format(new Date())}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setReportPdfView(
+                  viewMode
+                );
+                setReportPdfDialogOpen(
+                  true
+                );
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-violet-300 hover:text-violet-700"
+            >
+              Export
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setAnalyticsCustomizeOpen(
+                  true
+                )
+              }
+              className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm transition hover:bg-violet-50"
+            >
+              Customize
+            </button>
           </div>
         </div>
       </div>
@@ -6740,401 +7373,534 @@ export default function SummaryMockup({
           data-analytics-clean-v88="true"
           className="space-y-5"
         >
-          <Panel className="overflow-visible">
-            <PanelHeader
-              title="Analytics Controls"
-              subtitle="เลือกขอบเขตข้อมูลและช่วงเวลาจากแถบเดียว โดยไม่บีบพื้นที่รายงาน"
-            />
-            <PanelBody className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div>
-                  <FilterLabel>Report Type</FilterLabel>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {[
-                      {
-                        value: "weekly",
-                        label: "Weekly",
-                      },
-                      {
-                        value: "monthly",
-                        label: "Monthly",
-                      },
-                      {
-                        value: "yearly",
-                        label: "Yearly",
-                      },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setAnalysisMode(
-                            option.value as
-                              | "weekly"
-                              | "monthly"
-                              | "yearly"
-                          )
-                        }
-                        className={
-                          "rounded-xl border px-3 py-2.5 text-xs font-medium transition " +
-                          (
-                            analysisMode ===
-                            option.value
-                              ? "border-violet-500 bg-violet-600 text-white shadow-sm"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"
-                          )
-                        }
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <FilterLabel>Agent</FilterLabel>
-                  <div className="mt-2">
-                    {roleScopedAgentList.length ? (
-                      <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-800">
-                        {effectiveSelectedAgent
-                          ? buildSuspendedAgentLabel(
-                              effectiveSelectedAgent,
-                              accountProfiles
-                            )
-                          : "-"}
-                      </div>
-                    ) : (
-                      <FilterSelect
-                        value={
-                          effectiveSelectedAgent ||
-                          "all"
-                        }
-                        onChange={(value) => {
-                          setSelectedAgent(value);
-                          onSelectedAgentChange?.(
-                            value
-                          );
-                        }}
-                        options={[
-                          {
-                            value: "all",
-                            label: "All Agents",
-                          },
-                        ].concat(
-                          selectableAgentOptions.map(
-                            (agent) => ({
-                              value: agent,
-                              label:
-                                buildSuspendedAgentLabel(
-                                  agent,
-                                  accountProfiles
-                                ),
-                            })
-                          )
-                        )}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {analysisMode !== "yearly" ? (
-                  <div>
-                    <FilterLabel>Year</FilterLabel>
-                    <div className="mt-2">
-                      <FilterSelect
-                        value={
-                          effectivePeriodYear
-                        }
-                        onChange={(value) => {
-                          setPeriodFilterYear(
-                            value
-                          );
-                          setPeriodFilterMonth(
-                            "all"
-                          );
-                          setSelectedPeriods([]);
-                        }}
-                        options={selectableYears.map(
-                          (year) => ({
-                            value: year,
-                            label: year,
-                          })
-                        )}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {analysisMode === "weekly" ? (
-                  <div>
-                    <FilterLabel>
-                      Filter Month
-                    </FilterLabel>
-                    <div className="mt-2">
-                      <FilterSelect
-                        value={
-                          periodFilterMonth
-                        }
-                        onChange={(value) => {
-                          setPeriodFilterMonth(
-                            value
-                          );
-                          setSelectedPeriods([]);
-                        }}
-                        options={
-                          weekMonthOptions
-                        }
-                      />
-                    </div>
-                  </div>
-                ) : null}
+          <div
+            data-analytics-filterbar-v89="true"
+            className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]"
+          >
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <FilterLabel>
+                  Date Range
+                </FilterLabel>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAnalyticsCustomizeOpen(
+                      true
+                    )
+                  }
+                  className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-normal text-slate-600 transition hover:border-violet-300"
+                >
+                  <span className="truncate">
+                    {effectivePeriodLabels.join(
+                      " · "
+                    ) ||
+                      "Current period"}
+                  </span>
+                  <span className="text-violet-500">
+                    ▣
+                  </span>
+                </button>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <FilterLabel>
-                      {analysisMode ===
-                      "weekly"
-                        ? "Select Weeks"
-                        : analysisMode ===
-                            "monthly"
-                          ? "Select Months"
-                          : "Select Years"}
-                    </FilterLabel>
-
-                    <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-medium text-violet-700">
-                      {
-                        selectedPeriods.length
-                      }
-                      /{maxSelectedPeriods}
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex max-h-[180px] flex-wrap gap-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                    {periodOptions.map(
-                      (period) => {
-                        const activeSelections =
-                          selectedPeriods;
-                        const checked =
-                          activeSelections.includes(
-                            period
-                          );
-                        const disabled =
-                          !checked &&
-                          activeSelections.length >=
-                            maxSelectedPeriods;
-
-                        return (
-                          <button
-                            key={period}
-                            type="button"
-                            disabled={
-                              disabled
-                            }
-                            onClick={() => {
-                              const current =
-                                selectedPeriods;
-
-                              if (
-                                current.includes(
-                                  period
-                                )
-                              ) {
-                                setSelectedPeriods(
-                                  current.filter(
-                                    (item) =>
-                                      item !==
-                                      period
-                                  )
-                                );
-                                return;
-                              }
-
-                              if (
-                                current.length >=
-                                maxSelectedPeriods
-                              ) {
-                                return;
-                              }
-
-                              setSelectedPeriods(
-                                sortPeriodKeys([
-                                  ...current,
-                                  period,
-                                ])
-                              );
-                            }}
-                            className={
-                              "min-w-[132px] rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition " +
-                              (
-                                checked
-                                  ? "border-violet-400 bg-white text-violet-800 shadow-sm"
-                                  : disabled
-                                    ? "cursor-not-allowed border-transparent bg-slate-100 text-slate-400 opacity-60"
-                                    : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"
-                              )
-                            }
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <span>
-                                {getPeriodDisplayLabel(
-                                  period
-                                )}
-                              </span>
-                              <span
-                                className={
-                                  checked
-                                    ? "text-violet-600"
-                                    : "text-slate-300"
-                                }
-                              >
-                                {checked
-                                  ? "✓"
-                                  : ""}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      }
-                    )}
-                  </div>
-
-                  <div className="mt-2 text-xs leading-5 text-slate-500">
-                    {selectedPeriods.length
-                      ? analysisMode ===
-                        "monthly"
-                        ? "เลือกได้สูงสุด 6 เดือน"
-                        : analysisMode ===
-                            "weekly"
-                          ? "เลือกได้สูงสุด 4 สัปดาห์"
-                          : "เลือกได้สูงสุด 4 ปี"
-                      : `ยังไม่ได้เลือก Compare — ระบบกำลังแสดง ${
-                          effectivePeriodLabels.join(
-                            ", "
-                          ) ||
-                          "ช่วงปัจจุบัน"
-                        } อัตโนมัติ`}
-                  </div>
+              <div>
+                <FilterLabel>
+                  View By
+                </FilterLabel>
+                <div className="mt-2">
+                  <select
+                    value={analysisMode}
+                    onChange={(event) =>
+                      setAnalysisMode(
+                        event.target
+                          .value as
+                          | "weekly"
+                          | "monthly"
+                          | "yearly"
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="weekly">
+                      Weekly
+                    </option>
+                    <option value="monthly">
+                      Monthly
+                    </option>
+                    <option value="yearly">
+                      Yearly
+                    </option>
+                  </select>
                 </div>
+              </div>
 
+              <div>
+                <FilterLabel>
+                  Team
+                </FilterLabel>
                 <button
                   type="button"
                   onClick={() => {
-                    setReportPdfView(viewMode);
-                    setReportPdfDialogOpen(
-                      true
-                    );
+                    if (!isAdminRole) {
+                      setSummarySection(
+                        "team"
+                      );
+                    }
                   }}
-                  disabled={
-                    !effectivePeriodKeys.length
-                  }
-                  className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="mt-2 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-normal text-slate-600 transition hover:border-violet-300"
                 >
-                  Generate {reportModeName}{" "}
-                  {isComparisonMode
-                    ? "Compare "
-                    : ""}
-                  Report
+                  <span className="truncate">
+                    {currentUserTeamName ||
+                      "All Teams"}
+                  </span>
+                  <span className="text-slate-400">
+                    ⌄
+                  </span>
                 </button>
               </div>
-            </PanelBody>
-          </Panel>
+
+              <div>
+                <FilterLabel>
+                  Agent
+                </FilterLabel>
+                <div className="mt-2">
+                  {roleScopedAgentList.length ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-normal text-slate-700">
+                      {effectiveSelectedAgent
+                        ? buildSuspendedAgentLabel(
+                            effectiveSelectedAgent,
+                            accountProfiles
+                          )
+                        : "-"}
+                    </div>
+                  ) : (
+                    <FilterSelect
+                      value={
+                        effectiveSelectedAgent ||
+                        "all"
+                      }
+                      onChange={(value) => {
+                        setSelectedAgent(
+                          value
+                        );
+                        onSelectedAgentChange?.(
+                          value
+                        );
+                      }}
+                      options={[
+                        {
+                          value: "all",
+                          label:
+                            "All Agents",
+                        },
+                      ].concat(
+                        selectableAgentOptions.map(
+                          (agent) => ({
+                            value: agent,
+                            label:
+                              buildSuspendedAgentLabel(
+                                agent,
+                                accountProfiles
+                              ),
+                          })
+                        )
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setAnalysisMode(
+                    "monthly"
+                  );
+                  setSelectedPeriods([]);
+                  setPeriodFilterYear(
+                    "all"
+                  );
+                  setPeriodFilterMonth(
+                    "all"
+                  );
+
+                  if (
+                    !roleScopedAgentList.length
+                  ) {
+                    setSelectedAgent(
+                      "all"
+                    );
+                    onSelectedAgentChange?.(
+                      "all"
+                    );
+                  }
+                }}
+                className="text-xs font-normal text-violet-600 transition hover:text-violet-800"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+
+          {analyticsCustomizeOpen ? (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/45 p-4">
+              <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[22px] border border-slate-200 bg-white shadow-2xl">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                  <div>
+                    <div className="text-lg font-semibold text-slate-900">
+                      Report Builder
+                    </div>
+                    <div className="mt-1 text-xs font-normal text-slate-500">
+                      เลือกช่วงเวลาเพื่อดูรายงานปกติหรือเปรียบเทียบหลายช่วง
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAnalyticsCustomizeOpen(
+                        false
+                      )
+                    }
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+                    aria-label="Close Report Builder"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="space-y-5 p-6">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                      <FilterLabel>
+                        Report Type
+                      </FilterLabel>
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {[
+                          {
+                            value:
+                              "weekly",
+                            label:
+                              "Weekly",
+                          },
+                          {
+                            value:
+                              "monthly",
+                            label:
+                              "Monthly",
+                          },
+                          {
+                            value:
+                              "yearly",
+                            label:
+                              "Yearly",
+                          },
+                        ].map(
+                          (option) => (
+                            <button
+                              key={
+                                option.value
+                              }
+                              type="button"
+                              onClick={() =>
+                                setAnalysisMode(
+                                  option.value as
+                                    | "weekly"
+                                    | "monthly"
+                                    | "yearly"
+                                )
+                              }
+                              className={
+                                "rounded-xl border px-3 py-2.5 text-xs font-medium transition " +
+                                (
+                                  analysisMode ===
+                                  option.value
+                                    ? "border-violet-500 bg-violet-600 text-white"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"
+                                )
+                              }
+                            >
+                              {
+                                option.label
+                              }
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {analysisMode !==
+                    "yearly" ? (
+                      <div>
+                        <FilterLabel>
+                          Year
+                        </FilterLabel>
+                        <div className="mt-2">
+                          <FilterSelect
+                            value={
+                              effectivePeriodYear
+                            }
+                            onChange={(
+                              value
+                            ) => {
+                              setPeriodFilterYear(
+                                value
+                              );
+                              setPeriodFilterMonth(
+                                "all"
+                              );
+                              setSelectedPeriods(
+                                []
+                              );
+                            }}
+                            options={selectableYears.map(
+                              (
+                                year
+                              ) => ({
+                                value:
+                                  year,
+                                label:
+                                  year,
+                              })
+                            )}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {analysisMode ===
+                    "weekly" ? (
+                      <div>
+                        <FilterLabel>
+                          Filter Month
+                        </FilterLabel>
+                        <div className="mt-2">
+                          <FilterSelect
+                            value={
+                              periodFilterMonth
+                            }
+                            onChange={(
+                              value
+                            ) => {
+                              setPeriodFilterMonth(
+                                value
+                              );
+                              setSelectedPeriods(
+                                []
+                              );
+                            }}
+                            options={
+                              weekMonthOptions
+                            }
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div>
+                      <FilterLabel>
+                        Agent
+                      </FilterLabel>
+                      <div className="mt-2">
+                        {roleScopedAgentList.length ? (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-normal text-slate-700">
+                            {effectiveSelectedAgent ||
+                              "-"}
+                          </div>
+                        ) : (
+                          <FilterSelect
+                            value={
+                              effectiveSelectedAgent ||
+                              "all"
+                            }
+                            onChange={(
+                              value
+                            ) => {
+                              setSelectedAgent(
+                                value
+                              );
+                              onSelectedAgentChange?.(
+                                value
+                              );
+                            }}
+                            options={[
+                              {
+                                value:
+                                  "all",
+                                label:
+                                  "All Agents",
+                              },
+                            ].concat(
+                              selectableAgentOptions.map(
+                                (
+                                  agent
+                                ) => ({
+                                  value:
+                                    agent,
+                                  label:
+                                    buildSuspendedAgentLabel(
+                                      agent,
+                                      accountProfiles
+                                    ),
+                                })
+                              )
+                            )}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <FilterLabel>
+                        {analysisMode ===
+                        "weekly"
+                          ? "Select Weeks"
+                          : analysisMode ===
+                              "monthly"
+                            ? "Select Months"
+                            : "Select Years"}
+                      </FilterLabel>
+
+                      <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-medium text-violet-700">
+                        {
+                          selectedPeriods.length
+                        }
+                        /{maxSelectedPeriods}
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex max-h-[250px] flex-wrap gap-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                      {periodOptions.map(
+                        (period) => {
+                          const checked =
+                            selectedPeriods.includes(
+                              period
+                            );
+                          const disabled =
+                            !checked &&
+                            selectedPeriods.length >=
+                              maxSelectedPeriods;
+
+                          return (
+                            <button
+                              key={
+                                period
+                              }
+                              type="button"
+                              disabled={
+                                disabled
+                              }
+                              onClick={() => {
+                                if (
+                                  checked
+                                ) {
+                                  setSelectedPeriods(
+                                    selectedPeriods.filter(
+                                      (
+                                        item
+                                      ) =>
+                                        item !==
+                                        period
+                                    )
+                                  );
+                                  return;
+                                }
+
+                                if (
+                                  disabled
+                                ) {
+                                  return;
+                                }
+
+                                setSelectedPeriods(
+                                  sortPeriodKeys(
+                                    [
+                                      ...selectedPeriods,
+                                      period,
+                                    ]
+                                  )
+                                );
+                              }}
+                              className={
+                                "min-w-[140px] rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition " +
+                                (
+                                  checked
+                                    ? "border-violet-400 bg-white text-violet-800 shadow-sm"
+                                    : disabled
+                                      ? "cursor-not-allowed border-transparent bg-slate-100 text-slate-400 opacity-60"
+                                      : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"
+                                )
+                              }
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span>
+                                  {getPeriodDisplayLabel(
+                                    period
+                                  )}
+                                </span>
+                                <span className="text-violet-600">
+                                  {checked
+                                    ? "✓"
+                                    : ""}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAnalyticsCustomizeOpen(
+                          false
+                        )
+                      }
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      Close
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAnalyticsCustomizeOpen(
+                          false
+                        );
+                        setReportPdfView(
+                          viewMode
+                        );
+                        setReportPdfDialogOpen(
+                          true
+                        );
+                      }}
+                      disabled={
+                        !effectivePeriodKeys.length
+                      }
+                      className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Generate Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-5">
-            <Panel>
-              <PanelHeader title="Current Selection" subtitle="ขอบเขตข้อมูลที่กำลังแสดงจากตัวกรองด้านบน" />
-              <PanelBody>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Mode</div>
-                    <div className="mt-2 text-sm font-medium text-slate-900">{reportModeName}</div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Agent</div>
-                    <div className="mt-2 text-sm font-medium text-slate-900">
-                      {effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles)}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Year</div>
-                    <div className="mt-2 text-sm font-medium text-slate-900">
-                      {analysisMode === "yearly" ? effectivePeriodLabels.join(", ") : effectivePeriodYear}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 xl:col-span-1">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Selected Periods</div>
-                    <div className="mt-2 text-sm font-medium leading-5 text-slate-900">
-                      {effectivePeriodLabels.join(", ") || "No period"}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Report Mode</div>
-                    <div className="mt-2 text-sm font-medium text-slate-900">
-                      {isComparisonMode ? "Comparison" : "Single Period"}
-                    </div>
-                  </div>
-                </div>
-              </PanelBody>
-            </Panel>
-
-
-            <div
-              className={
-                "grid gap-6 md:grid-cols-2 " +
-                (
-                  isAdminRole
-                    ? "xl:grid-cols-4"
-                    : "xl:grid-cols-3"
-                )
-              }
-            >
-              <MetricCard
-                title="Cases"
-                value={String(
-                  summaryCards.caseCount
-                )}
-                sub="Case(s) in selected periods"
-              />
-
-              <MetricCard
-                title="Average Score"
-                value={summaryCards.avgScore.toFixed(
-                  2
-                )}
-                sub="Average score across selected periods"
-                valueClassName="text-violet-700"
-              />
-
-              <MetricCard
-                title="Grade"
-                value={summaryCards.grade}
-                sub="Calculated from selected periods"
-                valueClassName="text-sky-700"
-                accent="from-white via-sky-50/50 to-indigo-100/60 border-sky-200"
-              />
-
-              {isAdminRole ? (
-                <div className="rounded-[28px] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/70 to-teal-100/70 p-6 shadow-sm">
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                    Team Average
-                  </div>
-
-                  <div className="mt-4 text-4xl font-semibold tracking-tight text-emerald-700">
-                    {adminSelectedTeamAverage ===
-                    null
-                      ? "No Data"
-                      : adminSelectedTeamAverage.toFixed(
-                          2
-                        )}
-                  </div>
-
-                  <div className="mt-2 text-sm font-semibold text-slate-500">
-                    {currentUserTeamName || "Team not assigned"}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            <AnalyticsOverviewV89
+              summary={summaryCards}
+              cases={filteredCases}
+              topics={topicSummary}
+              trendRows={comparisonRowsWithDelta}
+            />
 
             {analysisMode === "monthly" ? (
               <Panel>
