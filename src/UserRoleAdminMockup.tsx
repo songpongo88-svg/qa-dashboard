@@ -6,6 +6,7 @@ import { appendUserProfileHistory } from "./profileHistoryStore";
 
 // data-profile-access-team-history-v83
 // data-overview-agent-permission-v94-role
+// data-analytics-permission-scope-v95-role
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import CorporateUserDirectoryProfile, { type CorporateUserAccountUpdate } from "./CorporateUserDirectoryProfile";
@@ -155,8 +156,8 @@ const PERMISSION_DEFINITIONS: Array<{
 }> = [
   { key: "viewDashboard", label: "View Dashboard", category: "Performance", description: "Open Dashboard and case performance views." },
   { key: "viewAgentsInOverview", label: "View Agents in Overview", category: "Performance", description: "Show All Agents and Agent selection in the current-month Overview. The available names still follow the Role's Agent and Team scope." },
-  { key: "viewAllAgents", label: "View All Agents", category: "Performance", description: "Allow this role to use All Agents and see every agent in Dashboard/Summary." },
-  { key: "viewSummary", label: "View Summary", category: "Performance", description: "Open team/month summary pages." },
+  { key: "viewAllAgents", label: "View All Agents", category: "Performance", description: "Allow All Agents and individual Agent selection in Analytics. Overview Agent selection is controlled separately." },
+  { key: "viewSummary", label: "View Analytics", category: "Performance", description: "Open Analytics for weekly, monthly, yearly, comparison, team, Agent, and incentive analysis." },
   { key: "viewCoaching", label: "View Coaching", category: "Performance", description: "Open coaching insight and agent guidance." },
   { key: "viewAppeal", label: "View Appeal", category: "Review", description: "Open appeal page and appeal information." },
   { key: "submitAppeal", label: "Submit Appeal", category: "Review", description: "Submit appeal reason from case detail." },
@@ -181,8 +182,8 @@ const PERMISSION_DEFINITIONS: Array<{
   { key: "exportPdf", label: "Export PDF", category: "Account", description: "Generate PDF reports where available." },
   { key: "exportAppealRawdata", label: "Export Appeal ROWDATA", category: "Account", description: "Export reviewed appeal data for RawData update." },
   { key: "viewUserDirectory", label: "View User Directory", category: "Account", description: "Open Corporate User Directory in read-only mode." },
-  { key: "viewAllTeams", label: "View All Teams", category: "Account", description: "See every team and every team member in directory views." },
-  { key: "viewOwnTeam", label: "View Own Team", category: "Account", description: "See only members in the same team when all-team access is off." },
+  { key: "viewAllTeams", label: "View All Teams", category: "Account", description: "Use All Teams and open every Team Performance scope in Analytics and directory views." },
+  { key: "viewOwnTeam", label: "View Own Team", category: "Account", description: "Limit Analytics Team Performance and directory views to the current user's assigned team when All Teams is off." },
   { key: "qaEvaluationTarget", label: "QA Evaluation Target", category: "Review", description: "Users in this role can be selected in Create QA Evaluation and receive QA result tasks." },
   { key: "resetPassword", label: "Reset Password", category: "Account", description: "Approve/reset user password requests." },
   { key: "manageUsers", label: "Manage Users", category: "System", description: "Create users, edit profiles, suspend accounts." },
@@ -196,8 +197,8 @@ const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
 const PERMISSION_THAI_HELP: Record<RolePermissionKey, string> = {
   viewDashboard: "อนุญาตให้เปิดหน้า Dashboard และดูภาพรวมคะแนน เกรด KPI และผลการทำงานของเคส",
   viewAgentsInOverview: "อนุญาตให้แสดง All Agents และตัวเลือกรายชื่อ Agent ในหน้า Overview ของเดือนปัจจุบัน โดยรายชื่อที่เห็นยังอ้างอิง Scope ของ Role",
-  viewAllAgents: "อนุญาตให้เลือก All Agents และดูข้อมูลของพนักงานทุกคนใน Dashboard และ Analytics",
-  viewSummary: "อนุญาตให้เปิดหน้า Analytics เพื่อดูผลสรุปรายสัปดาห์ รายเดือน และรายปี",
+  viewAllAgents: "อนุญาตให้เลือก All Agents และดู Agent รายบุคคลในหน้า Analytics ส่วนหน้า Overview ใช้สิทธิ์ View Agents in Overview แยกต่างหาก",
+  viewSummary: "อนุญาตให้เปิดหน้า Analytics เพื่อดูผลสรุป เปรียบเทียบ ทีม Agent และ Incentive รายสัปดาห์ รายเดือน และรายปี",
   viewCoaching: "อนุญาตให้เปิดหน้า Coaching เพื่อดูและติดตามข้อมูลการโค้ชของพนักงาน",
   viewAppeal: "อนุญาตให้เปิดหน้า Appeal Cases และดูข้อมูลการอุทธรณ์ของเคส",
   submitAppeal: "อนุญาตให้ส่งคำขออุทธรณ์จากหน้า Case Detail",
@@ -222,8 +223,8 @@ const PERMISSION_THAI_HELP: Record<RolePermissionKey, string> = {
   exportPdf: "อนุญาตให้สร้างหรือดาวน์โหลดรายงาน PDF ในหน้าที่รองรับ",
   exportAppealRawdata: "อนุญาตให้ส่งออกข้อมูล Appeal ที่ตรวจสอบแล้วสำหรับอัปเดต RawData",
   viewUserDirectory: "อนุญาตให้ดูรายชื่อผู้ใช้และข้อมูลบัญชีในโหมดอ่านอย่างเดียว",
-  viewAllTeams: "อนุญาตให้ดูทุกทีม หัวหน้าทีม และสมาชิกทุกคน",
-  viewOwnTeam: "อนุญาตให้ดูเฉพาะสมาชิกที่อยู่ในทีมเดียวกับผู้ใช้",
+  viewAllTeams: "อนุญาตให้เลือก All Teams และดู Team Performance ของทุกทีมใน Analytics รวมถึงหน้าที่มีตัวเลือก Team",
+  viewOwnTeam: "อนุญาตให้ดู Team Performance และสมาชิกเฉพาะทีมที่ผู้ใช้สังกัด เมื่อไม่ได้เปิดสิทธิ์ View All Teams",
   qaEvaluationTarget: "อนุญาตให้ผู้ใช้ใน Role นี้ถูกเลือกเป็นผู้รับการประเมิน QA และรับแจ้งผลประเมิน",
   resetPassword: "อนุญาตให้อนุมัติคำขอและรีเซ็ตรหัสผ่านให้ผู้ใช้งานอื่น",
   manageUsers: "อนุญาตให้สร้างผู้ใช้ แก้ไขข้อมูลบัญชี ระงับ และเปิดใช้งานบัญชี",

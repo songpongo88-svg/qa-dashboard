@@ -1352,7 +1352,7 @@ function AnalyticsAgentPerformanceV92({
             <div className="text-[15px] font-semibold text-slate-900">
               {allAgentsMode
                 ? "Agent Performance (All Agents)"
-                : "Agent Performance"}
+                : "Individual Agent Analysis"}
             </div>
             <div className="mt-1 text-[10px] font-normal text-slate-500">
               {periodLabel || "Current selection"} · Ranked by average score
@@ -1364,7 +1364,7 @@ function AnalyticsAgentPerformanceV92({
         </div>
 
         <div className="max-h-[520px] overflow-auto">
-          <table className="min-w-[860px] w-full text-[11px]">
+          <table className="min-w-[1080px] w-full text-[11px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50 text-left font-normal text-slate-500">
                 <th className="w-12 px-4 py-3 text-center">#</th>
@@ -1373,7 +1373,9 @@ function AnalyticsAgentPerformanceV92({
                 <th className="px-3 py-3 text-center">Average</th>
                 <th className="px-3 py-3 text-center">KPI Status</th>
                 <th className="px-3 py-3 text-center">Grade</th>
+                <th className="px-3 py-3 text-center">Revised</th>
                 <th className="px-4 py-3 text-right">Incentive</th>
+                <th className="px-4 py-3 text-right">Details</th>
               </tr>
             </thead>
 
@@ -1439,6 +1441,9 @@ function AnalyticsAgentPerformanceV92({
                       {row.caseCount ? row.grade : "—"}
                     </span>
                   </td>
+                  <td className="px-3 py-3 text-center font-medium text-fuchsia-600">
+                    {row.revisedCount}
+                  </td>
                   <td
                     className={
                       "px-4 py-3 text-right font-medium " +
@@ -1451,13 +1456,32 @@ function AnalyticsAgentPerformanceV92({
                   >
                     {incentiveText(row)}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      disabled={
+                        !canSelectAgent ||
+                        !allAgentsMode
+                      }
+                      onClick={() =>
+                        onSelectAgent(
+                          row.agent
+                        )
+                      }
+                      className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-[10px] font-medium text-violet-700 transition hover:bg-violet-50 disabled:cursor-default disabled:border-slate-200 disabled:text-slate-400"
+                    >
+                      {allAgentsMode
+                        ? "View Details"
+                        : "Selected"}
+                    </button>
+                  </td>
                 </tr>
               ))}
 
               {!visibleRows.length ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="border-t border-slate-100 px-6 py-12 text-center text-sm font-normal text-slate-400"
                   >
                     No Agent data for the current selection
@@ -2175,6 +2199,10 @@ export default function SummaryMockup({
   externalSelectedMonth,
   externalSelectedWeek,
   roleScopedAgentNames,
+  canViewAllAgents = false,
+  canViewAllTeams = false,
+  canViewOwnTeam = false,
+  canExportAnalytics = false,
   dataRefreshKey,
   onSelectedAgentChange,
   onSelectedMonthChange,
@@ -2185,6 +2213,10 @@ export default function SummaryMockup({
   externalSelectedMonth?: string;
   externalSelectedWeek?: string;
   roleScopedAgentNames?: string[];
+  canViewAllAgents?: boolean;
+  canViewAllTeams?: boolean;
+  canViewOwnTeam?: boolean;
+  canExportAnalytics?: boolean;
   dataRefreshKey?: number;
   onSelectedAgentChange?: (agent: string) => void;
   onSelectedMonthChange?: (month: string) => void;
@@ -2218,41 +2250,22 @@ export default function SummaryMockup({
 
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
-  const roleScopedAgentList = useMemo(() => {
-    const providedScope = getUniqueNormalizedAgents(
-      (roleScopedAgentNames || [])
-        .map((name) => toTitleCaseName(String(name || "").trim()))
-        .filter(Boolean)
-    );
-
-    const normalizedRole = normalizeText(currentUser?.role);
-    const adminRole =
-      normalizedRole === "admin" ||
-      normalizedRole.startsWith("admin ") ||
-      normalizedRole.endsWith(" admin") ||
-      normalizedRole.includes("admin live chat");
-
-    const ownAgentName = toTitleCaseName(
-      String(
-        currentUser?.agentName ||
-          currentUser?.displayName ||
-          currentUser?.username ||
-          ""
-      ).trim()
-    );
-
-    if (adminRole && ownAgentName) {
-      return getUniqueNormalizedAgents([ownAgentName]);
-    }
-
-    return providedScope;
-  }, [
-    roleScopedAgentNames,
-    currentUser?.role,
-    currentUser?.agentName,
-    currentUser?.displayName,
-    currentUser?.username,
-  ]);
+  const roleScopedAgentList = useMemo(
+    () =>
+      getUniqueNormalizedAgents(
+        (roleScopedAgentNames || [])
+          .map((name) =>
+            toTitleCaseName(
+              String(name || "").trim()
+            )
+          )
+          .filter(Boolean)
+      ),
+    [roleScopedAgentNames]
+  );
+  const analyticsCanSelectAllAgents =
+    canViewAllAgents &&
+    !roleScopedAgentList.length;
 
   useEffect(() => {
     let alive = true;
@@ -2871,7 +2884,7 @@ export default function SummaryMockup({
     setSelectedPeriods([]);
     setPeriodFilterMonth("all");
 
-    if (!roleScopedAgentList.length) {
+    if (analyticsCanSelectAllAgents) {
       setSelectedAgent("all");
       onSelectedAgentChange?.("all");
     }
@@ -3368,31 +3381,85 @@ export default function SummaryMockup({
     [currentUserAccount]
   );
 
-  const analyticsCanSelectAllTeams = !roleScopedAgentList.length;
+  const analyticsCanSelectAllTeams =
+    canViewAllTeams &&
+    !roleScopedAgentList.length;
+  const analyticsCanViewTeamPerformance =
+    canViewAllTeams ||
+    canViewOwnTeam;
+  const analyticsCanExport =
+    canExportAnalytics;
   const analyticsTeamOptions = useMemo(() => {
-    const names = Array.from(new Set(accountProfiles.map((account) => getSummaryTeamName(account)).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b));
-    return analyticsCanSelectAllTeams ? names : currentUserTeamName ? [currentUserTeamName] : [];
-  }, [accountProfiles, analyticsCanSelectAllTeams, currentUserTeamName]);
+    const names = Array.from(
+      new Set(
+        accountProfiles
+          .map((account) =>
+            getSummaryTeamName(account)
+          )
+          .filter(Boolean)
+      )
+    ).sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+    if (analyticsCanSelectAllTeams) {
+      return names;
+    }
+
+    return canViewOwnTeam &&
+      currentUserTeamName
+      ? [currentUserTeamName]
+      : [];
+  }, [
+    accountProfiles,
+    analyticsCanSelectAllTeams,
+    canViewOwnTeam,
+    currentUserTeamName,
+  ]);
 
   useEffect(() => {
-    if (!analyticsCanSelectAllTeams) {
-      setSelectedTeam(currentUserTeamName || "all");
+    if (analyticsCanSelectAllTeams) {
+      if (
+        selectedTeam !== "all" &&
+        !analyticsTeamOptions.includes(
+          selectedTeam
+        )
+      ) {
+        setSelectedTeam("all");
+      }
       return;
     }
-    if (selectedTeam !== "all" && !analyticsTeamOptions.includes(selectedTeam)) {
-      setSelectedTeam("all");
+
+    if (
+      canViewOwnTeam &&
+      currentUserTeamName
+    ) {
+      setSelectedTeam(
+        currentUserTeamName
+      );
+      return;
     }
-  }, [analyticsCanSelectAllTeams, analyticsTeamOptions, currentUserTeamName, selectedTeam]);
+
+    setSelectedTeam("all");
+  }, [
+    analyticsCanSelectAllTeams,
+    analyticsTeamOptions,
+    canViewOwnTeam,
+    currentUserTeamName,
+    selectedTeam,
+  ]);
 
   useEffect(() => {
     if (
-      isAdminRole &&
+      !analyticsCanViewTeamPerformance &&
       summarySection !== "summary"
     ) {
       setSummarySection("summary");
     }
-  }, [isAdminRole, summarySection]);
+  }, [
+    analyticsCanViewTeamPerformance,
+    summarySection,
+  ]);
 
   const teamMonthOptions = useMemo(() => {
     return Array.from(
@@ -3457,12 +3524,33 @@ export default function SummaryMockup({
             );
             const agentSummary = summarizeCases(agentCases);
 
+            const kpiPassed =
+              agentSummary.caseCount > 0 &&
+              agentSummary.avgScore >=
+                PERFORMANCE_KPI_TARGET;
+            const completed =
+              agentSummary.caseCount >=
+              CASE_TARGET;
+            const incentiveResult =
+              completed && kpiPassed
+                ? getIncentiveByScore(
+                    agentSummary.avgScore,
+                    teamSelectedMonth
+                  )
+                : null;
+
             return {
               agent,
               caseCount: agentSummary.caseCount,
               avgScore: agentSummary.avgScore,
               grade: agentSummary.grade,
               revisedCount: agentSummary.revisedCount,
+              kpiPassed,
+              completed,
+              incentiveCash:
+                incentiveResult?.cash || 0,
+              incentivePromo:
+                incentiveResult?.promo || 0,
             };
           })
           .sort((a, b) => a.agent.localeCompare(b.agent));
@@ -3519,27 +3607,67 @@ export default function SummaryMockup({
           change: currentTrend?.change ?? null,
           grade: cases.length ? summary.grade : null,
           revisedCount: summary.revisedCount,
+          passedKpiCount: agents.filter(
+            (agent) => agent.kpiPassed
+          ).length,
+          completedAgentCount: agents.filter(
+            (agent) => agent.completed
+          ).length,
+          incentiveTotal: agents.reduce(
+            (sum, agent) =>
+              sum + agent.incentiveCash,
+            0
+          ),
+          incentivePromoTotal: agents.reduce(
+            (sum, agent) =>
+              sum + agent.incentivePromo,
+            0
+          ),
           topics: buildTopicSummary(cases),
           trend,
         };
       })
       .filter((row) => {
-        if (isAdminRole || roleScopedAgentList.length) {
+        if (!row.caseCount) {
+          return false;
+        }
+
+        if (analyticsCanSelectAllTeams) {
           return (
-            currentUserTeamName &&
-            normalizeText(row.teamName) === normalizeText(currentUserTeamName)
+            selectedTeam === "all" ||
+            normalizeText(
+              row.teamName
+            ) ===
+              normalizeText(
+                selectedTeam
+              )
           );
         }
 
-        return row.caseCount > 0;
+        if (
+          canViewOwnTeam &&
+          currentUserTeamName
+        ) {
+          return (
+            normalizeText(
+              row.teamName
+            ) ===
+            normalizeText(
+              currentUserTeamName
+            )
+          );
+        }
+
+        return false;
       });
   }, [
     allCases,
     accountProfiles,
     teamSelectedMonth,
-    isAdminRole,
+    analyticsCanSelectAllTeams,
+    canViewOwnTeam,
     currentUserTeamName,
-    roleScopedAgentList.length,
+    selectedTeam,
   ]);
 
   const selectedTeamPerformance = useMemo(
@@ -3559,10 +3687,15 @@ export default function SummaryMockup({
     [teamPerformanceRows, currentUserTeamName]
   );
 
-  const allTeamsSummary = useMemo(() => {
-    const cases = allCases.filter((item) => item.monthKey === teamSelectedMonth);
-    return summarizeCases(cases);
-  }, [allCases, teamSelectedMonth]);
+  const allTeamsSummary = useMemo(
+    () =>
+      summarizeCases(
+        teamPerformanceRows.flatMap(
+          (row) => row.cases
+        )
+      ),
+    [teamPerformanceRows]
+  );
 
   const adminSelectedTeamAverage = useMemo(() => {
     if (
@@ -7281,7 +7414,10 @@ export default function SummaryMockup({
   }
 
   return (
-    <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}>
+    <div
+      data-analytics-permission-scope-v95="true"
+      className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}
+    >
       {false && reportPdfDialogOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
@@ -7348,8 +7484,24 @@ export default function SummaryMockup({
               }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Exit Compare</button>
             ) : null}
             <div className="relative">
-              <button type="button" onClick={() => setAnalyticsExportOpen((value) => !value)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Export</button>
-              {analyticsExportOpen ? (
+              <button
+                type="button"
+                disabled={!analyticsCanExport}
+                title={
+                  analyticsCanExport
+                    ? "Export current Analytics view"
+                    : "Missing Export PDF permission"
+                }
+                onClick={() =>
+                  setAnalyticsExportOpen(
+                    (value) => !value
+                  )
+                }
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Export
+              </button>
+              {analyticsExportOpen && analyticsCanExport ? (
                 <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
                   <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">Export Current View</div>
                   <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
@@ -7364,7 +7516,7 @@ export default function SummaryMockup({
           </div>
         </div>
       </div>
-      {!isAdminRole ? (
+      {analyticsCanViewTeamPerformance ? (
         <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
           <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
             <button
@@ -7410,7 +7562,7 @@ export default function SummaryMockup({
         </div>
       ) : null}
 
-      {summarySection === "team" && !isAdminRole ? (
+      {summarySection === "team" && analyticsCanViewTeamPerformance ? (
         <div data-team-performance-logic-v90="true" className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader title="Team Performance" subtitle="เลือกเดือน ดูภาพรวมแต่ละทีม และเปิดรายละเอียดเฉพาะทีมที่ต้องการ" />
@@ -7427,20 +7579,30 @@ export default function SummaryMockup({
                 </div>
                 <div className="text-xs font-normal text-slate-500">{teamPerformanceRows.length} Teams · {allTeamsSummary.caseCount} Cases</div>
               </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200">
-                <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_90px_36px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                  <div>Team</div><div className="text-center">Cases</div><div className="text-center">Average</div><div className="text-center">Grade</div><div />
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="grid min-w-[980px] grid-cols-[minmax(0,1fr)_76px_76px_86px_86px_76px_120px_36px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  <div>Team</div>
+                  <div className="text-center">Agents</div>
+                  <div className="text-center">Cases</div>
+                  <div className="text-center">Average</div>
+                  <div className="text-center">KPI Pass</div>
+                  <div className="text-center">Grade</div>
+                  <div className="text-right">Incentive</div>
+                  <div />
                 </div>
                 {teamPerformanceRows.map((row) => {
                   const open = selectedTeamDetail === row.teamName;
                   return (
-                    <button key={row.teamName} type="button" onClick={() => setSelectedTeamDetail(open ? "" : row.teamName)} className="grid w-full grid-cols-[minmax(0,1fr)_90px_90px_90px_36px] gap-3 border-t border-slate-100 bg-white px-4 py-4 text-left text-sm hover:bg-violet-50/50">
-                      <div className="min-w-0"><div className="truncate font-medium text-slate-900">{row.teamName}</div><div className="mt-1 text-[10px] font-normal text-slate-500">{row.agentCount} Active Agents</div></div>
-                      <div className="text-center font-normal text-slate-600">{row.caseCount}</div>
-                      <div className="text-center font-medium text-violet-700">{row.avgScore === null ? "-" : row.avgScore.toFixed(2)}</div>
-                      <div className="text-center font-medium text-slate-700">{row.grade || "-"}</div>
-                      <div className="text-center text-violet-600">{open ? "⌃" : "›"}</div>
-                    </button>
+                                        <button key={row.teamName} type="button" onClick={() => setSelectedTeamDetail(open ? "" : row.teamName)} className="grid min-w-[980px] w-full grid-cols-[minmax(0,1fr)_76px_76px_86px_86px_76px_120px_36px] gap-3 border-t border-slate-100 bg-white px-4 py-4 text-left text-sm hover:bg-violet-50/50">
+                       <div className="min-w-0"><div className="truncate font-medium text-slate-900">{row.teamName}</div><div className="mt-1 text-[10px] font-normal text-slate-500">{row.completedAgentCount} completed target</div></div>
+                       <div className="text-center font-normal text-slate-600">{row.agentCount}</div>
+                       <div className="text-center font-normal text-slate-600">{row.caseCount}</div>
+                       <div className="text-center font-medium text-violet-700">{row.avgScore === null ? "-" : row.avgScore.toFixed(2)}</div>
+                       <div className="text-center font-medium text-emerald-700">{row.passedKpiCount}/{row.agentCount}</div>
+                       <div className="text-center font-medium text-slate-700">{row.grade || "-"}</div>
+                       <div className="text-right font-medium text-violet-700">฿{row.incentiveTotal.toLocaleString("en-US")}</div>
+                       <div className="text-center text-violet-600">{open ? "⌃" : "›"}</div>
+                     </button>
                   );
                 })}
                 {!teamPerformanceRows.length ? <div className="border-t border-slate-100 px-6 py-12 text-center text-sm font-normal text-slate-400">No team data for the selected month</div> : null}
@@ -7448,15 +7610,29 @@ export default function SummaryMockup({
               {selectedTeamPerformance ? (
                 <div className="grid gap-5 xl:grid-cols-2">
                   <Panel>
-                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Agents`} subtitle={`${selectedTeamPerformance.caseCount} Cases · Average ${selectedTeamPerformance.avgScore === null ? "-" : selectedTeamPerformance.avgScore.toFixed(2)}`} />
+                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Agents`} subtitle={`${selectedTeamPerformance.caseCount} Cases · Average ${selectedTeamPerformance.avgScore === null ? "-" : selectedTeamPerformance.avgScore.toFixed(2)} · KPI ${selectedTeamPerformance.passedKpiCount}/${selectedTeamPerformance.agentCount} · Incentive ฿${selectedTeamPerformance.incentiveTotal.toLocaleString("en-US")}`} />
                     <PanelBody>
                       <div className="overflow-hidden rounded-xl border border-slate-200">
-                        {selectedTeamPerformance.agents.map((agent) => (
-                          <div key={agent.agent} className="grid grid-cols-[minmax(0,1fr)_70px_80px] gap-3 border-t border-slate-100 px-4 py-3 text-xs first:border-t-0">
+                                                {selectedTeamPerformance.agents.map((agent) => (
+                          <button
+                            key={agent.agent}
+                            type="button"
+                            disabled={!analyticsCanSelectAllAgents}
+                            onClick={() => {
+                              if (!analyticsCanSelectAllAgents) return;
+                              setSelectedTeam(selectedTeamPerformance.teamName);
+                              setSelectedAgent(agent.agent);
+                              onSelectedAgentChange?.(agent.agent);
+                              setSummarySection("summary");
+                            }}
+                            className="grid w-full grid-cols-[minmax(0,1fr)_65px_70px_82px_110px] gap-3 border-t border-slate-100 px-4 py-3 text-left text-xs first:border-t-0 hover:bg-violet-50 disabled:cursor-default"
+                          >
                             <div className="truncate font-normal text-slate-700">{buildSuspendedAgentLabel(agent.agent, accountProfiles)}</div>
-                            <div className="text-center text-slate-500">{agent.caseCount} Cases</div>
-                            <div className="text-right font-medium text-violet-700">{agent.avgScore.toFixed(2)}</div>
-                          </div>
+                            <div className="text-center text-slate-500">{agent.caseCount}</div>
+                            <div className="text-center font-medium text-violet-700">{agent.avgScore.toFixed(2)}</div>
+                            <div className={"text-center font-medium " + (agent.kpiPassed ? "text-emerald-700" : "text-rose-600")}>{agent.kpiPassed ? "Passed" : "Not Passed"}</div>
+                            <div className="text-right font-medium text-violet-700">{agent.completed ? "฿" + agent.incentiveCash.toLocaleString("en-US") : "Pending " + agent.caseCount + "/" + CASE_TARGET}</div>
+                          </button>
                         ))}
                       </div>
                     </PanelBody>
@@ -7851,7 +8027,7 @@ export default function SummaryMockup({
                 <div>
                   <FilterLabel>Agent</FilterLabel>
                   <div className="mt-2">
-                    {roleScopedAgentList.length ? (
+                    {!analyticsCanSelectAllAgents ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-normal text-slate-700">{effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}</div>
                     ) : (
                       <FilterSelect value={effectiveSelectedAgent || "all"} onChange={(value) => {
@@ -7871,7 +8047,7 @@ export default function SummaryMockup({
                   setAnalysisMode("monthly");
                   setSelectedPeriods([]);
                   setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
-                  if (!roleScopedAgentList.length) {
+                  if (analyticsCanSelectAllAgents) {
                     setSelectedAgent("all");
                     onSelectedAgentChange?.("all");
                   }
@@ -7956,9 +8132,9 @@ export default function SummaryMockup({
               }
               selectedAgent={effectiveSelectedAgent}
               periodLabel={effectivePeriodLabels.join(" · ")}
-              canSelectAgent={!roleScopedAgentList.length}
+              canSelectAgent={analyticsCanSelectAllAgents}
               onSelectAgent={(agent) => {
-                if (roleScopedAgentList.length) return;
+                if (!analyticsCanSelectAllAgents) return;
                 setSelectedAgent(agent);
                 onSelectedAgentChange?.(agent);
               }}

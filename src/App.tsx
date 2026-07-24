@@ -3581,7 +3581,43 @@ export default function App() {
         "viewAgentsInOverview"
       )
     : false;
+  const analyticsAllowed = currentUser
+    ? hasRolePermission(
+        currentUser,
+        rolePermissions,
+        "viewSummary"
+      )
+    : false;
+  const analyticsAllAgentsAllowed = currentUser
+    ? hasRolePermission(
+        currentUser,
+        rolePermissions,
+        "viewAllAgents"
+      )
+    : false;
+  const analyticsAllTeamsAllowed = currentUser
+    ? hasRolePermission(
+        currentUser,
+        rolePermissions,
+        "viewAllTeams"
+      )
+    : false;
+  const analyticsOwnTeamAllowed = currentUser
+    ? hasRolePermission(
+        currentUser,
+        rolePermissions,
+        "viewOwnTeam"
+      )
+    : false;
+  const analyticsExportAllowed = currentUser
+    ? hasRolePermission(
+        currentUser,
+        rolePermissions,
+        "exportPdf"
+      )
+    : false;
   // data-overview-agent-permission-v94-app
+  // data-analytics-permission-scope-v95-app
   const qaEvaluationAgentOptions = useMemo(() => {
     return effectiveUserAccounts
       .filter((account) => account.status !== "Suspended")
@@ -3697,6 +3733,7 @@ export default function App() {
 
   const getTabBlockedReason = useCallback((tab: AppTab) => {
     if (!currentUser || sessionValidationPending || !accessRulesReady) return "";
+    if (tab === "summary" && !analyticsAllowed) return "missing viewSummary permission";
     if (tab === "coaching" && !coachingAllowed) return "missing viewCoaching permission";
     if (tab === "usage-log" && !usageLogAllowed) return "missing viewUsageLog permission";
     if (tab === "appeal-requests" && !appealRequestsAllowed) return "missing reviewAppeals permission";
@@ -3709,6 +3746,7 @@ export default function App() {
     return "";
   }, [
     accessRulesReady,
+    analyticsAllowed,
     appealOverrideAllowed,
     appealRequestsAllowed,
     coachingAllowed,
@@ -6158,7 +6196,7 @@ export default function App() {
       title: "Performance",
       description: "ภาพรวมผลการทำงานและข้อมูลสำคัญ",
       items: [
-        { key: "summary", label: "Analytics", description: "วิเคราะห์และเปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี", icon: "chart", allowed: true, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
+        { key: "summary", label: "Analytics", description: "วิเคราะห์และเปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี", icon: "chart", allowed: analyticsAllowed, active: activeWorkspaceTab === "summary", onClick: () => activateWorkspaceTab("summary") },
         { key: "dashboard", label: "Overview", description: "ดูผล QA ปัจจุบัน คะแนน เกรด KPI และความคืบหน้า", icon: "dashboard", allowed: true, active: activeWorkspaceTab === "dashboard", onClick: () => activateWorkspaceTab("dashboard") },
       ],
     },
@@ -6618,13 +6656,17 @@ export default function App() {
               void loadChatData();
             }}
           />
-        ) : activeTab === "summary" ? (
+        ) : activeTab === "summary" && analyticsAllowed ? (
           <SummaryMockup
             currentUser={currentUser}
             externalSelectedAgent={selectedAgentGlobal}
             externalSelectedMonth={selectedMonthGlobal}
             externalSelectedWeek={selectedWeekGlobal}
             roleScopedAgentNames={roleScopedAgentNames}
+            canViewAllAgents={analyticsAllAgentsAllowed}
+            canViewAllTeams={analyticsAllTeamsAllowed}
+            canViewOwnTeam={analyticsOwnTeamAllowed}
+            canExportAnalytics={analyticsExportAllowed}
             dataRefreshKey={qaDataRefreshKey}
             onSelectedAgentChange={setSelectedAgentGlobal}
             onSelectedMonthChange={setSelectedMonthGlobal}
