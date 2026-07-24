@@ -1236,22 +1236,6 @@ function AnalyticsOverviewV89({
 }) {
   const evaluatedCases =
     cases.length;
-  const passedCases =
-    cases.filter(
-      (item) =>
-        item.finalScore >=
-        PERFORMANCE_KPI_TARGET
-    ).length;
-  const passRate =
-    evaluatedCases > 0
-      ? Number(
-          (
-            (passedCases /
-              evaluatedCases) *
-            100
-          ).toFixed(2)
-        )
-      : 0;
   const revisedRate =
     evaluatedCases > 0
       ? Number(
@@ -1262,6 +1246,12 @@ function AnalyticsOverviewV89({
           ).toFixed(2)
         )
       : 0;
+  const hasKpiData =
+    evaluatedCases > 0;
+  const kpiPassed =
+    hasKpiData &&
+    summary.avgScore >=
+      PERFORMANCE_KPI_TARGET;
 
   const gradeColors: Record<
     string,
@@ -1387,14 +1377,12 @@ function AnalyticsOverviewV89({
       value: `${summary.avgScore.toFixed(
         2
       )}%`,
-      note:
-        summary.avgScore >=
-        PERFORMANCE_KPI_TARGET
-          ? "On target"
-          : `Target ${PERFORMANCE_KPI_TARGET}%`,
+      note: `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`,
       icon: "☆",
       tone:
         "bg-violet-50 text-violet-600",
+      valueTone:
+        "text-slate-900",
     },
     {
       title: "Cases Evaluated",
@@ -1408,16 +1396,36 @@ function AnalyticsOverviewV89({
       icon: "▤",
       tone:
         "bg-sky-50 text-sky-600",
+      valueTone:
+        "text-slate-900",
     },
     {
-      title: "KPI Pass Rate",
-      value: `${passRate.toFixed(
-        2
-      )}%`,
-      note: `${passedCases} passed cases`,
-      icon: "✓",
-      tone:
-        "bg-emerald-50 text-emerald-600",
+      title: "KPI Status",
+      value: hasKpiData
+        ? kpiPassed
+          ? "Passed"
+          : "Not Passed"
+        : "No Data",
+      note: hasKpiData
+        ? `Average ${summary.avgScore.toFixed(
+            2
+          )} · Target ${PERFORMANCE_KPI_TARGET}`
+        : `Target ${PERFORMANCE_KPI_TARGET}`,
+      icon: hasKpiData
+        ? kpiPassed
+          ? "✓"
+          : "!"
+        : "–",
+      tone: hasKpiData
+        ? kpiPassed
+          ? "bg-emerald-50 text-emerald-600"
+          : "bg-rose-50 text-rose-600"
+        : "bg-slate-100 text-slate-500",
+      valueTone: hasKpiData
+        ? kpiPassed
+          ? "text-emerald-700"
+          : "text-rose-600"
+        : "text-slate-500",
     },
     {
       title: "Revised Rate",
@@ -1428,6 +1436,8 @@ function AnalyticsOverviewV89({
       icon: "↻",
       tone:
         "bg-rose-50 text-rose-600",
+      valueTone:
+        "text-slate-900",
     },
     {
       title: "Overall Grade",
@@ -1436,12 +1446,15 @@ function AnalyticsOverviewV89({
       icon: "◇",
       tone:
         "bg-amber-50 text-amber-600",
+      valueTone:
+        "text-slate-900",
     },
   ];
 
   return (
     <div
       data-analytics-overview-v89="true"
+      data-kpi-status-average-v91="true"
       className="space-y-5"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -1456,7 +1469,9 @@ function AnalyticsOverviewV89({
                   <div className="text-[11px] font-normal text-slate-500">
                     {item.title}
                   </div>
-                  <div className="mt-2 text-[28px] font-semibold tracking-tight text-slate-900">
+                  <div
+                    className={`mt-2 text-[28px] font-semibold tracking-tight ${item.valueTone}`}
+                  >
                     {item.value}
                   </div>
                 </div>
