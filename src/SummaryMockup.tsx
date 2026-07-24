@@ -1,7 +1,6 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
-import PageHero from "./PageHero";
 import LoadingMascot from "./LoadingMascot";
 import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
@@ -1010,7 +1009,7 @@ function SongkranFlowerCorner({ className = "" }: { className?: string }) {
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-[30px] border border-violet-200/80 bg-white/95 shadow-[0_10px_35px_rgba(76,29,149,0.10)] backdrop-blur-sm ${className}`}>
+    <div className={`relative overflow-hidden rounded-[22px] border border-slate-200/90 bg-white shadow-[0_6px_22px_rgba(15,23,42,0.05)] ${className}`}>
       {isSongkranThemeActive() ? <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" /> : null}
       {children}
     </div>
@@ -1020,9 +1019,9 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
 function PanelHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const songkranTheme = isSongkranThemeActive();
   return (
-    <div className={`border-b px-5 py-4 ${songkranTheme ? "border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-fuchsia-50" : "border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50"}`}>
-      <div className="text-[17px] font-bold tracking-tight text-slate-900">{title}</div>
-      {subtitle ? <div className="mt-1 text-xs text-slate-500">{subtitle}</div> : null}
+    <div className={`border-b px-5 py-4 ${songkranTheme ? "border-cyan-100 bg-cyan-50/40" : "border-slate-100 bg-white"}`}>
+      <div className="text-[16px] font-semibold tracking-tight text-slate-900">{title}</div>
+      {subtitle ? <div className="mt-1 text-[11px] font-normal text-slate-500">{subtitle}</div> : null}
     </div>
   );
 }
@@ -1033,12 +1032,12 @@ function PanelBody({ children, className = "" }: { children: React.ReactNode; cl
 
 function MetricCard({ title, value, sub, accent = "from-white via-violet-50/40 to-fuchsia-50/60 border-violet-200/70", valueClassName = "text-slate-900" }: { title: string; value: string; sub: string; accent?: string; valueClassName?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${accent} shadow-[0_10px_30px_rgba(91,33,182,0.08)]`}>
-      <div className="h-1.5 bg-gradient-to-r from-violet-950 via-violet-700 to-fuchsia-500" />
-      <div className="p-5 lg:p-6">
-        <div className="text-[13px] font-semibold tracking-wide text-slate-500">{title}</div>
-        <div className={`mt-3 text-4xl font-extrabold tracking-tight lg:text-[42px] ${valueClassName}`}>{value}</div>
-        <div className="mt-3 text-xs leading-5 text-slate-500">{sub}</div>
+    <div className={`relative overflow-hidden rounded-[20px] border bg-gradient-to-br ${accent} shadow-[0_5px_18px_rgba(15,23,42,0.05)]`}>
+      <div className="h-1 bg-gradient-to-r from-violet-700 via-violet-600 to-fuchsia-500" />
+      <div className="p-5">
+        <div className="text-xs font-medium tracking-wide text-slate-500">{title}</div>
+        <div className={`mt-2 text-3xl font-semibold tracking-tight ${valueClassName}`}>{value}</div>
+        <div className="mt-2 text-[11px] font-normal leading-5 text-slate-500">{sub}</div>
       </div>
     </div>
   );
@@ -1066,12 +1065,12 @@ function ViewButton({ active, label, onClick }: { active: boolean; label: string
 }
 
 function FilterLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">{children}</div>;
+  return <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{children}</div>;
 }
 
 function FilterSelect({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-violet-400">
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
       {options.map((option) => (
         <option key={`${option.value}-${option.label}`} value={option.value}>{option.label}</option>
       ))}
@@ -1131,16 +1130,16 @@ function AgentMonthlyAnalyticsTable({
     <div className="overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-white via-violet-50/40 to-sky-50/40">
       <div className="grid gap-3 p-4 md:grid-cols-3">
         <div className="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 shadow-sm">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-500">Visible Rows</div>
-          <div className="mt-2 text-2xl font-black text-slate-950">{rows.length}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-500">Visible Rows</div>
+          <div className="mt-2 text-2xl font-semibold text-slate-950">{rows.length}</div>
         </div>
         <div className="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 shadow-sm">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-500">Total Cases</div>
-          <div className="mt-2 text-2xl font-black text-slate-950">{rows.reduce((sum, row) => sum + row.caseCount, 0)}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-500">Total Cases</div>
+          <div className="mt-2 text-2xl font-semibold text-slate-950">{rows.reduce((sum, row) => sum + row.caseCount, 0)}</div>
         </div>
         <div className="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 shadow-sm">
-          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-500">Zero Case Rows</div>
-          <div className="mt-2 text-2xl font-black text-slate-950">{rows.filter((row) => row.caseCount === 0).length}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-500">Zero Case Rows</div>
+          <div className="mt-2 text-2xl font-semibold text-slate-950">{rows.filter((row) => row.caseCount === 0).length}</div>
         </div>
       </div>
       <div className="overflow-x-auto border-t border-violet-100 bg-white">
@@ -1160,18 +1159,18 @@ function AgentMonthlyAnalyticsTable({
                 const completion = Math.min(100, Math.round((row.caseCount / CASE_TARGET) * 100));
                 return (
                   <tr key={`${firstColLabel}-${row.label}`} className={row.caseCount ? "bg-white" : "bg-rose-50/35"}>
-                    <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-950">{row.label}</td>
+                    <td className="border-t border-slate-100 px-4 py-3 font-medium text-slate-950">{row.label}</td>
                     <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.caseCount}</td>
                     <td className="border-t border-slate-100 px-4 py-3 text-center font-semibold">{row.avgScore.toFixed(2)}</td>
                     <td className="border-t border-slate-100 px-4 py-3 text-center">
-                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${getGradeTone(row.grade)}`}>{row.grade}</span>
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span>
                     </td>
                     <td className="border-t border-slate-100 px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                           <div className="h-full rounded-full bg-gradient-to-r from-violet-700 to-fuchsia-500" style={{ width: `${completion}%` }} />
                         </div>
-                        <div className="w-14 text-right text-xs font-bold text-slate-500">{row.caseCount}/{CASE_TARGET}</div>
+                        <div className="w-14 text-right text-xs font-medium text-slate-500">{row.caseCount}/{CASE_TARGET}</div>
                       </div>
                     </td>
                   </tr>
@@ -6287,14 +6286,14 @@ export default function SummaryMockup({
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
             <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-5 py-4 text-white">
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-100">Export PDF</div>
-              <div className="mt-1 text-xl font-extrabold">Choose Report PDF</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-violet-100">Export PDF</div>
+              <div className="mt-1 text-xl font-semibold">Choose Report PDF</div>
               <div className="mt-1 text-xs text-violet-100">Select report type before generating PDF</div>
             </div>
 
             <div className="space-y-4 p-5">
               <div>
-                <div className="mb-2 text-xs font-bold uppercase tracking-wide text-violet-700">Report Type</div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-violet-700">Report Type</div>
                 <select
                   value={reportPdfView}
                   onChange={(event) => setReportPdfView(event.target.value as SummaryView)}
@@ -6323,7 +6322,7 @@ export default function SummaryMockup({
                 <button
                   type="button"
                   onClick={generateSummaryReportPdf}
-                  className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800"
+                  className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800"
                 >
                   Generate PDF
                 </button>
@@ -6334,13 +6333,29 @@ export default function SummaryMockup({
       ) : null}
 
       {songkranTheme ? <SongkranBackdrop /> : null}
-      <PageHero
-        eyebrow="Analytics"
-        title="QA Performance Analytics"
-        subtitle="เปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี พร้อมสร้างรายงาน"
-        workspaceTitle="Quality Monitoring Workspace"
-        workspaceSubtitle="Corporate dashboard for audit tracking and case review"
-      />
+      <div
+        data-analytics-header-v88="true"
+        className="mx-auto max-w-[1720px] px-6 pt-7 lg:px-8 lg:pt-8"
+      >
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-violet-600">
+              Analytics
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 lg:text-[28px]">
+              QA Performance Analytics
+            </h1>
+            <p className="mt-2 text-sm font-normal text-slate-500">
+              เปรียบเทียบผล QA รายสัปดาห์ รายเดือน และรายปี พร้อมติดตามแนวโน้มจากข้อมูลปัจจุบัน
+            </p>
+          </div>
+
+          <div className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-normal text-slate-500 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Live Analytics Workspace
+          </div>
+        </div>
+      </div>
       {!isAdminRole ? (
         <div className="mx-auto max-w-[1720px] px-6 pt-6 lg:px-8">
           <div className="inline-flex rounded-2xl border border-violet-200 bg-white p-1.5 shadow-sm">
@@ -6352,7 +6367,7 @@ export default function SummaryMockup({
                 )
               }
               className={
-                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+                "rounded-xl px-5 py-2.5 text-sm font-semibold transition " +
                 (
                   summarySection ===
                   "summary"
@@ -6372,7 +6387,7 @@ export default function SummaryMockup({
                 )
               }
               className={
-                "rounded-xl px-5 py-2.5 text-sm font-black transition " +
+                "rounded-xl px-5 py-2.5 text-sm font-semibold transition " +
                 (
                   summarySection ===
                   "team"
@@ -6418,7 +6433,7 @@ export default function SummaryMockup({
                   type="button"
                   onClick={generateTeamPerformancePdf}
                   disabled={!teamSelectedMonth || (isAdminRole && !currentUserTeamName)}
-                  className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Generate Team PDF
                 </button>
@@ -6427,14 +6442,14 @@ export default function SummaryMockup({
               {isAdminRole ? (
                 currentUserTeamName ? (
                   <div className="rounded-[28px] border border-violet-200 bg-gradient-to-br from-violet-950 via-violet-800 to-fuchsia-700 p-7 text-white shadow-xl shadow-violet-100">
-                    <div className="text-xs font-black uppercase tracking-[0.2em] text-violet-200">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
                       Team
                     </div>
-                    <div className="mt-2 text-2xl font-black">{currentUserTeamName}</div>
-                    <div className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-violet-200">
+                    <div className="mt-2 text-2xl font-semibold">{currentUserTeamName}</div>
+                    <div className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
                       Average Score
                     </div>
-                    <div className="mt-2 text-6xl font-black tracking-tight">
+                    <div className="mt-2 text-6xl font-semibold tracking-tight">
                       {adminOwnTeamRow?.avgScore === null || adminOwnTeamRow?.avgScore === undefined
                         ? "No Data"
                         : adminOwnTeamRow.avgScore.toFixed(2)}
@@ -6444,7 +6459,7 @@ export default function SummaryMockup({
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-sm font-bold text-amber-800">
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-sm font-medium text-amber-800">
                     ยังไม่ได้กำหนดทีมสำหรับบัญชีนี้
                   </div>
                 )
@@ -6452,7 +6467,7 @@ export default function SummaryMockup({
                 <>
                   <div className="flex flex-col gap-3 rounded-3xl border border-violet-100 bg-white px-5 py-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <div className="text-sm font-black text-slate-950">
+                      <div className="text-sm font-semibold text-slate-950">
                         {getMonthLabelForKey(
                           teamSelectedMonth,
                           allCases
@@ -6463,7 +6478,7 @@ export default function SummaryMockup({
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-xs font-black">
+                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
                       <span className="rounded-full bg-violet-100 px-3 py-2 text-violet-700">
                         Overall Avg {allTeamsSummary.avgScore.toFixed(2)}
                       </span>
@@ -6482,7 +6497,7 @@ export default function SummaryMockup({
                         >
                           <div className="flex flex-col gap-3 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                              <div className="text-[17px] font-black text-slate-950">
+                              <div className="text-[17px] font-semibold text-slate-950">
                                 {row.teamName}
                               </div>
                               <div className="mt-1 text-xs font-semibold text-slate-500">
@@ -6490,7 +6505,7 @@ export default function SummaryMockup({
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 text-xs font-black">
+                            <div className="flex flex-wrap gap-2 text-xs font-semibold">
                               <span className="rounded-full bg-violet-700 px-3 py-2 text-white">
                                 Avg {row.avgScore === null ? "No Data" : row.avgScore.toFixed(2)}
                               </span>
@@ -6518,7 +6533,7 @@ export default function SummaryMockup({
 
                           <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
                             <div>
-                              <div className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                              <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                                 Agent Performance
                               </div>
 
@@ -6538,7 +6553,7 @@ export default function SummaryMockup({
                                         key={`${row.teamName}-${agentRow.agent}`}
                                         className="bg-white"
                                       >
-                                        <td className="border-t border-slate-100 px-3 py-2.5 font-bold text-slate-900">
+                                        <td className="border-t border-slate-100 px-3 py-2.5 font-medium text-slate-900">
                                           {buildSuspendedAgentLabel(
                                             agentRow.agent,
                                             accountProfiles
@@ -6549,14 +6564,14 @@ export default function SummaryMockup({
                                             </div>
                                           ) : null}
                                         </td>
-                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center font-bold text-slate-600">
+                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center font-medium text-slate-600">
                                           {agentRow.caseCount}
                                         </td>
-                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center font-black text-violet-700">
+                                        <td className="border-t border-slate-100 px-2 py-2.5 text-center font-semibold text-violet-700">
                                           {agentRow.avgScore.toFixed(2)}
                                         </td>
                                         <td className="border-t border-slate-100 px-2 py-2.5 text-center">
-                                          <span className={`inline-flex rounded-full border px-2 py-1 font-black ${getGradeTone(agentRow.grade)}`}>
+                                          <span className={`inline-flex rounded-full border px-2 py-1 font-semibold ${getGradeTone(agentRow.grade)}`}>
                                             {agentRow.grade}
                                           </span>
                                         </td>
@@ -6568,7 +6583,7 @@ export default function SummaryMockup({
                             </div>
 
                             <div>
-                              <div className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                              <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                                 Topic Performance
                               </div>
 
@@ -6576,10 +6591,10 @@ export default function SummaryMockup({
                                 {row.topics.map((topic) => (
                                   <div key={`${row.teamName}-${topic.code}`}>
                                     <div className="flex items-start justify-between gap-3 text-xs">
-                                      <div className="font-bold leading-5 text-slate-700">
+                                      <div className="font-medium leading-5 text-slate-700">
                                         {topic.code}. {topic.label}
                                       </div>
-                                      <div className="shrink-0 font-black text-violet-700">
+                                      <div className="shrink-0 font-semibold text-violet-700">
                                         {topic.pct.toFixed(2)}%
                                       </div>
                                     </div>
@@ -6602,7 +6617,7 @@ export default function SummaryMockup({
 
                           <div className="border-t border-violet-100 bg-slate-50/70 px-5 py-4">
                             <div>
-                              <div className="text-xs font-black text-slate-900">
+                              <div className="text-xs font-semibold text-slate-900">
                                 3-Month Average Trend
                               </div>
                               <div className="mt-1 text-[11px] font-semibold text-slate-500">
@@ -6633,7 +6648,7 @@ export default function SummaryMockup({
                                         className="relative h-full min-w-0 flex-1"
                                       >
                                         <div
-                                          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-black text-slate-900"
+                                          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-slate-900"
                                           style={{ bottom: `calc(${barHeight}% + 6px)` }}
                                         >
                                           {trendItem.avgScore === null
@@ -6661,7 +6676,7 @@ export default function SummaryMockup({
                                   <div key={`label-${row.teamName}-${trendItem.monthKey}`} className="min-w-0">
                                     <div
                                       className={
-                                        "text-[11px] font-black " +
+                                        "text-[11px] font-semibold " +
                                         (trendItem.change === null
                                           ? "text-slate-400"
                                           : trendItem.change > 0
@@ -6704,7 +6719,7 @@ export default function SummaryMockup({
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-4xl">
               <div className="text-xs font-semibold uppercase tracking-[0.35em] text-violet-200">QA Summary</div>
-              <div className="mt-2 text-3xl font-bold tracking-tight lg:text-4xl">Weekly / Monthly / Yearly Summary Workspace</div>
+              <div className="mt-2 text-3xl font-medium tracking-tight lg:text-4xl">Weekly / Monthly / Yearly Summary Workspace</div>
               <div className="mt-3 max-w-3xl text-sm leading-6 text-violet-100/95">รวมหน้าสรุป Weekly Dashboard, Weekly QA by Agent, Monthly Dashboard, Monthly Team Summary, Yearly Team Summary และ Yearly by Agent ในหน้าเดียว</div>
             </div>
             <div className="flex items-center gap-4 rounded-[28px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm">
@@ -6721,31 +6736,53 @@ export default function SummaryMockup({
       ) : null}
 
       <div className={`mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8 ${summarySection === "summary" ? "" : "hidden"}`}>
-        <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <div className="space-y-6">
-            <Panel className="sticky top-4">
-              <PanelHeader
-                title="Report Builder"
-                subtitle="เลือก 1 ช่วงเพื่อดูรายงานปกติ หรือเลือกหลายช่วงเพื่อเปรียบเทียบ"
-              />
-              <PanelBody className="space-y-5">
+        <div
+          data-analytics-clean-v88="true"
+          className="space-y-5"
+        >
+          <Panel className="overflow-visible">
+            <PanelHeader
+              title="Analytics Controls"
+              subtitle="เลือกขอบเขตข้อมูลและช่วงเวลาจากแถบเดียว โดยไม่บีบพื้นที่รายงาน"
+            />
+            <PanelBody className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div>
-                  <FilterLabel>1. Report Type</FilterLabel>
+                  <FilterLabel>Report Type</FilterLabel>
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {[
-                      { value: "weekly", label: "Weekly" },
-                      { value: "monthly", label: "Monthly" },
-                      { value: "yearly", label: "Yearly" },
+                      {
+                        value: "weekly",
+                        label: "Weekly",
+                      },
+                      {
+                        value: "monthly",
+                        label: "Monthly",
+                      },
+                      {
+                        value: "yearly",
+                        label: "Yearly",
+                      },
                     ].map((option) => (
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setAnalysisMode(option.value as "weekly" | "monthly" | "yearly")}
+                        onClick={() =>
+                          setAnalysisMode(
+                            option.value as
+                              | "weekly"
+                              | "monthly"
+                              | "yearly"
+                          )
+                        }
                         className={
-                          "rounded-2xl border px-3 py-3 text-xs font-black transition " +
-                          (analysisMode === option.value
-                            ? "border-violet-700 bg-violet-700 text-white shadow-lg shadow-violet-200"
-                            : "border-violet-200 bg-white text-violet-700 hover:bg-violet-50")
+                          "rounded-xl border px-3 py-2.5 text-xs font-medium transition " +
+                          (
+                            analysisMode ===
+                            option.value
+                              ? "border-violet-500 bg-violet-600 text-white shadow-sm"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"
+                          )
                         }
                       >
                         {option.label}
@@ -6755,24 +6792,45 @@ export default function SummaryMockup({
                 </div>
 
                 <div>
-                  <FilterLabel>2. Select Agent</FilterLabel>
+                  <FilterLabel>Agent</FilterLabel>
                   <div className="mt-2">
                     {roleScopedAgentList.length ? (
-                      <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-800">
-                        {effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-800">
+                        {effectiveSelectedAgent
+                          ? buildSuspendedAgentLabel(
+                              effectiveSelectedAgent,
+                              accountProfiles
+                            )
+                          : "-"}
                       </div>
                     ) : (
                       <FilterSelect
-                        value={effectiveSelectedAgent || "all"}
+                        value={
+                          effectiveSelectedAgent ||
+                          "all"
+                        }
                         onChange={(value) => {
                           setSelectedAgent(value);
-                          onSelectedAgentChange?.(value);
+                          onSelectedAgentChange?.(
+                            value
+                          );
                         }}
-                        options={[{ value: "all", label: "All Agents" }].concat(
-                          selectableAgentOptions.map((agent) => ({
-                            value: agent,
-                            label: buildSuspendedAgentLabel(agent, accountProfiles),
-                          }))
+                        options={[
+                          {
+                            value: "all",
+                            label: "All Agents",
+                          },
+                        ].concat(
+                          selectableAgentOptions.map(
+                            (agent) => ({
+                              value: agent,
+                              label:
+                                buildSuspendedAgentLabel(
+                                  agent,
+                                  accountProfiles
+                                ),
+                            })
+                          )
                         )}
                       />
                     )}
@@ -6781,16 +6839,27 @@ export default function SummaryMockup({
 
                 {analysisMode !== "yearly" ? (
                   <div>
-                    <FilterLabel>3. Select Year</FilterLabel>
+                    <FilterLabel>Year</FilterLabel>
                     <div className="mt-2">
                       <FilterSelect
-                        value={effectivePeriodYear}
+                        value={
+                          effectivePeriodYear
+                        }
                         onChange={(value) => {
-                          setPeriodFilterYear(value);
-                          setPeriodFilterMonth("all");
+                          setPeriodFilterYear(
+                            value
+                          );
+                          setPeriodFilterMonth(
+                            "all"
+                          );
                           setSelectedPeriods([]);
                         }}
-                        options={selectableYears.map((year) => ({ value: year, label: year }))}
+                        options={selectableYears.map(
+                          (year) => ({
+                            value: year,
+                            label: year,
+                          })
+                        )}
                       />
                     </div>
                   </div>
@@ -6798,93 +6867,154 @@ export default function SummaryMockup({
 
                 {analysisMode === "weekly" ? (
                   <div>
-                    <FilterLabel>4. Filter Month</FilterLabel>
+                    <FilterLabel>
+                      Filter Month
+                    </FilterLabel>
                     <div className="mt-2">
                       <FilterSelect
-                        value={periodFilterMonth}
+                        value={
+                          periodFilterMonth
+                        }
                         onChange={(value) => {
-                          setPeriodFilterMonth(value);
+                          setPeriodFilterMonth(
+                            value
+                          );
                           setSelectedPeriods([]);
                         }}
-                        options={weekMonthOptions}
+                        options={
+                          weekMonthOptions
+                        }
                       />
                     </div>
                   </div>
                 ) : null}
+              </div>
 
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
                 <div>
                   <div className="flex items-center justify-between gap-3">
                     <FilterLabel>
-                      {analysisMode === "weekly"
+                      {analysisMode ===
+                      "weekly"
                         ? "Select Weeks"
-                        : analysisMode === "monthly"
+                        : analysisMode ===
+                            "monthly"
                           ? "Select Months"
                           : "Select Years"}
                     </FilterLabel>
-                    <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-black text-violet-700">
-                      {selectedPeriods.length}/{maxSelectedPeriods}
+
+                    <div className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-medium text-violet-700">
+                      {
+                        selectedPeriods.length
+                      }
+                      /{maxSelectedPeriods}
                     </div>
                   </div>
 
-                  <div
-                    className={
-                      "mt-2 max-h-[340px] overflow-y-auto rounded-2xl border border-violet-100 bg-violet-50/50 p-3 " +
-                      (analysisMode === "monthly"
-                        ? "grid grid-cols-2 gap-2"
-                        : analysisMode === "yearly"
-                          ? "grid grid-cols-2 gap-2"
-                          : "space-y-2")
-                    }
-                  >
-                    {periodOptions.map((period) => {
-                      const activeSelections = selectedPeriods;
-                      const checked = activeSelections.includes(period);
-                      const disabled =
-                        !checked &&
-                        activeSelections.length >= maxSelectedPeriods;
+                  <div className="mt-2 flex max-h-[180px] flex-wrap gap-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                    {periodOptions.map(
+                      (period) => {
+                        const activeSelections =
+                          selectedPeriods;
+                        const checked =
+                          activeSelections.includes(
+                            period
+                          );
+                        const disabled =
+                          !checked &&
+                          activeSelections.length >=
+                            maxSelectedPeriods;
 
-                      return (
-                        <button
-                          key={period}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => {
-                            const current = selectedPeriods;
-                            if (current.includes(period)) {
-                              setSelectedPeriods(current.filter((item) => item !== period));
-                              return;
+                        return (
+                          <button
+                            key={period}
+                            type="button"
+                            disabled={
+                              disabled
                             }
-                            if (current.length >= maxSelectedPeriods) return;
-                            setSelectedPeriods(sortPeriodKeys([...current, period]));
-                          }}
-                          className={
-                            "w-full rounded-xl border px-3 py-3 text-left text-sm font-bold transition " +
-                            (checked
-                              ? "border-violet-600 bg-white text-violet-800 shadow-sm"
-                              : disabled
-                                ? "cursor-not-allowed border-transparent bg-slate-100 text-slate-400 opacity-60"
-                                : "border-transparent bg-white/70 text-slate-700 hover:border-violet-200")
-                          }
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span>{getPeriodDisplayLabel(period)}</span>
-                            <span className={checked ? "text-violet-700" : "text-slate-300"}>
-                              {checked ? "Selected" : ""}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
+                            onClick={() => {
+                              const current =
+                                selectedPeriods;
+
+                              if (
+                                current.includes(
+                                  period
+                                )
+                              ) {
+                                setSelectedPeriods(
+                                  current.filter(
+                                    (item) =>
+                                      item !==
+                                      period
+                                  )
+                                );
+                                return;
+                              }
+
+                              if (
+                                current.length >=
+                                maxSelectedPeriods
+                              ) {
+                                return;
+                              }
+
+                              setSelectedPeriods(
+                                sortPeriodKeys([
+                                  ...current,
+                                  period,
+                                ])
+                              );
+                            }}
+                            className={
+                              "min-w-[132px] rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition " +
+                              (
+                                checked
+                                  ? "border-violet-400 bg-white text-violet-800 shadow-sm"
+                                  : disabled
+                                    ? "cursor-not-allowed border-transparent bg-slate-100 text-slate-400 opacity-60"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"
+                              )
+                            }
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span>
+                                {getPeriodDisplayLabel(
+                                  period
+                                )}
+                              </span>
+                              <span
+                                className={
+                                  checked
+                                    ? "text-violet-600"
+                                    : "text-slate-300"
+                                }
+                              >
+                                {checked
+                                  ? "✓"
+                                  : ""}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      }
+                    )}
                   </div>
 
                   <div className="mt-2 text-xs leading-5 text-slate-500">
                     {selectedPeriods.length
-                      ? analysisMode === "monthly"
+                      ? analysisMode ===
+                        "monthly"
                         ? "เลือกได้สูงสุด 6 เดือน"
-                        : analysisMode === "weekly"
+                        : analysisMode ===
+                            "weekly"
                           ? "เลือกได้สูงสุด 4 สัปดาห์"
                           : "เลือกได้สูงสุด 4 ปี"
-                      : `ยังไม่ได้เลือก Compare — ระบบกำลังแสดง ${effectivePeriodLabels.join(", ") || "ช่วงปัจจุบัน"} อัตโนมัติ`}
+                      : `ยังไม่ได้เลือก Compare — ระบบกำลังแสดง ${
+                          effectivePeriodLabels.join(
+                            ", "
+                          ) ||
+                          "ช่วงปัจจุบัน"
+                        } อัตโนมัติ`}
                   </div>
                 </div>
 
@@ -6892,47 +7022,55 @@ export default function SummaryMockup({
                   type="button"
                   onClick={() => {
                     setReportPdfView(viewMode);
-                    setReportPdfDialogOpen(true);
+                    setReportPdfDialogOpen(
+                      true
+                    );
                   }}
-                  disabled={!effectivePeriodKeys.length}
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-black text-white shadow-lg transition hover:from-violet-800 hover:to-fuchsia-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={
+                    !effectivePeriodKeys.length
+                  }
+                  className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-violet-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Generate {reportModeName} {isComparisonMode ? "Compare " : ""}Report
+                  Generate {reportModeName}{" "}
+                  {isComparisonMode
+                    ? "Compare "
+                    : ""}
+                  Report
                 </button>
-              </PanelBody>
-            </Panel>
-          </div>
+              </div>
+            </PanelBody>
+          </Panel>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             <Panel>
-              <PanelHeader title="Current View" subtitle="ขอบเขตข้อมูลที่กำลังแสดง" />
+              <PanelHeader title="Current Selection" subtitle="ขอบเขตข้อมูลที่กำลังแสดงจากตัวกรองด้านบน" />
               <PanelBody>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Mode</div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">{reportModeName}</div>
+                    <div className="mt-2 text-sm font-medium text-slate-900">{reportModeName}</div>
                   </div>
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Agent</div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
+                    <div className="mt-2 text-sm font-medium text-slate-900">
                       {effectiveSelectedAgent === "all" ? "All Agents" : buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles)}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Year</div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
+                    <div className="mt-2 text-sm font-medium text-slate-900">
                       {analysisMode === "yearly" ? effectivePeriodLabels.join(", ") : effectivePeriodYear}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4 xl:col-span-1">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 xl:col-span-1">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Selected Periods</div>
-                    <div className="mt-2 text-sm font-bold leading-5 text-slate-900">
+                    <div className="mt-2 text-sm font-medium leading-5 text-slate-900">
                       {effectivePeriodLabels.join(", ") || "No period"}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Report Mode</div>
-                    <div className="mt-2 text-sm font-bold text-slate-900">
+                    <div className="mt-2 text-sm font-medium text-slate-900">
                       {isComparisonMode ? "Comparison" : "Single Period"}
                     </div>
                   </div>
@@ -6978,11 +7116,11 @@ export default function SummaryMockup({
 
               {isAdminRole ? (
                 <div className="rounded-[28px] border border-emerald-200 bg-gradient-to-br from-white via-emerald-50/70 to-teal-100/70 p-6 shadow-sm">
-                  <div className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
                     Team Average
                   </div>
 
-                  <div className="mt-4 text-4xl font-black tracking-tight text-emerald-700">
+                  <div className="mt-4 text-4xl font-semibold tracking-tight text-emerald-700">
                     {adminSelectedTeamAverage ===
                     null
                       ? "No Data"
@@ -7009,14 +7147,14 @@ export default function SummaryMockup({
                     <div className="rounded-2xl border border-violet-100 bg-white p-5">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <div className="text-sm font-black text-slate-900">
+                          <div className="text-sm font-semibold text-slate-900">
                             Monthly Average Score Trend
                           </div>
                           <div className="mt-1 text-xs font-semibold text-slate-500">
                             Score scale 70–100
                           </div>
                         </div>
-                        <div className="rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
+                        <div className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
                           Team
                         </div>
                       </div>
@@ -7038,7 +7176,7 @@ export default function SummaryMockup({
                                 className="relative h-full min-w-0 flex-1"
                               >
                                 <div
-                                  className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-black text-slate-800"
+                                  className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold text-slate-800"
                                   style={{
                                     bottom: `calc(${row.barPct}% + 7px)`,
                                   }}
@@ -7063,7 +7201,7 @@ export default function SummaryMockup({
                           {teamMonthlyAnalyticsRows.map((row) => (
                             <div
                               key={row.monthKey}
-                              className="min-w-0 flex-1 truncate text-center text-[11px] font-bold text-slate-500"
+                              className="min-w-0 flex-1 truncate text-center text-[11px] font-medium text-slate-500"
                               title={row.label}
                             >
                               {row.label}
@@ -7088,20 +7226,20 @@ export default function SummaryMockup({
                         <tbody>
                           {teamMonthlyAnalyticsRows.map((row) => (
                             <tr key={row.monthKey} className="bg-white">
-                              <td className="border-t border-violet-100 px-4 py-4 font-black text-slate-900">
+                              <td className="border-t border-violet-100 px-4 py-4 font-semibold text-slate-900">
                                 {row.label}
                               </td>
-                              <td className="border-t border-violet-100 px-4 py-4 text-center font-bold text-slate-700">
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-medium text-slate-700">
                                 {row.caseCount}
                               </td>
-                              <td className="border-t border-violet-100 px-4 py-4 text-center font-black text-violet-700">
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-semibold text-violet-700">
                                 {row.caseCount
                                   ? row.avgScore.toFixed(2)
                                   : "No data"}
                               </td>
                               <td
                                 className={
-                                  "border-t border-violet-100 px-4 py-4 text-center font-black " +
+                                  "border-t border-violet-100 px-4 py-4 text-center font-semibold " +
                                   (row.scoreDelta === null
                                     ? "text-slate-400"
                                     : row.scoreDelta >= 0
@@ -7113,10 +7251,10 @@ export default function SummaryMockup({
                                   ? "Base"
                                   : `${row.scoreDelta > 0 ? "+" : ""}${row.scoreDelta.toFixed(2)}`}
                               </td>
-                              <td className="border-t border-violet-100 px-4 py-4 text-center font-black text-slate-800">
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-semibold text-slate-800">
                                 {row.caseCount ? row.grade : "-"}
                               </td>
-                              <td className="border-t border-violet-100 px-4 py-4 text-center font-bold text-slate-700">
+                              <td className="border-t border-violet-100 px-4 py-4 text-center font-medium text-slate-700">
                                 {row.revisedCount}
                               </td>
                             </tr>
@@ -7166,23 +7304,23 @@ export default function SummaryMockup({
                       <tbody>
                         {agentComparisonRows.map((row: any) => (
                           <tr key={row.agent} className="bg-white">
-                            <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-900">
+                            <td className="border-t border-violet-100 px-4 py-3 font-medium text-slate-900">
                               {buildSuspendedAgentLabel(row.agent, accountProfiles)}
                             </td>
                             {row.values.map((value: any) => (
                               <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
                                 {value.score === null ? (
-                                  <span className="font-bold text-slate-400">N/A</span>
+                                  <span className="font-medium text-slate-400">N/A</span>
                                 ) : (
                                   <>
-                                    <div className="font-black text-violet-700">{value.score.toFixed(2)}</div>
+                                    <div className="font-semibold text-violet-700">{value.score.toFixed(2)}</div>
                                     <div className="text-[11px] text-slate-500">{value.caseCount} case(s)</div>
                                   </>
                                 )}
                               </td>
                             ))}
                             <td className={
-                              "border-t border-violet-100 px-4 py-3 text-center font-black " +
+                              "border-t border-violet-100 px-4 py-3 text-center font-semibold " +
                               (row.overallDelta === null
                                 ? "text-slate-400"
                                 : row.overallDelta >= 0
@@ -7214,26 +7352,26 @@ export default function SummaryMockup({
               <PanelBody className="space-y-5">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
-                    <div className="text-[11px] font-black uppercase tracking-wide text-rose-700">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-700">
                       ไม่ผ่าน QA 3 เดือนติด
                     </div>
-                    <div className="mt-1 text-2xl font-black text-slate-950">
+                    <div className="mt-1 text-2xl font-semibold text-slate-950">
                       {performanceStatusSummary.failedQa}
                     </div>
                   </div>
                   <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3">
-                    <div className="text-[11px] font-black uppercase tracking-wide text-yellow-700">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-yellow-700">
                       Coaching Program
                     </div>
-                    <div className="mt-1 text-2xl font-black text-slate-950">
+                    <div className="mt-1 text-2xl font-semibold text-slate-950">
                       {performanceStatusSummary.coaching}
                     </div>
                   </div>
                   <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-                    <div className="text-[11px] font-black uppercase tracking-wide text-red-700">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
                       Contract Review
                     </div>
-                    <div className="mt-1 text-2xl font-black text-slate-950">
+                    <div className="mt-1 text-2xl font-semibold text-slate-950">
                       {performanceStatusSummary.contractReview}
                     </div>
                   </div>
@@ -7259,7 +7397,7 @@ export default function SummaryMockup({
                       <tbody>
                         {performanceStatusRows.map((row) => (
                           <tr key={`status-${row.agent}`} className="bg-white">
-                            <td className="border-t border-slate-100 px-4 py-3 font-black text-slate-900">
+                            <td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-900">
                               {buildSuspendedAgentLabel(row.agent, accountProfiles)}
                             </td>
                             <td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-600">
@@ -7271,15 +7409,15 @@ export default function SummaryMockup({
                                 className="border-t border-slate-100 px-3 py-3 text-center"
                               >
                                 {month.avgScore === null ? (
-                                  <div className="text-xs font-bold text-slate-400">No Data</div>
+                                  <div className="text-xs font-medium text-slate-400">No Data</div>
                                 ) : (
                                   <div className="space-y-1.5">
-                                    <div className="font-black text-slate-900">
+                                    <div className="font-semibold text-slate-900">
                                       {month.avgScore.toFixed(2)}
                                     </div>
                                     <span
                                       className={
-                                        "inline-flex rounded-full px-2.5 py-1 text-[11px] font-black " +
+                                        "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold " +
                                         (month.meetsKpi
                                           ? "bg-emerald-100 text-emerald-700"
                                           : "bg-amber-100 text-amber-800")
@@ -7294,7 +7432,7 @@ export default function SummaryMockup({
                             <td className="border-t border-slate-100 px-4 py-3 text-center">
                               <span
                                 className={
-                                  "inline-flex rounded-full px-3 py-1 text-xs font-black " +
+                                  "inline-flex rounded-full px-3 py-1 text-xs font-semibold " +
                                   (row.failedQaThreeMonths
                                     ? "bg-rose-100 text-rose-700"
                                     : row.consecutiveBelowKpi > 0
@@ -7308,7 +7446,7 @@ export default function SummaryMockup({
                             <td className="border-t border-slate-100 px-4 py-3 text-center">
                               <span
                                 className={
-                                  "inline-flex rounded-full px-3 py-1 text-xs font-black " +
+                                  "inline-flex rounded-full px-3 py-1 text-xs font-semibold " +
                                   (row.failedQaThreeMonths
                                     ? "bg-rose-100 text-rose-700"
                                     : "bg-emerald-100 text-emerald-700")
@@ -7317,7 +7455,7 @@ export default function SummaryMockup({
                                 {row.qaStatus}
                               </span>
                             </td>
-                            <td className="border-t border-slate-100 px-4 py-3 font-bold text-slate-700">
+                            <td className="border-t border-slate-100 px-4 py-3 font-medium text-slate-700">
                               {row.actions.length ? row.actions.join(" • ") : "Monitor"}
                             </td>
                           </tr>
@@ -7326,43 +7464,43 @@ export default function SummaryMockup({
                     </table>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-600">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm font-medium text-slate-600">
                     ไม่พบข้อมูลการประเมินในช่วง 3 เดือนที่ใช้ตรวจสอบ
                   </div>
                 )}
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-                  <div className="text-sm font-black text-slate-900">
+                  <div className="text-sm font-semibold text-slate-900">
                     เกณฑ์การพิจารณาสถานะ
                   </div>
 
                   <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
                     <li className="flex gap-3">
-                      <span className="font-black text-violet-700">1.</span>
+                      <span className="font-semibold text-violet-700">1.</span>
                       <span>
                         คะแนนตั้งแต่ <strong>{PERFORMANCE_KPI_TARGET}%</strong> ขึ้นไป ถือว่าผ่าน KPI ของเดือนนั้น
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="font-black text-violet-700">2.</span>
+                      <span className="font-semibold text-violet-700">2.</span>
                       <span>
                         คะแนนต่ำกว่า <strong>{PERFORMANCE_KPI_TARGET}%</strong> ติดต่อกัน 1–2 เดือน ยังอยู่ในเกณฑ์ปกติ และแสดงสถานะ Monitor
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="font-black text-violet-700">3.</span>
+                      <span className="font-semibold text-violet-700">3.</span>
                       <span>
                         คะแนนต่ำกว่า <strong>{PERFORMANCE_KPI_TARGET}%</strong> ติดต่อกันครบ 3 เดือน ถือว่าไม่ผ่าน QA และเข้าสู่ Coaching Program
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="font-black text-violet-700">4.</span>
+                      <span className="font-semibold text-violet-700">4.</span>
                       <span>
                         Grade D ในเดือนปัจจุบัน หรือ Grade C ติดต่อกัน 3 เดือน เข้าสู่ Coaching Program
                       </span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="font-black text-violet-700">5.</span>
+                      <span className="font-semibold text-violet-700">5.</span>
                       <span>
                         Grade D ติดต่อกัน 3 เดือน เข้าสู่ Contract Renewal Review
                       </span>
@@ -7382,7 +7520,7 @@ export default function SummaryMockup({
                   />
                   <PanelBody>
                     {report.status === "In Progress" ? (
-                      <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                      <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
                         Partial data — calculated from {report.caseCount} evaluated case(s)
                       </div>
                     ) : null}
@@ -7408,28 +7546,28 @@ export default function SummaryMockup({
                       "all" ? (
                         <>
                           <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wide text-violet-600">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-violet-600">
                               Total Cases
                             </div>
-                            <div className="mt-1 text-xl font-black text-slate-900">
+                            <div className="mt-1 text-xl font-semibold text-slate-900">
                               {report.caseCount}
                             </div>
                           </div>
 
                           <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-sky-700">
                               Agents Evaluated
                             </div>
-                            <div className="mt-1 text-xl font-black text-slate-900">
+                            <div className="mt-1 text-xl font-semibold text-slate-900">
                               {report.coverage.agentCount}
                             </div>
                           </div>
 
                           <div className="rounded-2xl border border-fuchsia-100 bg-fuchsia-50 px-4 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wide text-fuchsia-700">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-fuchsia-700">
                               Average / Agent
                             </div>
-                            <div className="mt-1 text-xl font-black text-slate-900">
+                            <div className="mt-1 text-xl font-semibold text-slate-900">
                               {report.coverage.averageCasesPerAgent.toFixed(2)}
                             </div>
                             <div className="text-[11px] font-semibold text-slate-500">
@@ -7441,10 +7579,10 @@ export default function SummaryMockup({
                           "monthly" ? (
                             <>
                               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                                <div className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
                                   Target Met
                                 </div>
-                                <div className="mt-1 text-xl font-black text-slate-900">
+                                <div className="mt-1 text-xl font-semibold text-slate-900">
                                   {report.coverage.agentsMeetingTarget}/{report.coverage.agentCount}
                                 </div>
                                 <div className="text-[11px] font-semibold text-slate-500">
@@ -7453,10 +7591,10 @@ export default function SummaryMockup({
                               </div>
 
                               <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                                <div className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
                                   Monthly Plan
                                 </div>
-                                <div className="mt-1 text-lg font-black text-slate-900">
+                                <div className="mt-1 text-lg font-semibold text-slate-900">
                                   {report.coverage.target} Cases × {report.coverage.agentCount} Agents
                                 </div>
                               </div>
@@ -7466,10 +7604,10 @@ export default function SummaryMockup({
                       ) : (
                         <>
                           <div className="rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wide text-violet-600">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-violet-600">
                               Agent
                             </div>
-                            <div className="mt-1 text-sm font-black text-slate-900">
+                            <div className="mt-1 text-sm font-semibold text-slate-900">
                               {buildSuspendedAgentLabel(
                                 effectiveSelectedAgent,
                                 accountProfiles
@@ -7478,10 +7616,10 @@ export default function SummaryMockup({
                           </div>
 
                           <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wide text-sky-700">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-sky-700">
                               Evaluated Cases
                             </div>
-                            <div className="mt-1 text-xl font-black text-slate-900">
+                            <div className="mt-1 text-xl font-semibold text-slate-900">
                               {analysisMode ===
                               "monthly"
                                 ? `${report.caseCount}/${report.coverage.target}`
@@ -7490,10 +7628,10 @@ export default function SummaryMockup({
                           </div>
 
                           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                            <div className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
                               Status
                             </div>
-                            <div className="mt-1 text-sm font-black text-slate-900">
+                            <div className="mt-1 text-sm font-semibold text-slate-900">
                               {report.coverage.selectedAgentStatus || "No Data"}
                             </div>
                           </div>
@@ -7501,10 +7639,10 @@ export default function SummaryMockup({
                           {analysisMode ===
                           "monthly" ? (
                             <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
-                              <div className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                              <div className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
                                 Monthly Target
                               </div>
-                              <div className="mt-1 text-xl font-black text-slate-900">
+                              <div className="mt-1 text-xl font-semibold text-slate-900">
                                 {report.coverage.target}
                               </div>
                               <div className="text-[11px] font-semibold text-slate-500">
@@ -7536,16 +7674,16 @@ export default function SummaryMockup({
                           <tbody>
                             {report.topics.map((topic) => (
                               <tr key={topic.code} className="bg-white">
-                                <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">
+                                <td className="border-t border-violet-100 px-4 py-3 font-medium text-slate-800">
                                   {topic.code}. {topic.label}
                                 </td>
-                                <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-slate-900">
+                                <td className="border-t border-violet-100 px-4 py-3 text-center font-semibold text-slate-900">
                                   {topic.avgScore.toFixed(2)}
                                 </td>
                                 <td className="border-t border-violet-100 px-4 py-3 text-center font-semibold text-slate-600">
                                   {topic.max.toFixed(2)}
                                 </td>
-                                <td className="border-t border-violet-100 px-4 py-3 text-center font-black text-violet-700">
+                                <td className="border-t border-violet-100 px-4 py-3 text-center font-semibold text-violet-700">
                                   {topic.pct.toFixed(2)}%
                                 </td>
                               </tr>
@@ -7569,24 +7707,24 @@ export default function SummaryMockup({
                           }
                         >
                           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                            <div className="text-sm font-black text-emerald-700">Strongest Topics</div>
+                            <div className="text-sm font-semibold text-emerald-700">Strongest Topics</div>
                             <div className="mt-3 space-y-2">
                               {report.strongest.map((topic, index) => (
                                 <div key={topic.code} className="rounded-xl bg-white/80 px-3 py-2">
-                                  <div className="text-xs font-bold text-slate-700">{index + 1}. {topic.label}</div>
-                                  <div className="mt-1 text-sm font-black text-emerald-700">{topic.pct.toFixed(2)}%</div>
+                                  <div className="text-xs font-medium text-slate-700">{index + 1}. {topic.label}</div>
+                                  <div className="mt-1 text-sm font-semibold text-emerald-700">{topic.pct.toFixed(2)}%</div>
                                 </div>
                               ))}
                             </div>
                           </div>
 
                           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                            <div className="text-sm font-black text-amber-700">Coaching Focus</div>
+                            <div className="text-sm font-semibold text-amber-700">Coaching Focus</div>
                             <div className="mt-3 space-y-2">
                               {report.coaching.map((topic, index) => (
                                 <div key={topic.code} className="rounded-xl bg-white/80 px-3 py-2">
-                                  <div className="text-xs font-bold text-slate-700">{index + 1}. {topic.label}</div>
-                                  <div className="mt-1 text-sm font-black text-amber-700">{topic.pct.toFixed(2)}%</div>
+                                  <div className="text-xs font-medium text-slate-700">{index + 1}. {topic.label}</div>
+                                  <div className="mt-1 text-sm font-semibold text-amber-700">{topic.pct.toFixed(2)}%</div>
                                 </div>
                               ))}
                             </div>
@@ -7594,27 +7732,27 @@ export default function SummaryMockup({
                         </div>
 
                         <div className="rounded-2xl border border-violet-100 bg-white p-4">
-                          <div className="text-sm font-black text-violet-800">Grade Mix</div>
+                          <div className="text-sm font-semibold text-violet-800">Grade Mix</div>
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             {report.gradeMix.map((item) => (
                               <div key={item.grade} className="flex items-center justify-between rounded-xl bg-violet-50 px-3 py-2 text-xs">
-                                <span className="font-black text-violet-800">{item.grade}</span>
-                                <span className="font-bold text-slate-600">{item.count} ({item.pct.toFixed(2)}%)</span>
+                                <span className="font-semibold text-violet-800">{item.grade}</span>
+                                <span className="font-medium text-slate-600">{item.count} ({item.pct.toFixed(2)}%)</span>
                               </div>
                             ))}
                           </div>
                         </div>
 
                         <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
-                          <div className="text-sm font-black text-sky-800">Review Status Mix</div>
+                          <div className="text-sm font-semibold text-sky-800">Review Status Mix</div>
                           <div className="mt-3 grid grid-cols-2 gap-3">
                             <div className="rounded-xl bg-white px-3 py-3 text-center">
-                              <div className="text-2xl font-black text-sky-700">{report.reviewMix.original}</div>
-                              <div className="mt-1 text-xs font-bold text-slate-500">Original</div>
+                              <div className="text-2xl font-semibold text-sky-700">{report.reviewMix.original}</div>
+                              <div className="mt-1 text-xs font-medium text-slate-500">Original</div>
                             </div>
                             <div className="rounded-xl bg-white px-3 py-3 text-center">
-                              <div className="text-2xl font-black text-fuchsia-700">{report.reviewMix.revised}</div>
-                              <div className="mt-1 text-xs font-bold text-slate-500">Revised</div>
+                              <div className="text-2xl font-semibold text-fuchsia-700">{report.reviewMix.revised}</div>
+                              <div className="mt-1 text-xs font-medium text-slate-500">Revised</div>
                             </div>
                           </div>
                         </div>
@@ -7643,7 +7781,7 @@ export default function SummaryMockup({
                 <PanelBody>
                   <div className="grid gap-4 xl:grid-cols-3">
                     <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-900">
+                      <div className="text-sm font-semibold text-slate-900">
                         {reportModeName} Trend vs Selected Periods
                       </div>
                       <div className="mt-1 text-xs font-semibold text-slate-500">
@@ -7686,7 +7824,7 @@ export default function SummaryMockup({
                               return (
                                 <div key={row.label} className="relative h-full min-w-0 flex-1">
                                   <div
-                                    className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-black text-slate-800"
+                                    className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-semibold text-slate-800"
                                     style={{ bottom: `calc(${barHeight}% + 5px)` }}
                                   >
                                     {row.avgScore.toFixed(2)}
@@ -7716,7 +7854,7 @@ export default function SummaryMockup({
                     </div>
 
                     <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-900">
+                      <div className="text-sm font-semibold text-slate-900">
                         Score Distribution ({comparisonChartAnalytics.total} cases)
                       </div>
                       <div className="mt-1 text-xs font-semibold text-slate-500">
@@ -7743,7 +7881,7 @@ export default function SummaryMockup({
                               return (
                                 <div key={bucket.label} className="relative h-full min-w-0 flex-1">
                                   <div
-                                    className="absolute left-1/2 -translate-x-1/2 text-[11px] font-black text-slate-800"
+                                    className="absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold text-slate-800"
                                     style={{ bottom: `calc(${barHeight}% + 5px)` }}
                                   >
                                     {bucket.count}
@@ -7772,7 +7910,7 @@ export default function SummaryMockup({
                     </div>
 
                     <div className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm">
-                      <div className="text-sm font-black text-slate-900">Review Status Mix</div>
+                      <div className="text-sm font-semibold text-slate-900">Review Status Mix</div>
                       <div className="mt-1 text-xs font-semibold text-slate-500">
                         Original vs Revised
                       </div>
@@ -7788,10 +7926,10 @@ export default function SummaryMockup({
                           }}
                         >
                           <div className="absolute inset-[20px] flex flex-col items-center justify-center rounded-full bg-white shadow-inner">
-                            <div className="text-2xl font-black text-violet-700">
+                            <div className="text-2xl font-semibold text-violet-700">
                               {comparisonChartAnalytics.originalPct.toFixed(0)}%
                             </div>
-                            <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
                               Original
                             </div>
                           </div>
@@ -7801,9 +7939,9 @@ export default function SummaryMockup({
                           <div className="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-3">
                             <div className="flex items-center gap-2">
                               <span className="h-3 w-3 rounded-full bg-violet-700" />
-                              <span className="text-xs font-bold text-slate-700">Original</span>
+                              <span className="text-xs font-medium text-slate-700">Original</span>
                             </div>
-                            <div className="text-xs font-black text-violet-700">
+                            <div className="text-xs font-semibold text-violet-700">
                               {comparisonChartAnalytics.original} ({comparisonChartAnalytics.originalPct.toFixed(2)}%)
                             </div>
                           </div>
@@ -7811,15 +7949,15 @@ export default function SummaryMockup({
                           <div className="flex items-center justify-between rounded-xl bg-fuchsia-50 px-4 py-3">
                             <div className="flex items-center gap-2">
                               <span className="h-3 w-3 rounded-full bg-fuchsia-500" />
-                              <span className="text-xs font-bold text-slate-700">Revised</span>
+                              <span className="text-xs font-medium text-slate-700">Revised</span>
                             </div>
-                            <div className="text-xs font-black text-fuchsia-700">
+                            <div className="text-xs font-semibold text-fuchsia-700">
                               {comparisonChartAnalytics.revised} ({comparisonChartAnalytics.revisedPct.toFixed(2)}%)
                             </div>
                           </div>
                         </div>
 
-                        <div className="mt-4 text-xs font-bold text-slate-500">
+                        <div className="mt-4 text-xs font-medium text-slate-500">
                           Total: {comparisonChartAnalytics.total} cases
                         </div>
                       </div>
@@ -7850,18 +7988,18 @@ export default function SummaryMockup({
                         <tbody>
                           {group.topics.map((topic: any) => (
                             <tr key={topic.code} className="bg-white">
-                              <td className="border-t border-violet-100 px-4 py-3 font-bold text-slate-800">
+                              <td className="border-t border-violet-100 px-4 py-3 font-medium text-slate-800">
                                 {topic.code}. {topic.label}
                               </td>
                               {topic.values.map((value: any) => (
                                 <td key={value.period} className="border-t border-violet-100 px-4 py-3 text-center">
                                   {value.pct === null ? (
-                                    <div className="font-bold text-slate-400">Not Applicable</div>
+                                    <div className="font-medium text-slate-400">Not Applicable</div>
                                   ) : (
                                     <>
-                                      <div className="font-black text-violet-700">{value.pct.toFixed(2)}%</div>
+                                      <div className="font-semibold text-violet-700">{value.pct.toFixed(2)}%</div>
                                       <div className={
-                                        "mt-1 text-xs font-black " +
+                                        "mt-1 text-xs font-semibold " +
                                         (value.delta === null
                                           ? "text-slate-400"
                                           : value.delta >= 0
