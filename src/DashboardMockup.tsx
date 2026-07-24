@@ -4159,6 +4159,65 @@ export default function DashboardMockup({
     [roleScopedAgentNames]
   );
 
+  const overviewIdentityText = normalizeText(
+    [currentUser?.username, currentUser?.email, currentUser?.displayName, currentUser?.agentName]
+      .filter(Boolean)
+      .join(" ")
+  );
+  const isSongponOverviewOwner =
+    overviewIdentityText.includes("songpon") ||
+    overviewIdentityText.includes("boomminidora");
+  const overviewSelfOnly =
+    dashboardSubTab === "overview" && !isSongponOverviewOwner;
+  const overviewResolvedAgent = useMemo(() => {
+    const candidates = [
+      currentUser?.agentName,
+      currentUser?.displayName,
+      currentUser?.username,
+    ]
+      .map((value) => toTitleCaseName(String(value || "").trim()))
+      .filter(Boolean);
+    const matchedCase = allCases.find((item) =>
+      candidates.some((candidate) => isSameAgent(item.agent, candidate))
+    );
+    return matchedCase?.agent || candidates[0] || "";
+  }, [allCases, currentUser?.agentName, currentUser?.displayName, currentUser?.username]);
+  const overviewAgentScopeList = useMemo(
+    () =>
+      overviewSelfOnly && overviewResolvedAgent
+        ? [overviewResolvedAgent]
+        : roleScopedAgentList,
+    [overviewResolvedAgent, overviewSelfOnly, roleScopedAgentList]
+  );
+
+  useEffect(() => {
+    if (dashboardSubTab !== "overview") return;
+    setSelectedYear(String(TODAY.getFullYear()));
+    setSelectedMonthKey(currentMonthKey);
+    onSelectedMonthKeyChange?.(currentMonthKey);
+    setDateFrom(formatInputDate(firstDayOfCurrentMonth));
+    setDateTo(formatInputDate(TODAY));
+    setSelectedWeek("all");
+    onSelectedWeekChange?.("all");
+    setCaseIdSearch("");
+    setCaseSearchHistoryOpen(false);
+    setSelectedCaseKey("");
+    setSlideOverOpen(false);
+    setCurrentPeriodNotice("");
+    if (overviewSelfOnly && overviewResolvedAgent) {
+      setSelectedAgent(overviewResolvedAgent);
+      onSelectedAgentChange?.(overviewResolvedAgent);
+    }
+  }, [
+    currentMonthKey,
+    dashboardSubTab,
+    onSelectedAgentChange,
+    onSelectedMonthKeyChange,
+    onSelectedWeekChange,
+    overviewResolvedAgent,
+    overviewSelfOnly,
+  ]);
+
   const effectiveMonthKeyForAgentVisibility = useMemo(() => {
     if (selectedMonthKey && selectedMonthKey !== "all") return selectedMonthKey;
     return getEffectiveMonthKeyFromDateRange(dateFrom, dateTo);
@@ -4166,7 +4225,7 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (
-      !roleScopedAgentList.length &&
+      !overviewAgentScopeList.length &&
       typeof externalSelectedAgent === "string" &&
       externalSelectedAgent !== selectedAgent
     ) {
@@ -4180,11 +4239,12 @@ export default function DashboardMockup({
   }, [
     externalSelectedAgent,
     selectedAgent,
-    roleScopedAgentList.length,
+    overviewAgentScopeList.length,
     onSelectedWeekChange,
   ]);
 
   useEffect(() => {
+    if (dashboardSubTab === "overview") return;
     if (
       typeof externalSelectedMonthKey === "string" &&
       externalSelectedMonthKey !== selectedMonthKey
@@ -4195,7 +4255,7 @@ export default function DashboardMockup({
     if (externalYear && externalYear !== selectedYear) {
       setSelectedYear(externalYear);
     }
-  }, [externalSelectedMonthKey, selectedMonthKey, selectedYear]);
+  }, [dashboardSubTab, externalSelectedMonthKey, selectedMonthKey, selectedYear]);
 
   useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
@@ -4964,8 +5024,8 @@ export default function DashboardMockup({
   }, [dataRefreshKey]);
 
   const visibleAgentList = useMemo(() => {
-    const scopedCases = roleScopedAgentList.length
-      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+    const scopedCases = overviewAgentScopeList.length
+      ? allCases.filter((item) => overviewAgentScopeList.some((agent) => isSameAgent(item.agent, agent)))
       : allCases;
 
     const monthScopedCases = (() => {
@@ -4987,18 +5047,18 @@ export default function DashboardMockup({
       (name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility)
     );
 
-    if (roleScopedAgentList.length) {
+    if (overviewAgentScopeList.length) {
       return mergedAgents
-        .filter((agent) => roleScopedAgentList.some((scopedAgent) => isSameAgent(agent, scopedAgent)))
+        .filter((agent) => overviewAgentScopeList.some((scopedAgent) => isSameAgent(agent, scopedAgent)))
         .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
     }
 
     return mergedAgents.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
-  }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, roleScopedAgentList]);
+  }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, overviewAgentScopeList]);
 
   useEffect(() => {
-    if (roleScopedAgentList.length) {
-      const lockedAgent = roleScopedAgentList[0];
+    if (overviewAgentScopeList.length) {
+      const lockedAgent = overviewAgentScopeList[0];
       if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
         setSelectedAgent(lockedAgent);
       }
@@ -5006,7 +5066,7 @@ export default function DashboardMockup({
       return;
     }
 
-    if (roleScopedAgentList.length && selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
+    if (overviewAgentScopeList.length && selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
       setSelectedAgent("");
       onSelectedAgentChange?.("");
       return;
@@ -5016,16 +5076,16 @@ export default function DashboardMockup({
       setSelectedAgent("");
       onSelectedAgentChange?.("");
     }
-  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, roleScopedAgentList.length]);
+  }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList.length]);
 
   const effectiveSelectedAgent =
-    roleScopedAgentList.length
-      ? roleScopedAgentList[0]
+    overviewAgentScopeList.length
+      ? overviewAgentScopeList[0]
       : String(selectedAgent || "").trim();
 
   const agentCases = useMemo(() => {
-    const scopedCases = roleScopedAgentList.length
-      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+    const scopedCases = overviewAgentScopeList.length
+      ? allCases.filter((item) => overviewAgentScopeList.some((agent) => isSameAgent(item.agent, agent)))
       : allCases;
 
     if (!effectiveSelectedAgent) {
@@ -5033,11 +5093,11 @@ export default function DashboardMockup({
     }
 
     return scopedCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
-  }, [allCases, effectiveSelectedAgent, roleScopedAgentList]);
+  }, [allCases, effectiveSelectedAgent, overviewAgentScopeList]);
 
   const yearOptions = useMemo(() => {
-    const sourceCases = roleScopedAgentList.length
-      ? allCases.filter((item) => roleScopedAgentList.some((agent) => isSameAgent(item.agent, agent)))
+    const sourceCases = overviewAgentScopeList.length
+      ? allCases.filter((item) => overviewAgentScopeList.some((agent) => isSameAgent(item.agent, agent)))
       : allCases;
 
     const years = [...new Set(
@@ -5048,7 +5108,7 @@ export default function DashboardMockup({
 
     const currentYear = String(TODAY.getFullYear());
     return [...new Set([currentYear, ...years])].sort((a, b) => b.localeCompare(a));
-  }, [allCases, roleScopedAgentList]);
+  }, [allCases, overviewAgentScopeList]);
 
   const monthOptions = useMemo(() => {
     const availableMonthKeys = [...new Set(
@@ -5101,6 +5161,7 @@ export default function DashboardMockup({
   }, [yearOptions, selectedYear, onSelectedMonthKeyChange, onSelectedWeekChange]);
 
   useEffect(() => {
+    if (dashboardSubTab === "overview") return;
     if (isLoading || !allCases.length) return;
     if (selectedMonthKey !== "all" && !monthOptions.some((item) => item.value === selectedMonthKey)) {
       const fallbackMonthKey = monthOptions[0]?.value || "all";
@@ -5112,7 +5173,7 @@ export default function DashboardMockup({
           : ""
       );
     }
-  }, [selectedMonthKey, monthOptions, onSelectedMonthKeyChange, isLoading, allCases.length, currentMonthKey]);
+  }, [dashboardSubTab, selectedMonthKey, monthOptions, onSelectedMonthKeyChange, isLoading, allCases.length, currentMonthKey]);
 
   useEffect(() => {
     if (selectedMonthKey === "all") {
@@ -5140,8 +5201,10 @@ export default function DashboardMockup({
   const searchScopedCases = useMemo(() => {
     const keyword = caseIdSearch.trim().toLowerCase();
     if (!keyword) return dateFilteredCases;
-    return agentCases.filter((item) => String(item.caseId || "").toLowerCase().includes(keyword));
-  }, [agentCases, dateFilteredCases, caseIdSearch]);
+    return dateFilteredCases.filter((item) =>
+      String(item.caseId || "").toLowerCase().includes(keyword)
+    );
+  }, [dateFilteredCases, caseIdSearch]);
 
   const weekLabels = useMemo(() => {
     return [...new Set(searchScopedCases.map((item) => item.weekLabel).filter(Boolean))].sort((left, right) =>
@@ -5264,9 +5327,9 @@ export default function DashboardMockup({
   const metricAverageDisplay = summary.averageDisplay;
   const metricCaseCount = dashboardCases.length;
   const visibleTargetAgents = useMemo(() => {
-    if (roleScopedAgentList.length) return roleScopedAgentList;
+    if (overviewAgentScopeList.length) return overviewAgentScopeList;
     return visibleAgentList;
-  }, [roleScopedAgentList, visibleAgentList]);
+  }, [overviewAgentScopeList, visibleAgentList]);
   const evaluatedAgentNames = useMemo(() => {
     return dedupeAgentNames(dashboardCases.map((item) => item.agent).filter(Boolean));
   }, [dashboardCases]);
@@ -5533,6 +5596,49 @@ export default function DashboardMockup({
         ? "Eligible · Monthly target completed"
         : `Grade ${monthlyAgentGrade || "-"} · Not Eligible`
     : `${kpiScopeSummary.caseCount}/${CASE_TARGET} evaluated · Complete the monthly target first`;
+  const overviewKpiItemsV93 = [
+    {
+      label: "Average Score",
+      value: metricAverageDisplay,
+      note: `${metricCaseCount} case(s) in ${currentViewingMonthLabel}`,
+      icon: "☆",
+      iconTone: "bg-violet-50 text-violet-600",
+      valueTone: "text-slate-900",
+    },
+    {
+      label: "KPI Status",
+      value: kpiStatusLabel,
+      note: `Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${CASE_TARGET}`,
+      icon: kpiScopeSummary.status === "passed" ? "✓" : kpiScopeSummary.status === "not-passed" ? "!" : "…",
+      iconTone: kpiScopeSummary.status === "passed" ? "bg-emerald-50 text-emerald-600" : kpiScopeSummary.status === "not-passed" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600",
+      valueTone: kpiScopeSummary.status === "passed" ? "text-emerald-700" : kpiScopeSummary.status === "not-passed" ? "text-rose-600" : "text-amber-700",
+    },
+    {
+      label: "Cases Evaluated",
+      value: String(metricCaseCount),
+      note: `${Math.min(metricCaseCount, CASE_TARGET)}/${CASE_TARGET} monthly target`,
+      icon: "▤",
+      iconTone: "bg-sky-50 text-sky-600",
+      valueTone: "text-slate-900",
+    },
+    {
+      label: "Evaluation Progress",
+      value: `${kpiScopeSummary.caseCount}/${CASE_TARGET}`,
+      note: kpiScopeSummary.volumePassed ? "Monthly target completed" : `${Math.max(0, CASE_TARGET - kpiScopeSummary.caseCount)} case(s) remaining`,
+      icon: "◔",
+      iconTone: kpiScopeSummary.volumePassed ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600",
+      valueTone: kpiScopeSummary.volumePassed ? "text-emerald-700" : "text-amber-700",
+    },
+    {
+      label: "Overall Grade",
+      value: monthlyAgentCompleted && monthlyAgentGrade ? monthlyAgentGrade : "Pending",
+      note: monthlyAgentCompleted ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).level : "Finalizes after 10 evaluated cases",
+      icon: "◇",
+      iconTone: "bg-fuchsia-50 text-fuchsia-600",
+      valueTone: monthlyAgentCompleted ? currentGradeTone(monthlyAgentGrade || currentGradeDisplay).levelText : "text-amber-700",
+    },
+  ];
+
   const performanceSummaryItems: PerformanceSummaryItem[] = [
     {
       label: "Average Score",
@@ -5688,19 +5794,28 @@ export default function DashboardMockup({
 
   return (
     <div
+      data-overview-self-current-v93="true"
       className={`relative min-h-screen ${
         songkranTheme
           ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50"
-          : "bg-gradient-to-br from-[#f6f2ff] via-[#fcfbff] to-[#f3e8ff]"
+          : "bg-[#f7f8fc]"
       }`}
     >
       {songkranTheme ? <SongkranBackdrop /> : null}
 
-      <PageHero
-        eyebrow={dashboardSubTab === "overview" ? "Performance" : "QA Work"}
-        title={dashboardSubTab === "overview" ? "Performance Overview" : "Case Review"}
-        subtitle={dashboardSubTab === "overview" ? "ดูสถานะ KPI ปัจจุบัน ติดตามงาน ค้นหาเคส และจัดการงานประจำวัน" : "ค้นหาและตรวจสอบคะแนน Original, Revised และรายละเอียดของแต่ละเคส"}
-      />
+      <div data-overview-header-v93="true" className="mx-auto max-w-[1720px] px-4 pt-7 sm:px-6 lg:px-8 lg:pt-8">
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-violet-600">Performance</div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 lg:text-[30px]">Overview</h1>
+            <p className="mt-2 text-sm font-normal text-slate-500">ติดตามสถานะ KPI และงานประจำวันของคุณในเดือนปัจจุบัน</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">Current Month</span>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-normal text-slate-600">{overviewSelfOnly ? "Self View" : "Owner View"}</span>
+          </div>
+        </div>
+      </div>
       {false ? (
       <div>
         {songkranTheme ? <SongkranBackdrop /> : null}
@@ -5745,7 +5860,36 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-            <Panel className="qa-filter-dock-v38 !overflow-visible z-50">
+            <div data-overview-current-controls-v93="true" className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]">
+              <div className="grid gap-4 xl:grid-cols-[220px_280px_minmax(0,1fr)]">
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Current Period</div>
+                  <div className="mt-2 flex h-12 items-center rounded-xl border border-slate-200 bg-slate-50/70 px-4 text-sm font-medium text-slate-800">{currentViewingMonthLabel}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Viewing As</div>
+                  <div className="mt-2 flex h-12 min-w-0 items-center rounded-xl border border-slate-200 bg-slate-50/70 px-4">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-slate-800">{effectiveSelectedAgent || "All Agents"}</div>
+                      <div className="truncate text-[10px] font-normal text-slate-500">{currentUser?.role || "Current Role"}</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Search Case ID</div>
+                    <div className="text-[10px] font-normal text-slate-400">Current month · Current user</div>
+                  </div>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
+                    <input type="search" value={caseIdSearch} onChange={(event) => { setCaseIdSearch(event.target.value); setSelectedCaseKey(""); setSlideOverOpen(false); }} onKeyDown={(event) => { if (event.key === "Enter") runCaseSearch(); }} placeholder="Search your current-month Case ID" className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm font-normal text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+                    <button type="button" onClick={() => runCaseSearch()} className="h-12 rounded-xl bg-violet-600 px-4 text-xs font-medium text-white transition hover:bg-violet-700">Search</button>
+                    <button type="button" onClick={clearCaseSearch} disabled={!caseIdSearch.trim()} className="h-12 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Panel className="hidden" aria-hidden="true">
               <PanelHeader
                 title="Filters"
                 subtitle="เลือกปี เดือน ผู้ถูกประเมิน เลขเคส และช่วงวันที่"
@@ -5826,7 +5970,7 @@ export default function DashboardMockup({
 
                   <div className="min-w-0 2xl:col-span-4">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-700">Agent Name</div>
-                    {roleScopedAgentList.length ? (
+                    {overviewAgentScopeList.length ? (
                       <div className="flex h-12 min-w-0 items-center justify-center truncate rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 text-center text-sm font-semibold text-violet-800">{effectiveSelectedAgent || "-"}</div>
                     ) : (
                       <CompactAlignedSelect
@@ -5915,7 +6059,7 @@ export default function DashboardMockup({
             </Panel>
 
         <div className="mt-4 space-y-4">
-          <section className="qa-weekly-tabs-v36 min-w-0 rounded-[22px] border border-violet-100 bg-gradient-to-r from-white via-violet-50/50 to-fuchsia-50/50 px-4 py-3 shadow-[0_12px_30px_rgba(76,29,149,0.08)]" aria-label="Weekly View">
+          <section className="qa-weekly-tabs-v36 min-w-0 rounded-[20px] border border-slate-200 bg-white px-5 py-4 shadow-[0_5px_16px_rgba(15,23,42,0.04)]" aria-label="Weekly View">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <div className="shrink-0">
                 <div className="text-sm font-semibold text-slate-900">Weekly View</div>
@@ -5972,14 +6116,19 @@ export default function DashboardMockup({
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
-                  <div
-                    data-agent-kpi-restored-v44="true"
-                    data-kpi-not-passed-red-v44="text-rose-700"
-                  >
-                    <PerformanceSummaryBar
-                      scopeLabel={summaryScopeLabel}
-                      items={performanceSummaryItems}
-                    />
+                  <div data-overview-kpi-grid-v93="true" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                    {overviewKpiItemsV93.map((item) => (
+                      <div key={item.label} className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-normal text-slate-500">{item.label}</div>
+                            <div className={`mt-2 truncate text-[28px] font-semibold tracking-tight ${item.valueTone}`}>{item.value}</div>
+                          </div>
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-normal ${item.iconTone}`}>{item.icon}</div>
+                        </div>
+                        <div className="mt-2 text-[10px] font-normal leading-5 text-slate-500">{item.note}</div>
+                      </div>
+                    ))}
                   </div>
 
                   {false ? (
