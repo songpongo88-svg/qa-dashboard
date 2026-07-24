@@ -60,6 +60,7 @@ import {
 type UserRole = string;
 type RolePermissionKey =
   | "viewDashboard"
+  | "viewAgentsInOverview"
   | "viewAllAgents"
   | "viewSummary"
   | "viewCoaching"
@@ -566,6 +567,7 @@ const ROLE_OPTIONS: UserRole[] = ["Admin Live Chat", "Virtual Rider", "Senior", 
 
 const PERMISSION_KEYS: RolePermissionKey[] = [
   "viewDashboard",
+  "viewAgentsInOverview",
   "viewAllAgents",
   "viewSummary",
   "viewCoaching",
@@ -609,6 +611,7 @@ const DEFAULT_TEAM_ASSIGNMENTS: Record<string, { teamLead: string; teamName: str
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
@@ -647,6 +650,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   "Virtual Rider": {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
@@ -685,6 +689,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Senior: {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
@@ -723,6 +728,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Supervisor: {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
@@ -3568,6 +3574,14 @@ export default function App() {
     if (!currentUser || hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return [];
     return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
   }, [currentUser, rolePermissions]);
+  const overviewAgentSelectionAllowed = currentUser
+    ? hasRolePermission(
+        currentUser,
+        rolePermissions,
+        "viewAgentsInOverview"
+      )
+    : false;
+  // data-overview-agent-permission-v94-app
   const qaEvaluationAgentOptions = useMemo(() => {
     return effectiveUserAccounts
       .filter((account) => account.status !== "Suspended")
@@ -6458,6 +6472,7 @@ export default function App() {
               externalSelectedWeek={selectedWeekGlobal}
               externalCaseIdSearch={selectedDashboardCaseId}
               roleScopedAgentNames={roleScopedAgentNames}
+              canViewAgentsInOverview={overviewAgentSelectionAllowed}
               dataRefreshKey={qaDataRefreshKey}
               onSelectedAgentChange={setSelectedAgentGlobal}
               onSelectedMonthKeyChange={setSelectedMonthGlobal}

@@ -5,6 +5,7 @@ import { fetchStoredProfilePhoto } from "./profilePhotoStore";
 import { appendUserProfileHistory } from "./profileHistoryStore";
 
 // data-profile-access-team-history-v83
+// data-overview-agent-permission-v94-role
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
 import CorporateUserDirectoryProfile, { type CorporateUserAccountUpdate } from "./CorporateUserDirectoryProfile";
@@ -24,6 +25,7 @@ type UserRole = string;
 type UserStatus = "Active" | "Suspended";
 type RolePermissionKey =
   | "viewDashboard"
+  | "viewAgentsInOverview"
   | "viewAllAgents"
   | "viewSummary"
   | "viewCoaching"
@@ -152,6 +154,7 @@ const PERMISSION_DEFINITIONS: Array<{
   description: string;
 }> = [
   { key: "viewDashboard", label: "View Dashboard", category: "Performance", description: "Open Dashboard and case performance views." },
+  { key: "viewAgentsInOverview", label: "View Agents in Overview", category: "Performance", description: "Show All Agents and Agent selection in the current-month Overview. The available names still follow the Role's Agent and Team scope." },
   { key: "viewAllAgents", label: "View All Agents", category: "Performance", description: "Allow this role to use All Agents and see every agent in Dashboard/Summary." },
   { key: "viewSummary", label: "View Summary", category: "Performance", description: "Open team/month summary pages." },
   { key: "viewCoaching", label: "View Coaching", category: "Performance", description: "Open coaching insight and agent guidance." },
@@ -192,6 +195,7 @@ const PERMISSION_KEYS = PERMISSION_DEFINITIONS.map((item) => item.key);
 
 const PERMISSION_THAI_HELP: Record<RolePermissionKey, string> = {
   viewDashboard: "อนุญาตให้เปิดหน้า Dashboard และดูภาพรวมคะแนน เกรด KPI และผลการทำงานของเคส",
+  viewAgentsInOverview: "อนุญาตให้แสดง All Agents และตัวเลือกรายชื่อ Agent ในหน้า Overview ของเดือนปัจจุบัน โดยรายชื่อที่เห็นยังอ้างอิง Scope ของ Role",
   viewAllAgents: "อนุญาตให้เลือก All Agents และดูข้อมูลของพนักงานทุกคนใน Dashboard และ Analytics",
   viewSummary: "อนุญาตให้เปิดหน้า Analytics เพื่อดูผลสรุปรายสัปดาห์ รายเดือน และรายปี",
   viewCoaching: "อนุญาตให้เปิดหน้า Coaching เพื่อดูและติดตามข้อมูลการโค้ชของพนักงาน",
@@ -255,6 +259,7 @@ const PERMISSION_CATEGORY_META: Record<string, { title: string; thai: string; de
 const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   "Admin Live Chat": {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
@@ -293,6 +298,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   "Virtual Rider": {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: false,
     viewSummary: true,
     viewCoaching: false,
@@ -331,6 +337,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Senior: {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
@@ -369,6 +376,7 @@ const ROLE_PERMISSION_DEFAULTS: Record<string, RolePermissions> = {
   },
   Supervisor: {
     viewDashboard: true,
+    viewAgentsInOverview: false,
     viewAllAgents: true,
     viewSummary: true,
     viewCoaching: true,
