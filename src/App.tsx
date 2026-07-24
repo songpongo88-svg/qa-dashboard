@@ -6230,7 +6230,7 @@ export default function App() {
   return (
     <>
         <style>{`
-          :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "276px"}; }
+          :root { --qa-sidebar-width: ${globalSidebarCollapsed ? "80px" : "296px"}; }
           body { padding-left: var(--qa-sidebar-width); transition: padding-left .22s ease; }
           .qa-global-sidebar-v39 { width: var(--qa-sidebar-width); font-family: "Kanit", ui-sans-serif, system-ui, sans-serif; }
           .qa-sidebar-nav-v39 { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.32) transparent; }
@@ -6239,21 +6239,21 @@ export default function App() {
             .qa-sidebar-label, .qa-sidebar-section-label, .qa-sidebar-deploy-block, .qa-sidebar-badge-text { display: none !important; }
           }
         `}</style>
-        <aside data-navigation-labels-v50="true" data-admin-sidebar-v56="true" className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300 bg-gradient-to-b from-violet-950 via-violet-900 to-fuchsia-800 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.18)] transition-[width] duration-200" aria-label="QA workspace navigation">
-          <div className={`rounded-2xl border border-white/15 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-3"}`}>
+        <aside data-navigation-labels-v50="true" data-admin-sidebar-v56="true" data-sidebar-soft-v87="true" className="qa-global-sidebar-v39 fixed inset-y-0 left-0 z-[90] flex flex-col overflow-hidden border-r border-violet-300/70 bg-gradient-to-b from-violet-900 via-violet-800 to-fuchsia-700 px-3 py-3 text-white shadow-[8px_0_30px_rgba(76,29,149,0.14)] transition-[width] duration-200" aria-label="QA workspace navigation">
+          <div className={`rounded-[22px] border border-white/20 bg-white/10 ${globalSidebarCollapsed ? "p-2" : "p-4"}`}>
             <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleWorkspaceProfilePhotoChange} className="hidden" />
             <div className={`flex items-center ${globalSidebarCollapsed ? "justify-center" : "gap-3"}`}>
               <div className="relative shrink-0">
-                <button type="button" onClick={() => profilePhotoInputRef.current?.click()} disabled={workspaceProfilePhotoUploading} className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-white/15 text-sm font-black" aria-label={"Profile. Deploy Version " + (shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending"))}>
+                <button type="button" onClick={() => profilePhotoInputRef.current?.click()} disabled={workspaceProfilePhotoUploading} className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[18px] border border-white/30 bg-white/15 text-base font-semibold shadow-[0_8px_20px_rgba(30,14,75,0.18)]" aria-label={"Profile. Deploy Version " + (shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending"))}>
                   {workspaceProfilePhoto ? <img src={workspaceProfilePhoto} alt={welcomeName ? welcomeName + " profile photo" : "Profile photo"} className="h-full w-full object-cover" /> : <span>{workspaceInitials}</span>}
                 </button>
                 <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-violet-900 bg-emerald-400" aria-hidden="true" />
               </div>
-              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0"><div className="truncate text-sm font-black">{welcomeName}</div><div className="truncate text-[10px] font-bold text-violet-200">{currentUser.role}</div><div className="truncate text-[10px] font-semibold text-violet-300">{workspaceTeamName}</div></div> : null}
+              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0 flex-1"><div className="truncate text-[15px] font-semibold">{welcomeName}</div><div className="mt-0.5 truncate text-[10px] font-normal text-violet-200">{currentUser.role}</div><div className="truncate text-[10px] font-normal text-violet-300">{workspaceTeamName}</div></div> : null}
             </div>
             {!globalSidebarCollapsed ? <div className="qa-sidebar-deploy-block mt-3 flex items-center justify-between gap-2 border-t border-white/15 pt-2.5">
-              <div><div className="text-[9px] font-black uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-semibold text-violet-200">Current production</div></div>
-              <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-black tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>
+              <div><div className="text-[9px] font-medium uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-normal text-violet-200">Current production</div></div>
+              <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>
             </div> : null}
           </div>
 
@@ -6262,16 +6262,16 @@ export default function App() {
               const visibleItems = group.items;
               const isOpen = sidebarGroupsOpen[group.id] !== false;
               return <section key={group.id} className="rounded-xl">
-                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} aria-label={group.title} aria-expanded={isOpen} title={group.description} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
+                {!globalSidebarCollapsed ? <button type="button" onClick={() => toggleSidebarGroup(group.id)} aria-label={group.title} aria-expanded={isOpen} title={group.description} className="qa-sidebar-section-label flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[10px] font-medium uppercase tracking-[0.16em] text-violet-300 transition hover:bg-white/10 hover:text-white">
                   <span>{group.title}</span>
                   <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
                 </button> : null}
                 {(globalSidebarCollapsed || isOpen) ? <div className="space-y-0.5">
-                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={() => { if (!item.allowed) { setSidebarPermissionNotice(item.label); return; } setSidebarPermissionNotice(""); item.onClick(); }} aria-label={item.allowed ? item.label : `${item.label}. ไม่มีสิทธิ์ใช้งาน`} aria-disabled={!item.allowed} title={item.allowed ? `${item.label} - ${item.description}` : `${item.label} - ไม่มีสิทธิ์ใช้งาน: ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${!item.allowed ? "cursor-not-allowed border border-white/10 text-violet-300/70 hover:bg-white/5" : item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
+                  {visibleItems.map((item) => <button key={item.key} type="button" onClick={() => { if (!item.allowed) { setSidebarPermissionNotice(item.label); return; } setSidebarPermissionNotice(""); item.onClick(); }} aria-label={item.allowed ? item.label : `${item.label}. ไม่มีสิทธิ์ใช้งาน`} aria-disabled={!item.allowed} title={item.allowed ? `${item.label} - ${item.description}` : `${item.label} - ไม่มีสิทธิ์ใช้งาน: ${item.description}`} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition ${!item.allowed ? "cursor-not-allowed border border-white/10 text-violet-300/70 hover:bg-white/5" : item.active ? "bg-white text-violet-800 shadow-sm" : item.danger ? "text-rose-100 hover:bg-rose-500/20" : "text-white hover:bg-white/10"}`}>
                     <SidebarGlyph name={item.icon} />
                     {!globalSidebarCollapsed ? <span className="qa-sidebar-label min-w-0 flex-1 truncate">{item.label}</span> : null}
                     {!item.allowed ? <svg viewBox="0 0 24 24" className="ml-auto h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> : null}
-                    {item.allowed && item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span> : null}
+                    {item.allowed && item.badge ? <span className="ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white">{item.badge}</span> : null}
                   </button>)}
                 </div> : null}
               </section>;
@@ -6279,7 +6279,7 @@ export default function App() {
           </nav>
 
           <div className="border-t border-white/15 pt-2">
-            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} aria-label={globalSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="flex w-full items-center justify-center rounded-xl border border-white/20 px-3 py-2 text-xs font-black text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
+            <button type="button" onClick={() => setGlobalSidebarCollapsed((value) => !value)} aria-label={globalSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} className="flex w-full items-center justify-center rounded-xl border border-white/25 px-3 py-2.5 text-xs font-medium text-white transition hover:bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{globalSidebarCollapsed ? <path d="m9 18 6-6-6-6"/> : <path d="m15 18-6-6 6-6"/>}</svg>{!globalSidebarCollapsed ? <span className="qa-sidebar-label ml-2">Collapse Sidebar</span> : null}</button>
           </div>
 
           <nav className="hidden" aria-hidden="true">
