@@ -5,7 +5,7 @@ import LoadingMascot from "./LoadingMascot";
 import { fetchStoredEvaluations } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
-import { getIncentiveByScore, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
+import { getIncentiveByGrade, getIncentiveByScore, getIncentivePolicyKey, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 
@@ -290,6 +290,62 @@ function getPreviousMonthKey(monthKey: string) {
   if (!match) return "";
   const date = new Date(Number(match[1]), Number(match[2]) - 2, 1);
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
+}
+
+type GradeGuideRow = {
+  range: string;
+  grade: Grade;
+};
+
+function getGradeGuideRows(monthKey: string): GradeGuideRow[] {
+  switch (getIncentivePolicyKey(monthKey)) {
+    case "JAN_FEB_2026":
+      return [
+        { range: "80-100", grade: "A" },
+        { range: "70-79", grade: "B" },
+        { range: "60-69", grade: "C" },
+        { range: "<60", grade: "D" },
+      ];
+    case "MAR_2026":
+      return [
+        { range: "90-100", grade: "A" },
+        { range: "80-89", grade: "B" },
+        { range: "70-79", grade: "C" },
+        { range: "60-69", grade: "D" },
+        { range: "<60", grade: "F" },
+      ];
+    default:
+      return [
+        { range: "90-100", grade: "A" },
+        { range: "85-89", grade: "B" },
+        { range: "80-84", grade: "C" },
+        { range: "<80", grade: "D" },
+      ];
+  }
+}
+
+function getGradePolicyLabel(monthKey: string) {
+  if (monthKey === "2026-01") return "January 2026 policy";
+  if (monthKey === "2026-02") return "February 2026 policy";
+  if (monthKey === "2026-03") return "March 2026 policy";
+  if (monthKey === "2026-04") return "April 2026 policy";
+  return "Current monthly grade policy";
+}
+
+function getTotalIncentiveForCases(cases: CaseItem[]) {
+  const groups = new Map<string, CaseItem[]>();
+
+  cases.forEach((item) => {
+    const key = `${normalizeText(item.agent)}|${item.monthKey}`;
+    const current = groups.get(key) || [];
+    current.push(item);
+    groups.set(key, current);
+  });
+
+  return [...groups.values()].reduce((sum, groupCases) => {
+    const summary = summarizeCases(groupCases);
+    return sum + summary.incentive;
+  }, 0);
 }
 
 function sanitizePdfFilePart(value: unknown, fallback = "Report") {
@@ -1096,7 +1152,6 @@ function SummaryTable({
             <th className="px-4 py-3 text-center">Cases</th>
             <th className="px-4 py-3 text-center">Average Score</th>
             <th className="px-4 py-3 text-center">Grade</th>
-            <th className="px-4 py-3 text-center">Revised</th>
             {showIncentive ? <th className="px-4 py-3 text-center">Incentive</th> : null}
           </tr>
         </thead>
@@ -1107,11 +1162,10 @@ function SummaryTable({
               <td className="border-t border-slate-200 px-4 py-3 text-center">{row.caseCount}</td>
               <td className="border-t border-slate-200 px-4 py-3 text-center">{row.avgScore.toFixed(2)}</td>
               <td className="border-t border-slate-200 px-4 py-3 text-center"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${getGradeTone(row.grade)}`}>{row.grade}</span></td>
-              <td className="border-t border-slate-200 px-4 py-3 text-center">{row.revisedCount}</td>
               {showIncentive ? <td className="border-t border-slate-200 px-4 py-3 text-center">{formatCurrencyTHB(row.incentive)}</td> : null}
             </tr>
           )) : (
-            <tr><td colSpan={showIncentive ? 6 : 5} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No data found</td></tr>
+            <tr><td colSpan={showIncentive ? 5 : 4} className="border-t border-slate-200 px-4 py-6 text-center text-sm text-slate-500">No data found</td></tr>
           )}
         </tbody>
       </table>
@@ -1314,13 +1368,6 @@ function AnalyticsAgentPerformanceV92({
       );
   }, [accountProfiles, agentNames, cases, monthKey, monthlyMode]);
 
-  const completedCount = rows.filter((row) => row.completed).length;
-  const passedCount = rows.filter((row) => row.kpiPassed).length;
-  const eligibleCount = rows.filter(
-    (row) => row.completed && row.kpiPassed && row.incentiveCash > 0
-  ).length;
-  const totalCash = rows.reduce((sum, row) => sum + row.incentiveCash, 0);
-  const totalPromo = rows.reduce((sum, row) => sum + row.incentivePromo, 0);
   const allAgentsMode = selectedAgent === "all";
   const visibleRows =
     allAgentsMode && !showAllAgents ? rows.slice(0, 8) : rows;
@@ -1373,7 +1420,6 @@ function AnalyticsAgentPerformanceV92({
                 <th className="px-3 py-3 text-center">Average</th>
                 <th className="px-3 py-3 text-center">KPI Status</th>
                 <th className="px-3 py-3 text-center">Grade</th>
-                <th className="px-3 py-3 text-center">Revised</th>
                 <th className="px-4 py-3 text-right">Incentive</th>
                 <th className="px-4 py-3 text-right">Details</th>
               </tr>
@@ -1401,9 +1447,6 @@ function AnalyticsAgentPerformanceV92({
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-slate-800">
                           {buildSuspendedAgentLabel(row.agent, accountProfiles)}
-                        </span>
-                        <span className="mt-0.5 block text-[9px] font-normal text-slate-400">
-                          {row.revisedCount} revised
                         </span>
                       </span>
                     </button>
@@ -1440,9 +1483,6 @@ function AnalyticsAgentPerformanceV92({
                     >
                       {row.caseCount ? row.grade : "—"}
                     </span>
-                  </td>
-                  <td className="px-3 py-3 text-center font-medium text-fuchsia-600">
-                    {row.revisedCount}
                   </td>
                   <td
                     className={
@@ -1481,7 +1521,7 @@ function AnalyticsAgentPerformanceV92({
               {!visibleRows.length ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="border-t border-slate-100 px-6 py-12 text-center text-sm font-normal text-slate-400"
                   >
                     No Agent data for the current selection
@@ -1505,75 +1545,69 @@ function AnalyticsAgentPerformanceV92({
         ) : null}
       </div>
 
-      <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+      <div
+        data-monthly-grade-criteria-v101="true"
+        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
+      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[15px] font-semibold text-slate-900">
-              Incentive Summary
+              Monthly Grade Criteria
             </div>
             <div className="mt-1 text-[10px] font-normal text-slate-500">
               {monthlyMode
-                ? periodLabel || "Selected month"
-                : "Select Monthly view to calculate incentive"}
+                ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
+                : "Select Monthly view to see the grade criteria"}
             </div>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg font-normal text-violet-600">
-            ♢
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg font-semibold text-violet-600">
+            A
           </div>
         </div>
 
-        <div className="mt-5 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs">
-            <span className="font-normal text-slate-500">Agents in scope</span>
-            <span className="font-medium text-slate-800">{rows.length}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs">
-            <span className="font-normal text-slate-500">Completed target</span>
-            <span className="font-medium text-slate-800">
-              {completedCount}
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs">
-            <span className="font-normal text-slate-500">Passed KPI 85</span>
-            <span className="font-medium text-emerald-700">
-              {passedCount}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-normal text-slate-500">
-              Incentive eligible
-            </span>
-            <span className="font-medium text-violet-700">
-              {eligibleCount}
-            </span>
-          </div>
-        </div>
+        {monthlyMode ? (
+          <div className="mt-5 overflow-hidden rounded-2xl border border-violet-100">
+            {getGradeGuideRows(monthKey).map((row) => {
+              const status = getIncentiveByGrade(row.grade, monthKey).remark;
 
-        <div className="mt-5 rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-4">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-violet-600">
-            Total Incentive
+              return (
+                <div
+                  key={row.grade}
+                  className="grid grid-cols-[42px_minmax(0,1fr)_minmax(120px,auto)] items-center gap-3 border-b border-violet-100 bg-white px-3 py-3 last:border-b-0"
+                >
+                  <span
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-sm font-semibold ${getGradeTone(row.grade)}`}
+                  >
+                    {row.grade}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900">
+                      Score {row.range}
+                    </div>
+                    <div className="mt-0.5 text-[10px] font-normal text-slate-500">
+                      Grade {row.grade}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-normal uppercase tracking-wide text-slate-400">
+                      Status
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-slate-700">
+                      {status}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="mt-2 text-[30px] font-semibold tracking-tight text-violet-800">
-            ฿{totalCash.toLocaleString("en-US")}
+        ) : (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs font-normal text-slate-500">
+            Grade criteria are available in Monthly view.
           </div>
-          <div className="mt-1 text-[10px] font-normal text-violet-600">
-            {monthlyMode
-              ? `${eligibleCount} eligible Agent${
-                  eligibleCount === 1 ? "" : "s"
-                }`
-              : "Available in Monthly view"}
-          </div>
-
-          {totalPromo > 0 ? (
-            <div className="mt-3 rounded-xl bg-white px-3 py-2 text-[10px] font-medium text-fuchsia-700">
-              + {totalPromo.toLocaleString("en-US")} RBH Promo
-            </div>
-          ) : null}
-        </div>
+        )}
 
         <div className="mt-4 text-[10px] font-normal leading-5 text-slate-500">
-          Incentive is finalized when an Agent completes {CASE_TARGET} evaluated
-          cases and the average score passes KPI {PERFORMANCE_KPI_TARGET}.
+          The score range and Status change automatically according to the selected month.
         </div>
       </div>
     </div>
@@ -1597,16 +1631,6 @@ function AnalyticsOverviewV89({
 }) {
   const evaluatedCases =
     cases.length;
-  const revisedRate =
-    evaluatedCases > 0
-      ? Number(
-          (
-            (summary.revisedCount /
-              evaluatedCases) *
-            100
-          ).toFixed(2)
-        )
-      : 0;
   const hasKpiData =
     evaluatedCases > 0;
   const kpiPassed =
@@ -1778,11 +1802,11 @@ function AnalyticsOverviewV89({
       valueTone: "text-slate-900",
     },
     {
-      title: "Revised Cases",
-      value: String(summary.revisedCount),
-      note: `${revisedRate.toFixed(2)}% of evaluated cases`,
-      icon: "↻",
-      tone: "bg-rose-50 text-rose-600",
+      title: "Total Incentive",
+      value: formatCurrencyTHB(getTotalIncentiveForCases(cases)),
+      note: "Total from eligible monthly Agent results",
+      icon: "฿",
+      tone: "bg-fuchsia-50 text-fuchsia-600",
       valueTone: "text-slate-900",
     },
     {
@@ -2134,21 +2158,6 @@ function AnalyticsOverviewV89({
                 )}
                 % · Target{" "}
                 {PERFORMANCE_KPI_TARGET}%
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 px-4 py-3">
-              <div className="text-[11px] font-medium text-slate-700">
-                {summary.revisedCount
-                  ? `${summary.revisedCount} revised case(s)`
-                  : "No revised cases"}
-              </div>
-              <div className="mt-1 text-[10px] font-normal text-slate-500">
-                Revised rate{" "}
-                {revisedRate.toFixed(
-                  2
-                )}
-                %
               </div>
             </div>
 
@@ -4689,7 +4698,7 @@ export default function SummaryMockup({
       Mode: isComparisonMode ? "Compare" : "Single Period",
       "Average Score": summaryCards.avgScore,
       "Cases Evaluated": summaryCards.caseCount,
-      "Revised Cases": summaryCards.revisedCount,
+      "Total Incentive": formatCurrencyTHB(getTotalIncentiveForCases(filteredCases)),
       "Overall Grade": summaryCards.grade,
       "Exported By": String(currentUser?.displayName || currentUser?.username || "-"),
       "Exported At": new Date().toLocaleString("en-GB"),
@@ -5152,8 +5161,8 @@ export default function SummaryMockup({
       margin + (metricWidth + metricGap) * 3,
       y,
       metricWidth,
-      "Revised Cases",
-      String(reportSummary.revisedCount),
+      "Total Incentive",
+      String(getTotalIncentiveForCases(filteredCases).toLocaleString("en-US")) + " THB",
       "amber"
     );
     y += 30;
