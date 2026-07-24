@@ -1874,6 +1874,12 @@ export default function SummaryMockup({
   const [periodFilterMonth, setPeriodFilterMonth] = useState<string>("all");
   const [summarySection, setSummarySection] = useState<"summary" | "team">("summary");
   const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>("");
+  const [analyticsCompareOpen, setAnalyticsCompareOpen] = useState(false);
+  const [compareDraftPeriods, setCompareDraftPeriods] = useState<string[]>([]);
+  const [analyticsExportOpen, setAnalyticsExportOpen] = useState(false);
+  const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState("all");
+  const [selectedTeamDetail, setSelectedTeamDetail] = useState("");
 
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
@@ -2439,26 +2445,15 @@ export default function SummaryMockup({
 
   const periodOptions = useMemo(() => {
     if (analysisMode === "weekly") {
-      return [...new Set(
-        allCases
-          .filter((item) => effectivePeriodYear === "all" || item.yearKey === effectivePeriodYear)
-          .filter((item) => periodFilterMonth === "all" || item.monthKey === periodFilterMonth)
-          .map((item) => item.weekLabel)
-          .filter((value) => value && value !== "-")
-      )].sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
+      return Array.from(new Set(allCases.map((item) => item.weekLabel).filter((value) => value && value !== "-")))
+        .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
     }
-
     if (analysisMode === "monthly") {
-      return [...new Set(
-        allCases
-          .filter((item) => effectivePeriodYear === "all" || item.yearKey === effectivePeriodYear)
-          .map((item) => item.monthKey)
-          .filter(Boolean)
-      )].sort((a, b) => b.localeCompare(a));
+      return Array.from(new Set(allCases.map((item) => item.monthKey).filter(Boolean)))
+        .sort((a, b) => b.localeCompare(a));
     }
-
     return selectableYears;
-  }, [allCases, analysisMode, effectivePeriodYear, periodFilterMonth, selectableYears]);
+  }, [allCases, analysisMode, selectableYears]);
 
   const maxSelectedPeriods =
     analysisMode === "monthly" ? 6 : 4;
@@ -2569,6 +2564,12 @@ export default function SummaryMockup({
         return false;
       }
 
+      if (selectedTeam !== "all") {
+        const account = getAccountStatus(item.agent, accountProfiles);
+        const itemTeam = getSummaryTeamName(account);
+        if (normalizeText(itemTeam) !== normalizeText(selectedTeam)) return false;
+      }
+
       if (effectivePeriodKeys.length) {
         if (
           analysisMode === "weekly" &&
@@ -2588,7 +2589,7 @@ export default function SummaryMockup({
 
       return true;
     });
-  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList]);
+  }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles]);
 
   const selectableAgentOptions = useMemo(() => {
     const scopedAgentNames = getUniqueNormalizedAgents(
@@ -3032,6 +3033,23 @@ export default function SummaryMockup({
     [currentUserAccount]
   );
 
+  const analyticsCanSelectAllTeams = !roleScopedAgentList.length;
+  const analyticsTeamOptions = useMemo(() => {
+    const names = Array.from(new Set(accountProfiles.map((account) => getSummaryTeamName(account)).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b));
+    return analyticsCanSelectAllTeams ? names : currentUserTeamName ? [currentUserTeamName] : [];
+  }, [accountProfiles, analyticsCanSelectAllTeams, currentUserTeamName]);
+
+  useEffect(() => {
+    if (!analyticsCanSelectAllTeams) {
+      setSelectedTeam(currentUserTeamName || "all");
+      return;
+    }
+    if (selectedTeam !== "all" && !analyticsTeamOptions.includes(selectedTeam)) {
+      setSelectedTeam("all");
+    }
+  }, [analyticsCanSelectAllTeams, analyticsTeamOptions, currentUserTeamName, selectedTeam]);
+
   useEffect(() => {
     if (
       isAdminRole &&
@@ -3171,11 +3189,10 @@ export default function SummaryMockup({
         };
       })
       .filter((row) => {
-        if (isAdminRole) {
+        if (isAdminRole || roleScopedAgentList.length) {
           return (
             currentUserTeamName &&
-            normalizeText(row.teamName) ===
-              normalizeText(currentUserTeamName)
+            normalizeText(row.teamName) === normalizeText(currentUserTeamName)
           );
         }
 
@@ -3187,7 +3204,15 @@ export default function SummaryMockup({
     teamSelectedMonth,
     isAdminRole,
     currentUserTeamName,
+    roleScopedAgentList.length,
   ]);
+
+  const selectedTeamPerformance = useMemo(
+    () => selectedTeamDetail
+      ? teamPerformanceRows.find((row) => row.teamName === selectedTeamDetail) || null
+      : null,
+    [selectedTeamDetail, teamPerformanceRows]
+  );
 
   const adminOwnTeamRow = useMemo(
     () =>
@@ -4184,6 +4209,49 @@ export default function SummaryMockup({
         };
     }
   };
+
+  function exportCurrentAnalyticsExcel() {
+    const workbook = XLSX.utils.book_new();
+    const periodLabel = effectivePeriodLabels.join(" | ") || "Current Period";
+    const summarySheet = XLSX.utils.json_to_sheet([{
+      "View By": reportModeName,
+      Period: periodLabel,
+      Team: selectedTeam === "all" ? (currentUserTeamName || "All Teams") : selectedTeam,
+      Agent: effectiveSelectedAgent === "all" ? "All Agents" : effectiveSelectedAgent,
+      Mode: isComparisonMode ? "Compare" : "Single Period",
+      "Average Score": summaryCards.avgScore,
+      "Cases Evaluated": summaryCards.caseCount,
+      "Revised Cases": summaryCards.revisedCount,
+      "Overall Grade": summaryCards.grade,
+      "Exported By": String(currentUser?.displayName || currentUser?.username || "-"),
+      "Exported At": new Date().toLocaleString("en-GB"),
+    }]);
+    const caseSheet = XLSX.utils.json_to_sheet(filteredCases.length ? filteredCases.map((item) => ({
+      "Case ID": item.caseId,
+      Agent: item.agent,
+      "Audit Date": item.auditDate,
+      Month: item.monthLabel,
+      Week: item.weekLabel,
+      Year: item.yearKey,
+      Score: item.finalScore,
+      Grade: item.grade,
+      Status: item.reviewStatus,
+      Inquiry: item.inquiryTh || item.inquiryEn || "-",
+    })) : [{ Message: "No data for the current view" }]);
+    const topicSheet = XLSX.utils.json_to_sheet(topicSummary.length ? topicSummary.map((topic) => ({
+      Topic: topic.code,
+      Description: topic.label,
+      "Average Score": topic.avgScore,
+      Max: topic.max,
+      "Average %": topic.pct,
+    })) : [{ Message: "No topic data for the current view" }]);
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+    XLSX.utils.book_append_sheet(workbook, caseSheet, "Cases");
+    XLSX.utils.book_append_sheet(workbook, topicSheet, "Topics");
+    const safePeriod = periodLabel.replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 70) || "Current_View";
+    XLSX.writeFile(workbook, `QA_Analytics_${safePeriod}.xlsx`);
+    setAnalyticsExportOpen(false);
+  }
 
   async function generateSummaryReportPdf() {
     await ensureSarabunPdfFont();
@@ -6879,7 +6947,7 @@ export default function SummaryMockup({
 
   return (
     <div className={`relative min-h-screen ${songkranTheme ? "bg-gradient-to-br from-cyan-50 via-sky-50 to-fuchsia-50" : "bg-[#f7f8fc]"}`}>
-      {reportPdfDialogOpen ? (
+      {false && reportPdfDialogOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-xl overflow-hidden rounded-[28px] border border-violet-100 bg-white shadow-2xl">
             <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-5 py-4 text-white">
@@ -6930,62 +6998,34 @@ export default function SummaryMockup({
       ) : null}
 
       {songkranTheme ? <SongkranBackdrop /> : null}
-      <div
-        data-analytics-header-v89="true"
-        className="mx-auto max-w-[1720px] px-6 pt-7 lg:px-8 lg:pt-8"
-      >
+      <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-7 lg:px-8 lg:pt-8">
         <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 lg:text-[30px]">
-              Analytics
-            </h1>
-            <p className="mt-2 text-sm font-normal text-slate-500">
-              Monitor performance and quality metrics
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 lg:text-[30px]">Analytics</h1>
+            <p className="mt-2 text-sm font-normal text-slate-500">เลือกข้อมูล → ดูผล → เปรียบเทียบ → ส่งออก</p>
           </div>
-
           <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-normal text-slate-500 shadow-sm">
-              Data as of{" "}
-              {new Intl.DateTimeFormat(
-                "en-GB",
-                {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                }
-              ).format(new Date())}
+            {isComparisonMode ? <span className="rounded-full bg-violet-100 px-3 py-2 text-xs font-medium text-violet-700">Compare Mode · {effectivePeriodKeys.length} Periods</span> : null}
+            {isComparisonMode ? (
+              <button type="button" onClick={() => {
+                const lastPeriod = effectivePeriodKeys[effectivePeriodKeys.length - 1];
+                setSelectedPeriods(lastPeriod ? [lastPeriod] : []);
+              }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Exit Compare</button>
+            ) : null}
+            <div className="relative">
+              <button type="button" onClick={() => setAnalyticsExportOpen((value) => !value)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm hover:border-violet-300 hover:text-violet-700">Export</button>
+              {analyticsExportOpen ? (
+                <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                  <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">Export Current View</div>
+                  <button type="button" onClick={() => { setAnalyticsExportOpen(false); void generateSummaryReportPdf(); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>PDF</span><span>›</span></button>
+                  <button type="button" onClick={exportCurrentAnalyticsExcel} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-normal text-slate-700 hover:bg-violet-50 hover:text-violet-700"><span>Excel</span><span>›</span></button>
+                </div>
+              ) : null}
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setReportPdfView(
-                  viewMode
-                );
-                setReportPdfDialogOpen(
-                  true
-                );
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-violet-300 hover:text-violet-700"
-            >
-              Export
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setAnalyticsCustomizeOpen(
-                  true
-                )
-              }
-              className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm transition hover:bg-violet-50"
-            >
-              Customize
-            </button>
+            <button type="button" onClick={() => {
+              setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
+              setAnalyticsCompareOpen(true);
+            }} className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">Compare</button>
           </div>
         </div>
       </div>
@@ -7029,13 +7069,75 @@ export default function SummaryMockup({
                 )
               }
             >
-              Teams
+              Team Performance
             </button>
           </div>
         </div>
       ) : null}
 
       {summarySection === "team" && !isAdminRole ? (
+        <div data-team-performance-logic-v90="true" className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
+          <Panel>
+            <PanelHeader title="Team Performance" subtitle="เลือกเดือน ดูภาพรวมแต่ละทีม และเปิดรายละเอียดเฉพาะทีมที่ต้องการ" />
+            <PanelBody className="space-y-5">
+              <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                <div className="w-full max-w-sm">
+                  <FilterLabel>Month</FilterLabel>
+                  <div className="mt-2">
+                    <FilterSelect value={teamSelectedMonth} onChange={setTeamSelectedMonth} options={teamMonthOptions.map((monthKey) => ({
+                      value: monthKey,
+                      label: getMonthLabelForKey(monthKey, allCases),
+                    }))} />
+                  </div>
+                </div>
+                <div className="text-xs font-normal text-slate-500">{teamPerformanceRows.length} Teams · {allTeamsSummary.caseCount} Cases</div>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_90px_36px] gap-3 bg-slate-50 px-4 py-3 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  <div>Team</div><div className="text-center">Cases</div><div className="text-center">Average</div><div className="text-center">Grade</div><div />
+                </div>
+                {teamPerformanceRows.map((row) => {
+                  const open = selectedTeamDetail === row.teamName;
+                  return (
+                    <button key={row.teamName} type="button" onClick={() => setSelectedTeamDetail(open ? "" : row.teamName)} className="grid w-full grid-cols-[minmax(0,1fr)_90px_90px_90px_36px] gap-3 border-t border-slate-100 bg-white px-4 py-4 text-left text-sm hover:bg-violet-50/50">
+                      <div className="min-w-0"><div className="truncate font-medium text-slate-900">{row.teamName}</div><div className="mt-1 text-[10px] font-normal text-slate-500">{row.agentCount} Active Agents</div></div>
+                      <div className="text-center font-normal text-slate-600">{row.caseCount}</div>
+                      <div className="text-center font-medium text-violet-700">{row.avgScore === null ? "-" : row.avgScore.toFixed(2)}</div>
+                      <div className="text-center font-medium text-slate-700">{row.grade || "-"}</div>
+                      <div className="text-center text-violet-600">{open ? "⌃" : "›"}</div>
+                    </button>
+                  );
+                })}
+                {!teamPerformanceRows.length ? <div className="border-t border-slate-100 px-6 py-12 text-center text-sm font-normal text-slate-400">No team data for the selected month</div> : null}
+              </div>
+              {selectedTeamPerformance ? (
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <Panel>
+                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Agents`} subtitle={`${selectedTeamPerformance.caseCount} Cases · Average ${selectedTeamPerformance.avgScore === null ? "-" : selectedTeamPerformance.avgScore.toFixed(2)}`} />
+                    <PanelBody>
+                      <div className="overflow-hidden rounded-xl border border-slate-200">
+                        {selectedTeamPerformance.agents.map((agent) => (
+                          <div key={agent.agent} className="grid grid-cols-[minmax(0,1fr)_70px_80px] gap-3 border-t border-slate-100 px-4 py-3 text-xs first:border-t-0">
+                            <div className="truncate font-normal text-slate-700">{buildSuspendedAgentLabel(agent.agent, accountProfiles)}</div>
+                            <div className="text-center text-slate-500">{agent.caseCount} Cases</div>
+                            <div className="text-right font-medium text-violet-700">{agent.avgScore.toFixed(2)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </PanelBody>
+                  </Panel>
+                  <Panel>
+                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Topics`} subtitle="Topic Performance ของเดือนที่เลือก" />
+                    <PanelBody><TopicTable topics={selectedTeamPerformance.topics} /></PanelBody>
+                  </Panel>
+                </div>
+              ) : null}
+            </PanelBody>
+          </Panel>
+        </div>
+      ) : null}
+
+      {false && summarySection === "team" && !isAdminRole ? (
         <div className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
             <PanelHeader
@@ -7373,9 +7475,144 @@ export default function SummaryMockup({
           data-analytics-clean-v88="true"
           className="space-y-5"
         >
+          <div data-analytics-logic-v90="true" className="space-y-5">
+            <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                  <FilterLabel>View By</FilterLabel>
+                  <select value={analysisMode} onChange={(event) => {
+                    setAnalysisMode(event.target.value as "weekly" | "monthly" | "yearly");
+                    setSelectedPeriods([]);
+                    setAnalyticsCompareOpen(false);
+                  }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                </div>
+                <div>
+                  <FilterLabel>Period</FilterLabel>
+                  <select value={effectivePeriodKeys[effectivePeriodKeys.length - 1] || ""} onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedPeriods(value ? [value] : []);
+                    if (analysisMode === "monthly" && value) setTeamSelectedMonth(value);
+                  }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                    {periodOptions.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <FilterLabel>Team</FilterLabel>
+                  {analyticsCanSelectAllTeams ? (
+                    <select value={selectedTeam} onChange={(event) => {
+                      setSelectedTeam(event.target.value);
+                      setSelectedAgent("all");
+                      onSelectedAgentChange?.("all");
+                    }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                      <option value="all">All Teams</option>
+                      {analyticsTeamOptions.map((teamName) => <option key={teamName} value={teamName}>{teamName}</option>)}
+                    </select>
+                  ) : <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-normal text-slate-700">{currentUserTeamName || "Assigned Scope"}</div>}
+                </div>
+                <div>
+                  <FilterLabel>Agent</FilterLabel>
+                  <div className="mt-2">
+                    {roleScopedAgentList.length ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-normal text-slate-700">{effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}</div>
+                    ) : (
+                      <FilterSelect value={effectiveSelectedAgent || "all"} onChange={(value) => {
+                        setSelectedAgent(value);
+                        onSelectedAgentChange?.(value);
+                      }} options={[{ value: "all", label: "All Agents" }].concat(selectableAgentOptions.map((agent) => ({
+                        value: agent,
+                        label: buildSuspendedAgentLabel(agent, accountProfiles),
+                      })))} />
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                <div className="text-xs font-normal text-slate-500">{isComparisonMode ? `กำลังเปรียบเทียบ ${effectivePeriodLabels.join(" · ")}` : `กำลังแสดง ${effectivePeriodLabels[0] || "ช่วงปัจจุบัน"}`}</div>
+                <button type="button" onClick={() => {
+                  setAnalysisMode("monthly");
+                  setSelectedPeriods([]);
+                  setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
+                  if (!roleScopedAgentList.length) {
+                    setSelectedAgent("all");
+                    onSelectedAgentChange?.("all");
+                  }
+                }} className="text-xs font-normal text-violet-600 hover:text-violet-800">Reset filters</button>
+              </div>
+            </div>
+
+            {analyticsCompareOpen ? (
+              <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/45 p-4">
+                <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-[22px] border border-slate-200 bg-white shadow-2xl">
+                  <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                    <div><div className="text-lg font-semibold text-slate-900">Compare Periods</div><div className="mt-1 text-xs font-normal text-slate-500">{reportModeName} · เลือก 2–{maxSelectedPeriods} ช่วง</div></div>
+                    <button type="button" onClick={() => setAnalyticsCompareOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50">×</button>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {periodOptions.map((period) => {
+                        const checked = compareDraftPeriods.includes(period);
+                        const disabled = !checked && compareDraftPeriods.length >= maxSelectedPeriods;
+                        return (
+                          <button key={period} type="button" disabled={disabled} onClick={() => {
+                            if (checked) {
+                              setCompareDraftPeriods(compareDraftPeriods.filter((item) => item !== period));
+                            } else if (!disabled) {
+                              setCompareDraftPeriods(sortPeriodKeys([...compareDraftPeriods, period]));
+                            }
+                          }} className={"flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-normal transition " + (checked ? "border-violet-400 bg-violet-50 text-violet-800" : disabled ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300")}>
+                            <span>{getPeriodDisplayLabel(period)}</span><span>{checked ? "✓" : ""}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-5">
+                      <div className="text-xs font-normal text-slate-500">{compareDraftPeriods.length}/{maxSelectedPeriods} selected</div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setAnalyticsCompareOpen(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                        <button type="button" disabled={compareDraftPeriods.length < 2} onClick={() => {
+                          setSelectedPeriods(sortPeriodKeys(compareDraftPeriods));
+                          setAnalyticsCompareOpen(false);
+                        }} className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40">Compare</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div data-analytics-overview-logic-v90="true" className="space-y-5">
+            <AnalyticsOverviewV89 summary={summaryCards} cases={filteredCases} topics={topicSummary} trendRows={comparisonRowsWithDelta} />
+            {isComparisonMode ? (
+              <Panel>
+                <PanelHeader title="Period Comparison" subtitle={`เปรียบเทียบ ${effectivePeriodLabels.join(" · ")}`} />
+                <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>
+              </Panel>
+            ) : null}
+            <div className="flex justify-center">
+              <button type="button" onClick={() => setAnalyticsDetailsOpen((value) => !value)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-violet-700 shadow-sm hover:border-violet-300 hover:bg-violet-50">
+                {analyticsDetailsOpen ? "Hide Details" : "View Details >"}
+              </button>
+            </div>
+            {analyticsDetailsOpen ? (
+              <div className="grid gap-5 xl:grid-cols-2">
+                <Panel>
+                  <PanelHeader title="Performance Detail" subtitle="ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน" />
+                  <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} showIncentive={summaryTableShowIncentive} /></PanelBody>
+                </Panel>
+                <Panel>
+                  <PanelHeader title="Topic Detail" subtitle="คะแนนเฉลี่ยแยกตามหัวข้อ QA" />
+                  <PanelBody><TopicTable topics={topicSummary} /></PanelBody>
+                </Panel>
+              </div>
+            ) : null}
+          </div>
           <div
             data-analytics-filterbar-v89="true"
-            className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]"
+            className="hidden"
           >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
@@ -7544,7 +7781,7 @@ export default function SummaryMockup({
             </div>
           </div>
 
-          {analyticsCustomizeOpen ? (
+          {false && analyticsCustomizeOpen ? (
             <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/45 p-4">
               <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[22px] border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
@@ -7894,7 +8131,7 @@ export default function SummaryMockup({
             </div>
           ) : null}
 
-          <div className="space-y-5">
+          <div className="hidden">
             <AnalyticsOverviewV89
               summary={summaryCards}
               cases={filteredCases}
