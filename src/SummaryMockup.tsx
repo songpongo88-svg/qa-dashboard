@@ -1219,6 +1219,343 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
+function AnalyticsAgentPerformanceV92({
+  cases,
+  agentNames,
+  accountProfiles,
+  monthKey,
+  monthlyMode,
+  selectedAgent,
+  periodLabel,
+  canSelectAgent,
+  onSelectAgent,
+}: {
+  cases: CaseItem[];
+  agentNames: string[];
+  accountProfiles: StoredUserProfile[];
+  monthKey: string;
+  monthlyMode: boolean;
+  selectedAgent: string;
+  periodLabel: string;
+  canSelectAgent: boolean;
+  onSelectAgent: (agent: string) => void;
+}) {
+  const [showAllAgents, setShowAllAgents] = useState(false);
+
+  const rows = useMemo(() => {
+    const names = new Map<string, string>();
+
+    [...agentNames, ...cases.map((item) => item.agent)]
+      .map((name) => String(name || "").trim())
+      .filter(Boolean)
+      .forEach((name) => {
+        const key = normalizeText(name);
+        if (!names.has(key)) names.set(key, name);
+      });
+
+    return [...names.values()]
+      .map((agent) => {
+        const agentCases = cases.filter(
+          (item) => normalizeText(item.agent) === normalizeText(agent)
+        );
+        const caseCount = agentCases.length;
+        const average = caseCount
+          ? Number(
+              (
+                agentCases.reduce((sum, item) => sum + item.finalScore, 0) /
+                caseCount
+              ).toFixed(2)
+            )
+          : 0;
+        const grade = scoreToGrade(average, monthKey);
+        const kpiPassed =
+          caseCount > 0 && average >= PERFORMANCE_KPI_TARGET;
+        const completed = monthlyMode && caseCount >= CASE_TARGET;
+        const incentiveResult =
+          completed && kpiPassed
+            ? getIncentiveByScore(average, monthKey)
+            : null;
+        const profile =
+          accountProfiles.find(
+            (item) =>
+              normalizeText(item.agentName) === normalizeText(agent) ||
+              normalizeText(item.displayName) === normalizeText(agent)
+          ) || null;
+        const displayName = profile?.displayName || agent;
+        const initials =
+          displayName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part.charAt(0).toUpperCase())
+            .join("") || "A";
+
+        return {
+          agent,
+          displayName,
+          initials,
+          caseCount,
+          average,
+          grade,
+          kpiPassed,
+          completed,
+          incentiveCash: incentiveResult?.cash || 0,
+          incentivePromo: incentiveResult?.promo || 0,
+          revisedCount: agentCases.filter(
+            (item) => item.reviewStatus === "Revised"
+          ).length,
+        };
+      })
+      .sort(
+        (left, right) =>
+          right.average - left.average ||
+          right.caseCount - left.caseCount ||
+          left.displayName.localeCompare(right.displayName)
+      );
+  }, [accountProfiles, agentNames, cases, monthKey, monthlyMode]);
+
+  const completedCount = rows.filter((row) => row.completed).length;
+  const passedCount = rows.filter((row) => row.kpiPassed).length;
+  const eligibleCount = rows.filter(
+    (row) => row.completed && row.kpiPassed && row.incentiveCash > 0
+  ).length;
+  const totalCash = rows.reduce((sum, row) => sum + row.incentiveCash, 0);
+  const totalPromo = rows.reduce((sum, row) => sum + row.incentivePromo, 0);
+  const allAgentsMode = selectedAgent === "all";
+  const visibleRows =
+    allAgentsMode && !showAllAgents ? rows.slice(0, 8) : rows;
+
+  const incentiveText = (row: (typeof rows)[number]) => {
+    if (!monthlyMode) return "Monthly only";
+    if (row.caseCount < CASE_TARGET) {
+      return `Pending ${row.caseCount}/${CASE_TARGET}`;
+    }
+    if (!row.kpiPassed) return "Not Eligible";
+    if (row.incentiveCash <= 0 && row.incentivePromo <= 0) {
+      return "Not Eligible";
+    }
+
+    const cash = `฿${row.incentiveCash.toLocaleString("en-US")}`;
+    return row.incentivePromo > 0
+      ? `${cash} + ${row.incentivePromo.toLocaleString("en-US")} RBH`
+      : cash;
+  };
+
+  return (
+    <div
+      data-analytics-agent-incentive-v92="true"
+      className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]"
+    >
+      <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-[15px] font-semibold text-slate-900">
+              {allAgentsMode
+                ? "Agent Performance (All Agents)"
+                : "Agent Performance"}
+            </div>
+            <div className="mt-1 text-[10px] font-normal text-slate-500">
+              {periodLabel || "Current selection"} · Ranked by average score
+            </div>
+          </div>
+          <div className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700">
+            {rows.length} Agent{rows.length === 1 ? "" : "s"}
+          </div>
+        </div>
+
+        <div className="max-h-[520px] overflow-auto">
+          <table className="min-w-[860px] w-full text-[11px]">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-slate-50 text-left font-normal text-slate-500">
+                <th className="w-12 px-4 py-3 text-center">#</th>
+                <th className="px-3 py-3">Agent</th>
+                <th className="px-3 py-3 text-center">Cases</th>
+                <th className="px-3 py-3 text-center">Average</th>
+                <th className="px-3 py-3 text-center">KPI Status</th>
+                <th className="px-3 py-3 text-center">Grade</th>
+                <th className="px-4 py-3 text-right">Incentive</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {visibleRows.map((row, index) => (
+                <tr
+                  key={row.agent}
+                  className="border-t border-slate-100 bg-white transition hover:bg-violet-50/40"
+                >
+                  <td className="px-4 py-3 text-center text-slate-400">
+                    {index + 1}
+                  </td>
+                  <td className="px-3 py-3">
+                    <button
+                      type="button"
+                      disabled={!canSelectAgent}
+                      onClick={() => onSelectAgent(row.agent)}
+                      className="flex max-w-[290px] items-center gap-3 text-left disabled:cursor-default"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-700">
+                        {row.initials}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-slate-800">
+                          {buildSuspendedAgentLabel(row.agent, accountProfiles)}
+                        </span>
+                        <span className="mt-0.5 block text-[9px] font-normal text-slate-400">
+                          {row.revisedCount} revised
+                        </span>
+                      </span>
+                    </button>
+                  </td>
+                  <td className="px-3 py-3 text-center font-normal text-slate-600">
+                    {row.caseCount}
+                  </td>
+                  <td className="px-3 py-3 text-center font-medium text-slate-800">
+                    {row.caseCount ? row.average.toFixed(2) : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <span
+                      className={
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
+                        (!row.caseCount
+                          ? "bg-slate-100 text-slate-500"
+                          : row.kpiPassed
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-rose-50 text-rose-600")
+                      }
+                    >
+                      {row.caseCount
+                        ? row.kpiPassed
+                          ? "✓ Passed"
+                          : "● Not Passed"
+                        : "No Data"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 font-medium ${getGradeTone(
+                        row.grade
+                      )}`}
+                    >
+                      {row.caseCount ? row.grade : "—"}
+                    </span>
+                  </td>
+                  <td
+                    className={
+                      "px-4 py-3 text-right font-medium " +
+                      (row.completed &&
+                      row.kpiPassed &&
+                      row.incentiveCash > 0
+                        ? "text-violet-700"
+                        : "text-slate-500")
+                    }
+                  >
+                    {incentiveText(row)}
+                  </td>
+                </tr>
+              ))}
+
+              {!visibleRows.length ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="border-t border-slate-100 px-6 py-12 text-center text-sm font-normal text-slate-400"
+                  >
+                    No Agent data for the current selection
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+
+        {allAgentsMode && rows.length > 8 ? (
+          <button
+            type="button"
+            onClick={() => setShowAllAgents((value) => !value)}
+            className="w-full border-t border-slate-100 bg-white px-5 py-3 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
+          >
+            {showAllAgents
+              ? "Show top 8 Agents"
+              : `View all ${rows.length} Agents`}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[15px] font-semibold text-slate-900">
+              Incentive Summary
+            </div>
+            <div className="mt-1 text-[10px] font-normal text-slate-500">
+              {monthlyMode
+                ? periodLabel || "Selected month"
+                : "Select Monthly view to calculate incentive"}
+            </div>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg font-normal text-violet-600">
+            ♢
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs">
+            <span className="font-normal text-slate-500">Agents in scope</span>
+            <span className="font-medium text-slate-800">{rows.length}</span>
+          </div>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs">
+            <span className="font-normal text-slate-500">Completed target</span>
+            <span className="font-medium text-slate-800">
+              {completedCount}
+            </span>
+          </div>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs">
+            <span className="font-normal text-slate-500">Passed KPI 85</span>
+            <span className="font-medium text-emerald-700">
+              {passedCount}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-normal text-slate-500">
+              Incentive eligible
+            </span>
+            <span className="font-medium text-violet-700">
+              {eligibleCount}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-4">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-violet-600">
+            Total Incentive
+          </div>
+          <div className="mt-2 text-[30px] font-semibold tracking-tight text-violet-800">
+            ฿{totalCash.toLocaleString("en-US")}
+          </div>
+          <div className="mt-1 text-[10px] font-normal text-violet-600">
+            {monthlyMode
+              ? `${eligibleCount} eligible Agent${
+                  eligibleCount === 1 ? "" : "s"
+                }`
+              : "Available in Monthly view"}
+          </div>
+
+          {totalPromo > 0 ? (
+            <div className="mt-3 rounded-xl bg-white px-3 py-2 text-[10px] font-medium text-fuchsia-700">
+              + {totalPromo.toLocaleString("en-US")} RBH Promo
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-4 text-[10px] font-normal leading-5 text-slate-500">
+          Incentive is finalized when an Agent completes {CASE_TARGET} evaluated
+          cases and the average score passes KPI {PERFORMANCE_KPI_TARGET}.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AnalyticsOverviewV89({
   summary,
   cases,
@@ -1385,21 +1722,6 @@ function AnalyticsOverviewV89({
         "text-slate-900",
     },
     {
-      title: "Cases Evaluated",
-      value: String(
-        summary.caseCount
-      ),
-      note: `${Math.min(
-        summary.caseCount,
-        CASE_TARGET
-      )}/${CASE_TARGET} case target`,
-      icon: "▤",
-      tone:
-        "bg-sky-50 text-sky-600",
-      valueTone:
-        "text-slate-900",
-    },
-    {
       title: "KPI Status",
       value: hasKpiData
         ? kpiPassed
@@ -1411,11 +1733,7 @@ function AnalyticsOverviewV89({
             2
           )} · Target ${PERFORMANCE_KPI_TARGET}`
         : `Target ${PERFORMANCE_KPI_TARGET}`,
-      icon: hasKpiData
-        ? kpiPassed
-          ? "✓"
-          : "!"
-        : "–",
+      icon: hasKpiData ? (kpiPassed ? "✓" : "!") : "–",
       tone: hasKpiData
         ? kpiPassed
           ? "bg-emerald-50 text-emerald-600"
@@ -1428,26 +1746,28 @@ function AnalyticsOverviewV89({
         : "text-slate-500",
     },
     {
-      title: "Revised Rate",
-      value: `${revisedRate.toFixed(
-        2
-      )}%`,
-      note: `${summary.revisedCount} revised cases`,
+      title: "Cases Evaluated",
+      value: String(summary.caseCount),
+      note: `${Math.min(summary.caseCount, CASE_TARGET)}/${CASE_TARGET} case target`,
+      icon: "▤",
+      tone: "bg-sky-50 text-sky-600",
+      valueTone: "text-slate-900",
+    },
+    {
+      title: "Revised Cases",
+      value: String(summary.revisedCount),
+      note: `${revisedRate.toFixed(2)}% of evaluated cases`,
       icon: "↻",
-      tone:
-        "bg-rose-50 text-rose-600",
-      valueTone:
-        "text-slate-900",
+      tone: "bg-rose-50 text-rose-600",
+      valueTone: "text-slate-900",
     },
     {
       title: "Overall Grade",
       value: summary.grade,
       note: "Current selection",
       icon: "◇",
-      tone:
-        "bg-amber-50 text-amber-600",
-      valueTone:
-        "text-slate-900",
+      tone: "bg-amber-50 text-amber-600",
+      valueTone: "text-slate-900",
     },
   ];
 
@@ -7064,7 +7384,7 @@ export default function SummaryMockup({
                 )
               }
             >
-              Overview
+              Performance Analysis
             </button>
 
             <button
@@ -7601,6 +7921,48 @@ export default function SummaryMockup({
           </div>
           <div data-analytics-overview-logic-v90="true" className="space-y-5">
             <AnalyticsOverviewV89 summary={summaryCards} cases={filteredCases} topics={topicSummary} trendRows={comparisonRowsWithDelta} />
+
+            <AnalyticsAgentPerformanceV92
+              cases={filteredCases}
+              agentNames={
+                effectiveSelectedAgent !== "all"
+                  ? [effectiveSelectedAgent]
+                  : roleScopedAgentList.length
+                    ? roleScopedAgentList
+                    : selectedTeam !== "all"
+                      ? selectableAgentOptions.filter((agent) => {
+                          const account = getAccountStatus(
+                            agent,
+                            accountProfiles
+                          );
+                          return (
+                            normalizeText(getSummaryTeamName(account)) ===
+                            normalizeText(selectedTeam)
+                          );
+                        })
+                      : selectableAgentOptions
+              }
+              accountProfiles={accountProfiles}
+              monthKey={
+                analysisMode === "monthly"
+                  ? effectivePeriodKeys[
+                      effectivePeriodKeys.length - 1
+                    ] || ""
+                  : ""
+              }
+              monthlyMode={
+                analysisMode === "monthly" &&
+                !isComparisonMode
+              }
+              selectedAgent={effectiveSelectedAgent}
+              periodLabel={effectivePeriodLabels.join(" · ")}
+              canSelectAgent={!roleScopedAgentList.length}
+              onSelectAgent={(agent) => {
+                if (roleScopedAgentList.length) return;
+                setSelectedAgent(agent);
+                onSelectedAgentChange?.(agent);
+              }}
+            />
             {isComparisonMode ? (
               <Panel>
                 <PanelHeader title="Period Comparison" subtitle={`เปรียบเทียบ ${effectivePeriodLabels.join(" · ")}`} />

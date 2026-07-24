@@ -5699,7 +5699,7 @@ export default function DashboardMockup({
       <PageHero
         eyebrow={dashboardSubTab === "overview" ? "Performance" : "QA Work"}
         title={dashboardSubTab === "overview" ? "Performance Overview" : "Case Review"}
-        subtitle={dashboardSubTab === "overview" ? "ดูคะแนน เกรด KPI ความคืบหน้า และรายละเอียดผล QA ของช่วงที่เลือก" : "ค้นหาและตรวจสอบคะแนน Original, Revised และรายละเอียดของแต่ละเคส"}
+        subtitle={dashboardSubTab === "overview" ? "ดูสถานะ KPI ปัจจุบัน ติดตามงาน ค้นหาเคส และจัดการงานประจำวัน" : "ค้นหาและตรวจสอบคะแนน Original, Revised และรายละเอียดของแต่ละเคส"}
       />
       {false ? (
       <div>
@@ -6141,7 +6141,9 @@ export default function DashboardMockup({
 
                   <div
                     data-dashboard-priority-v49="true"
-                    className="grid min-w-0 items-stretch gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]"
+                    data-overview-daily-v92="true"
+                    className="hidden"
+                    aria-hidden="true"
                   >
                     <div className="min-w-0 space-y-4">
                       <Panel>
@@ -6300,7 +6302,7 @@ export default function DashboardMockup({
                     ) : null}
                   </div>
 
-                  <div data-monthly-analytics-v43="true">
+                  <div data-monthly-analytics-v43="true" className="hidden" aria-hidden="true">
                     <Panel>
                       <PanelHeader
                         title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
