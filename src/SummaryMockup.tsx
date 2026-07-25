@@ -977,11 +977,11 @@ function buildAgentRowsWithMaster(
   fallbackMonthKey: string,
   accounts: SummaryAccount[] = []
 ): PeriodRow[] {
+  // data-zero-case-agent-grade-v122-fix
   return agentNames
     .filter(
       (agentName) =>
-        hasCasesInCurrentScope(agentName, cases) &&
-        shouldShowAgentInSummaryScope(agentName, cases, accounts)
+        !shouldHideAgentByMonth(agentName, fallbackMonthKey)
     )
     .map((agentName) => {
       const grouped = cases.filter((item) => isSameAgent(item.agent, agentName));
@@ -2829,8 +2829,8 @@ export default function SummaryMockup({
   }, [allCases, selectedMonth, selectedWeek, selectedYear, roleScopedAgentList]);
 
   const availableAgents = useMemo(() => {
-    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter((name) =>
-      shouldShowAgentInSummaryScope(name, casesInCurrentScopeForAgentOptions, accountProfiles)
+    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter(
+      (name) => !shouldHideAgentByMonth(name, selectedMonth)
     );
 
     if (roleScopedAgentList.length) {
@@ -2838,7 +2838,7 @@ export default function SummaryMockup({
     }
 
     return names;
-  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList]);
+  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList, selectedMonth]);
 
   // data-agent-selection-no-auto-reset-v120
   // Keep an explicitly selected Agent pinned even while month/week/year options
