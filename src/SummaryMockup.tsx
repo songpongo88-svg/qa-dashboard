@@ -2323,7 +2323,33 @@ export default function SummaryMockup({
   const [loadError, setLoadError] = useState("");
   const [accountProfiles, setAccountProfiles] = useState<SummaryAccount[]>([]);
   const [viewMode, setViewMode] = useState<SummaryView>("monthly-dashboard");
-  const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "all");
+  // data-agent-selection-stable-v119
+  const [selectedAgent, setSelectedAgent] = useState<string>(() => {
+    const savedAgent =
+      typeof window !== "undefined"
+        ? window.sessionStorage.getItem(
+            "qa_summary_selected_agent_v119"
+          )
+        : "";
+
+    return (
+      String(
+        savedAgent ||
+          externalSelectedAgent ||
+          "all"
+      ).trim() || "all"
+    );
+  });
+
+  // Keep the user's explicit Agent choice across rerenders, month changes and remounts.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.sessionStorage.setItem(
+      "qa_summary_selected_agent_v119",
+      String(selectedAgent || "").trim() || "all"
+    );
+  }, [selectedAgent]);
   const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
