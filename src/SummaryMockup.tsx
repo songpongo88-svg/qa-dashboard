@@ -1328,15 +1328,24 @@ function AnalyticsAgentPerformanceV92({
             )
           : 0;
         const grade = scoreToGrade(average, monthKey);
+        const specialAnuchaZeroCaseGrade =
+          caseCount === 0 &&
+          monthlyMode &&
+          isSameAgent(agent, "Anucha Makundin") &&
+          (monthKey === "2026-02" ||
+            monthKey === "2026-03");
         const gradeReady =
-          caseCount > 0 &&
-          (!monthlyMode || caseCount >= CASE_TARGET);
+          specialAnuchaZeroCaseGrade ||
+          (caseCount > 0 &&
+            (!monthlyMode || caseCount >= CASE_TARGET));
         const kpiPending =
           monthlyMode &&
           caseCount > 0 &&
           caseCount < CASE_TARGET;
         const kpiPassed =
-          gradeReady && average >= PERFORMANCE_KPI_TARGET;
+          gradeReady &&
+          !specialAnuchaZeroCaseGrade &&
+          average >= PERFORMANCE_KPI_TARGET;
         const completed =
           monthlyMode && caseCount >= CASE_TARGET;
         const incentiveResult =
@@ -1365,6 +1374,7 @@ function AnalyticsAgentPerformanceV92({
           caseCount,
           average,
           grade,
+          specialAnuchaZeroCaseGrade,
           gradeReady,
           kpiPending,
           kpiPassed,
@@ -1376,7 +1386,7 @@ function AnalyticsAgentPerformanceV92({
           ).length,
         };
       })
-      .filter((row) => row.caseCount > 0)
+      .filter((row) => row.caseCount > 0 || row.specialAnuchaZeroCaseGrade)
       .sort(
         (left, right) =>
           right.average - left.average ||
@@ -1391,6 +1401,7 @@ function AnalyticsAgentPerformanceV92({
 
   const incentiveText = (row: (typeof rows)[number]) => {
     if (!monthlyMode) return "Monthly only";
+    if (row.specialAnuchaZeroCaseGrade) return "฿0";
     if (row.caseCount < CASE_TARGET) {
       return `Pending ${row.caseCount}/${CASE_TARGET}`;
     }
@@ -1473,24 +1484,28 @@ function AnalyticsAgentPerformanceV92({
                     {row.caseCount}
                   </td>
                   <td className="px-3 py-3 text-center font-medium text-slate-800">
-                    {row.caseCount ? row.average.toFixed(2) : "—"}
+                    {row.caseCount || row.specialAnuchaZeroCaseGrade ? row.average.toFixed(2) : "—"}
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span
                       className={
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
-                        (!row.caseCount
-                          ? "bg-slate-100 text-slate-500"
-                          : row.kpiPending
+                        (row.specialAnuchaZeroCaseGrade
+                          ? "bg-rose-50 text-rose-600"
+                          : !row.caseCount
+                            ? "bg-slate-100 text-slate-500"
+                            : row.kpiPending
                             ? "bg-amber-50 text-amber-700"
                             : row.kpiPassed
                               ? "bg-emerald-50 text-emerald-700"
                               : "bg-rose-50 text-rose-600")
                       }
                     >
-                      {!row.caseCount
-                        ? "No Data"
-                        : row.kpiPending
+                      {row.specialAnuchaZeroCaseGrade
+                        ? "● Not Passed"
+                        : !row.caseCount
+                          ? "No Data"
+                          : row.kpiPending
                           ? `Pending ${row.caseCount}/${CASE_TARGET}`
                           : row.kpiPassed
                             ? "✓ Passed"
@@ -1570,6 +1585,7 @@ function AnalyticsAgentPerformanceV92({
         ) : null}
       </div>
 
+      <div className="space-y-5">
       <div
         data-monthly-grade-criteria-v109="true"
         className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
@@ -1636,8 +1652,81 @@ function AnalyticsAgentPerformanceV92({
         )}
 
         <div className="mt-4 text-[10px] font-normal leading-5 text-slate-500">
-          The score range and Status change automatically according to the selected month.
+          The score range, Status and Promo change automatically according to the selected month.
         </div>
+      </div>
+
+      <div
+        data-qa-grade-incentive-guide-v126="true"
+        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[15px] font-semibold text-slate-900">
+              QA Grade & Incentive Guide
+            </div>
+            <div className="mt-1 text-[10px] font-normal text-slate-500">
+              {monthlyMode
+                ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
+                : "Select Monthly view to see the monthly Incentive guide"}
+            </div>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-lg font-semibold text-emerald-600">
+            ฿
+          </div>
+        </div>
+
+        {monthlyMode ? (
+          <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-100">
+            <div className="grid grid-cols-[48px_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)] gap-3 bg-emerald-50 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+              <div>Grade</div>
+              <div>Score</div>
+              <div className="text-right">Cash</div>
+              <div className="text-right">Promo</div>
+            </div>
+            {getGradeGuideRows(monthKey).map((row) => {
+              const incentive = getIncentiveByGrade(row.grade, monthKey);
+              const promoVisible =
+                hasRbhPromo(monthKey) &&
+                incentive.promo > 0;
+
+              return (
+                <div
+                  key={`incentive-${row.grade}`}
+                  className="grid grid-cols-[48px_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)] items-center gap-3 border-t border-emerald-100 bg-white px-3 py-3 text-xs"
+                >
+                  <div>
+                    <span
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}
+                    >
+                      {row.grade}
+                    </span>
+                  </div>
+                  <div className="font-medium text-slate-700">
+                    {row.range}
+                  </div>
+                  <div className="text-right font-semibold text-slate-800">
+                    ฿{incentive.cash.toLocaleString("en-US")}
+                  </div>
+                  <div className="text-right font-medium text-slate-600">
+                    {promoVisible
+                      ? `${incentive.promo.toLocaleString("en-US")} RBH`
+                      : "—"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs font-normal text-slate-500">
+            Incentive criteria are available in Monthly view.
+          </div>
+        )}
+
+        <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-[10px] font-normal leading-5 text-slate-500">
+          Incentive is paid only when the Agent completes at least {CASE_TARGET} evaluated cases and meets the applicable monthly conditions. Promo is shown only for months that have an active Promo policy.
+        </div>
+      </div>
       </div>
     </div>
   );
@@ -1666,26 +1755,34 @@ function AnalyticsOverviewV89({
   selectedAgent?: string;
   periodKeys?: string[];
 }) {
-  // data-anucha-feb-mar-zero-case-grade-f-v124-fix
+  // data-month-policy-zero-case-and-incentive-guide-v126
   const evaluatedCases =
     cases.length;
-  const specialAnuchaZeroCaseGradeF =
+  const specialAnuchaZeroCaseMonthKey =
     evaluatedCases === 0 &&
     monthlyMode &&
     isSameAgent(
       String(selectedAgent || ""),
       "Anucha Makundin"
-    ) &&
-    // // data-anucha-march-only-zero-case-grade-f-v125
-    (periodKeys || []).some(
-      (periodKey) =>
-        periodKey === "2026-03"
+    )
+      ? (periodKeys || []).find(
+          (periodKey) =>
+            periodKey === "2026-02" ||
+            periodKey === "2026-03"
+        ) || ""
+      : "";
+  const specialAnuchaZeroCaseGrade =
+    Boolean(specialAnuchaZeroCaseMonthKey);
+  const specialAnuchaZeroCaseGradeValue =
+    scoreToGrade(
+      0,
+      specialAnuchaZeroCaseMonthKey
     );
   const hasKpiData =
     evaluatedCases > 0 ||
-    specialAnuchaZeroCaseGradeF;
+    specialAnuchaZeroCaseGrade;
   const gradeReady =
-    specialAnuchaZeroCaseGradeF ||
+    specialAnuchaZeroCaseGrade ||
     (hasKpiData &&
       (!monthlyMode ||
         evaluatedCases >= CASE_TARGET));
@@ -1693,10 +1790,10 @@ function AnalyticsOverviewV89({
     monthlyMode &&
     hasKpiData &&
     evaluatedCases < CASE_TARGET &&
-    !specialAnuchaZeroCaseGradeF;
+    !specialAnuchaZeroCaseGrade;
   const kpiPassed =
     gradeReady &&
-    !specialAnuchaZeroCaseGradeF &&
+    !specialAnuchaZeroCaseGrade &&
     summary.avgScore >=
       PERFORMANCE_KPI_TARGET;
 
@@ -1722,8 +1819,8 @@ function AnalyticsOverviewV89({
   const gradeRows = gradeOrder
     .map((grade) => {
       const count =
-        specialAnuchaZeroCaseGradeF &&
-        grade === "F"
+        specialAnuchaZeroCaseGrade &&
+        grade === specialAnuchaZeroCaseGradeValue
           ? 1
           : cases.filter(
               (item) =>
@@ -1734,8 +1831,8 @@ function AnalyticsOverviewV89({
         grade,
         count,
         pct:
-          specialAnuchaZeroCaseGradeF
-            ? grade === "F"
+          specialAnuchaZeroCaseGrade
+            ? grade === specialAnuchaZeroCaseGradeValue
               ? 100
               : 0
             : evaluatedCases > 0
@@ -1828,13 +1925,13 @@ function AnalyticsOverviewV89({
     {
       title:
         "Quality Score (Avg.)",
-      value: specialAnuchaZeroCaseGradeF
+      value: specialAnuchaZeroCaseGrade
         ? "0.00%"
         : hasKpiData
           ? `${summary.avgScore.toFixed(2)}%`
           : "—",
-      note: specialAnuchaZeroCaseGradeF
-        ? "No evaluated cases · Grade F applied"
+      note: specialAnuchaZeroCaseGrade
+        ? `No evaluated cases · Grade ${specialAnuchaZeroCaseGradeValue} applied`
         : hasKpiData
           ? `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`
           : "No evaluated cases",
@@ -1848,7 +1945,7 @@ function AnalyticsOverviewV89({
     },
     {
       title: "KPI Status",
-      value: specialAnuchaZeroCaseGradeF
+      value: specialAnuchaZeroCaseGrade
         ? "Not Passed"
         : !hasKpiData
           ? "No Data"
@@ -1857,7 +1954,7 @@ function AnalyticsOverviewV89({
           : kpiPassed
             ? "Passed"
             : "Not Passed",
-      note: specialAnuchaZeroCaseGradeF
+      note: specialAnuchaZeroCaseGrade
         ? `Score 0.00 · Target ${PERFORMANCE_KPI_TARGET}`
         : !hasKpiData
           ? `Target ${PERFORMANCE_KPI_TARGET}`
@@ -1896,7 +1993,7 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Total Incentive",
-      value: specialAnuchaZeroCaseGradeF
+      value: specialAnuchaZeroCaseGrade
         ? formatCurrencyTHB(0)
         : !hasKpiData
           ? "—"
@@ -1909,8 +2006,8 @@ function AnalyticsOverviewV89({
                 cases
               )
             ),
-      note: specialAnuchaZeroCaseGradeF
-        ? "Grade F · No incentive"
+      note: specialAnuchaZeroCaseGrade
+        ? `Grade ${specialAnuchaZeroCaseGradeValue} · No incentive`
         : !hasKpiData
           ? "No evaluated cases"
           : individualMode &&
@@ -1926,12 +2023,12 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Overall Grade",
-      value: specialAnuchaZeroCaseGradeF
-        ? "F"
+      value: specialAnuchaZeroCaseGrade
+        ? specialAnuchaZeroCaseGradeValue
         : gradeReady
           ? summary.grade
           : "—",
-      note: specialAnuchaZeroCaseGradeF
+      note: specialAnuchaZeroCaseGrade
         ? "0 evaluated cases · Special rule"
         : !hasKpiData
           ? "No evaluated cases"
