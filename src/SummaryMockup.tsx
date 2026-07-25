@@ -3058,11 +3058,36 @@ export default function SummaryMockup({
     });
   }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles]);
 
+  // data-anucha-march-agent-option-v123
   const selectableAgentOptions = useMemo(() => {
-    return getUniqueNormalizedAgents(
+    const agentNames = getUniqueNormalizedAgents(
       periodScopedCases.map((item) => item.agent)
-    ).sort((a, b) => a.localeCompare(b));
-  }, [periodScopedCases]);
+    );
+
+    const includesMarch2026 =
+      selectedMonth === "2026-03" ||
+      effectivePeriodKeys.includes("2026-03") ||
+      periodScopedCases.some(
+        (item) => item.monthKey === "2026-03"
+      );
+
+    if (
+      includesMarch2026 &&
+      !agentNames.some((agent) =>
+        isSameAgent(agent, "Anucha Makundin")
+      )
+    ) {
+      agentNames.push("Anucha Makundin");
+    }
+
+    return agentNames.sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [
+    periodScopedCases,
+    selectedMonth,
+    effectivePeriodKeys,
+  ]);
 
   const agentFilterOptions = useMemo(() => {
     const agentNames = [...selectableAgentOptions];
