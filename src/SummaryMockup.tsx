@@ -1546,7 +1546,7 @@ function AnalyticsAgentPerformanceV92({
       </div>
 
       <div
-        data-monthly-grade-criteria-v108="true"
+        data-monthly-grade-criteria-v109="true"
         className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
       >
         <div className="flex items-start justify-between gap-3">
@@ -1587,12 +1587,9 @@ function AnalyticsAgentPerformanceV92({
                     </div>
                     <div className="mt-0.5 text-[10px] font-normal text-slate-500">
                       Grade {row.grade}
-                      {hasRbhPromo(monthKey) && incentive.promo > 0 ? (
-                        <span className="font-semibold text-fuchsia-600">
-                          {" · "}
-                          {incentive.promo.toLocaleString("en-US")} RBH Promo
-                        </span>
-                      ) : null}
+                      {hasRbhPromo(monthKey) && incentive.promo > 0
+                        ? ` : ${incentive.promo.toLocaleString("en-US")} RBH Promo`
+                        : ""}
                     </div>
                   </div>
                   <div className="text-right">
