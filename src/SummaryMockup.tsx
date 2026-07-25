@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import LoadingMascot from "./LoadingMascot";
@@ -2342,9 +2342,6 @@ export default function SummaryMockup({
   const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState("all");
   const [selectedTeamDetail, setSelectedTeamDetail] = useState("");
-  const localAgentSelectionRef = useRef("");
-
-
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -2364,13 +2361,12 @@ export default function SummaryMockup({
     canViewAllAgents &&
     !roleScopedAgentList.length;
 
+  // data-agent-selection-local-source-v116
   const selectAnalyticsAgent = (value: string) => {
     const nextAgent =
       String(value || "").trim() || "all";
 
-    localAgentSelectionRef.current = nextAgent;
     setSelectedAgent(nextAgent);
-    onSelectedAgentChange?.(nextAgent);
   };
 
   useEffect(() => {
@@ -2388,41 +2384,9 @@ export default function SummaryMockup({
     };
   }, []);
 
-  // data-suspended-agent-selection-v115
-  useEffect(() => {
-    if (
-      typeof externalSelectedAgent !== "string" ||
-      roleScopedAgentList.length
-    ) {
-      return;
-    }
-
-    const incomingAgent =
-      String(externalSelectedAgent || "").trim() ||
-      "all";
-
-    if (localAgentSelectionRef.current) {
-      if (
-        isSameAgent(
-          incomingAgent,
-          localAgentSelectionRef.current
-        )
-      ) {
-        localAgentSelectionRef.current = "";
-      } else {
-        return;
-      }
-    }
-
-    setSelectedAgent((currentAgent) =>
-      isSameAgent(currentAgent, incomingAgent)
-        ? currentAgent
-        : incomingAgent
-    );
-  }, [
-    externalSelectedAgent,
-    roleScopedAgentList.length,
-  ]);
+  // Analytics owns the selected Agent after the page is mounted.
+  // externalSelectedAgent is used only by the initial useState value above.
+  // This prevents stale global values from forcing the filter back to All Agents.
 
   useEffect(() => {
     if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
@@ -3015,11 +2979,6 @@ export default function SummaryMockup({
   useEffect(() => {
     setSelectedPeriods([]);
     setPeriodFilterMonth("all");
-
-    if (analyticsCanSelectAllAgents) {
-      setSelectedAgent("all");
-      onSelectedAgentChange?.("all");
-    }
 
     setViewMode(
       analysisMode === "weekly"
