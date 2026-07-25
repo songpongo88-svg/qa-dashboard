@@ -980,7 +980,8 @@ function buildAgentRowsWithMaster(
   return agentNames
     .filter(
       (agentName) =>
-        !shouldHideAgentByMonth(agentName, fallbackMonthKey)
+        hasCasesInCurrentScope(agentName, cases) &&
+        shouldShowAgentInSummaryScope(agentName, cases, accounts)
     )
     .map((agentName) => {
       const grouped = cases.filter((item) => isSameAgent(item.agent, agentName));
@@ -2321,18 +2322,7 @@ export default function SummaryMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [accountProfiles, setAccountProfiles] = useState<SummaryAccount[]>([]);
-  // data-workspace-state-v121
-  const analyticsSavedStateV121 = useMemo(() => {
-    if (typeof window === "undefined") return {} as any;
-    try {
-      return JSON.parse(window.sessionStorage.getItem("qa_analytics_workspace_v121") || "{}");
-    } catch {
-      return {} as any;
-    }
-  }, []);
-  const [viewMode, setViewMode] = useState<SummaryView>(
-    analyticsSavedStateV121.viewMode || "monthly-dashboard"
-  );
+  const [viewMode, setViewMode] = useState<SummaryView>("monthly-dashboard");
   // data-agent-selection-stable-v119
   const [selectedAgent, setSelectedAgent] = useState<string>(() => {
     const savedAgent =
@@ -2360,84 +2350,24 @@ export default function SummaryMockup({
       String(selectedAgent || "").trim() || "all"
     );
   }, [selectedAgent]);
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    analyticsSavedStateV121.selectedMonth || externalSelectedMonth || "all"
-  );
-  const [selectedYear, setSelectedYear] = useState<string>(
-    analyticsSavedStateV121.selectedYear || "all"
-  );
-  const [selectedWeek, setSelectedWeek] = useState<string>(
-    analyticsSavedStateV121.selectedWeek || externalSelectedWeek || "all"
-  );
+  const [selectedMonth, setSelectedMonth] = useState<string>(externalSelectedMonth || "all");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedWeek, setSelectedWeek] = useState<string>(externalSelectedWeek || "all");
   const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
   const [reportPdfView, setReportPdfView] = useState<SummaryView>("monthly-dashboard");
   const [analyticsCustomizeOpen, setAnalyticsCustomizeOpen] = useState(false);
-  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">(
-    analyticsSavedStateV121.analysisMode || "monthly"
-  );
-  const [selectedPeriods, setSelectedPeriods] = useState<string[]>(
-    Array.isArray(analyticsSavedStateV121.selectedPeriods)
-      ? analyticsSavedStateV121.selectedPeriods
-      : []
-  );
-  const [periodFilterYear, setPeriodFilterYear] = useState<string>(
-    analyticsSavedStateV121.periodFilterYear || "all"
-  );
-  const [periodFilterMonth, setPeriodFilterMonth] = useState<string>(
-    analyticsSavedStateV121.periodFilterMonth || "all"
-  );
-  const [summarySection, setSummarySection] = useState<"summary" | "team">(
-    analyticsSavedStateV121.summarySection || "summary"
-  );
-  const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>(
-    analyticsSavedStateV121.teamSelectedMonth || ""
-  );
+  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">("monthly");
+  const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
+  const [periodFilterYear, setPeriodFilterYear] = useState<string>("all");
+  const [periodFilterMonth, setPeriodFilterMonth] = useState<string>("all");
+  const [summarySection, setSummarySection] = useState<"summary" | "team">("summary");
+  const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>("");
   const [analyticsCompareOpen, setAnalyticsCompareOpen] = useState(false);
   const [compareDraftPeriods, setCompareDraftPeriods] = useState<string[]>([]);
   const [analyticsExportOpen, setAnalyticsExportOpen] = useState(false);
   const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState(
-    analyticsSavedStateV121.selectedTeam || "all"
-  );
-  const [selectedTeamDetail, setSelectedTeamDetail] = useState(
-    analyticsSavedStateV121.selectedTeamDetail || ""
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(
-      "qa_analytics_workspace_v121",
-      JSON.stringify({
-        viewMode,
-        selectedAgent,
-        selectedMonth,
-        selectedYear,
-        selectedWeek,
-        analysisMode,
-        selectedPeriods,
-        periodFilterYear,
-        periodFilterMonth,
-        summarySection,
-        teamSelectedMonth,
-        selectedTeam,
-        selectedTeamDetail,
-      })
-    );
-  }, [
-    viewMode,
-    selectedAgent,
-    selectedMonth,
-    selectedYear,
-    selectedWeek,
-    analysisMode,
-    selectedPeriods,
-    periodFilterYear,
-    periodFilterMonth,
-    summarySection,
-    teamSelectedMonth,
-    selectedTeam,
-    selectedTeamDetail,
-  ]);
+  const [selectedTeam, setSelectedTeam] = useState("all");
+  const [selectedTeamDetail, setSelectedTeamDetail] = useState("");
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -2484,8 +2414,17 @@ export default function SummaryMockup({
   // externalSelectedAgent is used only by the initial useState value above.
   // This prevents stale global values from forcing the filter back to All Agents.
 
-  // Analytics owns its Month and Week state locally.
-  // Shared Dashboard filters must not overwrite it when this tab is remounted.
+  useEffect(() => {
+    if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
+      setSelectedMonth(externalSelectedMonth);
+    }
+  }, [externalSelectedMonth, selectedMonth]);
+
+  useEffect(() => {
+    if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
+      setSelectedWeek(externalSelectedWeek);
+    }
+  }, [externalSelectedWeek, selectedWeek]);
 
   useEffect(() => {
     const loadWorkbook = async () => {
@@ -2891,7 +2830,7 @@ export default function SummaryMockup({
 
   const availableAgents = useMemo(() => {
     const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter((name) =>
-      !shouldHideAgentByMonth(name, selectedMonth)
+      shouldShowAgentInSummaryScope(name, casesInCurrentScopeForAgentOptions, accountProfiles)
     );
 
     if (roleScopedAgentList.length) {
@@ -2899,7 +2838,7 @@ export default function SummaryMockup({
     }
 
     return names;
-  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList, selectedMonth]);
+  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList]);
 
   // data-agent-selection-no-auto-reset-v120
   // Keep an explicitly selected Agent pinned even while month/week/year options
