@@ -4133,6 +4133,10 @@ export default function DashboardMockup({
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [overviewMode, setOverviewMode] = useState<"all" | "originalOnly" | "revisedOnly">("all");
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+  // data-dashboard-independent-state-v121
+  const dashboardStateSwitchingV121 = useRef(false);
+  const dashboardStateKeyV121 = (subTab: "overview" | "case-detail") =>
+    `qa_dashboard_workspace_v121:${subTab}`;
 
   function closeCaseDetail() {
     setSlideOverOpen(false);
@@ -4189,35 +4193,77 @@ export default function DashboardMockup({
   );
 
   useEffect(() => {
-    if (dashboardSubTab !== "overview") return;
-    setSelectedYear(String(TODAY.getFullYear()));
-    setSelectedMonthKey(currentMonthKey);
-    onSelectedMonthKeyChange?.(currentMonthKey);
-    setDateFrom(formatInputDate(firstDayOfCurrentMonth));
-    setDateTo(formatInputDate(TODAY));
-    setSelectedWeek("all");
-    onSelectedWeekChange?.("all");
-    setCaseIdSearch("");
-    setCaseSearchHistoryOpen(false);
-    setSelectedCaseKey("");
-    setSlideOverOpen(false);
-    setCurrentPeriodNotice("");
-    if (overviewSelfOnly && overviewResolvedAgent) {
-      setSelectedAgent(overviewResolvedAgent);
-      onSelectedAgentChange?.(overviewResolvedAgent);
-    } else if (overviewCanSelectAgents) {
-      setSelectedAgent("");
-      onSelectedAgentChange?.("");
+    dashboardStateSwitchingV121.current = true;
+    let saved: any = null;
+    try {
+      saved = JSON.parse(
+        window.sessionStorage.getItem(
+          dashboardStateKeyV121(dashboardSubTab)
+        ) || "null"
+      );
+    } catch {
+      saved = null;
     }
+
+    if (saved) {
+      setSelectedAgent(String(saved.selectedAgent || ""));
+      setSelectedMonthKey(String(saved.selectedMonthKey || "all"));
+      setSelectedYear(String(saved.selectedYear || TODAY.getFullYear()));
+      setSelectedWeek(String(saved.selectedWeek || "all"));
+      setDateFrom(String(saved.dateFrom || formatInputDate(firstDayOfCurrentMonth)));
+      setDateTo(String(saved.dateTo || formatInputDate(TODAY)));
+      setCaseIdSearch(String(saved.caseIdSearch || ""));
+      setSelectedCaseKey(String(saved.selectedCaseKey || ""));
+      setOverviewMode(saved.overviewMode || "all");
+      setSlideOverOpen(Boolean(saved.slideOverOpen));
+    } else if (dashboardSubTab === "overview") {
+      setSelectedYear(String(TODAY.getFullYear()));
+      setSelectedMonthKey(currentMonthKey);
+      setSelectedWeek("all");
+      setDateFrom(formatInputDate(firstDayOfCurrentMonth));
+      setDateTo(formatInputDate(TODAY));
+      setCaseIdSearch("");
+      setSelectedCaseKey("");
+      setSlideOverOpen(false);
+      if (overviewSelfOnly && overviewResolvedAgent) {
+        setSelectedAgent(overviewResolvedAgent);
+      }
+    }
+
+    window.setTimeout(() => {
+      dashboardStateSwitchingV121.current = false;
+    }, 0);
+  }, [dashboardSubTab]);
+
+  useEffect(() => {
+    if (dashboardStateSwitchingV121.current) return;
+    window.sessionStorage.setItem(
+      dashboardStateKeyV121(dashboardSubTab),
+      JSON.stringify({
+        selectedAgent,
+        selectedMonthKey,
+        selectedYear,
+        selectedWeek,
+        dateFrom,
+        dateTo,
+        caseIdSearch,
+        selectedCaseKey,
+        overviewMode,
+        slideOverOpen,
+      })
+    );
   }, [
-    currentMonthKey,
     dashboardSubTab,
-    onSelectedAgentChange,
-    onSelectedMonthKeyChange,
-    onSelectedWeekChange,
-    overviewCanSelectAgents,
-    overviewResolvedAgent,
-    overviewSelfOnly,
+    selectedAgent,
+    selectedMonthKey,
+    selectedYear,
+    selectedWeek,
+    dateFrom,
+    dateTo,
+    caseIdSearch,
+    selectedCaseKey,
+    overviewMode,
+    slideOverOpen,
   ]);
 
   const effectiveMonthKeyForAgentVisibility = useMemo(() => {
@@ -4245,19 +4291,8 @@ export default function DashboardMockup({
     onSelectedWeekChange,
   ]);
 
-  useEffect(() => {
-    if (dashboardSubTab === "overview") return;
-    if (
-      typeof externalSelectedMonthKey === "string" &&
-      externalSelectedMonthKey !== selectedMonthKey
-    ) {
-      setSelectedMonthKey(externalSelectedMonthKey);
-    }
-    const externalYear = String(externalSelectedMonthKey || "").match(/^(\d{4})-/)?.[1];
-    if (externalYear && externalYear !== selectedYear) {
-      setSelectedYear(externalYear);
-    }
-  }, [dashboardSubTab, externalSelectedMonthKey, selectedMonthKey, selectedYear]);
+  // Overview and Case Detail keep independent Month/Year state.
+  // externalSelectedMonthKey is used only for the first mount defaults.
 
   useEffect(() => {
     if (typeof externalSelectedWeek === "string" && externalSelectedWeek !== selectedWeek) {
@@ -4267,6 +4302,9 @@ export default function DashboardMockup({
 
   useEffect(() => {
     if (typeof externalCaseIdSearch === "string" && externalCaseIdSearch && externalCaseIdSearch !== caseIdSearch) {
+      if (dashboardSubTab === "case-detail" && externalSelectedAgent) {
+        setSelectedAgent(externalSelectedAgent);
+      }
       setCaseIdSearch(externalCaseIdSearch);
     }
   }, [externalCaseIdSearch, caseIdSearch]);
@@ -5068,16 +5106,8 @@ export default function DashboardMockup({
       return;
     }
 
-    if (overviewAgentScopeList.length && selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
-      setSelectedAgent("");
-      onSelectedAgentChange?.("");
-      return;
-    }
-
-    if (selectedAgent && !visibleAgentList.some((agent) => isSameAgent(agent, selectedAgent))) {
-      setSelectedAgent("");
-      onSelectedAgentChange?.("");
-    }
+    // Keep an explicitly selected Agent pinned. If the selected scope has
+    // no cases, show No Data instead of silently resetting to All Agents.
   }, [visibleAgentList, selectedAgent, onSelectedAgentChange, overviewAgentScopeList.length]);
 
   const effectiveSelectedAgent =
