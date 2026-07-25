@@ -861,6 +861,8 @@ function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluation
 }
 
 function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
+  if (!cases.length) return [];
+
   const topicMaster = getTopicMasterByMonth(getPolicyMonthKeyForCases(cases));
 
   return topicMaster.map((master) => {
@@ -976,7 +978,11 @@ function buildAgentRowsWithMaster(
   accounts: SummaryAccount[] = []
 ): PeriodRow[] {
   return agentNames
-    .filter((agentName) => shouldShowAgentInSummaryScope(agentName, cases, accounts))
+    .filter(
+      (agentName) =>
+        hasCasesInCurrentScope(agentName, cases) &&
+        shouldShowAgentInSummaryScope(agentName, cases, accounts)
+    )
     .map((agentName) => {
       const grouped = cases.filter((item) => isSameAgent(item.agent, agentName));
 
@@ -1322,9 +1328,17 @@ function AnalyticsAgentPerformanceV92({
             )
           : 0;
         const grade = scoreToGrade(average, monthKey);
+        const gradeReady =
+          caseCount > 0 &&
+          (!monthlyMode || caseCount >= CASE_TARGET);
+        const kpiPending =
+          monthlyMode &&
+          caseCount > 0 &&
+          caseCount < CASE_TARGET;
         const kpiPassed =
-          caseCount > 0 && average >= PERFORMANCE_KPI_TARGET;
-        const completed = monthlyMode && caseCount >= CASE_TARGET;
+          gradeReady && average >= PERFORMANCE_KPI_TARGET;
+        const completed =
+          monthlyMode && caseCount >= CASE_TARGET;
         const incentiveResult =
           completed && kpiPassed
             ? getIncentiveByScore(average, monthKey)
@@ -1351,6 +1365,8 @@ function AnalyticsAgentPerformanceV92({
           caseCount,
           average,
           grade,
+          gradeReady,
+          kpiPending,
           kpiPassed,
           completed,
           incentiveCash: incentiveResult?.cash || 0,
@@ -1360,6 +1376,7 @@ function AnalyticsAgentPerformanceV92({
           ).length,
         };
       })
+      .filter((row) => row.caseCount > 0)
       .sort(
         (left, right) =>
           right.average - left.average ||
@@ -1391,6 +1408,7 @@ function AnalyticsAgentPerformanceV92({
   return (
     <div
       data-analytics-agent-incentive-v92="true"
+      data-agent-no-data-logic-v111="true"
       className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]"
     >
       <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
@@ -1463,25 +1481,32 @@ function AnalyticsAgentPerformanceV92({
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
                         (!row.caseCount
                           ? "bg-slate-100 text-slate-500"
-                          : row.kpiPassed
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-rose-50 text-rose-600")
+                          : row.kpiPending
+                            ? "bg-amber-50 text-amber-700"
+                            : row.kpiPassed
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-rose-50 text-rose-600")
                       }
                     >
-                      {row.caseCount
-                        ? row.kpiPassed
-                          ? "✓ Passed"
-                          : "● Not Passed"
-                        : "No Data"}
+                      {!row.caseCount
+                        ? "No Data"
+                        : row.kpiPending
+                          ? `Pending ${row.caseCount}/${CASE_TARGET}`
+                          : row.kpiPassed
+                            ? "✓ Passed"
+                            : "● Not Passed"}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 font-medium ${getGradeTone(
-                        row.grade
-                      )}`}
+                      className={
+                        "inline-flex rounded-full border px-2.5 py-1 font-medium " +
+                        (row.gradeReady
+                          ? getGradeTone(row.grade)
+                          : "border-slate-200 bg-slate-50 text-slate-400")
+                      }
                     >
-                      {row.caseCount ? row.grade : "—"}
+                      {row.gradeReady ? row.grade : "—"}
                     </span>
                   </td>
                   <td
@@ -1623,6 +1648,8 @@ function AnalyticsOverviewV89({
   cases,
   topics,
   trendRows,
+  monthlyMode,
+  individualMode,
 }: {
   summary: SummaryCards;
   cases: CaseItem[];
@@ -1632,13 +1659,23 @@ function AnalyticsOverviewV89({
       scoreDelta?: number | null;
     }
   >;
+  monthlyMode: boolean;
+  individualMode: boolean;
 }) {
   const evaluatedCases =
     cases.length;
   const hasKpiData =
     evaluatedCases > 0;
-  const kpiPassed =
+  const gradeReady =
     hasKpiData &&
+    (!monthlyMode ||
+      evaluatedCases >= CASE_TARGET);
+  const kpiPending =
+    monthlyMode &&
+    hasKpiData &&
+    evaluatedCases < CASE_TARGET;
+  const kpiPassed =
+    gradeReady &&
     summary.avgScore >=
       PERFORMANCE_KPI_TARGET;
 
@@ -1763,39 +1800,55 @@ function AnalyticsOverviewV89({
     {
       title:
         "Quality Score (Avg.)",
-      value: `${summary.avgScore.toFixed(
-        2
-      )}%`,
-      note: `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`,
+      value: hasKpiData
+        ? `${summary.avgScore.toFixed(2)}%`
+        : "—",
+      note: hasKpiData
+        ? `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`
+        : "No evaluated cases",
       icon: "☆",
       tone:
         "bg-violet-50 text-violet-600",
       valueTone:
-        "text-slate-900",
+        hasKpiData
+          ? "text-slate-900"
+          : "text-slate-400",
     },
     {
       title: "KPI Status",
-      value: hasKpiData
-        ? kpiPassed
-          ? "Passed"
-          : "Not Passed"
-        : "No Data",
-      note: hasKpiData
-        ? `Average ${summary.avgScore.toFixed(
-            2
-          )} · Target ${PERFORMANCE_KPI_TARGET}`
-        : `Target ${PERFORMANCE_KPI_TARGET}`,
-      icon: hasKpiData ? (kpiPassed ? "✓" : "!") : "–",
-      tone: hasKpiData
-        ? kpiPassed
-          ? "bg-emerald-50 text-emerald-600"
-          : "bg-rose-50 text-rose-600"
-        : "bg-slate-100 text-slate-500",
-      valueTone: hasKpiData
-        ? kpiPassed
-          ? "text-emerald-700"
-          : "text-rose-600"
-        : "text-slate-500",
+      value: !hasKpiData
+        ? "No Data"
+        : kpiPending
+          ? `Pending ${evaluatedCases}/${CASE_TARGET}`
+          : kpiPassed
+            ? "Passed"
+            : "Not Passed",
+      note: !hasKpiData
+        ? `Target ${PERFORMANCE_KPI_TARGET}`
+        : kpiPending
+          ? `Complete ${CASE_TARGET} monthly cases before KPI result`
+          : `Average ${summary.avgScore.toFixed(2)} · Target ${PERFORMANCE_KPI_TARGET}`,
+      icon: !hasKpiData
+        ? "–"
+        : kpiPending
+          ? "…"
+          : kpiPassed
+            ? "✓"
+            : "!",
+      tone: !hasKpiData
+        ? "bg-slate-100 text-slate-500"
+        : kpiPending
+          ? "bg-amber-50 text-amber-600"
+          : kpiPassed
+            ? "bg-emerald-50 text-emerald-600"
+            : "bg-rose-50 text-rose-600",
+      valueTone: !hasKpiData
+        ? "text-slate-500"
+        : kpiPending
+          ? "text-amber-700"
+          : kpiPassed
+            ? "text-emerald-700"
+            : "text-rose-600",
     },
     {
       title: "Cases Evaluated",
@@ -1807,19 +1860,45 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Total Incentive",
-      value: formatCurrencyTHB(getTotalIncentiveForCases(cases)),
-      note: "Total from eligible monthly Agent results",
+      value: !hasKpiData
+        ? "—"
+        : individualMode &&
+            monthlyMode &&
+            !gradeReady
+          ? "—"
+          : formatCurrencyTHB(
+              getTotalIncentiveForCases(
+                cases
+              )
+            ),
+      note: !hasKpiData
+        ? "No evaluated cases"
+        : individualMode &&
+            monthlyMode &&
+            !gradeReady
+          ? `Pending ${evaluatedCases}/${CASE_TARGET} cases`
+          : "Total from eligible monthly Agent results",
       icon: "฿",
       tone: "bg-fuchsia-50 text-fuchsia-600",
-      valueTone: "text-slate-900",
+      valueTone: hasKpiData
+        ? "text-slate-900"
+        : "text-slate-400",
     },
     {
       title: "Overall Grade",
-      value: summary.grade,
-      note: "Current selection",
+      value: gradeReady
+        ? summary.grade
+        : "—",
+      note: !hasKpiData
+        ? "No evaluated cases"
+        : kpiPending
+          ? `Available after ${CASE_TARGET} monthly cases`
+          : "Current selection",
       icon: "◇",
       tone: "bg-amber-50 text-amber-600",
-      valueTone: "text-slate-900",
+      valueTone: gradeReady
+        ? "text-slate-900"
+        : "text-slate-400",
     },
   ];
 
@@ -2150,18 +2229,21 @@ function AnalyticsOverviewV89({
           <div className="mt-4 space-y-3">
             <div className="rounded-xl border border-slate-200 px-4 py-3">
               <div className="text-[11px] font-medium text-slate-700">
-                {summary.avgScore >=
-                PERFORMANCE_KPI_TARGET
-                  ? "Quality score is on target"
-                  : "Quality score is below target"}
+                {!hasKpiData
+                  ? "No quality score data"
+                  : kpiPending
+                    ? `KPI pending ${evaluatedCases}/${CASE_TARGET} cases`
+                    : summary.avgScore >=
+                        PERFORMANCE_KPI_TARGET
+                      ? "Quality score is on target"
+                      : "Quality score is below target"}
               </div>
               <div className="mt-1 text-[10px] font-normal text-slate-500">
-                Current{" "}
-                {summary.avgScore.toFixed(
-                  2
-                )}
-                % · Target{" "}
-                {PERFORMANCE_KPI_TARGET}%
+                {!hasKpiData
+                  ? "No evaluated cases in the current selection"
+                  : kpiPending
+                    ? `Current average ${summary.avgScore.toFixed(2)}% · KPI result available after ${CASE_TARGET} cases`
+                    : `Current ${summary.avgScore.toFixed(2)}% · Target ${PERFORMANCE_KPI_TARGET}%`}
               </div>
             </div>
 
@@ -2953,32 +3035,36 @@ export default function SummaryMockup({
   }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles]);
 
   const selectableAgentOptions = useMemo(() => {
-    const scopedAgentNames = getUniqueNormalizedAgents(
+    return getUniqueNormalizedAgents(
       periodScopedCases.map((item) => item.agent)
+    )
+      .filter((agent) =>
+        shouldShowAgentInSummaryScope(
+          agent,
+          periodScopedCases,
+          accountProfiles
+        )
+      )
+      .sort((a, b) => a.localeCompare(b));
+  }, [periodScopedCases, accountProfiles]);
+
+  useEffect(() => {
+    if (!analyticsCanSelectAllAgents || selectedAgent === "all") return;
+
+    const stillAvailable = selectableAgentOptions.some((agent) =>
+      isSameAgent(agent, selectedAgent)
     );
 
-    const agentUniverse = getUniqueNormalizedAgents([
-      ...AGENT_MASTER,
-      ...availableAgents,
-      ...allCases.map((item) => item.agent),
-    ]);
-
-    return agentUniverse.filter((agent) => {
-      const hasCasesInSelectedScope = scopedAgentNames.some((name) =>
-        isSameAgent(name, agent)
-      );
-
-      const isLegacyResigned = Object.keys(
-        RESIGNED_AGENT_HIDE_AFTER
-      ).some((name) => isSameAgent(name, agent));
-
-      const isInactive =
-        isLegacyResigned ||
-        isSuspendedAgent(agent, accountProfiles);
-
-      return isInactive ? hasCasesInSelectedScope : true;
-    });
-  }, [periodScopedCases, availableAgents, allCases, accountProfiles]);
+    if (!stillAvailable) {
+      setSelectedAgent("all");
+      onSelectedAgentChange?.("all");
+    }
+  }, [
+    analyticsCanSelectAllAgents,
+    selectedAgent,
+    selectableAgentOptions,
+    onSelectedAgentChange,
+  ]);
 
   const filteredCases = useMemo(() => {
     if (effectiveSelectedAgent === "all") return periodScopedCases;
@@ -8109,7 +8195,19 @@ export default function SummaryMockup({
             ) : null}
           </div>
           <div data-analytics-overview-logic-v90="true" className="space-y-5">
-            <AnalyticsOverviewV89 summary={summaryCards} cases={filteredCases} topics={topicSummary} trendRows={comparisonRowsWithDelta} />
+            <AnalyticsOverviewV89
+              summary={summaryCards}
+              cases={filteredCases}
+              topics={topicSummary}
+              trendRows={comparisonRowsWithDelta}
+              monthlyMode={
+                analysisMode === "monthly" &&
+                !isComparisonMode
+              }
+              individualMode={
+                effectiveSelectedAgent !== "all"
+              }
+            />
 
             <AnalyticsAgentPerformanceV92
               cases={filteredCases}
