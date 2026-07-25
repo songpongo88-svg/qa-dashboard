@@ -1546,7 +1546,7 @@ function AnalyticsAgentPerformanceV92({
       </div>
 
       <div
-        data-monthly-grade-criteria-v107="true"
+        data-monthly-grade-criteria-v108="true"
         className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
       >
         <div className="flex items-start justify-between gap-3">
@@ -1560,62 +1560,16 @@ function AnalyticsAgentPerformanceV92({
                 : "Select Monthly view to see the grade criteria"}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {monthlyMode && hasRbhPromo(monthKey) ? (
-              <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1.5 text-[10px] font-semibold text-fuchsia-700">
-                RBH Promo Active
-              </span>
-            ) : null}
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg font-semibold text-violet-600">
-              A
-            </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg font-semibold text-violet-600">
+            A
           </div>
         </div>
-
-        {monthlyMode && hasRbhPromo(monthKey) ? (
-          <div className="mt-4 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-3">
-            <div className="text-xs font-semibold text-fuchsia-800">
-              This selected month includes RBH Promo Code.
-            </div>
-            <div className="mt-1 text-[10px] font-normal text-fuchsia-600">
-              Promo is displayed only for months configured in the policy.
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {getGradeGuideRows(monthKey).map((row) => {
-                const promo = getIncentiveByGrade(row.grade, monthKey).promo;
-
-                return (
-                  <div
-                    key={`promo-${row.grade}`}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-fuchsia-100 bg-white/80 px-3 py-2"
-                  >
-                    <span className="text-[10px] font-semibold text-slate-700">
-                      Grade {row.grade}
-                    </span>
-                    <span
-                      className={
-                        "text-[10px] font-semibold " +
-                        (promo > 0
-                          ? "text-fuchsia-700"
-                          : "text-slate-400")
-                      }
-                    >
-                      {promo > 0
-                        ? `${promo.toLocaleString("en-US")} RBH Promo`
-                        : "No Promo"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
 
         {monthlyMode ? (
           <div className="mt-5 overflow-hidden rounded-2xl border border-violet-100">
             {getGradeGuideRows(monthKey).map((row) => {
-              const status = getIncentiveByGrade(row.grade, monthKey).remark;
+              const incentive = getIncentiveByGrade(row.grade, monthKey);
+              const status = incentive.remark;
 
               return (
                 <div
@@ -1633,6 +1587,12 @@ function AnalyticsAgentPerformanceV92({
                     </div>
                     <div className="mt-0.5 text-[10px] font-normal text-slate-500">
                       Grade {row.grade}
+                      {hasRbhPromo(monthKey) && incentive.promo > 0 ? (
+                        <span className="font-semibold text-fuchsia-600">
+                          {" · "}
+                          {incentive.promo.toLocaleString("en-US")} RBH Promo
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="text-right">
