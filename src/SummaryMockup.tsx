@@ -2377,15 +2377,28 @@ export default function SummaryMockup({
     };
   }, []);
 
+  // data-suspended-agent-selection-v113
   useEffect(() => {
     if (
-      typeof externalSelectedAgent === "string" &&
-      externalSelectedAgent !== selectedAgent &&
-      !roleScopedAgentList.length
+      typeof externalSelectedAgent !== "string" ||
+      roleScopedAgentList.length
     ) {
-      setSelectedAgent(externalSelectedAgent);
+      return;
     }
-  }, [externalSelectedAgent, selectedAgent, roleScopedAgentList.length]);
+
+    const incomingAgent =
+      String(externalSelectedAgent || "").trim() ||
+      "all";
+
+    setSelectedAgent((currentAgent) =>
+      isSameAgent(currentAgent, incomingAgent)
+        ? currentAgent
+        : incomingAgent
+    );
+  }, [
+    externalSelectedAgent,
+    roleScopedAgentList.length,
+  ]);
 
   useEffect(() => {
     if (typeof externalSelectedMonth === "string" && externalSelectedMonth !== selectedMonth) {
@@ -3037,32 +3050,32 @@ export default function SummaryMockup({
   const selectableAgentOptions = useMemo(() => {
     return getUniqueNormalizedAgents(
       periodScopedCases.map((item) => item.agent)
-    )
-      .filter((agent) =>
-        shouldShowAgentInSummaryScope(
-          agent,
-          periodScopedCases,
-          accountProfiles
-        )
-      )
-      .sort((a, b) => a.localeCompare(b));
-  }, [periodScopedCases, accountProfiles]);
+    ).sort((a, b) => a.localeCompare(b));
+  }, [periodScopedCases]);
 
   useEffect(() => {
-    if (!analyticsCanSelectAllAgents || selectedAgent === "all") return;
+    if (
+      !analyticsCanSelectAllAgents ||
+      selectedAgent === "all" ||
+      isLoading
+    ) {
+      return;
+    }
 
-    const stillAvailable = selectableAgentOptions.some((agent) =>
-      isSameAgent(agent, selectedAgent)
-    );
+    const hasCasesInSelectedScope =
+      periodScopedCases.some((item) =>
+        isSameAgent(item.agent, selectedAgent)
+      );
 
-    if (!stillAvailable) {
+    if (!hasCasesInSelectedScope) {
       setSelectedAgent("all");
       onSelectedAgentChange?.("all");
     }
   }, [
     analyticsCanSelectAllAgents,
     selectedAgent,
-    selectableAgentOptions,
+    periodScopedCases,
+    isLoading,
     onSelectedAgentChange,
   ]);
 
