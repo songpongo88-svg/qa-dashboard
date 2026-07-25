@@ -2840,21 +2840,23 @@ export default function SummaryMockup({
     return names;
   }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList]);
 
+  // data-agent-selection-no-auto-reset-v120
+  // Keep an explicitly selected Agent pinned even while month/week/year options
+  // are recalculating. A temporarily missing option must show No Data instead
+  // of silently switching the filter back to All Agents.
   useEffect(() => {
-    if (roleScopedAgentList.length) {
-      const lockedAgent = roleScopedAgentList[0];
-      if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
-        setSelectedAgent(lockedAgent);
-      }
-      onSelectedAgentChange?.(lockedAgent || "all");
-      return;
-    }
+    if (!roleScopedAgentList.length) return;
 
-    if (!roleScopedAgentList.length && selectedAgent !== "all" && !availableAgents.some((agent) => isSameAgent(agent, selectedAgent))) {
-      setSelectedAgent("all");
-      onSelectedAgentChange?.("all");
+    const lockedAgent = roleScopedAgentList[0];
+    if (lockedAgent && !isSameAgent(selectedAgent || "", lockedAgent)) {
+      setSelectedAgent(lockedAgent);
     }
-  }, [selectedAgent, onSelectedAgentChange, roleScopedAgentList.length, availableAgents]);
+    onSelectedAgentChange?.(lockedAgent || "all");
+  }, [
+    selectedAgent,
+    onSelectedAgentChange,
+    roleScopedAgentList,
+  ]);
 
   useEffect(() => {
     if (roleScopedAgentList.length && viewMode === "weekly-qa-by-agent") {
@@ -8403,11 +8405,9 @@ export default function SummaryMockup({
                         "all"
                       }
                       onChange={(value) => {
-                        setSelectedAgent(
-                          value
-                        );
+                        selectAnalyticsAgent(value);
                         onSelectedAgentChange?.(
-                          value
+                          String(value || "").trim() || "all"
                         );
                       }}
                       options={[
