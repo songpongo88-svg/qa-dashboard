@@ -1650,6 +1650,8 @@ function AnalyticsOverviewV89({
   trendRows,
   monthlyMode,
   individualMode,
+  selectedAgent,
+  periodKeys,
 }: {
   summary: SummaryCards;
   cases: CaseItem[];
@@ -1661,21 +1663,40 @@ function AnalyticsOverviewV89({
   >;
   monthlyMode: boolean;
   individualMode: boolean;
+  selectedAgent?: string;
+  periodKeys?: string[];
 }) {
+  // data-anucha-feb-mar-zero-case-grade-f-v124-fix
   const evaluatedCases =
     cases.length;
+  const specialAnuchaZeroCaseGradeF =
+    evaluatedCases === 0 &&
+    monthlyMode &&
+    isSameAgent(
+      String(selectedAgent || ""),
+      "Anucha Makundin"
+    ) &&
+    (periodKeys || []).some(
+      (periodKey) =>
+        periodKey === "2026-02" ||
+        periodKey === "2026-03"
+    );
   const hasKpiData =
-    evaluatedCases > 0;
+    evaluatedCases > 0 ||
+    specialAnuchaZeroCaseGradeF;
   const gradeReady =
-    hasKpiData &&
-    (!monthlyMode ||
-      evaluatedCases >= CASE_TARGET);
+    specialAnuchaZeroCaseGradeF ||
+    (hasKpiData &&
+      (!monthlyMode ||
+        evaluatedCases >= CASE_TARGET));
   const kpiPending =
     monthlyMode &&
     hasKpiData &&
-    evaluatedCases < CASE_TARGET;
+    evaluatedCases < CASE_TARGET &&
+    !specialAnuchaZeroCaseGradeF;
   const kpiPassed =
     gradeReady &&
+    !specialAnuchaZeroCaseGradeF &&
     summary.avgScore >=
       PERFORMANCE_KPI_TARGET;
 
@@ -1701,20 +1722,27 @@ function AnalyticsOverviewV89({
   const gradeRows = gradeOrder
     .map((grade) => {
       const count =
-        cases.filter(
-          (item) =>
-            String(item.grade) ===
-            grade
-        ).length;
+        specialAnuchaZeroCaseGradeF &&
+        grade === "F"
+          ? 1
+          : cases.filter(
+              (item) =>
+                String(item.grade) ===
+                grade
+            ).length;
       return {
         grade,
         count,
         pct:
-          evaluatedCases > 0
-            ? (count /
-                evaluatedCases) *
-              100
-            : 0,
+          specialAnuchaZeroCaseGradeF
+            ? grade === "F"
+              ? 100
+              : 0
+            : evaluatedCases > 0
+              ? (count /
+                  evaluatedCases) *
+                100
+              : 0,
         color:
           gradeColors[grade],
       };
@@ -1800,12 +1828,16 @@ function AnalyticsOverviewV89({
     {
       title:
         "Quality Score (Avg.)",
-      value: hasKpiData
-        ? `${summary.avgScore.toFixed(2)}%`
-        : "—",
-      note: hasKpiData
-        ? `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`
-        : "No evaluated cases",
+      value: specialAnuchaZeroCaseGradeF
+        ? "0.00%"
+        : hasKpiData
+          ? `${summary.avgScore.toFixed(2)}%`
+          : "—",
+      note: specialAnuchaZeroCaseGradeF
+        ? "No evaluated cases · Grade F applied"
+        : hasKpiData
+          ? `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`
+          : "No evaluated cases",
       icon: "☆",
       tone:
         "bg-violet-50 text-violet-600",
@@ -1816,16 +1848,20 @@ function AnalyticsOverviewV89({
     },
     {
       title: "KPI Status",
-      value: !hasKpiData
-        ? "No Data"
-        : kpiPending
+      value: specialAnuchaZeroCaseGradeF
+        ? "Not Passed"
+        : !hasKpiData
+          ? "No Data"
+          : kpiPending
           ? `Pending ${evaluatedCases}/${CASE_TARGET}`
           : kpiPassed
             ? "Passed"
             : "Not Passed",
-      note: !hasKpiData
-        ? `Target ${PERFORMANCE_KPI_TARGET}`
-        : kpiPending
+      note: specialAnuchaZeroCaseGradeF
+        ? `Score 0.00 · Target ${PERFORMANCE_KPI_TARGET}`
+        : !hasKpiData
+          ? `Target ${PERFORMANCE_KPI_TARGET}`
+          : kpiPending
           ? `Complete ${CASE_TARGET} monthly cases before KPI result`
           : `Average ${summary.avgScore.toFixed(2)} · Target ${PERFORMANCE_KPI_TARGET}`,
       icon: !hasKpiData
@@ -1860,22 +1896,26 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Total Incentive",
-      value: !hasKpiData
-        ? "—"
-        : individualMode &&
-            monthlyMode &&
-            !gradeReady
+      value: specialAnuchaZeroCaseGradeF
+        ? formatCurrencyTHB(0)
+        : !hasKpiData
+          ? "—"
+          : individualMode &&
+              monthlyMode &&
+              !gradeReady
           ? "—"
           : formatCurrencyTHB(
               getTotalIncentiveForCases(
                 cases
               )
             ),
-      note: !hasKpiData
-        ? "No evaluated cases"
-        : individualMode &&
-            monthlyMode &&
-            !gradeReady
+      note: specialAnuchaZeroCaseGradeF
+        ? "Grade F · No incentive"
+        : !hasKpiData
+          ? "No evaluated cases"
+          : individualMode &&
+              monthlyMode &&
+              !gradeReady
           ? `Pending ${evaluatedCases}/${CASE_TARGET} cases`
           : "Total from eligible monthly Agent results",
       icon: "฿",
@@ -1886,14 +1926,18 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Overall Grade",
-      value: gradeReady
-        ? summary.grade
-        : "—",
-      note: !hasKpiData
-        ? "No evaluated cases"
-        : kpiPending
-          ? `Available after ${CASE_TARGET} monthly cases`
-          : "Current selection",
+      value: specialAnuchaZeroCaseGradeF
+        ? "F"
+        : gradeReady
+          ? summary.grade
+          : "—",
+      note: specialAnuchaZeroCaseGradeF
+        ? "0 evaluated cases · Special rule"
+        : !hasKpiData
+          ? "No evaluated cases"
+          : kpiPending
+            ? `Available after ${CASE_TARGET} monthly cases`
+            : "Current selection",
       icon: "◇",
       tone: "bg-amber-50 text-amber-600",
       valueTone: gradeReady
@@ -3064,15 +3108,19 @@ export default function SummaryMockup({
       periodScopedCases.map((item) => item.agent)
     );
 
-    const includesMarch2026 =
+    const includesAnuchaZeroCasePeriod =
+      selectedMonth === "2026-02" ||
       selectedMonth === "2026-03" ||
+      effectivePeriodKeys.includes("2026-02") ||
       effectivePeriodKeys.includes("2026-03") ||
       periodScopedCases.some(
-        (item) => item.monthKey === "2026-03"
+        (item) =>
+          item.monthKey === "2026-02" ||
+          item.monthKey === "2026-03"
       );
 
     if (
-      includesMarch2026 &&
+      includesAnuchaZeroCasePeriod &&
       !agentNames.some((agent) =>
         isSameAgent(agent, "Anucha Makundin")
       )
@@ -8256,6 +8304,12 @@ export default function SummaryMockup({
               }
               individualMode={
                 effectiveSelectedAgent !== "all"
+              }
+              selectedAgent={
+                effectiveSelectedAgent
+              }
+              periodKeys={
+                effectivePeriodKeys
               }
             />
 
