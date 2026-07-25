@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import LoadingMascot from "./LoadingMascot";
@@ -2342,6 +2342,8 @@ export default function SummaryMockup({
   const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState("all");
   const [selectedTeamDetail, setSelectedTeamDetail] = useState("");
+  const localAgentSelectionRef = useRef("");
+
 
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
@@ -2362,6 +2364,15 @@ export default function SummaryMockup({
     canViewAllAgents &&
     !roleScopedAgentList.length;
 
+  const selectAnalyticsAgent = (value: string) => {
+    const nextAgent =
+      String(value || "").trim() || "all";
+
+    localAgentSelectionRef.current = nextAgent;
+    setSelectedAgent(nextAgent);
+    onSelectedAgentChange?.(nextAgent);
+  };
+
   useEffect(() => {
     let alive = true;
     fetchStoredUserProfiles()
@@ -2377,7 +2388,7 @@ export default function SummaryMockup({
     };
   }, []);
 
-  // data-suspended-agent-selection-v113
+  // data-suspended-agent-selection-v115
   useEffect(() => {
     if (
       typeof externalSelectedAgent !== "string" ||
@@ -2389,6 +2400,19 @@ export default function SummaryMockup({
     const incomingAgent =
       String(externalSelectedAgent || "").trim() ||
       "all";
+
+    if (localAgentSelectionRef.current) {
+      if (
+        isSameAgent(
+          incomingAgent,
+          localAgentSelectionRef.current
+        )
+      ) {
+        localAgentSelectionRef.current = "";
+      } else {
+        return;
+      }
+    }
 
     setSelectedAgent((currentAgent) =>
       isSameAgent(currentAgent, incomingAgent)
@@ -3053,30 +3077,34 @@ export default function SummaryMockup({
     ).sort((a, b) => a.localeCompare(b));
   }, [periodScopedCases]);
 
-  useEffect(() => {
+  const agentFilterOptions = useMemo(() => {
+    const agentNames = [...selectableAgentOptions];
+
     if (
-      !analyticsCanSelectAllAgents ||
-      selectedAgent === "all" ||
-      isLoading
+      selectedAgent !== "all" &&
+      !agentNames.some((agent) =>
+        isSameAgent(agent, selectedAgent)
+      )
     ) {
-      return;
+      agentNames.push(selectedAgent);
     }
 
-    const hasCasesInSelectedScope =
-      periodScopedCases.some((item) =>
-        isSameAgent(item.agent, selectedAgent)
-      );
-
-    if (!hasCasesInSelectedScope) {
-      setSelectedAgent("all");
-      onSelectedAgentChange?.("all");
-    }
+    return [
+      { value: "all", label: "All Agents" },
+      ...agentNames
+        .sort((a, b) => a.localeCompare(b))
+        .map((agent) => ({
+          value: agent,
+          label: buildSuspendedAgentLabel(
+            agent,
+            accountProfiles
+          ),
+        })),
+    ];
   }, [
-    analyticsCanSelectAllAgents,
+    selectableAgentOptions,
     selectedAgent,
-    periodScopedCases,
-    isLoading,
-    onSelectedAgentChange,
+    accountProfiles,
   ]);
 
   const filteredCases = useMemo(() => {
@@ -7733,9 +7761,8 @@ export default function SummaryMockup({
                             onClick={() => {
                               if (!analyticsCanSelectAllAgents) return;
                               setSelectedTeam(selectedTeamPerformance.teamName);
-                              setSelectedAgent(agent.agent);
-                              onSelectedAgentChange?.(agent.agent);
-                              setSummarySection("summary");
+                               selectAnalyticsAgent(agent.agent);
+                               setSummarySection("summary");
                             }}
                             className="grid w-full grid-cols-[minmax(0,1fr)_65px_70px_82px_110px] gap-3 border-t border-slate-100 px-4 py-3 text-left text-xs first:border-t-0 hover:bg-violet-50 disabled:cursor-default"
                           >
@@ -8142,13 +8169,11 @@ export default function SummaryMockup({
                     {!analyticsCanSelectAllAgents ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm font-normal text-slate-700">{effectiveSelectedAgent ? buildSuspendedAgentLabel(effectiveSelectedAgent, accountProfiles) : "-"}</div>
                     ) : (
-                      <FilterSelect value={effectiveSelectedAgent || "all"} onChange={(value) => {
-                        setSelectedAgent(value);
-                        onSelectedAgentChange?.(value);
-                      }} options={[{ value: "all", label: "All Agents" }].concat(selectableAgentOptions.map((agent) => ({
-                        value: agent,
-                        label: buildSuspendedAgentLabel(agent, accountProfiles),
-                      })))} />
+                      <FilterSelect
+                        value={effectiveSelectedAgent || "all"}
+                        onChange={selectAnalyticsAgent}
+                        options={agentFilterOptions}
+                      />
                     )}
                   </div>
                 </div>
@@ -8259,8 +8284,7 @@ export default function SummaryMockup({
               canSelectAgent={analyticsCanSelectAllAgents}
               onSelectAgent={(agent) => {
                 if (!analyticsCanSelectAllAgents) return;
-                setSelectedAgent(agent);
-                onSelectedAgentChange?.(agent);
+                selectAnalyticsAgent(agent);
               }}
             />
             {isComparisonMode ? (
