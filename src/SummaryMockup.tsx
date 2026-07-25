@@ -1396,27 +1396,8 @@ function AnalyticsAgentPerformanceV92({
   }, [accountProfiles, agentNames, cases, monthKey, monthlyMode]);
 
   const allAgentsMode = selectedAgent === "all";
-  // data-agent-visible-and-guide-position-v127
   const visibleRows =
-    !allAgentsMode || showAllAgents
-      ? rows
-      : (() => {
-          const topRows = rows.slice(0, 8);
-          const specialZeroCaseRow = rows.find(
-            (row) => row.specialAnuchaZeroCaseGrade
-          );
-          if (
-            !specialZeroCaseRow ||
-            topRows.some(
-              (row) =>
-                normalizeText(row.agent) ===
-                normalizeText(specialZeroCaseRow.agent)
-            )
-          ) {
-            return topRows;
-          }
-          return [...topRows, specialZeroCaseRow];
-        })();
+    allAgentsMode && !showAllAgents ? rows.slice(0, 8) : rows;
 
   const incentiveText = (row: (typeof rows)[number]) => {
     if (!monthlyMode) return "Monthly only";
@@ -1675,7 +1656,77 @@ function AnalyticsAgentPerformanceV92({
         </div>
       </div>
 
+      <div
+        data-qa-grade-incentive-guide-v126="true"
+        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[15px] font-semibold text-slate-900">
+              QA Grade & Incentive Guide
+            </div>
+            <div className="mt-1 text-[10px] font-normal text-slate-500">
+              {monthlyMode
+                ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
+                : "Select Monthly view to see the monthly Incentive guide"}
+            </div>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-lg font-semibold text-emerald-600">
+            ฿
+          </div>
+        </div>
 
+        {monthlyMode ? (
+          <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-100">
+            <div className="grid grid-cols-[48px_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)] gap-3 bg-emerald-50 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+              <div>Grade</div>
+              <div>Score</div>
+              <div className="text-right">Cash</div>
+              <div className="text-right">Promo</div>
+            </div>
+            {getGradeGuideRows(monthKey).map((row) => {
+              const incentive = getIncentiveByGrade(row.grade, monthKey);
+              const promoVisible =
+                hasRbhPromo(monthKey) &&
+                incentive.promo > 0;
+
+              return (
+                <div
+                  key={`incentive-${row.grade}`}
+                  className="grid grid-cols-[48px_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)] items-center gap-3 border-t border-emerald-100 bg-white px-3 py-3 text-xs"
+                >
+                  <div>
+                    <span
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}
+                    >
+                      {row.grade}
+                    </span>
+                  </div>
+                  <div className="font-medium text-slate-700">
+                    {row.range}
+                  </div>
+                  <div className="text-right font-semibold text-slate-800">
+                    ฿{incentive.cash.toLocaleString("en-US")}
+                  </div>
+                  <div className="text-right font-medium text-slate-600">
+                    {promoVisible
+                      ? `${incentive.promo.toLocaleString("en-US")} RBH`
+                      : "—"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs font-normal text-slate-500">
+            Incentive criteria are available in Monthly view.
+          </div>
+        )}
+
+        <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-[10px] font-normal leading-5 text-slate-500">
+          Incentive is paid only when the Agent completes at least {CASE_TARGET} evaluated cases and meets the applicable monthly conditions. Promo is shown only for months that have an active Promo policy.
+        </div>
+      </div>
       </div>
     </div>
   );
@@ -1869,13 +1920,6 @@ function AnalyticsOverviewV89({
     (a, b) =>
       a.pct - b.pct
   )[0];
-
-  const incentiveGuideMonthKey = monthlyMode
-    ? (periodKeys || []).slice(-1)[0] || summary.policyMonthKey || ""
-    : "";
-  const incentiveGuidePeriodLabel = incentiveGuideMonthKey
-    ? getPeriodDisplayLabel(incentiveGuideMonthKey)
-    : "Selected month";
 
   const metricItems = [
     {
@@ -2362,82 +2406,6 @@ function AnalyticsOverviewV89({
           </div>
         </div>
       </div>
-
-      {monthlyMode ? (
-        <div
-          data-qa-grade-incentive-guide-v127="true"
-          className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
-        >
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="text-[15px] font-semibold text-slate-900">
-                QA Grade & Incentive Guide
-              </div>
-              <div className="mt-1 text-[10px] font-normal text-slate-500">
-                {incentiveGuidePeriodLabel} · {getGradePolicyLabel(incentiveGuideMonthKey)}
-              </div>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-lg font-semibold text-emerald-600">
-              ฿
-            </div>
-          </div>
-
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-emerald-100">
-            <div className="min-w-[640px]">
-              <div className="grid grid-cols-[70px_minmax(120px,1fr)_minmax(130px,1fr)_minmax(130px,1fr)_minmax(180px,1.2fr)] gap-3 bg-emerald-50 px-4 py-3 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
-                <div>Grade</div>
-                <div>Score</div>
-                <div className="text-right">Cash</div>
-                <div className="text-right">Promo</div>
-                <div className="text-right">Status</div>
-              </div>
-
-              {getGradeGuideRows(incentiveGuideMonthKey).map((row) => {
-                const incentive = getIncentiveByGrade(
-                  row.grade,
-                  incentiveGuideMonthKey
-                );
-                const promoVisible =
-                  hasRbhPromo(incentiveGuideMonthKey) &&
-                  incentive.promo > 0;
-
-                return (
-                  <div
-                    key={`overview-incentive-${row.grade}`}
-                    className="grid grid-cols-[70px_minmax(120px,1fr)_minmax(130px,1fr)_minmax(130px,1fr)_minmax(180px,1.2fr)] items-center gap-3 border-t border-emerald-100 bg-white px-4 py-3 text-xs"
-                  >
-                    <div>
-                      <span
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}
-                      >
-                        {row.grade}
-                      </span>
-                    </div>
-                    <div className="font-medium text-slate-700">
-                      {row.range}
-                    </div>
-                    <div className="text-right font-semibold text-slate-800">
-                      ฿{incentive.cash.toLocaleString("en-US")}
-                    </div>
-                    <div className="text-right font-medium text-slate-600">
-                      {promoVisible
-                        ? `${incentive.promo.toLocaleString("en-US")} RBH`
-                        : "—"}
-                    </div>
-                    <div className="text-right font-medium text-slate-600">
-                      {incentive.remark}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-[10px] font-normal leading-5 text-slate-500">
-            Incentive requires at least {CASE_TARGET} evaluated cases and the applicable monthly conditions. Promo appears only in months with an active Promo policy.
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
