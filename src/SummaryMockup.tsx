@@ -1485,15 +1485,19 @@ function AnalyticsAgentPerformanceV92({
     ? "48px minmax(80px,1fr) minmax(95px,1fr) minmax(100px,1fr)"
     : "48px minmax(80px,1fr) minmax(95px,1fr)";
 
+  // data-topic-status-allagents-incentive-v131-fix
   const incentiveText = (row: (typeof rows)[number]) => {
+    const notEligibleText = allAgentsMode ? "฿0 (Not Eligible)" : "Not Eligible";
     if (!monthlyMode) return "Monthly only";
-    if (row.specialAnuchaZeroCaseGrade) return "฿0";
+    if (row.specialAnuchaZeroCaseGrade) {
+      return allAgentsMode ? "฿0 (Not Eligible)" : "฿0";
+    }
     if (row.caseCount < CASE_TARGET) {
       return `Pending ${row.caseCount}/${CASE_TARGET}`;
     }
-    if (!row.kpiPassed) return "Not Eligible";
+    if (!row.kpiPassed) return notEligibleText;
     if (row.incentiveCash <= 0 && row.incentivePromo <= 0) {
-      return "Not Eligible";
+      return notEligibleText;
     }
 
     const cash = `฿${row.incentiveCash.toLocaleString("en-US")}`;
@@ -2412,7 +2416,7 @@ function AnalyticsOverviewV89({
                     Score
                   </th>
                   <th className="px-2 py-3 text-right">
-                    Status
+                    สถานะหัวข้อ
                   </th>
                 </tr>
               </thead>
@@ -2446,8 +2450,8 @@ function AnalyticsOverviewV89({
                         >
                           {topic.pct >=
                           PERFORMANCE_KPI_TARGET
-                            ? "On target"
-                            : "Watch"}
+                            ? "ผ่านมาตรฐาน"
+                            : "ต้องปรับปรุง"}
                         </span>
                       </td>
                     </tr>
