@@ -1300,8 +1300,6 @@ function AnalyticsAgentPerformanceV92({
   canSelectAgent: boolean;
   onSelectAgent: (agent: string) => void;
 }) {
-  const [showAllAgents, setShowAllAgents] = useState(false);
-
   const rows = useMemo(() => {
     const names = new Map<string, string>();
 
@@ -1396,8 +1394,13 @@ function AnalyticsAgentPerformanceV92({
   }, [accountProfiles, agentNames, cases, monthKey, monthlyMode]);
 
   const allAgentsMode = selectedAgent === "all";
-  const visibleRows =
-    allAgentsMode && !showAllAgents ? rows.slice(0, 8) : rows;
+  // data-analytics-layout-promo-readable-v128
+  const visibleRows = rows;
+  const promoActiveForMonth =
+    monthlyMode && hasRbhPromo(monthKey);
+  const incentiveGuideColumns = promoActiveForMonth
+    ? "48px minmax(80px,1fr) minmax(95px,1fr) minmax(100px,1fr)"
+    : "48px minmax(80px,1fr) minmax(95px,1fr)";
 
   const incentiveText = (row: (typeof rows)[number]) => {
     if (!monthlyMode) return "Monthly only";
@@ -1420,7 +1423,7 @@ function AnalyticsAgentPerformanceV92({
     <div
       data-analytics-agent-incentive-v92="true"
       data-agent-no-data-logic-v111="true"
-      className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]"
+      className="space-y-5"
     >
       <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
         <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1572,20 +1575,9 @@ function AnalyticsAgentPerformanceV92({
           </table>
         </div>
 
-        {allAgentsMode && rows.length > 8 ? (
-          <button
-            type="button"
-            onClick={() => setShowAllAgents((value) => !value)}
-            className="w-full border-t border-slate-100 bg-white px-5 py-3 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
-          >
-            {showAllAgents
-              ? "Show top 8 Agents"
-              : `View all ${rows.length} Agents`}
-          </button>
-        ) : null}
       </div>
 
-      <div className="space-y-5">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
       <div
         data-monthly-grade-criteria-v109="true"
         className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
@@ -1615,7 +1607,7 @@ function AnalyticsAgentPerformanceV92({
               return (
                 <div
                   key={row.grade}
-                  className="grid grid-cols-[42px_minmax(0,1fr)_minmax(120px,auto)] items-center gap-3 border-b border-violet-100 bg-white px-3 py-3 last:border-b-0"
+                  className="grid grid-cols-[42px_minmax(0,1fr)_minmax(90px,auto)] items-center gap-3 border-b border-violet-100 bg-white px-3 py-3 last:border-b-0"
                 >
                   <span
                     className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-sm font-semibold ${getGradeTone(row.grade)}`}
@@ -1677,12 +1669,22 @@ function AnalyticsAgentPerformanceV92({
         </div>
 
         {monthlyMode ? (
-          <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-100">
-            <div className="grid grid-cols-[48px_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)] gap-3 bg-emerald-50 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+          <div className="mt-5 overflow-x-auto rounded-2xl border border-emerald-100">
+            <div
+              className="grid min-w-[360px] gap-3 bg-emerald-50 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800"
+              style={{
+                gridTemplateColumns:
+                  incentiveGuideColumns,
+              }}
+            >
               <div>Grade</div>
               <div>Score</div>
               <div className="text-right">Cash</div>
-              <div className="text-right">Promo</div>
+              {promoActiveForMonth ? (
+                <div className="text-right">
+                  Promo
+                </div>
+              ) : null}
             </div>
             {getGradeGuideRows(monthKey).map((row) => {
               const incentive = getIncentiveByGrade(row.grade, monthKey);
@@ -1693,7 +1695,11 @@ function AnalyticsAgentPerformanceV92({
               return (
                 <div
                   key={`incentive-${row.grade}`}
-                  className="grid grid-cols-[48px_minmax(90px,1fr)_minmax(110px,1fr)_minmax(100px,1fr)] items-center gap-3 border-t border-emerald-100 bg-white px-3 py-3 text-xs"
+                  className="grid min-w-[360px] items-center gap-3 border-t border-emerald-100 bg-white px-3 py-3 text-xs"
+                  style={{
+                    gridTemplateColumns:
+                      incentiveGuideColumns,
+                  }}
                 >
                   <div>
                     <span
@@ -1708,11 +1714,13 @@ function AnalyticsAgentPerformanceV92({
                   <div className="text-right font-semibold text-slate-800">
                     ฿{incentive.cash.toLocaleString("en-US")}
                   </div>
-                  <div className="text-right font-medium text-slate-600">
-                    {promoVisible
-                      ? `${incentive.promo.toLocaleString("en-US")} RBH`
-                      : "—"}
-                  </div>
+                  {promoActiveForMonth ? (
+                    <div className="text-right font-medium text-slate-600">
+                      {promoVisible
+                        ? `${incentive.promo.toLocaleString("en-US")} RBH`
+                        : "—"}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -8389,7 +8397,7 @@ export default function SummaryMockup({
               </div>
             ) : null}
           </div>
-          <div data-analytics-overview-logic-v90="true" className="space-y-5">
+          <div data-analytics-overview-logic-v90="true" data-analytics-readable-v128="true" className="min-w-0 space-y-5">
             <AnalyticsOverviewV89
               summary={summaryCards}
               cases={filteredCases}
