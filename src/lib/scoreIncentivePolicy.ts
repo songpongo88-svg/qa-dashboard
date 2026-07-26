@@ -32,10 +32,13 @@ export function getIncentivePolicyKey(monthKey?: string | null): IncentivePolicy
   return "APR_2026_ONWARD";
 }
 
-// promo-starts-april-2026-v128
+// exact-promo-months-v129-fix2
+const RBH_PROMO_MONTH_KEYS = new Set(["2026-04"]);
+
 export function hasRbhPromo(monthKey?: string | null) {
-  const normalized = normalizeMonthKey(monthKey);
-  return normalized !== "unknown" && normalized >= "2026-04";
+  return RBH_PROMO_MONTH_KEYS.has(
+    normalizeMonthKey(monthKey)
+  );
 }
 
 function formatIncentiveLabel(cash: number, promo: number) {

@@ -694,9 +694,52 @@ function formatCurrencyTHB(value: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(value || 0);
 }
 
-function getIncentiveValue(caseCount: number, avg: number, monthKey: string) {
-  if (caseCount < CASE_TARGET) return 0;
-  return getIncentiveByScore(avg, monthKey).total;
+// data-unified-monthly-status-incentive-v129-fix2
+function getMonthlyPerformanceResult(
+  caseCount: number,
+  avg: number,
+  monthKey: string,
+  criticalError = false
+) {
+  const grade = scoreToGrade(
+    avg,
+    monthKey,
+    criticalError
+  );
+  const incentive = getIncentiveByGrade(
+    grade,
+    monthKey
+  );
+  const completed = caseCount >= CASE_TARGET;
+  const eligible =
+    completed &&
+    !criticalError &&
+    (incentive.cash > 0 ||
+      incentive.promo > 0);
+
+  return {
+    grade,
+    incentive,
+    completed,
+    eligible,
+  };
+}
+
+function getIncentiveValue(
+  caseCount: number,
+  avg: number,
+  monthKey: string,
+  criticalError = false
+) {
+  const result = getMonthlyPerformanceResult(
+    caseCount,
+    avg,
+    monthKey,
+    criticalError
+  );
+  return result.eligible
+    ? result.incentive.total
+    : 0;
 }
 
 function getPolicyMonthKeyForCases(cases: CaseItem[]) {
@@ -892,15 +935,39 @@ function buildTopicSummary(cases: CaseItem[]): TopicSummary[] {
 
 function summarizeCases(cases: CaseItem[]): SummaryCards {
   const caseCount = cases.length;
-  const avgScore = caseCount ? roundToTwo(cases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount) : 0;
-  const revisedCount = cases.filter((item) => item.reviewStatus === "Revised").length;
-  const policyMonthKey = getPolicyMonthKeyForCases(cases);
+  const avgScore = caseCount
+    ? roundToTwo(
+        cases.reduce(
+          (sum, item) =>
+            sum + item.finalScore,
+          0
+        ) / caseCount
+      )
+    : 0;
+  const revisedCount = cases.filter(
+    (item) => item.reviewStatus === "Revised"
+  ).length;
+  const policyMonthKey =
+    getPolicyMonthKeyForCases(cases);
+  const criticalError = cases.some(
+    (item) => item.grade === "G"
+  );
+  const performance =
+    getMonthlyPerformanceResult(
+      caseCount,
+      avgScore,
+      policyMonthKey,
+      criticalError
+    );
+
   return {
     caseCount,
     avgScore,
     revisedCount,
-    grade: scoreToGrade(avgScore, policyMonthKey),
-    incentive: getIncentiveValue(caseCount, avgScore, policyMonthKey),
+    grade: performance.grade,
+    incentive: performance.eligible
+      ? performance.incentive.total
+      : 0,
     policyMonthKey,
   };
 }
@@ -1325,7 +1392,17 @@ function AnalyticsAgentPerformanceV92({
               ).toFixed(2)
             )
           : 0;
-        const grade = scoreToGrade(average, monthKey);
+        const criticalError = agentCases.some(
+          (item) => item.grade === "G"
+        );
+        const monthlyPerformance =
+          getMonthlyPerformanceResult(
+            caseCount,
+            average,
+            monthKey,
+            criticalError
+          );
+        const grade = monthlyPerformance.grade;
         const specialAnuchaZeroCaseGrade =
           caseCount === 0 &&
           monthlyMode &&
@@ -1335,20 +1412,25 @@ function AnalyticsAgentPerformanceV92({
         const gradeReady =
           specialAnuchaZeroCaseGrade ||
           (caseCount > 0 &&
-            (!monthlyMode || caseCount >= CASE_TARGET));
+            (!monthlyMode ||
+              monthlyPerformance.completed));
         const kpiPending =
           monthlyMode &&
           caseCount > 0 &&
-          caseCount < CASE_TARGET;
-        const kpiPassed =
-          gradeReady &&
-          !specialAnuchaZeroCaseGrade &&
-          average >= PERFORMANCE_KPI_TARGET;
+          !monthlyPerformance.completed;
+        const kpiPassed = monthlyMode
+          ? monthlyPerformance.eligible
+          : gradeReady &&
+            !criticalError &&
+            average >=
+              PERFORMANCE_KPI_TARGET;
         const completed =
-          monthlyMode && caseCount >= CASE_TARGET;
+          monthlyMode &&
+          monthlyPerformance.completed;
         const incentiveResult =
-          completed && kpiPassed
-            ? getIncentiveByScore(average, monthKey)
+          monthlyMode &&
+          monthlyPerformance.eligible
+            ? monthlyPerformance.incentive
             : null;
         const profile =
           accountProfiles.find(
@@ -1372,6 +1454,7 @@ function AnalyticsAgentPerformanceV92({
           caseCount,
           average,
           grade,
+          criticalError,
           specialAnuchaZeroCaseGrade,
           gradeReady,
           kpiPending,
@@ -1786,6 +1869,20 @@ function AnalyticsOverviewV89({
       0,
       specialAnuchaZeroCaseMonthKey
     );
+  const overviewMonthKey =
+    specialAnuchaZeroCaseMonthKey ||
+    (periodKeys || []).slice(-1)[0] ||
+    summary.policyMonthKey;
+  const overviewCriticalError = cases.some(
+    (item) => item.grade === "G"
+  );
+  const overviewPerformance =
+    getMonthlyPerformanceResult(
+      evaluatedCases,
+      summary.avgScore,
+      overviewMonthKey,
+      overviewCriticalError
+    );
   const hasKpiData =
     evaluatedCases > 0 ||
     specialAnuchaZeroCaseGrade;
@@ -1802,8 +1899,11 @@ function AnalyticsOverviewV89({
   const kpiPassed =
     gradeReady &&
     !specialAnuchaZeroCaseGrade &&
-    summary.avgScore >=
-      PERFORMANCE_KPI_TARGET;
+    (monthlyMode
+      ? overviewPerformance.eligible
+      : !overviewCriticalError &&
+        summary.avgScore >=
+          PERFORMANCE_KPI_TARGET);
 
   const gradeColors: Record<
     string,
@@ -1963,12 +2063,16 @@ function AnalyticsOverviewV89({
             ? "Passed"
             : "Not Passed",
       note: specialAnuchaZeroCaseGrade
-        ? `Score 0.00 · Target ${PERFORMANCE_KPI_TARGET}`
+        ? `Score 0.00 · Grade ${specialAnuchaZeroCaseGradeValue}`
         : !hasKpiData
-          ? `Target ${PERFORMANCE_KPI_TARGET}`
+          ? monthlyMode
+            ? "No monthly result"
+            : `Target ${PERFORMANCE_KPI_TARGET}`
           : kpiPending
-          ? `Complete ${CASE_TARGET} monthly cases before KPI result`
-          : `Average ${summary.avgScore.toFixed(2)} · Target ${PERFORMANCE_KPI_TARGET}`,
+          ? `Complete ${CASE_TARGET} monthly cases before result`
+          : monthlyMode
+            ? `Grade ${summary.grade} · ${kpiPassed ? "Incentive eligible" : "No incentive"}`
+            : `Average ${summary.avgScore.toFixed(2)} · Target ${PERFORMANCE_KPI_TARGET}`,
       icon: !hasKpiData
         ? "–"
         : kpiPending
@@ -2379,20 +2483,21 @@ function AnalyticsOverviewV89({
             <div className="rounded-xl border border-slate-200 px-4 py-3">
               <div className="text-[11px] font-medium text-slate-700">
                 {!hasKpiData
-                  ? "No quality score data"
-                  : kpiPending
-                    ? `KPI pending ${evaluatedCases}/${CASE_TARGET} cases`
-                    : summary.avgScore >=
-                        PERFORMANCE_KPI_TARGET
-                      ? "Quality score is on target"
-                      : "Quality score is below target"}
+  ? "No quality score data"
+  : kpiPending
+    ? `KPI pending ${evaluatedCases}/${CASE_TARGET} cases`
+    : kpiPassed
+      ? "Monthly result passed"
+      : "Monthly result not passed"}
               </div>
               <div className="mt-1 text-[10px] font-normal text-slate-500">
                 {!hasKpiData
-                  ? "No evaluated cases in the current selection"
-                  : kpiPending
-                    ? `Current average ${summary.avgScore.toFixed(2)}% · KPI result available after ${CASE_TARGET} cases`
-                    : `Current ${summary.avgScore.toFixed(2)}% · Target ${PERFORMANCE_KPI_TARGET}%`}
+  ? "No evaluated cases in the current selection"
+  : kpiPending
+    ? `Current average ${summary.avgScore.toFixed(2)}% · Result available after ${CASE_TARGET} cases`
+    : monthlyMode
+      ? `Grade ${summary.grade} · ${kpiPassed ? "Incentive eligible" : "No incentive"}`
+      : `Current ${summary.avgScore.toFixed(2)}% · Target ${PERFORMANCE_KPI_TARGET}%`}
               </div>
             </div>
 
