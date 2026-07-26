@@ -32,13 +32,21 @@ export function getIncentivePolicyKey(monthKey?: string | null): IncentivePolicy
   return "APR_2026_ONWARD";
 }
 
-// exact-promo-months-v129-fix2
-const RBH_PROMO_MONTH_KEYS = new Set(["2026-04"]);
+// recurring-jan-apr-promo-v130
+const PROMO_POLICY_START_MONTH_KEY = "2026-04";
+const RBH_PROMO_MONTH_NUMBERS = new Set(["01", "04"]);
 
 export function hasRbhPromo(monthKey?: string | null) {
-  return RBH_PROMO_MONTH_KEYS.has(
-    normalizeMonthKey(monthKey)
-  );
+  const normalized = normalizeMonthKey(monthKey);
+  if (
+    normalized === "unknown" ||
+    normalized < PROMO_POLICY_START_MONTH_KEY
+  ) {
+    return false;
+  }
+
+  const monthNumber = normalized.slice(5, 7);
+  return RBH_PROMO_MONTH_NUMBERS.has(monthNumber);
 }
 
 function formatIncentiveLabel(cash: number, promo: number) {
