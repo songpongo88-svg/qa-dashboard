@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import LoadingMascot from "./LoadingMascot";
@@ -1369,7 +1369,15 @@ function AnalyticsAgentPerformanceV92({
 }) {
   const [agentSortTab, setAgentSortTab] = useState<
     "ranking" | "alphabetical"
-  >("ranking");
+  >(() =>
+    window.sessionStorage.getItem("qa_analytics_agent_sort_tab_v134") === "alphabetical"
+      ? "alphabetical"
+      : "ranking"
+  );
+
+  useEffect(() => {
+    window.sessionStorage.setItem("qa_analytics_agent_sort_tab_v134", agentSortTab);
+  }, [agentSortTab]);
 
   const rows = useMemo(() => {
     const names = new Map<string, string>();
@@ -2671,18 +2679,66 @@ export default function SummaryMockup({
   const [reportPdfDialogOpen, setReportPdfDialogOpen] = useState(false);
   const [reportPdfView, setReportPdfView] = useState<SummaryView>("monthly-dashboard");
   const [analyticsCustomizeOpen, setAnalyticsCustomizeOpen] = useState(false);
-  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">("monthly");
-  const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
-  const [periodFilterYear, setPeriodFilterYear] = useState<string>("all");
-  const [periodFilterMonth, setPeriodFilterMonth] = useState<string>("all");
-  const [summarySection, setSummarySection] = useState<"summary" | "team">("summary");
-  const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>("");
+  // data-workspace-view-state-v134
+  const [analysisMode, setAnalysisMode] = useState<"weekly" | "monthly" | "yearly">(() => {
+    const saved = window.sessionStorage.getItem("qa_analytics_mode_v134");
+    return saved === "weekly" || saved === "yearly" ? saved : "monthly";
+  });
+  const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem("qa_analytics_periods_v134") || "[]");
+      return Array.isArray(saved) ? saved.filter((item) => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const [periodFilterYear, setPeriodFilterYear] = useState<string>(
+    () => window.sessionStorage.getItem("qa_analytics_year_filter_v134") || "all"
+  );
+  const [periodFilterMonth, setPeriodFilterMonth] = useState<string>(
+    () => window.sessionStorage.getItem("qa_analytics_month_filter_v134") || "all"
+  );
+  const [summarySection, setSummarySection] = useState<"summary" | "team">(
+    () => window.sessionStorage.getItem("qa_analytics_section_v134") === "team" ? "team" : "summary"
+  );
+  const [teamSelectedMonth, setTeamSelectedMonth] = useState<string>(
+    () => window.sessionStorage.getItem("qa_analytics_team_month_v134") || ""
+  );
   const [analyticsCompareOpen, setAnalyticsCompareOpen] = useState(false);
   const [compareDraftPeriods, setCompareDraftPeriods] = useState<string[]>([]);
   const [analyticsExportOpen, setAnalyticsExportOpen] = useState(false);
-  const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState("all");
-  const [selectedTeamDetail, setSelectedTeamDetail] = useState("");
+  const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(
+    () => window.sessionStorage.getItem("qa_analytics_details_open_v134") === "true"
+  );
+  const [selectedTeam, setSelectedTeam] = useState(
+    () => window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
+  );
+  const analyticsModeMountedRef = useRef(false);
+  const [selectedTeamDetail, setSelectedTeamDetail] = useState(
+    () => window.sessionStorage.getItem("qa_analytics_team_detail_v134") || ""
+  );
+
+  useEffect(() => {
+    window.sessionStorage.setItem("qa_analytics_mode_v134", analysisMode);
+    window.sessionStorage.setItem("qa_analytics_periods_v134", JSON.stringify(selectedPeriods));
+    window.sessionStorage.setItem("qa_analytics_year_filter_v134", periodFilterYear);
+    window.sessionStorage.setItem("qa_analytics_month_filter_v134", periodFilterMonth);
+    window.sessionStorage.setItem("qa_analytics_section_v134", summarySection);
+    window.sessionStorage.setItem("qa_analytics_team_month_v134", teamSelectedMonth);
+    window.sessionStorage.setItem("qa_analytics_details_open_v134", String(analyticsDetailsOpen));
+    window.sessionStorage.setItem("qa_analytics_team_v134", selectedTeam);
+    window.sessionStorage.setItem("qa_analytics_team_detail_v134", selectedTeamDetail);
+  }, [
+    analysisMode,
+    selectedPeriods,
+    periodFilterYear,
+    periodFilterMonth,
+    summarySection,
+    teamSelectedMonth,
+    analyticsDetailsOpen,
+    selectedTeam,
+    selectedTeamDetail,
+  ]);
 
   const songkranTheme = useMemo(() => isSongkranThemeActive(), []);
   const roleScopedAgentList = useMemo(
@@ -3320,8 +3376,12 @@ export default function SummaryMockup({
   const effectivePeriodLabels = effectivePeriodKeys.map(getPeriodDisplayLabel);
 
   useEffect(() => {
-    setSelectedPeriods([]);
-    setPeriodFilterMonth("all");
+    if (!analyticsModeMountedRef.current) {
+      analyticsModeMountedRef.current = true;
+    } else {
+      setSelectedPeriods([]);
+      setPeriodFilterMonth("all");
+    }
 
     setViewMode(
       analysisMode === "weekly"

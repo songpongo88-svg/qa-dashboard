@@ -3192,9 +3192,42 @@ export default function App() {
   const [accountMenuValue, setAccountMenuValue] = useState("");
   const [sidebarPermissionNotice, setSidebarPermissionNotice] = useState("");
 
+  // data-workspace-view-state-v134
   const [selectedAgentGlobal, setSelectedAgentGlobal] = useState("");
   const [selectedMonthGlobal, setSelectedMonthGlobal] = useState(() => getCurrentMonthKey());
   const [selectedWeekGlobal, setSelectedWeekGlobal] = useState("all");
+
+  const [caseSelectedAgent, setCaseSelectedAgent] = useState(
+    () => window.sessionStorage.getItem("qa_case_selected_agent_v134") || ""
+  );
+  const [caseSelectedMonth, setCaseSelectedMonth] = useState(
+    () => window.sessionStorage.getItem("qa_case_selected_month_v134") || getCurrentMonthKey()
+  );
+  const [caseSelectedWeek, setCaseSelectedWeek] = useState(
+    () => window.sessionStorage.getItem("qa_case_selected_week_v134") || "all"
+  );
+
+  const [analyticsSelectedAgent, setAnalyticsSelectedAgent] = useState(
+    () => window.sessionStorage.getItem("qa_analytics_selected_agent_v134") || ""
+  );
+  const [analyticsSelectedMonth, setAnalyticsSelectedMonth] = useState(
+    () => window.sessionStorage.getItem("qa_analytics_selected_month_v134") || getCurrentMonthKey()
+  );
+  const [analyticsSelectedWeek, setAnalyticsSelectedWeek] = useState(
+    () => window.sessionStorage.getItem("qa_analytics_selected_week_v134") || "all"
+  );
+
+  useEffect(() => {
+    window.sessionStorage.setItem("qa_case_selected_agent_v134", caseSelectedAgent);
+    window.sessionStorage.setItem("qa_case_selected_month_v134", caseSelectedMonth);
+    window.sessionStorage.setItem("qa_case_selected_week_v134", caseSelectedWeek);
+  }, [caseSelectedAgent, caseSelectedMonth, caseSelectedWeek]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem("qa_analytics_selected_agent_v134", analyticsSelectedAgent);
+    window.sessionStorage.setItem("qa_analytics_selected_month_v134", analyticsSelectedMonth);
+    window.sessionStorage.setItem("qa_analytics_selected_week_v134", analyticsSelectedWeek);
+  }, [analyticsSelectedAgent, analyticsSelectedMonth, analyticsSelectedWeek]);
   const [selectedAppealCaseId, setSelectedAppealCaseId] = useState("");
   const [selectedDashboardCaseId, setSelectedDashboardCaseId] = useState("");
   const [selectedRubricCode, setSelectedRubricCode] = useState("");
@@ -3937,7 +3970,10 @@ export default function App() {
       const { caseId, agentName } = parseCaseWorkspaceKey(workspaceKey);
       setDashboardSubTab("case-detail");
       setSelectedDashboardCaseId(caseId);
-      if (agentName) setSelectedAgentGlobal(agentName);
+      if (agentName) {
+                  setSelectedAgentGlobal(agentName);
+                  setCaseSelectedAgent(agentName);
+                }
       navigateToTab("dashboard", {
         workspaceKey,
         params: { subTab: "case-detail", caseId, agent: agentName },
@@ -6529,16 +6565,16 @@ export default function App() {
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
               caseDetailWorkspaceMode={isCaseWorkspaceTabKey(activeWorkspaceTab)}
-              externalSelectedAgent={selectedAgentGlobal}
-              externalSelectedMonthKey={selectedMonthGlobal}
-              externalSelectedWeek={selectedWeekGlobal}
+              externalSelectedAgent={caseSelectedAgent}
+              externalSelectedMonthKey={caseSelectedMonth}
+              externalSelectedWeek={caseSelectedWeek}
               externalCaseIdSearch={selectedDashboardCaseId}
               roleScopedAgentNames={roleScopedAgentNames}
               canViewAgentsInOverview={overviewAgentSelectionAllowed}
               dataRefreshKey={qaDataRefreshKey}
-              onSelectedAgentChange={setSelectedAgentGlobal}
-              onSelectedMonthKeyChange={setSelectedMonthGlobal}
-              onSelectedWeekChange={setSelectedWeekGlobal}
+              onSelectedAgentChange={setCaseSelectedAgent}
+              onSelectedMonthKeyChange={setCaseSelectedMonth}
+              onSelectedWeekChange={setCaseSelectedWeek}
               onShareCaseDetail={shareCaseDetailLink}
               onCloseCaseDetail={() => {
                 if (isCaseWorkspaceTabKey(activeWorkspaceTab)) {
@@ -6560,7 +6596,10 @@ export default function App() {
                 const caseWorkspaceKey = buildCaseWorkspaceKey(caseId || "", agentName || "");
                 setDashboardSubTab("case-detail");
                 setSelectedDashboardCaseId(caseId || "");
-                if (agentName) setSelectedAgentGlobal(agentName);
+                if (agentName) {
+                  setSelectedAgentGlobal(agentName);
+                  setCaseSelectedAgent(agentName);
+                }
                 navigateToTab("dashboard", {
                   workspaceKey: caseWorkspaceKey,
                   params: {
@@ -6582,7 +6621,10 @@ export default function App() {
                   target_agent: agentName || "",
                 });
                 setSelectedAppealCaseId(caseId);
-                if (agentName) setSelectedAgentGlobal(agentName);
+                if (agentName) {
+                  setSelectedAgentGlobal(agentName);
+                  setCaseSelectedAgent(agentName);
+                }
                 navigateToTab("appeal", {
                   workspaceKey: "appeal",
                   params: { caseId, agent: agentName || "" },
@@ -6683,18 +6725,18 @@ export default function App() {
         ) : activeTab === "summary" && analyticsAllowed ? (
           <SummaryMockup
             currentUser={currentUser}
-            externalSelectedAgent={selectedAgentGlobal}
-            externalSelectedMonth={selectedMonthGlobal}
-            externalSelectedWeek={selectedWeekGlobal}
+            externalSelectedAgent={analyticsSelectedAgent}
+            externalSelectedMonth={analyticsSelectedMonth}
+            externalSelectedWeek={analyticsSelectedWeek}
             roleScopedAgentNames={roleScopedAgentNames}
             canViewAllAgents={analyticsAllAgentsAllowed}
             canViewAllTeams={analyticsAllTeamsAllowed}
             canViewOwnTeam={analyticsOwnTeamAllowed}
             canExportAnalytics={analyticsExportAllowed}
             dataRefreshKey={qaDataRefreshKey}
-            onSelectedAgentChange={setSelectedAgentGlobal}
-            onSelectedMonthChange={setSelectedMonthGlobal}
-            onSelectedWeekChange={setSelectedWeekGlobal}
+            onSelectedAgentChange={setAnalyticsSelectedAgent}
+            onSelectedMonthChange={setAnalyticsSelectedMonth}
+            onSelectedWeekChange={setAnalyticsSelectedWeek}
           />
         ) : activeTab === "signature-center" ? (
           <SignatureCenterErrorBoundary key="signature-center">
