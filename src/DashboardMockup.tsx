@@ -1232,6 +1232,7 @@ function Panel({
   return (
     <div
       data-case-filter-overflow-visible-v135-fix={overflowClass}
+      data-case-filter-z-layer-v136="true"
       className={`relative min-w-0 ${overflowClass} rounded-[26px] border border-violet-200/70 bg-white/95 shadow-[0_10px_28px_rgba(76,29,149,0.08)] backdrop-blur-sm ${className}`}
     >
       {isSongkranThemeActive() ? (
@@ -1492,7 +1493,7 @@ function CompactAlignedSelect({
       </button>
 
       {open ? (
-        <div role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-[80] mt-2 max-h-72 w-full min-w-max overflow-y-auto rounded-2xl border border-violet-200 bg-white p-1.5 shadow-[0_18px_45px_rgba(30,41,59,0.22)]">
+        <div role="listbox" aria-label={ariaLabel} className="absolute left-0 top-full z-[500] mt-2 max-h-72 w-full min-w-max overflow-y-auto rounded-2xl border border-violet-200 bg-white p-1.5 shadow-[0_24px_60px_rgba(30,41,59,0.28)]">
           {options.map((option) => {
             const parts = option.parts?.filter(Boolean) || [option.label];
             const aligned = firstColumnCharacters > 0 && parts.length > 1;
@@ -1690,7 +1691,7 @@ function DateRangePicker({
       ) : null}
 
       {open ? (
-        <div role="dialog" aria-label="Choose Date Range" className="absolute right-0 top-full z-[85] mt-2 w-[580px] max-w-[calc(100vw-2rem)] rounded-[20px] border border-violet-200 bg-white p-3.5 shadow-[0_22px_55px_rgba(30,41,59,0.24)]">
+        <div role="dialog" aria-label="Choose Date Range" className="absolute right-0 top-full z-[510] mt-2 w-[580px] max-w-[calc(100vw-2rem)] rounded-[20px] border border-violet-200 bg-white p-3.5 shadow-[0_24px_60px_rgba(30,41,59,0.28)]">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div><div className="text-sm font-black text-slate-900">Choose Date Range</div><div className="mt-1 text-xs text-slate-500">{selectingEnd ? "Choose end date" : "Choose start date"}</div></div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-bold"><span className="rounded-full bg-violet-50 px-3 py-1.5 text-violet-700">From {formatDateRangeValue(dateFrom)}</span><span className="rounded-full bg-sky-50 px-3 py-1.5 text-sky-700">To {formatDateRangeValue(dateTo)}</span></div>
@@ -5933,7 +5934,7 @@ export default function DashboardMockup({
 
             {/* data-case-history-filters-v133 */}
             <Panel
-              className={dashboardSubTab === "case-detail" ? "overflow-visible" : "hidden"}
+              className={dashboardSubTab === "case-detail" ? "relative z-[300] overflow-visible" : "hidden"}
               aria-hidden={dashboardSubTab !== "case-detail"}
             >
               <PanelHeader
