@@ -3396,6 +3396,21 @@ function SlideOverCaseDetail({
     }
   };
 
+  // data-team-evaluation-target-v141
+  const dashboardEvaluatedAgentCount = new Set(
+    dashboardCases
+      .map((item) =>
+        String(item.agent || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+  ).size;
+  const dashboardEvaluationTarget = Math.max(
+    CASE_TARGET,
+    dashboardEvaluatedAgentCount * CASE_TARGET
+  );
+
   return (
     <div className={embedded ? "relative min-h-0 w-full bg-[#f8f6ff]" : "fixed inset-0 z-[90] bg-slate-900/45"}>
       {!embedded ? <div className="absolute inset-0" onClick={onClose} /> : null}
@@ -5603,7 +5618,7 @@ export default function DashboardMockup({
       : incentiveResult.cash > 0
         ? "Eligible · Monthly target completed"
         : `Grade ${monthlyAgentGrade || "-"} · Not Eligible`
-    : `${kpiScopeSummary.caseCount}/${CASE_TARGET} evaluated · Complete the monthly target first`;
+    : `${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget} evaluated · Complete the monthly target first`;
   const overviewKpiItemsV93 = [
     {
       label: "Average Score",
@@ -5616,7 +5631,7 @@ export default function DashboardMockup({
     {
       label: "KPI Status",
       value: kpiStatusLabel,
-      note: `Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${CASE_TARGET}`,
+      note: `Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget}`,
       icon: kpiScopeSummary.status === "passed" ? "✓" : kpiScopeSummary.status === "not-passed" ? "!" : "…",
       iconTone: kpiScopeSummary.status === "passed" ? "bg-emerald-50 text-emerald-600" : kpiScopeSummary.status === "not-passed" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600",
       valueTone: kpiScopeSummary.status === "passed" ? "text-emerald-700" : kpiScopeSummary.status === "not-passed" ? "text-rose-600" : "text-amber-700",
@@ -5624,15 +5639,15 @@ export default function DashboardMockup({
     {
       label: "Cases Evaluated",
       value: String(metricCaseCount),
-      note: `${Math.min(metricCaseCount, CASE_TARGET)}/${CASE_TARGET} monthly target`,
+      note: `${Math.min(metricCaseCount, dashboardEvaluationTarget)}/${dashboardEvaluationTarget} monthly target`,
       icon: "▤",
       iconTone: "bg-sky-50 text-sky-600",
       valueTone: "text-slate-900",
     },
     {
       label: "Evaluation Progress",
-      value: `${kpiScopeSummary.caseCount}/${CASE_TARGET}`,
-      note: kpiScopeSummary.volumePassed ? "Monthly target completed" : `${Math.max(0, CASE_TARGET - kpiScopeSummary.caseCount)} case(s) remaining`,
+      value: `${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget}`,
+      note: kpiScopeSummary.volumePassed ? "Monthly target completed" : `${Math.max(0, dashboardEvaluationTarget - kpiScopeSummary.caseCount)} case(s) remaining`,
       icon: "◔",
       iconTone: kpiScopeSummary.volumePassed ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600",
       valueTone: kpiScopeSummary.volumePassed ? "text-emerald-700" : "text-amber-700",
@@ -5671,7 +5686,7 @@ export default function DashboardMockup({
         ? currentGradeSub
         : monthlyAgentCompleted
           ? "Final monthly grade after completing the target"
-          : `${kpiScopeSummary.caseCount}/${CASE_TARGET} evaluated · Grade finalizes at monthly completion`,
+          : `${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget} evaluated · Grade finalizes at monthly completion`,
       valueClassName: !isMonthlyView
         ? "text-slate-600"
         : isAllAgentsView

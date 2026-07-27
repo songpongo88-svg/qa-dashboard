@@ -1916,8 +1916,26 @@ function AnalyticsOverviewV89({
   periodKeys?: string[];
 }) {
   // data-month-policy-zero-case-and-incentive-guide-v126
+  // data-team-evaluation-target-v141
   const evaluatedCases =
     cases.length;
+  const evaluatedAgentCount =
+    new Set(
+      cases
+        .map((item) =>
+          String(item.agent || "")
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    ).size;
+  const evaluationTarget =
+    monthlyMode && !individualMode
+      ? Math.max(
+          CASE_TARGET,
+          evaluatedAgentCount * CASE_TARGET
+        )
+      : CASE_TARGET;
   const specialAnuchaZeroCaseMonthKey =
     evaluatedCases === 0 &&
     monthlyMode &&
@@ -2167,7 +2185,7 @@ function AnalyticsOverviewV89({
     {
       title: "Cases Evaluated",
       value: String(summary.caseCount),
-      note: `${Math.min(summary.caseCount, CASE_TARGET)}/${CASE_TARGET} case target`,
+      note: `${Math.min(summary.caseCount, evaluationTarget)}/${evaluationTarget} monthly target · ${individualMode ? "1 Agent" : `${evaluatedAgentCount} Agents × ${CASE_TARGET}`}`,
       icon: "▤",
       tone: "bg-sky-50 text-sky-600",
       valueTone: "text-slate-900",
