@@ -8585,15 +8585,83 @@ export default function SummaryMockup({
                     <option value="yearly">Yearly</option>
                   </select>
                 </div>
-                <div>
+                <div data-visible-weekly-period-groups-v137="true">
                   <FilterLabel>Period</FilterLabel>
-                  <select value={effectivePeriodKeys[effectivePeriodKeys.length - 1] || ""} onChange={(event) => {
-                    const value = event.target.value;
-                    setSelectedPeriods(value ? [value] : []);
-                    if (analysisMode === "monthly" && value) setTeamSelectedMonth(value);
-                  }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-                    {periodOptions.map((period) => <option key={period} value={period}>{getPeriodDisplayLabel(period)}</option>)}
-                  </select>
+
+                  {analysisMode === "weekly" ? (
+                    <div className="mt-2 max-h-[230px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                      {weeklyPeriodGroups.map((group, groupIndex) => (
+                        <div
+                          key={group.monthKey}
+                          className={
+                            groupIndex > 0
+                              ? "mt-3 border-t border-dashed border-slate-300 pt-3"
+                              : ""
+                          }
+                        >
+                          <div className="mb-2 flex items-center gap-2 px-1">
+                            <span className="text-[11px] font-semibold text-slate-700">
+                              {group.monthLabel}
+                            </span>
+                            <span className="h-px flex-1 border-t border-dashed border-slate-300" />
+                          </div>
+
+                          <div className="space-y-1">
+                            {group.periods.map((period) => {
+                              const selected =
+                                effectivePeriodKeys[
+                                  effectivePeriodKeys.length - 1
+                                ] === period;
+
+                              return (
+                                <button
+                                  key={period}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPeriods([period]);
+                                  }}
+                                  className={
+                                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition " +
+                                    (selected
+                                      ? "bg-violet-700 font-medium text-white shadow-sm"
+                                      : "text-slate-600 hover:bg-violet-50 hover:text-violet-700")
+                                  }
+                                >
+                                  <span>{getPeriodDisplayLabel(period)}</span>
+                                  <span>{selected ? "✓" : ""}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <select
+                      value={
+                        effectivePeriodKeys[
+                          effectivePeriodKeys.length - 1
+                        ] || ""
+                      }
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setSelectedPeriods(value ? [value] : []);
+                        if (
+                          analysisMode === "monthly" &&
+                          value
+                        ) {
+                          setTeamSelectedMonth(value);
+                        }
+                      }}
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    >
+                      {periodOptions.map((period) => (
+                        <option key={period} value={period}>
+                          {getPeriodDisplayLabel(period)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <FilterLabel>Team</FilterLabel>
@@ -8624,16 +8692,46 @@ export default function SummaryMockup({
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                <div className="text-xs font-normal text-slate-500">{isComparisonMode ? `กำลังเปรียบเทียบ ${effectivePeriodLabels.join(" · ")}` : `กำลังแสดง ${effectivePeriodLabels[0] || "ช่วงปัจจุบัน"}`}</div>
-                <button type="button" onClick={() => {
-                  setAnalysisMode("monthly");
-                  setSelectedPeriods([]);
-                  setSelectedTeam(analyticsCanSelectAllTeams ? "all" : currentUserTeamName || "all");
-                  if (analyticsCanSelectAllAgents) {
-                    setSelectedAgent("all");
-                    onSelectedAgentChange?.("all");
-                  }
-                }} className="text-xs font-normal text-violet-600 hover:text-violet-800">Reset filters</button>
+                <div className="text-xs font-normal text-slate-500">
+                  {isComparisonMode
+                    ? "กำลังเปรียบเทียบ " + effectivePeriodLabels.join(" · ")
+                    : "กำลังแสดง " + (effectivePeriodLabels[0] || "ช่วงปัจจุบัน")}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {analysisMode === "weekly" ? (
+                    <button
+                      type="button"
+                      disabled={!effectivePeriodKeys.length}
+                      onClick={() => {
+                        setViewMode("weekly-dashboard");
+                        setAnalyticsDetailsOpen(true);
+                      }}
+                      className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-medium text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Weekly View
+                    </button>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnalysisMode("monthly");
+                      setSelectedPeriods([]);
+                      setSelectedTeam(
+                        analyticsCanSelectAllTeams
+                          ? "all"
+                          : currentUserTeamName || "all"
+                      );
+                      if (analyticsCanSelectAllAgents) {
+                        selectAnalyticsAgent("all");
+                      }
+                    }}
+                    className="text-xs font-normal text-violet-600 hover:text-violet-800"
+                  >
+                    Reset filters
+                  </button>
+                </div>
               </div>
             </div>
 
