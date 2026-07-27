@@ -5923,7 +5923,11 @@ export default function DashboardMockup({
               </div>
             </div>
 
-            <Panel className="hidden" aria-hidden="true">
+            {/* data-case-history-filters-v133 */}
+            <Panel
+              className={dashboardSubTab === "case-detail" ? "" : "hidden"}
+              aria-hidden={dashboardSubTab !== "case-detail"}
+            >
               <PanelHeader
                 title="Filters"
                 subtitle="เลือกปี เดือน ผู้ถูกประเมิน เลขเคส และช่วงวันที่"
