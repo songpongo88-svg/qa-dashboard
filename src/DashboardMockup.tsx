@@ -77,6 +77,15 @@ type AppealDraftTopic = {
   appealReason: string;
 };
 
+// data-dashboard-workbook-cache-v155
+type DashboardWorkbookCacheV155 = {
+  cacheKey: string;
+  cases: CaseItem[];
+  appealMergeCount: number;
+};
+
+let dashboardWorkbookCacheV155: DashboardWorkbookCacheV155 | null = null;
+
 type TopicSummary = {
   code: string;
   label: string;
@@ -4339,6 +4348,7 @@ export default function DashboardMockup({
     const loadWorkbook = async () => {
       let evaluationCases: CaseItem[] = [];
       let evaluationCasesPromise: Promise<CaseItem[]> | null = null;
+      const cacheKey = String(dataRefreshKey ?? "default");
       const loadEvaluationCases = () => {
         if (!evaluationCasesPromise) {
           evaluationCasesPromise = fetchStoredEvaluations(300)
@@ -4350,10 +4360,30 @@ export default function DashboardMockup({
         }
         return evaluationCasesPromise;
       };
+      const applyLoadedWorkbook = (nextCases: CaseItem[], nextAppealMergeCount: number) => {
+        dashboardWorkbookCacheV155 = {
+          cacheKey,
+          cases: nextCases,
+          appealMergeCount: nextAppealMergeCount,
+        };
+        setAllCases(nextCases);
+        setAppealMergeCount(nextAppealMergeCount);
+      };
 
       try {
         setIsLoading(true);
         setLoadError("");
+
+        if (
+          dashboardWorkbookCacheV155 &&
+          dashboardWorkbookCacheV155.cacheKey === cacheKey
+        ) {
+          setAllCases(dashboardWorkbookCacheV155.cases);
+          setAppealMergeCount(dashboardWorkbookCacheV155.appealMergeCount);
+          setLoadError("");
+          setIsLoading(false);
+          return;
+        }
 
         const v8Response = { ok: false } as Response;
         if (v8Response.ok) {
@@ -4521,8 +4551,8 @@ export default function DashboardMockup({
             const validMappedCases = mapped.filter((item) => item.agent && item.caseId && item.auditDateObj);
             evaluationCases = await loadEvaluationCases();
             const canonicalCases = mergeRawAndStoredEvaluationCases(validMappedCases, evaluationCases);
-            setAllCases(canonicalCases);
-            setAppealMergeCount(
+            applyLoadedWorkbook(
+              canonicalCases,
               validMappedCases.filter((item) => item.reviewStatus === "Revised").length
             );
             setIsLoading(false);
@@ -4557,8 +4587,7 @@ export default function DashboardMockup({
         if (!availableRawResponses.length) {
           evaluationCases = await loadEvaluationCases();
           if (evaluationCases.length) {
-            setAllCases(evaluationCases);
-            setAppealMergeCount(0);
+            applyLoadedWorkbook(evaluationCases, 0);
             setIsLoading(false);
             return;
           }
@@ -4778,8 +4807,6 @@ export default function DashboardMockup({
         } catch (error) {
           console.warn("Appeal review result merge skipped", error);
         }
-
-        setAppealMergeCount(appealMap.size);
 
         const mapped: CaseItem[] = rawDataEntries
           .filter(
@@ -5015,12 +5042,12 @@ export default function DashboardMockup({
 
         evaluationCases = await loadEvaluationCases();
         const canonicalCases = mergeRawAndStoredEvaluationCases(mapped, evaluationCases);
-        setAllCases(applyAppealMapsToCaseItems(canonicalCases, appealMap, appealOutcomeMap));
+        const mergedCases = applyAppealMapsToCaseItems(canonicalCases, appealMap, appealOutcomeMap);
+        applyLoadedWorkbook(mergedCases, appealMap.size);
       } catch (error: any) {
         console.error("Load Error:", error);
         if (evaluationCases.length) {
-          setAllCases(evaluationCases);
-          setAppealMergeCount(0);
+          applyLoadedWorkbook(evaluationCases, 0);
           setLoadError("");
           return;
         }
