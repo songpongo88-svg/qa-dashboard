@@ -361,6 +361,8 @@ function applyAppealMapsToCaseItems(
 
 
 const CASE_TARGET = 10;
+// data-dashboard-evaluation-target-fallback-v150
+const dashboardEvaluationTarget = CASE_TARGET;
 const RAW_DATA_FILE_NAME = "QA_RawData_March-May2026.xlsx";
 const RAW_DATA_JAN_FEB_FILE_NAME = "QA_RawData_January-February2026.xlsx";
 const RAW_DATA_FILE_NAMES = [RAW_DATA_JAN_FEB_FILE_NAME, RAW_DATA_FILE_NAME];
