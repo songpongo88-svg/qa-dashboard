@@ -5870,6 +5870,8 @@ export default function DashboardMockup({
       ) : null}
 
       <div className="mx-auto min-w-0 max-w-[1720px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+            {/* data-hide-duplicate-case-quick-controls-v134 */}
+            {dashboardSubTab === "overview" ? (
             <div data-overview-current-controls-v93="true" className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]">
               <div className="grid gap-4 xl:grid-cols-[220px_280px_minmax(0,1fr)]">
                 <div>
@@ -5922,6 +5924,7 @@ export default function DashboardMockup({
                 </div>
               </div>
             </div>
+            ) : null}
 
             {/* data-case-history-filters-v133 */}
             <Panel
