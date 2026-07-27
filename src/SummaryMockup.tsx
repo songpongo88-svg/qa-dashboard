@@ -1983,14 +1983,29 @@ function AnalyticsOverviewV89({
     hasKpiData &&
     evaluatedCases < CASE_TARGET &&
     !specialAnuchaZeroCaseGrade;
+  // data-kpi-grade-description-v143
   const kpiPassed =
-    gradeReady &&
+    hasKpiData &&
     !specialAnuchaZeroCaseGrade &&
-    (monthlyMode
-      ? overviewPerformance.eligible
-      : !overviewCriticalError &&
-        summary.avgScore >=
-          PERFORMANCE_KPI_TARGET);
+    summary.avgScore >=
+      PERFORMANCE_KPI_TARGET;
+
+  const currentGradeGuide =
+    gradeReady
+      ? getGradeGuideRows(
+          overviewMonthKey
+        ).find(
+          (row) =>
+            row.grade === summary.grade
+        ) || null
+      : null;
+  const currentGradeStatus =
+    currentGradeGuide
+      ? getIncentiveByGrade(
+          currentGradeGuide.grade,
+          overviewMonthKey
+        ).remark
+      : "";
 
   const gradeColors: Record<
     string,
@@ -2144,43 +2159,29 @@ function AnalyticsOverviewV89({
         ? "Not Passed"
         : !hasKpiData
           ? "No Data"
-          : kpiPending
-          ? `Pending ${evaluatedCases}/${CASE_TARGET}`
           : kpiPassed
             ? "Passed"
             : "Not Passed",
       note: specialAnuchaZeroCaseGrade
-        ? `Score 0.00 · Grade ${specialAnuchaZeroCaseGradeValue}`
+        ? `Average 0.00% · KPI Target ${PERFORMANCE_KPI_TARGET}%`
         : !hasKpiData
-          ? monthlyMode
-            ? "No monthly result"
-            : `Target ${PERFORMANCE_KPI_TARGET}`
-          : kpiPending
-          ? `Complete ${CASE_TARGET} monthly cases before result`
-          : monthlyMode
-            ? `Grade ${summary.grade} · ${kpiPassed ? "Incentive eligible" : "No incentive"}`
-            : `Average ${summary.avgScore.toFixed(2)} · Target ${PERFORMANCE_KPI_TARGET}`,
+          ? `No evaluated cases · KPI Target ${PERFORMANCE_KPI_TARGET}%`
+          : `Average ${summary.avgScore.toFixed(2)}% · KPI Target ${PERFORMANCE_KPI_TARGET}%`,
       icon: !hasKpiData
         ? "–"
-        : kpiPending
-          ? "…"
-          : kpiPassed
-            ? "✓"
-            : "!",
+        : kpiPassed
+          ? "✓"
+          : "!",
       tone: !hasKpiData
         ? "bg-slate-100 text-slate-500"
-        : kpiPending
-          ? "bg-amber-50 text-amber-600"
-          : kpiPassed
-            ? "bg-emerald-50 text-emerald-600"
-            : "bg-rose-50 text-rose-600",
+        : kpiPassed
+          ? "bg-emerald-50 text-emerald-600"
+          : "bg-rose-50 text-rose-600",
       valueTone: !hasKpiData
         ? "text-slate-500"
-        : kpiPending
-          ? "text-amber-700"
-          : kpiPassed
-            ? "text-emerald-700"
-            : "text-rose-600",
+        : kpiPassed
+          ? "text-emerald-700"
+          : "text-rose-600",
     },
     {
       title: "Cases Evaluated",
@@ -2228,12 +2229,14 @@ function AnalyticsOverviewV89({
           ? summary.grade
           : "—",
       note: specialAnuchaZeroCaseGrade
-        ? "0 evaluated cases · Special rule"
+        ? `Score 0 · Grade ${specialAnuchaZeroCaseGradeValue} · ${currentGradeStatus || "Current criteria"}`
         : !hasKpiData
           ? "No evaluated cases"
-          : kpiPending
+          : !gradeReady
             ? `Available after ${CASE_TARGET} monthly cases`
-            : "Current selection",
+            : currentGradeGuide
+              ? `Score ${currentGradeGuide.range} · Grade ${summary.grade} · ${currentGradeStatus}`
+              : `Grade ${summary.grade} · Current criteria`,
       icon: "◇",
       tone: "bg-amber-50 text-amber-600",
       valueTone: gradeReady
