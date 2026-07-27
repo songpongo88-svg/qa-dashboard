@@ -8573,69 +8573,77 @@ export default function SummaryMockup({
           <div data-analytics-logic-v90="true" className="space-y-5">
             <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_6px_22px_rgba(15,23,42,0.05)]">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div>
+                <div data-weekly-dropdown-buttons-v138="true">
                   <FilterLabel>View By</FilterLabel>
-                  <select value={analysisMode} onChange={(event) => {
-                    setAnalysisMode(event.target.value as "weekly" | "monthly" | "yearly");
-                    setSelectedPeriods([]);
-                    setAnalyticsCompareOpen(false);
-                  }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                  </select>
+                  <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl border border-violet-200 bg-violet-50 p-1">
+                    {[
+                      { value: "weekly", label: "Weekly View" },
+                      { value: "monthly", label: "Monthly View" },
+                      { value: "yearly", label: "Yearly View" },
+                    ].map((option) => {
+                      const active = analysisMode === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setAnalysisMode(
+                              option.value as
+                                | "weekly"
+                                | "monthly"
+                                | "yearly"
+                            );
+                            setSelectedPeriods([]);
+                            setAnalyticsCompareOpen(false);
+                          }}
+                          className={
+                            "rounded-lg px-2 py-2.5 text-[11px] font-medium transition " +
+                            (active
+                              ? "bg-violet-700 text-white shadow-sm"
+                              : "bg-white text-violet-700 hover:bg-violet-100")
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div data-visible-weekly-period-groups-v137="true">
+                <div>
                   <FilterLabel>Period</FilterLabel>
 
                   {analysisMode === "weekly" ? (
-                    <div className="mt-2 max-h-[230px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                    <select
+                      value={
+                        effectivePeriodKeys[
+                          effectivePeriodKeys.length - 1
+                        ] || ""
+                      }
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setSelectedPeriods(value ? [value] : []);
+                      }}
+                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-normal text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    >
                       {weeklyPeriodGroups.map((group, groupIndex) => (
-                        <div
-                          key={group.monthKey}
-                          className={
-                            groupIndex > 0
-                              ? "mt-3 border-t border-dashed border-slate-300 pt-3"
-                              : ""
-                          }
-                        >
-                          <div className="mb-2 flex items-center gap-2 px-1">
-                            <span className="text-[11px] font-semibold text-slate-700">
-                              {group.monthLabel}
-                            </span>
-                            <span className="h-px flex-1 border-t border-dashed border-slate-300" />
-                          </div>
+                        <React.Fragment key={group.monthKey}>
+                          <optgroup label={group.monthLabel}>
+                            {group.periods.map((period) => (
+                              <option key={period} value={period}>
+                                {getPeriodDisplayLabel(period)}
+                              </option>
+                            ))}
+                          </optgroup>
 
-                          <div className="space-y-1">
-                            {group.periods.map((period) => {
-                              const selected =
-                                effectivePeriodKeys[
-                                  effectivePeriodKeys.length - 1
-                                ] === period;
-
-                              return (
-                                <button
-                                  key={period}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedPeriods([period]);
-                                  }}
-                                  className={
-                                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition " +
-                                    (selected
-                                      ? "bg-violet-700 font-medium text-white shadow-sm"
-                                      : "text-slate-600 hover:bg-violet-50 hover:text-violet-700")
-                                  }
-                                >
-                                  <span>{getPeriodDisplayLabel(period)}</span>
-                                  <span>{selected ? "✓" : ""}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                          {groupIndex < weeklyPeriodGroups.length - 1 ? (
+                            <option disabled value={"__separator_" + group.monthKey}>
+                              ─────────────
+                            </option>
+                          ) : null}
+                        </React.Fragment>
                       ))}
-                    </div>
+                    </select>
                   ) : (
                     <select
                       value={
@@ -8646,10 +8654,7 @@ export default function SummaryMockup({
                       onChange={(event) => {
                         const value = event.target.value;
                         setSelectedPeriods(value ? [value] : []);
-                        if (
-                          analysisMode === "monthly" &&
-                          value
-                        ) {
+                        if (analysisMode === "monthly" && value) {
                           setTeamSelectedMonth(value);
                         }
                       }}
@@ -8699,20 +8704,6 @@ export default function SummaryMockup({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {analysisMode === "weekly" ? (
-                    <button
-                      type="button"
-                      disabled={!effectivePeriodKeys.length}
-                      onClick={() => {
-                        setViewMode("weekly-dashboard");
-                        setAnalyticsDetailsOpen(true);
-                      }}
-                      className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-medium text-violet-700 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Weekly View
-                    </button>
-                  ) : null}
-
                   <button
                     type="button"
                     onClick={() => {
