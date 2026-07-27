@@ -1225,9 +1225,14 @@ function Panel({
   children: React.ReactNode;
   className?: string;
 }) {
+  const overflowClass = className.includes("overflow-visible")
+    ? "overflow-visible"
+    : "overflow-hidden";
+
   return (
     <div
-      className={`relative min-w-0 overflow-hidden rounded-[26px] border border-violet-200/70 bg-white/95 shadow-[0_10px_28px_rgba(76,29,149,0.08)] backdrop-blur-sm ${className}`}
+      data-case-filter-overflow-visible-v135-fix={overflowClass}
+      className={`relative min-w-0 ${overflowClass} rounded-[26px] border border-violet-200/70 bg-white/95 shadow-[0_10px_28px_rgba(76,29,149,0.08)] backdrop-blur-sm ${className}`}
     >
       {isSongkranThemeActive() ? (
         <SongkranFlowerCorner className="-right-2 -top-2 scale-75 opacity-70" />
@@ -5928,7 +5933,7 @@ export default function DashboardMockup({
 
             {/* data-case-history-filters-v133 */}
             <Panel
-              className={dashboardSubTab === "case-detail" ? "" : "hidden"}
+              className={dashboardSubTab === "case-detail" ? "overflow-visible" : "hidden"}
               aria-hidden={dashboardSubTab !== "case-detail"}
             >
               <PanelHeader
