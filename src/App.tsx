@@ -790,6 +790,26 @@ function normalizeRoleName(value: unknown): UserRole {
   return roleName;
 }
 
+// data-restore-original-role-agent-scope-v132
+function isSelfOnlyAgentScopeRole(role: unknown) {
+  const normalized = String(role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  return (
+    normalized === "admin live chat" ||
+    normalized === "admin" ||
+    normalized === "damin" ||
+    normalized === "agent"
+  );
+}
+
+function roleHasAllAgentScope(role: unknown) {
+  return !isSelfOnlyAgentScopeRole(role);
+}
+
 function buildRolePermissionOverrides(logs: UsageLogEvent[]) {
   const permissionMap: RolePermissionMap = {};
   const savedRoles = new Set<string>();
@@ -825,6 +845,11 @@ function hasRolePermission(user: CurrentUser | null, permissions: RolePermission
   if (!user) return false;
   const displayName = String(user.displayName || "").trim().toLowerCase();
   const username = String(user.username || "").trim().toLowerCase();
+
+  if (key === "viewAllAgents" || key === "viewAgentsInOverview") {
+    return roleHasAllAgentScope(user.role);
+  }
+
   if (user.role === "Quality Assurance" && (displayName === "songpon phothong" || username === "songpon")) return true;
   return Boolean((permissions[user.role] || getDefaultRolePermissions(user.role))[key]);
 }
@@ -3571,9 +3596,9 @@ export default function App() {
     };
   }, []);
   const roleScopedAgentNames = useMemo(() => {
-    if (!currentUser || hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) return [];
+    if (!currentUser || roleHasAllAgentScope(currentUser.role)) return [];
     return [currentUser.agentName || currentUser.displayName || currentUser.username].filter(Boolean);
-  }, [currentUser, rolePermissions]);
+  }, [currentUser]);
   const overviewAgentSelectionAllowed = currentUser
     ? hasRolePermission(
         currentUser,
@@ -4988,8 +5013,8 @@ export default function App() {
     if (!currentUser) return;
 
     const scopedAgent = currentUser.agentName || currentUser.displayName || currentUser.username;
-    if (hasRolePermission(currentUser, rolePermissions, "viewAllAgents")) {
-      if (loginAgentScopeSeededRef.current) {
+    if (roleHasAllAgentScope(currentUser.role)) {
+      if (loginAgentScopeSeededRef.current || selectedAgentGlobal) {
         setSelectedAgentGlobal("");
         loginAgentScopeSeededRef.current = false;
       }
@@ -5000,7 +5025,7 @@ export default function App() {
     if (scopedAgent && selectedAgentGlobal !== scopedAgent) {
       setSelectedAgentGlobal(scopedAgent);
     }
-  }, [currentUser, rolePermissions, selectedAgentGlobal]);
+  }, [currentUser, selectedAgentGlobal]);
 
   const clearSessionTimers = () => {
     if (warningTimerRef.current) {
@@ -5639,8 +5664,7 @@ export default function App() {
     setUsername("");
     setPassword("");
     syncRouteFromLocation({ replace: true });
-    const matchedPermissions = rolePermissions[matchedUser.role] || getDefaultRolePermissions(matchedUser.role);
-    const initialAgentScope = matchedPermissions.viewAllAgents ? "" : matchedUser.agentName;
+    const initialAgentScope = roleHasAllAgentScope(matchedUser.role) ? "" : matchedUser.agentName;
     loginAgentScopeSeededRef.current = Boolean(initialAgentScope);
     setSelectedAgentGlobal(initialAgentScope);
     setSelectedMonthGlobal(getCurrentMonthKey());
