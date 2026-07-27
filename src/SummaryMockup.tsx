@@ -1367,6 +1367,10 @@ function AnalyticsAgentPerformanceV92({
   canSelectAgent: boolean;
   onSelectAgent: (agent: string) => void;
 }) {
+  const [agentSortTab, setAgentSortTab] = useState<
+    "ranking" | "alphabetical"
+  >("ranking");
+
   const rows = useMemo(() => {
     const names = new Map<string, string>();
 
@@ -1478,7 +1482,25 @@ function AnalyticsAgentPerformanceV92({
 
   const allAgentsMode = selectedAgent === "all";
   // data-analytics-layout-promo-readable-v128
-  const visibleRows = rows;
+  const visibleRows = useMemo(() => {
+    if (!allAgentsMode || agentSortTab === "ranking") {
+      return rows;
+    }
+
+    return [...rows].sort(
+      (left, right) =>
+        left.displayName.localeCompare(
+          right.displayName,
+          "en",
+          { sensitivity: "base" }
+        ) ||
+        left.agent.localeCompare(
+          right.agent,
+          "en",
+          { sensitivity: "base" }
+        )
+    );
+  }, [rows, allAgentsMode, agentSortTab]);
   const promoActiveForMonth =
     monthlyMode && hasRbhPromo(monthKey);
   const incentiveGuideColumns = promoActiveForMonth
@@ -1510,23 +1532,58 @@ function AnalyticsAgentPerformanceV92({
     <div
       data-analytics-agent-incentive-v92="true"
       data-agent-no-data-logic-v111="true"
+      data-agent-performance-tabs-v132="true"
       className="space-y-5"
     >
       <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-[15px] font-semibold text-slate-900">
-              {allAgentsMode
-                ? "Agent Performance (All Agents)"
-                : "Individual Agent Analysis"}
+        <div className="border-b border-slate-100 px-5 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[15px] font-semibold text-slate-900">
+                {allAgentsMode
+                  ? "Agent Performance (All Agents)"
+                  : "Individual Agent Analysis"}
+              </div>
+              <div className="mt-1 text-[10px] font-normal text-slate-500">
+                {periodLabel || "Current selection"} ·{" "}
+                {allAgentsMode && agentSortTab === "alphabetical"
+                  ? "Sorted by Agent name A–Z"
+                  : "Ranked by average score"}
+              </div>
             </div>
-            <div className="mt-1 text-[10px] font-normal text-slate-500">
-              {periodLabel || "Current selection"} · Ranked by average score
+            <div className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700">
+              {rows.length} Agent{rows.length === 1 ? "" : "s"}
             </div>
           </div>
-          <div className="rounded-full bg-violet-50 px-3 py-1.5 text-[10px] font-medium text-violet-700">
-            {rows.length} Agent{rows.length === 1 ? "" : "s"}
-          </div>
+
+          {allAgentsMode ? (
+            <div className="mt-4 inline-flex rounded-xl border border-violet-200 bg-violet-50/70 p-1">
+              <button
+                type="button"
+                onClick={() => setAgentSortTab("ranking")}
+                className={
+                  "rounded-lg px-4 py-2 text-[11px] font-medium transition " +
+                  (agentSortTab === "ranking"
+                    ? "bg-violet-700 text-white shadow-sm"
+                    : "text-violet-700 hover:bg-white")
+                }
+              >
+                Performance Ranking
+              </button>
+              <button
+                type="button"
+                onClick={() => setAgentSortTab("alphabetical")}
+                className={
+                  "rounded-lg px-4 py-2 text-[11px] font-medium transition " +
+                  (agentSortTab === "alphabetical"
+                    ? "bg-violet-700 text-white shadow-sm"
+                    : "text-violet-700 hover:bg-white")
+                }
+              >
+                Agent A–Z
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="max-h-[520px] overflow-auto">
