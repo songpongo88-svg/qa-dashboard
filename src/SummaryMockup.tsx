@@ -8637,8 +8637,12 @@ export default function SummaryMockup({
                           </optgroup>
 
                           {groupIndex < weeklyPeriodGroups.length - 1 ? (
-                            <option disabled value={"__separator_" + group.monthKey}>
-                              ─────────────
+                            <option
+                              data-weekly-separator-hyphen-v139="true"
+                              disabled
+                              value={"__separator_" + group.monthKey}
+                            >
+                              ----------------------------
                             </option>
                           ) : null}
                         </React.Fragment>
