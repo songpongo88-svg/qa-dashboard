@@ -124,6 +124,50 @@ type SubmitPreviewState = {
   draftId: string;
 };
 
+// data-evaluate-tab-memory-v153
+type EvaluateTabMemory = {
+  agentName: string;
+  auditDate: string;
+  waitingTime: string;
+  serviceTime: string;
+  caseId: string;
+  caseUrl: string;
+  inquiry: string;
+  caseDescription: string;
+  evidenceUrl: string;
+  evidenceFiles: EvidenceFile[];
+  criticalError: boolean;
+  evaluationStartedAt: string;
+  evaluationSubmittedAt: string;
+  evaluationStatus: "Not Started" | "Draft" | "Submitted";
+  draftSavedAt: string;
+  draftMessage: string;
+  activeDraftId: string;
+  activeSubmittedRecordId: string;
+  workspaceView: EvaluationWorkspaceView;
+  topicState: Record<string, TopicState>;
+  expandedGroups: Record<string, boolean>;
+};
+
+let evaluateTabMemory: EvaluateTabMemory | null = null;
+
+function readEvaluateTabMemory() {
+  return evaluateTabMemory;
+}
+
+function writeEvaluateTabMemory(nextMemory: EvaluateTabMemory) {
+  evaluateTabMemory = {
+    ...nextMemory,
+    evidenceFiles: [...nextMemory.evidenceFiles],
+    topicState: { ...nextMemory.topicState },
+    expandedGroups: { ...nextMemory.expandedGroups },
+  };
+}
+
+function clearEvaluateTabMemory() {
+  evaluateTabMemory = null;
+}
+
 const FALLBACK_AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
@@ -769,23 +813,26 @@ export default function CreateEvaluationMockup({
   currentUser?: EvaluationCurrentUser | null;
   onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
 }) {
-  const [agentName, setAgentName] = useState("");
-  const [auditDate, setAuditDate] = useState(todayInputValue());
-  const [waitingTime, setWaitingTime] = useState("");
-  const [serviceTime, setServiceTime] = useState("");
-  const [caseId, setCaseId] = useState("");
-  const [caseUrl, setCaseUrl] = useState("");
-  const [inquiry, setInquiry] = useState("");
-  const [caseDescription, setCaseDescription] = useState("");
-  const [evidenceUrl, setEvidenceUrl] = useState("");
-  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+  const restoredEvaluateTabMemoryRef = useRef(Boolean(readEvaluateTabMemory()));
+  const [agentName, setAgentName] = useState(() => readEvaluateTabMemory()?.agentName || "");
+  const [auditDate, setAuditDate] = useState(() => readEvaluateTabMemory()?.auditDate || todayInputValue());
+  const [waitingTime, setWaitingTime] = useState(() => readEvaluateTabMemory()?.waitingTime || "");
+  const [serviceTime, setServiceTime] = useState(() => readEvaluateTabMemory()?.serviceTime || "");
+  const [caseId, setCaseId] = useState(() => readEvaluateTabMemory()?.caseId || "");
+  const [caseUrl, setCaseUrl] = useState(() => readEvaluateTabMemory()?.caseUrl || "");
+  const [inquiry, setInquiry] = useState(() => readEvaluateTabMemory()?.inquiry || "");
+  const [caseDescription, setCaseDescription] = useState(() => readEvaluateTabMemory()?.caseDescription || "");
+  const [evidenceUrl, setEvidenceUrl] = useState(() => readEvaluateTabMemory()?.evidenceUrl || "");
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(() => readEvaluateTabMemory()?.evidenceFiles || []);
   const [evidenceUploadMessage, setEvidenceUploadMessage] = useState("");
-  const [criticalError, setCriticalError] = useState(false);
-  const [evaluationStartedAt, setEvaluationStartedAt] = useState("");
-  const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState("");
-  const [evaluationStatus, setEvaluationStatus] = useState<"Not Started" | "Draft" | "Submitted">("Not Started");
-  const [draftSavedAt, setDraftSavedAt] = useState("");
-  const [draftMessage, setDraftMessage] = useState("");
+  const [criticalError, setCriticalError] = useState(() => Boolean(readEvaluateTabMemory()?.criticalError));
+  const [evaluationStartedAt, setEvaluationStartedAt] = useState(() => readEvaluateTabMemory()?.evaluationStartedAt || "");
+  const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState(() => readEvaluateTabMemory()?.evaluationSubmittedAt || "");
+  const [evaluationStatus, setEvaluationStatus] = useState<"Not Started" | "Draft" | "Submitted">(
+    () => readEvaluateTabMemory()?.evaluationStatus || "Not Started"
+  );
+  const [draftSavedAt, setDraftSavedAt] = useState(() => readEvaluateTabMemory()?.draftSavedAt || "");
+  const [draftMessage, setDraftMessage] = useState(() => readEvaluateTabMemory()?.draftMessage || "");
   const [stickyNote, setStickyNote] = useState(() => {
     if (typeof window === "undefined") return "";
     try {
@@ -796,9 +843,13 @@ export default function CreateEvaluationMockup({
   });
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
   const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
-  const [activeDraftId, setActiveDraftId] = useState("");
-  const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>("form");
+  const [activeDraftId, setActiveDraftId] = useState(() => readEvaluateTabMemory()?.activeDraftId || "");
+  const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState(
+    () => readEvaluateTabMemory()?.activeSubmittedRecordId || ""
+  );
+  const [workspaceView, setWorkspaceView] = useState<EvaluationWorkspaceView>(
+    () => readEvaluateTabMemory()?.workspaceView || "form"
+  );
   const [evaluationHistory, setEvaluationHistory] = useState<EvaluationRecord[]>([]);
   const [submittedRecords, setSubmittedRecords] = useState<EvaluationRecord[]>([]);
   const [submittedRecordsLoading, setSubmittedRecordsLoading] = useState(false);
@@ -813,19 +864,72 @@ export default function CreateEvaluationMockup({
   const [reportMessage, setReportMessage] = useState("");
   const [submittedReportPage, setSubmittedReportPage] = useState(1);
   const [rawReportPage, setRawReportPage] = useState(1);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    "Service Standard": true,
-    "Answer Quality": true,
-    Resolution: true,
-    Communication: true,
-  });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    () =>
+      readEvaluateTabMemory()?.expandedGroups || {
+        "Service Standard": true,
+        "Answer Quality": true,
+        Resolution: true,
+        Communication: true,
+      }
+  );
   const evaluatorName = currentUser?.displayName || currentUser?.agentName || currentUser?.username || "Songpon Phothong";
   const canOpenExportReport = currentUser?.role === "Quality Assurance";
 
   const activeRubric = useMemo(() => getRubricForDate(auditDate), [auditDate]);
   const topics = activeRubric.topics;
   const rubricPeriod = `${formatRubricDate(activeRubric.startDate)} - ${formatRubricDate(activeRubric.endDate)}`;
-  const [topicState, setTopicState] = useState<Record<string, TopicState>>(() => buildInitialTopicState(topics));
+  const [topicState, setTopicState] = useState<Record<string, TopicState>>(
+    () => readEvaluateTabMemory()?.topicState || buildInitialTopicState(topics)
+  );
+
+  useEffect(() => {
+    writeEvaluateTabMemory({
+      agentName,
+      auditDate,
+      waitingTime,
+      serviceTime,
+      caseId,
+      caseUrl,
+      inquiry,
+      caseDescription,
+      evidenceUrl,
+      evidenceFiles,
+      criticalError,
+      evaluationStartedAt,
+      evaluationSubmittedAt,
+      evaluationStatus,
+      draftSavedAt,
+      draftMessage,
+      activeDraftId,
+      activeSubmittedRecordId,
+      workspaceView,
+      topicState,
+      expandedGroups,
+    });
+  }, [
+    agentName,
+    auditDate,
+    waitingTime,
+    serviceTime,
+    caseId,
+    caseUrl,
+    inquiry,
+    caseDescription,
+    evidenceUrl,
+    evidenceFiles,
+    criticalError,
+    evaluationStartedAt,
+    evaluationSubmittedAt,
+    evaluationStatus,
+    draftSavedAt,
+    draftMessage,
+    activeDraftId,
+    activeSubmittedRecordId,
+    workspaceView,
+    topicState,
+    expandedGroups,
+  ]);
   const availableAgentOptions = useMemo(() => {
     const options = (agentOptions || [])
       .filter((agent) => agent.agentName || agent.displayName)
@@ -913,6 +1017,7 @@ export default function CreateEvaluationMockup({
   }, [activeRubric.code, topics]);
 
   useEffect(() => {
+    if (restoredEvaluateTabMemoryRef.current) return;
     const rawDrafts = window.localStorage.getItem(DRAFT_STORAGE_KEY);
     const rawLegacyDraft = window.localStorage.getItem(LEGACY_DRAFT_STORAGE_KEY);
     if (!rawDrafts && !rawLegacyDraft) return;
@@ -1150,6 +1255,7 @@ export default function CreateEvaluationMockup({
   }
 
   function resetEvaluationForm() {
+    clearEvaluateTabMemory();
     setAgentName("");
     setAuditDate(todayInputValue());
     setWaitingTime("");
