@@ -3398,21 +3398,6 @@ function SlideOverCaseDetail({
     }
   };
 
-  // data-team-evaluation-target-v141
-  const dashboardEvaluatedAgentCount = new Set(
-    dashboardCases
-      .map((item) =>
-        String(item.agent || "")
-          .trim()
-          .toLowerCase()
-      )
-      .filter(Boolean)
-  ).size;
-  const dashboardEvaluationTarget = Math.max(
-    CASE_TARGET,
-    dashboardEvaluatedAgentCount * CASE_TARGET
-  );
-
   return (
     <div className={embedded ? "relative min-h-0 w-full bg-[#f8f6ff]" : "fixed inset-0 z-[90] bg-slate-900/45"}>
       {!embedded ? <div className="absolute inset-0" onClick={onClose} /> : null}
@@ -5358,13 +5343,14 @@ export default function DashboardMockup({
   const evaluatedAgentNames = useMemo(() => {
     return dedupeAgentNames(dashboardCases.map((item) => item.agent).filter(Boolean));
   }, [dashboardCases]);
+  // data-dashboard-team-target-v152
   const progressTarget = isAllAgentsView
-    ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET
+    ? Math.max(evaluatedAgentNames.length, 1) * CASE_TARGET
     : CASE_TARGET;
   const progressCompleted = metricCaseCount;
   const progressComplete = progressCompleted >= progressTarget;
   const progressSubText = isAllAgentsView
-    ? `${visibleTargetAgents.length} agent(s) x ${CASE_TARGET} cases monthly target`
+    ? `${Math.max(evaluatedAgentNames.length, 1)} agent(s) x ${CASE_TARGET} cases monthly target`
     : progressComplete
     ? "Target reached"
     : "Target not reached";
@@ -5382,13 +5368,22 @@ export default function DashboardMockup({
     }
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
+
+  const kpiTargetAgentCount = useMemo(() => {
+    if (!isAllAgentsView) return 1;
+    return Math.max(
+      dedupeAgentNames(kpiPeriodCases.map((item) => item.agent).filter(Boolean)).length,
+      1
+    );
+  }, [isAllAgentsView, kpiPeriodCases]);
+
   const kpiScopeSummary = useMemo(() => {
     const caseCount = kpiPeriodCases.length;
     const average = caseCount
       ? kpiPeriodCases.reduce((sum, item) => sum + item.finalScore, 0) / caseCount
       : 0;
     const volumeTarget = isAllAgentsView
-      ? Math.max(visibleTargetAgents.length, 1) * CASE_TARGET
+      ? kpiTargetAgentCount * CASE_TARGET
       : CASE_TARGET;
     const scorePassed = caseCount > 0 && average >= kpiScoreTarget;
     const volumePassed = caseCount >= volumeTarget;
@@ -5410,7 +5405,7 @@ export default function DashboardMockup({
       passed: scorePassed && volumePassed,
       status,
     };
-  }, [isAllAgentsView, kpiPeriodCases, kpiScoreTarget, visibleTargetAgents.length]);
+  }, [isAllAgentsView, kpiPeriodCases, kpiScoreTarget, kpiTargetAgentCount]);
 
   const currentGradeDisplay =
     metricCaseCount === 0
@@ -5601,6 +5596,8 @@ export default function DashboardMockup({
         : "All History"
       : monthOptions.find((m) => m.value === selectedMonthKey)?.label || "-";
 
+  const dashboardEvaluationTarget = kpiScopeSummary.volumeTarget;
+
   const kpiStatusLabel =
     !isMonthlyView
       ? "Select Month"
@@ -5703,7 +5700,7 @@ export default function DashboardMockup({
       sub: !isMonthlyView
         ? "Monthly progress requires a selected month"
         : isAllAgentsView
-        ? `${visibleTargetAgents.length} agent(s) × ${CASE_TARGET} cases monthly target`
+        ? `${kpiTargetAgentCount} agent(s) × ${CASE_TARGET} cases monthly target`
         : kpiScopeSummary.volumePassed
           ? "Monthly target completed"
           : `${Math.max(0, CASE_TARGET - kpiScopeSummary.caseCount)} case(s) remaining`,
