@@ -3298,6 +3298,60 @@ export default function SummaryMockup({
     return selectableYears;
   }, [allCases, analysisMode, selectableYears]);
 
+  const weeklyPeriodGroups = useMemo(() => {
+    if (analysisMode !== "weekly") return [];
+
+    const grouped = new Map<
+      string,
+      {
+        monthKey: string;
+        monthLabel: string;
+        periods: string[];
+      }
+    >();
+
+    periodOptions.forEach((period) => {
+      const matchingCases = allCases
+        .filter((item) => item.weekLabel === period)
+        .sort(
+          (left, right) =>
+            (right.auditDateObj?.getTime() || 0) -
+            (left.auditDateObj?.getTime() || 0)
+        );
+
+      const referenceCase = matchingCases[0];
+      const monthKey =
+        referenceCase?.monthKey ||
+        "unknown";
+      const monthLabel =
+        referenceCase?.monthLabel ||
+        "Other";
+
+      if (!grouped.has(monthKey)) {
+        grouped.set(monthKey, {
+          monthKey,
+          monthLabel,
+          periods: [],
+        });
+      }
+
+      grouped.get(monthKey)!.periods.push(period);
+    });
+
+    return [...grouped.values()]
+      .sort((left, right) =>
+        right.monthKey.localeCompare(left.monthKey)
+      )
+      .map((group) => ({
+        ...group,
+        periods: [...group.periods].sort(
+          (left, right) =>
+            getPeriodRowSortRank(right, "week") -
+            getPeriodRowSortRank(left, "week")
+        ),
+      }));
+  }, [analysisMode, periodOptions, allCases]);
+
   const maxSelectedPeriods =
     analysisMode === "monthly" ? 6 : 4;
 
@@ -9106,85 +9160,93 @@ export default function SummaryMockup({
                       </div>
                     </div>
 
-                    <div className="mt-2 flex max-h-[250px] flex-wrap gap-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                      {periodOptions.map(
-                        (period) => {
-                          const checked =
-                            selectedPeriods.includes(
-                              period
-                            );
-                          const disabled =
-                            !checked &&
-                            selectedPeriods.length >=
-                              maxSelectedPeriods;
-
-                          return (
-                            <button
-                              key={
-                                period
-                              }
-                              type="button"
-                              disabled={
-                                disabled
-                              }
-                              onClick={() => {
-                                if (
-                                  checked
-                                ) {
-                                  setSelectedPeriods(
-                                    selectedPeriods.filter(
-                                      (
-                                        item
-                                      ) =>
-                                        item !==
-                                        period
-                                    )
-                                  );
-                                  return;
-                                }
-
-                                if (
-                                  disabled
-                                ) {
-                                  return;
-                                }
-
-                                setSelectedPeriods(
-                                  sortPeriodKeys(
-                                    [
-                                      ...selectedPeriods,
-                                      period,
-                                    ]
-                                  )
-                                );
-                              }}
-                              className={
-                                "min-w-[140px] rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition " +
-                                (
-                                  checked
-                                    ? "border-violet-400 bg-white text-violet-800 shadow-sm"
-                                    : disabled
-                                      ? "cursor-not-allowed border-transparent bg-slate-100 text-slate-400 opacity-60"
-                                      : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"
-                                )
-                              }
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <span>
-                                  {getPeriodDisplayLabel(
-                                    period
-                                  )}
-                                </span>
-                                <span className="text-violet-600">
-                                  {checked
-                                    ? "✓"
-                                    : ""}
-                                </span>
+                    <div
+                      data-weekly-period-groups-v135="true"
+                      className="mt-2 max-h-[320px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+                    >
+                      {(analysisMode === "weekly"
+                        ? weeklyPeriodGroups
+                        : [
+                            {
+                              monthKey: "all",
+                              monthLabel: "",
+                              periods: periodOptions,
+                            },
+                          ]
+                      ).map((group, groupIndex) => (
+                        <div
+                          key={group.monthKey}
+                          className={
+                            groupIndex > 0
+                              ? "mt-4 border-t border-dashed border-slate-300 pt-4"
+                              : ""
+                          }
+                        >
+                          {analysisMode === "weekly" ? (
+                            <div className="mb-2 flex items-center gap-3">
+                              <div className="text-xs font-semibold text-slate-700">
+                                {group.monthLabel}
                               </div>
-                            </button>
-                          );
-                        }
-                      )}
+                              <div className="h-px flex-1 border-t border-dashed border-slate-300" />
+                            </div>
+                          ) : null}
+
+                          <div className="flex flex-wrap gap-2">
+                            {group.periods.map((period) => {
+                              const checked =
+                                selectedPeriods.includes(period);
+                              const disabled =
+                                !checked &&
+                                selectedPeriods.length >=
+                                  maxSelectedPeriods;
+
+                              return (
+                                <button
+                                  key={period}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => {
+                                    if (checked) {
+                                      setSelectedPeriods(
+                                        selectedPeriods.filter(
+                                          (item) => item !== period
+                                        )
+                                      );
+                                      return;
+                                    }
+
+                                    if (disabled) return;
+
+                                    setSelectedPeriods(
+                                      sortPeriodKeys([
+                                        ...selectedPeriods,
+                                        period,
+                                      ])
+                                    );
+                                  }}
+                                  className={
+                                    "min-w-[140px] rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition " +
+                                    (checked
+                                      ? "border-violet-400 bg-white text-violet-800 shadow-sm"
+                                      : disabled
+                                        ? "cursor-not-allowed border-transparent bg-slate-100 text-slate-400 opacity-60"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-violet-300")
+                                  }
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>
+                                      {getPeriodDisplayLabel(period)}
+                                    </span>
+                                    <span className="text-violet-600">
+                                      {checked ? "✓" : ""}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -9200,6 +9262,21 @@ export default function SummaryMockup({
                     >
                       Close
                     </button>
+
+                    {analysisMode === "weekly" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAnalyticsCustomizeOpen(false);
+                          setViewMode("weekly-dashboard");
+                          setAnalyticsDetailsOpen(true);
+                        }}
+                        disabled={!effectivePeriodKeys.length}
+                        className="rounded-xl border border-violet-300 bg-white px-5 py-2.5 text-sm font-medium text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Weekly View
+                      </button>
+                    ) : null}
 
                     <button
                       type="button"
