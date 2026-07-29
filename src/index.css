@@ -47,6 +47,54 @@ textarea {
   line-height: 1.4 !important;
 }
 
+/* data-unified-robinhood-ui-v156 */
+#root {
+  background: linear-gradient(135deg, #f8f6ff 0%, #ffffff 52%, #f7f2ff 100%);
+  font-weight: 400;
+}
+
+#root .font-black,
+#root .font-extrabold {
+  font-weight: 500 !important;
+}
+
+#root .font-bold,
+#root .font-semibold {
+  font-weight: 500 !important;
+}
+
+#root h1,
+#root h2,
+#root h3,
+[data-unified-robinhood-hero-v156="true"] .text-3xl,
+[data-unified-robinhood-hero-v156="true"] .text-4xl {
+  font-weight: 600 !important;
+}
+
+#root button,
+#root input,
+#root select,
+#root textarea {
+  font-weight: 400;
+}
+
+#root button[class*="font-"],
+#root select[class*="font-"] {
+  font-weight: 500 !important;
+}
+
+#root button[role="tab"][aria-label^="Open "]::before {
+  content: "";
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+  border-radius: 0.375rem;
+  vertical-align: middle;
+  background: url("/robinhood-logo.png") center / contain no-repeat;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+}
+
 @media (max-width: 1280px) {
   [data-analytics-readable-v128="true"] {
     overflow-x: clip;

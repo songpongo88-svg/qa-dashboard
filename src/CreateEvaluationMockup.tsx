@@ -1903,7 +1903,7 @@ export default function CreateEvaluationMockup({
   const pagedRawReportRecords = visibleRawReportRecords.slice(rawStartIndex, rawStartIndex + REPORT_PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-[#eef5f1] text-slate-950" style={{ fontFamily: "Aptos, 'Noto Sans Thai', 'Segoe UI', sans-serif" }}>
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 text-slate-950" style={{ fontFamily: "'Kanit', 'Noto Sans Thai', sans-serif" }}>
       <PageHero
         eyebrow="QA Work"
         title="New Evaluation"
@@ -2797,4 +2797,3 @@ export default function CreateEvaluationMockup({
     </div>
   );
 }
-
