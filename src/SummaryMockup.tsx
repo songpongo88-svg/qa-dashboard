@@ -8,6 +8,7 @@ import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
 import { getIncentiveByGrade, getIncentiveByScore, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
+import PageHero from "./PageHero";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -8075,13 +8076,13 @@ export default function SummaryMockup({
       ) : null}
 
       {songkranTheme ? <SongkranBackdrop /> : null}
-      <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-7 lg:px-8 lg:pt-8">
-        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 lg:text-[30px]">Analytics</h1>
-            <p className="mt-2 text-sm font-normal text-slate-500">เลือกข้อมูล → ดูผล → เปรียบเทียบ → ส่งออก</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <PageHero
+        eyebrow="Performance"
+        title="Analytics"
+        subtitle="เลือกข้อมูล → ดูผล → เปรียบเทียบ → ส่งออก"
+      />
+      <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-200 pb-4">
             {isComparisonMode ? <span className="rounded-full bg-violet-100 px-3 py-2 text-xs font-medium text-violet-700">Compare Mode · {effectivePeriodKeys.length} Periods</span> : null}
             {isComparisonMode ? (
               <button type="button" onClick={() => {
@@ -8119,7 +8120,6 @@ export default function SummaryMockup({
               setCompareDraftPeriods(effectivePeriodKeys.length ? [...effectivePeriodKeys] : periodOptions.slice(0, 1));
               setAnalyticsCompareOpen(true);
             }} className="rounded-xl border border-violet-400 bg-white px-4 py-2.5 text-xs font-medium text-violet-700 shadow-sm hover:bg-violet-50">Compare</button>
-          </div>
         </div>
       </div>
       {analyticsCanViewTeamPerformance ? (
@@ -10338,5 +10338,4 @@ export default function SummaryMockup({
     </div>
   );
 }
-
 

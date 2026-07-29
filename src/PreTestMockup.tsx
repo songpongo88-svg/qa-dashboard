@@ -4,6 +4,7 @@ import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { THT_PLUS_2026_PRETEST_SET } from "./preTestThtPlus2026";
 import { fetchUsageLogsByEventTypes, logUsageEvent, type UsageLogEvent } from "./usageLog";
+import PageHero from "./PageHero";
 
 type CurrentUserLike = {
   username: string;
@@ -1769,30 +1770,28 @@ export default function PreTestMockup({
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f4f7fb] text-slate-950">
       {toast ? (
         <div className="fixed right-6 top-6 z-50 rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-sm font-black text-emerald-700 shadow-[0_18px_50px_rgba(15,23,42,0.16)]">
           {toast}
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-[1540px] overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
-        <section className="bg-gradient-to-r from-[#062f2b] via-[#0b745f] to-[#077ea8] px-6 py-8 text-white sm:px-9">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-100">Learning & Readiness Center</div>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Pre-Test</h1>
-              <p className="mt-2 max-w-4xl text-sm font-semibold leading-7 text-emerald-50">
-                สร้างชุดคำถาม ทำแบบทดสอบทีละข้อ แชร์ลิงก์ให้ผู้ใช้ และเก็บประวัติผลการทดสอบในรูปแบบพร้อมตรวจสอบสำหรับทีม QA
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[620px]">
+      <PageHero
+        eyebrow="Learning & Readiness"
+        title="Pre-Test"
+        subtitle="สร้างชุดคำถาม ทำแบบทดสอบ แชร์ลิงก์ และเก็บประวัติผลการทดสอบสำหรับทีม QA"
+      />
+
+      <div className="mx-auto max-w-[1540px] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-[30px] border border-violet-100 bg-white shadow-[0_20px_60px_rgba(76,29,149,0.08)]">
+          <section className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-5 sm:px-8">
+            <div className="grid gap-3 sm:grid-cols-3">
               <MetricCard label="Active Sets" value={activeSets.length} tone="emerald" />
               <MetricCard label="Completed Tests" value={results.length} tone="sky" />
               <MetricCard label="Pass Rate" value={results.length ? `${Math.round((results.filter((item) => item.result === "Pass").length / results.length) * 100)}%` : "-"} tone="amber" />
             </div>
-          </div>
-        </section>
+          </section>
 
         <section className="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-8">
           <div className="flex flex-wrap items-center gap-3">
@@ -2449,6 +2448,7 @@ export default function PreTestMockup({
             </div>
           </section>
         ) : null}
+        </div>
       </div>
     </div>
   );

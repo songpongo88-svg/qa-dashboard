@@ -4562,6 +4562,11 @@ export default function SignatureCenterMockup({
             font-family: "Kanit", "Noto Sans Thai", sans-serif;
           }
         `}</style>
+        <PageHero
+          eyebrow="Documents"
+          title="Signatures"
+          subtitle="ติดตามเอกสารลงนาม แยกตามเดือนและสถานะ พร้อมตรวจสอบผู้ที่ยังต้องดำเนินการ"
+        />
         <main className="min-w-0 bg-[#f3f0fa] p-4 sm:p-6">
           <div
             className={`grid items-start gap-5 ${
@@ -4722,14 +4727,11 @@ export default function SignatureCenterMockup({
 
             <div className="order-2 min-w-0 space-y-5">
               <section data-signature-redesign className="space-y-5">
-        <header className="rounded-[28px] border border-violet-100 bg-white px-5 py-5 shadow-[0_18px_50px_rgba(88,28,135,0.08)] sm:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <header className="rounded-[28px] border border-violet-100 bg-white px-5 py-4 shadow-[0_18px_50px_rgba(88,28,135,0.08)] sm:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-600">จัดการเอกสารลงนาม</div>
-              <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Signatures</h1>
-              <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                ติดตามเอกสารลงนาม แยกตามเดือนและสถานะ พร้อมตรวจสอบผู้ที่ยังต้องดำเนินการได้ในหน้าเดียว
-              </p>
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-violet-600">Document View</div>
+              <p className="mt-1 text-sm font-normal text-slate-500">เลือกดูคิวงานปัจจุบันหรือประวัติเอกสาร</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -6282,4 +6284,3 @@ export default function SignatureCenterMockup({
     </div>
   );
 }
-
