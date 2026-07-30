@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import DashboardMockup from "./DashboardMockup";
@@ -215,6 +215,40 @@ type CaseWorkspaceTabKey = `case:${string}`;
 type WorkspaceTabKey = AppTab | "case-detail" | CaseWorkspaceTabKey;
 type UserAdminSection = "users" | "roles" | "maintenance";
 
+function WorkspaceKeepAlive({
+  activeKey,
+  retainedKeys,
+  children,
+}: {
+  activeKey: AppTab;
+  retainedKeys: AppTab[];
+  children: React.ReactNode;
+}) {
+  const cachedViewsRef = useRef(new Map<AppTab, React.ReactNode>());
+  cachedViewsRef.current.set(activeKey, children);
+
+  for (const cachedKey of cachedViewsRef.current.keys()) {
+    if (!retainedKeys.includes(cachedKey)) {
+      cachedViewsRef.current.delete(cachedKey);
+    }
+  }
+
+  return (
+    <>
+      {Array.from(cachedViewsRef.current.entries()).map(([tabKey, view]) => (
+        <section
+          key={tabKey}
+          data-retained-workspace-tab={tabKey}
+          aria-hidden={tabKey !== activeKey}
+          style={{ display: tabKey === activeKey ? "block" : "none" }}
+        >
+          {view}
+        </section>
+      ))}
+    </>
+  );
+}
+
 type SidebarNavItem = {
   key: string;
   label: string;
@@ -244,7 +278,7 @@ type MaintenanceState = {
 const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Songpon",
-    password: "Boom@4421L2",
+    password: "",
     displayName: "Songpon Phothong",
     role: "Quality Assurance",
     agentName: "Songpon Phothong",
@@ -1626,7 +1660,7 @@ function buildEffectiveUserAccounts(
     if (merged.has(normalizedUsername)) return;
     merged.set(normalizedUsername, {
       username: profile.username,
-      password: "RBH1234",
+      password: "",
       displayName: profile.displayName,
       role: profile.role,
       agentName: profile.agentName,
@@ -3244,6 +3278,22 @@ export default function App() {
   const usernameValidationRequestRef = useRef(0);
   const automaticLoginRequestRef = useRef(0);
   const workspaceTabDragRef = useRef<WorkspaceTabKey | null>(null);
+  const workspaceScrollPositionsRef = useRef(new Map<WorkspaceTabKey, number>());
+
+  useEffect(() => {
+    const rememberActiveTabScroll = () => {
+      workspaceScrollPositionsRef.current.set(activeWorkspaceTab, window.scrollY);
+    };
+
+    rememberActiveTabScroll();
+    window.addEventListener("scroll", rememberActiveTabScroll, { passive: true });
+    return () => window.removeEventListener("scroll", rememberActiveTabScroll);
+  }, [activeWorkspaceTab]);
+
+  useLayoutEffect(() => {
+    const savedScrollTop = workspaceScrollPositionsRef.current.get(activeWorkspaceTab) || 0;
+    window.scrollTo({ top: savedScrollTop, left: 0, behavior: "auto" });
+  }, [activeWorkspaceTab]);
 
   // data-auth-workspace-reset-v40
   const resetWorkspaceSessionState = () => {
@@ -3750,6 +3800,17 @@ export default function App() {
       : "";
   const accountMenuDisplayValue = activeTab === "usage-log" || activeTab === "user-roles" ? activeTab : accountMenuValue;
   const unreadInboxTaskCount = inboxTasks.filter((item) => item.unread).length;
+  const retainedWorkspaceAppTabs = useMemo(() => {
+    const retained = new Set<AppTab>(["dashboard"]);
+    openWorkspaceTabs.forEach((workspaceKey) => {
+      retained.add(
+        workspaceKey === "case-detail" || isCaseWorkspaceTabKey(workspaceKey)
+          ? "dashboard"
+          : workspaceKey
+      );
+    });
+    return Array.from(retained);
+  }, [openWorkspaceTabs]);
   const shortBuildHash = buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "";
   const chatUnreadCounts = useMemo(() => {
     const readMap = currentUser ? readChatReadMap(currentUser) : {};
@@ -5502,30 +5563,6 @@ export default function App() {
   const handleLoginAsync = async () => {
     const normalizedUsername = username.trim().toLowerCase();
     const normalizedPassword = password.trim();
-    if (normalizedUsername === "songpon" && normalizedPassword === "Boom@4421L2") {
-      const nextUser: CurrentUser = {
-        username: "Songpon",
-        displayName: "Songpon Phothong",
-        role: "Quality Assurance",
-        agentName: "Songpon Phothong",
-        email: "Songpon@robinhood.co.th",
-        loginAt: new Date().toISOString(),
-      };
-
-      const activatedUser = await activateUserSession(nextUser);
-      if (!activatedUser) return;
-      void logUsageEvent(nextUser, "login", { tab: "dashboard" });
-      setLoginError("");
-      setUsername("");
-      setPassword("");
-      syncRouteFromLocation({ replace: true });
-      loginAgentScopeSeededRef.current = false;
-      setSelectedAgentGlobal("");
-      setSelectedMonthGlobal(getCurrentMonthKey());
-      setSelectedWeekGlobal("all");
-      void loadRoleOverrides();
-      return;
-    }
 
     // Direct Firebase profile login first.
     // This makes generated password from qa_user_profiles the source of truth.
@@ -6559,8 +6596,9 @@ export default function App() {
           </div>
         ) : null}
 
-        {activeTab === "dashboard" ? (
-          <div>
+        <WorkspaceKeepAlive activeKey={activeTab} retainedKeys={retainedWorkspaceAppTabs}>
+          {activeTab === "dashboard" ? (
+            <div>
             <DashboardMockup
               currentUser={currentUser}
               dashboardSubTab={dashboardSubTab}
@@ -6639,8 +6677,8 @@ export default function App() {
                 });
               }}
             />
-          </div>
-        ) : activeTab === "appeal" ? (
+            </div>
+          ) : activeTab === "appeal" ? (
           <AppealMockup
             currentUser={currentUser}
             externalSelectedAgent={selectedAgentGlobal}
@@ -6775,9 +6813,10 @@ export default function App() {
           />
         ) : activeTab === "rubric" && rubricAllowed ? (
           <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} initialRubricCode={selectedRubricCode} onShareLink={shareRubricLink} />
-        ) : (
-          <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} initialRubricCode={selectedRubricCode} onShareLink={shareRubricLink} />
-        )}
+          ) : (
+            <QARubricMockup currentUser={currentUser} canManageRubric={rubricManageAllowed} initialRubricCode={selectedRubricCode} onShareLink={shareRubricLink} />
+          )}
+        </WorkspaceKeepAlive>
       </div>
 
     </>
