@@ -1866,7 +1866,7 @@ function TeamConnection({
         teamName ||
         "Unassigned Team"
       }`}
-      subtitle="หัวหน้าทีมอยู่ลำดับแรก จากนั้นลูกทีม Active เรียงชื่อ A–Z และ Profile ปัจจุบันถูกไฮไลต์"
+      subtitle="รายชื่อสมาชิกในทีม สถานะบัญชี และโปรไฟล์ปัจจุบัน"
     >
       <div
         data-profile-team-connection-v83="true"
