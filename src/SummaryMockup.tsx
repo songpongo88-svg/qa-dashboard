@@ -1217,21 +1217,35 @@ function SummaryTable({
   rows,
   firstColLabel,
   showIncentive = false,
+  localizedHeaders = false,
 }: {
   rows: PeriodRow[];
   firstColLabel: string;
   showIncentive?: boolean;
+  localizedHeaders?: boolean;
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-violet-100">
       <table className={`${showIncentive ? "min-w-[880px]" : "min-w-[760px]"} w-full text-sm`}>
         <thead>
           <tr className="bg-violet-950 text-[11px] text-white">
-            <th className="px-4 py-3 text-left">{firstColLabel}</th>
-            <th className="px-4 py-3 text-center">Cases</th>
-            <th className="px-4 py-3 text-center">Average Score</th>
-            <th className="px-4 py-3 text-center">Grade</th>
-            {showIncentive ? <th className="px-4 py-3 text-center">Incentive</th> : null}
+            <th className="px-4 py-3 text-left">
+              {localizedHeaders ? "ช่วงเวลา" : firstColLabel}
+            </th>
+            <th className="px-4 py-3 text-center">
+              {localizedHeaders ? "จำนวนเคส" : "Cases"}
+            </th>
+            <th className="px-4 py-3 text-center">
+              {localizedHeaders ? "คะแนนเฉลี่ย" : "Average Score"}
+            </th>
+            <th className="px-4 py-3 text-center">
+              {localizedHeaders ? "เกรด" : "Grade"}
+            </th>
+            {showIncentive ? (
+              <th className="px-4 py-3 text-center">
+                {localizedHeaders ? "อินเซนทีฟ" : "Incentive"}
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -1352,93 +1366,135 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
+const ANALYTICS_TOPIC_TITLES: Record<string, string> = {
+  "Process & Policy Compliance":
+    "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+  "Answer Quality & Problem Analysis":
+    "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
+  "Case Handling & Follow-up":
+    "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
+  "Communication Skills":
+    "ทักษะการสื่อสาร (Communication Skills)",
+};
+
 function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
-  const sortedTopics = [...topics].sort(
-    (left, right) =>
-      right.pct - left.pct ||
-      left.code.localeCompare(right.code)
+  const orderedTopics = [...topics].sort((left, right) =>
+    left.code.localeCompare(right.code, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    })
   );
-  const strongestTopic = sortedTopics[0];
-  const coachingTopic =
-    sortedTopics[sortedTopics.length - 1];
+  const ringRadius = 42;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const kpiMarkerRotation =
+    (PERFORMANCE_KPI_TARGET / 100) * 360;
 
   return (
-    <div className="space-y-4">
-      {sortedTopics.length ? (
-        <div className="space-y-3">
-          {sortedTopics.map((topic, index) => (
-            <div
-              key={topic.code}
-              className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-medium text-slate-800">
-                    <span className="mr-2 text-slate-400">
-                      {index + 1}
-                    </span>
-                    {topic.label}
+    <div>
+      {orderedTopics.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {orderedTopics.map((topic) => {
+            const normalizedPercent = Math.max(
+              0,
+              Math.min(100, topic.pct)
+            );
+            const progressOffset =
+              ringCircumference *
+              (1 - normalizedPercent / 100);
+            const kpiDifference =
+              topic.pct - PERFORMANCE_KPI_TARGET;
+            const meetsKpi = kpiDifference >= 0;
+            const displayTitle =
+              ANALYTICS_TOPIC_TITLES[topic.label] ||
+              topic.label;
+
+            return (
+              <div
+                key={topic.code}
+                className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-5 text-center"
+              >
+                <div className="text-[11px] font-medium text-slate-800">
+                  <span className="mr-1.5 text-slate-400">
+                    {topic.code}.
+                  </span>
+                  {displayTitle}
+                </div>
+
+                <div className="relative mt-4 h-32 w-32 shrink-0">
+                  <svg
+                    viewBox="0 0 100 100"
+                    className="h-full w-full"
+                    role="img"
+                    aria-label={`${displayTitle}: ${topic.pct.toFixed(2)}%, KPI ${PERFORMANCE_KPI_TARGET}%`}
+                  >
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={ringRadius}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="7"
+                      className="text-slate-200"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={ringRadius}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="7"
+                      strokeLinecap="round"
+                      strokeDasharray={ringCircumference}
+                      strokeDashoffset={progressOffset}
+                      transform="rotate(-90 50 50)"
+                      className="text-violet-600"
+                    />
+                    <line
+                      x1="50"
+                      y1="3"
+                      x2="50"
+                      y2="14"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      transform={`rotate(${kpiMarkerRotation} 50 50)`}
+                      className="text-rose-500"
+                    />
+                  </svg>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-xl font-medium text-slate-950">
+                      {topic.pct.toFixed(2)}%
+                    </div>
+                    <div className="mt-0.5 text-[9px] font-normal text-slate-400">
+                      KPI {PERFORMANCE_KPI_TARGET}%
+                    </div>
                   </div>
-                  <div className="mt-1 text-[10px] font-normal text-slate-500">
-                    Topic {topic.code} · Average {topic.avgScore.toFixed(2)}/{topic.max}
-                  </div>
+                </div>
+
+                <div className="mt-3 text-[10px] font-normal text-slate-500">
+                  คะแนนเฉลี่ย {topic.avgScore.toFixed(2)}/{topic.max}
                 </div>
                 <div
                   className={
-                    "shrink-0 text-sm font-medium " +
-                    (topic.pct >= PERFORMANCE_KPI_TARGET
+                    "mt-1 text-[10px] font-medium " +
+                    (meetsKpi
                       ? "text-emerald-700"
-                      : "text-amber-700")
+                      : "text-rose-600")
                   }
                 >
-                  {topic.pct.toFixed(2)}%
+                  {meetsKpi ? "ผ่าน KPI" : "ต่ำกว่า KPI"}{" "}
+                  {meetsKpi ? "+" : "−"}
+                  {Math.abs(kpiDifference).toFixed(2)}%
                 </div>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className={
-                    "h-full rounded-full " +
-                    (topic.pct >= PERFORMANCE_KPI_TARGET
-                      ? "bg-gradient-to-r from-violet-700 to-fuchsia-500"
-                      : "bg-gradient-to-r from-amber-500 to-orange-400")
-                  }
-                  style={{
-                    width: `${Math.max(
-                      0,
-                      Math.min(100, topic.pct)
-                    )}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm font-normal text-slate-400">
-          No topic data
+          ไม่มีข้อมูลคะแนนรายหัวข้อ
         </div>
       )}
-
-      {strongestTopic && coachingTopic ? (
-        <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
-          <div className="rounded-xl bg-emerald-50 px-3 py-2.5">
-            <div className="text-[9px] font-normal uppercase tracking-wide text-emerald-600">
-              Strongest
-            </div>
-            <div className="mt-1 truncate text-[11px] font-medium text-emerald-800">
-              {strongestTopic.label} · {strongestTopic.pct.toFixed(2)}%
-            </div>
-          </div>
-          <div className="rounded-xl bg-amber-50 px-3 py-2.5">
-            <div className="text-[9px] font-normal uppercase tracking-wide text-amber-600">
-              Coaching Focus
-            </div>
-            <div className="mt-1 truncate text-[11px] font-medium text-amber-800">
-              {coachingTopic.label} · {coachingTopic.pct.toFixed(2)}%
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -8890,18 +8946,18 @@ export default function SummaryMockup({
                 effectivePeriodKeys
               }
               detailContent={
-                <div data-analytics-primary-details-v144="true">
+                <div data-analytics-primary-details-v145="true">
                   <Panel>
                     <PanelHeader
-                      title="Performance & Topic Detail"
-                      subtitle="รายละเอียดผลลัพธ์และคะแนนแต่ละหัวข้อในมุมมองเดียว"
+                      title="รายละเอียดผลการประเมินและหัวข้อ (Performance & Topic Detail)"
+                      subtitle="สรุปผลตามช่วงเวลาและคะแนนรายหัวข้อในบล็อกเดียว"
                     />
                     <PanelBody>
-                      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] xl:gap-0">
-                        <section className="min-w-0 xl:pr-5">
+                      <div className="min-w-0 space-y-6">
+                        <section className="min-w-0">
                           <div className="mb-4">
                             <div className="text-[13px] font-medium text-slate-900">
-                              Performance Detail
+                              รายละเอียดผลการประเมิน (Performance Detail)
                             </div>
                             <div className="mt-1 text-[10px] font-normal text-slate-500">
                               ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน
@@ -8911,16 +8967,17 @@ export default function SummaryMockup({
                             rows={summaryRows}
                             firstColLabel={firstColLabel}
                             showIncentive={summaryTableShowIncentive}
+                            localizedHeaders
                           />
                         </section>
 
-                        <section className="min-w-0 border-t border-slate-100 pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
+                        <section className="min-w-0 border-t border-slate-100 pt-6">
                           <div className="mb-4">
                             <div className="text-[13px] font-medium text-slate-900">
-                              Topic Detail
+                              รายละเอียดตามหัวข้อ (Topic Detail)
                             </div>
                             <div className="mt-1 text-[10px] font-normal text-slate-500">
-                              เรียงคะแนนจากดีที่สุดไปยังหัวข้อที่ควร Coaching
+                              แสดงตามลำดับหัวข้อประเมิน พร้อมเทียบ KPI {PERFORMANCE_KPI_TARGET}%
                             </div>
                           </div>
                           <AnalyticsTopicDetail
