@@ -2,7 +2,16 @@ import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode 
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
-import { deleteStoredEvaluation, fetchStoredEvaluations, type StoredEvaluation, type StoredEvaluationTopic } from "./evaluationStore";
+import {
+  deleteStoredEvaluation,
+  fetchStoredEvaluations,
+  getStoredEvaluationMonthKey,
+  isNoCaseEvaluation,
+  upsertStoredEvaluation,
+  type StoredEvaluation,
+  type StoredEvaluationTopic,
+  type StoredEvaluationType,
+} from "./evaluationStore";
 import {
   RUBRIC_GROUP_LABELS,
   formatRubricDate,
@@ -53,6 +62,7 @@ type EvaluationDraft = {
   inquiry: string;
   caseDescription: string;
   evidenceUrl: string;
+  noCaseForMonth?: boolean;
   criticalError: boolean;
   evaluationStartedAt: string;
   evaluationSubmittedAt: string;
@@ -81,6 +91,8 @@ type EvaluationCurrentUser = {
 export type EvaluationSubmitPayload = {
   recordId?: string;
   evaluationKey?: string;
+  evaluationType?: StoredEvaluationType;
+  evaluationMonthKey?: string;
   caseId: string;
   agentName: string;
   targetUsername: string;
@@ -136,6 +148,7 @@ type EvaluateTabMemory = {
   caseDescription: string;
   evidenceUrl: string;
   evidenceFiles: EvidenceFile[];
+  noCaseForMonth: boolean;
   criticalError: boolean;
   evaluationStartedAt: string;
   evaluationSubmittedAt: string;
@@ -685,6 +698,13 @@ function getEvaluationMonthKey(value: unknown) {
   return `${yyyy}-${mm}`;
 }
 
+function makeNoCaseEvaluationId(agentName: string, monthKey: string) {
+  const agentKey = normalizeAgentMatchValue(agentName)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "unknown-agent";
+  return `no-case|${monthKey}|${agentKey}`;
+}
+
 function buildAgentMatchValues(agentName: string, agentOption?: EvaluationAgentOption) {
   return new Set(
     [
@@ -825,6 +845,9 @@ export default function CreateEvaluationMockup({
   const [evidenceUrl, setEvidenceUrl] = useState(() => readEvaluateTabMemory()?.evidenceUrl || "");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(() => readEvaluateTabMemory()?.evidenceFiles || []);
   const [evidenceUploadMessage, setEvidenceUploadMessage] = useState("");
+  const [noCaseForMonth, setNoCaseForMonth] = useState(
+    () => Boolean(readEvaluateTabMemory()?.noCaseForMonth)
+  );
   const [criticalError, setCriticalError] = useState(() => Boolean(readEvaluateTabMemory()?.criticalError));
   const [evaluationStartedAt, setEvaluationStartedAt] = useState(() => readEvaluateTabMemory()?.evaluationStartedAt || "");
   const [evaluationSubmittedAt, setEvaluationSubmittedAt] = useState(() => readEvaluateTabMemory()?.evaluationSubmittedAt || "");
@@ -895,6 +918,7 @@ export default function CreateEvaluationMockup({
       caseDescription,
       evidenceUrl,
       evidenceFiles,
+      noCaseForMonth,
       criticalError,
       evaluationStartedAt,
       evaluationSubmittedAt,
@@ -918,6 +942,7 @@ export default function CreateEvaluationMockup({
     caseDescription,
     evidenceUrl,
     evidenceFiles,
+    noCaseForMonth,
     criticalError,
     evaluationStartedAt,
     evaluationSubmittedAt,
@@ -953,6 +978,7 @@ export default function CreateEvaluationMockup({
 
     const uniqueCases = new Set<string>();
     agentQuotaRecords.forEach((record) => {
+      if (isNoCaseEvaluation(record)) return;
       const recordMonthKey = getEvaluationMonthKey(record.auditDate || record.auditTimestamp || record.submittedAt || record.updatedAt || record.createdAt);
       if (recordMonthKey !== selectedMonthKey) return;
       if (!storedEvaluationMatchesAgent(record, agentValues)) return;
@@ -1081,20 +1107,30 @@ export default function CreateEvaluationMockup({
   }, [reportDateFrom, reportDateTo, reportSearch]);
 
   const finalScore = useMemo(
-    () => topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
-    [topicState, topics]
+    () => noCaseForMonth
+      ? 0
+      : topics.reduce((sum, topic) => sum + Number(topicState[topic.code]?.score || 0), 0),
+    [noCaseForMonth, topicState, topics]
   );
   const missingScoreTopics = useMemo(
-    () => topics.filter((topic) => topicState[topic.code]?.score === null || topicState[topic.code]?.score === undefined),
-    [topicState, topics]
+    () => noCaseForMonth
+      ? []
+      : topics.filter((topic) => topicState[topic.code]?.score === null || topicState[topic.code]?.score === undefined),
+    [noCaseForMonth, topicState, topics]
   );
   const missingScoreText = missingScoreTopics.map((topic) => topic.code).join(", ");
   const completedTopics = useMemo(
-    () => topics.filter((topic) => topicState[topic.code]?.reason.trim()).length,
-    [topicState, topics]
+    () => noCaseForMonth
+      ? 0
+      : topics.filter((topic) => topicState[topic.code]?.reason.trim()).length,
+    [noCaseForMonth, topicState, topics]
   );
-  const completionPct = topics.length ? Math.round((completedTopics / topics.length) * 100) : 0;
-  const grade = scoreToGrade(finalScore, auditDate, criticalError);
+  const completionPct = noCaseForMonth
+    ? 100
+    : topics.length
+      ? Math.round((completedTopics / topics.length) * 100)
+      : 0;
+  const grade = scoreToGrade(finalScore, auditDate, noCaseForMonth ? false : criticalError);
 
   const evidencePreviewValue = useMemo(() => {
     const manualUrl = evidenceUrl.trim();
@@ -1120,13 +1156,16 @@ export default function CreateEvaluationMockup({
     const base: Record<string, string | number> = {
       "Agent Name": agentName || "-",
       "Audit Date": formatThaiDate(auditDate),
-      "Waiting Time": waitingTime || "-",
-      "Service Time": serviceTime || "-",
-      "Case ID": caseId || "-",
-      "Case URL": caseUrl || "-",
-      "Customer Inquiry": inquiry || "-",
-      "Case Description": caseDescription || "-",
-      "Case Image URL": evidenceDisplayValue || "-",
+      "Waiting Time": noCaseForMonth ? "-" : waitingTime || "-",
+      "Service Time": noCaseForMonth ? "-" : serviceTime || "-",
+      "Case ID": noCaseForMonth ? "No case" : caseId || "-",
+      "Case URL": noCaseForMonth ? "-" : caseUrl || "-",
+      "Customer Inquiry": noCaseForMonth ? "No evaluation case available for this month" : inquiry || "-",
+      "Case Description": noCaseForMonth ? "Monthly zero-case result" : caseDescription || "-",
+      "Case Image URL": noCaseForMonth ? "-" : evidenceDisplayValue || "-",
+      "Evaluation Type": noCaseForMonth ? "no_case_month" : "case",
+      "Evaluation Month Key": selectedMonthKey,
+      "Case Count Contribution": noCaseForMonth ? 0 : 1,
       "QA Scheme": activeRubric.code,
       "Rubric Version": activeRubric.name,
       "Rubric Active Period": rubricPeriod,
@@ -1135,8 +1174,8 @@ export default function CreateEvaluationMockup({
       "Evaluation Submitted At": evaluationSubmittedAt || "-",
       "Draft Saved At": draftSavedAt || "-",
       "Evaluation Status": evaluationStatus,
-      "Final Score": criticalError ? 0 : finalScore,
-      "Critical Error": criticalError ? "YES" : "NO",
+      "Final Score": noCaseForMonth || criticalError ? 0 : finalScore,
+      "Critical Error": !noCaseForMonth && criticalError ? "YES" : "NO",
       "Month Label": auditDate ? new Date(`${auditDate}T00:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "-",
       "Review Status": "Draft",
     };
@@ -1147,7 +1186,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, rubricPeriod, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -1164,7 +1203,9 @@ export default function CreateEvaluationMockup({
     return {
       ...draft,
       draftId,
-      title: draft.title || `${draft.caseId || "Untitled Case"} - ${draft.agentName || "No agent selected"}`,
+      title:
+        draft.title ||
+        `${draft.noCaseForMonth ? "No Case Monthly Result" : draft.caseId || "Untitled Case"} - ${draft.agentName || "No agent selected"}`,
       savedAtMs: draft.savedAtMs || Date.now(),
       evaluationStatus: draft.evaluationStatus || "Draft",
       topicState: draft.topicState || {},
@@ -1183,10 +1224,12 @@ export default function CreateEvaluationMockup({
   }
 
   function buildCurrentDraft(savedAt: string, savedAtMs: number): EvaluationDraft {
-    const draftId = makeDraftId(caseId, auditDate);
+    const draftId = noCaseForMonth
+      ? makeNoCaseEvaluationId(agentName, selectedMonthKey)
+      : makeDraftId(caseId, auditDate);
     return {
       draftId,
-      title: `${caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
+      title: `${noCaseForMonth ? "No Case Monthly Result" : caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
       agentName,
       auditDate,
       waitingTime,
@@ -1196,6 +1239,7 @@ export default function CreateEvaluationMockup({
       inquiry,
       caseDescription,
       evidenceUrl,
+      noCaseForMonth,
       criticalError,
       evaluationStartedAt: "",
       evaluationSubmittedAt,
@@ -1217,6 +1261,7 @@ export default function CreateEvaluationMockup({
     setInquiry(normalizedDraft.inquiry || "");
     setCaseDescription(normalizedDraft.caseDescription || "");
     setEvidenceUrl(normalizedDraft.evidenceUrl || "");
+    setNoCaseForMonth(Boolean(normalizedDraft.noCaseForMonth));
     setCriticalError(Boolean(normalizedDraft.criticalError));
     setEvaluationStartedAt(normalizedDraft.evaluationStartedAt || "");
     setEvaluationSubmittedAt(normalizedDraft.evaluationSubmittedAt || "");
@@ -1272,6 +1317,7 @@ export default function CreateEvaluationMockup({
       });
       return [];
     });
+    setNoCaseForMonth(false);
     setCriticalError(false);
     setEvaluationStartedAt("");
     setEvaluationSubmittedAt("");
@@ -1293,7 +1339,7 @@ export default function CreateEvaluationMockup({
     }
 
     const normalizedSubmitCaseId = normalizeCaseId(caseId);
-    if (!normalizedSubmitCaseId) {
+    if (!noCaseForMonth && !normalizedSubmitCaseId) {
       setDraftMessage("Please enter Case ID before submitting the evaluation.");
       return;
     }
@@ -1302,12 +1348,54 @@ export default function CreateEvaluationMockup({
         fetchStoredEvaluations(500),
         loadRawDataReportRecords(),
       ]);
+      const agentValues = buildAgentMatchValues(agentName, selectedAgentOption);
+
+      if (noCaseForMonth) {
+        const realStoredCase = stored.find(
+          (record) =>
+            !isNoCaseEvaluation(record) &&
+            getStoredEvaluationMonthKey(record) === selectedMonthKey &&
+            storedEvaluationMatchesAgent(record, agentValues)
+        );
+        const realRawCase = rawRecords.find(
+          (record) =>
+            getEvaluationMonthKey(record.auditDate) === selectedMonthKey &&
+            agentValues.has(normalizeAgentMatchValue(record.agentName))
+        );
+        const existingNoCase = stored.find(
+          (record) =>
+            isNoCaseEvaluation(record) &&
+            getStoredEvaluationMonthKey(record) === selectedMonthKey &&
+            storedEvaluationMatchesAgent(record, agentValues) &&
+            String(record.id || "") !== String(activeSubmittedRecordId || "")
+        );
+
+        if (realStoredCase || realRawCase) {
+          const source = realStoredCase ? "QA Evaluation Form" : realRawCase?.sourceName || "RawData";
+          const message = `Cannot create a No Case result because ${agentName} already has an evaluated case in ${selectedMonthKey} (${source}).`;
+          setDraftMessage(message);
+          window.alert(`${message}\n\nเดือนไหนที่มีเคสประเมินแล้ว จะไม่สามารถบันทึกเป็น No Case ได้`);
+          return;
+        }
+        if (existingNoCase) {
+          const message = `${agentName} already has a No Case result for ${selectedMonthKey}. Open the saved monthly result from Report if you need to edit it.`;
+          setDraftMessage(message);
+          window.alert(message);
+          return;
+        }
+      }
+
       const duplicateSubmitted = stored.find(
         (record) =>
+          !noCaseForMonth &&
           normalizeCaseId(record.caseId) === normalizedSubmitCaseId &&
           String(record.id || "") !== String(activeSubmittedRecordId || "")
       );
-      const duplicateRaw = rawRecords.find((record) => normalizeCaseId(record.caseId) === normalizedSubmitCaseId);
+      const duplicateRaw = rawRecords.find(
+        (record) =>
+          !noCaseForMonth &&
+          normalizeCaseId(record.caseId) === normalizedSubmitCaseId
+      );
       if (duplicateSubmitted || duplicateRaw) {
         const source = duplicateSubmitted ? "QA Evaluation Form" : duplicateRaw?.sourceName || "RawData";
         setDraftMessage(`Case ID ${normalizedSubmitCaseId} already exists in ${source}. Open the existing submitted case from Report if you need to edit it.`);
@@ -1321,8 +1409,11 @@ export default function CreateEvaluationMockup({
 
     const now = new Date();
     const submittedAt = formatTimestamp(now);
-    const draftId = activeDraftId || makeDraftId(caseId, auditDate);
-    const topicSummaries = topics.map((topic) => ({
+    const noCaseRecordId = makeNoCaseEvaluationId(agentName, selectedMonthKey);
+    const draftId =
+      activeDraftId ||
+      (noCaseForMonth ? noCaseRecordId : makeDraftId(caseId, auditDate));
+    const topicSummaries = noCaseForMonth ? [] : topics.map((topic) => ({
       topic,
       score: Number(topicState[topic.code]?.score || 0),
       reason: topicState[topic.code]?.reason || "",
@@ -1344,10 +1435,18 @@ export default function CreateEvaluationMockup({
       .slice(0, 3)
       .map((item) => `${item.topic.code} ${item.topic.title}: ${item.score}/${item.topic.max}`);
     const historyRecord: EvaluationRecord = {
-      recordId: activeSubmittedRecordId || `${caseId || "UNTITLED"}-${now.getTime()}`,
-      evaluationKey: activeSubmittedRecordId || undefined,
-      pdfButtonLabel: `${caseId || "Untitled"} Original PDF`,
-      caseId: caseId || "Untitled Case",
+      recordId:
+        activeSubmittedRecordId ||
+        (noCaseForMonth ? noCaseRecordId : `${caseId || "UNTITLED"}-${now.getTime()}`),
+      evaluationKey:
+        activeSubmittedRecordId ||
+        (noCaseForMonth ? noCaseRecordId : undefined),
+      evaluationType: noCaseForMonth ? "no_case_month" : "case",
+      evaluationMonthKey: selectedMonthKey,
+      pdfButtonLabel: noCaseForMonth
+        ? `No Case ${selectedMonthKey}`
+        : `${caseId || "Untitled"} Original PDF`,
+      caseId: noCaseForMonth ? "" : caseId || "Untitled Case",
       agentName,
       targetUsername: selectedAgentOption?.username || "",
       targetDisplayName: selectedAgentOption?.displayName || agentName,
@@ -1355,20 +1454,22 @@ export default function CreateEvaluationMockup({
       targetRole: selectedAgentOption?.role || "",
       auditDate,
       auditTimestamp: submittedAt,
-      waitingTime,
-      serviceTime,
-      caseUrl,
-      inquiry,
-      caseDescription,
-      evidenceUrls: evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
-      finalScore: criticalError ? 0 : finalScore,
+      waitingTime: noCaseForMonth ? "" : waitingTime,
+      serviceTime: noCaseForMonth ? "" : serviceTime,
+      caseUrl: noCaseForMonth ? "" : caseUrl,
+      inquiry: noCaseForMonth ? "No evaluation case available for this month" : inquiry,
+      caseDescription: noCaseForMonth ? "Monthly zero-case result" : caseDescription,
+      evidenceUrls: noCaseForMonth
+        ? []
+        : evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
+      finalScore: noCaseForMonth || criticalError ? 0 : finalScore,
       grade,
-      criticalError,
+      criticalError: noCaseForMonth ? false : criticalError,
       qaScheme: activeRubric.code,
       rubricName: activeRubric.name,
       rubricPeriod,
       completedTopics,
-      totalTopics: topics.length,
+      totalTopics: noCaseForMonth ? 0 : topics.length,
       strengths,
       improvements,
       topics: submittedTopicRows,
@@ -1387,7 +1488,39 @@ export default function CreateEvaluationMockup({
     setDraftMessage("Submitting evaluation. Please wait...");
 
     try {
-      await onSubmitEvaluation?.(record);
+      if (record.evaluationType === "no_case_month") {
+        const storedRecord: StoredEvaluation = {
+          ...record,
+          id: record.recordId,
+          evaluationKey: record.evaluationKey || record.recordId,
+          evaluationType: "no_case_month",
+          evaluationMonthKey:
+            record.evaluationMonthKey ||
+            getEvaluationMonthKey(record.auditDate),
+          evaluatorUsername: currentUser?.username || "",
+          evaluatorName,
+        };
+        await upsertStoredEvaluation(storedRecord);
+      } else {
+        await onSubmitEvaluation?.(record);
+
+        const recordMonthKey =
+          record.evaluationMonthKey ||
+          getEvaluationMonthKey(record.auditDate);
+        const recordAgentValues = buildAgentMatchValues(record.agentName);
+        const storedRecords = await fetchStoredEvaluations(500);
+        const supersededNoCaseRecords = storedRecords.filter(
+          (item) =>
+            isNoCaseEvaluation(item) &&
+            getStoredEvaluationMonthKey(item) === recordMonthKey &&
+            storedEvaluationMatchesAgent(item, recordAgentValues)
+        );
+        await Promise.all(
+          supersededNoCaseRecords.map((item) =>
+            deleteStoredEvaluation(item.id || item.evaluationKey)
+          )
+        );
+      }
 
       setEvaluationStartedAt(record.evaluationStartedAt || record.submittedAt);
       setEvaluationSubmittedAt(record.submittedAt);
@@ -1414,7 +1547,19 @@ export default function CreateEvaluationMockup({
       setSubmitPreview(null);
       resetEvaluationForm();
       setWorkspaceView("form");
-      setDraftMessage(`Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`);
+      setDraftMessage(
+        record.evaluationType === "no_case_month"
+          ? `No Case monthly result saved for ${record.agentName} (${record.evaluationMonthKey}). Score 0 and Grade ${record.grade}.`
+          : `Evaluation submitted at ${record.submittedAt}. Result task was sent to ${record.targetDisplayName || record.agentName || "the selected agent"}.`
+      );
+      window.dispatchEvent(
+        new CustomEvent("qa-dashboard:data-refresh", {
+          detail: {
+            evaluationType: record.evaluationType || "case",
+            evaluationMonthKey: record.evaluationMonthKey,
+          },
+        })
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Submit failed. Please try again.";
       console.error("Confirm submit failed", error);
@@ -1648,7 +1793,9 @@ export default function CreateEvaluationMockup({
       ...item,
       recordId: item.id,
       evaluationKey: item.evaluationKey,
-      pdfButtonLabel: `${item.caseId || "Untitled"} Original PDF`,
+      pdfButtonLabel: isNoCaseEvaluation(item)
+        ? `No Case ${getStoredEvaluationMonthKey(item)}`
+        : `${item.caseId || "Untitled"} Original PDF`,
       rawDataPreview: item.rawDataPreview || {},
       targetEmail: item.targetEmail,
     };
@@ -1684,6 +1831,7 @@ export default function CreateEvaluationMockup({
     const editableEvidence = splitEditableEvidence(record.evidenceUrls || []);
     setEvidenceUrl(editableEvidence.manualUrls);
     setEvidenceFiles(editableEvidence.attachedFiles);
+    setNoCaseForMonth(record.evaluationType === "no_case_month");
     setCriticalError(Boolean(record.criticalError));
     setEvaluationStartedAt(record.evaluationStartedAt || record.auditTimestamp || "");
     setEvaluationSubmittedAt(record.submittedAt || "");
@@ -1698,11 +1846,19 @@ export default function CreateEvaluationMockup({
     });
     setTopicState(nextTopicState);
     setWorkspaceView("form");
-    setDraftMessage(`Loaded submitted case ${record.caseId} for editing. Submit Evaluation again to update the saved record.`);
+    setDraftMessage(
+      record.evaluationType === "no_case_month"
+        ? `Loaded No Case monthly result for ${record.agentName} (${record.evaluationMonthKey || getEvaluationMonthKey(record.auditDate)}) for editing.`
+        : `Loaded submitted case ${record.caseId} for editing. Submit Evaluation again to update the saved record.`
+    );
   }
 
   async function deleteSubmittedRecord(record: EvaluationRecord) {
-    const ok = window.confirm(`Delete submitted evaluation ${record.caseId}? This removes it from Dashboard/Summary after refresh.`);
+    const recordLabel =
+      record.evaluationType === "no_case_month"
+        ? `No Case result for ${record.agentName} (${record.evaluationMonthKey || getEvaluationMonthKey(record.auditDate)})`
+        : `evaluation ${record.caseId}`;
+    const ok = window.confirm(`Delete submitted ${recordLabel}? This removes it from Dashboard/Summary after refresh.`);
     if (!ok) return;
 
     const deletedCaseId = normalizeCaseId(record.caseId);
@@ -1744,7 +1900,7 @@ export default function CreateEvaluationMockup({
 
       if (activeSubmittedRecordId === record.recordId) setActiveSubmittedRecordId("");
 
-      setReportMessage(`Deleted submitted evaluation ${record.caseId}. It has been removed from saved records and will no longer return after refresh.`);
+      setReportMessage(`Deleted submitted ${recordLabel}. It has been removed from saved records and will no longer return after refresh.`);
 
       window.dispatchEvent(
         new CustomEvent("qa-dashboard:evaluation-deleted", {
@@ -1938,7 +2094,9 @@ export default function CreateEvaluationMockup({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">New Evaluation</div>
-                  <div className="mt-1 text-xl font-black text-slate-950">{caseId || "New QA Evaluation"}</div>
+                  <div className="mt-1 text-xl font-black text-slate-950">
+                    {noCaseForMonth ? `No Case · ${selectedMonthKey}` : caseId || "New QA Evaluation"}
+                  </div>
                   <div className="mt-1 text-sm font-semibold text-slate-500">Evaluator: <span className="font-black text-slate-800">{evaluatorName}</span></div>
                 </div>
                 <div className="inline-flex w-fit rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm">
@@ -2173,8 +2331,16 @@ export default function CreateEvaluationMockup({
                           {pagedSubmittedReportRecords.map((record) => (
                             <div key={record.recordId} className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 lg:grid-cols-[1.2fr_1fr_110px_160px] lg:items-center">
                               <div>
-                                <div className="text-sm font-black text-slate-950">{record.caseId}</div>
-                                <div className="mt-1 text-xs font-semibold text-slate-500">{record.agentName || record.targetDisplayName || "-"} | Case Date {formatThaiDate(record.auditDate)}</div>
+                                <div className="text-sm font-black text-slate-950">
+                                  {record.evaluationType === "no_case_month"
+                                    ? `No Case · ${record.evaluationMonthKey || getEvaluationMonthKey(record.auditDate)}`
+                                    : record.caseId}
+                                </div>
+                                <div className="mt-1 text-xs font-semibold text-slate-500">
+                                  {record.agentName || record.targetDisplayName || "-"} |{" "}
+                                  {record.evaluationType === "no_case_month" ? "Evaluation Month" : "Case Date"}{" "}
+                                  {formatThaiDate(record.auditDate)}
+                                </div>
                               </div>
                               <div className="text-xs font-semibold text-slate-600">
                                 Submitted: <span className="font-black text-slate-900">{formatDisplayTimestamp(record.submittedAt, "-")}</span>
@@ -2282,14 +2448,58 @@ export default function CreateEvaluationMockup({
                   )}
                 </label>
 
-                <div className="grid grid-cols-2 gap-3">
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 transition ${
+                    noCaseForMonth
+                      ? "border-violet-300 bg-violet-50 shadow-sm"
+                      : "border-slate-200 bg-slate-50 hover:border-violet-200"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={noCaseForMonth}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setNoCaseForMonth(checked);
+                      if (checked) {
+                        setCaseId("");
+                        setWaitingTime("");
+                        setServiceTime("");
+                        setCaseUrl("");
+                        setInquiry("");
+                        setCaseDescription("");
+                        setEvidenceUrl("");
+                        setEvidenceFiles([]);
+                        setCriticalError(false);
+                      }
+                    }}
+                    className="mt-1 h-5 w-5 accent-violet-700"
+                  />
+                  <span>
+                    <span className="block text-sm font-black text-slate-950">
+                      ไม่มีเคสสำหรับประเมินในเดือนนี้
+                    </span>
+                    <span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">
+                      บันทึกคะแนน 0 และคำนวณ Grade ตามเกณฑ์ของเดือนที่เลือก โดยจำนวนเคสยังคงเป็น 0
+                    </span>
+                  </span>
+                </label>
+
+                <div className={`grid gap-3 ${noCaseForMonth ? "grid-cols-1" : "grid-cols-2"}`}>
+                  {!noCaseForMonth ? (
+                    <label className="block">
+                      <span className={labelClass}>Case ID</span>
+                      <input value={caseId} onChange={(event) => setCaseId(event.target.value)} placeholder="AAxxxxxx" className={inputClass} />
+                    </label>
+                  ) : null}
                   <label className="block">
-                    <span className={labelClass}>Case ID</span>
-                    <input value={caseId} onChange={(event) => setCaseId(event.target.value)} placeholder="AAxxxxxx" className={inputClass} />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>Case Date</span>
+                    <span className={labelClass}>{noCaseForMonth ? "Evaluation Month" : "Case Date"}</span>
                     <input type="date" value={auditDate} onChange={(event) => setAuditDate(event.target.value)} className={inputClass} />
+                    {noCaseForMonth ? (
+                      <span className="mt-2 block text-xs font-semibold text-violet-700">
+                        ระบบจะใช้เดือน {selectedMonthKey} สำหรับคะแนน 0 และ Grade {grade}
+                      </span>
+                    ) : null}
                   </label>
                 </div>
 
@@ -2299,6 +2509,8 @@ export default function CreateEvaluationMockup({
                   <div className="text-xs font-semibold text-slate-600">{activeRubric.code} - {rubricPeriod}</div>
                 </div>
 
+                {!noCaseForMonth ? (
+                  <>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
                     <span className={labelClass}>Waiting Time</span>
@@ -2338,9 +2550,16 @@ export default function CreateEvaluationMockup({
                   <span className={labelClass}>Case Description</span>
                   <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
                 </label>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold leading-6 text-violet-900">
+                    ไม่ต้องกรอก Case ID, เวลา, URL, รายละเอียดเคส, Evidence หรือคะแนนรายหัวข้อ
+                  </div>
+                )}
               </div>
             </SectionCard>
 
+            {!noCaseForMonth ? (
             <SectionCard label="Section B" title="Evidence Attachment">
               <div className="space-y-4">
                 <label className="block">
@@ -2454,9 +2673,33 @@ export default function CreateEvaluationMockup({
                 </div>
               </div>
             </SectionCard>
+            ) : null}
           </div>
 
           <div className="space-y-5">
+            {noCaseForMonth ? (
+              <SectionCard label="Section C" title="Monthly Zero-Case Result">
+                <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-6">
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">
+                    No Case Monthly Result
+                  </div>
+                  <div className="mt-3 text-3xl font-black text-slate-950">0 คะแนน · Grade {grade}</div>
+                  <div className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+                    ไม่มีการสร้างเคสจำลองและไม่มีคะแนนรายหัวข้อ รายการนี้ใช้เพื่อแสดงผลเดือนที่ Agent ไม่มีเคสประเมินเท่านั้น
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white bg-white px-4 py-3 shadow-sm">
+                      <div className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Month</div>
+                      <div className="mt-1 text-lg font-black text-slate-950">{selectedMonthKey}</div>
+                    </div>
+                    <div className="rounded-xl border border-white bg-white px-4 py-3 shadow-sm">
+                      <div className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Case Count</div>
+                      <div className="mt-1 text-lg font-black text-slate-950">0</div>
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+            ) : (
             <SectionCard label="Section C" title="Evaluation Rubric">
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 px-5 py-4">
                 <div className="text-xl font-black text-slate-950">QA Scoring Workbook</div>
@@ -2546,6 +2789,7 @@ export default function CreateEvaluationMockup({
                 })}
               </div>
             </SectionCard>
+            )}
           </div>
 
           <div className="space-y-6 xl:sticky xl:top-4 xl:self-start">
@@ -2571,10 +2815,18 @@ export default function CreateEvaluationMockup({
                   <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
                     <div className="h-full rounded-full bg-emerald-600" style={{ width: `${completionPct}%` }} />
                   </div>
-                  <div className="mt-2 text-xs font-semibold text-slate-500">{completedTopics}/{topics.length} topic score(s) selected</div>
+                  <div className="mt-2 text-xs font-semibold text-slate-500">
+                    {noCaseForMonth
+                      ? "No Case monthly result is ready to submit"
+                      : `${completedTopics}/${topics.length} topic score(s) selected`}
+                  </div>
                 </div>
 
-                {missingScoreTopics.length ? (
+                {noCaseForMonth ? (
+                  <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs font-bold leading-5 text-violet-900">
+                    คะแนนถูกกำหนดเป็น 0 และ Grade {grade} ตามเกณฑ์เดือน {selectedMonthKey}
+                  </div>
+                ) : missingScoreTopics.length ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-900">
                     Score required before Save Draft / Submit: {missingScoreText}
                   </div>
@@ -2584,10 +2836,12 @@ export default function CreateEvaluationMockup({
                   </div>
                 )}
 
+                {!noCaseForMonth ? (
                 <label className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                   <span className="text-sm font-black text-amber-900">Critical Error</span>
                   <input type="checkbox" checked={criticalError} onChange={(event) => setCriticalError(event.target.checked)} className="h-5 w-5 accent-rose-600" />
                 </label>
+                ) : null}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -2671,7 +2925,11 @@ export default function CreateEvaluationMockup({
             <div className="flex flex-col gap-4 bg-gradient-to-r from-slate-950 via-emerald-900 to-sky-800 px-6 py-5 text-white lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">Submit Preview</div>
-                <div className="mt-1 text-2xl font-black">Case Detail Template</div>
+                <div className="mt-1 text-2xl font-black">
+                  {submitPreview.record.evaluationType === "no_case_month"
+                    ? "Monthly No Case Result"
+                    : "Case Detail Template"}
+                </div>
                 <div className="mt-1 text-sm font-semibold text-white/75">Review this document before saving the evaluation.</div>
               </div>
               <div className="rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-right">
@@ -2697,8 +2955,14 @@ export default function CreateEvaluationMockup({
                     <div className="mt-1 text-lg font-black text-slate-950">{formatThaiDate(submitPreview.record.auditDate) || "-"}</div>
                   </div>
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Case ID</div>
-                    <div className="mt-1 text-lg font-black text-emerald-950">{submitPreview.record.caseId}</div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
+                      {submitPreview.record.evaluationType === "no_case_month" ? "Result Type" : "Case ID"}
+                    </div>
+                    <div className="mt-1 text-lg font-black text-emerald-950">
+                      {submitPreview.record.evaluationType === "no_case_month"
+                        ? "No Case"
+                        : submitPreview.record.caseId}
+                    </div>
                   </div>
                 </div>
 
@@ -2741,6 +3005,11 @@ export default function CreateEvaluationMockup({
                   </div>
                 </div>
 
+                {submitPreview.record.evaluationType === "no_case_month" ? (
+                  <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4 text-sm font-semibold leading-6 text-violet-900">
+                    เดือนนี้ไม่มีเคสสำหรับประเมิน ระบบจะบันทึกคะแนน 0, Grade {submitPreview.record.grade} และจำนวนเคส 0 โดยไม่สร้าง Case ID
+                  </div>
+                ) : (
                 <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-300 bg-white">
                   <div className="grid grid-cols-[80px_minmax(240px,1fr)_90px_80px_90px_120px] bg-[#217346] px-4 py-3 text-[11px] font-black uppercase tracking-[0.13em] text-white">
                     <div>Topic</div>
@@ -2775,6 +3044,7 @@ export default function CreateEvaluationMockup({
                     })}
                   </div>
                 </div>
+                )}
               </div>
             </div>
 

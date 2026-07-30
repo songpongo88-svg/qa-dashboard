@@ -70,9 +70,13 @@ export type StoredEvaluationTopic = {
   comment: string;
 };
 
+export type StoredEvaluationType = "case" | "no_case_month";
+
 export type StoredEvaluation = {
   id: string;
   evaluationKey: string;
+  evaluationType?: StoredEvaluationType;
+  evaluationMonthKey?: string;
   caseId: string;
   agentName: string;
   targetUsername: string;
@@ -227,10 +231,59 @@ function toTopics(value: unknown): StoredEvaluationTopic[] {
   })).filter((item) => item.code);
 }
 
+function normalizeEvaluationType(value: unknown): StoredEvaluationType {
+  return String(value || "").trim().toLowerCase() === "no_case_month"
+    ? "no_case_month"
+    : "case";
+}
+
+function monthKeyFromValue(value: unknown) {
+  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})/);
+  return match ? `${match[1]}-${match[2]}` : "";
+}
+
+export function isNoCaseEvaluation(
+  record: Pick<StoredEvaluation, "evaluationType" | "rawDataPreview">
+) {
+  const previewType = record.rawDataPreview?.["Evaluation Type"];
+  return normalizeEvaluationType(record.evaluationType || previewType) === "no_case_month";
+}
+
+export function getStoredEvaluationMonthKey(
+  record: Pick<
+    StoredEvaluation,
+    "evaluationMonthKey" | "auditDate" | "auditTimestamp" | "submittedAt" | "rawDataPreview"
+  >
+) {
+  return (
+    monthKeyFromValue(record.evaluationMonthKey) ||
+    monthKeyFromValue(record.rawDataPreview?.["Evaluation Month Key"]) ||
+    monthKeyFromValue(record.auditDate) ||
+    monthKeyFromValue(record.auditTimestamp) ||
+    monthKeyFromValue(record.submittedAt)
+  );
+}
+
+function isStoredEvaluationRecord(item: StoredEvaluation) {
+  return Boolean(
+    item.id &&
+      item.agentName &&
+      (item.caseId || isNoCaseEvaluation(item))
+  );
+}
+
 function toEvaluation(row: any): StoredEvaluation {
   return {
     id: String(row.id || ""),
     evaluationKey: String(row.evaluation_key || row.id || ""),
+    evaluationType: normalizeEvaluationType(
+      row.evaluation_type || row.raw_data_preview?.["Evaluation Type"]
+    ),
+    evaluationMonthKey: String(
+      row.evaluation_month_key ||
+        row.raw_data_preview?.["Evaluation Month Key"] ||
+        ""
+    ),
     caseId: String(row.case_id || ""),
     agentName: String(row.agent_name || ""),
     targetUsername: String(row.target_username || ""),
@@ -302,6 +355,14 @@ function toLocalEvaluation(row: any): StoredEvaluation {
   return {
     id: normalizeLocalString(row?.recordId || row?.id || fallbackId),
     evaluationKey: normalizeLocalString(localField(row, "evaluationKey", "evaluation_key") || row?.recordId || row?.id || fallbackId),
+    evaluationType: normalizeEvaluationType(
+      localField(row, "evaluationType", "evaluation_type") ||
+        rawDataPreview?.["Evaluation Type"]
+    ),
+    evaluationMonthKey: normalizeLocalString(
+      localField(row, "evaluationMonthKey", "evaluation_month_key") ||
+        rawDataPreview?.["Evaluation Month Key"]
+    ),
     caseId,
     agentName,
     targetUsername: normalizeLocalString(localField(row, "targetUsername", "target_username")),
@@ -341,7 +402,11 @@ function looksLikeSubmittedEvaluation(row: any) {
   const rawDataPreview = localRawPreview(row);
   const caseId = normalizeLocalString(localField(row, "caseId", "case_id"));
   const agentName = normalizeLocalString(localField(row, "agentName", "agent_name") || localField(row, "targetDisplayName", "target_display_name"));
-  if (!caseId || !agentName) return false;
+  const evaluationType = normalizeEvaluationType(
+    localField(row, "evaluationType", "evaluation_type") ||
+      rawDataPreview?.["Evaluation Type"]
+  );
+  if ((!caseId && evaluationType !== "no_case_month") || !agentName) return false;
 
   const status = normalizeLocalString(localField(row, "evaluationStatus", "evaluation_status") || rawDataPreview?.["Evaluation Status"]).toLowerCase();
   if (status.includes("draft") || status.includes("not started")) return false;
@@ -368,7 +433,7 @@ function collectLocalEvaluations(value: unknown, records: StoredEvaluation[], de
   const row = value as Record<string, unknown>;
   if (looksLikeSubmittedEvaluation(row)) {
     const evaluation = toLocalEvaluation(row);
-    if (evaluation.id && evaluation.caseId && evaluation.agentName) records.push(evaluation);
+    if (isStoredEvaluationRecord(evaluation)) records.push(evaluation);
     return;
   }
 
@@ -402,7 +467,7 @@ function readLocalEvaluationHistory() {
   try {
     const parsed = JSON.parse(rawHistory);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(toLocalEvaluation).filter((item) => item.id && item.caseId && item.agentName);
+    return parsed.map(toLocalEvaluation).filter(isStoredEvaluationRecord);
   } catch (error) {
     console.warn("Load local evaluation history failed", error);
     return [];
@@ -417,7 +482,7 @@ function readRemoteEvaluationCache() {
   try {
     const parsed = JSON.parse(rawCache);
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(toLocalEvaluation).filter((item) => item.id && item.caseId && item.agentName);
+    return parsed.map(toLocalEvaluation).filter(isStoredEvaluationRecord);
   } catch (error) {
     console.warn("Load cached evaluation history failed", error);
     return [];
@@ -539,6 +604,8 @@ function fromEvaluation(record: StoredEvaluation) {
   return {
     id: record.id,
     evaluation_key: record.evaluationKey,
+    evaluation_type: record.evaluationType || "case",
+    evaluation_month_key: record.evaluationMonthKey || getStoredEvaluationMonthKey(record),
     case_id: record.caseId,
     agent_name: record.agentName,
     target_username: record.targetUsername,
@@ -1032,7 +1099,7 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
         );
         return snapshot.docs
           .map((item) => toEvaluation({ id: item.id, ...item.data() }))
-          .filter((item) => item.id && item.caseId);
+          .filter(isStoredEvaluationRecord);
       } catch (error) {
         console.warn("Load Firebase evaluations failed", error);
         return [];
@@ -1049,4 +1116,3 @@ export async function fetchStoredEvaluations(limit = DEFAULT_EVALUATION_LIMIT) {
 
   return localSources.slice(0, safeLimit);
 }
-
