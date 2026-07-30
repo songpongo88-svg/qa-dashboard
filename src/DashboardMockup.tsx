@@ -4031,7 +4031,7 @@ function SlideOverCaseDetail({
           </section>
 
           <Panel>
-            <PanelHeader title="Topic Detail" subtitle="Premium topic review with highlighted revised score changes" />
+            <PanelHeader title="Topic Detail" subtitle="คะแนนรายหัวข้อและการเปลี่ยนแปลงหลังการทบทวนผล" />
             <PanelBody>
               <div className="mb-5">
                 <div className="rounded-[18px] border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 px-4 py-4 shadow-[0_10px_24px_rgba(168,85,247,0.06)]">
@@ -6326,7 +6326,7 @@ export default function DashboardMockup({
                   <Panel>
                     <PanelHeader
                       title={isAllAgentsView ? "Team Overview Scope" : "Agent Overview Scope"}
-                      subtitle={isAllAgentsView ? "Formal monthly view for all visible agents" : "Selected agent and period"}
+                      subtitle={isAllAgentsView ? "ผลการประเมินรายเดือนของ Agent ในทีม" : "ผลการประเมินของ Agent และช่วงเวลาที่เลือก"}
                     />
                     <PanelBody>
                       <div className="grid gap-4 md:grid-cols-3">
@@ -6486,7 +6486,7 @@ export default function DashboardMockup({
                   >
                     <div className="min-w-0 space-y-4">
                       <Panel>
-                        <PanelHeader title="Topic Scores" subtitle="เรียงคะแนนจากหัวข้อที่แข็งแรงไปยังหัวข้อที่ควรโค้ช" />
+                        <PanelHeader title="Topic Scores" subtitle="คะแนนเฉลี่ยรายหัวข้อและประเด็นที่ควรพัฒนา" />
                         <PanelBody>
                           <TopicPerformanceTable items={summary.topicPerformance} />
                         </PanelBody>
@@ -6608,8 +6608,8 @@ export default function DashboardMockup({
                       title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
                       subtitle={
                         isAllAgentsView
-                          ? "Selected month and the previous 2 months for all visible agents"
-                          : "Selected month and the previous 2 months for the selected agent"
+                          ? "ผลการประเมินของทีมย้อนหลัง 3 เดือน"
+                          : "ผลการประเมินของ Agent ย้อนหลัง 3 เดือน"
                       }
                     />
                     <PanelBody>
@@ -6647,8 +6647,8 @@ export default function DashboardMockup({
                         title={isAllAgentsView ? "Team Monthly Analytics" : "Agent Monthly Analytics"}
                         subtitle={
                           isAllAgentsView
-                            ? "Current or selected month first, followed by the previous 2 months for all visible agents"
-                            : "Current or selected month first, followed by the previous 2 months for the selected agent"
+                            ? "คะแนนเฉลี่ย จำนวนเคส และความคืบหน้าของทีมย้อนหลัง 3 เดือน"
+                            : "คะแนนเฉลี่ย จำนวนเคส และความคืบหน้าของ Agent ย้อนหลัง 3 เดือน"
                         }
                       />
                       <PanelBody>
@@ -6701,7 +6701,7 @@ export default function DashboardMockup({
                   <>
                   {!isAllAgentsView ? (
                     <Panel>
-                      <PanelHeader title="Agent Additional Details" subtitle="Supporting information kept below the priority performance section" />
+                      <PanelHeader title="Agent Additional Details" subtitle="ข้อมูลประกอบผลการประเมินและรายละเอียดเพิ่มเติมของ Agent" />
                       <PanelBody>
                         <div className="grid gap-4 md:grid-cols-2">
                           <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-4">
@@ -7008,7 +7008,7 @@ export default function DashboardMockup({
                   ) : null}
 
                   <Panel>
-                    <PanelHeader title="Overview Filters" subtitle="Control which cases are shown in overview" />
+                    <PanelHeader title="Overview Filters" subtitle="ขอบเขตเคสที่ใช้คำนวณผลใน Overview" />
                     <PanelBody className="space-y-4">
                       <div className="flex flex-wrap gap-2">
                         <button
