@@ -8217,7 +8217,7 @@ export default function SummaryMockup({
       <PageHero
         eyebrow="Performance"
         title="Analytics"
-        subtitle="เลือกข้อมูล → ดูผล → เปรียบเทียบ → ส่งออก"
+        subtitle="ภาพรวมผลการประเมิน QA คะแนน และแนวโน้มการปฏิบัติงาน"
       />
       <div data-analytics-header-v90="true" className="mx-auto max-w-[1720px] px-6 pt-4 lg:px-8">
         <div className="flex flex-wrap items-center justify-end gap-2 border-b border-slate-200 pb-4">
@@ -8309,7 +8309,7 @@ export default function SummaryMockup({
       {summarySection === "team" && analyticsCanViewTeamPerformance ? (
         <div data-team-performance-logic-v90="true" className="mx-auto max-w-[1720px] px-6 py-6 lg:px-8 lg:py-8">
           <Panel>
-            <PanelHeader title="Team Performance" subtitle="เลือกเดือน ดูภาพรวมแต่ละทีม และเปิดรายละเอียดเฉพาะทีมที่ต้องการ" />
+            <PanelHeader title="Team Performance" subtitle="จำนวนผู้ถูกประเมิน เคส คะแนนเฉลี่ย KPI เกรด และอินเซนทีฟรายทีม" />
             <PanelBody className="space-y-5">
               <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
                 <div className="w-full max-w-sm">
@@ -8381,7 +8381,7 @@ export default function SummaryMockup({
                     </PanelBody>
                   </Panel>
                   <Panel>
-                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Topics`} subtitle="Topic Performance ของเดือนที่เลือก" />
+                    <PanelHeader title={`${selectedTeamPerformance.teamName} · Topics`} subtitle="คะแนนเฉลี่ยรายหัวข้อของเดือนที่เลือก" />
                     <PanelBody><TopicTable topics={selectedTeamPerformance.topics} /></PanelBody>
                   </Panel>
                 </div>
@@ -8398,8 +8398,8 @@ export default function SummaryMockup({
               title={isAdminRole ? "My Team" : "Teams"}
               subtitle={
                 isAdminRole
-                  ? "Admin สามารถดูได้เฉพาะ Average Score ของทีมตัวเอง"
-                  : "ดูผลแต่ละทีมแยกจากกันและเลือกเดือนที่ต้องการตรวจสอบ"
+                  ? "คะแนนเฉลี่ยของทีมที่ผู้ดูแลรับผิดชอบ"
+                  : "ผลการประเมินรายทีมในเดือนที่เลือก"
               }
             />
             <PanelBody className="space-y-6">
@@ -8950,7 +8950,7 @@ export default function SummaryMockup({
                   <Panel>
                     <PanelHeader
                       title="รายละเอียดผลการประเมินและหัวข้อ (Performance & Topic Detail)"
-                      subtitle="สรุปผลตามช่วงเวลาและคะแนนรายหัวข้อในบล็อกเดียว"
+                      subtitle="จำนวนเคส คะแนนเฉลี่ย เกรด และผลคะแนนรายหัวข้อ"
                     />
                     <PanelBody>
                       <div className="min-w-0 space-y-6">
@@ -8960,7 +8960,7 @@ export default function SummaryMockup({
                               รายละเอียดผลการประเมิน (Performance Detail)
                             </div>
                             <div className="mt-1 text-[10px] font-normal text-slate-500">
-                              ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน
+                              จำนวนเคส คะแนนเฉลี่ย และเกรดของช่วงเวลาที่เลือก
                             </div>
                           </div>
                           <SummaryTable
@@ -8977,7 +8977,7 @@ export default function SummaryMockup({
                               รายละเอียดตามหัวข้อ (Topic Detail)
                             </div>
                             <div className="mt-1 text-[10px] font-normal text-slate-500">
-                              แสดงตามลำดับหัวข้อประเมิน พร้อมเทียบ KPI {PERFORMANCE_KPI_TARGET}%
+                              คะแนนเฉลี่ยรายหัวข้อเทียบกับเกณฑ์ KPI {PERFORMANCE_KPI_TARGET}%
                             </div>
                           </div>
                           <AnalyticsTopicDetail
@@ -9219,7 +9219,7 @@ export default function SummaryMockup({
                       Report Builder
                     </div>
                     <div className="mt-1 text-xs font-normal text-slate-500">
-                      เลือกช่วงเวลาเพื่อดูรายงานปกติหรือเปรียบเทียบหลายช่วง
+                      รายงานผลตามช่วงเวลาและการเปรียบเทียบหลายช่วง
                     </div>
                   </div>
 
@@ -9602,7 +9602,7 @@ export default function SummaryMockup({
               <Panel>
                 <PanelHeader
                   title="Team Monthly Analytics — Last 3 Months"
-                  subtitle="แสดงภาพรวมทีมย้อนหลัง 3 เดือนอัตโนมัติ โดยไม่ต้องเลือก Compare"
+                  subtitle="แนวโน้มคะแนนเฉลี่ยและผลการประเมินรายทีมย้อนหลัง 3 เดือน"
                 />
                 <PanelBody>
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(480px,1.2fr)]">
@@ -9725,7 +9725,7 @@ export default function SummaryMockup({
                       </table>
 
                       <div className="border-t border-violet-100 bg-violet-50 px-4 py-3 text-xs font-semibold text-violet-700">
-                        ข้อมูลย้อนหลัง 3 เดือนจะแสดงอัตโนมัติ แม้ยังไม่ได้เลือกเดือนสำหรับ Compare
+                        คะแนนเฉลี่ย จำนวนเคส และการเปลี่ยนแปลงของทีมย้อนหลัง 3 เดือน
                       </div>
                     </div>
                   </div>
@@ -9745,8 +9745,8 @@ export default function SummaryMockup({
                   }
                   subtitle={
                     selectedPeriods.length >= 2
-                      ? "แสดงคะแนน Agent แยกตามแต่ละช่วงที่เลือก"
-                      : "ยังไม่เลือกช่วงเปรียบเทียบ ระบบจะแสดง Agent ทั้งหมดของช่วงล่าสุด"
+                      ? "คะแนนและผลการประเมินราย Agent แยกตามช่วงเวลา"
+                      : "คะแนนและผลการประเมินราย Agent ในช่วงเวลาล่าสุด"
                   }
                 />
                 <PanelBody>
@@ -10238,7 +10238,7 @@ export default function SummaryMockup({
               <Panel>
                 <PanelHeader
                   title="Performance Comparison Analytics"
-                  subtitle="แสดง Trend, Score Distribution และ Review Status Mix ในรูปแบบเดียวกับรายงาน Weekly"
+                  subtitle="คะแนนเฉลี่ย การกระจายคะแนน และสัดส่วนสถานะการตรวจทานของช่วงเวลาที่เลือก"
                 />
                 <PanelBody>
                   <div className="grid gap-4 xl:grid-cols-3">
