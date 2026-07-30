@@ -1437,15 +1437,15 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
                 key={topic.code}
                 className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-5 text-center"
               >
-                <div className="w-full px-2 text-left">
-                  <div className="text-[12px] font-normal leading-5 text-slate-800">
-                    <span className="mr-1.5 text-slate-500">
+                <div className="w-full px-2 text-center">
+                  <div className="text-[12px] font-bold leading-5 text-slate-950">
+                    <span className="mr-1.5 text-slate-950">
                       {topic.code}.
                     </span>
                     {thaiTitle}
                   </div>
                   {englishTitle ? (
-                    <div className="mt-1 text-[14px] font-medium italic leading-5 text-rose-600">
+                    <div className="mt-1 text-[14px] font-bold leading-5 text-slate-950">
                       {englishTitle}
                     </div>
                   ) : null}
