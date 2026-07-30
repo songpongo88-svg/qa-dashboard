@@ -1445,7 +1445,7 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
                     {thaiTitle}
                   </div>
                   {englishTitle ? (
-                    <div className="mt-1 text-[14px] font-bold leading-5 text-slate-950">
+                    <div className="mt-1 text-[14px] font-bold italic leading-5 text-rose-600">
                       {englishTitle}
                     </div>
                   ) : null}
