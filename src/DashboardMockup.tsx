@@ -5,7 +5,12 @@ import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
-import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
+import {
+  fetchStoredEvaluations,
+  getStoredEvaluationMonthKey,
+  isNoCaseEvaluation,
+  type StoredEvaluation,
+} from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { buildAppealCaseOverrides } from "./AppealOverrideMockup";
 import PageHero from "./PageHero";
@@ -4129,6 +4134,7 @@ export default function DashboardMockup({
   const currentMonthKey = getMonthKey(firstDayOfCurrentMonth);
 
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string>(externalSelectedAgent || "");
@@ -5060,6 +5066,23 @@ export default function DashboardMockup({
     loadWorkbook();
   }, [dataRefreshKey]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchStoredEvaluations(300)
+      .then((records) => {
+        if (!cancelled) {
+          setNoCaseEvaluations(records.filter(isNoCaseEvaluation));
+        }
+      })
+      .catch((error) => {
+        console.warn("No Case monthly results could not be loaded", error);
+        if (!cancelled) setNoCaseEvaluations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dataRefreshKey]);
+
   const visibleAgentList = useMemo(() => {
     const scopedCases = overviewAgentScopeList.length
       ? allCases.filter((item) => overviewAgentScopeList.some((agent) => isSameAgent(item.agent, agent)))
@@ -5079,8 +5102,29 @@ export default function DashboardMockup({
     })();
 
     const agentsFromCases = monthScopedCases.map((item) => String(item.agent || "").trim()).filter(Boolean);
+    const agentsFromNoCaseResults = noCaseEvaluations
+      .filter((item) => {
+        const monthKey = getStoredEvaluationMonthKey(item);
+        if (
+          effectiveMonthKeyForAgentVisibility &&
+          effectiveMonthKeyForAgentVisibility !== "all" &&
+          monthKey !== effectiveMonthKeyForAgentVisibility
+        ) return false;
+        const agent = item.agentName || item.targetDisplayName;
+        return (
+          !overviewAgentScopeList.length ||
+          overviewAgentScopeList.some((scopedAgent) =>
+            isSameAgent(agent, scopedAgent)
+          )
+        );
+      })
+      .map((item) => String(item.agentName || item.targetDisplayName || "").trim())
+      .filter(Boolean);
 
-    const mergedAgents = dedupeAgentNames(agentsFromCases).filter(
+    const mergedAgents = dedupeAgentNames([
+      ...agentsFromCases,
+      ...agentsFromNoCaseResults,
+    ]).filter(
       (name) => !shouldHideAgentByMonth(name, effectiveMonthKeyForAgentVisibility)
     );
 
@@ -5091,7 +5135,7 @@ export default function DashboardMockup({
     }
 
     return mergedAgents.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
-  }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, overviewAgentScopeList]);
+  }, [allCases, selectedMonthKey, dateFrom, dateTo, effectiveMonthKeyForAgentVisibility, noCaseEvaluations, overviewAgentScopeList]);
 
   useEffect(() => {
     if (overviewAgentScopeList.length) {
@@ -5132,27 +5176,52 @@ export default function DashboardMockup({
     return scopedCases.filter((item) => isSameAgent(item.agent, effectiveSelectedAgent));
   }, [allCases, effectiveSelectedAgent, overviewAgentScopeList]);
 
+  const agentNoCaseMonthKeys = useMemo(() => {
+    return noCaseEvaluations
+      .filter((item) => {
+        const agent = item.agentName || item.targetDisplayName;
+        if (effectiveSelectedAgent) {
+          return isSameAgent(agent, effectiveSelectedAgent);
+        }
+        return (
+          !overviewAgentScopeList.length ||
+          overviewAgentScopeList.some((name) => isSameAgent(agent, name))
+        );
+      })
+      .map(getStoredEvaluationMonthKey)
+      .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey));
+  }, [effectiveSelectedAgent, noCaseEvaluations, overviewAgentScopeList]);
+
   const yearOptions = useMemo(() => {
     const sourceCases = overviewAgentScopeList.length
       ? allCases.filter((item) => overviewAgentScopeList.some((agent) => isSameAgent(item.agent, agent)))
       : allCases;
 
     const years = [...new Set(
-      sourceCases
-        .map((item) => String(item.monthKey || "").slice(0, 4))
+      [
+        ...sourceCases.map((item) => String(item.monthKey || "").slice(0, 4)),
+        ...agentNoCaseMonthKeys.map((monthKey) => monthKey.slice(0, 4)),
+      ]
         .filter((year) => /^\d{4}$/.test(year))
     )].sort((a, b) => b.localeCompare(a));
 
     const currentYear = String(TODAY.getFullYear());
     return [...new Set([currentYear, ...years])].sort((a, b) => b.localeCompare(a));
-  }, [allCases, overviewAgentScopeList]);
+  }, [agentNoCaseMonthKeys, allCases, overviewAgentScopeList]);
 
   const monthOptions = useMemo(() => {
     const availableMonthKeys = [...new Set(
-      agentCases
-        .map((item) => item.monthKey)
+      [
+        ...agentCases.map((item) => item.monthKey),
+        ...agentNoCaseMonthKeys,
+      ]
         .filter((monthKey) => /^\d{4}-\d{2}$/.test(monthKey) && monthKey.startsWith(`${selectedYear}-`))
     )];
+    const monthKeysWithCases = new Set(
+      agentCases
+        .map((item) => item.monthKey)
+        .filter((monthKey) => monthKey.startsWith(`${selectedYear}-`))
+    );
     const selectedMonthInYear =
       selectedMonthKey !== "all" &&
       /^\d{4}-\d{2}$/.test(selectedMonthKey) &&
@@ -5168,9 +5237,11 @@ export default function DashboardMockup({
       .map((monthKey) => ({
         value: monthKey,
         label: getMonthLabel(new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)),
-        hasCases: availableMonthKeys.includes(monthKey),
+        hasCases:
+          monthKeysWithCases.has(monthKey) ||
+          agentNoCaseMonthKeys.includes(monthKey),
       }));
-  }, [agentCases, selectedYear, selectedMonthKey]);
+  }, [agentCases, agentNoCaseMonthKeys, selectedYear, selectedMonthKey]);
 
   const resetToCurrentPeriod = () => {
     setSelectedYear(String(TODAY.getFullYear()));
@@ -5396,6 +5467,31 @@ export default function DashboardMockup({
     return agentCases.filter((item) => isWithinDateRange(item.auditDateObj, dateFrom, dateTo));
   }, [agentCases, dateFrom, dateTo, selectedMonthKey]);
 
+  const hasNoCaseMonthlyResult = useMemo(() => {
+    if (
+      !isMonthlyView ||
+      isAllAgentsView ||
+      kpiPeriodCases.length > 0 ||
+      !effectiveSelectedAgent
+    ) return false;
+
+    return noCaseEvaluations.some(
+      (item) =>
+        getStoredEvaluationMonthKey(item) === effectiveViewMonthKey &&
+        isSameAgent(
+          item.agentName || item.targetDisplayName,
+          effectiveSelectedAgent
+        )
+    );
+  }, [
+    effectiveSelectedAgent,
+    effectiveViewMonthKey,
+    isAllAgentsView,
+    isMonthlyView,
+    kpiPeriodCases.length,
+    noCaseEvaluations,
+  ]);
+
   const kpiTargetAgentCount = useMemo(() => {
     if (!isAllAgentsView) return 1;
     return Math.max(
@@ -5416,7 +5512,9 @@ export default function DashboardMockup({
     const volumePassed = caseCount >= volumeTarget;
     const status =
       caseCount === 0
-        ? "not-started"
+        ? hasNoCaseMonthlyResult
+          ? "not-passed"
+          : "not-started"
         : !volumePassed
           ? "in-progress"
           : scorePassed
@@ -5432,20 +5530,22 @@ export default function DashboardMockup({
       passed: scorePassed && volumePassed,
       status,
     };
-  }, [isAllAgentsView, kpiPeriodCases, kpiScoreTarget, kpiTargetAgentCount]);
+  }, [hasNoCaseMonthlyResult, isAllAgentsView, kpiPeriodCases, kpiScoreTarget, kpiTargetAgentCount]);
 
   const currentGradeDisplay =
     metricCaseCount === 0
-      ? isNewPolicyMonth(effectiveViewMonthKey)
-        ? "D"
-        : "F"
+      ? hasNoCaseMonthlyResult
+        ? scoreToGrade(0, effectiveViewMonthKey)
+        : "-"
       : !isAllAgentsView && metricCaseCount < CASE_TARGET
       ? "-"
       : scoreToGrade(Number(metricAverageDisplay), effectiveViewMonthKey);
 
   const currentGradeSub =
     metricCaseCount === 0
-      ? "No evaluated case in selected month"
+      ? hasNoCaseMonthlyResult
+        ? `No evaluated case · Grade ${scoreToGrade(0, effectiveViewMonthKey)} applied for this month`
+        : "No evaluated case in selected month"
       : isAllAgentsView
       ? "Team grade calculated from current average score"
       : metricCaseCount < CASE_TARGET
@@ -5454,9 +5554,15 @@ export default function DashboardMockup({
       ? "Calculated from new criteria (effective Apr 2026 onward)"
       : "Calculated from previous criteria";
 
-  const monthlyAgentCompleted = isMonthlyView && !isAllAgentsView && kpiScopeSummary.caseCount >= CASE_TARGET;
+  const monthlyAgentCompleted =
+    isMonthlyView &&
+    !isAllAgentsView &&
+    (kpiScopeSummary.caseCount >= CASE_TARGET || hasNoCaseMonthlyResult);
   const monthlyAgentGrade: Grade | null = monthlyAgentCompleted
-    ? scoreToGrade(kpiScopeSummary.average, effectiveViewMonthKey)
+    ? scoreToGrade(
+        hasNoCaseMonthlyResult ? 0 : kpiScopeSummary.average,
+        effectiveViewMonthKey
+      )
     : null;
   const incentiveResult = getIncentiveResult(
     kpiScopeSummary.caseCount,
@@ -7024,8 +7130,8 @@ export default function DashboardMockup({
                     <PanelBody className="!p-3.5 lg:!p-4">
                       {!dashboardCases.length ? (
                         <div className="rounded-2xl border border-dashed border-violet-200 bg-white/80 p-8 text-center text-sm text-slate-500">
-                          {effectiveSelectedAgent === "Anucha Makundin"
-                            ? "เน€เธ”เธทเธญเธเธเธตเนเนเธกเนเธกเธตเน€เธเธชเธเธฃเธฐเน€เธกเธดเธเธเธญเธ Anucha โ€ข Score = 0.00 โ€ข Grade = F"
+                          {hasNoCaseMonthlyResult
+                            ? `เดือนนี้ไม่มีเคสประเมินของ ${effectiveSelectedAgent} · Score = 0.00 · Grade = ${currentGradeDisplay}`
                             : "กรุณาเลือก Agent หรือค้นหา Case ID"}
                         </div>
                       ) : (
