@@ -1366,15 +1366,26 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
-const ANALYTICS_TOPIC_TITLES: Record<string, string> = {
-  "Process & Policy Compliance":
-    "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
-  "Answer Quality & Problem Analysis":
-    "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
-  "Case Handling & Follow-up":
-    "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
-  "Communication Skills":
-    "ทักษะการสื่อสาร (Communication Skills)",
+const ANALYTICS_TOPIC_TITLES: Record<
+  string,
+  { thai: string; english: string }
+> = {
+  "Process & Policy Compliance": {
+    thai: "ขั้นตอนการทำงานและนโยบาย",
+    english: "Process & Policy Compliance",
+  },
+  "Answer Quality & Problem Analysis": {
+    thai: "คุณภาพคำตอบและการวิเคราะห์ปัญหา",
+    english: "Answer Quality & Problem Analysis",
+  },
+  "Case Handling & Follow-up": {
+    thai: "การดูแลเคสและติดตามผล",
+    english: "Case Handling & Follow-up",
+  },
+  "Communication Skills": {
+    thai: "ทักษะการสื่อสาร",
+    english: "Communication Skills",
+  },
 };
 
 function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
@@ -1404,20 +1415,40 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
             const kpiDifference =
               topic.pct - PERFORMANCE_KPI_TARGET;
             const meetsKpi = kpiDifference >= 0;
-            const displayTitle =
-              ANALYTICS_TOPIC_TITLES[topic.label] ||
+            const mappedTitle =
+              ANALYTICS_TOPIC_TITLES[topic.label];
+            const bilingualFallback = topic.label.match(
+              /^(.+?)\s*\(([^()]*)\)$/
+            );
+            const thaiTitle =
+              mappedTitle?.thai ||
+              bilingualFallback?.[1]?.trim() ||
               topic.label;
+            const englishTitle =
+              mappedTitle?.english ||
+              bilingualFallback?.[2]?.trim() ||
+              "";
+            const accessibleTitle = englishTitle
+              ? `${thaiTitle}, ${englishTitle}`
+              : thaiTitle;
 
             return (
               <div
                 key={topic.code}
                 className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-5 text-center"
               >
-                <div className="text-[11px] font-medium text-slate-800">
-                  <span className="mr-1.5 text-slate-400">
-                    {topic.code}.
-                  </span>
-                  {displayTitle}
+                <div className="w-full px-2 text-left">
+                  <div className="text-[12px] font-normal leading-5 text-slate-800">
+                    <span className="mr-1.5 text-slate-500">
+                      {topic.code}.
+                    </span>
+                    {thaiTitle}
+                  </div>
+                  {englishTitle ? (
+                    <div className="mt-1 text-[14px] font-medium italic leading-5 text-rose-600">
+                      {englishTitle}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="relative mt-4 h-32 w-32 shrink-0">
@@ -1425,7 +1456,7 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
                     viewBox="0 0 100 100"
                     className="h-full w-full"
                     role="img"
-                    aria-label={`${displayTitle}: ${topic.pct.toFixed(2)}%, KPI ${PERFORMANCE_KPI_TARGET}%`}
+                    aria-label={`${accessibleTitle}: ${topic.pct.toFixed(2)}%, KPI ${PERFORMANCE_KPI_TARGET}%`}
                   >
                     <circle
                       cx="50"
