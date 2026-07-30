@@ -32,6 +32,7 @@ export type StoredUserProfile = {
   displayName: string;
   agentName: string;
   email: string;
+  workSim?: string;
   role: string;
   teamLead: string;
   teamName: string;
@@ -142,6 +143,21 @@ function bangkokToday() {
 }
 
 function toUserProfile(row: any): StoredUserProfile {
+  const devices = Array.isArray(row.devices) ? row.devices : [];
+  const primaryDevice =
+    devices.find((device: any) => device?.isPrimary === true) ||
+    devices[0] ||
+    {};
+  const workSim = String(
+    row.workSim ||
+      row.work_sim ||
+      row.workSimNumber ||
+      row.work_sim_number ||
+      primaryDevice.workSim ||
+      primaryDevice.work_sim ||
+      primaryDevice.workSimNumber ||
+      ""
+  ).replace(/\D+/g, "");
   const suspendEffectiveDate = String(
     row.suspendEffectiveDate ||
       row.suspend_effective_date ||
@@ -197,6 +213,7 @@ function toUserProfile(row: any): StoredUserProfile {
         ""
     ),
     email: String(row.email || ""),
+    workSim,
     role: normalizeRoleName(
       row.role || "Admin Live Chat"
     ),
@@ -270,6 +287,12 @@ function fromUserProfile(profile: StoredUserProfile) {
       new Date().toISOString(),
     updatedAtServer: serverTimestamp(),
   };
+
+  if (profile.workSim !== undefined) {
+    const workSim = String(profile.workSim || "").replace(/\D+/g, "");
+    row.workSim = workSim;
+    row.workSimNumber = workSim;
+  }
 
   if (profile.suspendEndDate !== undefined) {
     row.suspendEndDate =
@@ -467,7 +490,6 @@ export async function upsertStoredMaintenanceState(state: StoredMaintenanceState
   await setDoc(doc(firebaseDb, SYSTEM_SETTINGS_COLLECTION, "global"), nextState, { merge: true });
   writeSingleCache(MAINTENANCE_CACHE_KEY, state);
 }
-
 
 
 
