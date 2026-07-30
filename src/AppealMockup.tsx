@@ -1046,7 +1046,7 @@ function AppealRevisionHistory({
     <Panel>
       <PanelHeader
         title="Rewrite History"
-        subtitle="ทุกครั้งที่มีการ rewrite ของเคสนี้ โดยคะแนนหลักด้านบนใช้ครั้งล่าสุด"
+        subtitle="ประวัติการแก้ไขเคสและคะแนนล่าสุด"
       />
       <PanelBody>
         <div className="space-y-4">
@@ -2265,7 +2265,7 @@ export default function AppealMockup({
         <Panel className="h-fit">
           <PanelHeader
             title="Cases"
-            subtitle="เลือกเลขเคสจากรายการด้านซ้ายเพื่อเปิดดูรายละเอียด"
+            subtitle="รายการเคสอุทธรณ์และสถานะการพิจารณา"
           />
           <PanelBody className="space-y-4">
             {!roleScopedAgentList.length ? (
