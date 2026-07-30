@@ -277,6 +277,22 @@ type MaintenanceState = {
   updatedBy: string;
 };
 
+type QaThemeId =
+  | "robinhood"
+  | "pink"
+  | "yellow"
+  | "lilac"
+  | "ocean"
+  | "emerald"
+  | "midnight"
+  | "graphite";
+
+type QaThemeOption = {
+  id: QaThemeId;
+  label: string;
+  swatches: [string, string, string];
+};
+
 const USER_ACCOUNTS: UserAccount[] = [
   {
     username: "Songpon",
@@ -292,6 +308,17 @@ const STORAGE_KEY = "qa_current_user";
 const REMEMBERED_USERNAME_KEY = "qa_remembered_username";
 const PASSWORD_OVERRIDE_KEY = "qa_password_overrides";
 const PASSWORD_RECORD_KEY = "qa_password_records";
+const QA_THEME_STORAGE_KEY = "qa-dashboard:theme-v1";
+const QA_THEME_OPTIONS: QaThemeOption[] = [
+  { id: "robinhood", label: "Robinhood Purple", swatches: ["#7027a9", "#4c1d78", "#d946a8"] },
+  { id: "pink", label: "Pink Blossom", swatches: ["#db2777", "#9d174d", "#fb72b6"] },
+  { id: "yellow", label: "Sunshine Yellow", swatches: ["#ca8a04", "#854d0e", "#facc15"] },
+  { id: "lilac", label: "Lilac Sky", swatches: ["#7562bd", "#51449a", "#6da8ff"] },
+  { id: "ocean", label: "Ocean Blue", swatches: ["#0877a6", "#155e75", "#38bdf8"] },
+  { id: "emerald", label: "Emerald Mint", swatches: ["#0f8a78", "#115e59", "#5ee0b5"] },
+  { id: "midnight", label: "Midnight Violet", swatches: ["#43308a", "#22164f", "#8b72ff"] },
+  { id: "graphite", label: "Graphite Mono", swatches: ["#3f4653", "#20242c", "#8d96a5"] },
+];
 const INACTIVITY_LIMIT_MS = SESSION_INACTIVITY_MS;
 const WARNING_BEFORE_MS = 1 * 60 * 1000;
 const WARNING_TIME_MS = INACTIVITY_LIMIT_MS - WARNING_BEFORE_MS;
@@ -341,6 +368,17 @@ const OPEN_WORKSPACE_TABS_SESSION_STORAGE_KEY = "qa-dashboard:open-workspace-tab
 const ACTIVE_WORKSPACE_TAB_SESSION_STORAGE_KEY = "qa-dashboard:active-workspace-tab-v36";
 const SIDEBAR_GROUPS_SESSION_STORAGE_KEY = "qa-dashboard:sidebar-groups-v36";
 const CENTRAL_EVALUATION_TEXT_LIMIT = 2800;
+
+function readStoredQaTheme(): QaThemeId {
+  try {
+    const stored = window.localStorage.getItem(QA_THEME_STORAGE_KEY);
+    return QA_THEME_OPTIONS.some((theme) => theme.id === stored)
+      ? stored as QaThemeId
+      : "robinhood";
+  } catch {
+    return "robinhood";
+  }
+}
 const VALID_APP_TABS = new Set<AppTab>([
   "dashboard",
   "appeal",
@@ -469,6 +507,7 @@ function SidebarGlyph({ name }: { name: string }) {
     users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 21c0-5 2-8 6-8s6 3 6 8 M17 7h4 M19 5v4",
     clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
     key: "M8 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M10 13l8-8 2 2-2 2 2 2-3 3-2-2-3 3",
+    theme: "M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a2 2 0 0 1 0-4 0",
     logout: "M10 4H4v16h6 M14 8l4 4-4 4 M18 12H9",
   };
   return <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.document} /></svg>;
@@ -3133,8 +3172,126 @@ function FloatingChatWidget({
   );
 }
 
+function ThemePickerModal({
+  open,
+  selectedTheme,
+  onSelect,
+  onClose,
+}: {
+  open: boolean;
+  selectedTheme: QaThemeId;
+  onSelect: (theme: QaThemeId) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      data-theme-picker-v1="true"
+      className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose();
+      }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qa-theme-picker-title"
+        className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-violet-200 bg-white shadow-[0_28px_80px_rgba(30,16,60,0.28)]"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-fuchsia-50 px-5 py-5 sm:px-6">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.15em] text-violet-700">
+              <SidebarGlyph name="theme" />
+              Appearance
+            </div>
+            <h2 id="qa-theme-picker-title" className="text-xl font-medium text-slate-950">
+              เลือก Theme สีที่ต้องการ
+            </h2>
+            <p className="mt-1 text-sm font-normal text-slate-500">
+              กดเพียงครั้งเดียว สีของ Sidebar และหน้าใช้งานจะเปลี่ยนทันที
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl text-slate-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+            aria-label="ปิดหน้าต่างเลือก Theme"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 sm:p-6">
+          {QA_THEME_OPTIONS.map((theme) => {
+            const selected = theme.id === selectedTheme;
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => onSelect(theme.id)}
+                aria-pressed={selected}
+                className={`flex min-h-[76px] items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                  selected
+                    ? "border-violet-500 bg-violet-50 shadow-[0_8px_24px_rgba(109,40,217,0.12)] ring-2 ring-violet-100"
+                    : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/50"
+                }`}
+              >
+                <span className="flex shrink-0 items-center gap-1" aria-hidden="true">
+                  {theme.swatches.map((color, index) => (
+                    <span
+                      key={color}
+                      className={`${index === 1 ? "h-10 w-6" : "h-10 w-3"} rounded-full`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-slate-900">
+                    {theme.label}
+                  </span>
+                  <span className="mt-1 block text-xs font-normal text-slate-500">
+                    {selected ? "กำลังใช้งาน Theme นี้" : "กดเพื่อเปลี่ยนทันที"}
+                  </span>
+                </span>
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${
+                    selected ? "bg-violet-700 text-white" : "border border-slate-200 text-transparent"
+                  }`}
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <footer className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs font-normal text-slate-500 sm:px-6">
+          <span>ระบบจะจำ Theme นี้ไว้ในอุปกรณ์โดยอัตโนมัติ</span>
+          <button type="button" onClick={onClose} className="rounded-xl bg-slate-900 px-4 py-2 font-medium text-white transition hover:bg-violet-800">
+            เสร็จแล้ว
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [globalSidebarCollapsed, setGlobalSidebarCollapsed] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<QaThemeId>(() => readStoredQaTheme());
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [storedUserCandidate] = useState<CurrentUser | null>(() => readStoredUser());
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [sessionValidationPending, setSessionValidationPending] = useState(
@@ -3185,6 +3342,19 @@ export default function App() {
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap>(() => buildRolePermissionOverrides([]));
   const [accessRulesReady, setAccessRulesReady] = useState(false);
   const [buildMeta, setBuildMeta] = useState<BuildMeta>(DEFAULT_BUILD_META);
+  const activeThemeOption = useMemo(
+    () => QA_THEME_OPTIONS.find((theme) => theme.id === selectedTheme) || QA_THEME_OPTIONS[0],
+    [selectedTheme]
+  );
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.qaTheme = selectedTheme;
+    try {
+      window.localStorage.setItem(QA_THEME_STORAGE_KEY, selectedTheme);
+    } catch {
+      // Theme still applies for the current session when storage is unavailable.
+    }
+  }, [selectedTheme]);
 
   // data-create-evaluation-multitab-v5
   const [maintenanceState, setMaintenanceState] = useState<MaintenanceState>(DEFAULT_MAINTENANCE_STATE);
@@ -6451,6 +6621,33 @@ export default function App() {
               <div><div className="text-[9px] font-medium uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-normal text-violet-200">Current production</div></div>
               <span className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold tracking-wider text-violet-800">{shortBuildHash || (buildMeta.commitHash ? buildMeta.commitHash.slice(0, 7) : "pending")}</span>
             </div> : null}
+            <button
+              type="button"
+              onClick={() => setThemePickerOpen(true)}
+              aria-label={`Theme ปัจจุบัน ${activeThemeOption.label}. กดเพื่อเปลี่ยน Theme`}
+              className={`mt-2 flex w-full items-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20 ${
+                globalSidebarCollapsed ? "justify-center px-2 py-2" : "gap-2 px-2.5 py-2 text-left"
+              }`}
+            >
+              <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
+                {activeThemeOption.swatches.map((color, index) => (
+                  <span
+                    key={color}
+                    className={`${index === 1 ? "h-4 w-2.5" : "h-4 w-1.5"} rounded-full`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </span>
+              {!globalSidebarCollapsed ? (
+                <>
+                  <span className="qa-sidebar-label min-w-0 flex-1">
+                    <span className="block text-[9px] font-normal uppercase tracking-[0.12em] text-violet-300">Theme</span>
+                    <span className="block truncate text-[10px] font-medium text-white">{activeThemeOption.label}</span>
+                  </span>
+                  <svg viewBox="0 0 24 24" className="qa-sidebar-label h-4 w-4 shrink-0 text-violet-200" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </>
+              ) : null}
+            </button>
           </div>
 
           <nav className="qa-sidebar-nav-v39 mt-3 flex-1 space-y-1 overflow-y-auto overflow-x-hidden pb-2" aria-label="Main navigation">
@@ -6534,6 +6731,13 @@ export default function App() {
 
       <ReleaseNotesModal open={showReleaseNotesModal} onClose={() => setShowReleaseNotesModal(false)} meta={buildMeta} />
 
+      <ThemePickerModal
+        open={themePickerOpen}
+        selectedTheme={selectedTheme}
+        onSelect={setSelectedTheme}
+        onClose={() => setThemePickerOpen(false)}
+      />
+
       <ChangePasswordModal
         open={showChangePasswordModal}
         onClose={() => { setShowChangePasswordModal(false); resetChangePasswordState(); }}
@@ -6568,7 +6772,7 @@ export default function App() {
         }}
       />
 
-      <div className="min-h-screen bg-slate-100">
+      <div data-qa-theme-surface-v1="true" className="min-h-screen bg-slate-100">
         {/* data-announcement-hub-v2 */}
         <AnnouncementHub
           currentUser={currentUser}
