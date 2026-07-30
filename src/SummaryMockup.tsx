@@ -8890,32 +8890,44 @@ export default function SummaryMockup({
                 effectivePeriodKeys
               }
               detailContent={
-                <div
-                  data-analytics-primary-details-v144="true"
-                  className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]"
-                >
+                <div data-analytics-primary-details-v144="true">
                   <Panel>
                     <PanelHeader
-                      title="Performance Detail"
-                      subtitle="ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน"
+                      title="Performance & Topic Detail"
+                      subtitle="รายละเอียดผลลัพธ์และคะแนนแต่ละหัวข้อในมุมมองเดียว"
                     />
                     <PanelBody>
-                      <SummaryTable
-                        rows={summaryRows}
-                        firstColLabel={firstColLabel}
-                        showIncentive={summaryTableShowIncentive}
-                      />
-                    </PanelBody>
-                  </Panel>
-                  <Panel>
-                    <PanelHeader
-                      title="Topic Detail"
-                      subtitle="เรียงคะแนนจากดีที่สุดไปยังหัวข้อที่ควร Coaching"
-                    />
-                    <PanelBody>
-                      <AnalyticsTopicDetail
-                        topics={topicSummary}
-                      />
+                      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] xl:gap-0">
+                        <section className="min-w-0 xl:pr-5">
+                          <div className="mb-4">
+                            <div className="text-[13px] font-medium text-slate-900">
+                              Performance Detail
+                            </div>
+                            <div className="mt-1 text-[10px] font-normal text-slate-500">
+                              ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน
+                            </div>
+                          </div>
+                          <SummaryTable
+                            rows={summaryRows}
+                            firstColLabel={firstColLabel}
+                            showIncentive={summaryTableShowIncentive}
+                          />
+                        </section>
+
+                        <section className="min-w-0 border-t border-slate-100 pt-5 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
+                          <div className="mb-4">
+                            <div className="text-[13px] font-medium text-slate-900">
+                              Topic Detail
+                            </div>
+                            <div className="mt-1 text-[10px] font-normal text-slate-500">
+                              เรียงคะแนนจากดีที่สุดไปยังหัวข้อที่ควร Coaching
+                            </div>
+                          </div>
+                          <AnalyticsTopicDetail
+                            topics={topicSummary}
+                          />
+                        </section>
+                      </div>
                     </PanelBody>
                   </Panel>
                 </div>
