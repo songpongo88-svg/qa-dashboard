@@ -1352,6 +1352,97 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
   );
 }
 
+function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
+  const sortedTopics = [...topics].sort(
+    (left, right) =>
+      right.pct - left.pct ||
+      left.code.localeCompare(right.code)
+  );
+  const strongestTopic = sortedTopics[0];
+  const coachingTopic =
+    sortedTopics[sortedTopics.length - 1];
+
+  return (
+    <div className="space-y-4">
+      {sortedTopics.length ? (
+        <div className="space-y-3">
+          {sortedTopics.map((topic, index) => (
+            <div
+              key={topic.code}
+              className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium text-slate-800">
+                    <span className="mr-2 text-slate-400">
+                      {index + 1}
+                    </span>
+                    {topic.label}
+                  </div>
+                  <div className="mt-1 text-[10px] font-normal text-slate-500">
+                    Topic {topic.code} · Average {topic.avgScore.toFixed(2)}/{topic.max}
+                  </div>
+                </div>
+                <div
+                  className={
+                    "shrink-0 text-sm font-medium " +
+                    (topic.pct >= PERFORMANCE_KPI_TARGET
+                      ? "text-emerald-700"
+                      : "text-amber-700")
+                  }
+                >
+                  {topic.pct.toFixed(2)}%
+                </div>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className={
+                    "h-full rounded-full " +
+                    (topic.pct >= PERFORMANCE_KPI_TARGET
+                      ? "bg-gradient-to-r from-violet-700 to-fuchsia-500"
+                      : "bg-gradient-to-r from-amber-500 to-orange-400")
+                  }
+                  style={{
+                    width: `${Math.max(
+                      0,
+                      Math.min(100, topic.pct)
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm font-normal text-slate-400">
+          No topic data
+        </div>
+      )}
+
+      {strongestTopic && coachingTopic ? (
+        <div className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
+          <div className="rounded-xl bg-emerald-50 px-3 py-2.5">
+            <div className="text-[9px] font-normal uppercase tracking-wide text-emerald-600">
+              Strongest
+            </div>
+            <div className="mt-1 truncate text-[11px] font-medium text-emerald-800">
+              {strongestTopic.label} · {strongestTopic.pct.toFixed(2)}%
+            </div>
+          </div>
+          <div className="rounded-xl bg-amber-50 px-3 py-2.5">
+            <div className="text-[9px] font-normal uppercase tracking-wide text-amber-600">
+              Coaching Focus
+            </div>
+            <div className="mt-1 truncate text-[11px] font-medium text-amber-800">
+              {coachingTopic.label} · {coachingTopic.pct.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AnalyticsAgentPerformanceV92({
   cases,
   agentNames,
@@ -1519,9 +1610,6 @@ function AnalyticsAgentPerformanceV92({
   }, [rows, allAgentsMode, agentSortTab]);
   const promoActiveForMonth =
     monthlyMode && hasRbhPromo(monthKey);
-  const incentiveGuideColumns = promoActiveForMonth
-    ? "48px minmax(80px,1fr) minmax(95px,1fr) minmax(100px,1fr)"
-    : "48px minmax(80px,1fr) minmax(95px,1fr)";
 
   // data-topic-status-allagents-incentive-v131-fix
   const incentiveText = (row: (typeof rows)[number]) => {
@@ -1737,90 +1825,19 @@ function AnalyticsAgentPerformanceV92({
 
       </div>
 
-      <div className="grid min-w-0 gap-5 xl:grid-cols-2">
       <div
-        data-monthly-grade-criteria-v109="true"
+        data-monthly-grade-incentive-criteria-v144="true"
         className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[15px] font-semibold text-slate-900">
-              Monthly Grade Criteria
+              Monthly Grade &amp; Incentive Criteria
             </div>
             <div className="mt-1 text-[10px] font-normal text-slate-500">
               {monthlyMode
                 ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
-                : "Select Monthly view to see the grade criteria"}
-            </div>
-          </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-lg font-semibold text-violet-600">
-            A
-          </div>
-        </div>
-
-        {monthlyMode ? (
-          <div className="mt-5 overflow-hidden rounded-2xl border border-violet-100">
-            {getGradeGuideRows(monthKey).map((row) => {
-              const incentive = getIncentiveByGrade(row.grade, monthKey);
-              const status = incentive.remark;
-
-              return (
-                <div
-                  key={row.grade}
-                  className="grid grid-cols-[42px_minmax(0,1fr)_minmax(90px,auto)] items-center gap-3 border-b border-violet-100 bg-white px-3 py-3 last:border-b-0"
-                >
-                  <span
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-sm font-semibold ${getGradeTone(row.grade)}`}
-                  >
-                    {row.grade}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-900">
-                      Score {row.range}
-                    </div>
-                    <div className="mt-0.5 text-[10px] font-normal text-slate-500">
-                      Grade {row.grade}
-                      {hasRbhPromo(monthKey) && incentive.promo > 0
-                        ? ` : ${incentive.promo.toLocaleString("en-US")} RBH Promo`
-                        : ""}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-normal uppercase tracking-wide text-slate-400">
-                      Status
-                    </div>
-                    <div className="mt-1 text-xs font-semibold text-slate-700">
-                      {status}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs font-normal text-slate-500">
-            Grade criteria are available in Monthly view.
-          </div>
-        )}
-
-        <div className="mt-4 text-[10px] font-normal leading-5 text-slate-500">
-          The score range, Status and Promo change automatically according to the selected month.
-        </div>
-      </div>
-
-      <div
-        data-qa-grade-incentive-guide-v126="true"
-        className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[15px] font-semibold text-slate-900">
-              QA Grade & Incentive Guide
-            </div>
-            <div className="mt-1 text-[10px] font-normal text-slate-500">
-              {monthlyMode
-                ? `${periodLabel || "Selected month"} · ${getGradePolicyLabel(monthKey)}`
-                : "Select Monthly view to see the monthly Incentive guide"}
+                : "Select Monthly view to see the monthly Grade and Incentive criteria"}
             </div>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-lg font-semibold text-emerald-600">
@@ -1829,72 +1846,68 @@ function AnalyticsAgentPerformanceV92({
         </div>
 
         {monthlyMode ? (
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-emerald-100">
-            <div
-              className="grid min-w-[360px] gap-3 bg-emerald-50 px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800"
-              style={{
-                gridTemplateColumns:
-                  incentiveGuideColumns,
-              }}
-            >
-              <div>Grade</div>
-              <div>Score</div>
-              <div className="text-right">Cash</div>
-              {promoActiveForMonth ? (
-                <div className="text-right">
-                  Promo
-                </div>
-              ) : null}
-            </div>
-            {getGradeGuideRows(monthKey).map((row) => {
-              const incentive = getIncentiveByGrade(row.grade, monthKey);
-              const promoVisible =
-                hasRbhPromo(monthKey) &&
-                incentive.promo > 0;
-
-              return (
-                <div
-                  key={`incentive-${row.grade}`}
-                  className="grid min-w-[360px] items-center gap-3 border-t border-emerald-100 bg-white px-3 py-3 text-xs"
-                  style={{
-                    gridTemplateColumns:
-                      incentiveGuideColumns,
-                  }}
-                >
-                  <div>
-                    <span
-                      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}
-                    >
-                      {row.grade}
-                    </span>
-                  </div>
-                  <div className="font-medium text-slate-700">
-                    {row.range}
-                  </div>
-                  <div className="text-right font-semibold text-slate-800">
-                    ฿{incentive.cash.toLocaleString("en-US")}
-                  </div>
+          <div className="mt-5 overflow-x-auto rounded-2xl border border-violet-100">
+            <table className="min-w-[680px] w-full text-[11px]">
+              <thead>
+                <tr className="bg-violet-950 text-left font-normal text-white">
+                  <th className="px-4 py-3">Grade</th>
+                  <th className="px-4 py-3">Score Range</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Cash Incentive</th>
                   {promoActiveForMonth ? (
-                    <div className="text-right font-medium text-slate-600">
-                      {promoVisible
-                        ? `${incentive.promo.toLocaleString("en-US")} RBH`
-                        : "—"}
-                    </div>
+                    <th className="px-4 py-3 text-right">Promo</th>
                   ) : null}
-                </div>
-              );
-            })}
+                </tr>
+              </thead>
+              <tbody>
+                {getGradeGuideRows(monthKey).map((row) => {
+                  const incentive = getIncentiveByGrade(row.grade, monthKey);
+
+                  return (
+                    <tr
+                      key={`grade-incentive-${row.grade}`}
+                      className="border-t border-slate-100 bg-white"
+                    >
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-semibold ${getGradeTone(row.grade)}`}
+                        >
+                          {row.grade}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-700">
+                        {row.range}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {incentive.remark}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-800">
+                        {incentive.cash > 0
+                          ? `฿${incentive.cash.toLocaleString("en-US")}`
+                          : "—"}
+                      </td>
+                      {promoActiveForMonth ? (
+                        <td className="px-4 py-3 text-right font-medium text-slate-600">
+                          {incentive.promo > 0
+                            ? `${incentive.promo.toLocaleString("en-US")} RBH`
+                            : "—"}
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs font-normal text-slate-500">
-            Incentive criteria are available in Monthly view.
+            Grade and Incentive criteria are available in Monthly view.
           </div>
         )}
 
         <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-[10px] font-normal leading-5 text-slate-500">
-          Incentive is paid only when the Agent completes at least {CASE_TARGET} evaluated cases and meets the applicable monthly conditions. Promo is shown only for months that have an active Promo policy.
+          The score range, Status and Incentive change automatically according to the selected month. Incentive is paid only when the Agent completes at least {CASE_TARGET} evaluated cases and meets the applicable monthly conditions. Promo appears only in months with an active Promo policy.
         </div>
-      </div>
       </div>
     </div>
   );
@@ -1903,16 +1916,15 @@ function AnalyticsAgentPerformanceV92({
 function AnalyticsOverviewV89({
   summary,
   cases,
-  topics,
   trendRows,
   monthlyMode,
   individualMode,
   noCaseMonthKey,
   periodKeys,
+  detailContent,
 }: {
   summary: SummaryCards;
   cases: CaseItem[];
-  topics: TopicSummary[];
   trendRows: Array<
     PeriodRow & {
       scoreDelta?: number | null;
@@ -1922,6 +1934,7 @@ function AnalyticsOverviewV89({
   individualMode: boolean;
   noCaseMonthKey?: string;
   periodKeys?: string[];
+  detailContent?: React.ReactNode;
 }) {
   // data-month-policy-zero-case-and-incentive-guide-v126
   // data-team-evaluation-target-v141
@@ -1975,11 +1988,6 @@ function AnalyticsOverviewV89({
     (hasKpiData &&
       (!monthlyMode ||
         evaluatedCases >= CASE_TARGET));
-  const kpiPending =
-    monthlyMode &&
-    hasKpiData &&
-    evaluatedCases < CASE_TARGET &&
-    !hasNoCaseMonthlyResult;
   // data-kpi-grade-description-v143
   const kpiPassed =
     hasKpiData &&
@@ -2074,7 +2082,7 @@ function AnalyticsOverviewV89({
       : "#e2e8f0";
 
   const visibleTrend =
-    trendRows.slice(-7);
+    trendRows.slice(0, 3);
   const trendScores =
     visibleTrend.map(
       (row) => row.avgScore
@@ -2115,21 +2123,6 @@ function AnalyticsOverviewV89({
           `${row.x},${row.y}`
       )
       .join(" ");
-
-  const strongestTopics = [
-    ...topics,
-  ]
-    .sort(
-      (a, b) =>
-        b.pct - a.pct
-    )
-    .slice(0, 4);
-  const lowestTopic = [
-    ...topics,
-  ].sort(
-    (a, b) =>
-      a.pct - b.pct
-  )[0];
 
   const metricItems = [
     {
@@ -2285,6 +2278,8 @@ function AnalyticsOverviewV89({
         )}
       </div>
 
+      {detailContent}
+
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.85fr)]">
         <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
           <div className="flex items-center justify-between gap-3">
@@ -2293,17 +2288,12 @@ function AnalyticsOverviewV89({
                 Quality Score Trend
               </div>
               <div className="mt-1 text-[10px] font-normal text-slate-500">
-                Average score by selected period
+                Latest 3 calendar months · newest month first
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-normal text-slate-500">
-              Last{" "}
-              {Math.max(
-                1,
-                visibleTrend.length
-              )}{" "}
-              period(s)
+              {visibleTrend.length}/3 months
             </div>
           </div>
 
@@ -2483,132 +2473,6 @@ function AnalyticsOverviewV89({
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
-        <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <div className="text-[15px] font-semibold text-slate-900">
-              Top Performance by Topic
-            </div>
-          </div>
-
-          <div className="overflow-x-auto px-5 pb-3">
-            <table className="min-w-[620px] w-full text-[11px]">
-              <thead>
-                <tr className="text-left font-normal text-slate-400">
-                  <th className="px-2 py-3">
-                    Topic
-                  </th>
-                  <th className="px-2 py-3 text-right">
-                    Score
-                  </th>
-                  <th className="px-2 py-3 text-right">
-                    สถานะหัวข้อ
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {strongestTopics.map(
-                  (topic, index) => (
-                    <tr
-                      key={topic.code}
-                      className="border-t border-slate-100"
-                    >
-                      <td className="px-2 py-3 text-slate-700">
-                        <span className="mr-3 text-slate-400">
-                          {index + 1}
-                        </span>
-                        {topic.label}
-                      </td>
-                      <td className="px-2 py-3 text-right font-medium text-slate-700">
-                        {topic.pct.toFixed(
-                          2
-                        )}
-                        %
-                      </td>
-                      <td className="px-2 py-3 text-right">
-                        <span
-                          className={
-                            topic.pct >=
-                            PERFORMANCE_KPI_TARGET
-                              ? "text-emerald-600"
-                              : "text-amber-600"
-                          }
-                        >
-                          {topic.pct >=
-                          PERFORMANCE_KPI_TARGET
-                            ? "ผ่านมาตรฐาน"
-                            : "ต้องปรับปรุง"}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                )}
-
-                {!strongestTopics.length ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="border-t border-slate-100 px-2 py-8 text-center text-slate-400"
-                    >
-                      No topic data
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[15px] font-semibold text-slate-900">
-              Alerts & Insights
-            </div>
-            <div className="text-[10px] font-normal text-violet-600">
-              Current view
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            <div className="rounded-xl border border-slate-200 px-4 py-3">
-              <div className="text-[11px] font-medium text-slate-700">
-                {!hasKpiData
-  ? "No quality score data"
-  : kpiPending
-    ? `KPI pending ${evaluatedCases}/${CASE_TARGET} cases`
-    : kpiPassed
-      ? "Monthly result passed"
-      : "Monthly result not passed"}
-              </div>
-              <div className="mt-1 text-[10px] font-normal text-slate-500">
-                {!hasKpiData
-  ? "No evaluated cases in the current selection"
-  : kpiPending
-    ? `Current average ${summary.avgScore.toFixed(2)}% · Result available after ${CASE_TARGET} cases`
-    : monthlyMode
-      ? `Grade ${summary.grade} · ${kpiPassed ? "Incentive eligible" : "No incentive"}`
-      : `Current ${summary.avgScore.toFixed(2)}% · Target ${PERFORMANCE_KPI_TARGET}%`}
-              </div>
-            </div>
-
-            {lowestTopic ? (
-              <div className="rounded-xl border border-slate-200 px-4 py-3">
-                <div className="text-[11px] font-medium text-slate-700">
-                  Lowest topic:{" "}
-                  {lowestTopic.label}
-                </div>
-                <div className="mt-1 text-[10px] font-normal text-slate-500">
-                  Current score{" "}
-                  {lowestTopic.pct.toFixed(
-                    2
-                  )}
-                  %
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -2729,9 +2593,6 @@ export default function SummaryMockup({
   const [analyticsCompareOpen, setAnalyticsCompareOpen] = useState(false);
   const [compareDraftPeriods, setCompareDraftPeriods] = useState<string[]>([]);
   const [analyticsExportOpen, setAnalyticsExportOpen] = useState(false);
-  const [analyticsDetailsOpen, setAnalyticsDetailsOpen] = useState(
-    () => window.sessionStorage.getItem("qa_analytics_details_open_v134") === "true"
-  );
   const [selectedTeam, setSelectedTeam] = useState(
     () => window.sessionStorage.getItem("qa_analytics_team_v134") || "all"
   );
@@ -2747,7 +2608,6 @@ export default function SummaryMockup({
     window.sessionStorage.setItem("qa_analytics_month_filter_v134", periodFilterMonth);
     window.sessionStorage.setItem("qa_analytics_section_v134", summarySection);
     window.sessionStorage.setItem("qa_analytics_team_month_v134", teamSelectedMonth);
-    window.sessionStorage.setItem("qa_analytics_details_open_v134", String(analyticsDetailsOpen));
     window.sessionStorage.setItem("qa_analytics_team_v134", selectedTeam);
     window.sessionStorage.setItem("qa_analytics_team_detail_v134", selectedTeamDetail);
   }, [
@@ -2757,7 +2617,6 @@ export default function SummaryMockup({
     periodFilterMonth,
     summarySection,
     teamSelectedMonth,
-    analyticsDetailsOpen,
     selectedTeam,
     selectedTeamDetail,
   ]);
@@ -3693,6 +3552,165 @@ export default function SummaryMockup({
       }),
     [comparisonRows]
   );
+
+  const qualityScoreTrendRows = useMemo(() => {
+    const selectedMonthlyKey =
+      analysisMode === "monthly"
+        ? effectivePeriodKeys[
+            effectivePeriodKeys.length - 1
+          ] || ""
+        : "";
+    const anchorMonthKey =
+      selectedMonthlyKey ||
+      getLatestMonthKey(
+        filteredCases.length
+          ? filteredCases
+          : allCases
+      );
+
+    if (!/^\d{4}-\d{2}$/.test(anchorMonthKey)) {
+      return [...comparisonRowsWithDelta]
+        .slice(-3)
+        .reverse();
+    }
+
+    const newestFirstRows =
+      buildRecentMonthKeys(
+        anchorMonthKey,
+        3
+      )
+        .reverse()
+        .map((monthKey) => {
+          const monthCases =
+            allCases.filter((item) => {
+              if (
+                item.monthKey !== monthKey
+              ) {
+                return false;
+              }
+
+              if (
+                roleScopedAgentList.length &&
+                !roleScopedAgentList.some(
+                  (agent) =>
+                    isSameAgent(
+                      item.agent,
+                      agent
+                    )
+                )
+              ) {
+                return false;
+              }
+
+              if (
+                selectedTeam !== "all"
+              ) {
+                const account =
+                  getAccountStatus(
+                    item.agent,
+                    accountProfiles
+                  );
+                if (
+                  normalizeText(
+                    getSummaryTeamName(
+                      account
+                    )
+                  ) !==
+                  normalizeText(
+                    selectedTeam
+                  )
+                ) {
+                  return false;
+                }
+              }
+
+              return (
+                effectiveSelectedAgent ===
+                  "all" ||
+                isSameAgent(
+                  item.agent,
+                  effectiveSelectedAgent
+                )
+              );
+            });
+
+          if (!monthCases.length) {
+            return {
+              label:
+                getMonthLabelForKey(
+                  monthKey,
+                  allCases
+                ),
+              caseCount: 0,
+              avgScore: 0,
+              revisedCount: 0,
+              grade: scoreToGrade(
+                0,
+                monthKey
+              ),
+              incentive: 0,
+            };
+          }
+
+          const monthSummary =
+            summarizeCases(monthCases);
+
+          return {
+            label:
+              getMonthLabelForKey(
+                monthKey,
+                allCases
+              ),
+            caseCount:
+              monthSummary.caseCount,
+            avgScore:
+              monthSummary.avgScore,
+            revisedCount:
+              monthSummary.revisedCount,
+            grade: monthSummary.grade,
+            incentive:
+              monthSummary.incentive,
+          };
+        });
+
+    return newestFirstRows.map(
+      (row, index) => {
+        const previousMonth =
+          newestFirstRows[index + 1] ||
+          null;
+
+        return {
+          ...row,
+          scoreDelta: previousMonth
+            ? Number(
+                (
+                  row.avgScore -
+                  previousMonth.avgScore
+                ).toFixed(2)
+              )
+            : null,
+          caseDelta: previousMonth
+            ? row.caseCount -
+              previousMonth.caseCount
+            : null,
+          revisedDelta: previousMonth
+            ? row.revisedCount -
+              previousMonth.revisedCount
+            : null,
+        };
+      }
+    );
+  }, [
+    accountProfiles,
+    allCases,
+    analysisMode,
+    comparisonRowsWithDelta,
+    effectivePeriodKeys,
+    effectiveSelectedAgent,
+    filteredCases,
+    roleScopedAgentList,
+    selectedTeam,
+  ]);
 
   const getCasesForPeriodLabel = (periodLabel: string) =>
     filteredCases.filter((item) => {
@@ -8859,8 +8877,7 @@ export default function SummaryMockup({
             <AnalyticsOverviewV89
               summary={summaryCards}
               cases={filteredCases}
-              topics={topicSummary}
-              trendRows={comparisonRowsWithDelta}
+              trendRows={qualityScoreTrendRows}
               monthlyMode={
                 analysisMode === "monthly" &&
                 !isComparisonMode
@@ -8871,6 +8888,37 @@ export default function SummaryMockup({
               noCaseMonthKey={activeNoCaseMonthKey}
               periodKeys={
                 effectivePeriodKeys
+              }
+              detailContent={
+                <div
+                  data-analytics-primary-details-v144="true"
+                  className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]"
+                >
+                  <Panel>
+                    <PanelHeader
+                      title="Performance Detail"
+                      subtitle="ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน"
+                    />
+                    <PanelBody>
+                      <SummaryTable
+                        rows={summaryRows}
+                        firstColLabel={firstColLabel}
+                        showIncentive={summaryTableShowIncentive}
+                      />
+                    </PanelBody>
+                  </Panel>
+                  <Panel>
+                    <PanelHeader
+                      title="Topic Detail"
+                      subtitle="เรียงคะแนนจากดีที่สุดไปยังหัวข้อที่ควร Coaching"
+                    />
+                    <PanelBody>
+                      <AnalyticsTopicDetail
+                        topics={topicSummary}
+                      />
+                    </PanelBody>
+                  </Panel>
+                </div>
               }
             />
 
@@ -8922,23 +8970,6 @@ export default function SummaryMockup({
                 <PanelHeader title="Period Comparison" subtitle={`เปรียบเทียบ ${effectivePeriodLabels.join(" · ")}`} />
                 <PanelBody><SummaryTable rows={comparisonRowsWithDelta} firstColLabel={reportModeName} /></PanelBody>
               </Panel>
-            ) : null}
-            <div className="flex justify-center">
-              <button type="button" onClick={() => setAnalyticsDetailsOpen((value) => !value)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-violet-700 shadow-sm hover:border-violet-300 hover:bg-violet-50">
-                {analyticsDetailsOpen ? "Hide Details" : "View Details >"}
-              </button>
-            </div>
-            {analyticsDetailsOpen ? (
-              <div className="grid gap-5 xl:grid-cols-2">
-                <Panel>
-                  <PanelHeader title="Performance Detail" subtitle="ข้อมูลตามช่วงเวลาในมุมมองปัจจุบัน" />
-                  <PanelBody><SummaryTable rows={summaryRows} firstColLabel={firstColLabel} showIncentive={summaryTableShowIncentive} /></PanelBody>
-                </Panel>
-                <Panel>
-                  <PanelHeader title="Topic Detail" subtitle="คะแนนเฉลี่ยแยกตามหัวข้อ QA" />
-                  <PanelBody><TopicTable topics={topicSummary} /></PanelBody>
-                </Panel>
-              </div>
             ) : null}
           </div>
           <div
@@ -9448,7 +9479,6 @@ export default function SummaryMockup({
                         onClick={() => {
                           setAnalyticsCustomizeOpen(false);
                           setViewMode("weekly-dashboard");
-                          setAnalyticsDetailsOpen(true);
                         }}
                         disabled={!effectivePeriodKeys.length}
                         className="rounded-xl border border-violet-300 bg-white px-5 py-2.5 text-sm font-medium text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -9487,8 +9517,16 @@ export default function SummaryMockup({
             <AnalyticsOverviewV89
               summary={summaryCards}
               cases={filteredCases}
-              topics={topicSummary}
-              trendRows={comparisonRowsWithDelta}
+              trendRows={qualityScoreTrendRows}
+              monthlyMode={
+                analysisMode === "monthly" &&
+                !isComparisonMode
+              }
+              individualMode={
+                effectiveSelectedAgent !== "all"
+              }
+              noCaseMonthKey={activeNoCaseMonthKey}
+              periodKeys={effectivePeriodKeys}
             />
 
             {analysisMode === "monthly" ? (
