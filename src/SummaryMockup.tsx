@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import LoadingMascot from "./LoadingMascot";
-import { fetchStoredEvaluations } from "./evaluationStore";
+import {
+  fetchStoredEvaluations,
+  getStoredEvaluationMonthKey,
+  isNoCaseEvaluation,
+  type StoredEvaluation,
+} from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
 import { getIncentiveByGrade, getIncentiveByScore, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
@@ -1350,6 +1355,7 @@ function TopicTable({ topics }: { topics: TopicSummary[] }) {
 function AnalyticsAgentPerformanceV92({
   cases,
   agentNames,
+  noCaseAgentNames,
   accountProfiles,
   monthKey,
   monthlyMode,
@@ -1360,6 +1366,7 @@ function AnalyticsAgentPerformanceV92({
 }: {
   cases: CaseItem[];
   agentNames: string[];
+  noCaseAgentNames: string[];
   accountProfiles: StoredUserProfile[];
   monthKey: string;
   monthlyMode: boolean;
@@ -1416,14 +1423,14 @@ function AnalyticsAgentPerformanceV92({
             criticalError
           );
         const grade = monthlyPerformance.grade;
-        const specialAnuchaZeroCaseGrade =
+        const hasNoCaseMonthlyResult =
           caseCount === 0 &&
           monthlyMode &&
-          isSameAgent(agent, "Anucha Makundin") &&
-          (monthKey === "2026-02" ||
-            monthKey === "2026-03");
+          noCaseAgentNames.some((name) =>
+            isSameAgent(agent, name)
+          );
         const gradeReady =
-          specialAnuchaZeroCaseGrade ||
+          hasNoCaseMonthlyResult ||
           (caseCount > 0 &&
             (!monthlyMode ||
               monthlyPerformance.completed));
@@ -1468,7 +1475,7 @@ function AnalyticsAgentPerformanceV92({
           average,
           grade,
           criticalError,
-          specialAnuchaZeroCaseGrade,
+          hasNoCaseMonthlyResult,
           gradeReady,
           kpiPending,
           kpiPassed,
@@ -1480,14 +1487,14 @@ function AnalyticsAgentPerformanceV92({
           ).length,
         };
       })
-      .filter((row) => row.caseCount > 0 || row.specialAnuchaZeroCaseGrade)
+      .filter((row) => row.caseCount > 0 || row.hasNoCaseMonthlyResult)
       .sort(
         (left, right) =>
           right.average - left.average ||
           right.caseCount - left.caseCount ||
           left.displayName.localeCompare(right.displayName)
       );
-  }, [accountProfiles, agentNames, cases, monthKey, monthlyMode]);
+  }, [accountProfiles, agentNames, cases, monthKey, monthlyMode, noCaseAgentNames]);
 
   const allAgentsMode = selectedAgent === "all";
   // data-analytics-layout-promo-readable-v128
@@ -1520,7 +1527,7 @@ function AnalyticsAgentPerformanceV92({
   const incentiveText = (row: (typeof rows)[number]) => {
     const notEligibleText = allAgentsMode ? "฿0 (Not Eligible)" : "Not Eligible";
     if (!monthlyMode) return "Monthly only";
-    if (row.specialAnuchaZeroCaseGrade) {
+    if (row.hasNoCaseMonthlyResult) {
       return allAgentsMode ? "฿0 (Not Eligible)" : "฿0";
     }
     if (row.caseCount < CASE_TARGET) {
@@ -1640,13 +1647,13 @@ function AnalyticsAgentPerformanceV92({
                     {row.caseCount}
                   </td>
                   <td className="px-3 py-3 text-center font-medium text-slate-800">
-                    {row.caseCount || row.specialAnuchaZeroCaseGrade ? row.average.toFixed(2) : "—"}
+                    {row.caseCount || row.hasNoCaseMonthlyResult ? row.average.toFixed(2) : "—"}
                   </td>
                   <td className="px-3 py-3 text-center">
                     <span
                       className={
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " +
-                        (row.specialAnuchaZeroCaseGrade
+                        (row.hasNoCaseMonthlyResult
                           ? "bg-rose-50 text-rose-600"
                           : !row.caseCount
                             ? "bg-slate-100 text-slate-500"
@@ -1657,7 +1664,7 @@ function AnalyticsAgentPerformanceV92({
                               : "bg-rose-50 text-rose-600")
                       }
                     >
-                      {row.specialAnuchaZeroCaseGrade
+                      {row.hasNoCaseMonthlyResult
                         ? "● Not Passed"
                         : !row.caseCount
                           ? "No Data"
@@ -1900,7 +1907,7 @@ function AnalyticsOverviewV89({
   trendRows,
   monthlyMode,
   individualMode,
-  selectedAgent,
+  noCaseMonthKey,
   periodKeys,
 }: {
   summary: SummaryCards;
@@ -1913,7 +1920,7 @@ function AnalyticsOverviewV89({
   >;
   monthlyMode: boolean;
   individualMode: boolean;
-  selectedAgent?: string;
+  noCaseMonthKey?: string;
   periodKeys?: string[];
 }) {
   // data-month-policy-zero-case-and-incentive-guide-v126
@@ -1937,28 +1944,17 @@ function AnalyticsOverviewV89({
           evaluatedAgentCount * CASE_TARGET
         )
       : CASE_TARGET;
-  const specialAnuchaZeroCaseMonthKey =
+  const hasNoCaseMonthlyResult =
     evaluatedCases === 0 &&
     monthlyMode &&
-    isSameAgent(
-      String(selectedAgent || ""),
-      "Anucha Makundin"
-    )
-      ? (periodKeys || []).find(
-          (periodKey) =>
-            periodKey === "2026-02" ||
-            periodKey === "2026-03"
-        ) || ""
-      : "";
-  const specialAnuchaZeroCaseGrade =
-    Boolean(specialAnuchaZeroCaseMonthKey);
-  const specialAnuchaZeroCaseGradeValue =
+    Boolean(noCaseMonthKey);
+  const noCaseMonthlyGrade =
     scoreToGrade(
       0,
-      specialAnuchaZeroCaseMonthKey
+      noCaseMonthKey
     );
   const overviewMonthKey =
-    specialAnuchaZeroCaseMonthKey ||
+    noCaseMonthKey ||
     (periodKeys || []).slice(-1)[0] ||
     summary.policyMonthKey;
   const overviewCriticalError = cases.some(
@@ -1973,9 +1969,9 @@ function AnalyticsOverviewV89({
     );
   const hasKpiData =
     evaluatedCases > 0 ||
-    specialAnuchaZeroCaseGrade;
+    hasNoCaseMonthlyResult;
   const gradeReady =
-    specialAnuchaZeroCaseGrade ||
+    hasNoCaseMonthlyResult ||
     (hasKpiData &&
       (!monthlyMode ||
         evaluatedCases >= CASE_TARGET));
@@ -1983,11 +1979,11 @@ function AnalyticsOverviewV89({
     monthlyMode &&
     hasKpiData &&
     evaluatedCases < CASE_TARGET &&
-    !specialAnuchaZeroCaseGrade;
+    !hasNoCaseMonthlyResult;
   // data-kpi-grade-description-v143
   const kpiPassed =
     hasKpiData &&
-    !specialAnuchaZeroCaseGrade &&
+    !hasNoCaseMonthlyResult &&
     summary.avgScore >=
       PERFORMANCE_KPI_TARGET;
 
@@ -1997,7 +1993,10 @@ function AnalyticsOverviewV89({
           overviewMonthKey
         ).find(
           (row) =>
-            row.grade === summary.grade
+            row.grade ===
+            (hasNoCaseMonthlyResult
+              ? noCaseMonthlyGrade
+              : summary.grade)
         ) || null
       : null;
   const currentGradeStatus =
@@ -2030,8 +2029,8 @@ function AnalyticsOverviewV89({
   const gradeRows = gradeOrder
     .map((grade) => {
       const count =
-        specialAnuchaZeroCaseGrade &&
-        grade === specialAnuchaZeroCaseGradeValue
+        hasNoCaseMonthlyResult &&
+        grade === noCaseMonthlyGrade
           ? 1
           : cases.filter(
               (item) =>
@@ -2042,8 +2041,8 @@ function AnalyticsOverviewV89({
         grade,
         count,
         pct:
-          specialAnuchaZeroCaseGrade
-            ? grade === specialAnuchaZeroCaseGradeValue
+          hasNoCaseMonthlyResult
+            ? grade === noCaseMonthlyGrade
               ? 100
               : 0
             : evaluatedCases > 0
@@ -2136,13 +2135,13 @@ function AnalyticsOverviewV89({
     {
       title:
         "Quality Score (Avg.)",
-      value: specialAnuchaZeroCaseGrade
+      value: hasNoCaseMonthlyResult
         ? "0.00%"
         : hasKpiData
           ? `${summary.avgScore.toFixed(2)}%`
           : "—",
-      note: specialAnuchaZeroCaseGrade
-        ? `No evaluated cases · Grade ${specialAnuchaZeroCaseGradeValue} applied`
+      note: hasNoCaseMonthlyResult
+        ? `No evaluated cases · Grade ${noCaseMonthlyGrade} applied`
         : hasKpiData
           ? `Average from ${summary.caseCount} evaluated case${summary.caseCount === 1 ? "" : "s"}`
           : "No evaluated cases",
@@ -2156,14 +2155,14 @@ function AnalyticsOverviewV89({
     },
     {
       title: "KPI Status",
-      value: specialAnuchaZeroCaseGrade
+      value: hasNoCaseMonthlyResult
         ? "Not Passed"
         : !hasKpiData
           ? "No Data"
           : kpiPassed
             ? "Passed"
             : "Not Passed",
-      note: specialAnuchaZeroCaseGrade
+      note: hasNoCaseMonthlyResult
         ? `Average 0.00% · KPI Target ${PERFORMANCE_KPI_TARGET}%`
         : !hasKpiData
           ? `No evaluated cases · KPI Target ${PERFORMANCE_KPI_TARGET}%`
@@ -2194,7 +2193,7 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Total Incentive",
-      value: specialAnuchaZeroCaseGrade
+      value: hasNoCaseMonthlyResult
         ? formatCurrencyTHB(0)
         : !hasKpiData
           ? "—"
@@ -2207,8 +2206,8 @@ function AnalyticsOverviewV89({
                 cases
               )
             ),
-      note: specialAnuchaZeroCaseGrade
-        ? `Grade ${specialAnuchaZeroCaseGradeValue} · No incentive`
+      note: hasNoCaseMonthlyResult
+        ? `Grade ${noCaseMonthlyGrade} · No incentive`
         : !hasKpiData
           ? "No evaluated cases"
           : individualMode &&
@@ -2224,20 +2223,20 @@ function AnalyticsOverviewV89({
     },
     {
       title: "Overall Grade",
-      value: specialAnuchaZeroCaseGrade
-        ? specialAnuchaZeroCaseGradeValue
+      value: hasNoCaseMonthlyResult
+        ? noCaseMonthlyGrade
         : gradeReady
           ? summary.grade
           : "—",
-      note: specialAnuchaZeroCaseGrade
-        ? `Score 0 · Grade ${specialAnuchaZeroCaseGradeValue} · ${currentGradeStatus || "Current criteria"}`
+      note: hasNoCaseMonthlyResult
+        ? `Score 0 · Grade ${noCaseMonthlyGrade} · ${currentGradeStatus || "Current criteria"}`
         : !hasKpiData
           ? "No evaluated cases"
           : !gradeReady
             ? `Available after ${CASE_TARGET} monthly cases`
             : currentGradeGuide
-              ? `Score ${currentGradeGuide.range} · Grade ${summary.grade} · ${currentGradeStatus}`
-              : `Grade ${summary.grade} · Current criteria`,
+              ? `Score ${currentGradeGuide.range} · Grade ${hasNoCaseMonthlyResult ? noCaseMonthlyGrade : summary.grade} · ${currentGradeStatus}`
+              : `Grade ${hasNoCaseMonthlyResult ? noCaseMonthlyGrade : summary.grade} · Current criteria`,
       icon: "◇",
       tone: "bg-amber-50 text-amber-600",
       valueTone: gradeReady
@@ -2663,6 +2662,7 @@ export default function SummaryMockup({
   onSelectedWeekChange?: (week: string) => void;
 }) {
   const [allCases, setAllCases] = useState<CaseItem[]>([]);
+  const [noCaseEvaluations, setNoCaseEvaluations] = useState<StoredEvaluation[]>([]);
   const [appealMergeCount, setAppealMergeCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -3148,7 +3148,9 @@ export default function SummaryMockup({
         }).filter(Boolean) as CaseItem[];
 
         const storedEvaluations = await fetchStoredEvaluations(300);
+        setNoCaseEvaluations(storedEvaluations.filter(isNoCaseEvaluation));
         const evaluationCases: CaseItem[] = storedEvaluations
+          .filter((record) => !isNoCaseEvaluation(record))
           .map((record) => {
             const auditDateObj = record.auditDate ? new Date(`${record.auditDate}T00:00:00`) : null;
             const validAuditDate = auditDateObj && !Number.isNaN(auditDateObj.getTime()) ? auditDateObj : null;
@@ -3222,7 +3224,11 @@ export default function SummaryMockup({
   }, [allCases, selectedMonth, selectedWeek, selectedYear, roleScopedAgentList]);
 
   const availableAgents = useMemo(() => {
-    const names = getUniqueNormalizedAgents([...AGENT_MASTER, ...allCases.map((item) => item.agent)]).filter(
+    const names = getUniqueNormalizedAgents([
+      ...AGENT_MASTER,
+      ...allCases.map((item) => item.agent),
+      ...noCaseEvaluations.map((item) => item.agentName || item.targetDisplayName),
+    ]).filter(
       (name) => !shouldHideAgentByMonth(name, selectedMonth)
     );
 
@@ -3231,7 +3237,7 @@ export default function SummaryMockup({
     }
 
     return names;
-  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, roleScopedAgentList, selectedMonth]);
+  }, [allCases, accountProfiles, casesInCurrentScopeForAgentOptions, noCaseEvaluations, roleScopedAgentList, selectedMonth]);
 
   // data-agent-selection-no-auto-reset-v120
   // Keep an explicitly selected Agent pinned even while month/week/year options
@@ -3259,16 +3265,17 @@ export default function SummaryMockup({
 
   const monthOptions = useMemo(() => {
     const keys = [...new Set(
-      allCases
-        .map((item) => item.monthKey)
-        .filter((key) => key && key !== "unknown")
+      [
+        ...allCases.map((item) => item.monthKey),
+        ...noCaseEvaluations.map(getStoredEvaluationMonthKey),
+      ].filter((key) => key && key !== "unknown")
     )].sort((a, b) => b.localeCompare(a));
 
     return keys.map((key) => ({
       value: key,
       label: getMonthLabelForKey(key, allCases),
     }));
-  }, [allCases]);
+  }, [allCases, noCaseEvaluations]);
 
   const weekOptions = useMemo(() => {
     const filtered = selectedMonth === "all" ? allCases : allCases.filter((item) => item.monthKey === selectedMonth);
@@ -3278,13 +3285,19 @@ export default function SummaryMockup({
   }, [allCases, selectedMonth]);
 
   const yearOptions = useMemo(() => {
-    const keys = [...new Set(allCases.map((item) => item.yearKey).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+    const keys = [...new Set([
+      ...allCases.map((item) => item.yearKey),
+      ...noCaseEvaluations.map((item) => getStoredEvaluationMonthKey(item).slice(0, 4)),
+    ].filter(Boolean))].sort((a, b) => b.localeCompare(a));
     return [{ value: "all", label: "All Years" }].concat(keys.map((key) => ({ value: key, label: key })));
-  }, [allCases]);
+  }, [allCases, noCaseEvaluations]);
 
   const selectableYears = useMemo(
-    () => [...new Set(allCases.map((item) => item.yearKey).filter(Boolean))].sort((a, b) => b.localeCompare(a)),
-    [allCases]
+    () => [...new Set([
+      ...allCases.map((item) => item.yearKey),
+      ...noCaseEvaluations.map((item) => getStoredEvaluationMonthKey(item).slice(0, 4)),
+    ].filter(Boolean))].sort((a, b) => b.localeCompare(a)),
+    [allCases, noCaseEvaluations]
   );
 
   const effectivePeriodYear =
@@ -3297,6 +3310,11 @@ export default function SummaryMockup({
       allCases
         .filter((item) => effectivePeriodYear === "all" || item.yearKey === effectivePeriodYear)
         .map((item) => item.monthKey)
+        .concat(
+          noCaseEvaluations
+            .map(getStoredEvaluationMonthKey)
+            .filter((key) => effectivePeriodYear === "all" || key.startsWith(`${effectivePeriodYear}-`))
+        )
         .filter(Boolean)
     )].sort((a, b) => b.localeCompare(a));
 
@@ -3306,7 +3324,7 @@ export default function SummaryMockup({
         label: allCases.find((item) => item.monthKey === key)?.monthLabel || key,
       }))
     );
-  }, [allCases, effectivePeriodYear]);
+  }, [allCases, effectivePeriodYear, noCaseEvaluations]);
 
   const periodOptions = useMemo(() => {
     if (analysisMode === "weekly") {
@@ -3314,11 +3332,14 @@ export default function SummaryMockup({
         .sort((a, b) => getPeriodRowSortRank(b, "week") - getPeriodRowSortRank(a, "week"));
     }
     if (analysisMode === "monthly") {
-      return Array.from(new Set(allCases.map((item) => item.monthKey).filter(Boolean)))
+      return Array.from(new Set([
+        ...allCases.map((item) => item.monthKey),
+        ...noCaseEvaluations.map(getStoredEvaluationMonthKey),
+      ].filter(Boolean)))
         .sort((a, b) => b.localeCompare(a));
     }
     return selectableYears;
-  }, [allCases, analysisMode, selectableYears]);
+  }, [allCases, analysisMode, noCaseEvaluations, selectableYears]);
 
   const weeklyPeriodGroups = useMemo(() => {
     if (analysisMode !== "weekly") return [];
@@ -3509,39 +3530,61 @@ export default function SummaryMockup({
     });
   }, [allCases, effectivePeriodKeys, analysisMode, roleScopedAgentList, selectedTeam, accountProfiles]);
 
-  // data-anucha-march-agent-option-v123
+  const periodScopedNoCaseEvaluations = useMemo(() => {
+    return noCaseEvaluations.filter((item) => {
+      const agent = item.agentName || item.targetDisplayName;
+      const monthKey = getStoredEvaluationMonthKey(item);
+      if (!agent || !monthKey) return false;
+
+      if (
+        roleScopedAgentList.length &&
+        !roleScopedAgentList.some((name) => isSameAgent(agent, name))
+      ) return false;
+
+      if (selectedTeam !== "all") {
+        const account = getAccountStatus(agent, accountProfiles);
+        if (
+          normalizeText(getSummaryTeamName(account)) !==
+          normalizeText(selectedTeam)
+        ) return false;
+      }
+
+      if (analysisMode === "monthly") {
+        return !effectivePeriodKeys.length || effectivePeriodKeys.includes(monthKey);
+      }
+      if (analysisMode === "yearly") {
+        return (
+          !effectivePeriodKeys.length ||
+          effectivePeriodKeys.includes(monthKey.slice(0, 4))
+        );
+      }
+      return false;
+    });
+  }, [
+    accountProfiles,
+    analysisMode,
+    effectivePeriodKeys,
+    noCaseEvaluations,
+    roleScopedAgentList,
+    selectedTeam,
+  ]);
+
   const selectableAgentOptions = useMemo(() => {
     const agentNames = getUniqueNormalizedAgents(
-      periodScopedCases.map((item) => item.agent)
+      [
+        ...periodScopedCases.map((item) => item.agent),
+        ...periodScopedNoCaseEvaluations.map(
+          (item) => item.agentName || item.targetDisplayName
+        ),
+      ]
     );
-
-    const includesAnuchaZeroCasePeriod =
-      selectedMonth === "2026-02" ||
-      selectedMonth === "2026-03" ||
-      effectivePeriodKeys.includes("2026-02") ||
-      effectivePeriodKeys.includes("2026-03") ||
-      periodScopedCases.some(
-        (item) =>
-          item.monthKey === "2026-02" ||
-          item.monthKey === "2026-03"
-      );
-
-    if (
-      includesAnuchaZeroCasePeriod &&
-      !agentNames.some((agent) =>
-        isSameAgent(agent, "Anucha Makundin")
-      )
-    ) {
-      agentNames.push("Anucha Makundin");
-    }
 
     return agentNames.sort((a, b) =>
       a.localeCompare(b)
     );
   }, [
     periodScopedCases,
-    selectedMonth,
-    effectivePeriodKeys,
+    periodScopedNoCaseEvaluations,
   ]);
 
   const agentFilterOptions = useMemo(() => {
@@ -3581,6 +3624,27 @@ export default function SummaryMockup({
       isSameAgent(item.agent, effectiveSelectedAgent)
     );
   }, [periodScopedCases, effectiveSelectedAgent]);
+
+  const activeNoCaseMonthKey = useMemo(() => {
+    if (
+      analysisMode !== "monthly" ||
+      effectiveSelectedAgent === "all" ||
+      filteredCases.length > 0
+    ) return "";
+
+    const matched = periodScopedNoCaseEvaluations.find((item) =>
+      isSameAgent(
+        item.agentName || item.targetDisplayName,
+        effectiveSelectedAgent
+      )
+    );
+    return matched ? getStoredEvaluationMonthKey(matched) : "";
+  }, [
+    analysisMode,
+    effectiveSelectedAgent,
+    filteredCases.length,
+    periodScopedNoCaseEvaluations,
+  ]);
 
   useEffect(() => {
     if (!accountProfiles.length || !allCases.length) return;
@@ -8804,9 +8868,7 @@ export default function SummaryMockup({
               individualMode={
                 effectiveSelectedAgent !== "all"
               }
-              selectedAgent={
-                effectiveSelectedAgent
-              }
+              noCaseMonthKey={activeNoCaseMonthKey}
               periodKeys={
                 effectivePeriodKeys
               }
@@ -8814,6 +8876,9 @@ export default function SummaryMockup({
 
             <AnalyticsAgentPerformanceV92
               cases={filteredCases}
+              noCaseAgentNames={periodScopedNoCaseEvaluations.map(
+                (item) => item.agentName || item.targetDisplayName
+              )}
               agentNames={
                 effectiveSelectedAgent !== "all"
                   ? [effectiveSelectedAgent]
@@ -10338,4 +10403,3 @@ export default function SummaryMockup({
     </div>
   );
 }
-
