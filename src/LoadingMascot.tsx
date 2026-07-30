@@ -84,7 +84,6 @@ function LoadingContent({
       <div className={`qa-robinhood-float relative ${compact ? "h-40 w-40" : "h-52 w-52 sm:h-60 sm:w-60"}`}>
         <div className="qa-robinhood-ring absolute inset-5 rounded-full border-2 border-violet-300/70" />
         <div className="qa-robinhood-glow absolute inset-x-8 bottom-4 h-10 rounded-full bg-violet-400/35 blur-xl" />
-        <div className="absolute inset-5 rounded-[34%] bg-white/85 shadow-[0_24px_60px_rgba(76,29,149,0.16)] ring-1 ring-violet-100 backdrop-blur-sm" />
         <img
           src="/robinhood-logo.png"
           alt="Robinhood loading logo"
