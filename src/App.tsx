@@ -107,6 +107,7 @@ type UserAccount = {
   role: UserRole;
   agentName: string;
   email?: string;
+  workSim?: string;
   teamLead?: string;
   teamName?: string;
   status?: "Active" | "Suspended";
@@ -120,6 +121,7 @@ type UserProfileSnapshot = {
   role: UserRole;
   agentName: string;
   email?: string;
+  workSim?: string;
   teamLead?: string;
   teamName?: string;
   status?: "Active" | "Suspended";
@@ -435,6 +437,18 @@ function normalizeWorkspaceTabKey(value: unknown): WorkspaceTabKey | "" {
 function getCurrentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatWorkSimNumber(value: unknown) {
+  const digits = String(value || "").replace(/\D+/g, "");
+  if (!digits) return "—";
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 9) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+  }
+  return digits;
 }
 
 function SidebarGlyph({ name }: { name: string }) {
@@ -1573,6 +1587,7 @@ function buildUserProfileOverrides(logs: UsageLogEvent[]) {
       displayName: String(item.details?.displayName || username),
       agentName: String(item.details?.agentName || item.details?.displayName || username),
       email: String(item.details?.email || ""),
+      workSim: String(item.details?.workSim || item.details?.workSimNumber || "").replace(/\D+/g, ""),
       teamLead: String(item.details?.teamLead || DEFAULT_TEAM_ASSIGNMENTS[normalizedUsername]?.teamLead || ""),
       teamName: String(item.details?.teamName || DEFAULT_TEAM_ASSIGNMENTS[normalizedUsername]?.teamName || ""),
       role,
@@ -1595,6 +1610,7 @@ function buildUserProfileOverridesFromStore(rows: StoredUserProfile[]) {
       displayName: row.displayName || username,
       agentName: row.agentName || row.displayName || username,
       email: row.email || "",
+      workSim: row.workSim || "",
       teamLead: row.teamLead || "",
       teamName: row.teamName || "",
       role: normalizeRoleName(row.role || "Admin Live Chat"),
@@ -1665,6 +1681,7 @@ function buildEffectiveUserAccounts(
       role: profile.role,
       agentName: profile.agentName,
       email: profile.email,
+      workSim: profile.workSim,
       teamLead: profile.teamLead,
       teamName: profile.teamName,
       status: profile.status,
@@ -3512,6 +3529,14 @@ export default function App() {
               role: normalizeRoleName(profile.role || "Admin Live Chat"),
               agentName: String(profile.agentName || profile.displayName || profileId),
               email: String(profile.email || ""),
+              workSim: String(
+                profile.workSim ||
+                  profile.workSimNumber ||
+                  (Array.isArray(profile.devices)
+                    ? (profile.devices.find((device: any) => device?.isPrimary === true) || profile.devices[0])?.workSim
+                    : "") ||
+                  ""
+              ).replace(/\D+/g, ""),
               teamLead: String(profile.teamLead || ""),
               teamName: String(profile.teamName || ""),
               status: profile.status === "Suspended" ? "Suspended" : "Active",
@@ -3619,6 +3644,28 @@ export default function App() {
     });
 
     return String(matchedAccount?.teamLead || "-").trim() || "-";
+  }, [currentUser, effectiveUserAccounts]);
+
+  const workspaceWorkSim = useMemo(() => {
+    if (!currentUser) return "—";
+
+    const normalize = (value: unknown) => String(value || "").trim().toLowerCase();
+    const currentIdentities = [
+      currentUser.username,
+      currentUser.displayName,
+      currentUser.agentName,
+      currentUser.email,
+    ].map(normalize).filter(Boolean);
+    const matchedAccount = effectiveUserAccounts.find((account) =>
+      [
+        account.username,
+        account.displayName,
+        account.agentName,
+        account.email,
+      ].map(normalize).filter(Boolean).some((identity) => currentIdentities.includes(identity))
+    );
+
+    return formatWorkSimNumber(matchedAccount?.workSim);
   }, [currentUser, effectiveUserAccounts]);
 
   const workspaceInitials = useMemo(() => {
@@ -6398,7 +6445,7 @@ export default function App() {
                 </button>
                 <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-violet-900 bg-emerald-400" aria-hidden="true" />
               </div>
-              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0 flex-1"><div className="truncate text-[15px] font-semibold">{welcomeName}</div><div className="mt-0.5 truncate text-[10px] font-normal text-violet-200">{currentUser.role}</div><div className="truncate text-[10px] font-normal text-violet-300">{workspaceTeamName}</div></div> : null}
+              {!globalSidebarCollapsed ? <div className="qa-sidebar-label min-w-0 flex-1"><div className="truncate text-[15px] font-semibold">{welcomeName}</div><div className="mt-0.5 truncate text-[10px] font-normal text-violet-200">{currentUser.role}</div><div className="truncate text-[10px] font-normal text-violet-300">{workspaceTeamName}</div><div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px]"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-fuchsia-200" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h4"/><rect x="9.5" y="11" width="6" height="6" rx="1"/></svg><span className="shrink-0 text-violet-300">Work SIM</span><span className="truncate font-medium text-white">{workspaceWorkSim}</span></div></div> : null}
             </div>
             {!globalSidebarCollapsed ? <div className="qa-sidebar-deploy-block mt-3 flex items-center justify-between gap-2 border-t border-white/15 pt-2.5">
               <div><div className="text-[9px] font-medium uppercase tracking-[0.14em] text-violet-300">Deploy Version</div><div className="text-[9px] font-normal text-violet-200">Current production</div></div>
