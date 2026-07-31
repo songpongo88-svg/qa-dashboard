@@ -172,6 +172,8 @@ const EMPTY_ITEMS = {
 const CONTACT_USAGE = "ใช้สำหรับโทรออกและติดต่อประสานงานผ่านสำนักงาน";
 const DEVICE_OPTION_SETTINGS_DOC_ID =
   "__device_option_settings__";
+const DEVICE_OPTION_HIDDEN_CACHE_KEY =
+  "qa-dashboard:hidden-device-options";
 const DEVICE_SUGGESTION_FIELDS: DeviceSuggestionField[] = [
   "brand",
   "model",
@@ -188,6 +190,14 @@ const DEVICE_FIELD_SUGGESTION_KEYS: Partial<
   series: "series",
   os: "os",
   simPackage: "simPackage",
+};
+const DEFAULT_DEVICE_OPTIONS: Pick<
+  WorkDevice,
+  "brand" | "model" | "series"
+> = {
+  brand: "SAMSUNG",
+  model: "Galaxy A04s",
+  series: "SM-A047F/DS",
 };
 
 function emptyHiddenDeviceOptions(): HiddenDeviceOptions {
@@ -222,7 +232,16 @@ function hiddenDeviceOptionsFromData(
               .map((item) =>
                 normalizeDeviceOption(item)
               )
-              .filter(Boolean)
+              .filter(
+                (item) =>
+                  Boolean(item) &&
+                  item !==
+                    normalizeDeviceOption(
+                      DEFAULT_DEVICE_OPTIONS[
+                        field as keyof typeof DEFAULT_DEVICE_OPTIONS
+                      ]
+                    )
+              )
           )
         ),
       ]
@@ -230,14 +249,70 @@ function hiddenDeviceOptionsFromData(
   ) as HiddenDeviceOptions;
 }
 
+function mergeHiddenDeviceOptions(
+  ...sources: HiddenDeviceOptions[]
+): HiddenDeviceOptions {
+  return Object.fromEntries(
+    DEVICE_SUGGESTION_FIELDS.map(
+      (field) => [
+        field,
+        Array.from(
+          new Set(
+            sources.flatMap((source) =>
+              source[field].map(
+                normalizeDeviceOption
+              )
+            )
+          )
+        ).filter(Boolean),
+      ]
+    )
+  ) as HiddenDeviceOptions;
+}
+
+function readHiddenDeviceOptionsCache() {
+  if (typeof window === "undefined") {
+    return emptyHiddenDeviceOptions();
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      DEVICE_OPTION_HIDDEN_CACHE_KEY
+    );
+
+    return raw
+      ? hiddenDeviceOptionsFromData(
+          JSON.parse(raw)
+        )
+      : emptyHiddenDeviceOptions();
+  } catch {
+    return emptyHiddenDeviceOptions();
+  }
+}
+
+function writeHiddenDeviceOptionsCache(
+  value: HiddenDeviceOptions
+) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      DEVICE_OPTION_HIDDEN_CACHE_KEY,
+      JSON.stringify(value)
+    );
+  } catch {
+    // The in-memory state still keeps the option hidden for this session.
+  }
+}
+
 function emptyDevice(index = 0): WorkDevice {
   return {
     id: `device-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     isPrimary: index === 0,
     status: "Not Assigned",
-    brand: "",
-    model: "",
-    series: "",
+    brand: DEFAULT_DEVICE_OPTIONS.brand,
+    model: DEFAULT_DEVICE_OPTIONS.model,
+    series: DEFAULT_DEVICE_OPTIONS.series,
     os: "",
     assetId: "",
     serialNumber: "",
@@ -348,6 +423,22 @@ function buildDeviceOptionCatalog(
         row.username,
     ])
   );
+
+  (
+    Object.entries(
+      DEFAULT_DEVICE_OPTIONS
+    ) as Array<
+      [
+        keyof typeof DEFAULT_DEVICE_OPTIONS,
+        string,
+      ]
+    >
+  ).forEach(([field, value]) => {
+    suggestionMaps[field].set(
+      normalizeDeviceOption(value),
+      value
+    );
+  });
 
   Object.entries(metaMap).forEach(
     ([username, meta]) => {
@@ -2500,7 +2591,7 @@ export default function CorporateUserDirectoryProfile({
     hiddenDeviceOptions,
     setHiddenDeviceOptions,
   ] = useState<HiddenDeviceOptions>(
-    emptyHiddenDeviceOptions
+    readHiddenDeviceOptionsCache
   );
   const [selectedUsername, setSelectedUsername] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -2600,7 +2691,11 @@ export default function CorporateUserDirectoryProfile({
             UserMeta
           > = {};
           let nextHiddenDeviceOptions =
-            emptyHiddenDeviceOptions();
+            readHiddenDeviceOptionsCache();
+          const normalizedCurrentUsername =
+            normalizeUsername(
+              currentUsername
+            );
 
           snapshot.docs.forEach(
             (item) => {
@@ -2612,8 +2707,11 @@ export default function CorporateUserDirectoryProfile({
                 DEVICE_OPTION_SETTINGS_DOC_ID
               ) {
                 nextHiddenDeviceOptions =
-                  hiddenDeviceOptionsFromData(
-                    data.hiddenDeviceOptions
+                  mergeHiddenDeviceOptions(
+                    nextHiddenDeviceOptions,
+                    hiddenDeviceOptionsFromData(
+                      data.hiddenDeviceOptions
+                    )
                   );
                 return;
               }
@@ -2630,6 +2728,21 @@ export default function CorporateUserDirectoryProfile({
                     item.id,
                     data
                   );
+
+                if (
+                  username ===
+                  normalizedCurrentUsername
+                ) {
+                  nextHiddenDeviceOptions =
+                    mergeHiddenDeviceOptions(
+                      nextHiddenDeviceOptions,
+                      hiddenDeviceOptionsFromData(
+                        data
+                          .deviceOptionPreferences
+                          ?.hiddenDeviceOptions
+                      )
+                    );
+                }
               }
             }
           );
@@ -2637,6 +2750,9 @@ export default function CorporateUserDirectoryProfile({
           if (!cancelled) {
             setMetaMap(next);
             setHiddenDeviceOptions(
+              nextHiddenDeviceOptions
+            );
+            writeHiddenDeviceOptionsCache(
               nextHiddenDeviceOptions
             );
           }
@@ -2665,7 +2781,7 @@ export default function CorporateUserDirectoryProfile({
         refreshHistory
       );
     };
-  }, []);
+  }, [currentUsername]);
 
   useEffect(() => {
     if (!toast) return;
@@ -3326,8 +3442,6 @@ export default function CorporateUserDirectoryProfile({
 
       if (!normalizedValue) return;
 
-      const previous =
-        hiddenDeviceOptions;
       const next: HiddenDeviceOptions = {
         ...hiddenDeviceOptions,
         [field]: Array.from(
@@ -3339,34 +3453,45 @@ export default function CorporateUserDirectoryProfile({
       };
 
       setHiddenDeviceOptions(next);
+      writeHiddenDeviceOptionsCache(next);
 
       try {
-        await setDoc(
-          doc(
-            firebaseDb,
-            "qa_user_profiles",
-            DEVICE_OPTION_SETTINGS_DOC_ID
-          ),
-          {
-            hiddenDeviceOptions: next,
-            updatedAt:
-              new Date().toISOString(),
-            updatedBy:
-              updatedByName ||
-              currentUsername ||
-              "System",
-            updatedAtServer:
-              serverTimestamp(),
-          },
-          { merge: true }
-        );
+        const preferenceDocId =
+          metaMap[
+            normalizeUsername(
+              currentUsername
+            )
+          ]?.docId;
+
+        if (preferenceDocId) {
+          await setDoc(
+            doc(
+              firebaseDb,
+              "qa_user_profiles",
+              preferenceDocId
+            ),
+            {
+              deviceOptionPreferences: {
+                hiddenDeviceOptions:
+                  next,
+                updatedAt:
+                  new Date().toISOString(),
+                updatedBy:
+                  updatedByName ||
+                  currentUsername ||
+                  "System",
+              },
+            },
+            { merge: true }
+          );
+        }
+
         setToast(
           `ลบ “${value}” ออกจากตัวเลือกแล้ว`
         );
       } catch {
-        setHiddenDeviceOptions(previous);
         setToast(
-          "ลบตัวเลือกไม่สำเร็จ กรุณาลองอีกครั้ง"
+          `ลบ “${value}” แล้ว และบันทึกไว้ในเบราว์เซอร์นี้`
         );
       }
     };
