@@ -68,6 +68,37 @@ type WorkDevice = {
   returnedItems: Record<string, boolean>;
 };
 
+type DeviceSuggestionField =
+  | "brand"
+  | "model"
+  | "series"
+  | "os"
+  | "simPackage"
+  | "note";
+
+type DeviceTemplate = {
+  key: string;
+  label: string;
+  sourceName: string;
+  values: Pick<
+    WorkDevice,
+    DeviceSuggestionField
+  >;
+};
+
+type DeviceOptionCatalog = {
+  suggestions: Record<
+    DeviceSuggestionField,
+    string[]
+  >;
+  templates: DeviceTemplate[];
+};
+
+type HiddenDeviceOptions = Record<
+  DeviceSuggestionField,
+  string[]
+>;
+
 type HistoryChange = {
   field: string;
   before: string;
@@ -139,6 +170,65 @@ const EMPTY_ITEMS = {
 };
 
 const CONTACT_USAGE = "ใช้สำหรับโทรออกและติดต่อประสานงานผ่านสำนักงาน";
+const DEVICE_OPTION_SETTINGS_DOC_ID =
+  "__device_option_settings__";
+const DEVICE_SUGGESTION_FIELDS: DeviceSuggestionField[] = [
+  "brand",
+  "model",
+  "series",
+  "os",
+  "simPackage",
+  "note",
+];
+const DEVICE_FIELD_SUGGESTION_KEYS: Partial<
+  Record<keyof WorkDevice, DeviceSuggestionField>
+> = {
+  brand: "brand",
+  model: "model",
+  series: "series",
+  os: "os",
+  simPackage: "simPackage",
+};
+
+function emptyHiddenDeviceOptions(): HiddenDeviceOptions {
+  return {
+    brand: [],
+    model: [],
+    series: [],
+    os: [],
+    simPackage: [],
+    note: [],
+  };
+}
+
+function hiddenDeviceOptionsFromData(
+  value: unknown
+): HiddenDeviceOptions {
+  const source =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+
+  return Object.fromEntries(
+    DEVICE_SUGGESTION_FIELDS.map(
+      (field) => [
+        field,
+        Array.from(
+          new Set(
+            (Array.isArray(source[field])
+              ? source[field]
+              : []
+            )
+              .map((item) =>
+                normalizeDeviceOption(item)
+              )
+              .filter(Boolean)
+          )
+        ),
+      ]
+    )
+  ) as HiddenDeviceOptions;
+}
 
 function emptyDevice(index = 0): WorkDevice {
   return {
@@ -201,6 +291,189 @@ function safeId(value: unknown) {
 
 function normalizeUsername(value: unknown) {
   return String(value || "").trim().toLowerCase();
+}
+
+function normalizeDeviceOption(value: unknown) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("th");
+}
+
+function cleanDeviceOption(value: unknown) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildDeviceOptionCatalog(
+  metaMap: Record<string, UserMeta>,
+  rows: DirectoryUserRow[],
+  hiddenOptions: HiddenDeviceOptions
+): DeviceOptionCatalog {
+  const suggestionMaps = Object.fromEntries(
+    DEVICE_SUGGESTION_FIELDS.map((field) => [
+      field,
+      new Map<string, string>(),
+    ])
+  ) as Record<
+    DeviceSuggestionField,
+    Map<string, string>
+  >;
+  const templateMap = new Map<
+    string,
+    DeviceTemplate
+  >();
+  const hiddenOptionSets =
+    Object.fromEntries(
+      DEVICE_SUGGESTION_FIELDS.map(
+        (field) => [
+          field,
+          new Set(
+            hiddenOptions[field].map(
+              normalizeDeviceOption
+            )
+          ),
+        ]
+      )
+    ) as Record<
+      DeviceSuggestionField,
+      Set<string>
+    >;
+  const displayNames = new Map(
+    rows.map((row) => [
+      row.normalizedUsername,
+      row.displayName ||
+        row.agentName ||
+        row.username,
+    ])
+  );
+
+  Object.entries(metaMap).forEach(
+    ([username, meta]) => {
+      const sourceName =
+        displayNames.get(username) ||
+        username;
+
+      meta.devices.forEach((device) => {
+        DEVICE_SUGGESTION_FIELDS.forEach(
+          (field) => {
+            const value = cleanDeviceOption(
+              device[field]
+            );
+            const normalized =
+              normalizeDeviceOption(value);
+
+            if (
+              value &&
+              normalized &&
+              !hiddenOptionSets[field].has(
+                normalized
+              ) &&
+              !suggestionMaps[field].has(
+                normalized
+              )
+            ) {
+              suggestionMaps[field].set(
+                normalized,
+                value
+              );
+            }
+          }
+        );
+
+        const values: DeviceTemplate["values"] =
+          {
+            brand: cleanDeviceOption(
+              device.brand
+            ),
+            model: cleanDeviceOption(
+              device.model
+            ),
+            series: cleanDeviceOption(
+              device.series
+            ),
+            os: cleanDeviceOption(
+              device.os
+            ),
+            simPackage:
+              cleanDeviceOption(
+                device.simPackage
+              ),
+            note: cleanDeviceOption(
+              device.note
+            ),
+          };
+        const templateKey =
+          DEVICE_SUGGESTION_FIELDS.map(
+            (field) =>
+              normalizeDeviceOption(
+                values[field]
+              )
+          ).join("|");
+
+        if (
+          templateKey.replace(/\|/g, "") &&
+          !templateMap.has(templateKey)
+        ) {
+          const deviceName = [
+            values.brand,
+            values.model,
+            values.series,
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          templateMap.set(templateKey, {
+            key: templateKey,
+            label:
+              deviceName ||
+              values.os ||
+              values.simPackage ||
+              "ข้อมูลอุปกรณ์",
+            sourceName,
+            values,
+          });
+        }
+      });
+    }
+  );
+
+  return {
+    suggestions: Object.fromEntries(
+      DEVICE_SUGGESTION_FIELDS.map(
+        (field) => [
+          field,
+          Array.from(
+            suggestionMaps[field].values()
+          ).sort((left, right) =>
+            left.localeCompare(right, "th", {
+              sensitivity: "base",
+            })
+          ),
+        ]
+      )
+    ) as Record<
+      DeviceSuggestionField,
+      string[]
+    >,
+    templates: Array.from(
+      templateMap.values()
+    ).sort(
+      (left, right) =>
+        left.label.localeCompare(
+          right.label,
+          "th",
+          {
+            sensitivity: "base",
+          }
+        ) ||
+        left.sourceName.localeCompare(
+          right.sourceName,
+          "th"
+        )
+    ),
+  };
 }
 
 function cloneMeta(value: UserMeta) {
@@ -1752,6 +2025,8 @@ function Field({
   options,
   textarea,
   placeholder,
+  suggestions,
+  onRemoveSuggestion,
 }: {
   label: string;
   value: string;
@@ -1761,7 +2036,43 @@ function Field({
   options?: Array<{ value: string; label: string }>;
   textarea?: boolean;
   placeholder?: string;
+  suggestions?: string[];
+  onRemoveSuggestion?: (
+    value: string
+  ) => void;
 }) {
+  const [suggestionOpen, setSuggestionOpen] =
+    useState(false);
+  const [suggestionQuery, setSuggestionQuery] =
+    useState("");
+  const normalizedSuggestions = useMemo(
+    () => {
+      const unique = new Map<
+        string,
+        string
+      >();
+
+      (suggestions || []).forEach(
+        (suggestion) => {
+          const clean =
+            cleanDeviceOption(suggestion);
+          const normalized =
+            normalizeDeviceOption(clean);
+
+          if (
+            clean &&
+            normalized &&
+            !unique.has(normalized)
+          ) {
+            unique.set(normalized, clean);
+          }
+        }
+      );
+
+      return Array.from(unique.values());
+    },
+    [suggestions]
+  );
   const rawValue = String(value || "").trim();
   const emptyInView =
     !rawValue ||
@@ -1779,6 +2090,33 @@ function Field({
     (type === "date" && value
       ? thaiDate(value)
       : valueOrDash(value));
+  const supportsSuggestions =
+    editing &&
+    !textarea &&
+    type === "text" &&
+    suggestions !== undefined;
+  const filteredSuggestions =
+    normalizedSuggestions.filter(
+      (suggestion) =>
+        !suggestionQuery ||
+        normalizeDeviceOption(
+          suggestion
+        ).includes(
+          normalizeDeviceOption(
+            suggestionQuery
+          )
+        )
+    );
+  const isNewSuggestion =
+    Boolean(rawValue) &&
+    supportsSuggestions &&
+    !normalizedSuggestions.some(
+      (suggestion) =>
+        normalizeDeviceOption(
+          suggestion
+        ) ===
+        normalizeDeviceOption(rawValue)
+    );
   return (
     <div className="grid grid-cols-[minmax(145px,0.75fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-2.5 last:border-0">
       <div className="text-xs text-slate-500">{label}</div>
@@ -1806,14 +2144,161 @@ function Field({
               className="min-h-[82px] w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm leading-6 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             />
           ) : (
-            <input
-              type={type}
-              value={value}
-              onChange={(event) => onChange(event.target.value)}
-              placeholder={placeholder}
-              title={`แก้ไข${label}`}
-              className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-            />
+            <>
+              <div className="relative">
+                <input
+                  type={type}
+                  value={value}
+                  onChange={(event) => {
+                    onChange(
+                      event.target.value
+                    );
+                    setSuggestionQuery(
+                      event.target.value
+                    );
+                    setSuggestionOpen(true);
+                  }}
+                  onFocus={() => {
+                    setSuggestionQuery("");
+                    setSuggestionOpen(true);
+                  }}
+                  onBlur={() =>
+                    setSuggestionOpen(false)
+                  }
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Escape"
+                    ) {
+                      setSuggestionOpen(
+                        false
+                      );
+                    }
+                  }}
+                  placeholder={placeholder}
+                  title={`แก้ไข${label}`}
+                  autoComplete={
+                    supportsSuggestions
+                      ? "off"
+                      : undefined
+                  }
+                  className={
+                    "w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 " +
+                    (supportsSuggestions
+                      ? "pr-10"
+                      : "")
+                  }
+                />
+                {supportsSuggestions ? (
+                  <button
+                    type="button"
+                    title={`เปิดตัวเลือก${label}`}
+                    aria-label={`เปิดตัวเลือก${label}`}
+                    onMouseDown={(event) =>
+                      event.preventDefault()
+                    }
+                    onClick={() => {
+                      setSuggestionQuery("");
+                      setSuggestionOpen(
+                        (current) =>
+                          !current
+                      );
+                    }}
+                    className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-xs text-violet-600 hover:bg-violet-50"
+                  >
+                    ▾
+                  </button>
+                ) : null}
+
+                {supportsSuggestions &&
+                suggestionOpen ? (
+                  <div
+                    data-removable-device-options-v148="true"
+                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] max-h-56 overflow-y-auto rounded-xl border border-violet-200 bg-white p-1.5 shadow-[0_16px_36px_rgba(76,29,149,0.18)]"
+                  >
+                    {filteredSuggestions.length ? (
+                      filteredSuggestions.map(
+                        (suggestion) => (
+                          <div
+                            key={
+                              suggestion
+                            }
+                            className="flex items-center gap-1 rounded-lg hover:bg-violet-50"
+                          >
+                            <button
+                              type="button"
+                              onMouseDown={(
+                                event
+                              ) =>
+                                event.preventDefault()
+                              }
+                              onClick={() => {
+                                onChange(
+                                  suggestion
+                                );
+                                setSuggestionQuery(
+                                  ""
+                                );
+                                setSuggestionOpen(
+                                  false
+                                );
+                              }}
+                              className="min-w-0 flex-1 truncate px-3 py-2 text-left text-sm text-slate-700"
+                            >
+                              {
+                                suggestion
+                              }
+                            </button>
+                            {onRemoveSuggestion ? (
+                              <button
+                                type="button"
+                                title={`ลบ ${suggestion} ออกจากตัวเลือก`}
+                                aria-label={`ลบ ${suggestion} ออกจากตัวเลือก`}
+                                onMouseDown={(
+                                  event
+                                ) =>
+                                  event.preventDefault()
+                                }
+                                onClick={(
+                                  event
+                                ) => {
+                                  event.stopPropagation();
+                                  onRemoveSuggestion(
+                                    suggestion
+                                  );
+                                }}
+                                className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-rose-500 hover:bg-rose-50 hover:text-rose-700"
+                              >
+                                ×
+                              </button>
+                            ) : null}
+                          </div>
+                        )
+                      )
+                    ) : (
+                      <div className="px-3 py-3 text-xs text-slate-400">
+                        {rawValue
+                          ? "ยังไม่มีตัวเลือกนี้ กดบันทึกเพื่อเพิ่ม"
+                          : "ยังไม่มีข้อมูลที่เคยบันทึก"}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              {supportsSuggestions ? (
+                <div
+                  className={
+                    "mt-1.5 text-[10px] " +
+                    (isNewSuggestion
+                      ? "text-violet-700"
+                      : "text-slate-400")
+                  }
+                >
+                  {isNewSuggestion
+                    ? "ตัวเลือกใหม่ · ระบบจะจำไว้หลังบันทึก"
+                    : "พิมพ์เพื่อค้นหาหรือเลือกข้อมูลที่เคยบันทึก"}
+                </div>
+              ) : null}
+            </>
           )
         ) : (
           <div className="break-words text-sm font-medium leading-6 text-slate-900">{display}</div>
@@ -2011,6 +2496,12 @@ export default function CorporateUserDirectoryProfile({
   const pdfRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const [metaMap, setMetaMap] = useState<Record<string, UserMeta>>({});
+  const [
+    hiddenDeviceOptions,
+    setHiddenDeviceOptions,
+  ] = useState<HiddenDeviceOptions>(
+    emptyHiddenDeviceOptions
+  );
   const [selectedUsername, setSelectedUsername] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [search, setSearch] = useState("");
@@ -2108,11 +2599,25 @@ export default function CorporateUserDirectoryProfile({
             string,
             UserMeta
           > = {};
+          let nextHiddenDeviceOptions =
+            emptyHiddenDeviceOptions();
 
           snapshot.docs.forEach(
             (item) => {
               const data =
                 item.data() as any;
+
+              if (
+                item.id ===
+                DEVICE_OPTION_SETTINGS_DOC_ID
+              ) {
+                nextHiddenDeviceOptions =
+                  hiddenDeviceOptionsFromData(
+                    data.hiddenDeviceOptions
+                  );
+                return;
+              }
+
               const username =
                 normalizeUsername(
                   data.username ||
@@ -2131,6 +2636,9 @@ export default function CorporateUserDirectoryProfile({
 
           if (!cancelled) {
             setMetaMap(next);
+            setHiddenDeviceOptions(
+              nextHiddenDeviceOptions
+            );
           }
         } catch {
           if (!cancelled) {
@@ -2183,6 +2691,16 @@ export default function CorporateUserDirectoryProfile({
     });
     return next;
   }, [metaMap, rows]);
+
+  const deviceOptionCatalog = useMemo(
+    () =>
+      buildDeviceOptionCatalog(
+        metaMap,
+        rows,
+        hiddenDeviceOptions
+      ),
+    [hiddenDeviceOptions, metaMap, rows]
+  );
 
   const roles = useMemo(
     () =>
@@ -2768,6 +3286,90 @@ export default function CorporateUserDirectoryProfile({
     }));
     setToast("ตั้งเป็นอุปกรณ์หลักแล้ว");
   };
+
+  const applyDeviceTemplate = (
+    id: string,
+    templateKey: string
+  ) => {
+    const template =
+      deviceOptionCatalog.templates.find(
+        (item) =>
+          item.key === templateKey
+      );
+
+    if (!template) return;
+
+    setMetaDraft((current) => ({
+      ...current,
+      devices: current.devices.map(
+        (device) =>
+          device.id === id
+            ? {
+                ...device,
+                ...template.values,
+              }
+            : device
+      ),
+    }));
+    setToast(
+      `ใช้รูปแบบอุปกรณ์จาก ${template.sourceName} แล้ว`
+    );
+  };
+
+  const removeDeviceSuggestion =
+    async (
+      field: DeviceSuggestionField,
+      value: string
+    ) => {
+      const normalizedValue =
+        normalizeDeviceOption(value);
+
+      if (!normalizedValue) return;
+
+      const previous =
+        hiddenDeviceOptions;
+      const next: HiddenDeviceOptions = {
+        ...hiddenDeviceOptions,
+        [field]: Array.from(
+          new Set([
+            ...hiddenDeviceOptions[field],
+            normalizedValue,
+          ])
+        ),
+      };
+
+      setHiddenDeviceOptions(next);
+
+      try {
+        await setDoc(
+          doc(
+            firebaseDb,
+            "qa_user_profiles",
+            DEVICE_OPTION_SETTINGS_DOC_ID
+          ),
+          {
+            hiddenDeviceOptions: next,
+            updatedAt:
+              new Date().toISOString(),
+            updatedBy:
+              updatedByName ||
+              currentUsername ||
+              "System",
+            updatedAtServer:
+              serverTimestamp(),
+          },
+          { merge: true }
+        );
+        setToast(
+          `ลบ “${value}” ออกจากตัวเลือกแล้ว`
+        );
+      } catch {
+        setHiddenDeviceOptions(previous);
+        setToast(
+          "ลบตัวเลือกไม่สำเร็จ กรุณาลองอีกครั้ง"
+        );
+      }
+    };
 
   const clearSuspension = () => {
     if (!editing) return;
@@ -4088,6 +4690,70 @@ export default function CorporateUserDirectoryProfile({
                             </div>
                           ) : null}
 
+                          {deviceOptionCatalog
+                            .templates.length ? (
+                            <div
+                              data-device-template-picker-v147="true"
+                              className="mb-4 rounded-2xl border border-violet-200 bg-white p-4"
+                            >
+                              <label
+                                htmlFor={`device-template-${selectedDevice.id}`}
+                                className="text-xs font-medium text-slate-700"
+                              >
+                                ใช้ข้อมูลอุปกรณ์ที่เคยบันทึก
+                              </label>
+                              <select
+                                id={`device-template-${selectedDevice.id}`}
+                                value=""
+                                onChange={(
+                                  event
+                                ) => {
+                                  applyDeviceTemplate(
+                                    selectedDevice.id,
+                                    event.target
+                                      .value
+                                  );
+                                }}
+                                className="mt-2 w-full rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                              >
+                                <option value="">
+                                  เลือกเทมเพลตจาก User ที่เคยบันทึก
+                                </option>
+                                {deviceOptionCatalog.templates.map(
+                                  (
+                                    template
+                                  ) => (
+                                    <option
+                                      key={
+                                        template.key
+                                      }
+                                      value={
+                                        template.key
+                                      }
+                                    >
+                                      {
+                                        template.label
+                                      }{" "}
+                                      —{" "}
+                                      {
+                                        template.sourceName
+                                      }
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                              <div className="mt-2 text-[10px] leading-4 text-slate-500">
+                                คัดลอกเฉพาะรูปแบบ
+                                ยี่ห้อ รุ่น Series
+                                ระบบปฏิบัติการ
+                                แพ็กเกจ และหมายเหตุ
+                                โดยไม่คัดลอก Asset
+                                ID, Serial, IMEI
+                                หรือหมายเลข Work SIM
+                              </div>
+                            </div>
+                          ) : null}
+
                           <div className="grid gap-x-6 xl:grid-cols-2">
                             <Field
                               label="สถานะอุปกรณ์"
@@ -4127,6 +4793,33 @@ export default function CorporateUserDirectoryProfile({
                                 editing={editing}
                                 onChange={(value) => updateDevice(selectedDevice.id, key as keyof WorkDevice, value)}
                                 type={key === "assignedDate" ? "date" : "text"}
+                                suggestions={
+                                  DEVICE_FIELD_SUGGESTION_KEYS[
+                                    key as keyof WorkDevice
+                                  ]
+                                    ? deviceOptionCatalog
+                                        .suggestions[
+                                        DEVICE_FIELD_SUGGESTION_KEYS[
+                                          key as keyof WorkDevice
+                                        ] as DeviceSuggestionField
+                                      ]
+                                    : undefined
+                                }
+                                onRemoveSuggestion={
+                                  DEVICE_FIELD_SUGGESTION_KEYS[
+                                    key as keyof WorkDevice
+                                  ]
+                                    ? (
+                                        suggestion
+                                      ) =>
+                                        void removeDeviceSuggestion(
+                                          DEVICE_FIELD_SUGGESTION_KEYS[
+                                            key as keyof WorkDevice
+                                          ] as DeviceSuggestionField,
+                                          suggestion
+                                        )
+                                    : undefined
+                                }
                               />
                             ))}
                             <Field
