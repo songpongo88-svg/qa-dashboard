@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { jsPDF } from "jspdf";
@@ -94,6 +94,11 @@ type DeviceOptionCatalog = {
   templates: DeviceTemplate[];
 };
 
+type HiddenDeviceOptions = Record<
+  DeviceSuggestionField,
+  string[]
+>;
+
 type HistoryChange = {
   field: string;
   before: string;
@@ -165,6 +170,8 @@ const EMPTY_ITEMS = {
 };
 
 const CONTACT_USAGE = "ใช้สำหรับโทรออกและติดต่อประสานงานผ่านสำนักงาน";
+const DEVICE_OPTION_SETTINGS_DOC_ID =
+  "__device_option_settings__";
 const DEVICE_SUGGESTION_FIELDS: DeviceSuggestionField[] = [
   "brand",
   "model",
@@ -182,6 +189,46 @@ const DEVICE_FIELD_SUGGESTION_KEYS: Partial<
   os: "os",
   simPackage: "simPackage",
 };
+
+function emptyHiddenDeviceOptions(): HiddenDeviceOptions {
+  return {
+    brand: [],
+    model: [],
+    series: [],
+    os: [],
+    simPackage: [],
+    note: [],
+  };
+}
+
+function hiddenDeviceOptionsFromData(
+  value: unknown
+): HiddenDeviceOptions {
+  const source =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
+
+  return Object.fromEntries(
+    DEVICE_SUGGESTION_FIELDS.map(
+      (field) => [
+        field,
+        Array.from(
+          new Set(
+            (Array.isArray(source[field])
+              ? source[field]
+              : []
+            )
+              .map((item) =>
+                normalizeDeviceOption(item)
+              )
+              .filter(Boolean)
+          )
+        ),
+      ]
+    )
+  ) as HiddenDeviceOptions;
+}
 
 function emptyDevice(index = 0): WorkDevice {
   return {
@@ -261,7 +308,8 @@ function cleanDeviceOption(value: unknown) {
 
 function buildDeviceOptionCatalog(
   metaMap: Record<string, UserMeta>,
-  rows: DirectoryUserRow[]
+  rows: DirectoryUserRow[],
+  hiddenOptions: HiddenDeviceOptions
 ): DeviceOptionCatalog {
   const suggestionMaps = Object.fromEntries(
     DEVICE_SUGGESTION_FIELDS.map((field) => [
@@ -276,6 +324,22 @@ function buildDeviceOptionCatalog(
     string,
     DeviceTemplate
   >();
+  const hiddenOptionSets =
+    Object.fromEntries(
+      DEVICE_SUGGESTION_FIELDS.map(
+        (field) => [
+          field,
+          new Set(
+            hiddenOptions[field].map(
+              normalizeDeviceOption
+            )
+          ),
+        ]
+      )
+    ) as Record<
+      DeviceSuggestionField,
+      Set<string>
+    >;
   const displayNames = new Map(
     rows.map((row) => [
       row.normalizedUsername,
@@ -303,6 +367,9 @@ function buildDeviceOptionCatalog(
             if (
               value &&
               normalized &&
+              !hiddenOptionSets[field].has(
+                normalized
+              ) &&
               !suggestionMaps[field].has(
                 normalized
               )
@@ -1959,6 +2026,7 @@ function Field({
   textarea,
   placeholder,
   suggestions,
+  onRemoveSuggestion,
 }: {
   label: string;
   value: string;
@@ -1969,9 +2037,14 @@ function Field({
   textarea?: boolean;
   placeholder?: string;
   suggestions?: string[];
+  onRemoveSuggestion?: (
+    value: string
+  ) => void;
 }) {
-  const suggestionListId = useId()
-    .replace(/:/g, "");
+  const [suggestionOpen, setSuggestionOpen] =
+    useState(false);
+  const [suggestionQuery, setSuggestionQuery] =
+    useState("");
   const normalizedSuggestions = useMemo(
     () => {
       const unique = new Map<
@@ -2017,14 +2090,26 @@ function Field({
     (type === "date" && value
       ? thaiDate(value)
       : valueOrDash(value));
-  const usesSuggestionList =
+  const supportsSuggestions =
     editing &&
     !textarea &&
     type === "text" &&
-    normalizedSuggestions.length > 0;
+    suggestions !== undefined;
+  const filteredSuggestions =
+    normalizedSuggestions.filter(
+      (suggestion) =>
+        !suggestionQuery ||
+        normalizeDeviceOption(
+          suggestion
+        ).includes(
+          normalizeDeviceOption(
+            suggestionQuery
+          )
+        )
+    );
   const isNewSuggestion =
     Boolean(rawValue) &&
-    usesSuggestionList &&
+    supportsSuggestions &&
     !normalizedSuggestions.some(
       (suggestion) =>
         normalizeDeviceOption(
@@ -2060,39 +2145,146 @@ function Field({
             />
           ) : (
             <>
-              <input
-                type={type}
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                placeholder={placeholder}
-                title={`แก้ไข${label}`}
-                list={
-                  usesSuggestionList
-                    ? suggestionListId
-                    : undefined
-                }
-                autoComplete={
-                  usesSuggestionList
-                    ? "off"
-                    : undefined
-                }
-                className="w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-              />
-              {usesSuggestionList ? (
-                <datalist
-                  id={suggestionListId}
-                >
-                  {normalizedSuggestions.map(
-                    (suggestion) => (
-                      <option
-                        key={suggestion}
-                        value={suggestion}
-                      />
-                    )
-                  )}
-                </datalist>
-              ) : null}
-              {usesSuggestionList ? (
+              <div className="relative">
+                <input
+                  type={type}
+                  value={value}
+                  onChange={(event) => {
+                    onChange(
+                      event.target.value
+                    );
+                    setSuggestionQuery(
+                      event.target.value
+                    );
+                    setSuggestionOpen(true);
+                  }}
+                  onFocus={() => {
+                    setSuggestionQuery("");
+                    setSuggestionOpen(true);
+                  }}
+                  onBlur={() =>
+                    setSuggestionOpen(false)
+                  }
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Escape"
+                    ) {
+                      setSuggestionOpen(
+                        false
+                      );
+                    }
+                  }}
+                  placeholder={placeholder}
+                  title={`แก้ไข${label}`}
+                  autoComplete={
+                    supportsSuggestions
+                      ? "off"
+                      : undefined
+                  }
+                  className={
+                    "w-full rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100 " +
+                    (supportsSuggestions
+                      ? "pr-10"
+                      : "")
+                  }
+                />
+                {supportsSuggestions ? (
+                  <button
+                    type="button"
+                    title={`เปิดตัวเลือก${label}`}
+                    aria-label={`เปิดตัวเลือก${label}`}
+                    onMouseDown={(event) =>
+                      event.preventDefault()
+                    }
+                    onClick={() => {
+                      setSuggestionQuery("");
+                      setSuggestionOpen(
+                        (current) =>
+                          !current
+                      );
+                    }}
+                    className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-xs text-violet-600 hover:bg-violet-50"
+                  >
+                    ▾
+                  </button>
+                ) : null}
+
+                {supportsSuggestions &&
+                suggestionOpen ? (
+                  <div
+                    data-removable-device-options-v148="true"
+                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-[80] max-h-56 overflow-y-auto rounded-xl border border-violet-200 bg-white p-1.5 shadow-[0_16px_36px_rgba(76,29,149,0.18)]"
+                  >
+                    {filteredSuggestions.length ? (
+                      filteredSuggestions.map(
+                        (suggestion) => (
+                          <div
+                            key={
+                              suggestion
+                            }
+                            className="flex items-center gap-1 rounded-lg hover:bg-violet-50"
+                          >
+                            <button
+                              type="button"
+                              onMouseDown={(
+                                event
+                              ) =>
+                                event.preventDefault()
+                              }
+                              onClick={() => {
+                                onChange(
+                                  suggestion
+                                );
+                                setSuggestionQuery(
+                                  ""
+                                );
+                                setSuggestionOpen(
+                                  false
+                                );
+                              }}
+                              className="min-w-0 flex-1 truncate px-3 py-2 text-left text-sm text-slate-700"
+                            >
+                              {
+                                suggestion
+                              }
+                            </button>
+                            {onRemoveSuggestion ? (
+                              <button
+                                type="button"
+                                title={`ลบ ${suggestion} ออกจากตัวเลือก`}
+                                aria-label={`ลบ ${suggestion} ออกจากตัวเลือก`}
+                                onMouseDown={(
+                                  event
+                                ) =>
+                                  event.preventDefault()
+                                }
+                                onClick={(
+                                  event
+                                ) => {
+                                  event.stopPropagation();
+                                  onRemoveSuggestion(
+                                    suggestion
+                                  );
+                                }}
+                                className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-rose-500 hover:bg-rose-50 hover:text-rose-700"
+                              >
+                                ×
+                              </button>
+                            ) : null}
+                          </div>
+                        )
+                      )
+                    ) : (
+                      <div className="px-3 py-3 text-xs text-slate-400">
+                        {rawValue
+                          ? "ยังไม่มีตัวเลือกนี้ กดบันทึกเพื่อเพิ่ม"
+                          : "ยังไม่มีข้อมูลที่เคยบันทึก"}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              {supportsSuggestions ? (
                 <div
                   className={
                     "mt-1.5 text-[10px] " +
@@ -2304,6 +2496,12 @@ export default function CorporateUserDirectoryProfile({
   const pdfRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null);
   const [metaMap, setMetaMap] = useState<Record<string, UserMeta>>({});
+  const [
+    hiddenDeviceOptions,
+    setHiddenDeviceOptions,
+  ] = useState<HiddenDeviceOptions>(
+    emptyHiddenDeviceOptions
+  );
   const [selectedUsername, setSelectedUsername] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [search, setSearch] = useState("");
@@ -2401,11 +2599,25 @@ export default function CorporateUserDirectoryProfile({
             string,
             UserMeta
           > = {};
+          let nextHiddenDeviceOptions =
+            emptyHiddenDeviceOptions();
 
           snapshot.docs.forEach(
             (item) => {
               const data =
                 item.data() as any;
+
+              if (
+                item.id ===
+                DEVICE_OPTION_SETTINGS_DOC_ID
+              ) {
+                nextHiddenDeviceOptions =
+                  hiddenDeviceOptionsFromData(
+                    data.hiddenDeviceOptions
+                  );
+                return;
+              }
+
               const username =
                 normalizeUsername(
                   data.username ||
@@ -2424,6 +2636,9 @@ export default function CorporateUserDirectoryProfile({
 
           if (!cancelled) {
             setMetaMap(next);
+            setHiddenDeviceOptions(
+              nextHiddenDeviceOptions
+            );
           }
         } catch {
           if (!cancelled) {
@@ -2481,9 +2696,10 @@ export default function CorporateUserDirectoryProfile({
     () =>
       buildDeviceOptionCatalog(
         metaMap,
-        rows
+        rows,
+        hiddenDeviceOptions
       ),
-    [metaMap, rows]
+    [hiddenDeviceOptions, metaMap, rows]
   );
 
   const roles = useMemo(
@@ -3099,6 +3315,61 @@ export default function CorporateUserDirectoryProfile({
       `ใช้รูปแบบอุปกรณ์จาก ${template.sourceName} แล้ว`
     );
   };
+
+  const removeDeviceSuggestion =
+    async (
+      field: DeviceSuggestionField,
+      value: string
+    ) => {
+      const normalizedValue =
+        normalizeDeviceOption(value);
+
+      if (!normalizedValue) return;
+
+      const previous =
+        hiddenDeviceOptions;
+      const next: HiddenDeviceOptions = {
+        ...hiddenDeviceOptions,
+        [field]: Array.from(
+          new Set([
+            ...hiddenDeviceOptions[field],
+            normalizedValue,
+          ])
+        ),
+      };
+
+      setHiddenDeviceOptions(next);
+
+      try {
+        await setDoc(
+          doc(
+            firebaseDb,
+            "qa_user_profiles",
+            DEVICE_OPTION_SETTINGS_DOC_ID
+          ),
+          {
+            hiddenDeviceOptions: next,
+            updatedAt:
+              new Date().toISOString(),
+            updatedBy:
+              updatedByName ||
+              currentUsername ||
+              "System",
+            updatedAtServer:
+              serverTimestamp(),
+          },
+          { merge: true }
+        );
+        setToast(
+          `ลบ “${value}” ออกจากตัวเลือกแล้ว`
+        );
+      } catch {
+        setHiddenDeviceOptions(previous);
+        setToast(
+          "ลบตัวเลือกไม่สำเร็จ กรุณาลองอีกครั้ง"
+        );
+      }
+    };
 
   const clearSuspension = () => {
     if (!editing) return;
@@ -4532,6 +4803,21 @@ export default function CorporateUserDirectoryProfile({
                                           key as keyof WorkDevice
                                         ] as DeviceSuggestionField
                                       ]
+                                    : undefined
+                                }
+                                onRemoveSuggestion={
+                                  DEVICE_FIELD_SUGGESTION_KEYS[
+                                    key as keyof WorkDevice
+                                  ]
+                                    ? (
+                                        suggestion
+                                      ) =>
+                                        void removeDeviceSuggestion(
+                                          DEVICE_FIELD_SUGGESTION_KEYS[
+                                            key as keyof WorkDevice
+                                          ] as DeviceSuggestionField,
+                                          suggestion
+                                        )
                                     : undefined
                                 }
                               />
