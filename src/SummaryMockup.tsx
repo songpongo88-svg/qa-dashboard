@@ -2013,7 +2013,9 @@ function AnalyticsAgentPerformanceV92({
                 <th className="px-3 py-3 text-center">KPI Status</th>
                 <th className="px-3 py-3 text-center">Grade</th>
                 <th className="px-4 py-3 text-right">Incentive</th>
-                <th className="px-4 py-3 text-right">Details</th>
+                {allAgentsMode ? (
+                  <th className="px-4 py-3 text-right">Details</th>
+                ) : null}
               </tr>
             </thead>
 
@@ -2099,32 +2101,29 @@ function AnalyticsAgentPerformanceV92({
                   >
                     {incentiveText(row)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      disabled={
-                        !canSelectAgent ||
-                        !allAgentsMode
-                      }
-                      onClick={() =>
-                        onSelectAgent(
-                          row.agent
-                        )
-                      }
-                      className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-[10px] font-medium text-violet-700 transition hover:bg-violet-50 disabled:cursor-default disabled:border-slate-200 disabled:text-slate-400"
-                    >
-                      {allAgentsMode
-                        ? "View Details"
-                        : "Selected"}
-                    </button>
-                  </td>
+                  {allAgentsMode ? (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        disabled={!canSelectAgent}
+                        onClick={() =>
+                          onSelectAgent(
+                            row.agent
+                          )
+                        }
+                        className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-[10px] font-medium text-violet-700 transition hover:bg-violet-50 disabled:cursor-default disabled:border-slate-200 disabled:text-slate-400"
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
 
               {!visibleRows.length ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={allAgentsMode ? 8 : 7}
                     className="border-t border-slate-100 px-6 py-12 text-center text-sm font-normal text-slate-400"
                   >
                     No Agent data for the current selection
