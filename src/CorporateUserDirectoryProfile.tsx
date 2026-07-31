@@ -191,6 +191,14 @@ const DEVICE_FIELD_SUGGESTION_KEYS: Partial<
   os: "os",
   simPackage: "simPackage",
 };
+const DEFAULT_DEVICE_OPTIONS: Pick<
+  WorkDevice,
+  "brand" | "model" | "series"
+> = {
+  brand: "SAMSUNG",
+  model: "Galaxy A04s",
+  series: "SM-A047F/DS",
+};
 
 function emptyHiddenDeviceOptions(): HiddenDeviceOptions {
   return {
@@ -224,7 +232,16 @@ function hiddenDeviceOptionsFromData(
               .map((item) =>
                 normalizeDeviceOption(item)
               )
-              .filter(Boolean)
+              .filter(
+                (item) =>
+                  Boolean(item) &&
+                  item !==
+                    normalizeDeviceOption(
+                      DEFAULT_DEVICE_OPTIONS[
+                        field as keyof typeof DEFAULT_DEVICE_OPTIONS
+                      ]
+                    )
+              )
           )
         ),
       ]
@@ -293,9 +310,9 @@ function emptyDevice(index = 0): WorkDevice {
     id: `device-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     isPrimary: index === 0,
     status: "Not Assigned",
-    brand: "",
-    model: "",
-    series: "",
+    brand: DEFAULT_DEVICE_OPTIONS.brand,
+    model: DEFAULT_DEVICE_OPTIONS.model,
+    series: DEFAULT_DEVICE_OPTIONS.series,
     os: "",
     assetId: "",
     serialNumber: "",
@@ -406,6 +423,22 @@ function buildDeviceOptionCatalog(
         row.username,
     ])
   );
+
+  (
+    Object.entries(
+      DEFAULT_DEVICE_OPTIONS
+    ) as Array<
+      [
+        keyof typeof DEFAULT_DEVICE_OPTIONS,
+        string,
+      ]
+    >
+  ).forEach(([field, value]) => {
+    suggestionMaps[field].set(
+      normalizeDeviceOption(value),
+      value
+    );
+  });
 
   Object.entries(metaMap).forEach(
     ([username, meta]) => {
