@@ -1388,6 +1388,235 @@ const ANALYTICS_TOPIC_TITLES: Record<
   },
 };
 
+const ANALYTICS_TOPIC_GROUP_TITLES: Record<string, string> = {
+  "1": "ขั้นตอนการทำงานและนโยบาย",
+  "2": "คุณภาพคำตอบ",
+  "3": "การวิเคราะห์และดูแลเคส",
+  "4": "ทักษะการสื่อสาร",
+  "5": "การปฏิบัติตามกระบวนการ",
+};
+
+function splitAnalyticsTopicTitle(label: string) {
+  const mappedTitle = ANALYTICS_TOPIC_TITLES[label];
+  const bilingualFallback = label.match(
+    /^(.+?)\s*\(([^()]*)\)$/
+  );
+
+  return {
+    thai:
+      mappedTitle?.thai ||
+      bilingualFallback?.[1]?.trim() ||
+      label,
+    english:
+      mappedTitle?.english ||
+      bilingualFallback?.[2]?.trim() ||
+      "",
+  };
+}
+
+function buildAnalyticsTopicGroups(topics: TopicSummary[]) {
+  const hasNestedTopicCodes = topics.some((topic) =>
+    /^[^.]+\..+$/.test(topic.code.trim())
+  );
+  const topicGroups = new Map<
+    string,
+    { code: string; title: string; topics: TopicSummary[] }
+  >();
+
+  topics.forEach((topic) => {
+    const nestedCodeMatch = topic.code.trim().match(/^([^.]+)\..+$/);
+    const groupCode =
+      hasNestedTopicCodes && nestedCodeMatch
+        ? nestedCodeMatch[1]
+        : "all";
+    const groupTitle =
+      groupCode === "all"
+        ? "หัวข้อการประเมิน"
+        : ANALYTICS_TOPIC_GROUP_TITLES[groupCode] ||
+          `หมวดการประเมิน ${groupCode}`;
+    const existingGroup = topicGroups.get(groupCode);
+
+    if (existingGroup) {
+      existingGroup.topics.push(topic);
+      return;
+    }
+
+    topicGroups.set(groupCode, {
+      code: groupCode,
+      title: groupTitle,
+      topics: [topic],
+    });
+  });
+
+  return [...topicGroups.values()]
+    .sort((left, right) =>
+      left.code.localeCompare(right.code, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      })
+    )
+    .map((group) => {
+      const totalAverageScore = group.topics.reduce(
+        (sum, topic) => sum + topic.avgScore,
+        0
+      );
+      const totalMaxScore = group.topics.reduce(
+        (sum, topic) => sum + topic.max,
+        0
+      );
+
+      return {
+        ...group,
+        averageScore: totalAverageScore,
+        maxScore: totalMaxScore,
+        percentage: totalMaxScore
+          ? (totalAverageScore / totalMaxScore) * 100
+          : 0,
+      };
+    });
+}
+
+function AnalyticsGroupedTopicDetail({
+  topics,
+}: {
+  topics: TopicSummary[];
+}) {
+  const groups = buildAnalyticsTopicGroups(topics);
+
+  return (
+    <div
+      data-analytics-grouped-topics-v146="true"
+      className="space-y-4"
+    >
+      {groups.map((group) => {
+        const groupDifference =
+          group.percentage - PERFORMANCE_KPI_TARGET;
+        const groupMeetsKpi = groupDifference >= 0;
+
+        return (
+          <section
+            key={group.code}
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+          >
+            <div className="flex flex-col gap-3 border-b border-violet-100 bg-violet-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {group.code !== "all" ? (
+                    <span className="inline-flex rounded-lg bg-violet-700 px-2.5 py-1 text-[10px] font-semibold text-white">
+                      หมวด {group.code}
+                    </span>
+                  ) : null}
+                  <h3 className="text-[13px] font-semibold text-slate-950">
+                    {group.title}
+                  </h3>
+                </div>
+                <div className="mt-1 text-[10px] font-normal text-slate-500">
+                  {group.topics.length} หัวข้อการประเมิน
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 sm:justify-end">
+                <div className="text-left sm:text-right">
+                  <div className="text-[10px] font-normal text-slate-500">
+                    คะแนนเฉลี่ยรวม
+                  </div>
+                  <div className="mt-0.5 text-[13px] font-semibold text-slate-950">
+                    {group.averageScore.toFixed(2)}/{group.maxScore}
+                  </div>
+                </div>
+                <div
+                  className={
+                    "min-w-[78px] rounded-xl px-3 py-2 text-center " +
+                    (groupMeetsKpi
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-rose-100 text-rose-700")
+                  }
+                >
+                  <div className="text-[15px] font-semibold">
+                    {group.percentage.toFixed(2)}%
+                  </div>
+                  <div className="mt-0.5 text-[9px] font-medium">
+                    {groupMeetsKpi ? "ผ่าน KPI" : "ต่ำกว่า KPI"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden grid-cols-[minmax(0,1fr)_120px_92px_142px] gap-3 bg-slate-50/80 px-4 py-2.5 text-[10px] font-medium text-slate-500 sm:grid">
+              <div>หัวข้อการประเมิน</div>
+              <div className="text-right">คะแนนเฉลี่ย</div>
+              <div className="text-right">ผลคะแนน</div>
+              <div className="text-right">เทียบเกณฑ์ KPI</div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {group.topics.map((topic) => {
+                const kpiDifference =
+                  topic.pct - PERFORMANCE_KPI_TARGET;
+                const meetsKpi = kpiDifference >= 0;
+
+                return (
+                  <div
+                    key={topic.code}
+                    className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_120px_92px_142px] sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <span className="inline-flex min-w-[38px] shrink-0 justify-center rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
+                          {topic.code}
+                        </span>
+                        <div className="min-w-0 pt-0.5 text-[12px] font-medium leading-5 text-slate-900">
+                          {topic.label}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
+                      <span className="text-[10px] font-normal text-slate-500 sm:hidden">
+                        คะแนนเฉลี่ย
+                      </span>
+                      <span className="text-[12px] font-medium text-slate-700">
+                        {topic.avgScore.toFixed(2)}/{topic.max}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
+                      <span className="text-[10px] font-normal text-slate-500 sm:hidden">
+                        ผลคะแนน
+                      </span>
+                      <span className="text-[13px] font-semibold text-slate-950">
+                        {topic.pct.toFixed(2)}%
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                      <span className="text-[10px] font-normal text-slate-500 sm:hidden">
+                        เทียบเกณฑ์ KPI
+                      </span>
+                      <span
+                        className={
+                          "inline-flex min-w-[126px] justify-center rounded-full px-3 py-1.5 text-[10px] font-semibold " +
+                          (meetsKpi
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-rose-50 text-rose-600")
+                        }
+                      >
+                        {meetsKpi ? "ผ่าน KPI" : "ต่ำกว่า KPI"}{" "}
+                        {meetsKpi ? "+" : "−"}
+                        {Math.abs(kpiDifference).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
   const orderedTopics = [...topics].sort((left, right) =>
     left.code.localeCompare(right.code, undefined, {
@@ -1395,6 +1624,19 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
       sensitivity: "base",
     })
   );
+
+  if (!orderedTopics.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm font-normal text-slate-400">
+        ไม่มีข้อมูลคะแนนรายหัวข้อ
+      </div>
+    );
+  }
+
+  if (orderedTopics.length > 4) {
+    return <AnalyticsGroupedTopicDetail topics={orderedTopics} />;
+  }
+
   const ringRadius = 42;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const kpiMarkerRotation =
@@ -1402,130 +1644,113 @@ function AnalyticsTopicDetail({ topics }: { topics: TopicSummary[] }) {
 
   return (
     <div>
-      {orderedTopics.length ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {orderedTopics.map((topic) => {
-            const normalizedPercent = Math.max(
-              0,
-              Math.min(100, topic.pct)
-            );
-            const progressOffset =
-              ringCircumference *
-              (1 - normalizedPercent / 100);
-            const kpiDifference =
-              topic.pct - PERFORMANCE_KPI_TARGET;
-            const meetsKpi = kpiDifference >= 0;
-            const mappedTitle =
-              ANALYTICS_TOPIC_TITLES[topic.label];
-            const bilingualFallback = topic.label.match(
-              /^(.+?)\s*\(([^()]*)\)$/
-            );
-            const thaiTitle =
-              mappedTitle?.thai ||
-              bilingualFallback?.[1]?.trim() ||
-              topic.label;
-            const englishTitle =
-              mappedTitle?.english ||
-              bilingualFallback?.[2]?.trim() ||
-              "";
-            const accessibleTitle = englishTitle
-              ? `${thaiTitle}, ${englishTitle}`
-              : thaiTitle;
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {orderedTopics.map((topic) => {
+          const normalizedPercent = Math.max(
+            0,
+            Math.min(100, topic.pct)
+          );
+          const progressOffset =
+            ringCircumference *
+            (1 - normalizedPercent / 100);
+          const kpiDifference =
+            topic.pct - PERFORMANCE_KPI_TARGET;
+          const meetsKpi = kpiDifference >= 0;
+          const { thai: thaiTitle, english: englishTitle } =
+            splitAnalyticsTopicTitle(topic.label);
+          const accessibleTitle = englishTitle
+            ? `${thaiTitle}, ${englishTitle}`
+            : thaiTitle;
 
-            return (
-              <div
-                key={topic.code}
-                className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-5 text-center"
-              >
-                <div className="w-full px-2 text-center">
-                  <div className="text-[12px] font-bold leading-5 text-slate-950">
-                    <span className="mr-1.5 text-slate-950">
-                      {topic.code}.
-                    </span>
-                    {thaiTitle}
+          return (
+            <div
+              key={topic.code}
+              className="flex min-w-0 flex-col items-center rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-5 text-center"
+            >
+              <div className="w-full px-2 text-center">
+                <div className="text-[12px] font-bold leading-5 text-slate-950">
+                  <span className="mr-1.5 text-slate-950">
+                    {topic.code}.
+                  </span>
+                  {thaiTitle}
+                </div>
+                {englishTitle ? (
+                  <div className="mt-1 text-[14px] font-bold italic leading-5 text-rose-600">
+                    {englishTitle}
                   </div>
-                  {englishTitle ? (
-                    <div className="mt-1 text-[14px] font-bold italic leading-5 text-rose-600">
-                      {englishTitle}
-                    </div>
-                  ) : null}
-                </div>
+                ) : null}
+              </div>
 
-                <div className="relative mt-4 h-32 w-32 shrink-0">
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="h-full w-full"
-                    role="img"
-                    aria-label={`${accessibleTitle}: ${topic.pct.toFixed(2)}%, KPI ${PERFORMANCE_KPI_TARGET}%`}
-                  >
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={ringRadius}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="7"
-                      className="text-slate-200"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={ringRadius}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="7"
-                      strokeLinecap="round"
-                      strokeDasharray={ringCircumference}
-                      strokeDashoffset={progressOffset}
-                      transform="rotate(-90 50 50)"
-                      className="text-violet-600"
-                    />
-                    <line
-                      x1="50"
-                      y1="3"
-                      x2="50"
-                      y2="14"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      transform={`rotate(${kpiMarkerRotation} 50 50)`}
-                      className="text-rose-500"
-                    />
-                  </svg>
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="text-xl font-medium text-slate-950">
-                      {topic.pct.toFixed(2)}%
-                    </div>
-                    <div className="mt-0.5 text-[9px] font-normal text-slate-400">
-                      KPI {PERFORMANCE_KPI_TARGET}%
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 text-[10px] font-normal text-slate-500">
-                  คะแนนเฉลี่ย {topic.avgScore.toFixed(2)}/{topic.max}
-                </div>
-                <div
-                  className={
-                    "mt-1 text-[10px] font-medium " +
-                    (meetsKpi
-                      ? "text-emerald-700"
-                      : "text-rose-600")
-                  }
+              <div className="relative mt-4 h-32 w-32 shrink-0">
+                <svg
+                  viewBox="0 0 100 100"
+                  className="h-full w-full"
+                  role="img"
+                  aria-label={`${accessibleTitle}: ${topic.pct.toFixed(2)}%, KPI ${PERFORMANCE_KPI_TARGET}%`}
                 >
-                  {meetsKpi ? "ผ่าน KPI" : "ต่ำกว่า KPI"}{" "}
-                  {meetsKpi ? "+" : "−"}
-                  {Math.abs(kpiDifference).toFixed(2)}%
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r={ringRadius}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="7"
+                    className="text-slate-200"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r={ringRadius}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={progressOffset}
+                    transform="rotate(-90 50 50)"
+                    className="text-violet-600"
+                  />
+                  <line
+                    x1="50"
+                    y1="3"
+                    x2="50"
+                    y2="14"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    transform={`rotate(${kpiMarkerRotation} 50 50)`}
+                    className="text-rose-500"
+                  />
+                </svg>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-xl font-medium text-slate-950">
+                    {topic.pct.toFixed(2)}%
+                  </div>
+                  <div className="mt-0.5 text-[9px] font-normal text-slate-400">
+                    KPI {PERFORMANCE_KPI_TARGET}%
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm font-normal text-slate-400">
-          ไม่มีข้อมูลคะแนนรายหัวข้อ
-        </div>
-      )}
+
+              <div className="mt-3 text-[10px] font-normal text-slate-500">
+                คะแนนเฉลี่ย {topic.avgScore.toFixed(2)}/{topic.max}
+              </div>
+              <div
+                className={
+                  "mt-1 text-[10px] font-medium " +
+                  (meetsKpi
+                    ? "text-emerald-700"
+                    : "text-rose-600")
+                }
+              >
+                {meetsKpi ? "ผ่าน KPI" : "ต่ำกว่า KPI"}{" "}
+                {meetsKpi ? "+" : "−"}
+                {Math.abs(kpiDifference).toFixed(2)}%
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
