@@ -15,6 +15,7 @@ const RECEIPT_COLLECTION = "qa_announcement_receipts";
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent";
 export type AnnouncementPopupMode = "Once" | "Until Acknowledged" | "Mailbox Only";
 export type AnnouncementRepeatMode = "once" | "daily" | "until-read";
+export type AnnouncementDeliveryModel = "legacy" | "immediate-reminder";
 export type AnnouncementDisplayMode = "Banner" | "Popup" | "Full Screen" | "Media Spotlight" | "Media Only" | "Mailbox Only";
 export type AnnouncementActionRequired = "Read Only" | "Acknowledge";
 export type AnnouncementMediaType = "image" | "video" | "pdf" | "file" | "link";
@@ -33,6 +34,10 @@ export type StoredAnnouncement = {
   category: string;
   priority: AnnouncementPriority;
   popupMode: AnnouncementPopupMode;
+  deliveryModel: AnnouncementDeliveryModel;
+  showImmediately: boolean;
+  reminderEnabled: boolean;
+  reminderAt: string;
   repeatMode: AnnouncementRepeatMode;
   dailyStartTime: string;
   dailyEndTime: string;
@@ -60,6 +65,10 @@ export type AnnouncementReceipt = {
   readAt: string;
   acknowledgedAt: string;
   lastShownAt: string;
+  immediateShownAt: string;
+  immediateReadAt: string;
+  reminderShownAt: string;
+  reminderReadAt: string;
 };
 
 function safeArray(value: unknown) {
@@ -104,6 +113,13 @@ function normalizeAnnouncement(
       value?.popupMode === "Mailbox Only"
         ? value.popupMode
         : "Once",
+    deliveryModel:
+      value?.deliveryModel === "immediate-reminder"
+        ? "immediate-reminder"
+        : "legacy",
+    showImmediately: Boolean(value?.showImmediately),
+    reminderEnabled: Boolean(value?.reminderEnabled),
+    reminderAt: String(value?.reminderAt || ""),
     repeatMode:
       value?.repeatMode === "daily" || value?.repeatMode === "until-read"
         ? value.repeatMode
@@ -148,6 +164,10 @@ function normalizeReceipt(value: any, fallbackId = ""): AnnouncementReceipt {
     readAt: String(value?.readAt || ""),
     acknowledgedAt: String(value?.acknowledgedAt || ""),
     lastShownAt: String(value?.lastShownAt || ""),
+    immediateShownAt: String(value?.immediateShownAt || ""),
+    immediateReadAt: String(value?.immediateReadAt || ""),
+    reminderShownAt: String(value?.reminderShownAt || ""),
+    reminderReadAt: String(value?.reminderReadAt || ""),
   };
 }
 
