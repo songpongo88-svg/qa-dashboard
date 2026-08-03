@@ -7,9 +7,9 @@ import {
   upsertStoredAnnouncement,
   type AnnouncementMedia,
   type AnnouncementMediaType,
-  type AnnouncementPopupMode,
   type AnnouncementPriority,
   type AnnouncementReceipt,
+  type AnnouncementRepeatMode,
   type StoredAnnouncement,
 } from "./announcementStore";
 
@@ -70,6 +70,28 @@ const STATUS_LABELS: Record<string, string> = {
   Archived: "เก็บถาวร",
 };
 
+const REPEAT_MODE_OPTIONS: Array<{
+  value: AnnouncementRepeatMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "once",
+    label: "ครั้งเดียว",
+    description: "แจ้ง 1 ครั้งต่อผู้ใช้เมื่อถึงวันและเวลาเริ่ม",
+  },
+  {
+    value: "daily",
+    label: "ทุกวันตามเวลา",
+    description: "แจ้งวันละ 1 ครั้งต่อผู้ใช้ในช่วงเวลาที่กำหนด",
+  },
+  {
+    value: "until-read",
+    label: "จนกว่าจะกดปิด",
+    description: "แจ้งซ้ำเมื่อเข้าเว็บจนกว่าผู้ใช้จะกด ×",
+  },
+];
+
 const POLL_MS = 30_000;
 const SESSION_SNOOZE_KEY = "qa-announcement-session-snooze-v1";
 
@@ -94,6 +116,85 @@ function formatDateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function localDatePart(value: string) {
+  const raw = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:?\d{0,2}$/.test(raw)) {
+    return raw.slice(0, 10);
+  }
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? "" : localDateTimeInput(date).slice(0, 10);
+}
+
+function localTimePart(value: string) {
+  const raw = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:?\d{0,2}$/.test(raw)) {
+    return raw.split("T")[1] || "";
+  }
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? "" : localDateTimeInput(date).slice(11, 16);
+}
+
+function typedTime(value: string) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
+  return digits.length >= 3
+    ? `${digits.slice(0, 2)}:${digits.slice(2)}`
+    : digits;
+}
+
+function isValidTime(value: string) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return false;
+  return Number(match[1]) <= 23 && Number(match[2]) <= 59;
+}
+
+function joinLocalDateTime(date: string, time: string) {
+  return `${date || ""}T${time || ""}`;
+}
+
+function formatThaiSchedule(dateValue: string, timeValue: string) {
+  const date = new Date(`${dateValue}T00:00`);
+  if (Number.isNaN(date.getTime())) return "ยังไม่ได้เลือกวันที่";
+  const dateLabel = new Intl.DateTimeFormat("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+  return `${dateLabel} เวลา ${timeValue || "--:--"} น.`;
+}
+
+function timeMinutes(value: string) {
+  if (!isValidTime(value)) return null;
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function localDayKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function wasShownToday(receipt: AnnouncementReceipt | undefined, now: Date) {
+  return Boolean(
+    receipt?.lastShownAt && localDayKey(receipt.lastShownAt) === localDayKey(now)
+  );
+}
+
+function isDailyDisplayWindow(item: StoredAnnouncement, now: Date) {
+  if (item.repeatMode !== "daily") return true;
+  const start = timeMinutes(item.dailyStartTime || localTimePart(item.startsAt));
+  const end = timeMinutes(item.dailyEndTime || localTimePart(item.endsAt));
+  if (start === null || end === null) return false;
+  const current = now.getHours() * 60 + now.getMinutes();
+  return start <= end
+    ? current >= start && current <= end
+    : current >= start || current <= end;
 }
 
 function announcementStatus(item: StoredAnnouncement, now = new Date()) {
@@ -227,6 +328,9 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
     category: "General",
     priority: "Normal",
     popupMode: "Once",
+    repeatMode: "once",
+    dailyStartTime: localDateTimeInput(now).slice(11, 16),
+    dailyEndTime: localDateTimeInput(tomorrow).slice(11, 16),
     displayMode: "Media Only",
     actionRequired: "Read Only",
     startsAt: localDateTimeInput(now),
@@ -294,7 +398,16 @@ export default function AnnouncementHub({
   useEffect(() => {
     void loadData();
     const timer = window.setInterval(() => void loadData(), POLL_MS);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadData();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [currentUsername]);
 
   const myReceiptMap = useMemo(() => {
@@ -321,17 +434,27 @@ export default function AnnouncementHub({
   const unreadAnnouncements = useMemo(
     () =>
       myAnnouncements.filter((item) => {
-        if (announcementStatus(item) !== "Active") return false;
-        return !myReceiptMap.get(item.id)?.readAt;
+        const now = new Date();
+        if (announcementStatus(item, now) !== "Active") return false;
+        const receipt = myReceiptMap.get(item.id);
+        if (item.repeatMode === "daily") {
+          return isDailyDisplayWindow(item, now) && !wasShownToday(receipt, now);
+        }
+        if (item.repeatMode === "until-read") {
+          return !receipt?.acknowledgedAt;
+        }
+        return !receipt?.readAt;
       }),
     [myAnnouncements, myReceiptMap]
   );
 
   useEffect(() => {
     if (popupMessage) return;
+    if (document.visibilityState !== "visible") return;
 
     const next = myAnnouncements.find((item) => {
-      if (announcementStatus(item) !== "Active") return false;
+      const now = new Date();
+      if (announcementStatus(item, now) !== "Active") return false;
       if (
         item.popupMode === "Mailbox Only" ||
         item.displayMode === "Mailbox Only" ||
@@ -339,7 +462,10 @@ export default function AnnouncementHub({
       )
         return false;
       const receipt = myReceiptMap.get(item.id);
-      if (item.popupMode === "Until Acknowledged") {
+      if (item.repeatMode === "daily") {
+        return isDailyDisplayWindow(item, now) && !wasShownToday(receipt, now);
+      }
+      if (item.repeatMode === "until-read") {
         return !receipt?.acknowledgedAt;
       }
       return !receipt?.readAt && !snoozedIds.includes(item.id);
@@ -414,6 +540,20 @@ export default function AnnouncementHub({
       setSaveMessage("กรุณาแนบรูปภาพหรือวิดีโอสำหรับ Media Popup");
       return;
     }
+    const startDate = localDatePart(draft.startsAt);
+    const endDate = localDatePart(draft.endsAt);
+    const startTime = draft.dailyStartTime || localTimePart(draft.startsAt);
+    const endTime = draft.dailyEndTime || localTimePart(draft.endsAt);
+    if (!startDate || !endDate || !isValidTime(startTime) || !isValidTime(endTime)) {
+      setSaveMessage("กรุณากรอกวันที่และเวลาให้ครบ เช่น 09:00 หรือ 14:21");
+      return;
+    }
+    const startDateTime = new Date(joinLocalDateTime(startDate, startTime));
+    const endDateTime = new Date(joinLocalDateTime(endDate, endTime));
+    if (endDateTime.getTime() <= startDateTime.getTime()) {
+      setSaveMessage("วันและเวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม");
+      return;
+    }
     if (
       !draft.targetAll &&
       !draft.targetRoles.length &&
@@ -426,19 +566,14 @@ export default function AnnouncementHub({
 
     setBusy(true);
     try {
-      const startsAt = draft.startsAt
-        ? new Date(draft.startsAt).toISOString()
-        : new Date().toISOString();
-      const endsAt = draft.endsAt
-        ? new Date(draft.endsAt).toISOString()
-        : "";
+      const startsAt = startDateTime.toISOString();
+      const endsAt = endDateTime.toISOString();
 
       await upsertStoredAnnouncement({
         ...draft,
-        popupMode:
-          draft.popupMode === "Until Acknowledged"
-            ? "Until Acknowledged"
-            : "Once",
+        popupMode: draft.repeatMode === "until-read" ? "Until Acknowledged" : "Once",
+        dailyStartTime: startTime,
+        dailyEndTime: endTime,
         displayMode: "Media Only",
         actionRequired: "Read Only",
         id: draft.id || `announcement-${Date.now()}`,
@@ -473,10 +608,12 @@ export default function AnnouncementHub({
     };
     setDraft({
       ...item,
-      popupMode:
-        item.popupMode === "Until Acknowledged"
-          ? "Until Acknowledged"
-          : "Once",
+      popupMode: item.repeatMode === "until-read" ? "Until Acknowledged" : "Once",
+      repeatMode:
+        item.repeatMode ||
+        (item.popupMode === "Until Acknowledged" ? "until-read" : "once"),
+      dailyStartTime: item.dailyStartTime || localTimePart(item.startsAt),
+      dailyEndTime: item.dailyEndTime || localTimePart(item.endsAt),
       displayMode: "Media Only",
       actionRequired: "Read Only",
       startsAt: toLocal(item.startsAt),
@@ -612,6 +749,32 @@ export default function AnnouncementHub({
   const spotlightMode = popupMessage?.displayMode === "Media Spotlight" || popupMessage?.displayMode === "Media Only";
   const mediaOnlyMode = popupMessage?.displayMode === "Media Only";
   const spotlightMedia = popupMessage?.media?.[0] || null;
+  const draftStartDate = localDatePart(draft.startsAt);
+  const draftEndDate = localDatePart(draft.endsAt);
+  const draftStartTime = draft.dailyStartTime || localTimePart(draft.startsAt);
+  const draftEndTime = draft.dailyEndTime || localTimePart(draft.endsAt);
+  const selectedRepeatMode =
+    REPEAT_MODE_OPTIONS.find((item) => item.value === draft.repeatMode) ||
+    REPEAT_MODE_OPTIONS[0];
+  const scheduleStartLabel = formatThaiSchedule(draftStartDate, draftStartTime);
+  const scheduleEndLabel = formatThaiSchedule(draftEndDate, draftEndTime);
+  const draftStartValue = new Date(
+    joinLocalDateTime(draftStartDate, draftStartTime)
+  );
+  const draftEndValue = new Date(joinLocalDateTime(draftEndDate, draftEndTime));
+  const scheduleNow = new Date();
+  const scheduleReady =
+    !Number.isNaN(draftStartValue.getTime()) &&
+    !Number.isNaN(draftEndValue.getTime()) &&
+    isValidTime(draftStartTime) &&
+    isValidTime(draftEndTime);
+  const scheduleStatus = !scheduleReady
+    ? { label: "กรอกเวลาไม่ครบ", detail: "พิมพ์เวลาแบบ 24 ชั่วโมง เช่น 09:00" }
+    : scheduleNow.getTime() < draftStartValue.getTime()
+      ? { label: "รอเวลาเริ่ม", detail: `Artwork จะเริ่มแสดง ${scheduleStartLabel}` }
+      : scheduleNow.getTime() > draftEndValue.getTime()
+        ? { label: "หมดเวลาแล้ว", detail: `สิ้นสุดเมื่อ ${scheduleEndLabel}` }
+        : { label: "พร้อมแสดง", detail: "Artwork จะแสดงภายในประมาณ 30 วินาที" };
 
   return (
     <>
@@ -1023,54 +1186,184 @@ export default function AnnouncementHub({
                         </select>
                       </label>
 
-                      <label>
-                        <span className="mb-2 block text-xs font-black text-slate-500">
-                          เริ่มแสดง
-                        </span>
-                        <input
-                          type="datetime-local"
-                          value={draft.startsAt}
-                          onChange={(event) =>
-                            setDraft({ ...draft, startsAt: event.target.value })
-                          }
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                        />
-                      </label>
+                      <div
+                        data-announcement-schedule-redesign-v1="true"
+                        className="md:col-span-2 rounded-[24px] border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50/50 p-4 sm:p-5"
+                      >
+                        <div className="text-sm font-black text-slate-900">
+                          1. เลือกว่าต้องการให้แจ้งแบบไหน
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          {REPEAT_MODE_OPTIONS.map((option) => {
+                            const active = draft.repeatMode === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  const nextEndTime =
+                                    option.value === "daily" &&
+                                    draftEndTime === draftStartTime
+                                      ? "23:59"
+                                      : draftEndTime;
+                                  setDraft({
+                                    ...draft,
+                                    repeatMode: option.value,
+                                    popupMode:
+                                      option.value === "until-read"
+                                        ? "Until Acknowledged"
+                                        : "Once",
+                                    dailyEndTime: nextEndTime,
+                                    endsAt: joinLocalDateTime(
+                                      draftEndDate,
+                                      nextEndTime
+                                    ),
+                                  });
+                                }}
+                                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                                  active
+                                    ? "border-violet-600 bg-violet-600 text-white shadow-md"
+                                    : "border-violet-200 bg-white text-slate-700 hover:border-violet-400"
+                                }`}
+                              >
+                                <span className="block text-sm font-black">
+                                  {option.label}
+                                </span>
+                                <span
+                                  className={`mt-1 block text-[11px] leading-5 ${
+                                    active ? "text-violet-100" : "text-slate-500"
+                                  }`}
+                                >
+                                  {option.description}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                      <label>
-                        <span className="mb-2 block text-xs font-black text-slate-500">
-                          สิ้นสุด
-                        </span>
-                        <input
-                          type="datetime-local"
-                          value={draft.endsAt}
-                          onChange={(event) =>
-                            setDraft({ ...draft, endsAt: event.target.value })
-                          }
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                        />
-                      </label>
+                        <div className="mt-5 text-sm font-black text-slate-900">
+                          2. กำหนดวันและเวลา
+                        </div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <label>
+                            <span className="mb-2 block text-xs font-black text-slate-500">
+                              วันที่เริ่ม
+                            </span>
+                            <input
+                              type="date"
+                              value={draftStartDate}
+                              onChange={(event) =>
+                                setDraft({
+                                  ...draft,
+                                  startsAt: joinLocalDateTime(
+                                    event.target.value,
+                                    draftStartTime
+                                  ),
+                                })
+                              }
+                              className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3"
+                            />
+                          </label>
 
-                      <label className="md:col-span-2">
-                        <span className="mb-2 block text-xs font-black text-slate-500">
-                          แจ้งเตือนซ้ำแบบใด
-                        </span>
-                        <select
-                          value={draft.popupMode}
-                          onChange={(event) =>
-                            setDraft({
-                              ...draft,
-                              popupMode: event.target.value as AnnouncementPopupMode,
-                            })
-                          }
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                        >
-                          <option value="Once">แสดงครั้งเดียว</option>
-                          <option value="Until Acknowledged">
-                            แสดงจนกว่าจะกดปิด
-                          </option>
-                        </select>
-                      </label>
+                          <label>
+                            <span className="mb-2 block text-xs font-black text-slate-500">
+                              เวลาเริ่ม
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={5}
+                              value={draftStartTime}
+                              placeholder="เช่น 14:21"
+                              onChange={(event) => {
+                                const nextTime = typedTime(event.target.value);
+                                setDraft({
+                                  ...draft,
+                                  dailyStartTime: nextTime,
+                                  startsAt: joinLocalDateTime(
+                                    draftStartDate,
+                                    nextTime
+                                  ),
+                                });
+                              }}
+                              className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-center font-black tracking-wider"
+                            />
+                          </label>
+
+                          <label>
+                            <span className="mb-2 block text-xs font-black text-slate-500">
+                              วันที่สิ้นสุด
+                            </span>
+                            <input
+                              type="date"
+                              value={draftEndDate}
+                              onChange={(event) =>
+                                setDraft({
+                                  ...draft,
+                                  endsAt: joinLocalDateTime(
+                                    event.target.value,
+                                    draftEndTime
+                                  ),
+                                })
+                              }
+                              className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3"
+                            />
+                          </label>
+
+                          <label>
+                            <span className="mb-2 block text-xs font-black text-slate-500">
+                              {draft.repeatMode === "daily"
+                                ? "เวลาหยุดแสดงต่อวัน"
+                                : "เวลาสิ้นสุด"}
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={5}
+                              value={draftEndTime}
+                              placeholder="เช่น 18:00"
+                              onChange={(event) => {
+                                const nextTime = typedTime(event.target.value);
+                                setDraft({
+                                  ...draft,
+                                  dailyEndTime: nextTime,
+                                  endsAt: joinLocalDateTime(
+                                    draftEndDate,
+                                    nextTime
+                                  ),
+                                });
+                              }}
+                              className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-center font-black tracking-wider"
+                            />
+                          </label>
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          พิมพ์เวลาเองแบบ 24 ชั่วโมง เช่น 09:00 หรือพิมพ์ 1421 ระบบจะจัดเป็น 14:21
+                        </div>
+
+                        <div className="mt-5 rounded-2xl border border-violet-200 bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm font-black text-slate-900">
+                              3. ตรวจสอบก่อนเผยแพร่
+                            </div>
+                            <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
+                              {scheduleStatus.label}
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-xs leading-5 text-slate-600">
+                            <div>เริ่มแจ้ง: {scheduleStartLabel}</div>
+                            <div>
+                              {draft.repeatMode === "daily"
+                                ? `แจ้งทุกวันเวลา ${draftStartTime || "--:--"}–${draftEndTime || "--:--"} น. จนถึง ${formatThaiSchedule(draftEndDate, draftEndTime)}`
+                                : `หยุดแจ้ง: ${scheduleEndLabel}`}
+                            </div>
+                            <div>{selectedRepeatMode.description}</div>
+                            <div className="font-black text-violet-700">
+                              {scheduleStatus.detail}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
                       <div className="md:col-span-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3">
                         <div className="text-xs font-black text-violet-800">

@@ -13,6 +13,7 @@ const RECEIPT_COLLECTION = "qa_announcement_receipts";
 
 export type AnnouncementPriority = "Normal" | "Important" | "Urgent";
 export type AnnouncementPopupMode = "Once" | "Until Acknowledged" | "Mailbox Only";
+export type AnnouncementRepeatMode = "once" | "daily" | "until-read";
 export type AnnouncementDisplayMode = "Banner" | "Popup" | "Full Screen" | "Media Spotlight" | "Media Only" | "Mailbox Only";
 export type AnnouncementActionRequired = "Read Only" | "Acknowledge";
 export type AnnouncementMediaType = "image" | "video" | "pdf" | "file" | "link";
@@ -31,6 +32,9 @@ export type StoredAnnouncement = {
   category: string;
   priority: AnnouncementPriority;
   popupMode: AnnouncementPopupMode;
+  repeatMode: AnnouncementRepeatMode;
+  dailyStartTime: string;
+  dailyEndTime: string;
   displayMode: AnnouncementDisplayMode;
   actionRequired: AnnouncementActionRequired;
   startsAt: string;
@@ -99,6 +103,14 @@ function normalizeAnnouncement(
       value?.popupMode === "Mailbox Only"
         ? value.popupMode
         : "Once",
+    repeatMode:
+      value?.repeatMode === "daily" || value?.repeatMode === "until-read"
+        ? value.repeatMode
+        : value?.popupMode === "Until Acknowledged"
+          ? "until-read"
+          : "once",
+    dailyStartTime: String(value?.dailyStartTime || "").trim(),
+    dailyEndTime: String(value?.dailyEndTime || "").trim(),
     displayMode:
       value?.displayMode === "Banner" ||
       value?.displayMode === "Full Screen" ||
