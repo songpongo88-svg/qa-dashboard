@@ -3,6 +3,8 @@ import {
   deleteStoredAnnouncement,
   fetchAnnouncementReceipts,
   fetchStoredAnnouncements,
+  subscribeAnnouncementReceipts,
+  subscribeStoredAnnouncements,
   upsertAnnouncementReceipt,
   upsertStoredAnnouncement,
   type AnnouncementMedia,
@@ -180,10 +182,45 @@ function localDayKey(value: string | Date) {
   ].join("-");
 }
 
-function wasShownToday(receipt: AnnouncementReceipt | undefined, now: Date) {
-  return Boolean(
-    receipt?.lastShownAt && localDayKey(receipt.lastShownAt) === localDayKey(now)
+function receiptMatchesCurrentVersion(
+  item: StoredAnnouncement,
+  receiptValue: string | undefined
+) {
+  if (!receiptValue) return false;
+  const receiptAt = new Date(receiptValue).getTime();
+  const announcementAt = new Date(
+    item.updatedAt || item.createdAt || 0
+  ).getTime();
+  return (
+    !Number.isNaN(receiptAt) &&
+    (Number.isNaN(announcementAt) || receiptAt >= announcementAt)
   );
+}
+
+function wasShownToday(
+  item: StoredAnnouncement,
+  receipt: AnnouncementReceipt | undefined,
+  now: Date
+) {
+  return Boolean(
+    receiptMatchesCurrentVersion(item, receipt?.lastShownAt) &&
+      localDayKey(receipt?.lastShownAt || "") === localDayKey(now)
+  );
+}
+
+function wasRead(item: StoredAnnouncement, receipt: AnnouncementReceipt | undefined) {
+  return receiptMatchesCurrentVersion(item, receipt?.readAt);
+}
+
+function wasAcknowledged(
+  item: StoredAnnouncement,
+  receipt: AnnouncementReceipt | undefined
+) {
+  return receiptMatchesCurrentVersion(item, receipt?.acknowledgedAt);
+}
+
+function deliveryKey(item: StoredAnnouncement) {
+  return `${item.id}@@${item.updatedAt || item.createdAt || "initial"}`;
 }
 
 function isDailyDisplayWindow(item: StoredAnnouncement, now: Date) {
@@ -374,6 +411,7 @@ export default function AnnouncementHub({
   const [saveMessage, setSaveMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [snoozedIds, setSnoozedIds] = useState<string[]>(readSnoozedIds);
+  const [scheduleTick, setScheduleTick] = useState(0);
 
   const manageAllowed = canManageAnnouncements(currentUser);
   const currentUsername = normalize(currentUser.username);
@@ -397,6 +435,14 @@ export default function AnnouncementHub({
 
   useEffect(() => {
     void loadData();
+    const stopAnnouncements = subscribeStoredAnnouncements(
+      setAnnouncements,
+      (error) => console.warn("Announcement live update failed", error)
+    );
+    const stopReceipts = subscribeAnnouncementReceipts(
+      setReceipts,
+      (error) => console.warn("Announcement receipt live update failed", error)
+    );
     const timer = window.setInterval(() => void loadData(), POLL_MS);
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") void loadData();
@@ -404,9 +450,32 @@ export default function AnnouncementHub({
     window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
+      stopAnnouncements();
+      stopReceipts();
       window.clearInterval(timer);
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [currentUsername]);
+
+  useEffect(() => {
+    let minuteTimer = 0;
+    const now = new Date();
+    const delayToNextMinute = Math.max(
+      50,
+      60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 50
+    );
+    const boundaryTimer = window.setTimeout(() => {
+      setScheduleTick((current) => current + 1);
+      minuteTimer = window.setInterval(
+        () => setScheduleTick((current) => current + 1),
+        60_000
+      );
+    }, delayToNextMinute);
+
+    return () => {
+      window.clearTimeout(boundaryTimer);
+      if (minuteTimer) window.clearInterval(minuteTimer);
     };
   }, [currentUsername]);
 
@@ -438,14 +507,14 @@ export default function AnnouncementHub({
         if (announcementStatus(item, now) !== "Active") return false;
         const receipt = myReceiptMap.get(item.id);
         if (item.repeatMode === "daily") {
-          return isDailyDisplayWindow(item, now) && !wasShownToday(receipt, now);
+          return isDailyDisplayWindow(item, now) && !wasShownToday(item, receipt, now);
         }
         if (item.repeatMode === "until-read") {
-          return !receipt?.acknowledgedAt;
+          return !wasAcknowledged(item, receipt);
         }
-        return !receipt?.readAt;
+        return !wasRead(item, receipt);
       }),
-    [myAnnouncements, myReceiptMap]
+    [myAnnouncements, myReceiptMap, scheduleTick]
   );
 
   useEffect(() => {
@@ -463,12 +532,12 @@ export default function AnnouncementHub({
         return false;
       const receipt = myReceiptMap.get(item.id);
       if (item.repeatMode === "daily") {
-        return isDailyDisplayWindow(item, now) && !wasShownToday(receipt, now);
+        return isDailyDisplayWindow(item, now) && !wasShownToday(item, receipt, now);
       }
       if (item.repeatMode === "until-read") {
-        return !receipt?.acknowledgedAt;
+        return !wasAcknowledged(item, receipt);
       }
-      return !receipt?.readAt && !snoozedIds.includes(item.id);
+      return !wasRead(item, receipt) && !snoozedIds.includes(deliveryKey(item));
     });
 
     if (next) {
@@ -478,8 +547,12 @@ export default function AnnouncementHub({
         announcementId: next.id,
         username: currentUsername,
         displayName: currentUser.displayName,
-        readAt: myReceiptMap.get(next.id)?.readAt || "",
-        acknowledgedAt: myReceiptMap.get(next.id)?.acknowledgedAt || "",
+        readAt: wasRead(next, myReceiptMap.get(next.id))
+          ? myReceiptMap.get(next.id)?.readAt || ""
+          : "",
+        acknowledgedAt: wasAcknowledged(next, myReceiptMap.get(next.id))
+          ? myReceiptMap.get(next.id)?.acknowledgedAt || ""
+          : "",
         lastShownAt: new Date().toISOString(),
       }).then(() => void loadData());
     }
@@ -490,6 +563,7 @@ export default function AnnouncementHub({
     snoozedIds,
     currentUsername,
     currentUser.displayName,
+    scheduleTick,
   ]);
 
   const markRead = async (
@@ -503,11 +577,17 @@ export default function AnnouncementHub({
       announcementId: item.id,
       username: currentUsername,
       displayName: currentUser.displayName,
-      readAt: current?.readAt || now,
+      readAt: wasRead(item, current) ? current?.readAt || now : now,
       acknowledgedAt: acknowledge
-        ? current?.acknowledgedAt || now
-        : current?.acknowledgedAt || "",
-      lastShownAt: current?.lastShownAt || now,
+        ? wasAcknowledged(item, current)
+          ? current?.acknowledgedAt || now
+          : now
+        : wasAcknowledged(item, current)
+          ? current?.acknowledgedAt || ""
+          : "",
+      lastShownAt: receiptMatchesCurrentVersion(item, current?.lastShownAt)
+        ? current?.lastShownAt || now
+        : now,
     });
     await loadData();
   };
@@ -520,15 +600,14 @@ export default function AnnouncementHub({
 
   const readLater = () => {
     if (!popupMessage) return;
-    const next = [...snoozedIds, popupMessage.id];
+    const next = [...snoozedIds, deliveryKey(popupMessage)];
     setSnoozedIds(next);
     saveSnoozedIds(next);
     setPopupMessage(null);
   };
 
-  const openInboxMessage = async (item: StoredAnnouncement) => {
+  const openInboxMessage = (item: StoredAnnouncement) => {
     setSelectedMessage(item);
-    await markRead(item, false);
   };
 
   const saveAnnouncement = async () => {
@@ -582,7 +661,12 @@ export default function AnnouncementHub({
         createdBy: currentUser.username,
         createdByName: currentUser.displayName,
       });
-      setSaveMessage("บันทึกประกาศเรียบร้อยแล้ว");
+      setSaveMessage(
+        `ส่งประกาศเข้าคิวผู้รับแล้ว ระบบจะแสดง Popup เมื่อถึง ${formatThaiSchedule(
+          startDate,
+          startTime
+        )}`
+      );
       setDraft(emptyDraft(currentUser));
       await loadData();
     } catch (error) {
@@ -743,7 +827,7 @@ export default function AnnouncementHub({
     (item) =>
       announcementStatus(item) === "Active" &&
       item.displayMode === "Banner" &&
-      !myReceiptMap.get(item.id)?.acknowledgedAt
+      !wasAcknowledged(item, myReceiptMap.get(item.id))
   );
 
   const spotlightMode = popupMessage?.displayMode === "Media Spotlight" || popupMessage?.displayMode === "Media Only";
@@ -806,6 +890,7 @@ export default function AnnouncementHub({
 
       <button
         type="button"
+        data-announcement-delivery-v2="true"
         onClick={() => {
           setHubOpen(true);
           setView("inbox");
@@ -1008,9 +1093,9 @@ export default function AnnouncementHub({
                           <button
                             type="button"
                             key={item.id}
-                            onClick={() => void openInboxMessage(item)}
+                            onClick={() => openInboxMessage(item)}
                             className={`w-full rounded-[24px] border p-4 text-left transition hover:border-violet-300 ${
-                              receipt?.readAt
+                              wasRead(item, receipt)
                                 ? "border-slate-200 bg-white"
                                 : "border-violet-300 bg-violet-50 shadow-md"
                             }`}
@@ -1023,7 +1108,7 @@ export default function AnnouncementHub({
                               >
                                 {PRIORITY_LABELS[item.priority]}
                               </span>
-                              {!receipt?.readAt ? (
+                              {!wasRead(item, receipt) ? (
                                 <span className="h-2.5 w-2.5 rounded-full bg-violet-600" />
                               ) : null}
                             </div>
@@ -1084,17 +1169,6 @@ export default function AnnouncementHub({
                             ))}
                           </div>
                         ) : null}
-                        <div className="mt-7 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void markRead(selectedMessage, true)
-                            }
-                            className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white"
-                          >
-                            รับทราบข้อความ
-                          </button>
-                        </div>
                       </>
                     ) : (
                       <div className="flex min-h-[380px] items-center justify-center text-center">

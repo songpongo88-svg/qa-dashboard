@@ -3,6 +3,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  onSnapshot,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -152,7 +153,13 @@ function normalizeReceipt(value: any, fallbackId = ""): AnnouncementReceipt {
 
 export async function fetchStoredAnnouncements() {
   const snapshot = await getDocs(collection(firebaseDb, ANNOUNCEMENT_COLLECTION));
-  return snapshot.docs
+  return normalizeAnnouncementSnapshot(snapshot.docs);
+}
+
+function normalizeAnnouncementSnapshot(
+  docs: Array<{ id: string; data: () => unknown }>
+) {
+  return docs
     .map((item) => normalizeAnnouncement(item.data(), item.id))
     .filter((item) => item.id)
     .sort(
@@ -160,6 +167,17 @@ export async function fetchStoredAnnouncements() {
         new Date(b.createdAt || 0).getTime() -
         new Date(a.createdAt || 0).getTime()
     );
+}
+
+export function subscribeStoredAnnouncements(
+  onChange: (items: StoredAnnouncement[]) => void,
+  onError?: (error: Error) => void
+) {
+  return onSnapshot(
+    collection(firebaseDb, ANNOUNCEMENT_COLLECTION),
+    (snapshot) => onChange(normalizeAnnouncementSnapshot(snapshot.docs)),
+    (error) => onError?.(error)
+  );
 }
 
 export async function upsertStoredAnnouncement(
@@ -188,9 +206,26 @@ export async function deleteStoredAnnouncement(id: string) {
 
 export async function fetchAnnouncementReceipts() {
   const snapshot = await getDocs(collection(firebaseDb, RECEIPT_COLLECTION));
-  return snapshot.docs
+  return normalizeReceiptSnapshot(snapshot.docs);
+}
+
+function normalizeReceiptSnapshot(
+  docs: Array<{ id: string; data: () => unknown }>
+) {
+  return docs
     .map((item) => normalizeReceipt(item.data(), item.id))
     .filter((item) => item.id);
+}
+
+export function subscribeAnnouncementReceipts(
+  onChange: (items: AnnouncementReceipt[]) => void,
+  onError?: (error: Error) => void
+) {
+  return onSnapshot(
+    collection(firebaseDb, RECEIPT_COLLECTION),
+    (snapshot) => onChange(normalizeReceiptSnapshot(snapshot.docs)),
+    (error) => onError?.(error)
+  );
 }
 
 export async function upsertAnnouncementReceipt(
