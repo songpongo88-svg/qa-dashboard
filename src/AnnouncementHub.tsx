@@ -6,8 +6,6 @@ import {
   upsertAnnouncementReceipt,
   upsertStoredAnnouncement,
   type AnnouncementMedia,
-  type AnnouncementActionRequired,
-  type AnnouncementDisplayMode,
   type AnnouncementMediaType,
   type AnnouncementPopupMode,
   type AnnouncementPriority,
@@ -48,6 +46,29 @@ const CATEGORY_OPTIONS = [
   "Schedule / OT",
   "Urgent Notice",
 ];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  General: "ทั่วไป",
+  "QA Update": "อัปเดต QA",
+  "Process Update": "อัปเดตขั้นตอนการทำงาน",
+  "System Maintenance": "แจ้งปิดปรับปรุงระบบ",
+  Coaching: "Coaching",
+  "Schedule / OT": "ตารางงาน / OT",
+  "Urgent Notice": "ประกาศเร่งด่วน",
+};
+
+const PRIORITY_LABELS: Record<AnnouncementPriority, string> = {
+  Normal: "ปกติ",
+  Important: "สำคัญ",
+  Urgent: "เร่งด่วน",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  Active: "กำลังแสดง",
+  Scheduled: "ตั้งเวลาแล้ว",
+  Expired: "หมดเวลา",
+  Archived: "เก็บถาวร",
+};
 
 const POLL_MS = 30_000;
 const SESSION_SNOOZE_KEY = "qa-announcement-session-snooze-v1";
@@ -206,7 +227,7 @@ function emptyDraft(user: HubUser): StoredAnnouncement {
     category: "General",
     priority: "Normal",
     popupMode: "Once",
-    displayMode: "Popup",
+    displayMode: "Media Only",
     actionRequired: "Read Only",
     startsAt: localDateTimeInput(now),
     endsAt: localDateTimeInput(tomorrow),
@@ -238,6 +259,7 @@ export default function AnnouncementHub({
     useState<StoredAnnouncement | null>(null);
   const [popupMessage, setPopupMessage] =
     useState<StoredAnnouncement | null>(null);
+  const [mediaDescriptionOpen, setMediaDescriptionOpen] = useState(false);
   const [mediaType, setMediaType] =
     useState<AnnouncementMediaType>("image");
   const [mediaUrl, setMediaUrl] = useState("");
@@ -251,6 +273,10 @@ export default function AnnouncementHub({
 
   const manageAllowed = canManageAnnouncements(currentUser);
   const currentUsername = normalize(currentUser.username);
+
+  useEffect(() => {
+    setMediaDescriptionOpen(false);
+  }, [popupMessage?.id]);
 
   const loadData = async () => {
     try {
@@ -384,6 +410,10 @@ export default function AnnouncementHub({
       setSaveMessage("กรุณากรอกหัวข้อและรายละเอียดประกาศ");
       return;
     }
+    if (!draft.media.some((item) => item.type === "image" || item.type === "video")) {
+      setSaveMessage("กรุณาแนบรูปภาพหรือวิดีโอสำหรับ Media Popup");
+      return;
+    }
     if (
       !draft.targetAll &&
       !draft.targetRoles.length &&
@@ -405,6 +435,12 @@ export default function AnnouncementHub({
 
       await upsertStoredAnnouncement({
         ...draft,
+        popupMode:
+          draft.popupMode === "Until Acknowledged"
+            ? "Until Acknowledged"
+            : "Once",
+        displayMode: "Media Only",
+        actionRequired: "Read Only",
         id: draft.id || `announcement-${Date.now()}`,
         startsAt,
         endsAt,
@@ -437,6 +473,12 @@ export default function AnnouncementHub({
     };
     setDraft({
       ...item,
+      popupMode:
+        item.popupMode === "Until Acknowledged"
+          ? "Until Acknowledged"
+          : "Once",
+      displayMode: "Media Only",
+      actionRequired: "Read Only",
       startsAt: toLocal(item.startsAt),
       endsAt: toLocal(item.endsAt),
     });
@@ -447,8 +489,7 @@ export default function AnnouncementHub({
   const inferMediaType = (file: File): AnnouncementMediaType => {
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
-    if (file.type === "application/pdf") return "pdf";
-    return "file";
+    return "image";
   };
 
   const handleFilesSelected = async (
@@ -465,6 +506,14 @@ export default function AnnouncementHub({
     }
 
     const selected = files.slice(0, remainingSlots);
+    const unsupported = selected.filter(
+      (file) =>
+        !file.type.startsWith("image/") && !file.type.startsWith("video/")
+    );
+    if (unsupported.length) {
+      setUploadMessage("Media Popup รองรับเฉพาะรูปภาพและวิดีโอ");
+      return;
+    }
     const tooLarge = selected.filter((file) => file.size > 700 * 1024);
     if (tooLarge.length) {
       setUploadMessage(
@@ -599,7 +648,7 @@ export default function AnnouncementHub({
           setView("inbox");
         }}
         className="fixed bottom-5 right-5 z-[80] flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-violet-700 to-fuchsia-600 text-2xl text-white shadow-[0_18px_48px_rgba(109,40,217,0.38)] transition hover:-translate-y-1"
-        title="Announcements & Mailbox"
+        title="ประกาศและกล่องข้อความ"
       >
         <span aria-hidden="true">🔔</span>
         {unreadAnnouncements.length ? (
@@ -609,7 +658,59 @@ export default function AnnouncementHub({
         ) : null}
       </button>
 
-      {popupMessage ? (
+      {popupMessage && mediaOnlyMode ? (
+        spotlightMedia ? (
+          <div className="pointer-events-none fixed inset-0 z-[150] flex items-center justify-center">
+            <div className="pointer-events-auto relative max-h-[92vh] max-w-[94vw] overflow-hidden rounded-[28px] shadow-[0_24px_80px_rgba(15,23,42,0.32)]">
+              <button
+                type="button"
+                onClick={() => void acknowledgePopup()}
+                className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/70 text-lg font-black text-white shadow-lg backdrop-blur-sm transition hover:bg-slate-950"
+                aria-label="ปิดประกาศ"
+              >
+                ×
+              </button>
+
+              {spotlightMedia.type === "image" ? (
+                <button
+                  type="button"
+                  onClick={() => setMediaDescriptionOpen((current) => !current)}
+                  className="block cursor-pointer bg-transparent p-0"
+                  aria-label="เปิดหรือปิดรายละเอียดประกาศ"
+                >
+                  <img
+                    src={spotlightMedia.url}
+                    alt={spotlightMedia.label || popupMessage.title}
+                    className="block max-h-[92vh] max-w-[94vw] object-contain"
+                  />
+                </button>
+              ) : (
+                <video
+                  src={spotlightMedia.url}
+                  controls
+                  onClick={() => setMediaDescriptionOpen((current) => !current)}
+                  className="block max-h-[92vh] max-w-[94vw] bg-transparent object-contain"
+                />
+              )}
+
+              {mediaDescriptionOpen && popupMessage.body ? (
+                <button
+                  type="button"
+                  onClick={() => setMediaDescriptionOpen(false)}
+                  className="absolute inset-x-0 bottom-0 z-10 max-h-[46%] overflow-y-auto bg-slate-950/90 px-5 py-4 text-left text-sm leading-7 text-white backdrop-blur-md sm:px-7 sm:py-5"
+                >
+                  <span className="mb-1 block text-xs font-black text-violet-200">
+                    {popupMessage.title}
+                  </span>
+                  <span className="block whitespace-pre-wrap">
+                    {popupMessage.body}
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null
+      ) : popupMessage ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
           <div
             className={`overflow-hidden border border-white/20 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.5)] ${
@@ -618,22 +719,20 @@ export default function AnnouncementHub({
                 : "max-h-[92vh] w-full max-w-3xl rounded-[34px]"
             }`}
           >
-            {!mediaOnlyMode ? (
-              <div className={`bg-gradient-to-r ${priorityClasses(popupMessage.priority).panel} px-7 py-6 text-white`}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em]">{popupMessage.category}</span>
-                  <span className="text-xs font-bold text-white/80">{formatDateTime(popupMessage.startsAt)}</span>
-                </div>
-                <h2 className="mt-4 text-2xl font-black sm:text-3xl">{popupMessage.title}</h2>
-                <div className="mt-2 text-sm font-bold text-white/80">From: {popupMessage.createdByName || popupMessage.createdBy}</div>
+            <div className={`bg-gradient-to-r ${priorityClasses(popupMessage.priority).panel} px-7 py-6 text-white`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em]">{popupMessage.category}</span>
+                <span className="text-xs font-bold text-white/80">{formatDateTime(popupMessage.startsAt)}</span>
               </div>
-            ) : null}
+              <h2 className="mt-4 text-2xl font-black sm:text-3xl">{popupMessage.title}</h2>
+              <div className="mt-2 text-sm font-bold text-white/80">จาก: {popupMessage.createdByName || popupMessage.createdBy}</div>
+            </div>
             {spotlightMode ? (
               <div className="flex h-[calc(94vh-92px)] flex-col overflow-hidden bg-slate-950">
                 <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-6">
                   {spotlightMedia ? <div className="w-full"><MediaPreview media={spotlightMedia} spotlight /></div> : <div className="text-white">ไม่พบ Media</div>}
                 </div>
-                {!mediaOnlyMode && popupMessage.body ? (
+                {popupMessage.body ? (
                   <details className="border-t border-white/10 bg-slate-900 px-5 py-3 text-white">
                     <summary className="cursor-pointer text-sm font-black">ดูรายละเอียดประกาศ</summary>
                     <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-white/75">{popupMessage.body}</div>
@@ -680,10 +779,10 @@ export default function AnnouncementHub({
             <header className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 px-6 py-5 text-white">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">
-                  Communication Control
+                  ศูนย์จัดการการสื่อสาร
                 </div>
                 <div className="mt-1 text-2xl font-black">
-                  Announcement & Mailbox
+                  ประกาศและกล่องข้อความ
                 </div>
               </div>
               <button
@@ -691,7 +790,7 @@ export default function AnnouncementHub({
                 onClick={() => setHubOpen(false)}
                 className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"
               >
-                Close
+                ปิด
               </button>
             </header>
 
@@ -705,7 +804,7 @@ export default function AnnouncementHub({
                     : "bg-slate-50 text-slate-600"
                 }`}
               >
-                Mailbox ({unreadAnnouncements.length})
+                ประกาศของฉัน ({unreadAnnouncements.length})
               </button>
               {manageAllowed ? (
                 <button
@@ -717,7 +816,7 @@ export default function AnnouncementHub({
                       : "bg-slate-50 text-slate-600"
                   }`}
                 >
-                  Announcement Control
+                  จัดการประกาศ
                 </button>
               ) : null}
               {manageAllowed ? (
@@ -730,7 +829,7 @@ export default function AnnouncementHub({
                       : "bg-slate-50 text-slate-600"
                   }`}
                 >
-                  Read Analytics
+                  สถิติการอ่าน
                 </button>
               ) : null}
             </div>
@@ -759,7 +858,7 @@ export default function AnnouncementHub({
                                   priorityClasses(item.priority).badge
                                 }`}
                               >
-                                {item.priority}
+                                {PRIORITY_LABELS[item.priority]}
                               </span>
                               {!receipt?.readAt ? (
                                 <span className="h-2.5 w-2.5 rounded-full bg-violet-600" />
@@ -773,14 +872,14 @@ export default function AnnouncementHub({
                             </div>
                             <div className="mt-3 text-[10px] font-bold text-slate-400">
                               {formatDateTime(item.startsAt)} •{" "}
-                              {announcementStatus(item)}
+                              {STATUS_LABELS[announcementStatus(item)]}
                             </div>
                           </button>
                         );
                       })
                     ) : (
                       <div className="rounded-[24px] border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                        ยังไม่มีข้อความใน Mailbox
+                        ยังไม่มีประกาศ
                       </div>
                     )}
                   </div>
@@ -792,13 +891,13 @@ export default function AnnouncementHub({
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
                             <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">
-                              {selectedMessage.category}
+                              {CATEGORY_LABELS[selectedMessage.category] || selectedMessage.category}
                             </div>
                             <h2 className="mt-2 text-2xl font-black text-slate-950">
                               {selectedMessage.title}
                             </h2>
                             <div className="mt-2 text-sm font-bold text-slate-500">
-                              From:{" "}
+                              จาก:{" "}
                               {selectedMessage.createdByName ||
                                 selectedMessage.createdBy}{" "}
                               • {formatDateTime(selectedMessage.startsAt)}
@@ -809,7 +908,7 @@ export default function AnnouncementHub({
                               priorityClasses(selectedMessage.priority).badge
                             }`}
                           >
-                            {selectedMessage.priority}
+                            {PRIORITY_LABELS[selectedMessage.priority]}
                           </span>
                         </div>
                         <div className="mt-6 whitespace-pre-wrap text-sm leading-8 text-slate-700">
@@ -839,7 +938,7 @@ export default function AnnouncementHub({
                         <div>
                           <div className="text-4xl">📩</div>
                           <div className="mt-4 text-lg font-black text-slate-900">
-                            เลือกข้อความจาก Mailbox
+                            เลือกประกาศเพื่อดูรายละเอียด
                           </div>
                         </div>
                       </div>
@@ -854,10 +953,10 @@ export default function AnnouncementHub({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">
-                          Create Announcement
+                          สร้างประกาศ
                         </div>
                         <div className="mt-1 text-2xl font-black text-slate-950">
-                          {draft.id ? "Edit Announcement" : "New Announcement"}
+                          {draft.id ? "แก้ไขประกาศ" : "ประกาศใหม่"}
                         </div>
                       </div>
                       {draft.id ? (
@@ -866,7 +965,7 @@ export default function AnnouncementHub({
                           onClick={() => setDraft(emptyDraft(currentUser))}
                           className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600"
                         >
-                          New
+                          สร้างใหม่
                         </button>
                       ) : null}
                     </div>
@@ -897,7 +996,9 @@ export default function AnnouncementHub({
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
                         >
                           {CATEGORY_OPTIONS.map((item) => (
-                            <option key={item}>{item}</option>
+                            <option key={item} value={item}>
+                              {CATEGORY_LABELS[item] || item}
+                            </option>
                           ))}
                         </select>
                       </label>
@@ -916,9 +1017,9 @@ export default function AnnouncementHub({
                           }
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
                         >
-                          <option>Normal</option>
-                          <option>Important</option>
-                          <option>Urgent</option>
+                          <option value="Normal">ปกติ</option>
+                          <option value="Important">สำคัญ</option>
+                          <option value="Urgent">เร่งด่วน</option>
                         </select>
                       </label>
 
@@ -952,7 +1053,7 @@ export default function AnnouncementHub({
 
                       <label className="md:col-span-2">
                         <span className="mb-2 block text-xs font-black text-slate-500">
-                          รูปแบบการแจ้งเตือน
+                          แจ้งเตือนซ้ำแบบใด
                         </span>
                         <select
                           value={draft.popupMode}
@@ -964,57 +1065,25 @@ export default function AnnouncementHub({
                           }
                           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
                         >
-                          <option>Once</option>
-                          <option>Until Acknowledged</option>
-                          <option>Mailbox Only</option>
+                          <option value="Once">แสดงครั้งเดียว</option>
+                          <option value="Until Acknowledged">
+                            แสดงจนกว่าจะกดปิด
+                          </option>
                         </select>
                       </label>
 
-                      <label>
-                        <span className="mb-2 block text-xs font-black text-slate-500">
-                          รูปแบบการแสดงผล
-                        </span>
-                        <select
-                          value={draft.displayMode}
-                          onChange={(event) =>
-                            setDraft({
-                              ...draft,
-                              displayMode: event.target.value as AnnouncementDisplayMode,
-                            })
-                          }
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                        >
-                          <option>Banner</option>
-                          <option>Popup</option>
-                          <option>Full Screen</option>
-                          <option>Media Spotlight</option>
-                          <option>Media Only</option>
-                          <option>Mailbox Only</option>
-                        </select>
-                      </label>
-
-                      <label>
-                        <span className="mb-2 block text-xs font-black text-slate-500">
-                          การตอบสนองของผู้ใช้
-                        </span>
-                        <select
-                          value={draft.actionRequired}
-                          onChange={(event) =>
-                            setDraft({
-                              ...draft,
-                              actionRequired: event.target.value as AnnouncementActionRequired,
-                            })
-                          }
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                        >
-                          <option>Read Only</option>
-                          <option>Acknowledge</option>
-                        </select>
-                      </label>
+                      <div className="md:col-span-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3">
+                        <div className="text-xs font-black text-violet-800">
+                          Media Popup
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-violet-700">
+                          แสดงเฉพาะรูปภาพหรือวิดีโอบนหน้าเว็บ ไม่มีกรอบและไม่มีพื้นที่ว่างรอบ Media ผู้ใช้กด Media เพื่ออ่านรายละเอียดได้
+                        </div>
+                      </div>
 
                       <label className="md:col-span-2">
                         <span className="mb-2 block text-xs font-black text-slate-500">
-                          รายละเอียด
+                          รายละเอียดเมื่อกด Media
                         </span>
                         <textarea
                           value={draft.body}
@@ -1031,10 +1100,10 @@ export default function AnnouncementHub({
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <div className="text-sm font-black text-slate-900">
-                            แนบไฟล์หรือ Media
+                            เพิ่มรูปภาพหรือวิดีโอ
                           </div>
                           <div className="mt-1 text-xs text-slate-500">
-                            รูปภาพ วิดีโอ PDF Word Excel PowerPoint สูงสุด 5 ไฟล์ และไม่เกิน 700 KB ต่อไฟล์
+                            แนบ Media สูงสุด 5 ไฟล์ และไม่เกิน 700 KB ต่อไฟล์
                           </div>
                         </div>
                         <button
@@ -1042,13 +1111,13 @@ export default function AnnouncementHub({
                           onClick={() => fileInputRef.current?.click()}
                           className="rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-4 py-2.5 text-sm font-black text-white shadow-md"
                         >
-                          Add File
+                          เลือกไฟล์
                         </button>
                         <input
                           ref={fileInputRef}
                           type="file"
                           multiple
-                          accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                          accept="image/*,video/*"
                           onChange={(event) => void handleFilesSelected(event)}
                           className="hidden"
                         />
@@ -1070,22 +1139,19 @@ export default function AnnouncementHub({
                           }
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                         >
-                          <option value="image">Image</option>
-                          <option value="video">Video</option>
-                          <option value="pdf">PDF</option>
-                          <option value="file">Other File</option>
-                          <option value="link">Link</option>
+                          <option value="image">รูปภาพ</option>
+                          <option value="video">วิดีโอ</option>
                         </select>
                         <input
                           value={mediaUrl}
                           onChange={(event) => setMediaUrl(event.target.value)}
-                          placeholder="URL / Google Drive public link"
+                          placeholder="URL รูปภาพหรือวิดีโอ"
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                         />
                         <input
                           value={mediaLabel}
                           onChange={(event) => setMediaLabel(event.target.value)}
-                          placeholder="ชื่อไฟล์หรือลิงก์"
+                          placeholder="ชื่อ Media"
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2"
                         />
                         <button
@@ -1093,7 +1159,7 @@ export default function AnnouncementHub({
                           onClick={addMedia}
                           className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white"
                         >
-                          Add
+                          เพิ่ม
                         </button>
                       </div>
                       {draft.media.length ? (
@@ -1118,7 +1184,7 @@ export default function AnnouncementHub({
                                 }
                                 className="font-black text-rose-600"
                               >
-                                Remove
+                                ลบ
                               </button>
                             </div>
                           ))}
@@ -1133,7 +1199,7 @@ export default function AnnouncementHub({
                         </div>
                         <ToggleChoice
                           active={draft.targetAll}
-                          label="All Users"
+                          label="ผู้ใช้ทั้งหมด"
                           onClick={() =>
                             setDraft({
                               ...draft,
@@ -1260,14 +1326,14 @@ export default function AnnouncementHub({
                         disabled={busy}
                         className="rounded-2xl bg-gradient-to-r from-violet-700 to-fuchsia-600 px-6 py-3 text-sm font-black text-white shadow-lg disabled:opacity-50"
                       >
-                        {busy ? "Saving..." : draft.id ? "Update Announcement" : "Publish / Schedule"}
+                        {busy ? "กำลังบันทึก..." : draft.id ? "บันทึกการแก้ไข" : "เผยแพร่ / ตั้งเวลา"}
                       </button>
                     </div>
                   </section>
 
                   <section className="rounded-[28px] border border-violet-100 bg-white p-5 shadow-sm">
                     <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-600">
-                      Announcement List
+                      รายการประกาศ
                     </div>
                     <div className="mt-1 text-xl font-black text-slate-950">
                       ทั้งหมด {announcements.length} รายการ
@@ -1284,7 +1350,7 @@ export default function AnnouncementHub({
                                 {item.title}
                               </div>
                               <div className="mt-1 text-[10px] font-bold text-slate-400">
-                                {announcementStatus(item)} •{" "}
+                                {STATUS_LABELS[announcementStatus(item)]} •{" "}
                                 {formatDateTime(item.startsAt)}
                               </div>
                             </div>
@@ -1293,7 +1359,7 @@ export default function AnnouncementHub({
                                 priorityClasses(item.priority).badge
                               }`}
                             >
-                              {item.priority}
+                              {PRIORITY_LABELS[item.priority]}
                             </span>
                           </div>
                           <div className="mt-3 line-clamp-3 text-xs leading-5 text-slate-600">
@@ -1305,14 +1371,14 @@ export default function AnnouncementHub({
                               onClick={() => editAnnouncement(item)}
                               className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-black text-violet-700"
                             >
-                              Edit
+                              แก้ไข
                             </button>
                             <button
                               type="button"
                               onClick={() => void removeAnnouncement(item)}
                               className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-600"
                             >
-                              Delete
+                              ลบ
                             </button>
                           </div>
                         </div>
@@ -1341,10 +1407,10 @@ export default function AnnouncementHub({
                         </div>
                         <div className="flex gap-2">
                           <span className="rounded-xl bg-sky-50 px-3 py-2 text-xs font-black text-sky-700">
-                            Read {receiptCountFor(item.id, "readAt")}
+                            อ่านแล้ว {receiptCountFor(item.id, "readAt")}
                           </span>
                           <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
-                            Acknowledged{" "}
+                            รับทราบแล้ว{" "}
                             {receiptCountFor(item.id, "acknowledgedAt")}
                           </span>
                         </div>
@@ -1364,10 +1430,10 @@ export default function AnnouncementHub({
                                 {receipt.displayName || receipt.username}
                               </div>
                               <div className="mt-1 text-slate-500">
-                                Read: {formatDateTime(receipt.readAt)}
+                                อ่าน: {formatDateTime(receipt.readAt)}
                               </div>
                               <div className="text-slate-500">
-                                Ack:{" "}
+                                รับทราบ:{" "}
                                 {formatDateTime(receipt.acknowledgedAt)}
                               </div>
                             </div>
