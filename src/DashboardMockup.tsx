@@ -6077,7 +6077,7 @@ export default function DashboardMockup({
 
             {/* data-case-history-filters-v133 */}
             <Panel
-              className={dashboardSubTab === "case-detail" ? "relative z-[300] overflow-visible" : "hidden"}
+              className={dashboardSubTab === "case-detail" ? "relative z-[80] overflow-visible" : "hidden"}
               aria-hidden={dashboardSubTab !== "case-detail"}
             >
               <PanelHeader
