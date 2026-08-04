@@ -782,8 +782,6 @@ function ModalShell({
 
 export default function CoachingMockup({
   currentUser,
-  externalSelectedAgent,
-  externalSelectedMonth,
   roleScopedAgentNames,
   onSelectedAgentChange,
   onSelectedMonthChange,
@@ -797,13 +795,9 @@ export default function CoachingMockup({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("all");
-  const [selectedAgent, setSelectedAgent] = useState(
-    externalSelectedAgent || ""
-  );
-  const [selectedMonth, setSelectedMonth] = useState(
-    externalSelectedMonth && externalSelectedMonth !== "all"
-      ? externalSelectedMonth
-      : ""
+  const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    getMonthKey(new Date())
   );
   const [statusFilter, setStatusFilter] = useState<
     "All" | CoachingRecordStatus | "Follow-up Due"
@@ -925,34 +919,13 @@ export default function CoachingMockup({
 
   useEffect(() => {
     if (
-      externalSelectedAgent &&
-      externalSelectedAgent !== selectedAgent
-    ) {
-      const exists = agentOptions.some((name) =>
-        isSameAgent(name, externalSelectedAgent)
-      );
-      if (exists) setSelectedAgent(externalSelectedAgent);
-    }
-  }, [
-    externalSelectedAgent,
-    agentOptions,
-    selectedAgent,
-  ]);
-
-  useEffect(() => {
-    if (!agentOptions.length) {
-      setSelectedAgent("");
-      return;
-    }
-    if (
-      !selectedAgent ||
+      selectedAgent &&
       !agentOptions.some((name) =>
         isSameAgent(name, selectedAgent)
       )
     ) {
-      const next = agentOptions[0];
-      setSelectedAgent(next);
-      onSelectedAgentChange?.(next);
+      setSelectedAgent("");
+      onSelectedAgentChange?.("");
     }
   }, [
     agentOptions,
@@ -975,25 +948,22 @@ export default function CoachingMockup({
   const monthOptions = useMemo(() => {
     return [
       ...new Set(
-        selectedAgentRows
-          .map((item) =>
+        [
+          getMonthKey(new Date()),
+          ...selectedAgentRows.map((item) =>
             getMonthKey(getEvaluationDate(item))
-          )
-          .filter((key) => key !== "unknown")
+          ),
+        ].filter((key) => key !== "unknown")
       ),
     ].sort((a, b) => b.localeCompare(a));
   }, [selectedAgentRows]);
 
   useEffect(() => {
-    if (!monthOptions.length) {
-      setSelectedMonth("");
-      return;
-    }
     if (
       !selectedMonth ||
       !monthOptions.includes(selectedMonth)
     ) {
-      const next = monthOptions[0];
+      const next = getMonthKey(new Date());
       setSelectedMonth(next);
       onSelectedMonthChange?.(next);
     }
@@ -1462,7 +1432,9 @@ th { background:#f5f3ff; color:#4c1d95; }
                 onChange={(event) => {
                   setSelectedTeam(event.target.value);
                   setSelectedAgent("");
-                  setSelectedMonth("");
+                  setSelectedMonth(getMonthKey(new Date()));
+                  onSelectedAgentChange?.("");
+                  onSelectedMonthChange?.(getMonthKey(new Date()));
                 }}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
               >
@@ -1483,13 +1455,13 @@ th { background:#f5f3ff; color:#4c1d95; }
                 value={selectedAgent}
                 onChange={(event) => {
                   setSelectedAgent(event.target.value);
-                  setSelectedMonth("");
                   onSelectedAgentChange?.(
                     event.target.value
                   );
                 }}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
               >
+                <option value="">ยังไม่เลือก Agent</option>
                 {agentOptions.map((agent) => (
                   <option key={agent} value={agent}>
                     {agent}
@@ -1609,7 +1581,16 @@ th { background:#f5f3ff; color:#4c1d95; }
           ) : null}
         </section>
 
-        {!monthlyRows.length ? (
+        {!selectedAgent ? (
+          <section className="rounded-[30px] border border-dashed border-violet-200 bg-white p-10 text-center shadow-sm">
+            <div className="text-xl font-black text-slate-900">
+              กรุณาเลือก Agent ที่ต้องการวิเคราะห์
+            </div>
+            <div className="mt-2 text-sm text-slate-500">
+              ระบบจะเริ่มจากเดือนปัจจุบันและยังไม่สร้าง Coaching จนกว่าจะเลือกชื่อ
+            </div>
+          </section>
+        ) : !monthlyRows.length ? (
           <section className="rounded-[30px] border border-dashed border-violet-200 bg-white p-10 text-center shadow-sm">
             <div className="text-xl font-black text-slate-900">
               ไม่พบผลประเมินของ Agent ในเดือนที่เลือก
