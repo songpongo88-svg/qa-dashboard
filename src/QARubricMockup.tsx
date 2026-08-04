@@ -654,7 +654,7 @@ const AUGUST_2026_RUBRIC: RubricVersion = {
   label: "August 2026 - Admin Live Chat Criteria & Scoring",
   subtitle: "Effective 01 August 2026 onward",
   effectiveFrom: "2026-08-01",
-  sourceLabel: "QA_Admin_LiveChat_Criteria_and_Scoring_August2026_bySongpon",
+  sourceLabel: "QA Admin Live Chat Criteria & Scoring — August 2026",
   totalScore: AUGUST_2026_RUBRIC_SOURCE.totalScore,
   sections: RUBRIC_GROUP_LABELS.map((group, index) => {
     const topics = AUGUST_2026_RUBRIC_SOURCE.topics.filter((topic) => topic.group === group.key);
@@ -1373,20 +1373,6 @@ function RubricWorkbook({
                             <span className="font-black text-amber-700">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน: </span>
                             {row.examples}
                           </p>
-                          {row.evidence || row.processReference ? (
-                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                              {row.evidence ? (
-                                <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900">
-                                  <span className="font-black">หลักฐาน: </span>{row.evidence}
-                                </div>
-                              ) : null}
-                              {row.processReference ? (
-                                <div className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-xs leading-5 text-violet-900">
-                                  <span className="font-black">Process อ้างอิง: </span>{row.processReference}
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -1552,7 +1538,7 @@ function RubricWorkbook({
       {activeTab === "focus" ? (
         <div className="p-5">
           <div className="mb-4 grid gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+            <div className="min-w-0 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
               <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Sections</div>
               <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_2026_RUBRIC_SOURCE.topics.length}</div>
             </div>
@@ -1886,7 +1872,7 @@ export default function QARubricMockup({
               <div className="text-xs font-semibold uppercase tracking-wide text-violet-700">
                 Active Period
               </div>
-              <div className="mt-2 text-sm font-medium text-slate-800">
+              <div className="mt-2 break-words text-sm font-medium leading-5 text-slate-800 [overflow-wrap:anywhere]">
                 {formatDate(activeRubric.effectiveFrom)} - {formatDate(activeRubric.effectiveTo)}
               </div>
             </div>
