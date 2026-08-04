@@ -10,7 +10,7 @@ import {
 } from "./evaluationStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchUsageLogsByEventTypes, type UsageLogEvent } from "./usageLog";
-import { getIncentiveByGrade, getIncentiveByScore, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
+import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 import PageHero from "./PageHero";
@@ -1837,16 +1837,9 @@ function AnalyticsAgentPerformanceV92({
           (caseCount > 0 &&
             (!monthlyMode ||
               monthlyPerformance.completed));
-        const kpiPending =
-          monthlyMode &&
+        const kpiPassed =
           caseCount > 0 &&
-          !monthlyPerformance.completed;
-        const kpiPassed = monthlyMode
-          ? monthlyPerformance.eligible
-          : gradeReady &&
-            !criticalError &&
-            average >=
-              PERFORMANCE_KPI_TARGET;
+          average >= PERFORMANCE_KPI_TARGET;
         const completed =
           monthlyMode &&
           monthlyPerformance.completed;
@@ -1880,7 +1873,6 @@ function AnalyticsAgentPerformanceV92({
           criticalError,
           hasNoCaseMonthlyResult,
           gradeReady,
-          kpiPending,
           kpiPassed,
           completed,
           incentiveCash: incentiveResult?.cash || 0,
@@ -1933,7 +1925,6 @@ function AnalyticsAgentPerformanceV92({
     if (row.caseCount < CASE_TARGET) {
       return `Pending ${row.caseCount}/${CASE_TARGET}`;
     }
-    if (!row.kpiPassed) return notEligibleText;
     if (row.incentiveCash <= 0 && row.incentivePromo <= 0) {
       return notEligibleText;
     }
@@ -1949,6 +1940,7 @@ function AnalyticsAgentPerformanceV92({
       data-analytics-agent-incentive-v92="true"
       data-agent-no-data-logic-v111="true"
       data-agent-performance-tabs-v132="true"
+      data-agent-performance-kpi-score-only-v1="true"
       className="space-y-5"
     >
       <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
@@ -2059,8 +2051,6 @@ function AnalyticsAgentPerformanceV92({
                           ? "bg-rose-50 text-rose-600"
                           : !row.caseCount
                             ? "bg-slate-100 text-slate-500"
-                            : row.kpiPending
-                            ? "bg-amber-50 text-amber-700"
                             : row.kpiPassed
                               ? "bg-emerald-50 text-emerald-700"
                               : "bg-rose-50 text-rose-600")
@@ -2070,8 +2060,6 @@ function AnalyticsAgentPerformanceV92({
                         ? "● Not Passed"
                         : !row.caseCount
                           ? "No Data"
-                          : row.kpiPending
-                          ? `Pending ${row.caseCount}/${CASE_TARGET}`
                           : row.kpiPassed
                             ? "✓ Passed"
                             : "● Not Passed"}
@@ -2093,7 +2081,6 @@ function AnalyticsAgentPerformanceV92({
                     className={
                       "px-4 py-3 text-right font-medium " +
                       (row.completed &&
-                      row.kpiPassed &&
                       row.incentiveCash > 0
                         ? "text-violet-700"
                         : "text-slate-500")
@@ -4531,12 +4518,18 @@ export default function SummaryMockup({
             const completed =
               agentSummary.caseCount >=
               CASE_TARGET;
+            const criticalError = agentCases.some(
+              (item) => item.grade === "G"
+            );
+            const monthlyPerformance = getMonthlyPerformanceResult(
+              agentSummary.caseCount,
+              agentSummary.avgScore,
+              teamSelectedMonth,
+              criticalError
+            );
             const incentiveResult =
-              completed && kpiPassed
-                ? getIncentiveByScore(
-                    agentSummary.avgScore,
-                    teamSelectedMonth
-                  )
+              monthlyPerformance.eligible
+                ? monthlyPerformance.incentive
                 : null;
 
             return {
