@@ -26,7 +26,7 @@ type Section = {
 };
 
 type RubricVersion = {
-  key: "JAN_FEB_2026" | "MARCH_2026" | "APR_2026" | "JUNE_2026";
+  key: "JAN_FEB_2026" | "MARCH_2026" | "APR_2026" | "JUNE_2026" | "AUGUST_2026";
   label: string;
   subtitle: string;
   effectiveFrom: string;
@@ -41,6 +41,7 @@ const RUBRIC_SHARE_CODES: Record<RubricVersion["key"], string> = {
   MARCH_2026: "QA-2026-03",
   APR_2026: "QA-2026-04",
   JUNE_2026: "QA-2026-06",
+  AUGUST_2026: "QA-2026-08",
 };
 
 function getRubricKeyFromShareCode(rubricCode?: string): RubricVersion["key"] | null {
@@ -622,8 +623,9 @@ const JUNE_2026_RUBRIC_SOURCE = RUBRIC_VERSIONS.find((rubric) => rubric.code ===
 const JUNE_2026_RUBRIC: RubricVersion = {
   key: "JUNE_2026",
   label: "June 2026 - Admin Live Chat Criteria",
-  subtitle: "Effective 01 June 2026 onward",
+  subtitle: "Effective 01 June – 31 July 2026",
   effectiveFrom: "2026-06-01",
+  effectiveTo: "2026-07-31",
   sourceLabel: "QA_Admin_LiveChat_Criteria",
   totalScore: JUNE_2026_RUBRIC_SOURCE.totalScore,
   sections: RUBRIC_GROUP_LABELS.map((group, index) => {
@@ -645,7 +647,63 @@ const JUNE_2026_RUBRIC: RubricVersion = {
   }).filter((section) => section.topics.length > 0),
 };
 
-const JUNE_DEDUCTION_GUIDE = [
+const AUGUST_2026_RUBRIC_SOURCE = RUBRIC_VERSIONS.find((rubric) => rubric.code === "QA-2026-08") || RUBRIC_VERSIONS[0];
+
+const AUGUST_2026_RUBRIC: RubricVersion = {
+  key: "AUGUST_2026",
+  label: "August 2026 - Admin Live Chat Criteria & Scoring",
+  subtitle: "Effective 01 August 2026 onward",
+  effectiveFrom: "2026-08-01",
+  sourceLabel: "QA_Admin_LiveChat_Criteria_and_Scoring_August2026_bySongpon",
+  totalScore: AUGUST_2026_RUBRIC_SOURCE.totalScore,
+  sections: RUBRIC_GROUP_LABELS.map((group, index) => {
+    const topics = AUGUST_2026_RUBRIC_SOURCE.topics.filter((topic) => topic.group === group.key);
+    return {
+      id: `AUGUST-S${index + 1}`,
+      title: group.title,
+      score: topics.reduce((sum, topic) => sum + topic.max, 0),
+      topics: topics.map((topic) => ({
+        code: topic.code,
+        title: topic.title,
+        score: topic.max,
+        focus: topic.focusItems?.join(" / "),
+        reviewGuide: topic.reviewGuide,
+        improveTip: topic.examples,
+        checklist: topic.focusItems,
+      })),
+    };
+  }).filter((section) => section.topics.length > 0),
+};
+
+type DeductionGuideItem = {
+  category: string;
+  max: number;
+  level: string;
+  range: string;
+  note?: string;
+  recommended?: number;
+  useWhen?: string;
+  examples?: string;
+};
+
+type FocusTableRow = {
+  categoryCode: string;
+  category: string;
+  max: number;
+  assessment: string;
+  displayCategoryCode: string;
+  displayCategory: string;
+  displayMax: number | string;
+  displayAssessment: string;
+  focusNo: string;
+  focusItem: string;
+  reviewGuide: string;
+  examples: string;
+  evidence?: string;
+  processReference?: string;
+};
+
+const JUNE_DEDUCTION_GUIDE: DeductionGuideItem[] = [
   {
     "category": "ขั้นตอนการทำงานและนโยบาย",
     "max": 30,
@@ -788,7 +846,7 @@ const JUNE_DEDUCTION_GUIDE = [
   }
 ];
 
-const JUNE_FOCUS_TABLE_ROWS = [
+const JUNE_FOCUS_TABLE_ROWS: FocusTableRow[] = [
   {
     "categoryCode": "1",
     "category": "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
@@ -973,11 +1031,182 @@ const JUNE_FOCUS_TABLE_ROWS = [
   }
 ];
 
-type JuneRubricWorkbookTab = "focus" | "deduction";
+const AUGUST_DEDUCTION_GUIDE: DeductionGuideItem[] = [
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "Level 1 — Minor", recommended: 2, range: "1–3", useWhen: "ผิดจุดเล็กน้อย แต่ Process หลักยังถูก", examples: "ทักทายหรือปิดแชทไม่ครบเล็กน้อย หรือ Case Note ขาดรายละเอียดที่ไม่กระทบการทำงานต่อ" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "Level 2 — Moderate", recommended: 6, range: "4–7", useWhen: "ขาดขั้นตอนบางส่วน แต่ยังแก้ไขได้และยังไม่เกิดความเสียหาย", examples: "Verify ไม่ครบเล็กน้อย Tag ผิด หรือเกิน SLA บางช่วง" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "Level 3 — Major", recommended: 12, range: "8–14", useWhen: "ขาดขั้นตอนสำคัญ ทำให้เคสล่าช้าหรือต้องแก้ไขงาน", examples: "ไม่โทรตาม Process ส่งผิดทีม หรือทำรายการผิดแต่แก้ไขทัน" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "Level 4 — Severe", recommended: 20, range: "15–23", useWhen: "ผิด Process หลักและกระทบสิทธิ์ เงิน หรือการดำเนินงาน", examples: "Cancel หรือ Refund ผิด ไม่เปิดเคสที่ต้องติดตาม หรือไม่ประสานงานจนเคสเสียโอกาส" },
+  { category: "ขั้นตอนการทำงานและนโยบาย", max: 30, level: "Level 5 — Critical", recommended: 30, range: "24–30", useWhen: "ผิด Policy หรือ PDPA และมีความเสี่ยงสูง", examples: "เปิดเผยข้อมูลผู้อื่น เปลี่ยนข้อมูลผิดบัญชี หรือคืนเงินผิดบัญชี" },
+  { category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล", max: 20, level: "Level 1 — Minor", recommended: 1, range: "1–2", useWhen: "คำตอบหลักถูก แต่ขาดรายละเอียดเล็กน้อย", examples: "อธิบายไม่ครบจุดย่อย แต่ไม่เปลี่ยนผลของเคส" },
+  { category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล", max: 20, level: "Level 2 — Moderate", recommended: 4, range: "3–5", useWhen: "ตอบไม่ครบหรือตรวจข้อมูลไม่ครบ ทำให้ต้องถามซ้ำ", examples: "ขอหลักฐานไม่ครบ หรือข้ามคำถามต่อเนื่อง" },
+  { category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล", max: 20, level: "Level 3 — Major", recommended: 8, range: "6–10", useWhen: "ข้อมูลสำคัญขาดหรือวิเคราะห์ผิดบางส่วน", examples: "ไม่ตรวจสถานะหรือยอดเงินที่จำเป็นก่อนตอบ" },
+  { category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล", max: 20, level: "Level 4 — Severe", recommended: 14, range: "11–16", useWhen: "ให้ข้อมูลหลักผิด ทำให้ผู้ติดต่อทำตามผิดหรือเสียเวลา", examples: "แจ้งสถานะ ยอดเงิน เงื่อนไข หรือ SLA คืนเงินผิด" },
+  { category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล", max: 20, level: "Level 5 — Critical", recommended: 20, range: "17–20", useWhen: "ให้ข้อมูลผิดจนเกิดหรือเสี่ยงเกิดความเสียหายสูง", examples: "ยืนยันสิทธิ์หรือการคืนเงินที่ไม่มี หรือแจ้งผลธุรกรรมผิด" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "Level 1 — Minor", recommended: 1, range: "1–2", useWhen: "ดูแลเคสครบ แต่สรุปหรือ Next Step ยังไม่ชัดเล็กน้อย", examples: "ไม่ได้ย้ำช่องทางติดตาม แต่ผู้ติดต่อยังทำต่อได้" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "Level 2 — Moderate", recommended: 5, range: "3–6", useWhen: "การดูแลขาดบางช่วง ทำให้ผู้ติดต่อไม่มั่นใจ", examples: "แจ้งให้รอแต่ไม่บอกเวลา หรือสรุปผลไม่ครบ" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "Level 3 — Major", recommended: 10, range: "7–12", useWhen: "ขาด Next Step หรือ Follow-up ที่สำคัญ", examples: "เปิดเรื่องแล้วไม่บอกขั้นตอนต่อ หรือตรวจสอบแล้วไม่แจ้งผล" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "Level 4 — Severe", recommended: 17, range: "13–20", useWhen: "ไม่ดำเนินการตามที่แจ้งไว้หรือปล่อยเคสที่ต้องติดตาม", examples: "ไม่ Monitor ไม่ติดต่อกลับ หรือปล่อยเคสเกิน SLA" },
+  { category: "การดูแลเคสและติดตามผล", max: 25, level: "Level 5 — Critical", recommended: 25, range: "21–25", useWhen: "ไม่ดูแลเคสจนผู้ติดต่อเสียสิทธิ์หรือเกิดผลกระทบรุนแรง", examples: "ปล่อยเคสสำคัญจนไม่สามารถดำเนินการแก้ไขได้" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "Level 1 — Minor", recommended: 1, range: "1–2", useWhen: "ข้อความยังเข้าใจได้ แต่มีคำผิดเล็กน้อย", examples: "ใช้คะ/ค่ะผิดหรือสะกดผิด 1 จุด" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "Level 2 — Moderate", recommended: 4, range: "3–6", useWhen: "ข้อความเริ่มอ่านยากหรือต้องอ่านซ้ำ", examples: "คำผิดหลายจุด ข้อความวกวน หรือเรียกผู้ติดต่อผิดประเภท" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "Level 3 — Major", recommended: 8, range: "7–11", useWhen: "ข้อความทำให้เข้าใจคลาดเคลื่อนหรือน้ำเสียงไม่เหมาะสม", examples: "ลำดับสับสน ใช้คำผิดความหมาย หรือตอบห้วนหลายครั้ง" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "Level 4 — Severe", recommended: 15, range: "12–19", useWhen: "การสื่อสารทำให้สถานการณ์แย่ลงหรือกระทบความเชื่อมั่น", examples: "ตัดบท ตำหนิผู้ติดต่อ หรือไม่แสดงความเข้าใจในเคสร้องเรียน" },
+  { category: "ทักษะการสื่อสาร", max: 25, level: "Level 5 — Critical", recommended: 25, range: "20–25", useWhen: "ใช้ถ้อยคำไม่สุภาพหรือไม่เหมาะสมอย่างชัดเจน", examples: "ด่าทอ ข่มขู่ ประชดประชัน หรือเลือกปฏิบัติ" },
+];
 
-function JuneRubricWorkbook() {
-  const deductionGroups = JUNE_DEDUCTION_GUIDE.reduce<
-    Array<{ category: string; max: number; items: typeof JUNE_DEDUCTION_GUIDE }>
+const AUGUST_FOCUS_TABLE_ROWS: FocusTableRow[] = [
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "1", displayCategory: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", displayMax: 30, displayAssessment: "การทำงานตาม Process", focusNo: "1",
+    focusItem: "เปิดและปิดแชทตามมาตรฐาน (Standard Opening & Closing)",
+    reviewGuide: "ดูว่าแอดมินเริ่มแชทและจบแชทถูกต้องหรือไม่ เช่น ทักทาย แนะนำตัว แจ้งว่าพร้อมช่วยเหลือ และปิดแชทเมื่อให้ข้อมูลครบแล้ว แอดมินควรเรียกชื่อตัวเองตามมาตรฐานอย่างน้อย 2 ครั้งในเคสนั้น ตรงไหนก็ได้ และไม่รีบปิดเคสก่อนผู้ติดต่อได้รับคำตอบครบ",
+    examples: "ไม่ทักทายหรือไม่แนะนำตัว, ไม่มีข้อความปิดแชท, ระบุชื่อแอดมินไม่ครบ 2 ครั้งในเคส, ปิดเคสเร็วเกินไป หรือปิดแชททั้งที่ผู้ติดต่อยังต้องการความช่วยเหลือ", evidence: "ข้อความและเวลาในแชท", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "2",
+    focusItem: "ยืนยันข้อมูล / PDPA / Policy (Verification, PDPA & Policy Compliance)",
+    reviewGuide: "ดูว่าแอดมินขอข้อมูล ใช้ข้อมูล และแจ้งข้อมูลตาม PDPA และนโยบายบริษัทหรือไม่ ควรขอเฉพาะข้อมูลที่จำเป็น ยืนยันตัวตนหรือยืนยันข้อมูลตามประเภทเคส และไม่เปิดเผยข้อมูลของผู้อื่นเกินความจำเป็น",
+    examples: "ขอข้อมูลเกินจำเป็น, เปิดเผยข้อมูลของผู้อื่น, ไม่ยืนยันข้อมูลในเคสที่ต้องตรวจสอบ, แจ้งข้อมูลขัดกับนโยบาย หรือใช้ข้อมูลส่วนบุคคลไม่เหมาะกับเคส", evidence: "แชทและข้อมูลเจ้าของบัญชี", processReference: "Slide 41–42 และ 78–80",
+  },
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "3",
+    focusItem: "เงื่อนไขก่อนดำเนินการ (Status & Eligibility Check)",
+    reviewGuide: "ตรวจประเภทผู้ติดต่อ สถานะออเดอร์หรือบัญชี ช่องทางชำระเงิน และเงื่อนไขของ Process ก่อนดำเนินการ Cancel, Refund, Partial Refund, ระงับ หรือ Re-active",
+    examples: "ใช้ Process ผิดประเภท, ทำรายการผิดสถานะ, เลือกช่องทางผิด หรือดำเนินการทั้งที่ข้อมูลและเงื่อนไขยังไม่ครบ", evidence: "Admin Panel, OPS และ Salesforce", processReference: "Process ของเคสนั้น",
+  },
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "4",
+    focusItem: "การทำรายการและตรวจสอบยอด (System Transaction & Financial Accuracy)",
+    reviewGuide: "ตรวจประเภทการทำรายการ ยอดเงิน ผู้จ่าย ผู้รับ Full Refund หรือ Partial Refund เหตุผล และรายละเอียดทั้งหมดก่อนกด Confirm",
+    examples: "คืนเงินผิดยอด, เลือกผู้จ่ายหรือผู้รับผิด, ไม่ปิด Full Refund เมื่อต้องคืนบางส่วน, ทำรายการซ้ำ หรือบันทึกเหตุผลไม่ถูกต้อง", evidence: "Transaction Log", processReference: "Slide 32–38",
+  },
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "5",
+    focusItem: "Process / SLA / การส่งต่อ / การปิดเคส (Process, SLA, Escalation & Case Closure)",
+    reviewGuide: "ดูว่าแอดมินทำตาม Process และเวลาที่กำหนดหรือไม่ ได้แก่ รับแชทไม่เกิน 5 นาที ตอบกลับระหว่างสนทนาไม่เกิน 2 นาที และปิดแชทภายใน 4 นาทีหลังข้อความสุดท้าย รวมถึงโทรออกหรือประสานงานตาม Process ส่งต่อถูกทีม และปิดเคสเมื่อให้ข้อมูลหรือแจ้งขั้นตอนถัดไปครบแล้ว",
+    examples: "ไม่ทำตาม Process, รับแชทเกิน 5 นาที, ตอบกลับเกิน 2 นาที, ปิดแชทเกิน 4 นาทีหลังข้อความสุดท้าย, ไม่โทรออกตามเงื่อนไข, ส่งต่อผิดทีม, ส่งต่อข้อมูลไม่ครบ หรือปิดเคสทั้งที่ยังไม่มีแนวทางต่อ", evidence: "เวลาแชทและเวลาเปิดเคส", processReference: "Process ของเคสนั้น",
+  },
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "6",
+    focusItem: "การโทรและการประสานงาน (Contact & Coordination)",
+    reviewGuide: "ตรวจว่าแอดมินโทรหรือติดต่อผู้เกี่ยวข้องตามจำนวนครั้งและกรอบเวลาที่ Process กำหนด พร้อมบันทึกผลและใช้ขั้นตอนถัดไปอย่างถูกต้อง",
+    examples: "ไม่โทรตามเงื่อนไข, จำนวนครั้งไม่ครบ, ติดต่อเกินเวลาที่กำหนด, ไม่บันทึกผลการติดต่อ หรือไม่ดำเนินการต่อหลังติดต่อไม่ได้", evidence: "Call Log และ Case History", processReference: "Process ที่กำหนดให้โทรหรือส่งต่อ",
+  },
+  {
+    categoryCode: "1", category: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)", max: 30, assessment: "การทำงานตาม Process",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "7",
+    focusItem: "Case Note / Tag / การบันทึกเคส (Case Notes, Tagging & Documentation)",
+    reviewGuide: "ดูว่าแอดมินบันทึกเคสใน Support Center ครบและถูกต้องหรือไม่ ต้องเลือก Tag ให้ตรงเรื่อง ใส่ข้อมูลสำคัญที่จำเป็น เช่น เลขออเดอร์ Shop ID MID RR เบอร์โทรศัพท์ หรือข้อมูลอ้างอิง และสรุปสิ่งที่ตรวจสอบหรือดำเนินการแล้วให้ทีมถัดไปเข้าใจได้",
+    examples: "ไม่บันทึกเคส, ไม่ใส่ Tag, ใส่ Tag ไม่ตรงเรื่อง, Case Note ไม่ครบหรือคลุมเครือ, ไม่ใส่ข้อมูลสำคัญ หรือทีมถัดไปอ่านแล้วตามงานต่อได้ยาก", evidence: "Support Center, Salesforce และ Oho", processReference: "Process ที่กำหนดให้บันทึกเคส",
+  },
+  {
+    categoryCode: "2", category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)", max: 20, assessment: "ความถูกต้องของคำตอบ",
+    displayCategoryCode: "2", displayCategory: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)", displayMax: 20, displayAssessment: "ความถูกต้องของคำตอบ", focusNo: "1",
+    focusItem: "ตอบถูกต้องและครบประเด็น (Answer Accuracy & Completeness)",
+    reviewGuide: "ดูว่าคำตอบถูกต้อง ตรงกับประเภทผู้ติดต่อ เช่น ลูกค้า ไรเดอร์ หรือร้านค้า และตอบครบทุกคำถามที่ผู้ติดต่อถาม ทั้งคำถามหลัก คำถามต่อเนื่อง และข้อมูลที่จำเป็นต่อการตัดสินใจ ไม่ทำให้ต้องถามซ้ำในเรื่องเดิม",
+    examples: "แจ้งเงื่อนไขผิด, แจ้งสถานะหรือยอดเงินผิด, ใช้ข้อมูลเก่าหรือไม่ตรงปัจจุบัน, ตอบไม่ตรงประเภทผู้ติดต่อ, ตอบไม่ครบ, ข้ามคำถามหลัก หรือทำให้ผู้ติดต่อเข้าใจผิด", evidence: "แชทเทียบกับข้อมูลระบบ", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "2", category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)", max: 20, assessment: "ความถูกต้องของคำตอบ",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "2",
+    focusItem: "ตรวจสอบข้อมูลก่อนสรุปคำตอบ (Information Verification Before Response)",
+    reviewGuide: "ดูว่าแอดมินขอข้อมูลที่จำเป็นและตรวจสอบก่อนตอบหรือไม่ เช่น ตรวจระบบ ประวัติเคส รายละเอียดออเดอร์ หลักฐานจากผู้ติดต่อ หรือข้อมูลประกอบอื่น ๆ และวิเคราะห์สาเหตุให้ตรงปัญหา ไม่ด่วนสรุปจากข้อมูลที่ยังไม่เพียงพอ",
+    examples: "ยังไม่ขอเลขออเดอร์ เบอร์โทรศัพท์ หรือโค้ดที่จำเป็นแต่สรุปคำตอบทันที, ตรวจสอบข้อมูลไม่ครบ, วิเคราะห์ผิดประเด็น, มองข้ามหลักฐานที่ผู้ติดต่อส่งมา หรือตอบจากการคาดเดา", evidence: "ข้อมูลระบบและหลักฐาน", processReference: "Process ของเคสนั้น",
+  },
+  {
+    categoryCode: "2", category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)", max: 20, assessment: "ความถูกต้องของคำตอบ",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "3",
+    focusItem: "ความถูกต้องของสถานะ ยอดเงิน และระยะเวลา (Status, Amount & SLA Accuracy)",
+    reviewGuide: "ตรวจว่าสถานะออเดอร์ ยอดเงิน ส่วนลด ค่าจัดส่ง ผู้รับผิดชอบยอด ช่องทางคืนเงิน และระยะเวลาดำเนินการตรงกับข้อมูลในระบบและ Process",
+    examples: "แจ้งสถานะผิด, แจ้งยอดผิด, ระบุผู้รับผิดชอบยอดผิด, แจ้งช่องทางหรือระยะเวลาคืนเงินผิด", evidence: "Transaction และ Refund Status", processReference: "Slide 17–24 และ 31–38",
+  },
+  {
+    categoryCode: "2", category: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)", max: 20, assessment: "ความถูกต้องของคำตอบ",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "4",
+    focusItem: "สรุปตามข้อมูลที่ตรวจสอบได้ (Evidence-based Conclusion)",
+    reviewGuide: "แยกให้ชัดเจนว่าสิ่งใดตรวจพบแล้ว สิ่งใดดำเนินการแล้ว และสิ่งใดยังอยู่ระหว่างตรวจสอบ โดยไม่คาดเดาหรือยืนยันเกินข้อมูลที่มี",
+    examples: "สรุปสาเหตุโดยไม่มีหลักฐาน, แจ้งว่าดำเนินการแล้วทั้งที่ยังไม่ได้ทำ หรือยืนยันผลทั้งที่ยังอยู่ระหว่างตรวจสอบ", evidence: "แชทและ Audit Trail", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "3", category: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)", max: 25, assessment: "การดูแลเคส",
+    displayCategoryCode: "3", displayCategory: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)", displayMax: 25, displayAssessment: "การดูแลเคส", focusNo: "1",
+    focusItem: "ดูแลเคสตั้งแต่รับเรื่องจนมีข้อสรุป (End-to-End Case Handling)",
+    reviewGuide: "ดูว่าแอดมินรับเรื่องแล้วดูแลต่อเนื่องหรือไม่ ไม่ตอบแล้วปล่อย ไม่โยนภาระให้ผู้ติดต่อโดยไม่จำเป็น และทำให้ผู้ติดต่อมั่นใจว่าเรื่องได้รับการดูแลจนมีข้อสรุปหรือมีแนวทางดำเนินการต่อ",
+    examples: "รับเรื่องแล้วไม่ดำเนินการต่อ, ให้ผู้ติดต่อจัดการเองทั้งที่แอดมินควรช่วยตรวจสอบ, ไม่สรุปว่าเคสอยู่ขั้นตอนไหน หรือทำให้ผู้ติดต่อไม่รู้ว่าเรื่องได้รับการดูแลแล้วหรือยัง", evidence: "Timeline และ Case History", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "3", category: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)", max: 25, assessment: "การดูแลเคส",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "2",
+    focusItem: "แจ้งขั้นตอนถัดไปให้ชัด (Clear Next Step Communication)",
+    reviewGuide: "ดูว่าแอดมินแจ้งขั้นตอนถัดไปชัดเจนหรือไม่ เช่น ต้องรออะไร รอนานเท่าไร ต้องส่งข้อมูลอะไรเพิ่ม หรือทีมใดจะดำเนินการต่อ เพื่อให้ผู้ติดต่อทราบว่าหลังจากนี้ต้องทำอะไร",
+    examples: "ไม่มีขั้นตอนถัดไป, แจ้งให้รอแต่ไม่บอกระยะเวลา, ไม่บอกว่าต้องส่งข้อมูลอะไรเพิ่ม, ไม่แจ้งช่องทางติดตามผล หรือแจ้งกว้างเกินไปจนดำเนินการต่อไม่ได้", evidence: "ข้อความในแชท", processReference: "Process ที่มีขั้นตอนต่อ",
+  },
+  {
+    categoryCode: "3", category: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)", max: 25, assessment: "การดูแลเคส",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "3",
+    focusItem: "ติดตามและแจ้งผลตรวจสอบ (Follow-up & Result Update)",
+    reviewGuide: "ดูว่าเมื่อแอดมินตรวจระบบ โทรออก ประสานงาน หรือส่งต่อแล้ว มีการสรุปผลกลับมาในแชทหรือไม่ ควรแจ้งว่าพบอะไร ดำเนินการอะไรไปแล้ว และสถานะล่าสุดเป็นอย่างไร",
+    examples: "ตรวจสอบแล้วแต่ไม่แจ้งผล, โทรออกหรือประสานงานแล้วไม่สรุป, มีการติดต่อกลับแต่ไม่บอกข้อสรุป หรือแจ้งผลไม่ครบจนผู้ติดต่อต้องถามซ้ำ", evidence: "Case History และข้อความติดตาม", processReference: "Refund, IT, Operation และ CS Tier2",
+  },
+  {
+    categoryCode: "3", category: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)", max: 25, assessment: "การดูแลเคส",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "4",
+    focusItem: "กรณีข้อมูลไม่ครบ ติดต่อไม่ได้ หรือ Pending Review (Exception Handling)",
+    reviewGuide: "ขอข้อมูลเพิ่มเติมหรือใช้ขั้นตอนสำรองตามที่ Process ระบุ หาก Process ยังเป็น Pending Review ให้ประเมินเฉพาะข้อกำหนดที่ประกาศใช้แล้ว",
+    examples: "ไม่ขอข้อมูลที่จำเป็น, ไม่ใช้ขั้นตอนสำรองที่กำหนด, สร้าง Process หรือ SLA เพิ่มเอง หรือหักคะแนนจากขั้นตอนที่ยัง Pending Review", evidence: "แชทและ Process ปัจจุบัน", processReference: "Process ที่มีเงื่อนไขเพิ่มเติม",
+  },
+  {
+    categoryCode: "4", category: "ทักษะการสื่อสาร (Communication Skills)", max: 25, assessment: "ทักษะการสื่อสาร",
+    displayCategoryCode: "4", displayCategory: "ทักษะการสื่อสาร (Communication Skills)", displayMax: 25, displayAssessment: "ทักษะการสื่อสาร", focusNo: "1",
+    focusItem: "อ่านง่ายและเรียงลำดับชัด (Clear Structure & Logical Flow)",
+    reviewGuide: "ดูว่าข้อความอ่านเข้าใจง่ายหรือไม่ ควรเรียงจากรับเรื่อง → ตรวจสอบหรือแจ้งผล → แจ้งขั้นตอนถัดไป แยกแต่ละประเด็นให้ชัด ไม่เขียนรวมกันจนผู้ติดต่อสับสน",
+    examples: "ข้อความยาวติดกัน, ลำดับสลับ, หลายประเด็นปนกัน, อ่านแล้วไม่รู้ว่าต้องทำอะไรก่อน หรือจุดสำคัญไม่ชัด", evidence: "ข้อความในแชท", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "4", category: "ทักษะการสื่อสาร (Communication Skills)", max: 25, assessment: "ทักษะการสื่อสาร",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "2",
+    focusItem: "กระชับและตรงประเด็น (Concise & Relevant Communication)",
+    reviewGuide: "ดูว่าคำตอบสั้นพอดี ตรงคำถาม และเข้าใจได้ทันทีหรือไม่ ควรให้ข้อมูลที่จำเป็นครบ โดยไม่วกวน ไม่ใส่ข้อมูลที่ไม่เกี่ยวข้อง และไม่ใช้คำซ้ำจนเยิ่นเย้อ",
+    examples: "ตอบยาวเกินจำเป็น, ใช้คำฟุ่มเฟือย, ตอบไม่ตรงคำถาม, ใส่ข้อมูลที่ไม่เกี่ยวกับปัญหา หรือใช้ประโยคซ้ำจนข้อความเยิ่นเย้อ", evidence: "ข้อความในแชท", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "4", category: "ทักษะการสื่อสาร (Communication Skills)", max: 25, assessment: "ทักษะการสื่อสาร",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "3",
+    focusItem: "สะกดถูกและใช้คำเหมาะสม (Correct Spelling & Appropriate Wording)",
+    reviewGuide: "ดูคำสะกด การเว้นวรรค ไวยากรณ์ และการเลือกใช้คำให้เหมาะกับงานบริการ ข้อความต้องอ่านลื่น ไม่ทำให้ความหมายเปลี่ยน และเรียกผู้ติดต่อให้ถูกประเภท เช่น คุณลูกค้า พี่ไรเดอร์ หรือร้านค้า",
+    examples: "สะกดผิด, ใช้คะ/ค่ะผิด, เว้นวรรคผิดจนอ่านยาก, ใช้คำผิดความหมาย, เรียกผู้ติดต่อผิดประเภท หรือใช้ภาษาที่ทำให้เข้าใจผิด", evidence: "ข้อความในแชท", processReference: "ทุก Process",
+  },
+  {
+    categoryCode: "4", category: "ทักษะการสื่อสาร (Communication Skills)", max: 25, assessment: "ทักษะการสื่อสาร",
+    displayCategoryCode: "", displayCategory: "", displayMax: "", displayAssessment: "", focusNo: "4",
+    focusItem: "การสื่อสารอย่างสุภาพและเข้าใจสถานการณ์ (Polite & Situation-Aware Communication)",
+    reviewGuide: "ดูว่าภาษาและน้ำเสียงเหมาะกับสถานการณ์หรือไม่ โดยเฉพาะเคสที่ผู้ติดต่อกังวล ร้องเรียน หรือได้รับผลกระทบ ควรแสดงความเข้าใจ ให้ความมั่นใจ และเมื่อผู้ติดต่อส่งข้อมูลหรือหลักฐานมา ควรตอบรับและแจ้งว่าจะนำข้อมูลไปตรวจสอบอย่างไร",
+    examples: "ตอบแข็งหรือห้วน, ไม่แสดงความเข้าใจในเคสที่มีผลกระทบ, ใช้คำไม่เหมาะกับสถานการณ์, ผู้ติดต่อส่งข้อมูลแล้วไม่ตอบรับ หรือไม่แจ้งว่าจะนำข้อมูลไปทำอะไรต่อ", evidence: "ข้อความในแชท", processReference: "ทุก Process",
+  },
+];
+
+type RubricWorkbookTab = "focus" | "deduction";
+
+function RubricWorkbook({
+  workbookLabel,
+  effectiveDate,
+  rubricSource,
+  focusRows,
+  deductionGuide,
+}: {
+  workbookLabel: string;
+  effectiveDate: string;
+  rubricSource: typeof JUNE_2026_RUBRIC_SOURCE;
+  focusRows: FocusTableRow[];
+  deductionGuide: DeductionGuideItem[];
+}) {
+  const deductionGroups = deductionGuide.reduce<
+    Array<{ category: string; max: number; items: DeductionGuideItem[] }>
   >((groups, row) => {
     const existing = groups.find((group) => group.category === row.category);
     if (existing) {
@@ -1001,14 +1230,14 @@ function JuneRubricWorkbook() {
     "border-rose-200 bg-rose-50 text-rose-900",
   ];
 
-  const [activeTab, setActiveTab] = useState<JuneRubricWorkbookTab>("focus");
-  const focusGroups = JUNE_FOCUS_TABLE_ROWS.reduce<
+  const [activeTab, setActiveTab] = useState<RubricWorkbookTab>("focus");
+  const focusGroups = focusRows.reduce<
     Array<{
       categoryCode: string;
       category: string;
       max: number;
       assessment: string;
-      rows: typeof JUNE_FOCUS_TABLE_ROWS;
+      rows: FocusTableRow[];
     }>
   >((groups, row) => {
     const existing = groups.find(
@@ -1028,10 +1257,10 @@ function JuneRubricWorkbook() {
     });
     return groups;
   }, []);
-  const workbookTabs: Array<{ key: JuneRubricWorkbookTab; label: string; description: string }> = [
+  const workbookTabs: Array<{ key: RubricWorkbookTab; label: string; description: string }> = [
     {
       key: "focus",
-      label: "เกณฑ์หลักและหัวข้อประเมิน",
+      label: "เกณฑ์หลักและโฟกัส",
       description: "มุมมองแบบกลุ่ม อ่านหัวข้อ วิธีประเมิน และตัวอย่างข้อผิดพลาดได้ง่ายขึ้น",
     },
     {
@@ -1045,22 +1274,22 @@ function JuneRubricWorkbook() {
     <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_24px_70px_rgba(15,118,110,0.12)]">
       <div className="bg-gradient-to-r from-[#0f5f3c] via-[#167348] to-[#0f6f8e] px-6 py-6 text-white">
         <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">
-          June 2026 Rubric Workbook
+          {workbookLabel}
         </div>
         <h2 className="mt-2 text-2xl font-black">QA Admin Live Chat Criteria</h2>
         <p className="mt-2 max-w-5xl text-sm font-semibold leading-6 text-white/82">
-          แสดงข้อมูลตามไฟล์ Excel ล่าสุดแบบอ่านง่ายขึ้น: ตารางหลักสำหรับเกณฑ์ประเมิน และส่วนระดับการหักคะแนนที่เรียงครบทุกหมวดในหน้าเดียวโดยไม่ต้องกด Filter.
+          เกณฑ์หลัก จุดที่ต้องตรวจ และระดับการหักคะแนนตามไฟล์ที่ประกาศใช้ โดยแยกเป็นหมวดเพื่อให้อ่านและเทียบข้อมูลได้สะดวก
         </p>
       </div>
 
       <div className="grid gap-3 border-b border-emerald-100 bg-emerald-50/70 p-5 md:grid-cols-4">
         <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Sections</div>
-          <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_2026_RUBRIC_SOURCE.topics.length}</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{rubricSource.topics.length}</div>
         </div>
         <div className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">Focus Items</div>
-          <div className="mt-2 text-2xl font-black text-slate-950">{JUNE_FOCUS_TABLE_ROWS.length}</div>
+          <div className="mt-2 text-2xl font-black text-slate-950">{focusRows.length}</div>
         </div>
         <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">Deduction Groups</div>
@@ -1068,7 +1297,7 @@ function JuneRubricWorkbook() {
         </div>
         <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
           <div className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">Effective Date</div>
-          <div className="mt-2 text-lg font-black text-slate-950">01/06/2026</div>
+          <div className="mt-2 text-lg font-black text-slate-950">{effectiveDate}</div>
         </div>
       </div>
 
@@ -1099,7 +1328,7 @@ function JuneRubricWorkbook() {
         <div className={`${activeTab === "focus" ? "mb-4 flex" : "hidden"} flex-col gap-2 md:flex-row md:items-end md:justify-between`}>
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">Assessment Topics</div>
-            <h3 className="mt-1 text-xl font-black text-slate-950">เกณฑ์หลักและหัวข้อประเมิน</h3>
+            <h3 className="mt-1 text-xl font-black text-slate-950">เกณฑ์หลักและโฟกัส</h3>
           </div>
           <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800">
             ข้อมูลเรียงตาม Excel
@@ -1144,6 +1373,20 @@ function JuneRubricWorkbook() {
                             <span className="font-black text-amber-700">ตัวอย่างข้อผิดพลาดที่ควรหักคะแนน: </span>
                             {row.examples}
                           </p>
+                          {row.evidence || row.processReference ? (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              {row.evidence ? (
+                                <div className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900">
+                                  <span className="font-black">หลักฐาน: </span>{row.evidence}
+                                </div>
+                              ) : null}
+                              {row.processReference ? (
+                                <div className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2 text-xs leading-5 text-violet-900">
+                                  <span className="font-black">Process อ้างอิง: </span>{row.processReference}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -1199,7 +1442,7 @@ function JuneRubricWorkbook() {
               </p>
             </div>
             <div className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-black text-emerald-800">
-              {JUNE_DEDUCTION_GUIDE.length} รายการ
+              {deductionGuide.length} รายการ
             </div>
           </div>
 
@@ -1236,9 +1479,16 @@ function JuneRubricWorkbook() {
                             {item.range}
                           </div>
                         </div>
-                        <p className="mt-3 rounded-2xl bg-white/75 p-4 text-sm font-semibold leading-7 text-slate-700">
-                          {item.note}
-                        </p>
+                        {item.recommended !== undefined ? (
+                          <div className="mt-3 inline-flex rounded-xl bg-white px-3 py-2 text-xs font-black shadow-sm">
+                            คะแนนแนะนำ: หัก {item.recommended} คะแนน
+                          </div>
+                        ) : null}
+                        <div className="mt-3 space-y-2 rounded-2xl bg-white/75 p-4 text-sm font-semibold leading-7 text-slate-700">
+                          {item.useWhen ? <p><span className="font-black text-slate-950">ใช้เมื่อ: </span>{item.useWhen}</p> : null}
+                          {item.examples ? <p><span className="font-black text-amber-800">ตัวอย่างข้อผิดพลาด: </span>{item.examples}</p> : null}
+                          {item.note ? <p>{item.note}</p> : null}
+                        </div>
                       </div>
                     );
                   })}
@@ -1251,12 +1501,12 @@ function JuneRubricWorkbook() {
     </div>
   );
 
-  const [legacyActiveTab, legacySetActiveTab] = useState<JuneRubricWorkbookTab>("focus");
+  const [legacyActiveTab, legacySetActiveTab] = useState<RubricWorkbookTab>("focus");
 
-  const tabs: Array<{ key: JuneRubricWorkbookTab; label: string; description: string }> = [
+  const tabs: Array<{ key: RubricWorkbookTab; label: string; description: string }> = [
     {
       key: "focus",
-      label: "เกณฑ์หลักและหัวข้อประเมิน",
+      label: "เกณฑ์หลักและโฟกัส",
       description: "แสดงหมวด คะแนนเต็ม จุดที่ต้องตรวจ และแนวทางประเมินแบบตาราง Excel",
     },
     {
@@ -1387,7 +1637,13 @@ function JuneRubricWorkbook() {
   );
 }
 
-const RUBRICS: RubricVersion[] = [JAN_FEB_2026_RUBRIC, MARCH_2026_RUBRIC, APR_2026_RUBRIC, JUNE_2026_RUBRIC];
+const RUBRICS: RubricVersion[] = [
+  JAN_FEB_2026_RUBRIC,
+  MARCH_2026_RUBRIC,
+  APR_2026_RUBRIC,
+  JUNE_2026_RUBRIC,
+  AUGUST_2026_RUBRIC,
+];
 const SONGKRAN_THEME_END = new Date(2026, 3, 25, 23, 59, 59);
 
 function isSongkranThemeActive() {
@@ -1454,10 +1710,11 @@ function getAutoRubricKey() {
   const dd = String(today.getDate()).padStart(2, "0");
   const todayIso = `${yyyy}-${mm}-${dd}`;
 
-  if (isDateInRange(todayIso, "2026-06-01")) return "JUNE_2026";
+  if (isDateInRange(todayIso, "2026-08-01")) return "AUGUST_2026";
+  if (isDateInRange(todayIso, "2026-06-01", "2026-07-31")) return "JUNE_2026";
   if (isDateInRange(todayIso, "2026-04-03", "2026-05-31")) return "APR_2026";
   if (isDateInRange(todayIso, "2026-03-11", "2026-03-31")) return "MARCH_2026";
-  return "JUNE_2026";
+  return "AUGUST_2026";
 }
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -1487,7 +1744,7 @@ export default function QARubricMockup({
   );
 
   const activeRubric = useMemo(
-    () => RUBRICS.find((item) => item.key === selectedKey) || JUNE_2026_RUBRIC,
+    () => RUBRICS.find((item) => item.key === selectedKey) || AUGUST_2026_RUBRIC,
     [selectedKey]
   );
 
@@ -1604,7 +1861,7 @@ export default function QARubricMockup({
                   Effective Rubric Version
                 </div>
                 <div className="mt-1 text-sm text-slate-500">
-                  March 2026 uses the legacy non-voice criteria. April-May 2026 uses the first detailed guide. June 2026 onward uses Admin Live Chat Criteria.
+                  เดือนมิถุนายน–กรกฎาคมใช้เกณฑ์เดิม และตั้งแต่ 1 สิงหาคม 2026 ใช้เกณฑ์ Admin Live Chat Criteria &amp; Scoring ฉบับล่าสุด
                 </div>
               </div>
 
@@ -1663,7 +1920,25 @@ export default function QARubricMockup({
           </div>
         </div>
 
-        {selectedKey === "JUNE_2026" ? <JuneRubricWorkbook /> : null}
+        {selectedKey === "JUNE_2026" ? (
+          <RubricWorkbook
+            workbookLabel="June 2026 Rubric Workbook"
+            effectiveDate="01/06/2026"
+            rubricSource={JUNE_2026_RUBRIC_SOURCE}
+            focusRows={JUNE_FOCUS_TABLE_ROWS}
+            deductionGuide={JUNE_DEDUCTION_GUIDE}
+          />
+        ) : null}
+
+        {selectedKey === "AUGUST_2026" ? (
+          <RubricWorkbook
+            workbookLabel="August 2026 Rubric Workbook"
+            effectiveDate="01/08/2026"
+            rubricSource={AUGUST_2026_RUBRIC_SOURCE}
+            focusRows={AUGUST_FOCUS_TABLE_ROWS}
+            deductionGuide={AUGUST_DEDUCTION_GUIDE}
+          />
+        ) : null}
 
         {false && selectedKey === "JUNE_2026" ? (
           <div className="mb-6 overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-[0_20px_55px_rgba(15,118,110,0.10)]">
@@ -1701,7 +1976,7 @@ export default function QARubricMockup({
           </div>
         ) : null}
 
-        <div className={selectedKey === "JUNE_2026" ? "hidden" : "space-y-5"}>
+        <div className={selectedKey === "JUNE_2026" || selectedKey === "AUGUST_2026" ? "hidden" : "space-y-5"}>
           {activeRubric.sections.map((section) => (
             <div
               key={section.id}
