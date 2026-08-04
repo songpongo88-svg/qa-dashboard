@@ -47,8 +47,9 @@ export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
   {
     code: "QA-2026-06",
     name: "June 2026 - Admin Live Chat Criteria",
-    status: "Active",
+    status: "Ended",
     startDate: "2026-06-01",
+    endDate: "2026-07-31",
     totalScore: 100,
     topics: [
       {
@@ -111,6 +112,82 @@ export const RUBRIC_VERSIONS: RubricVersionDefinition[] = [
           "ตรวจว่าข้อความเรียงลำดับชัด อ่านง่าย กระชับ สะกดถูก ใช้คำเหมาะกับผู้ติดต่อ และมีน้ำเสียงสุภาพ/เข้าใจสถานการณ์ โดยเฉพาะเคสที่มีผลกระทบหรือร้องเรียน",
         examples:
           "ข้อความยาวติดกันหรือลำดับสลับ, ใช้คำฟุ่มเฟือย, สะกดผิดหลายจุด, เรียกผู้ติดต่อผิดประเภท, ตอบแข็งหรือไม่รับทราบข้อมูลที่ผู้ติดต่อส่งมา",
+      },
+    ],
+  },
+  {
+    code: "QA-2026-08",
+    name: "August 2026 - Admin Live Chat Criteria & Scoring",
+    status: "Active",
+    startDate: "2026-08-01",
+    totalScore: 100,
+    topics: [
+      {
+        code: "1",
+        title: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+        max: 30,
+        group: "Service Standard",
+        focusItems: [
+          "เปิดและปิดแชทตามมาตรฐาน (Standard Opening & Closing)",
+          "ยืนยันข้อมูล / PDPA / Policy (Verification, PDPA & Policy Compliance)",
+          "เงื่อนไขก่อนดำเนินการ (Status & Eligibility Check)",
+          "การทำรายการและตรวจสอบยอด (System Transaction & Financial Accuracy)",
+          "Process / SLA / การส่งต่อ / การปิดเคส (Process, SLA, Escalation & Case Closure)",
+          "การโทรและการประสานงาน (Contact & Coordination)",
+          "Case Note / Tag / การบันทึกเคส (Case Notes, Tagging & Documentation)",
+        ],
+        reviewGuide:
+          "ตรวจ Process, PDPA, SLA และการบันทึกเคส รวมถึง Verify, รับแชทไม่เกิน 5 นาที, ตอบกลับไม่เกิน 2 นาที, ปิดแชทไม่เกิน 4 นาที, Case Note และ Tag",
+        examples:
+          "ใช้ Process ผิด, ไม่ Verify, ทำรายการหรือยอดเงินผิด, เกิน SLA, ไม่โทรหรือประสานงานตามเงื่อนไข และบันทึก Case Note หรือ Tag ไม่ครบ",
+      },
+      {
+        code: "2",
+        title: "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
+        max: 20,
+        group: "Answer Quality",
+        focusItems: [
+          "ตอบถูกต้องและครบประเด็น (Answer Accuracy & Completeness)",
+          "ตรวจสอบข้อมูลก่อนสรุปคำตอบ (Information Verification Before Response)",
+          "ความถูกต้องของสถานะ ยอดเงิน และระยะเวลา (Status, Amount & SLA Accuracy)",
+          "สรุปตามข้อมูลที่ตรวจสอบได้ (Evidence-based Conclusion)",
+        ],
+        reviewGuide:
+          "ตรวจความถูกต้องของคำตอบและข้อมูลอ้างอิง ได้แก่ สถานะออเดอร์ ยอดเงิน หลักฐาน และระยะเวลาดำเนินการ",
+        examples:
+          "ตอบไม่ครบหรือตรวจข้อมูลไม่ครบ, แจ้งสถานะ ยอดเงิน เงื่อนไข หรือ SLA ผิด และสรุปเกินหลักฐานที่ตรวจสอบได้",
+      },
+      {
+        code: "3",
+        title: "การดูแลเคสและติดตามผล (Case Handling & Follow-up)",
+        max: 25,
+        group: "Resolution",
+        focusItems: [
+          "ดูแลเคสตั้งแต่รับเรื่องจนมีข้อสรุป (End-to-End Case Handling)",
+          "แจ้งขั้นตอนถัดไปให้ชัด (Clear Next Step Communication)",
+          "ติดตามและแจ้งผลตรวจสอบ (Follow-up & Result Update)",
+          "กรณีข้อมูลไม่ครบ ติดต่อไม่ได้ หรือ Pending Review (Exception Handling)",
+        ],
+        reviewGuide:
+          "ตรวจการดูแลเคสตั้งแต่ต้นจนจบ การแจ้งขั้นตอนถัดไป ระยะเวลา การ Monitor และการแจ้งผล",
+        examples:
+          "ไม่แจ้ง Next Step หรือระยะเวลา, ไม่ Monitor, ไม่ติดตามหรือแจ้งผล และกำหนด Process หรือ SLA เพิ่มเองในเรื่องที่ยัง Pending Review",
+      },
+      {
+        code: "4",
+        title: "ทักษะการสื่อสาร (Communication Skills)",
+        max: 25,
+        group: "Communication",
+        focusItems: [
+          "อ่านง่ายและเรียงลำดับชัด (Clear Structure & Logical Flow)",
+          "กระชับและตรงประเด็น (Concise & Relevant Communication)",
+          "สะกดถูกและใช้คำเหมาะสม (Correct Spelling & Appropriate Wording)",
+          "การสื่อสารอย่างสุภาพและเข้าใจสถานการณ์ (Polite & Situation-Aware Communication)",
+        ],
+        reviewGuide:
+          "ตรวจความชัดเจนและความเหมาะสมของภาษา ได้แก่ การเรียงข้อความ ความตรงประเด็น การสะกด และความสุภาพ",
+        examples:
+          "ข้อความวกวนหรือลำดับสับสน, คำผิดหลายจุด, เรียกผู้ติดต่อผิดประเภท, ตอบห้วน ตัดบท หรือใช้ถ้อยคำไม่เหมาะสม",
       },
     ],
   },
