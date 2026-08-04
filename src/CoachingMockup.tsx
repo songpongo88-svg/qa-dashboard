@@ -8,6 +8,8 @@ import PageHero from "./PageHero";
 import { LoadingMascotPanel } from "./LoadingMascot";
 import {
   fetchStoredEvaluations,
+  getStoredEvaluationMonthKey,
+  isNoCaseEvaluation,
   type StoredEvaluation,
   type StoredEvaluationTopic,
 } from "./evaluationStore";
@@ -19,7 +21,12 @@ import {
   type CoachingTopicSnapshot,
   type StoredCoachingRecord,
 } from "./coachingStore";
-import { fetchHistoricalCoachingEvaluations } from "./coachingHistoricalStore";
+import {
+  fetchHistoricalCoachingEvaluations,
+  getCoachingRubricLabel,
+} from "./coachingHistoricalStore";
+import { applyApprovedCoachingAppeals } from "./coachingAppealStore";
+import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 
 type CoachingUser = {
   username: string;
@@ -57,6 +64,16 @@ type TopicDefinition = {
 type TopicSummary = CoachingTopicSnapshot & {
   comments: string[];
   totalCases: number;
+  evidences: TopicEvidence[];
+};
+
+type TopicEvidence = {
+  caseId: string;
+  topicCode: string;
+  score: number;
+  max: number;
+  comment: string;
+  revised: boolean;
 };
 
 type CoachingPriority = {
@@ -66,6 +83,7 @@ type CoachingPriority = {
   totalCases: number;
   percentage: number;
   caseIds: string[];
+  evidences: TopicEvidence[];
   observed: string;
   advice: string;
   steps: string[];
@@ -91,8 +109,8 @@ type CoachingDraft = {
 const TOPIC_DEFINITIONS: TopicDefinition[] = [
   {
     key: "process",
-    label: "การดำเนินการตามขั้นตอนที่ถูกต้อง (Process Compliance)",
-    shortLabel: "Process Compliance",
+    label: "ขั้นตอนการทำงานและนโยบาย (Process & Policy Compliance)",
+    shortLabel: "Process & Policy Compliance",
     maxScore: 30,
     observed:
       "พบว่ายังมีบางเคสที่ดำเนินการตาม Process หรือขั้นตอนหลังบ้านไม่ครบ ทำให้ผลลัพธ์ของเคสไม่สมบูรณ์",
@@ -109,8 +127,8 @@ const TOPIC_DEFINITIONS: TopicDefinition[] = [
   {
     key: "accuracy",
     label:
-      "ความถูกต้องของคำตอบและการตรวจสอบข้อมูล (Answer Accuracy & Verification)",
-    shortLabel: "Answer Accuracy",
+      "คุณภาพคำตอบและการวิเคราะห์ปัญหา (Answer Quality & Problem Analysis)",
+    shortLabel: "Answer Quality & Problem Analysis",
     maxScore: 20,
     observed:
       "พบว่าบางเคสยังตรวจสอบข้อมูลไม่ครบก่อนตอบ หรือสรุปข้อมูลไม่ตรงกับข้อเท็จจริงของเคส",
@@ -260,6 +278,29 @@ function getMonthKey(date: Date | null) {
   )}`;
 }
 
+function getEvaluationMonthKey(item: StoredEvaluation) {
+  return (
+    getStoredEvaluationMonthKey(item) ||
+    getMonthKey(getEvaluationDate(item))
+  );
+}
+
+function isApprovedRevision(item: StoredEvaluation) {
+  return String(
+    item.rawDataPreview?.["Coaching Appeal Status"] || ""
+  ).toLowerCase() === "approved";
+}
+
+function shortenEvidenceComment(value: unknown, maxLength = 280) {
+  const text = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "ไม่พบ Evaluation Comment";
+  return text.length > maxLength
+    ? `${text.slice(0, maxLength).trim()}…`
+    : text;
+}
+
 function getMonthLabel(monthKey: string) {
   const match = String(monthKey || "").match(/^(\d{4})-(\d{2})$/);
   if (!match) return monthKey || "Unknown";
@@ -365,9 +406,40 @@ function getTeamName(item: StoredEvaluation) {
 }
 
 function topicKeyFromTopic(
-  topic: StoredEvaluationTopic
+  topic: StoredEvaluationTopic,
+  evaluation: StoredEvaluation
 ): TopicKey | null {
   const code = normalizeText(topic.code);
+  const monthKey = getEvaluationMonthKey(evaluation);
+
+  if (monthKey >= "2026-06") {
+    if (code === "1") return "process";
+    if (code === "2") return "accuracy";
+    if (code === "3") return "handling";
+    if (code === "4") return "communication";
+  }
+
+  if (monthKey === "2026-04" || monthKey === "2026-05") {
+    if (code.startsWith("1.")) return "process";
+    if (code.startsWith("2.")) return "accuracy";
+    if (code.startsWith("3.")) return "handling";
+    if (code.startsWith("4.")) return "communication";
+  }
+
+  if (monthKey === "2026-03") {
+    if (code.startsWith("1.") || code.startsWith("5.")) return "process";
+    if (code.startsWith("2.")) return "accuracy";
+    if (code.startsWith("3.")) return "handling";
+    if (code.startsWith("4.")) return "communication";
+  }
+
+  if (monthKey === "2026-01" || monthKey === "2026-02") {
+    if (code === "1" || code === "6") return "process";
+    if (code === "2") return "accuracy";
+    if (code === "3") return "handling";
+    if (code === "4" || code === "5") return "communication";
+  }
+
   const title = normalizeText(topic.title);
   const combined = `${code} ${title}`;
 
@@ -416,15 +488,16 @@ function topicKeyFromTopic(
 }
 
 function summarizeTopics(rows: StoredEvaluation[]): TopicSummary[] {
-  return TOPIC_DEFINITIONS.map((definition) => {
+  return TOPIC_DEFINITIONS.flatMap((definition) => {
     let scoreTotal = 0;
     let maxTotal = 0;
     const deductedCaseIds = new Set<string>();
     const comments: string[] = [];
+    const evidences: TopicEvidence[] = [];
 
     rows.forEach((evaluation) => {
       const matchingTopics = (evaluation.topics || []).filter(
-        (topic) => topicKeyFromTopic(topic) === definition.key
+        (topic) => topicKeyFromTopic(topic, evaluation) === definition.key
       );
       if (!matchingTopics.length) return;
 
@@ -446,19 +519,28 @@ function summarizeTopics(rows: StoredEvaluation[]): TopicSummary[] {
           const comment = String(topic.comment || "")
             .replace(/\s+/g, " ")
             .trim();
-          if (comment) comments.push(comment);
+          if (comment) {
+            comments.push(comment);
+            evidences.push({
+              caseId: evaluation.caseId,
+              topicCode: topic.code,
+              score: Number(topic.score || 0),
+              max: Number(topic.max || 0),
+              comment,
+              revised: isApprovedRevision(evaluation),
+            });
+          }
         });
       }
     });
 
-    const percentage =
-      maxTotal > 0 ? (scoreTotal / maxTotal) * 100 : 0;
-    const averageScore =
-      maxTotal > 0
-        ? (percentage / 100) * definition.maxScore
-        : 0;
+    if (maxTotal <= 0) return [];
 
-    return {
+    const percentage = (scoreTotal / maxTotal) * 100;
+    const averageScore =
+      (percentage / 100) * definition.maxScore;
+
+    return [{
       key: definition.key,
       label: definition.label,
       averageScore: Number(averageScore.toFixed(2)),
@@ -468,7 +550,8 @@ function summarizeTopics(rows: StoredEvaluation[]): TopicSummary[] {
       caseIds: [...deductedCaseIds].filter(Boolean),
       comments: [...new Set(comments)].slice(0, 12),
       totalCases: rows.length,
-    };
+      evidences,
+    }];
   });
 }
 
@@ -476,8 +559,15 @@ function buildPriorities(
   topics: TopicSummary[]
 ): CoachingPriority[] {
   return topics
-    .filter((topic) => topic.deductedCases > 0)
+    .filter(
+      (topic) =>
+        topic.deductedCases > 0 &&
+        (topic.percentage < 85 || topic.deductedCases >= 2)
+    )
     .sort((a, b) => {
+      const aBelowKpi = a.percentage < 85 ? 1 : 0;
+      const bBelowKpi = b.percentage < 85 ? 1 : 0;
+      if (aBelowKpi !== bBelowKpi) return bBelowKpi - aBelowKpi;
       if (b.deductedCases !== a.deductedCases) {
         return b.deductedCases - a.deductedCases;
       }
@@ -495,21 +585,28 @@ function buildPriorities(
         totalCases: topic.totalCases,
         percentage: topic.percentage,
         caseIds: topic.caseIds,
-        observed: definition.observed,
+        evidences: topic.evidences,
+        observed: topic.evidences.length
+          ? topic.evidences
+              .slice(0, 2)
+              .map(
+                (evidence) =>
+                  `${evidence.caseId}${
+                    evidence.revised ? " (Approved Appeal)" : ""
+                  }: ${shortenEvidenceComment(
+                    evidence.comment,
+                    180
+                  )}`
+              )
+              .join("\n")
+          : `พบการหักคะแนนใน Case ID ${topic.caseIds.join(
+              ", "
+            )} แต่ไม่พบ Evaluation Comment จึงต้องเปิด Case Detail ตรวจสอบก่อน Coaching`,
         advice: definition.advice,
         steps: definition.steps,
         target: definition.target,
       };
     });
-}
-
-function buildGrade(score: number) {
-  if (score >= 95) return "A+";
-  if (score >= 90) return "A";
-  if (score >= 85) return "B";
-  if (score >= 80) return "C";
-  if (score >= 70) return "D";
-  return "F";
 }
 
 function buildDraft(
@@ -525,14 +622,27 @@ function buildDraft(
       (sum, item) => sum + Number(item.finalScore || 0),
       0
     ) / Math.max(rows.length, 1);
-  const grade = buildGrade(average);
   const monthLabel = getMonthLabel(monthKey);
   const criticalCount = rows.filter(
     (item) => item.criticalError
   ).length;
+  const criticalCaseIds = rows
+    .filter((item) => item.criticalError)
+    .map((item) => item.caseId)
+    .filter(Boolean);
+  const revisedCount = rows.filter(isApprovedRevision).length;
+  const grade = scoreToGrade(
+    average,
+    monthKey,
+    criticalCount > 0
+  );
 
   const strongest = [...topics]
-    .filter((topic) => topic.percentage > 0)
+    .filter(
+      (topic) =>
+        topic.percentage >= 85 &&
+        topic.deductedCases < 2
+    )
     .sort((a, b) => b.percentage - a.percentage)
     .slice(0, 3);
 
@@ -543,24 +653,47 @@ function buildDraft(
             `${index + 1}. ${topic.label.replace(
               /\s*\([^)]*\)\s*/g,
               ""
-            )} ทำได้ค่อนข้างดี คะแนนเฉลี่ย ${topic.averageScore.toFixed(
+            )} ทำได้ตามมาตรฐาน คะแนนเฉลี่ย ${topic.averageScore.toFixed(
               2
-            )}/${topic.maxScore} ควรรักษามาตรฐานนี้ไว้ให้สม่ำเสมอ`
+            )}/${topic.maxScore} (${topic.percentage.toFixed(
+              2
+            )}%) ควรรักษามาตรฐานนี้ไว้ให้สม่ำเสมอ`
         )
         .join("\n")
     : "ยังไม่มีข้อมูลเพียงพอสำหรับสรุปจุดแข็งของเดือนนี้";
 
-  const mainIssues = priorities.length
+  const priorityIssues = priorities.length
     ? priorities
         .map(
-          (priority, index) =>
-            `${index + 1}. ${priority.title.replace(
+          (priority, index) => {
+            const evidenceLines = priority.evidences.length
+              ? priority.evidences
+                  .slice(0, 3)
+                  .map(
+                    (evidence) =>
+                      `- ${evidence.caseId} [${evidence.topicCode} ${evidence.score}/${evidence.max}]: ${shortenEvidenceComment(
+                        evidence.comment
+                      )}`
+                  )
+                  .join("\n")
+              : `- Case ID ${priority.caseIds.join(
+                  ", "
+                )}: ไม่พบ Evaluation Comment กรุณาเปิด Case Detail ตรวจสอบก่อน Coaching`;
+            return `${index + 1}. ${priority.title.replace(
               /\s*\([^)]*\)\s*/g,
               ""
-            )}\n${priority.observed}\nพบการหักคะแนน ${priority.count} จาก ${priority.totalCases} เคส`
+            )}\nคะแนนเฉลี่ย ${priority.percentage.toFixed(
+              2
+            )}% พบการหักคะแนน ${priority.count} จาก ${priority.totalCases} เคส\n${evidenceLines}`;
+          }
         )
         .join("\n\n")
-    : "เดือนนี้ไม่พบประเด็นที่ต้องเร่งปรับปรุงจากผลประเมิน";
+    : "เดือนนี้ไม่พบประเด็นที่เข้าเงื่อนไขต้องเร่ง Coaching";
+  const mainIssues = criticalCount
+    ? `ประเด็นเร่งด่วน: พบ Critical Error ${criticalCount} เคส (${criticalCaseIds.join(
+        ", "
+      )}) ต้องเปิด Case Detail ตรวจสอบร่วมกับ Agent ก่อนทุกครั้ง\n\n${priorityIssues}`
+    : priorityIssues;
 
   const repeated = priorities
     .filter((priority) => priority.count >= 2)
@@ -569,7 +702,9 @@ function buildDraft(
         `${index + 1}. ${priority.title.replace(
           /\s*\([^)]*\)\s*/g,
           ""
-        )} พบซ้ำ ${priority.count} เคส ควรกำหนดเป็นหัวข้อ Coaching หลัก`
+        )} พบการหักคะแนนในหัวข้อเดียวกัน ${priority.count} เคส (${priority.caseIds.join(
+          ", "
+        )}) ควรกำหนดเป็นหัวข้อ Coaching หลัก`
     )
     .join("\n");
 
@@ -577,7 +712,12 @@ function buildDraft(
     ? priorities
         .map(
           (priority, index) =>
-            `${index + 1}. ${priority.advice}\nสิ่งที่ควรทำ: ${priority.steps.join(
+            `${index + 1}. ${priority.title.replace(
+              /\s*\([^)]*\)\s*/g,
+              ""
+            )}\nอ้างอิงเคส: ${priority.caseIds.join(
+              ", "
+            )}\n${priority.advice}\nสิ่งที่ควรทำ: ${priority.steps.join(
               " → "
             )}`
         )
@@ -591,7 +731,9 @@ function buildDraft(
           ""
         )}`,
         "2. ใช้ Checklist ก่อนตอบและก่อนปิดเคส",
-        "3. เปิด Case Detail ตัวอย่าง 2–3 เคสเพื่อทบทวนสิ่งที่เกิดขึ้นจริง",
+        `3. เปิด Case Detail ${priorities[0].caseIds
+          .slice(0, 3)
+          .join(", ")} เพื่อทบทวน Comment และเหตุการณ์จริง`,
         "4. สุ่มติดตามเคสใหม่อย่างน้อย 3 เคสในเดือนถัดไป",
         `5. เป้าหมาย: ${priorities[0].target}`,
       ].join("\n")
@@ -608,7 +750,9 @@ function buildDraft(
       criticalCount
         ? ` และพบ Critical Error ${criticalCount} เคส`
         : ""
-    } โดยประเด็น Coaching จะยึดจาก Case Detail จริงและเน้นเฉพาะเรื่องที่ควรปรับเป็นลำดับแรก`,
+    } ใช้เกณฑ์ ${getCoachingRubricLabel(
+      monthKey
+    )} และรวมผลอุทธรณ์ Approved ล่าสุด ${revisedCount} เคส โดยทุกประเด็น Coaching อ้างอิง Case ID และ Evaluation Comment จริง`,
     strengths,
     mainIssues,
     repeatedIssues:
@@ -835,9 +979,15 @@ export default function CoachingMockup({
         ]);
 
         if (cancelled) return;
-        setEvaluations(
-          mergeEvaluationSources(historicalRows, currentRows)
+        const mergedRows = mergeEvaluationSources(
+          historicalRows,
+          currentRows
+        ).filter((item) => !isNoCaseEvaluation(item));
+        const resolvedRows = await applyApprovedCoachingAppeals(
+          mergedRows
         );
+        if (cancelled) return;
+        setEvaluations(resolvedRows);
         setRecords(coachingRows);
       } catch (error) {
         if (!cancelled) {
@@ -950,9 +1100,7 @@ export default function CoachingMockup({
       ...new Set(
         [
           getMonthKey(new Date()),
-          ...selectedAgentRows.map((item) =>
-            getMonthKey(getEvaluationDate(item))
-          ),
+          ...selectedAgentRows.map(getEvaluationMonthKey),
         ].filter((key) => key !== "unknown")
       ),
     ].sort((a, b) => b.localeCompare(a));
@@ -978,8 +1126,7 @@ export default function CoachingMockup({
       selectedAgentRows
         .filter(
           (item) =>
-            getMonthKey(getEvaluationDate(item)) ===
-            selectedMonth
+            getEvaluationMonthKey(item) === selectedMonth
         )
         .sort(
           (a, b) =>
@@ -1017,8 +1164,18 @@ export default function CoachingMockup({
     .map((item) => item.caseId)
     .filter(Boolean);
   const grade = monthlyRows.length
-    ? buildGrade(averageScore)
+    ? scoreToGrade(
+        averageScore,
+        selectedMonth,
+        criticalErrors > 0
+      )
     : "-";
+  const revisedAppealCount = monthlyRows.filter(
+    isApprovedRevision
+  ).length;
+  const activeRubricLabel = getCoachingRubricLabel(
+    selectedMonth
+  );
 
   const previousKey =
     previousMonthKey(selectedMonth);
@@ -1026,8 +1183,7 @@ export default function CoachingMockup({
     () =>
       selectedAgentRows.filter(
         (item) =>
-          getMonthKey(getEvaluationDate(item)) ===
-          previousKey
+          getEvaluationMonthKey(item) === previousKey
       ),
     [selectedAgentRows, previousKey]
   );
@@ -1417,7 +1573,7 @@ th { background:#f5f3ff; color:#4c1d95; }
       <PageHero
         eyebrow="Quality"
         title="Coaching"
-        subtitle="สรุป Feedback รายเดือน จุดแข็ง ประเด็นที่ต้องปรับ และประวัติการโค้ช"
+        subtitle="สรุปผลตามเกณฑ์ของเดือน พร้อม Case ID และ Evaluation Comment ที่ตรวจสอบย้อนกลับได้"
       />
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-6 sm:px-6">
@@ -1601,7 +1757,37 @@ th { background:#f5f3ff; color:#4c1d95; }
           </section>
         ) : (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <section
+              data-coaching-v3-evidence
+              className="rounded-[28px] border border-violet-200 bg-gradient-to-r from-violet-950 via-violet-800 to-fuchsia-700 p-5 text-white shadow-[0_18px_50px_rgba(76,29,149,0.16)]"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs font-black uppercase tracking-[0.16em] text-violet-200">
+                    แหล่งข้อมูลที่ใช้วิเคราะห์
+                  </div>
+                  <div className="mt-1 text-xl font-black">
+                    {getMonthLabel(selectedMonth)} • {activeRubricLabel}
+                  </div>
+                  <div className="mt-2 max-w-4xl text-sm leading-6 text-violet-100">
+                    วิเคราะห์จาก {monthlyRows.length} เคสจริง โดยใช้คะแนนรายหัวข้อ, Case ID และ Evaluation Comment หลังรวมผลอุทธรณ์ที่อนุมัติล่าสุดแล้ว
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-black">
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-2">
+                    Case Detail {dataSourceSummary.caseDetail}
+                  </span>
+                  <span className="rounded-full border border-white/20 bg-white/10 px-3 py-2">
+                    Historical {dataSourceSummary.historical}
+                  </span>
+                  <span className="rounded-full border border-emerald-300/40 bg-emerald-400/20 px-3 py-2 text-emerald-50">
+                    Approved Appeal {revisedAppealCount}
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 [
                   "Evaluated Cases",
@@ -1617,12 +1803,12 @@ th { background:#f5f3ff; color:#4c1d95; }
                   String(criticalErrors),
                 ],
                 [
-                  "Case Detail",
-                  String(dataSourceSummary.caseDetail),
+                  "KPI Status",
+                  averageScore >= 85 ? "Passed" : "Not Passed",
                 ],
                 [
-                  "Historical Data",
-                  String(dataSourceSummary.historical),
+                  "Approved Appeals",
+                  String(revisedAppealCount),
                 ],
               ].map(([label, value]) => (
                 <div
@@ -1697,6 +1883,31 @@ th { background:#f5f3ff; color:#4c1d95; }
 
             {workspaceTab === "feedback" ? (
               <div className="space-y-6">
+                {criticalErrors > 0 ? (
+                  <section className="rounded-[28px] border border-rose-300 bg-rose-600 p-5 text-white shadow-lg shadow-rose-200">
+                    <div className="text-xs font-black uppercase tracking-[0.14em] text-rose-100">
+                      Critical Error • ตรวจสอบก่อน Coaching ทุกครั้ง
+                    </div>
+                    <div className="mt-2 text-xl font-black">
+                      พบ {criticalErrors} เคสที่ต้องเปิด Case Detail ทบทวนร่วมกับ Agent ก่อน
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {monthlyRows
+                        .filter((item) => item.criticalError)
+                        .map((item) => (
+                          <button
+                            key={item.id || item.caseId}
+                            type="button"
+                            onClick={() => setSelectedCase(item)}
+                            className="rounded-xl border border-white/30 bg-white/15 px-3 py-2 text-xs font-black text-white transition hover:bg-white/25"
+                          >
+                            {item.caseId}
+                          </button>
+                        ))}
+                    </div>
+                  </section>
+                ) : null}
+
                 {priorities.length ? (
                   <section className="grid gap-4 lg:grid-cols-3">
                     {priorities.map(
@@ -1722,10 +1933,13 @@ th { background:#f5f3ff; color:#4c1d95; }
                             )}
                           </div>
                           <div className="mt-2 text-sm font-bold text-rose-700">
-                            พบ {priority.count} จาก{" "}
+                            คะแนนเฉลี่ย {priority.percentage.toFixed(2)}% • ถูกหัก {priority.count} จาก{" "}
                             {priority.totalCases} เคส
                           </div>
-                          <div className="mt-3 text-sm leading-7 text-slate-600">
+                          <div className="mt-4 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                            หลักฐานจาก Evaluation Comment
+                          </div>
+                          <div className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-600">
                             {priority.observed}
                           </div>
                           <div className="mt-4 flex flex-wrap gap-2">
@@ -1772,7 +1986,7 @@ th { background:#f5f3ff; color:#4c1d95; }
                         คำแนะนำสำหรับ Coaching
                       </div>
                       <div className="mt-2 text-sm text-slate-500">
-                        สรุปเป็นภาษาที่ใช้พูดกับ Agent ได้ทันที โดยแยก Case ID ออกจากเนื้อหา
+                        สรุปจากคะแนน, Case ID และ Evaluation Comment จริง พร้อมแก้ไขข้อความก่อนบันทึกได้
                       </div>
                     </div>
                     {draft ? (
@@ -1798,7 +2012,7 @@ th { background:#f5f3ff; color:#4c1d95; }
                         กด Generate Coaching เพื่อสร้าง Feedback
                       </div>
                       <div className="mt-2 text-sm text-slate-500">
-                        ระบบจะเลือกเฉพาะ 3 ประเด็นสำคัญและใช้ Case Detail เป็นหลักฐาน
+                        ระบบจะเลือกไม่เกิน 3 ประเด็นที่ต่ำกว่า KPI 85% หรือพบการหักคะแนนในหัวข้อหลักเดียวกันตั้งแต่ 2 เคสขึ้นไป
                       </div>
                     </div>
                   ) : editMode ? (
@@ -1959,12 +2173,12 @@ th { background:#f5f3ff; color:#4c1d95; }
                               </span>
                               <span className="whitespace-nowrap">
                                 {(
-                                  previous?.averageScore || 0
-                                ).toFixed(2)}{" "}
+                                  previous?.percentage || 0
+                                ).toFixed(2)}%{" "}
                                 →{" "}
-                                {topic.averageScore.toFixed(
+                                {topic.percentage.toFixed(
                                   2
-                                )}
+                                )}%
                               </span>
                             </div>
                           );
@@ -2019,9 +2233,16 @@ th { background:#f5f3ff; color:#4c1d95; }
                           "ไม่พบรายละเอียด Intent"}
                       </div>
                       <div className="mt-4 flex items-center justify-between gap-3">
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black text-slate-500">
-                          {dataSource(item)}
-                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black text-slate-500">
+                            {dataSource(item)}
+                          </span>
+                          {isApprovedRevision(item) ? (
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700">
+                              Approved Appeal
+                            </span>
+                          ) : null}
+                        </div>
                         <span className="text-xs font-black text-violet-700">
                           Open Case Detail
                         </span>
@@ -2308,10 +2529,11 @@ th { background:#f5f3ff; color:#4c1d95; }
               ],
               [
                 "Grade",
-                selectedCase.grade ||
-                  buildGrade(
-                    selectedCase.finalScore || 0
-                  ),
+                scoreToGrade(
+                  selectedCase.finalScore || 0,
+                  getEvaluationMonthKey(selectedCase),
+                  selectedCase.criticalError
+                ),
               ],
               [
                 "Critical Error",
