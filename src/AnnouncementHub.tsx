@@ -100,18 +100,16 @@ function formatDateTime(value: string) {
 
 function localDatePart(value: string) {
   const raw = String(value || "").trim();
-  if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:?\d{0,2}$/.test(raw)) {
-    return raw.slice(0, 10);
-  }
+  const direct = /^(\d{4}-\d{2}-\d{2})(?:T\d{0,2}:?\d{0,2})?$/.exec(raw);
+  if (direct) return direct[1];
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? "" : localDateTimeInput(date).slice(0, 10);
 }
 
 function localTimePart(value: string) {
   const raw = String(value || "").trim();
-  if (/^\d{4}-\d{2}-\d{2}T\d{1,2}:?\d{0,2}$/.test(raw)) {
-    return raw.split("T")[1] || "";
-  }
+  const direct = /^(?:\d{4}-\d{2}-\d{2})?T(\d{0,2}:?\d{0,2})$/.exec(raw);
+  if (direct) return direct[1];
   const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? "" : localDateTimeInput(date).slice(11, 16);
 }
@@ -989,6 +987,28 @@ export default function AnnouncementHub({
   const spotlightMedia = popupMessage?.media?.[0] || null;
   const draftReminderDate = localDatePart(draft.reminderAt);
   const draftReminderTime = localTimePart(draft.reminderAt);
+  const fallbackReminderDate = localDateTimeInput(
+    new Date(Date.now() + 24 * 60 * 60 * 1000)
+  ).slice(0, 10);
+  const updateReminderDate = (nextDate: string) => {
+    setDraft((current) => ({
+      ...current,
+      reminderAt: joinLocalDateTime(
+        nextDate,
+        localTimePart(current.reminderAt) || "09:00"
+      ),
+    }));
+  };
+  const updateReminderTime = (nextValue: string) => {
+    const nextTime = typedTime(nextValue);
+    setDraft((current) => ({
+      ...current,
+      reminderAt: joinLocalDateTime(
+        localDatePart(current.reminderAt) || fallbackReminderDate,
+        nextTime
+      ),
+    }));
+  };
   const draftReminderValue = new Date(
     joinLocalDateTime(draftReminderDate, draftReminderTime)
   );
@@ -1498,14 +1518,11 @@ export default function AnnouncementHub({
                                 <input
                                   type="date"
                                   value={draftReminderDate}
+                                  onClick={(event) =>
+                                    event.currentTarget.showPicker?.()
+                                  }
                                   onChange={(event) =>
-                                    setDraft({
-                                      ...draft,
-                                      reminderAt: joinLocalDateTime(
-                                        event.target.value,
-                                        draftReminderTime
-                                      ),
-                                    })
+                                    updateReminderDate(event.target.value)
                                   }
                                   className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3"
                                 />
@@ -1521,16 +1538,9 @@ export default function AnnouncementHub({
                                   maxLength={5}
                                   value={draftReminderTime}
                                   placeholder="เช่น 09:00"
-                                  onChange={(event) => {
-                                    const nextTime = typedTime(event.target.value);
-                                    setDraft({
-                                      ...draft,
-                                      reminderAt: joinLocalDateTime(
-                                        draftReminderDate,
-                                        nextTime
-                                      ),
-                                    });
-                                  }}
+                                  onChange={(event) =>
+                                    updateReminderTime(event.target.value)
+                                  }
                                   className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3 text-center font-black tracking-wider"
                                 />
                               </label>
