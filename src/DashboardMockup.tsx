@@ -387,16 +387,10 @@ const NEW_POLICY_START_MONTH_KEY = "2026-04";
 const JUNE_2026_POLICY_START_MONTH_KEY = "2026-06";
 const CASE_SEARCH_HISTORY_LIMIT = 5;
 const CASE_SEARCH_HISTORY_STORAGE_PREFIX = "qa-dashboard:case-search-history-v41";
+const KPI_QUALITY_SCORE_TARGET = 85;
 
-function getKpiScoreTarget(monthKey: string) {
-  switch (getIncentivePolicyKey(monthKey)) {
-    case "JAN_FEB_2026":
-      return 70;
-    case "MAR_2026":
-      return 80;
-    default:
-      return 85;
-  }
+function getKpiScoreTarget(_monthKey: string) {
+  return KPI_QUALITY_SCORE_TARGET;
 }
 
 const JAN_FEB_2026_TOPIC_MASTER = [
@@ -5515,11 +5509,9 @@ export default function DashboardMockup({
         ? hasNoCaseMonthlyResult
           ? "not-passed"
           : "not-started"
-        : !volumePassed
-          ? "in-progress"
-          : scorePassed
-            ? "passed"
-            : "not-passed";
+        : scorePassed
+          ? "passed"
+          : "not-passed";
 
     return {
       average,
@@ -5527,7 +5519,7 @@ export default function DashboardMockup({
       volumeTarget,
       scorePassed,
       volumePassed,
-      passed: scorePassed && volumePassed,
+      passed: scorePassed,
       status,
     };
   }, [hasNoCaseMonthlyResult, isAllAgentsView, kpiPeriodCases, kpiScoreTarget, kpiTargetAgentCount]);
@@ -5763,7 +5755,7 @@ export default function DashboardMockup({
     {
       label: "KPI Status",
       value: kpiStatusLabel,
-      note: `Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${dashboardEvaluationTarget}`,
+      note: `Quality Score (Avg.) ${kpiScopeSummary.average.toFixed(2)}% · Target ${kpiScoreTarget}%`,
       icon: kpiScopeSummary.status === "passed" ? "✓" : kpiScopeSummary.status === "not-passed" ? "!" : "…",
       iconTone: kpiScopeSummary.status === "passed" ? "bg-emerald-50 text-emerald-600" : kpiScopeSummary.status === "not-passed" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600",
       valueTone: kpiScopeSummary.status === "passed" ? "text-emerald-700" : kpiScopeSummary.status === "not-passed" ? "text-rose-600" : "text-amber-700",
@@ -5847,7 +5839,7 @@ export default function DashboardMockup({
       label: isAllAgentsView ? "Team KPI" : "Agent KPI",
       value: kpiStatusLabel,
       sub: isMonthlyView
-        ? `Average ${kpiScopeSummary.average.toFixed(2)}/${kpiScoreTarget} · Cases ${kpiScopeSummary.caseCount}/${kpiScopeSummary.volumeTarget}`
+        ? `Quality Score (Avg.) ${kpiScopeSummary.average.toFixed(2)}% · Target ${kpiScoreTarget}% · Grade and incentive are calculated separately`
         : "KPI is calculated one month at a time",
       valueClassName: !isMonthlyView
         ? "text-slate-600"
@@ -6306,7 +6298,11 @@ export default function DashboardMockup({
             {dashboardCases.length > 0 || caseIdSearch.trim() || effectiveSelectedAgent ? (
               dashboardSubTab === "overview" ? (
                 <>
-                  <div data-overview-kpi-grid-v93="true" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                  <div
+                    data-overview-kpi-grid-v93="true"
+                    data-kpi-quality-score-target={KPI_QUALITY_SCORE_TARGET}
+                    className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
+                  >
                     {overviewKpiItemsV93.map((item) => (
                       <div key={item.label} className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(15,23,42,0.04)]">
                         <div className="flex items-start justify-between gap-3">
