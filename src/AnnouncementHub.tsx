@@ -142,6 +142,25 @@ function formatThaiSchedule(dateValue: string, timeValue: string) {
   return `${dateLabel} เวลา ${timeValue || "--:--"} น.`;
 }
 
+function formatThaiDailySchedule(
+  startDateValue: string,
+  endDateValue: string,
+  timeValue: string
+) {
+  const formatDate = (value: string) => {
+    const date = new Date(`${value}T00:00`);
+    if (Number.isNaN(date.getTime())) return "ยังไม่ได้เลือกวันที่";
+    return new Intl.DateTimeFormat("th-TH", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  };
+  return `${formatDate(startDateValue)}–${formatDate(
+    endDateValue
+  )} เวลา ${timeValue || "--:--"} น. ทุกวัน`;
+}
+
 function timeMinutes(value: string) {
   if (!isValidTime(value)) return null;
   const [hour, minute] = value.split(":").map(Number);
@@ -195,6 +214,63 @@ function wasAcknowledged(
   return receiptMatchesCurrentVersion(item, receipt?.acknowledgedAt);
 }
 
+function wasDailyReminderShownToday(
+  item: StoredAnnouncement,
+  receipt: AnnouncementReceipt | undefined,
+  now: Date
+) {
+  return Boolean(
+    receiptMatchesCurrentVersion(item, receipt?.reminderShownAt) &&
+      localDayKey(receipt?.reminderShownAt || "") === localDayKey(now)
+  );
+}
+
+function wasDailyReminderReadToday(
+  item: StoredAnnouncement,
+  receipt: AnnouncementReceipt | undefined,
+  now: Date
+) {
+  return Boolean(
+    receiptMatchesCurrentVersion(item, receipt?.reminderReadAt) &&
+      localDayKey(receipt?.reminderReadAt || "") === localDayKey(now)
+  );
+}
+
+function isDailyReminderOccurrenceDue(item: StoredAnnouncement, now: Date) {
+  if (!item.reminderEnabled || item.repeatMode !== "daily") return false;
+
+  const startDate = localDatePart(item.reminderAt);
+  const endDate = localDatePart(item.endsAt);
+  const today = localDayKey(now);
+  const reminderTime = item.dailyStartTime || localTimePart(item.reminderAt);
+  if (
+    !startDate ||
+    !endDate ||
+    !today ||
+    today < startDate ||
+    today > endDate ||
+    !isValidTime(reminderTime)
+  ) {
+    return false;
+  }
+
+  const occurrence = new Date(`${today}T${reminderTime}`);
+  if (
+    Number.isNaN(occurrence.getTime()) ||
+    occurrence.getTime() > now.getTime()
+  ) {
+    return false;
+  }
+
+  const announcementUpdatedAt = new Date(
+    item.updatedAt || item.createdAt || 0
+  ).getTime();
+  return (
+    Number.isNaN(announcementUpdatedAt) ||
+    occurrence.getTime() > announcementUpdatedAt
+  );
+}
+
 function pendingModernDeliveryKind(
   item: StoredAnnouncement,
   receipt: AnnouncementReceipt | undefined,
@@ -206,6 +282,14 @@ function pendingModernDeliveryKind(
     !receiptMatchesCurrentVersion(item, receipt?.immediateReadAt)
   ) {
     return "immediate";
+  }
+
+  if (item.repeatMode === "daily") {
+    return isDailyReminderOccurrenceDue(item, now) &&
+      !wasDailyReminderShownToday(item, receipt, now) &&
+      !wasDailyReminderReadToday(item, receipt, now)
+      ? "reminder"
+      : null;
   }
 
   const reminderAt = new Date(item.reminderAt || "");
@@ -231,6 +315,12 @@ function isCurrentDeliveryRead(
   const immediateDone =
     !item.showImmediately ||
     receiptMatchesCurrentVersion(item, receipt?.immediateReadAt);
+  if (item.repeatMode === "daily") {
+    const reminderDone =
+      !isDailyReminderOccurrenceDue(item, now) ||
+      wasDailyReminderReadToday(item, receipt, now);
+    return immediateDone && reminderDone;
+  }
   const reminderAt = new Date(item.reminderAt || "");
   const reminderIsDue =
     item.reminderEnabled &&
@@ -246,7 +336,11 @@ function deliveryKey(
   item: StoredAnnouncement,
   kind: PopupDeliveryKind = "legacy"
 ) {
-  return `${item.id}@@${item.updatedAt || item.createdAt || "initial"}@@${kind}`;
+  const dailyKey =
+    kind === "reminder" && item.repeatMode === "daily"
+      ? `@@${localDayKey(new Date())}`
+      : "";
+  return `${item.id}@@${item.updatedAt || item.createdAt || "initial"}@@${kind}${dailyKey}`;
 }
 
 function isDailyDisplayWindow(item: StoredAnnouncement, now: Date) {
@@ -693,14 +787,12 @@ export default function AnnouncementHub({
           ? now
           : "",
       immediateReadAt: kind === "immediate" ? now : immediateReadAt,
-      reminderShownAt: receiptMatchesCurrentVersion(
-        item,
-        current?.reminderShownAt
-      )
-        ? current?.reminderShownAt || now
-        : kind === "reminder"
+      reminderShownAt:
+        kind === "reminder"
           ? now
-          : "",
+          : receiptMatchesCurrentVersion(item, current?.reminderShownAt)
+            ? current?.reminderShownAt || now
+            : "",
       reminderReadAt: kind === "reminder" ? now : reminderReadAt,
     });
     await loadData();
@@ -738,6 +830,9 @@ export default function AnnouncementHub({
     }
     const reminderDate = localDatePart(draft.reminderAt);
     const reminderTime = localTimePart(draft.reminderAt);
+    const dailyEndDate = localDatePart(draft.endsAt);
+    const dailyReminderEnabled =
+      draft.reminderEnabled && draft.repeatMode === "daily";
     const reminderDateTime = new Date(
       joinLocalDateTime(reminderDate, reminderTime)
     );
@@ -752,9 +847,22 @@ export default function AnnouncementHub({
     }
     if (
       draft.reminderEnabled &&
+      !dailyReminderEnabled &&
       reminderDateTime.getTime() <= Date.now()
     ) {
       setSaveMessage("เวลาแจ้งซ้ำต้องเป็นเวลาในอนาคต");
+      return;
+    }
+    if (dailyReminderEnabled && !dailyEndDate) {
+      setSaveMessage("กรุณาเลือกวันที่สิ้นสุดสำหรับการแจ้งเตือนทุกวัน");
+      return;
+    }
+    if (dailyReminderEnabled && dailyEndDate < reminderDate) {
+      setSaveMessage("วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่มต้น");
+      return;
+    }
+    if (dailyReminderEnabled && dailyEndDate < localDayKey(new Date())) {
+      setSaveMessage("วันที่สิ้นสุดต้องเป็นวันนี้หรือวันในอนาคต");
       return;
     }
     if (
@@ -773,6 +881,9 @@ export default function AnnouncementHub({
       const reminderAt = draft.reminderEnabled
         ? reminderDateTime.toISOString()
         : "";
+      const reminderEndsAt = dailyReminderEnabled
+        ? new Date(`${dailyEndDate}T23:59:59.999`).toISOString()
+        : reminderAt || publishedAt;
 
       await upsertStoredAnnouncement({
         ...draft,
@@ -781,19 +892,25 @@ export default function AnnouncementHub({
         showImmediately: true,
         reminderEnabled: draft.reminderEnabled,
         reminderAt,
-        repeatMode: "once",
+        repeatMode: dailyReminderEnabled ? "daily" : "once",
         dailyStartTime: reminderTime,
         dailyEndTime: "",
         displayMode: "Media Only",
         actionRequired: "Read Only",
         id: draft.id || `announcement-${Date.now()}`,
         startsAt: publishedAt,
-        endsAt: reminderAt || publishedAt,
+        endsAt: reminderEndsAt,
         createdBy: currentUser.username,
         createdByName: currentUser.displayName,
       });
       setSaveMessage(
-        draft.reminderEnabled
+        dailyReminderEnabled
+          ? `ส่ง Popup เข้าคิวผู้รับทันทีแล้ว และจะเด้งซ้ำ ${formatThaiDailySchedule(
+              reminderDate,
+              dailyEndDate,
+              reminderTime
+            )}`
+          : draft.reminderEnabled
           ? `ส่ง Popup เข้าคิวผู้รับทันทีแล้ว และจะเด้งซ้ำ ${formatThaiSchedule(
               reminderDate,
               reminderTime
@@ -837,6 +954,12 @@ export default function AnnouncementHub({
         : legacyReminderEnabled
           ? toLocal(item.startsAt)
           : fallbackReminder;
+    const dailyReminderEnabled =
+      item.deliveryModel === "immediate-reminder" &&
+      item.repeatMode === "daily";
+    const reminderEndsAt = dailyReminderEnabled
+      ? toLocal(item.endsAt) || reminderAt
+      : reminderAt;
     setDraft({
       ...item,
       popupMode: "Once",
@@ -847,13 +970,16 @@ export default function AnnouncementHub({
           ? item.reminderEnabled
           : legacyReminderEnabled,
       reminderAt,
-      repeatMode: "once",
-      dailyStartTime: localTimePart(reminderAt),
+      repeatMode: dailyReminderEnabled ? "daily" : "once",
+      dailyStartTime:
+        dailyReminderEnabled && item.dailyStartTime
+          ? item.dailyStartTime
+          : localTimePart(reminderAt),
       dailyEndTime: "",
       displayMode: "Media Only",
       actionRequired: "Read Only",
       startsAt: localDateTimeInput(new Date()),
-      endsAt: reminderAt,
+      endsAt: reminderEndsAt,
     });
     setView("control");
     setHubOpen(true);
@@ -986,18 +1112,31 @@ export default function AnnouncementHub({
   const mediaOnlyMode = popupMessage?.displayMode === "Media Only";
   const spotlightMedia = popupMessage?.media?.[0] || null;
   const draftReminderDate = localDatePart(draft.reminderAt);
-  const draftReminderTime = localTimePart(draft.reminderAt);
+  const draftReminderTime =
+    draft.repeatMode === "daily"
+      ? draft.dailyStartTime || localTimePart(draft.reminderAt)
+      : localTimePart(draft.reminderAt);
+  const draftDailyEndDate = localDatePart(draft.endsAt);
   const fallbackReminderDate = localDateTimeInput(
     new Date(Date.now() + 24 * 60 * 60 * 1000)
   ).slice(0, 10);
   const updateReminderDate = (nextDate: string) => {
-    setDraft((current) => ({
-      ...current,
-      reminderAt: joinLocalDateTime(
-        nextDate,
-        localTimePart(current.reminderAt) || "09:00"
-      ),
-    }));
+    setDraft((current) => {
+      const nextTime =
+        current.repeatMode === "daily"
+          ? current.dailyStartTime || localTimePart(current.reminderAt) || "09:00"
+          : localTimePart(current.reminderAt) || "09:00";
+      const currentEndDate = localDatePart(current.endsAt);
+      return {
+        ...current,
+        reminderAt: joinLocalDateTime(nextDate, nextTime),
+        endsAt:
+          current.repeatMode === "daily" &&
+          (!currentEndDate || currentEndDate < nextDate)
+            ? joinLocalDateTime(nextDate, "23:59")
+            : current.endsAt,
+      };
+    });
   };
   const updateReminderTime = (nextValue: string) => {
     const nextTime = typedTime(nextValue);
@@ -1007,26 +1146,78 @@ export default function AnnouncementHub({
         localDatePart(current.reminderAt) || fallbackReminderDate,
         nextTime
       ),
+      dailyStartTime: nextTime,
     }));
+  };
+  const updateDailyEndDate = (nextDate: string) => {
+    setDraft((current) => ({
+      ...current,
+      endsAt: joinLocalDateTime(nextDate, "23:59"),
+    }));
+  };
+  const updateReminderRepeatMode = (repeatMode: "once" | "daily") => {
+    setDraft((current) => {
+      const startDate =
+        localDatePart(current.reminderAt) || fallbackReminderDate;
+      const currentEndDate = localDatePart(current.endsAt);
+      const reminderTime =
+        current.dailyStartTime || localTimePart(current.reminderAt) || "09:00";
+      return {
+        ...current,
+        repeatMode,
+        reminderAt: joinLocalDateTime(startDate, reminderTime),
+        dailyStartTime: reminderTime,
+        endsAt:
+          repeatMode === "daily"
+            ? joinLocalDateTime(
+                currentEndDate && currentEndDate >= startDate
+                  ? currentEndDate
+                  : startDate,
+                "23:59"
+              )
+            : current.endsAt,
+      };
+    });
   };
   const draftReminderValue = new Date(
     joinLocalDateTime(draftReminderDate, draftReminderTime)
   );
-  const reminderReady =
+  const oneTimeReminderReady =
     !draft.reminderEnabled ||
     (!Number.isNaN(draftReminderValue.getTime()) &&
       isValidTime(draftReminderTime) &&
       draftReminderValue.getTime() > Date.now());
+  const dailyReminderReady =
+    draft.repeatMode !== "daily" ||
+    (Boolean(draftReminderDate) &&
+      Boolean(draftDailyEndDate) &&
+      isValidTime(draftReminderTime) &&
+      draftDailyEndDate >= draftReminderDate &&
+      draftDailyEndDate >= localDayKey(new Date()));
   const scheduleStatus = !draft.reminderEnabled
     ? {
         label: "ส่งทันที",
         detail: "บันทึกแล้ว Popup จะเด้งให้ผู้รับทันที 1 รอบ",
       }
-    : !reminderReady
+    : draft.repeatMode === "daily" && !dailyReminderReady
+      ? {
+          label: "ตรวจสอบช่วงวันที่",
+          detail: "กรุณาเลือกวันเริ่มต้น วันสิ้นสุด และเวลาให้ครบ",
+        }
+      : draft.repeatMode !== "daily" && !oneTimeReminderReady
       ? {
           label: "ตรวจสอบเวลา",
           detail: "วันและเวลาแจ้งซ้ำต้องเป็นเวลาในอนาคต",
         }
+      : draft.repeatMode === "daily"
+        ? {
+            label: "ส่งทันที + เตือนทุกวัน",
+            detail: `Popup จะเด้งทันที 1 รอบ และเด้งวันละครั้ง ${formatThaiDailySchedule(
+              draftReminderDate,
+              draftDailyEndDate,
+              draftReminderTime
+            )}`,
+          }
       : {
           label: "ส่งทันที + เตือนซ้ำ",
           detail: `Popup จะเด้งทันที 1 รอบ และเด้งซ้ำ ${formatThaiSchedule(
@@ -1487,7 +1678,7 @@ export default function AnnouncementHub({
                                   : "text-slate-500"
                               }`}
                             >
-                              เด้ง Popup อีกรอบตามวันและเวลาที่เลือก
+                              เลือกแจ้งซ้ำครั้งเดียว หรือแจ้งทุกวันตามช่วงวันที่
                             </span>
                           </span>
                           <span
@@ -1506,14 +1697,52 @@ export default function AnnouncementHub({
                         </button>
 
                         {draft.reminderEnabled ? (
-                          <div className="mt-4 rounded-2xl border border-violet-200 bg-white p-4">
-                            <div className="text-sm font-black text-slate-900">
-                              วันและเวลาแจ้งซ้ำ
+                          <div
+                            data-announcement-daily-reminder-v1="true"
+                            className="mt-4 rounded-2xl border border-violet-200 bg-white p-4"
+                          >
+                            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-violet-50 p-1.5">
+                              <button
+                                type="button"
+                                onClick={() => updateReminderRepeatMode("once")}
+                                className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${
+                                  draft.repeatMode !== "daily"
+                                    ? "bg-white text-violet-700 shadow-sm"
+                                    : "text-slate-500 hover:text-violet-700"
+                                }`}
+                              >
+                                แจ้งครั้งเดียว
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateReminderRepeatMode("daily")}
+                                className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${
+                                  draft.repeatMode === "daily"
+                                    ? "bg-violet-600 text-white shadow-sm"
+                                    : "text-slate-500 hover:text-violet-700"
+                                }`}
+                              >
+                                แจ้งทุกวัน
+                              </button>
                             </div>
-                            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+                            <div className="mt-4 text-sm font-black text-slate-900">
+                              {draft.repeatMode === "daily"
+                                ? "ช่วงวันที่และเวลาแจ้งประจำวัน"
+                                : "วันและเวลาแจ้งซ้ำ"}
+                            </div>
+                            <div
+                              className={`mt-3 grid gap-3 ${
+                                draft.repeatMode === "daily"
+                                  ? "sm:grid-cols-2 lg:grid-cols-3"
+                                  : "sm:grid-cols-2"
+                              }`}
+                            >
                               <label>
                                 <span className="mb-2 block text-xs font-black text-slate-500">
-                                  วันที่แจ้งซ้ำ
+                                  {draft.repeatMode === "daily"
+                                    ? "วันที่เริ่มต้น"
+                                    : "วันที่แจ้งซ้ำ"}
                                 </span>
                                 <input
                                   type="date"
@@ -1528,9 +1757,30 @@ export default function AnnouncementHub({
                                 />
                               </label>
 
+                              {draft.repeatMode === "daily" ? (
+                                <label>
+                                  <span className="mb-2 block text-xs font-black text-slate-500">
+                                    วันที่สิ้นสุด
+                                  </span>
+                                  <input
+                                    type="date"
+                                    value={draftDailyEndDate}
+                                    onClick={(event) =>
+                                      event.currentTarget.showPicker?.()
+                                    }
+                                    onChange={(event) =>
+                                      updateDailyEndDate(event.target.value)
+                                    }
+                                    className="w-full rounded-2xl border border-violet-200 bg-white px-4 py-3"
+                                  />
+                                </label>
+                              ) : null}
+
                               <label>
                                 <span className="mb-2 block text-xs font-black text-slate-500">
-                                  เวลาแจ้งซ้ำ
+                                  {draft.repeatMode === "daily"
+                                    ? "เวลาแจ้งประจำวัน"
+                                    : "เวลาแจ้งซ้ำ"}
                                 </span>
                                 <input
                                   type="text"
@@ -1546,7 +1796,9 @@ export default function AnnouncementHub({
                               </label>
                             </div>
                             <div className="mt-2 text-xs text-slate-500">
-                              พิมพ์เวลาแบบ 24 ชั่วโมง เช่น 09:00 หรือพิมพ์ 0900 ระบบจะจัดเป็น 09:00
+                              {draft.repeatMode === "daily"
+                                ? "ระบบจะแจ้งวันละ 1 ครั้งตามเวลานี้ ตั้งแต่วันที่เริ่มต้นจนถึงวันที่สิ้นสุด"
+                                : "พิมพ์เวลาแบบ 24 ชั่วโมง เช่น 09:00 หรือพิมพ์ 0900 ระบบจะจัดเป็น 09:00"}
                             </div>
                           </div>
                         ) : null}
@@ -1565,10 +1817,16 @@ export default function AnnouncementHub({
                             <div>
                               รอบแจ้งซ้ำ:{" "}
                               {draft.reminderEnabled
-                                ? formatThaiSchedule(
-                                    draftReminderDate,
-                                    draftReminderTime
-                                  )
+                                ? draft.repeatMode === "daily"
+                                  ? formatThaiDailySchedule(
+                                      draftReminderDate,
+                                      draftDailyEndDate,
+                                      draftReminderTime
+                                    )
+                                  : formatThaiSchedule(
+                                      draftReminderDate,
+                                      draftReminderTime
+                                    )
                                 : "ไม่แจ้งซ้ำ"}
                             </div>
                             <div className="font-black text-violet-700">
@@ -1837,7 +2095,9 @@ export default function AnnouncementHub({
                           : draft.id
                             ? "บันทึกและส่งรอบใหม่"
                             : draft.reminderEnabled
-                              ? "บันทึก ส่งทันที และตั้งเตือน"
+                              ? draft.repeatMode === "daily"
+                                ? "บันทึก ส่งทันที และตั้งเตือนทุกวัน"
+                                : "บันทึก ส่งทันที และตั้งเตือน"
                               : "บันทึกและส่งทันที"}
                       </button>
                     </div>
