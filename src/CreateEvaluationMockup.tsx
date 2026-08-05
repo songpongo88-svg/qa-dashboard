@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useMemo, useState, type ChangeEvent, type ClipboardEvent as ReactClipboardEvent, type ReactNode } from "react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import PageHero from "./PageHero";
@@ -2035,6 +2035,59 @@ export default function CreateEvaluationMockup({
     await createAndUploadEvidencePdfV2(acceptedFiles);
   }
 
+  async function handleEvidenceImagePaste(event: ReactClipboardEvent<HTMLDivElement>) {
+    const clipboardImages = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+
+    if (!clipboardImages.length) {
+      setEvidenceUploadMessage("ไม่พบรูปภาพใน Clipboard กรุณา Copy รูปภาพหรือใช้ Snipping Tool แล้วลองวางใหม่");
+      return;
+    }
+
+    event.preventDefault();
+    const currentEvidence = evidenceFiles[0];
+    if (currentEvidence?.uploadStatus === "pending") {
+      setEvidenceUploadMessage("กรุณารอให้อัปโหลดชุดปัจจุบันเสร็จก่อน แล้วจึงวางรูปถัดไป");
+      return;
+    }
+    if (currentEvidence && !currentEvidence.sourceFiles?.length) {
+      setEvidenceUploadMessage("ไฟล์เดิมไม่มีข้อมูลต้นฉบับสำหรับรวมรูปเพิ่ม กรุณาลบไฟล์เดิมก่อนแล้ววางรูปใหม่");
+      return;
+    }
+    if (currentEvidence?.sourceFiles?.some((file) => file.type === "application/pdf")) {
+      setEvidenceUploadMessage("ไม่สามารถเพิ่มรูปต่อท้าย PDF เดิมได้ กรุณาลบ PDF เดิมก่อนแล้ววางรูปใหม่");
+      return;
+    }
+
+    const pastedAt = new Date();
+    const timestamp = [
+      pastedAt.getFullYear(),
+      String(pastedAt.getMonth() + 1).padStart(2, "0"),
+      String(pastedAt.getDate()).padStart(2, "0"),
+      String(pastedAt.getHours()).padStart(2, "0"),
+      String(pastedAt.getMinutes()).padStart(2, "0"),
+      String(pastedAt.getSeconds()).padStart(2, "0"),
+    ].join("");
+    const pastedFiles = clipboardImages.map((file, index) => {
+      const extension = file.type.includes("jpeg") ? "jpg" : file.type.includes("webp") ? "webp" : "png";
+      return new File([file], `Pasted_Evidence_${timestamp}_${index + 1}.${extension}`, {
+        type: file.type || `image/${extension}`,
+        lastModified: Date.now(),
+      });
+    });
+    const existingFiles = currentEvidence?.sourceFiles || [];
+    const existingPreviewUrls = currentEvidence?.sourcePreviewUrls || [];
+    const pastedPreviewUrls = pastedFiles.map((file) => URL.createObjectURL(file));
+
+    await createAndUploadEvidencePdfV2(
+      [...existingFiles, ...pastedFiles],
+      currentEvidence?.id,
+      [...existingPreviewUrls, ...pastedPreviewUrls]
+    );
+  }
+
   async function moveEvidenceSourceFile(file: EvidenceFile, sourceIndex: number, direction: -1 | 1) {
     if (!file.sourceFiles?.length) return;
     const nextIndex = sourceIndex + direction;
@@ -2044,6 +2097,22 @@ export default function CreateEvaluationMockup({
     const nextPreviewUrls = [...(file.sourcePreviewUrls || [])];
     [nextFiles[sourceIndex], nextFiles[nextIndex]] = [nextFiles[nextIndex], nextFiles[sourceIndex]];
     [nextPreviewUrls[sourceIndex], nextPreviewUrls[nextIndex]] = [nextPreviewUrls[nextIndex], nextPreviewUrls[sourceIndex]];
+    await createAndUploadEvidencePdfV2(nextFiles, file.id, nextPreviewUrls);
+  }
+
+  async function removeEvidenceSourceFile(file: EvidenceFile, sourceIndex: number) {
+    if (!file.sourceFiles?.length || file.uploadStatus === "pending") return;
+    const removedPreviewUrl = file.sourcePreviewUrls?.[sourceIndex];
+    if (removedPreviewUrl) URL.revokeObjectURL(removedPreviewUrl);
+
+    const nextFiles = file.sourceFiles.filter((_, index) => index !== sourceIndex);
+    const nextPreviewUrls = (file.sourcePreviewUrls || []).filter((_, index) => index !== sourceIndex);
+    if (!nextFiles.length) {
+      removeEvidenceFile(file.id);
+      setEvidenceUploadMessage("ลบรูปภาพที่วางออกแล้ว");
+      return;
+    }
+
     await createAndUploadEvidencePdfV2(nextFiles, file.id, nextPreviewUrls);
   }
 
@@ -2608,6 +2677,21 @@ export default function CreateEvaluationMockup({
                     </label>
                     <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP - รวมเป็น PDF หลายหน้า / PDF เดี่ยว - อัปโหลดเป็นลิงก์เดียว</span>
                   </div>
+
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => event.currentTarget.focus()}
+                    onPaste={handleEvidenceImagePaste}
+                    className="mt-3 cursor-text rounded-2xl border-2 border-dashed border-violet-300 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 text-center outline-none transition hover:border-violet-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
+                    aria-label="คลิกแล้ววางรูปภาพจาก Clipboard"
+                  >
+                    <div className="text-2xl">📋</div>
+                    <div className="mt-1 text-sm font-black text-violet-900">คลิกพื้นที่นี้ แล้วกด Ctrl + V เพื่อวางรูปภาพ</div>
+                    <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                      รองรับรูปที่ Copy จากเว็บหรือ Snipping Tool • วางซ้ำได้หลายรูป • ระบบจะรวมเป็น PDF เดียว
+                    </div>
+                  </div>
                   {evidenceUploadMessage ? (
                     <div className="mt-3 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-black text-sky-800">
                       {evidenceUploadMessage}
@@ -2643,7 +2727,17 @@ export default function CreateEvaluationMockup({
                                   </div>
                                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     {file.sourceFileNames.map((sourceName, sourceIndex) => (
-                                      <div key={`${file.id}-${sourceName}-${sourceIndex}`} className="flex gap-2 rounded-xl border border-white bg-white p-2 shadow-sm">
+                                      <div key={`${file.id}-${sourceName}-${sourceIndex}`} className="relative flex gap-2 rounded-xl border border-white bg-white p-2 pr-10 shadow-sm">
+                                        <button
+                                          type="button"
+                                          onClick={() => removeEvidenceSourceFile(file, sourceIndex)}
+                                          disabled={file.uploadStatus === "pending"}
+                                          title="ลบรูปนี้"
+                                          aria-label={`ลบ ${sourceName}`}
+                                          className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-base font-black leading-none text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                          ×
+                                        </button>
                                         {file.sourcePreviewUrls?.[sourceIndex] && file.sourceFiles?.[sourceIndex]?.type.startsWith("image/") ? (
                                           <img src={file.sourcePreviewUrls[sourceIndex]} alt={sourceName} className="h-12 w-12 rounded-lg border border-slate-200 object-contain" />
                                         ) : (
