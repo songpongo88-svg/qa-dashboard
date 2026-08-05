@@ -442,6 +442,18 @@ export async function generateOfficialCaseDetailPdf({
       padY: 5,
     });
 
+    const processReferenceText = safeMultiline(caseItem.processReference, "");
+    if (processReferenceText) {
+      drawWideTextRow({
+        labelText: "Process\nReference",
+        text: processReferenceText,
+        size: CASE_DESCRIPTION_TEXT_SIZE,
+        leading: CASE_DESCRIPTION_LINE_SPACING,
+        minH: 14,
+        padY: 5,
+      });
+    }
+
     const imageUrlRaw = caseItem.caseImageUrl || "-";
     const imageUrlText = normalizeUrlForPdf(imageUrlRaw);
     const imageUrlRowH = Math.max(7, Math.min(12, measureTextHeight(imageUrlText, wOf(1, 7), 5.1, 0.33, 3.8)));
@@ -569,6 +581,18 @@ export async function generateOfficialCaseDetailPdf({
       minH: 18,
       padY: 5,
     });
+
+    const processReferenceText = safeMultiline(caseItem.processReference, "");
+    if (processReferenceText) {
+      drawWideTextRow({
+        labelText: "Process\nReference",
+        text: processReferenceText,
+        size: CASE_DESCRIPTION_TEXT_SIZE,
+        leading: CASE_DESCRIPTION_LINE_SPACING,
+        minH: 14,
+        padY: 5,
+      });
+    }
 
     const imageUrlRaw = caseItem.caseImageUrl || safeText(caseItem.appealVersion, "REV1");
     const imageUrlText = normalizeUrlForPdf(imageUrlRaw);

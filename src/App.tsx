@@ -4438,6 +4438,7 @@ export default function App() {
         caseUrl: compactCentralStoreText(payload.caseUrl),
         inquiry: compactCentralStoreText(payload.inquiry),
         caseDescription: compactCentralStoreText(payload.caseDescription),
+        processReference: compactCentralStoreText(payload.processReference || ""),
         evidenceUrls: compactEvidenceUrls,
         criticalError: payload.criticalError,
         finalScore: payload.finalScore,
