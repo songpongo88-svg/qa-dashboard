@@ -45,6 +45,7 @@ type EvidenceFile = {
 type AutoGrowTextareaProps = {
   value: string;
   onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (event: ReactClipboardEvent<HTMLTextAreaElement>) => void;
   placeholder: string;
   className: string;
   minRows?: number;
@@ -784,7 +785,7 @@ function compareSubmittedRecordsNewestFirst(left: EvaluationRecord, right: Evalu
   return getSubmittedRecordTimeMs(right) - getSubmittedRecordTimeMs(left);
 }
 
-function AutoGrowTextarea({ value, onChange, placeholder, className, minRows = 3 }: AutoGrowTextareaProps) {
+function AutoGrowTextarea({ value, onChange, onPaste, placeholder, className, minRows = 3 }: AutoGrowTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -799,6 +800,7 @@ function AutoGrowTextarea({ value, onChange, placeholder, className, minRows = 3
       ref={textareaRef}
       value={value}
       onChange={onChange}
+      onPaste={onPaste}
       rows={minRows}
       placeholder={placeholder}
       className={className}
@@ -2035,16 +2037,13 @@ export default function CreateEvaluationMockup({
     await createAndUploadEvidencePdfV2(acceptedFiles);
   }
 
-  async function handleEvidenceImagePaste(event: ReactClipboardEvent<HTMLDivElement>) {
+  async function handleEvidenceImagePaste(event: ReactClipboardEvent<HTMLTextAreaElement>) {
     const clipboardImages = Array.from(event.clipboardData.items)
       .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
       .map((item) => item.getAsFile())
       .filter((file): file is File => Boolean(file));
 
-    if (!clipboardImages.length) {
-      setEvidenceUploadMessage("ไม่พบรูปภาพใน Clipboard กรุณา Copy รูปภาพหรือใช้ Snipping Tool แล้วลองวางใหม่");
-      return;
-    }
+    if (!clipboardImages.length) return;
 
     event.preventDefault();
     const currentEvidence = evidenceFiles[0];
@@ -2661,12 +2660,13 @@ export default function CreateEvaluationMockup({
                   <AutoGrowTextarea
                     value={evidenceUrl}
                     onChange={(event) => setEvidenceUrl(event.target.value)}
+                    onPaste={handleEvidenceImagePaste}
                     minRows={4}
-                    placeholder="วางลิงก์ Google Drive ได้ที่นี่ หรือแนบไฟล์เพื่อให้ระบบรวมเป็น PDF ลิงก์เดียว"
+                    placeholder="วางลิงก์ Google Drive หรือกด Ctrl + V เพื่อวางรูปภาพได้ในช่องนี้"
                     className={`${inputClass} leading-6`}
                   />
                   <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">
-                    วางลิงก์ Google Drive เองได้ หรือกดแนบรูปหลายไฟล์ด้านล่าง ระบบจะรวมเป็น PDF หลายหน้า อัปโหลดเข้า Google Drive และบันทึกลิงก์เดียวให้อัตโนมัติ
+                    วางลิงก์หรือข้อความได้ตามปกติ หากวางรูปภาพ ระบบจะรวมเป็น PDF อัปโหลด Google Drive และบันทึกลิงก์ให้อัตโนมัติ
                   </span>
                 </label>
                 <div className="rounded-2xl border border-dashed border-sky-300 bg-sky-50 p-4">
@@ -2678,20 +2678,6 @@ export default function CreateEvaluationMockup({
                     <span className="text-xs font-semibold text-slate-600">JPG, PNG, WEBP - รวมเป็น PDF หลายหน้า / PDF เดี่ยว - อัปโหลดเป็นลิงก์เดียว</span>
                   </div>
 
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={(event) => event.currentTarget.focus()}
-                    onPaste={handleEvidenceImagePaste}
-                    className="mt-3 cursor-text rounded-2xl border-2 border-dashed border-violet-300 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-4 py-4 text-center outline-none transition hover:border-violet-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
-                    aria-label="คลิกแล้ววางรูปภาพจาก Clipboard"
-                  >
-                    <div className="text-2xl">📋</div>
-                    <div className="mt-1 text-sm font-black text-violet-900">คลิกพื้นที่นี้ แล้วกด Ctrl + V เพื่อวางรูปภาพ</div>
-                    <div className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-                      รองรับรูปที่ Copy จากเว็บหรือ Snipping Tool • วางซ้ำได้หลายรูป • ระบบจะรวมเป็น PDF เดียว
-                    </div>
-                  </div>
                   {evidenceUploadMessage ? (
                     <div className="mt-3 rounded-xl border border-sky-100 bg-white px-4 py-3 text-xs font-black text-sky-800">
                       {evidenceUploadMessage}
