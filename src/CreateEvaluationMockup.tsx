@@ -61,6 +61,7 @@ type EvaluationDraft = {
   caseUrl: string;
   inquiry: string;
   caseDescription: string;
+  processReference?: string;
   evidenceUrl: string;
   noCaseForMonth?: boolean;
   criticalError: boolean;
@@ -106,6 +107,7 @@ export type EvaluationSubmitPayload = {
   caseUrl: string;
   inquiry: string;
   caseDescription: string;
+  processReference: string;
   evidenceUrls: string[];
   finalScore: number;
   grade: string;
@@ -146,6 +148,7 @@ type EvaluateTabMemory = {
   caseUrl: string;
   inquiry: string;
   caseDescription: string;
+  processReference: string;
   evidenceUrl: string;
   evidenceFiles: EvidenceFile[];
   noCaseForMonth: boolean;
@@ -842,6 +845,7 @@ export default function CreateEvaluationMockup({
   const [caseUrl, setCaseUrl] = useState(() => readEvaluateTabMemory()?.caseUrl || "");
   const [inquiry, setInquiry] = useState(() => readEvaluateTabMemory()?.inquiry || "");
   const [caseDescription, setCaseDescription] = useState(() => readEvaluateTabMemory()?.caseDescription || "");
+  const [processReference, setProcessReference] = useState(() => readEvaluateTabMemory()?.processReference || "");
   const [evidenceUrl, setEvidenceUrl] = useState(() => readEvaluateTabMemory()?.evidenceUrl || "");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(() => readEvaluateTabMemory()?.evidenceFiles || []);
   const [evidenceUploadMessage, setEvidenceUploadMessage] = useState("");
@@ -916,6 +920,7 @@ export default function CreateEvaluationMockup({
       caseUrl,
       inquiry,
       caseDescription,
+      processReference,
       evidenceUrl,
       evidenceFiles,
       noCaseForMonth,
@@ -940,6 +945,7 @@ export default function CreateEvaluationMockup({
     caseUrl,
     inquiry,
     caseDescription,
+    processReference,
     evidenceUrl,
     evidenceFiles,
     noCaseForMonth,
@@ -1162,6 +1168,7 @@ export default function CreateEvaluationMockup({
       "Case URL": noCaseForMonth ? "-" : caseUrl || "-",
       "Customer Inquiry": noCaseForMonth ? "No evaluation case available for this month" : inquiry || "-",
       "Case Description": noCaseForMonth ? "Monthly zero-case result" : caseDescription || "-",
+      "Process Reference": noCaseForMonth ? "-" : processReference || "-",
       "Case Image URL": noCaseForMonth ? "-" : evidenceDisplayValue || "-",
       "Evaluation Type": noCaseForMonth ? "no_case_month" : "case",
       "Evaluation Month Key": selectedMonthKey,
@@ -1186,7 +1193,7 @@ export default function CreateEvaluationMockup({
     });
 
     return base;
-  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
+  }, [activeRubric.code, activeRubric.name, agentName, auditDate, caseDescription, caseId, caseUrl, criticalError, draftSavedAt, evaluationStatus, evaluationSubmittedAt, evidenceDisplayValue, evaluatorName, finalScore, inquiry, noCaseForMonth, processReference, rubricPeriod, selectedMonthKey, serviceTime, topicState, topics, waitingTime]);
 
   function makeDraftId(draftCaseId: string, draftAuditDate: string) {
     const caseKey = draftCaseId.trim().toUpperCase() || "UNTITLED-CASE";
@@ -1238,6 +1245,7 @@ export default function CreateEvaluationMockup({
       caseUrl,
       inquiry,
       caseDescription,
+      processReference,
       evidenceUrl,
       noCaseForMonth,
       criticalError,
@@ -1260,6 +1268,7 @@ export default function CreateEvaluationMockup({
     setCaseUrl(normalizedDraft.caseUrl || "");
     setInquiry(normalizedDraft.inquiry || "");
     setCaseDescription(normalizedDraft.caseDescription || "");
+    setProcessReference(normalizedDraft.processReference || "");
     setEvidenceUrl(normalizedDraft.evidenceUrl || "");
     setNoCaseForMonth(Boolean(normalizedDraft.noCaseForMonth));
     setCriticalError(Boolean(normalizedDraft.criticalError));
@@ -1309,6 +1318,7 @@ export default function CreateEvaluationMockup({
     setCaseUrl("");
     setInquiry("");
     setCaseDescription("");
+    setProcessReference("");
     setEvidenceUrl("");
     setEvidenceFiles((current) => {
       current.forEach((file) => {
@@ -1459,6 +1469,7 @@ export default function CreateEvaluationMockup({
       caseUrl: noCaseForMonth ? "" : caseUrl,
       inquiry: noCaseForMonth ? "No evaluation case available for this month" : inquiry,
       caseDescription: noCaseForMonth ? "Monthly zero-case result" : caseDescription,
+      processReference: noCaseForMonth ? "" : processReference,
       evidenceUrls: noCaseForMonth
         ? []
         : evidencePreviewValue.split(/\n+/).map((item) => item.trim()).filter(Boolean),
@@ -1717,6 +1728,7 @@ export default function CreateEvaluationMockup({
         "Case URL": record.caseUrl || "",
         "Customer Inquiry": record.inquiry || "",
         "Case Description": record.caseDescription || "",
+        "Process Reference": record.processReference || "",
         "Case Image URL": record.evidenceUrls.join("\n"),
         "QA Scheme": record.qaScheme,
         "Rubric Version": record.rubricName,
@@ -1828,6 +1840,7 @@ export default function CreateEvaluationMockup({
     setCaseUrl(record.caseUrl || "");
     setInquiry(record.inquiry || "");
     setCaseDescription(record.caseDescription || "");
+    setProcessReference(record.processReference || "");
     const editableEvidence = splitEditableEvidence(record.evidenceUrls || []);
     setEvidenceUrl(editableEvidence.manualUrls);
     setEvidenceFiles(editableEvidence.attachedFiles);
@@ -2468,6 +2481,7 @@ export default function CreateEvaluationMockup({
                         setCaseUrl("");
                         setInquiry("");
                         setCaseDescription("");
+                        setProcessReference("");
                         setEvidenceUrl("");
                         setEvidenceFiles([]);
                         setCriticalError(false);
@@ -2549,6 +2563,17 @@ export default function CreateEvaluationMockup({
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
                   <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
+                </label>
+
+                <label className="block">
+                  <span className={labelClass}>Process ที่ใช้เทียบ</span>
+                  <AutoGrowTextarea
+                    value={processReference}
+                    onChange={(event) => setProcessReference(event.target.value)}
+                    minRows={4}
+                    placeholder="วางข้อมูล Process, Slide, ข้อ หรือ Tag ที่ใช้อ้างอิงได้ที่นี่..."
+                    className={`${inputClass} leading-6`}
+                  />
                 </label>
                   </>
                 ) : (
@@ -2988,6 +3013,11 @@ export default function CreateEvaluationMockup({
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Case Description</div>
                   <div className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800">{submitPreview.record.caseDescription || "-"}</div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 px-4 py-3">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Process ที่ใช้เทียบ</div>
+                  <div className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800">{submitPreview.record.processReference || "-"}</div>
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
