@@ -54,6 +54,7 @@ type CaseItem = {
   inquiryTh: string;
   inquiryEn: string;
   caseDescription?: string;
+  processReference?: string;
   caseImageUrl?: string;
   casePdfUrl?: string;
   casePdfOriginalUrl?: string;
@@ -1061,6 +1062,7 @@ function mapStoredEvaluationsToCaseItems(records: StoredEvaluation[]): CaseItem[
         inquiryTh: record.inquiry || "-",
         inquiryEn: record.inquiry || "-",
         caseDescription: record.caseDescription || "",
+        processReference: record.processReference || "",
         caseImageUrl: record.evidenceUrls.filter((url) => !url.toLowerCase().endsWith(".pdf")).join("\n"),
         casePdfUrl: record.evidenceUrls.find((url) => url.toLowerCase().endsWith(".pdf")) || "",
         casePdfOriginalUrl: "",
@@ -2583,8 +2585,12 @@ function mergeRawAndStoredEvaluationCases(rawCases: CaseItem[], storedCases: Cas
           merged.set(key, item);
         } else {
           const existing = merged.get(key);
-          if (existing && !existing.evaluatorName && item.evaluatorName) {
-            merged.set(key, { ...existing, evaluatorName: item.evaluatorName });
+          if (existing) {
+            merged.set(key, {
+              ...existing,
+              evaluatorName: existing.evaluatorName || item.evaluatorName,
+              processReference: existing.processReference || item.processReference,
+            });
           }
         }
         return;
@@ -3268,6 +3274,7 @@ function SlideOverCaseDetail({
           grade: caseItem.grade,
           inquiry: caseItem.inquiryTh || caseItem.inquiryEn || "",
           caseDescription: caseItem.caseDescription || "",
+          processReference: caseItem.processReference || "",
           caseUrl: caseItem.caseUrl || "",
           submittedBy: currentUser.displayName || currentUser.username || "",
           submittedByUsername: currentUser.username || "",
@@ -4041,6 +4048,22 @@ function SlideOverCaseDetail({
                   </div>
                 </div>
               </div>
+              {String(caseItem.processReference || "").trim() ? (
+                <div className="mb-5">
+                  <div className="rounded-[18px] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 px-4 py-4 shadow-[0_10px_24px_rgba(124,58,237,0.06)]">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-base text-violet-700 shadow-sm">{"\u{1F4DA}"}</span>
+                      <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">Process ที่ใช้เทียบ</div>
+                        <div className="mt-1 text-xs text-slate-500">ข้อมูลอ้างอิงที่ใช้ประกอบการประเมินเคสนี้</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
+                      <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.processReference}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               {caseItem.appealStatus === "Rejected" &&
               caseItem.appealReviewedTopics?.some((topic) => String(topic.comment || "").trim()) ? (
                 <div className="mb-5 rounded-[18px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
@@ -4499,6 +4522,7 @@ export default function DashboardMockup({
                   inquiryTh: String(inquiry || "-").trim(),
                   inquiryEn: String(inquiry || "-").trim(),
                   caseDescription: String(getFirstAvailableHeaderValue(v8Helper, row, ["Case Description", "Case Description / เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธช เธเธณเธญเธเธดเธเธฒเธขเน€เธเธช"], "") || "").trim(),
+                  processReference: String(getFirstAvailableHeaderValue(v8Helper, row, ["Process Reference", "Process ที่ใช้เทียบ"], "") || "").trim(),
                   caseImageUrl: normalizeAssetUrl(
                     getFirstAvailableHeaderValue(v8Helper, row, [
                       "Case Image URL / ภาพประกอบเคส",
@@ -4916,6 +4940,12 @@ export default function DashboardMockup({
             ], "");
 
             const caseDescription = String(rawCaseDescription || "").trim();
+            const processReference = String(
+              getFirstAvailableHeaderValue(rawHelper, row, [
+                "Process Reference",
+                "Process ที่ใช้เทียบ",
+              ], "") || ""
+            ).trim();
 
             const rawCaseImageUrl =
               getFirstAvailableHeaderValue(rawHelper, row, [
@@ -5026,6 +5056,7 @@ export default function DashboardMockup({
               inquiryTh: inquiry ? String(inquiry).trim() : "-",
               inquiryEn: inquiry ? String(inquiry).trim() : "-",
               caseDescription: String(caseDescription || "").trim(),
+              processReference,
               caseImageUrl: caseImageUrl ? String(caseImageUrl).trim() : "",
               casePdfUrl,
               casePdfOriginalUrl,
