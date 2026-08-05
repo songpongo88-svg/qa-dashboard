@@ -90,6 +90,7 @@ export type StoredEvaluation = {
   caseUrl: string;
   inquiry: string;
   caseDescription: string;
+  processReference?: string;
   evidenceUrls: string[];
   criticalError: boolean;
   finalScore: number;
@@ -203,6 +204,7 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
     caseUrl: compactStoredUrl(record.caseUrl),
     inquiry: compactStoredText(record.inquiry),
     caseDescription: compactStoredText(record.caseDescription),
+    processReference: compactStoredText(record.processReference),
     evidenceUrls: (record.evidenceUrls || []).map(compactStoredUrl).filter(Boolean),
     strengths: (record.strengths || []).map((item) => compactStoredText(item, 2000)),
     improvements: (record.improvements || []).map((item) => compactStoredText(item, 2000)),
@@ -297,6 +299,9 @@ function toEvaluation(row: any): StoredEvaluation {
     caseUrl: String(row.case_url || ""),
     inquiry: String(row.inquiry || ""),
     caseDescription: String(row.case_description || ""),
+    processReference: String(
+      row.process_reference || row.raw_data_preview?.["Process Reference"] || ""
+    ),
     evidenceUrls: toArray(row.evidence_urls),
     criticalError: row.critical_error === true,
     finalScore: Number(row.final_score || 0),
@@ -376,6 +381,10 @@ function toLocalEvaluation(row: any): StoredEvaluation {
     caseUrl: normalizeLocalString(localField(row, "caseUrl", "case_url")),
     inquiry: normalizeLocalString(row?.inquiry),
     caseDescription: normalizeLocalString(localField(row, "caseDescription", "case_description")),
+    processReference: normalizeLocalString(
+      localField(row, "processReference", "process_reference") ||
+        rawDataPreview?.["Process Reference"]
+    ),
     evidenceUrls: toArray(localField(row, "evidenceUrls", "evidence_urls")),
     criticalError: localField(row, "criticalError", "critical_error") === true,
     finalScore: Number(localField(row, "finalScore", "final_score") || rawDataPreview?.["Final Score"] || 0),
@@ -631,7 +640,11 @@ function fromEvaluation(record: StoredEvaluation) {
     strengths: record.strengths || [],
     improvements: record.improvements || [],
     topics: record.topics || [],
-    raw_data_preview: record.rawDataPreview || {},
+    raw_data_preview: {
+      ...(record.rawDataPreview || {}),
+      "Process Reference":
+        record.processReference || record.rawDataPreview?.["Process Reference"] || "",
+    },
     evaluator_username: record.evaluatorUsername || "",
     evaluator_name: record.evaluatorName || "",
     submitted_at: record.submittedAt || now,
