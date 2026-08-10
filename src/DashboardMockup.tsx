@@ -24,6 +24,7 @@ import {
   type Grade,
   type IncentiveResult,
 } from "./lib/scoreIncentivePolicy";
+import { canonicalAgentIdentityKey, canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -463,6 +464,7 @@ const AGENT_MASTER = [
   "Anucha Makundin",
   "Arisa Aiemrit",
   "Chatkonnaphat Bhusomya",
+  JIRAPONG_AGENT_NAME,
   "Jariyawadee Taboodda",
   "Jureeporn Piddum",
   "Krivut Vongkampan",
@@ -502,11 +504,11 @@ function normalizeHeaderComparable(value: unknown) {
 }
 
 function canonicalAgentKey(value: unknown) {
-  return compactText(value);
+  return canonicalAgentIdentityKey(value);
 }
 
 function toTitleCaseName(value: string) {
-  return String(value || "")
+  const formattedName = String(value || "")
     .trim()
     .split(/\s+/)
     .map((part) => {
@@ -520,6 +522,7 @@ function toTitleCaseName(value: string) {
       return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
     })
     .join(" ");
+  return canonicalizeAgentName(formattedName);
 }
 
 function isSameAgent(a: string, b: string) {
@@ -2552,7 +2555,7 @@ function buildEvaluationKeyFromRow(
   return [
     "row",
     normalizeEvaluationKeyPart(caseId).toUpperCase(),
-    normalizeEvaluationKeyPart(agent).toLowerCase(),
+    canonicalAgentIdentityKey(agent),
     formatEvaluationDateKey(auditRaw),
     scoreKey,
     buildTopicScoreHash(topics),
@@ -2561,7 +2564,7 @@ function buildEvaluationKeyFromRow(
 
 function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluationKey">) {
   const caseId = normalizeEvaluationKeyPart(item.caseId).toUpperCase();
-  const agent = normalizeEvaluationKeyPart(item.agent).toLowerCase();
+  const agent = canonicalAgentIdentityKey(item.agent);
   if (caseId && agent) return ["case", caseId, agent].join("|");
   return item.evaluationKey;
 }
