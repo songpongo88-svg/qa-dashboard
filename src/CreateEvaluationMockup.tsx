@@ -20,6 +20,12 @@ import {
 } from "./lib/rubricVersions";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
+import {
+  cacheStickyNote,
+  fetchStoredStickyNote,
+  readCachedStickyNote,
+  saveStoredStickyNote,
+} from "./stickyNoteStore";
 
 type TopicState = {
   score: number | null;
@@ -207,7 +213,6 @@ const labelClass = "text-[11px] font-black uppercase tracking-[0.16em] text-slat
 const DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:drafts";
 const LEGACY_DRAFT_STORAGE_KEY = "qa-dashboard:create-evaluation:draft";
 const HISTORY_STORAGE_KEY = "qa-dashboard:create-evaluation:history";
-const STICKY_NOTE_STORAGE_KEY = "qa-dashboard:create-evaluation:sticky-note";
 const REPORT_PAGE_SIZE = 12;
 const RAW_DATA_FILE_NAMES = ["QA_RawData_March-May2026.xlsx"];
 
@@ -838,6 +843,7 @@ export default function CreateEvaluationMockup({
   currentUser?: EvaluationCurrentUser | null;
   onSubmitEvaluation?: (payload: EvaluationSubmitPayload) => void | Promise<void>;
 }) {
+  const stickyNoteOwner = currentUser?.username || currentUser?.email || "anonymous";
   const restoredEvaluateTabMemoryRef = useRef(Boolean(readEvaluateTabMemory()));
   const [agentName, setAgentName] = useState(() => readEvaluateTabMemory()?.agentName || "");
   const [auditDate, setAuditDate] = useState(() => readEvaluateTabMemory()?.auditDate || todayInputValue());
@@ -863,14 +869,11 @@ export default function CreateEvaluationMockup({
   const [draftSavedAt, setDraftSavedAt] = useState(() => readEvaluateTabMemory()?.draftSavedAt || "");
   const [draftMessage, setDraftMessage] = useState(() => readEvaluateTabMemory()?.draftMessage || "");
   const [stickyNote, setStickyNote] = useState(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return window.localStorage.getItem(STICKY_NOTE_STORAGE_KEY) || "";
-    } catch {
-      return "";
-    }
+    return readCachedStickyNote(stickyNoteOwner);
   });
   const [stickyNoteMessage, setStickyNoteMessage] = useState("");
+  const [stickyNoteReady, setStickyNoteReady] = useState(false);
+  const stickyNoteDirtyRef = useRef(false);
   const [draftInbox, setDraftInbox] = useState<EvaluationDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState(() => readEvaluateTabMemory()?.activeDraftId || "");
   const [activeSubmittedRecordId, setActiveSubmittedRecordId] = useState(
@@ -1090,12 +1093,35 @@ export default function CreateEvaluationMockup({
   }, []);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STICKY_NOTE_STORAGE_KEY, stickyNote);
-    } catch (error) {
-      console.warn("Sticky note could not be saved locally", error);
-    }
-  }, [stickyNote]);
+    let cancelled = false;
+    stickyNoteDirtyRef.current = false;
+    setStickyNoteReady(false);
+
+    const cached = readCachedStickyNote(stickyNoteOwner);
+    setStickyNote(cached);
+
+    void fetchStoredStickyNote(stickyNoteOwner).then((storedNote) => {
+      if (cancelled) return;
+      if (!stickyNoteDirtyRef.current && storedNote !== cached) {
+        setStickyNote(storedNote);
+      }
+      setStickyNoteReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stickyNoteOwner]);
+
+  useEffect(() => {
+    if (!stickyNoteReady || !stickyNoteDirtyRef.current) return;
+    const timeoutId = window.setTimeout(() => {
+      void saveStoredStickyNote(stickyNoteOwner, stickyNote).then((backedUp) => {
+        setStickyNoteMessage(backedUp ? "บันทึกอัตโนมัติแล้ว" : "บันทึกไว้ในเครื่องแล้ว");
+      });
+    }, 900);
+    return () => window.clearTimeout(timeoutId);
+  }, [stickyNote, stickyNoteOwner, stickyNoteReady]);
 
   useEffect(() => {
     if (workspaceView === "report") {
@@ -1623,9 +1649,19 @@ export default function CreateEvaluationMockup({
     }
   }
 
+  async function saveStickyNoteNow() {
+    cacheStickyNote(stickyNoteOwner, stickyNote);
+    setStickyNoteMessage("กำลังบันทึก...");
+    const backedUp = await saveStoredStickyNote(stickyNoteOwner, stickyNote);
+    setStickyNoteMessage(backedUp ? "บันทึกแล้ว ข้อความจะกลับมาเมื่อเข้าใช้งานครั้งถัดไป" : "บันทึกไว้ในเครื่องแล้ว");
+  }
+
   function clearStickyNote() {
+    stickyNoteDirtyRef.current = true;
+    cacheStickyNote(stickyNoteOwner, "");
     setStickyNote("");
     setStickyNoteMessage("ล้างข้อความแล้ว");
+    void saveStoredStickyNote(stickyNoteOwner, "");
   }
 
   function updateWaitingTime(value: string) {
@@ -2979,13 +3015,23 @@ export default function CreateEvaluationMockup({
                 <textarea
                   value={stickyNote}
                   onChange={(event) => {
-                    setStickyNote(event.target.value);
-                    if (stickyNoteMessage) setStickyNoteMessage("");
+                    const nextNote = event.target.value;
+                    stickyNoteDirtyRef.current = true;
+                    cacheStickyNote(stickyNoteOwner, nextNote);
+                    setStickyNote(nextNote);
+                    setStickyNoteMessage("กำลังบันทึกอัตโนมัติ...");
                   }}
                   placeholder="วางข้อความที่ใช้บ่อย หรือร่างคำตอบไว้ตรงนี้..."
                   className="min-h-[180px] w-full resize-y rounded-2xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm font-semibold leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
                 />
                 <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void saveStickyNoteNow()}
+                    className="flex-1 rounded-xl bg-amber-500 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-400"
+                  >
+                    Save Note
+                  </button>
                   <button
                     type="button"
                     onClick={copyStickyNote}
