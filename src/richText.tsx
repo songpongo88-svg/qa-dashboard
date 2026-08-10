@@ -226,7 +226,12 @@ function setActiveEditorTarget(target: RichTextEditorTarget | null) {
 function runActiveEditorCommand(command: "bold" | "italic" | "underline" | "removeFormat" | "foreColor" | "insertHTML", value?: string) {
   const target = activeEditorTarget;
   if (!target) return false;
-  target.element.focus();
+  // Capture the live range while the pointer is still down on the toolbar.
+  // Restoring it before focus prevents the editor's onFocus handler from
+  // replacing a highlighted range with a collapsed caret position.
+  target.rememberSelection();
+  target.restoreSelection();
+  target.element.focus({ preventScroll: true });
   target.restoreSelection();
   document.execCommand("styleWithCSS", false, "true");
   document.execCommand(command, false, value);
