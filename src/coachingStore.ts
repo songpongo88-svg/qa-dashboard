@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 const COACHING_COLLECTION = "qa_coaching_records";
 const COACHING_CACHE_KEY = "qa-dashboard:coaching-records-cache:v1";
@@ -98,8 +99,8 @@ function toRecord(row: any, fallbackId = ""): StoredCoachingRecord {
   return {
     id: String(row?.id || fallbackId || ""),
     coachingDate: String(row?.coachingDate || row?.coaching_date || ""),
-    coachedBy: String(row?.coachedBy || row?.coached_by || ""),
-    agent: String(row?.agent || ""),
+    coachedBy: canonicalizeAgentName(row?.coachedBy || row?.coached_by),
+    agent: canonicalizeAgentName(row?.agent),
     team: String(row?.team || ""),
     monthKey: String(row?.monthKey || row?.month_key || ""),
     monthLabel: String(row?.monthLabel || row?.month_label || ""),
@@ -188,6 +189,8 @@ export async function upsertStoredCoachingRecord(
   const now = new Date().toISOString();
   const normalized: StoredCoachingRecord = {
     ...record,
+    coachedBy: canonicalizeAgentName(record.coachedBy),
+    agent: canonicalizeAgentName(record.agent),
     id: safeDocId(record.id),
     createdAt: record.createdAt || now,
     updatedAt: now,
