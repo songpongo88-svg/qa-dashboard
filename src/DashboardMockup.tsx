@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
 import { generateOfficialCaseDetailPdf } from "./caseDetailOfficialPdf";
+import { RichTextContent, richTextToPlainText } from "./richText";
 import { type UsageLogEvent } from "./usageLog";
 import { fetchAppealEvents, writeAppealEvent } from "./appealStore";
 import {
@@ -1958,7 +1959,7 @@ function getOriginalTopicMap(topics: Topic[]) {
 }
 
 function normalizeCommentForCompare(value?: string) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return richTextToPlainText(value).replace(/\s+/g, " ").trim();
 }
 
 function normalizeAppealReason(value: unknown) {
@@ -2159,14 +2160,14 @@ function CaseDetailTopicTable({
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                      {row.originalTopic.comment || "ยังไม่มี Evaluation Comment"}
+                      <RichTextContent value={row.originalTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                     </div>
                   </div>
 
                   <div className="rounded-[20px] border border-violet-200 bg-violet-50 px-4 py-4">
                     <div className="text-[13px] font-semibold text-violet-700">Revised Comment</div>
                     <div className="mt-4 whitespace-pre-line leading-7 text-violet-700">
-                      {row.revisedTopic.comment || "ยังไม่มี Revised Comment"}
+                      <RichTextContent value={row.revisedTopic.comment} fallback="ยังไม่มี Revised Comment" />
                     </div>
                   </div>
                 </>
@@ -2174,7 +2175,7 @@ function CaseDetailTopicTable({
                 <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="text-[13px] font-semibold text-slate-600">Original Comment</div>
                   <div className="mt-4 whitespace-pre-line leading-7 text-slate-800">
-                    {row.shownTopic.comment || "ยังไม่มี Evaluation Comment"}
+                    <RichTextContent value={row.shownTopic.comment} fallback="ยังไม่มี Evaluation Comment" />
                   </div>
                 </div>
               )}
@@ -3566,7 +3567,7 @@ function SlideOverCaseDetail({
                       </div>
                     </div>
                     <div className="mt-3 whitespace-pre-line rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
-                      {topic.comment || "-"}
+                      <RichTextContent value={topic.comment} />
                     </div>
                     <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
                       <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Appeal decision for this topic</div>
@@ -4044,7 +4045,7 @@ function SlideOverCaseDetail({
                     </div>
                   </div>
                   <div className="mt-3 rounded-[16px] border border-fuchsia-100 bg-white/95 px-4 py-3 shadow-sm">
-                    <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.caseDescription || "-"}</div>
+                    <RichTextContent value={caseItem.caseDescription} className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800" />
                   </div>
                 </div>
               </div>
@@ -4059,13 +4060,13 @@ function SlideOverCaseDetail({
                       </div>
                     </div>
                     <div className="mt-3 rounded-[16px] border border-violet-100 bg-white/95 px-4 py-3 shadow-sm">
-                      <div className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800">{caseItem.processReference}</div>
+                      <RichTextContent value={caseItem.processReference} className="whitespace-pre-line text-[14px] leading-6.5 text-slate-800" />
                     </div>
                   </div>
                 </div>
               ) : null}
               {caseItem.appealStatus === "Rejected" &&
-              caseItem.appealReviewedTopics?.some((topic) => String(topic.comment || "").trim()) ? (
+              caseItem.appealReviewedTopics?.some((topic) => richTextToPlainText(topic.comment)) ? (
                 <div className="mb-5 rounded-[18px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 px-4 py-4 shadow-[0_10px_24px_rgba(225,29,72,0.06)]">
                   <div className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-rose-700">
                     Review Feedback / Revised Comment
@@ -4076,7 +4077,7 @@ function SlideOverCaseDetail({
 
                   <div className="mt-4 space-y-3">
                     {caseItem.appealReviewedTopics
-                      .filter((topic) => String(topic.comment || "").trim())
+                      .filter((topic) => richTextToPlainText(topic.comment))
                       .map((topic, index) => (
                         <div
                           key={`${topic.code}-${index}`}
@@ -4086,7 +4087,7 @@ function SlideOverCaseDetail({
                             {index + 1}. {topic.code} {topic.label}
                           </div>
                           <div className="mt-2 whitespace-pre-line text-sm leading-7 text-rose-800">
-                            {topic.comment}
+                            <RichTextContent value={topic.comment} />
                           </div>
                         </div>
                       ))}
