@@ -108,14 +108,13 @@ type PreTestMockupProps = {
 };
 
 type WorkspaceTab = "take" | "sets" | "history";
-type PreTestAvailabilityMode = "now" | "scheduled" | "draft";
 
 const SETS_STORAGE_KEY = "qa-dashboard:pre-test-sets";
 const RESULTS_STORAGE_KEY = "qa-dashboard:pre-test-results";
 const RETAKE_GRANTS_STORAGE_KEY = "qa-dashboard:pre-test-retake-grants";
 const ACTIVE_ATTEMPT_STORAGE_KEY = "qa-dashboard:pre-test-active-attempt";
 const DEFAULT_SET_ID = "thai-help-plus-robinhood-2026";
-const RESULTS_HISTORY_BASELINE_AT = "2026-06-03T09:03:00+07:00";
+const RESULTS_HISTORY_BASELINE_AT = "2026-08-10T10:22:00+07:00";
 const FORM_INPUT_CLASS = "h-[52px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-950 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50";
 
 const DEFAULT_QUESTIONS: PreTestQuestion[] = [
@@ -397,6 +396,12 @@ function formatDateTime(value: string | Date) {
   const min = String(date.getMinutes()).padStart(2, "0");
   const ss = String(date.getSeconds()).padStart(2, "0");
   return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
+}
+
+function formatDateTimeMinute(value?: string) {
+  if (!value) return "";
+  const formatted = formatDateTime(value);
+  return formatted ? formatted.slice(0, 16) : "";
 }
 
 function formatDateTimeLocalInput(value?: string) {
@@ -786,7 +791,8 @@ export default function PreTestMockup({
     return mergeSets(localSets, []);
   });
   const [results, setResults] = useState<PreTestResult[]>(() => {
-    return readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[];
+    return (readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[])
+      .filter((item) => isResultVisibleByBaseline(item, false));
   });
   const [retakeGrants, setRetakeGrants] = useState<PreTestRetakeGrant[]>(() => {
     return readLocal<PreTestRetakeGrant>(RETAKE_GRANTS_STORAGE_KEY).map(normalizeRetakeGrant).filter(Boolean) as PreTestRetakeGrant[];
@@ -830,9 +836,6 @@ export default function PreTestMockup({
   const previewSet = useMemo(() => {
     return sets.find((set) => set.id === previewSetId) || selectedSet;
   }, [previewSetId, selectedSet, sets]);
-  const editorAvailabilityMode: PreTestAvailabilityMode = editorSet
-    ? (!editorSet.active ? "draft" : (editorSet.availableFrom || editorSet.availableUntil ? "scheduled" : "now"))
-    : "now";
   const currentQuestion = preparedQuestions[currentQuestionIndex];
   const inAttempt = Boolean(attemptId && preparedQuestions.length && !resultScreen);
   const answeredCount = preparedQuestions.length
@@ -918,7 +921,8 @@ export default function PreTestMockup({
   }, [historySearch, historySetFilter, historyUserFilter, results]);
   const filtersActive = Boolean(historySearch.trim() || historyUserFilter !== "all" || historySetFilter !== "all");
   const localResultsCount = useMemo(() => {
-    return readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean).length;
+    return (readLocal<PreTestResult>(RESULTS_STORAGE_KEY).map(normalizeResult).filter(Boolean) as PreTestResult[])
+      .filter((item) => isResultVisibleByBaseline(item, false)).length;
   }, [results]);
 
   const refreshCentralData = useCallback(async (showMessage = false) => {
@@ -1221,7 +1225,7 @@ export default function PreTestMockup({
         .map(normalizeResult)
         .filter(Boolean) as PreTestResult[];
       const myLocalResults = localResults.filter((item) => hasMatchingIdentity(currentUserIdentities, item));
-      const myResults = myLocalResults.filter((item) => isResultAfterHistoryClear(item, latestClearTime));
+      const myResults = myLocalResults.filter((item) => isResultVisibleByBaseline(item, false) && isResultAfterHistoryClear(item, latestClearTime));
       const skippedClearedCount = myLocalResults.length - myResults.length;
       let syncedCount = 0;
       for (const result of myResults) {
@@ -1290,7 +1294,7 @@ export default function PreTestMockup({
       const latestClearTime = getLatestPreTestHistoryClearTime(logs);
       const centralIds = new Set(getCentralResultsFromLogs(logs).map((item) => item.id));
       const existingIds = new Set(results.map((item) => item.id));
-      const acceptedResults = importedResults.filter((item) => isResultAfterHistoryClear(item, latestClearTime) && !existingIds.has(item.id) && !centralIds.has(item.id));
+      const acceptedResults = importedResults.filter((item) => isResultVisibleByBaseline(item, false) && isResultAfterHistoryClear(item, latestClearTime) && !existingIds.has(item.id) && !centralIds.has(item.id));
       for (const result of acceptedResults) {
         const saved = await logUsageEvent(currentUser || null, "pretest_attempt_submitted", {
           tab: "pre-test",
@@ -1364,8 +1368,10 @@ export default function PreTestMockup({
   }
 
   function startCreateSet() {
-    const now = new Date().toISOString();
-    setPreviewSetId("");
+    const nowDate = new Date();
+    nowDate.setSeconds(0, 0);
+    const now = nowDate.toISOString();
+    const tomorrow = new Date(nowDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
     setEditorSet({
       id: `pretest-${Date.now()}`,
       code: `PRE-${new Date().getFullYear()}-${String(sets.length + 1).padStart(2, "0")}`,
@@ -1374,9 +1380,9 @@ export default function PreTestMockup({
       passScore: 1,
       timeLimitSeconds: 15 * 60,
       active: true,
-      availableFrom: "",
-      availableUntil: "",
-      autoCloseEnabled: false,
+      availableFrom: now,
+      availableUntil: tomorrow,
+      autoCloseEnabled: true,
       questions: [createBlankQuestion(1)],
       updatedAt: now,
       updatedBy: currentUser?.displayName || "System",
@@ -1385,26 +1391,14 @@ export default function PreTestMockup({
   }
 
   function editSet(set: PreTestSet) {
-    setPreviewSetId(set.id);
     const clonedSet = JSON.parse(JSON.stringify(set)) as PreTestSet;
     clonedSet.timeLimitSeconds = Math.max(1, Math.round(clonedSet.timeLimitSeconds / 60)) * 60;
+    const defaultStart = new Date();
+    defaultStart.setSeconds(0, 0);
+    clonedSet.availableFrom = clonedSet.availableFrom || defaultStart.toISOString();
+    clonedSet.availableUntil = clonedSet.availableUntil || new Date(defaultStart.getTime() + 24 * 60 * 60 * 1000).toISOString();
     setEditorSet(clonedSet);
     setWorkspaceTab("sets");
-  }
-
-  function changeEditorAvailabilityMode(mode: PreTestAvailabilityMode) {
-    if (!editorSet) return;
-    if (mode === "now") {
-      setEditorSet({ ...editorSet, active: true, availableFrom: "", availableUntil: "", autoCloseEnabled: false });
-      return;
-    }
-    if (mode === "draft") {
-      setEditorSet({ ...editorSet, active: false, availableFrom: "", availableUntil: "", autoCloseEnabled: false });
-      return;
-    }
-    const start = editorSet.availableFrom || new Date().toISOString();
-    const end = editorSet.availableUntil || new Date(new Date(start).getTime() + 24 * 60 * 60 * 1000).toISOString();
-    setEditorSet({ ...editorSet, active: true, availableFrom: start, availableUntil: end, autoCloseEnabled: true });
   }
 
   function updateEditorSchedulePart(field: "availableFrom" | "availableUntil", part: "date" | "time", value: string) {
@@ -1440,15 +1434,13 @@ export default function PreTestMockup({
       showToast("Pass score cannot exceed total questions.");
       return;
     }
-    if (editorAvailabilityMode === "scheduled") {
-      if (!editorSet.availableFrom || !editorSet.availableUntil) {
-        showToast("กรุณาระบุวันและเวลาเริ่ม–สิ้นสุดให้ครบ");
-        return;
-      }
-      if (new Date(editorSet.availableUntil).getTime() <= new Date(editorSet.availableFrom).getTime()) {
-        showToast("วันและเวลาสิ้นสุดต้องอยู่หลังวันและเวลาเริ่ม");
-        return;
-      }
+    if (!editorSet.availableFrom || !editorSet.availableUntil) {
+      showToast("กรุณาระบุวันและเวลาเริ่ม–สิ้นสุดให้ครบ");
+      return;
+    }
+    if (new Date(editorSet.availableUntil).getTime() <= new Date(editorSet.availableFrom).getTime()) {
+      showToast("วันและเวลาสิ้นสุดต้องอยู่หลังวันและเวลาเริ่ม");
+      return;
     }
 
     const savedSet: PreTestSet = {
@@ -1460,7 +1452,8 @@ export default function PreTestMockup({
       timeLimitSeconds: Math.max(30, editorSet.timeLimitSeconds),
       availableFrom: editorSet.availableFrom || "",
       availableUntil: editorSet.availableUntil || "",
-      autoCloseEnabled: editorSet.autoCloseEnabled === true,
+      active: true,
+      autoCloseEnabled: true,
       questions: cleanQuestions,
       updatedAt: new Date().toISOString(),
       updatedBy: currentUser?.displayName || "System",
@@ -1469,7 +1462,6 @@ export default function PreTestMockup({
     setSets(nextSets);
     writeLocal(SETS_STORAGE_KEY, nextSets);
     setSelectedSetId(savedSet.id);
-    setPreviewSetId(savedSet.id);
     setEditorSet(null);
     showToast("Pre-Test set saved.");
     await logUsageEvent(currentUser || null, "pretest_set_saved", {
@@ -1491,7 +1483,6 @@ export default function PreTestMockup({
     setSets(nextSets);
     writeLocal(SETS_STORAGE_KEY, nextSets);
     if (selectedSetId === setId) setSelectedSetId(nextSets[0]?.id || DEFAULT_SET.id);
-    if (previewSetId === setId) setPreviewSetId(nextSets[0]?.id || DEFAULT_SET.id);
     if (editorSet?.id === setId) setEditorSet(null);
     showToast("Pre-Test set deleted.");
     await logUsageEvent(currentUser || null, "pretest_set_deleted", {
@@ -2056,8 +2047,47 @@ export default function PreTestMockup({
         ) : null}
 
         {workspaceTab === "sets" && canManagePreTest ? (
-          <section className="grid gap-6 p-5 xl:grid-cols-[430px_1fr] xl:p-8">
-            <aside className="space-y-4">
+          <section className="p-5 lg:p-8">
+            <div className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm lg:p-7">
+            {!editorSet ? (
+              <div>
+                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">TEST SETS</div>
+                    <h2 className="mt-2 text-2xl font-black text-slate-950">ชุดแบบทดสอบทั้งหมด</h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">แสดงเป็นรายการเต็มพื้นที่ ไม่มีการ์ดยาวอยู่ด้านข้าง</p>
+                  </div>
+                  <button type="button" onClick={startCreateSet} className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white">+ สร้างแบบทดสอบ</button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[960px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        <th className="px-4 py-4">แบบทดสอบ</th><th className="px-4 py-4">เงื่อนไข</th><th className="px-4 py-4">ช่วงเปิดทำ</th><th className="px-4 py-4">สถานะ</th><th className="px-4 py-4 text-right">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sets.map((set) => {
+                        const status = getSetEffectiveStatus(set);
+                        return (
+                          <tr key={set.id} className="transition hover:bg-violet-50/40">
+                            <td className="px-4 py-5"><div className="text-sm font-black text-slate-950">{set.title}</div><div className="mt-1 text-xs font-bold text-emerald-700">{set.code}</div></td>
+                            <td className="px-4 py-5 text-sm font-bold text-slate-600">{set.questions.length} ข้อ · ผ่าน {set.passScore} · {Math.max(1, Math.round(set.timeLimitSeconds / 60))} นาที</td>
+                            <td className="px-4 py-5 text-sm font-bold text-slate-600">{set.availableFrom && set.availableUntil ? <>{formatDateTimeMinute(set.availableFrom)}<br /><span className="text-slate-400">ถึง {formatDateTimeMinute(set.availableUntil)}</span></> : "ยังไม่กำหนด"}</td>
+                            <td className="px-4 py-5"><span className={`rounded-full px-3 py-1 text-xs font-black ${status === "active" ? "bg-emerald-50 text-emerald-700" : status === "not_yet_open" ? "bg-sky-50 text-sky-700" : "bg-slate-100 text-slate-500"}`}>{getSetStatusLabel(status)}</span></td>
+                            <td className="px-4 py-5"><div className="flex justify-end gap-2"><button type="button" onClick={() => editSet(set)} className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700">แก้ไข</button><button type="button" onClick={() => void copyShareLink(set.id)} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">แชร์</button>{BUILT_IN_PRE_TEST_SETS.some((item) => item.id === set.id) ? <button type="button" onClick={() => void toggleSetActive(set)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">{set.active ? "ปิด" : "เปิด"}</button> : <button type="button" onClick={() => void deleteSet(set.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">ลบ</button>}</div></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="hidden" />
+            )}
+            </div>
+            <div className="hidden">
               <button
                 type="button"
                 onClick={startCreateSet}
@@ -2098,28 +2128,30 @@ export default function PreTestMockup({
                   </div>
                 </div>
               ))}
-            </aside>
+            </div>
 
-            <main className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm">
+            <main className={editorSet ? "mt-6 rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm lg:p-7" : "hidden"}>
               {editorSet ? (
                 <div className="space-y-5">
                   <div className="flex flex-col gap-3 border-b border-slate-100 pb-5 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                      <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">QUESTION SET BUILDER</div>
-                      <h2 className="mt-2 text-2xl font-black text-slate-950">สร้าง / แก้ไขแบบทดสอบ</h2>
+                      <button type="button" onClick={() => setEditorSet(null)} className="mb-3 text-sm font-black text-violet-700">← กลับไปหน้ารายการ</button>
+                      <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-700">QUESTION SETUP</div>
+                      <h2 className="mt-2 text-2xl font-black text-slate-950">{editorSet.title ? `แก้ไข: ${editorSet.title}` : "สร้างแบบทดสอบใหม่"}</h2>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">ข้อมูลหลัก เวลา และคำถามเรียงอยู่หน้าเดียวจากบนลงล่าง</p>
                     </div>
                     <div className="flex gap-2">
                       <button type="button" onClick={() => setEditorSet(null)} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700">ยกเลิก</button>
-                      <button type="button" onClick={() => void saveEditorSet()} className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-black text-white">บันทึกชุด</button>
+                      <button type="button" onClick={() => void saveEditorSet()} className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white">บันทึกและกำหนดเวลา</button>
                     </div>
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <Field label="รหัสแบบทดสอบ (Test Code)">
-                      <input value={editorSet.code} onChange={(event) => setEditorSet({ ...editorSet, code: event.target.value })} className={FORM_INPUT_CLASS} />
-                    </Field>
                     <Field label="ชื่อแบบทดสอบ">
                       <input value={editorSet.title} onChange={(event) => setEditorSet({ ...editorSet, title: event.target.value })} className={FORM_INPUT_CLASS} />
+                    </Field>
+                    <Field label="รหัสแบบทดสอบ (Test Code)">
+                      <input value={editorSet.code} onChange={(event) => setEditorSet({ ...editorSet, code: event.target.value })} className={FORM_INPUT_CLASS} />
                     </Field>
                     <Field label="เวลาทำต่อคน (นาที)">
                       <div>
@@ -2139,85 +2171,58 @@ export default function PreTestMockup({
                     </Field>
                     <div className="lg:col-span-2">
                       <Field label="รายละเอียด">
-                      <input value={editorSet.description} onChange={(event) => setEditorSet({ ...editorSet, description: event.target.value })} className={FORM_INPUT_CLASS} />
+                        <textarea rows={2} value={editorSet.description} onChange={(event) => setEditorSet({ ...editorSet, description: event.target.value })} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-950 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-50" />
                       </Field>
                     </div>
 
                     <div className="space-y-4 rounded-[26px] border border-violet-100 bg-violet-50/60 p-4 lg:col-span-2 sm:p-5">
                       <div>
-                        <div className="text-sm font-black text-slate-950">กำหนดช่วงเปิดแบบทดสอบ</div>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">เลือกเพียงรูปแบบเดียว ระบบจะจัดการสถานะและการปิดแบบทดสอบให้อัตโนมัติ</p>
+                        <div className="text-base font-black text-slate-950">ช่วงเวลาเปิดแบบทดสอบ</div>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">กำหนดเวลาเริ่มและสิ้นสุดเพียงชุดเดียว เมื่อพ้นเวลาสิ้นสุดระบบจะปิดแบบทดสอบอัตโนมัติ</p>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-3">
-                        {([
-                          { value: "now", title: "เปิดทันที", description: "บันทึกแล้วเริ่มทำได้เลย" },
-                          { value: "scheduled", title: "กำหนดวันและเวลา", description: "เปิด–ปิดตามช่วงที่ระบุ" },
-                          { value: "draft", title: "เก็บเป็นฉบับร่าง", description: "ยังไม่เปิดให้ผู้ใช้ทำ" },
-                        ] as Array<{ value: PreTestAvailabilityMode; title: string; description: string }>).map((mode) => (
-                          <button
-                            key={mode.value}
-                            type="button"
-                            onClick={() => changeEditorAvailabilityMode(mode.value)}
-                            className={`rounded-2xl border p-4 text-left transition ${editorAvailabilityMode === mode.value ? "border-violet-400 bg-white ring-4 ring-violet-100" : "border-slate-200 bg-white/70 hover:border-violet-200"}`}
-                          >
-                            <span className="flex items-center gap-2 text-sm font-black text-slate-950">
-                              <span className={`h-3 w-3 rounded-full ${editorAvailabilityMode === mode.value ? "bg-violet-600 ring-4 ring-violet-100" : "bg-slate-200"}`} />
-                              {mode.title}
-                            </span>
-                            <span className="mt-2 block text-xs font-semibold leading-5 text-slate-500">{mode.description}</span>
-                          </button>
-                        ))}
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <Field label="วันที่เริ่ม"><input type="date" value={formatDateTimeLocalInput(editorSet.availableFrom).slice(0, 10)} onChange={(event) => updateEditorSchedulePart("availableFrom", "date", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
+                        <Field label="เวลาเริ่ม"><input type="time" value={formatDateTimeLocalInput(editorSet.availableFrom).slice(11, 16)} onChange={(event) => updateEditorSchedulePart("availableFrom", "time", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
+                        <Field label="วันที่สิ้นสุด"><input type="date" value={formatDateTimeLocalInput(editorSet.availableUntil).slice(0, 10)} onChange={(event) => updateEditorSchedulePart("availableUntil", "date", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
+                        <Field label="เวลาสิ้นสุด"><input type="time" value={formatDateTimeLocalInput(editorSet.availableUntil).slice(11, 16)} onChange={(event) => updateEditorSchedulePart("availableUntil", "time", event.target.value)} className={FORM_INPUT_CLASS} /></Field>
                       </div>
 
-                      {editorAvailabilityMode === "scheduled" ? (
-                        <div className="grid gap-3 rounded-2xl border border-violet-100 bg-white p-4 md:grid-cols-2 xl:grid-cols-4">
-                          <Field label="วันที่เริ่ม">
-                            <input type="date" value={formatDateTimeLocalInput(editorSet.availableFrom).slice(0, 10)} onChange={(event) => updateEditorSchedulePart("availableFrom", "date", event.target.value)} className={FORM_INPUT_CLASS} />
-                          </Field>
-                          <Field label="เวลาเริ่ม">
-                            <input type="time" value={formatDateTimeLocalInput(editorSet.availableFrom).slice(11, 16)} onChange={(event) => updateEditorSchedulePart("availableFrom", "time", event.target.value)} className={FORM_INPUT_CLASS} />
-                          </Field>
-                          <Field label="วันที่สิ้นสุด">
-                            <input type="date" value={formatDateTimeLocalInput(editorSet.availableUntil).slice(0, 10)} onChange={(event) => updateEditorSchedulePart("availableUntil", "date", event.target.value)} className={FORM_INPUT_CLASS} />
-                          </Field>
-                          <Field label="เวลาสิ้นสุด">
-                            <input type="time" value={formatDateTimeLocalInput(editorSet.availableUntil).slice(11, 16)} onChange={(event) => updateEditorSchedulePart("availableUntil", "time", event.target.value)} className={FORM_INPUT_CLASS} />
-                          </Field>
-                        </div>
-                      ) : null}
-
-                      <div className="rounded-2xl bg-slate-950 px-4 py-4 text-white">
-                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">สรุปก่อนบันทึก</div>
-                        <div className="mt-2 text-sm font-black">
-                          {editorAvailabilityMode === "now"
-                            ? "เปิดให้ทำทันทีหลังบันทึก"
-                            : editorAvailabilityMode === "draft"
-                              ? "บันทึกเป็นฉบับร่าง — ผู้ใช้ยังไม่เห็นแบบทดสอบ"
-                              : `เปิด ${formatDateTime(editorSet.availableFrom || "")} ถึง ${formatDateTime(editorSet.availableUntil || "")}`}
-                        </div>
-                        <div className="mt-1 text-xs font-semibold text-slate-300">แต่ละคนมีเวลาทำ {Math.max(1, Math.round(editorSet.timeLimitSeconds / 60))} นาที หลังจากกดเริ่ม</div>
+                      <div className="flex flex-col gap-2 rounded-2xl bg-slate-950 px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+                        <div><div className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-200">ช่วงเปิดทำแบบทดสอบ</div><div className="mt-1 text-sm font-black">{formatDateTimeMinute(editorSet.availableFrom)} ถึง {formatDateTimeMinute(editorSet.availableUntil)}</div></div>
+                        <span className="rounded-full bg-white/10 px-4 py-2 text-xs font-black">คนละ {Math.max(1, Math.round(editorSet.timeLimitSeconds / 60))} นาที</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     {editorSet.questions.map((question, questionIndex) => (
-                      <div key={question.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-black text-slate-950">Question {questionIndex + 1}</div>
+                      <details key={question.id} open={questionIndex === 0} className="group rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-black text-slate-950">คำถามที่ {questionIndex + 1}</div>
+                            <div className="mt-1 max-w-[70vw] truncate text-xs font-semibold text-slate-500">{question.prompt || "ยังไม่ได้ระบุคำถาม"}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => setEditorSet({ ...editorSet, questions: editorSet.questions.filter((_, index) => index !== questionIndex) })}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setEditorSet({ ...editorSet, questions: editorSet.questions.filter((_, index) => index !== questionIndex) });
+                            }}
                             className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-700"
                           >
-                            Remove
+                            ลบ
                           </button>
-                        </div>
+                            <span className="rounded-xl bg-white px-3 py-2 text-xs font-black text-violet-700 group-open:rotate-180">⌄</span>
+                          </div>
+                        </summary>
+                        <div className="mt-4 border-t border-slate-200 pt-4">
+                        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">คำถาม</div>
                         <textarea
                           value={question.prompt}
                           onChange={(event) => updateEditorQuestion(questionIndex, { prompt: event.target.value })}
                           rows={3}
-                          placeholder="Question prompt"
+                          placeholder="พิมพ์คำถาม"
                           className="mt-3 min-h-[98px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-emerald-400"
                         />
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -2230,13 +2235,13 @@ export default function PreTestMockup({
                                 value={choice.text}
                                 onChange={(event) => updateEditorChoice(questionIndex, choice.id, event.target.value)}
                                 className="h-12 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-emerald-400"
-                                placeholder={`Choice ${choice.id}`}
+                                placeholder={`ตัวเลือก ${choice.id}`}
                               />
                             </div>
                           ))}
                         </div>
                         <div className="mt-3">
-                          <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Correct Answer</label>
+                          <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">คำตอบที่ถูกต้อง</label>
                           <select
                             value={question.correctChoiceId}
                             onChange={(event) => updateEditorQuestion(questionIndex, { correctChoiceId: event.target.value })}
@@ -2256,7 +2261,8 @@ export default function PreTestMockup({
                             placeholder="เช่น อ้างอิง Slide 2"
                           />
                         </div>
-                      </div>
+                        </div>
+                      </details>
                     ))}
                   </div>
 
@@ -2265,7 +2271,7 @@ export default function PreTestMockup({
                     onClick={() => setEditorSet({ ...editorSet, questions: [...editorSet.questions, createBlankQuestion(editorSet.questions.length + 1)] })}
                     className="w-full rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 px-5 py-4 text-sm font-black text-emerald-700"
                   >
-                    Add Question
+                    + เพิ่มคำถาม
                   </button>
                 </div>
               ) : previewSet ? (
@@ -2339,11 +2345,24 @@ export default function PreTestMockup({
         {workspaceTab === "history" && canViewPreTestResults ? (
           <section className="p-5 lg:p-8">
             <div className="rounded-[32px] border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-col gap-5 border-b border-slate-200 bg-slate-950 p-5 text-white">
+              {!results.length ? (
+                <div className="flex min-h-[460px] items-center justify-center p-8 text-center">
+                  <div className="max-w-md">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-violet-50 text-3xl">⌁</div>
+                    <h2 className="mt-5 text-2xl font-black text-slate-950">ยังไม่มีประวัติผลแบบทดสอบ</h2>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">ประวัติเดิมถูกล้างแล้ว ผลการทำแบบทดสอบครั้งใหม่จะแสดงที่นี่โดยอัตโนมัติ</p>
+                    <button type="button" onClick={() => void refreshCentralData(true)} disabled={syncing} className="mt-5 rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white disabled:opacity-50">
+                      {syncing ? "กำลังตรวจสอบ..." : "ตรวจสอบผลล่าสุด"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+              <>
+              <div className="flex flex-col gap-5 border-b border-slate-200 bg-white p-5 text-slate-950">
                 <div>
-                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-100">RESULTS</div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.24em] text-violet-600">RESULTS</div>
                   <h2 className="mt-2 text-2xl font-black">ประวัติผลแบบทดสอบ</h2>
-                  <p className="mt-1 text-xs font-semibold text-slate-300">ค้นหาและกรองผลก่อนดูรายละเอียด หรือดาวน์โหลดรายงานที่ต้องการ</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">ค้นหา กรอง และดาวน์โหลดเฉพาะผลที่เกิดขึ้นหลังการล้างประวัติ</p>
                 </div>
 
                 <div className="space-y-4 rounded-[24px] bg-white p-4 text-slate-950">
@@ -2408,57 +2427,14 @@ export default function PreTestMockup({
                         <button type="button" onClick={exportHistory} className="h-11 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white transition hover:bg-emerald-500">ส่งออก Excel</button>
                       </>
                     ) : null}
-                    <button
-                      type="button"
-                      onClick={() => { setHistoryManageOpen((value) => !value); setClearHistoryConfirmed(false); }}
-                      className="ml-auto h-11 rounded-2xl border border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-700 transition hover:bg-rose-100"
-                    >
-                      จัดการประวัติ
-                    </button>
                   </div>
-
-                  {historyManageOpen ? (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                      <div className="text-sm font-black text-rose-800">ล้างประวัติผลแบบทดสอบทั้งหมด</div>
-                      <p className="mt-1 text-xs font-semibold leading-5 text-rose-700">รายการที่ล้างแล้วจะไม่กลับมาซิงก์ซ้ำจากข้อมูลเดิม กรุณาตรวจสอบให้แน่ใจก่อนดำเนินการ</p>
-                      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-rose-200 bg-white p-3 text-sm font-bold text-slate-700">
-                        <input type="checkbox" checked={clearHistoryConfirmed} onChange={(event) => setClearHistoryConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-rose-600" />
-                        ฉันตรวจสอบแล้วและต้องการล้างประวัติทั้งหมด
-                      </label>
-                      <div className="mt-3 flex flex-wrap justify-end gap-2">
-                        <button type="button" onClick={() => { setHistoryManageOpen(false); setClearHistoryConfirmed(false); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700">ยกเลิก</button>
-                        <button type="button" onClick={() => void clearAllPreTestHistory()} disabled={!clearHistoryConfirmed || syncing} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">ยืนยันล้างประวัติทั้งหมด</button>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
               </div>
               <div className="space-y-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-bold text-slate-500">
                 <div className="flex flex-wrap items-center gap-3">
                   <span>แสดงผล {historyRows.length} รายการ · การเปิด Retake จะเก็บผลเดิมไว้และสร้างครั้งถัดไป</span>
-                  <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={showAllHistoricalResults}
-                      onChange={(event) => setShowAllHistoricalResults(event.target.checked)}
-                    />
-                    แสดงประวัติย้อนหลังทั้งหมด
-                  </label>
                 </div>
-                <details className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-xs font-black text-slate-700">ข้อมูลการซิงก์และรายละเอียดทางเทคนิค</summary>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">ผลในเครื่อง: {localResultsCount}</span>
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">ผลส่วนกลาง: {centralResultsCount}</span>
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">Central logs: {centralLogsFetchedCount}</span>
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">Parsed: {centralResultsParsedCount}</span>
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">Invalid: {centralInvalidLogsCount}</span>
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">ซิงก์ล่าสุด: {lastCentralSyncAt ? formatDateTime(lastCentralSyncAt) : "-"}</span>
-                    <span className="rounded-full bg-slate-50 px-3 py-1 text-slate-700">Parser paths: {centralResultPathSummary}</span>
-                  </div>
-                </details>
                 <div className="flex flex-wrap gap-2 text-[11px]">
-                  {!showAllHistoricalResults && hiddenHistoricalCount ? <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">มีประวัติเดิมซ่อนอยู่ {hiddenHistoricalCount} รายการ</span> : null}
                   {filtersActive ? <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">กำลังใช้ตัวกรอง ผลบางรายการอาจไม่แสดง</span> : null}
                   {localResultsCount > 0 && centralLogsFetchedCount === 0 ? <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">มีผลในเครื่องที่ยังไม่อยู่ในส่วนกลาง กรุณากด “ซิงก์ผลของฉัน”</span> : null}
                   {syncWarning ? <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-700">{syncWarning}</span> : null}
@@ -2515,6 +2491,8 @@ export default function PreTestMockup({
                   <div className="p-10 text-center text-sm font-bold text-slate-500">No pre-test history found.</div>
                 )}
               </div>
+              </>
+              )}
             </div>
           </section>
         ) : null}
