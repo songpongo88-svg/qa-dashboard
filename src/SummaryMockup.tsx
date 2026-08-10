@@ -14,6 +14,7 @@ import { getIncentiveByGrade, getIncentivePolicyKey, hasRbhPromo, scoreToGrade, 
 import { fetchCachedStaticResponse } from "./staticFileCache";
 import { fetchStoredUserProfiles, type StoredUserProfile } from "./userRoleStore";
 import PageHero from "./PageHero";
+import { canonicalAgentIdentityKey, canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -262,6 +263,7 @@ const AGENT_MASTER = [
   "Anucha Makundin",
   "Arisa Aiemrit",
   "Chatkonnaphat Bhusomya",
+  JIRAPONG_AGENT_NAME,
   "Jariyawadee Taboodda",
   "Jureeporn Piddum",
   "Krivut Vongkampan",
@@ -342,7 +344,7 @@ function getTotalIncentiveForCases(cases: CaseItem[]) {
   const groups = new Map<string, CaseItem[]>();
 
   cases.forEach((item) => {
-    const key = `${normalizeText(item.agent)}|${item.monthKey}`;
+    const key = `${canonicalAgentIdentityKey(item.agent)}|${item.monthKey}`;
     const current = groups.get(key) || [];
     current.push(item);
     groups.set(key, current);
@@ -421,7 +423,7 @@ function normalizeHeaderComparable(value: unknown) {
 }
 
 function toTitleCaseName(value: string) {
-  return String(value || "")
+  const formattedName = String(value || "")
     .trim()
     .split(/\s+/)
     .map((part) => {
@@ -435,15 +437,11 @@ function toTitleCaseName(value: string) {
       return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
     })
     .join(" ");
+  return canonicalizeAgentName(formattedName);
 }
 
 function isSameAgent(a: string, b: string) {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  const ca = compactText(a);
-  const cb = compactText(b);
-
-  return na === nb || ca === cb || na.includes(nb) || nb.includes(na) || ca.includes(cb) || cb.includes(ca);
+  return isSameCanonicalAgent(a, b);
 }
 
 function getUniqueNormalizedAgents(agentNames: string[]) {
@@ -895,7 +893,7 @@ function buildEvaluationKeyFromRow(
   return [
     "row",
     normalizeEvaluationKeyPart(caseId).toUpperCase(),
-    normalizeEvaluationKeyPart(agent).toLowerCase(),
+    canonicalAgentIdentityKey(agent),
     formatEvaluationDateKey(auditRaw),
     scoreKey,
     buildTopicScoreHash(topics),
@@ -904,7 +902,7 @@ function buildEvaluationKeyFromRow(
 
 function buildCaseMergeKey(item: Pick<CaseItem, "caseId" | "agent" | "evaluationKey">) {
   const caseId = normalizeEvaluationKeyPart(item.caseId).toUpperCase();
-  const agent = normalizeEvaluationKeyPart(item.agent).toLowerCase();
+  const agent = canonicalAgentIdentityKey(item.agent);
   if (caseId && agent) return ["case", caseId, agent].join("|");
   return item.evaluationKey;
 }
@@ -1797,15 +1795,14 @@ function AnalyticsAgentPerformanceV92({
       .map((name) => String(name || "").trim())
       .filter(Boolean)
       .forEach((name) => {
-        const key = normalizeText(name);
-        if (!names.has(key)) names.set(key, name);
+        const canonicalName = canonicalizeAgentName(name);
+        const key = canonicalAgentIdentityKey(canonicalName);
+        if (!names.has(key)) names.set(key, canonicalName);
       });
 
     return [...names.values()]
       .map((agent) => {
-        const agentCases = cases.filter(
-          (item) => normalizeText(item.agent) === normalizeText(agent)
-        );
+        const agentCases = cases.filter((item) => isSameAgent(item.agent, agent));
         const caseCount = agentCases.length;
         const average = caseCount
           ? Number(
@@ -1851,8 +1848,8 @@ function AnalyticsAgentPerformanceV92({
         const profile =
           accountProfiles.find(
             (item) =>
-              normalizeText(item.agentName) === normalizeText(agent) ||
-              normalizeText(item.displayName) === normalizeText(agent)
+              isSameAgent(item.agentName, agent) ||
+              isSameAgent(item.displayName, agent)
           ) || null;
         const displayName = profile?.displayName || agent;
         const initials =

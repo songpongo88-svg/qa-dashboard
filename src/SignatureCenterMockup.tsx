@@ -8,6 +8,7 @@ import { fetchAppealEvents } from "./appealStore";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchStoredEvaluations, type StoredEvaluation } from "./evaluationStore";
 import { getIncentiveByGrade, scoreToGrade } from "./lib/scoreIncentivePolicy";
+import { canonicalAgentIdentityKey, canonicalizeAgentName } from "./lib/agentIdentity";
 import {
   clearStoredSignatureConfirm,
   fetchStoredSignatureDocuments,
@@ -279,8 +280,8 @@ function compactPerson(value: unknown) {
 }
 
 function isSamePerson(a: unknown, b: unknown) {
-  const left = compactPerson(a);
-  const right = compactPerson(b);
+  const left = canonicalAgentIdentityKey(a);
+  const right = canonicalAgentIdentityKey(b);
   return Boolean(left && right && (left === right || left.includes(right) || right.includes(left)));
 }
 
@@ -575,7 +576,7 @@ function safeName(value: unknown, fallback = "-") {
 }
 
 function canonicalAgentName(value: unknown) {
-  const name = safeName(value, "");
+  const name = canonicalizeAgentName(safeName(value, ""));
   if (isSamePerson(name, "Arisa Aiemrit")) return "Arisa Aiemrit";
   if (isSamePerson(name, "Anucha Makundin")) return "Anucha Makundin";
   return name;

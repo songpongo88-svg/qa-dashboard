@@ -1,5 +1,6 @@
 import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 const USER_PROFILE_CACHE_KEY = "qa-dashboard:user-profiles-cache";
 const ROLE_DEFINITION_CACHE_KEY = "qa-dashboard:role-definitions-cache";
@@ -198,13 +199,13 @@ function toUserProfile(row: any): StoredUserProfile {
 
   return {
     username: String(row.username || ""),
-    displayName: String(
+    displayName: canonicalizeAgentName(
       row.displayName ||
         row.display_name ||
         row.username ||
         ""
     ),
-    agentName: String(
+    agentName: canonicalizeAgentName(
       row.agentName ||
         row.agent_name ||
         row.displayName ||
@@ -272,8 +273,8 @@ function toUserProfile(row: any): StoredUserProfile {
 function fromUserProfile(profile: StoredUserProfile) {
   const row: any = {
     username: profile.username,
-    displayName: profile.displayName,
-    agentName: profile.agentName,
+    displayName: canonicalizeAgentName(profile.displayName),
+    agentName: canonicalizeAgentName(profile.agentName),
     email: profile.email,
     role: normalizeRoleName(profile.role),
     teamLead: profile.teamLead,
@@ -390,19 +391,20 @@ export async function fetchStoredUserProfiles() {
     return profiles;
   } catch (error) {
     const cached = readCache<StoredUserProfile>(USER_PROFILE_CACHE_KEY);
-    if (cached.length) return cached;
+    if (cached.length) return cached.map(toUserProfile);
     throw error;
   }
 }
 
 export async function upsertStoredUserProfiles(profiles: StoredUserProfile[]) {
   if (!profiles.length) return;
+  const canonicalProfiles = profiles.map(toUserProfile);
   await Promise.all(
-    profiles.map((profile) =>
+    canonicalProfiles.map((profile) =>
       setDoc(doc(firebaseDb, USER_PROFILE_COLLECTION, safeDocId(profile.username)), fromUserProfile(profile), { merge: true })
     )
   );
-  writeCache(USER_PROFILE_CACHE_KEY, profiles);
+  writeCache(USER_PROFILE_CACHE_KEY, canonicalProfiles);
 }
 
 export async function deleteStoredUserProfile(username: string) {

@@ -6,6 +6,7 @@ import { scoreToGrade, type Grade } from "./lib/scoreIncentivePolicy";
 import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchAppealEvents } from "./appealStore";
 import { type UsageLogEvent } from "./usageLog";
+import { canonicalizeAgentName, isSameCanonicalAgent, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import LoadingMascot from "./LoadingMascot";
 import { richTextToPlainText } from "./richText";
 
@@ -73,6 +74,7 @@ const AGENT_MASTER = [
   "Anucha Makundin",
   "Arisa Aiemrit",
   "Chatkonnaphat Bhusomya",
+  JIRAPONG_AGENT_NAME,
   "Jariyawadee Taboodda",
   "Jureeporn Piddum",
   "Krivut Vongkampan",
@@ -207,7 +209,7 @@ function downloadGeneratedAppealPdf(blob: Blob, fileName: string) {
 }
 
 function toTitleCaseName(value: string) {
-  return String(value || "")
+  const formattedName = String(value || "")
     .trim()
     .split(/\s+/)
     .map((part) => {
@@ -221,22 +223,11 @@ function toTitleCaseName(value: string) {
       return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
     })
     .join(" ");
+  return canonicalizeAgentName(formattedName);
 }
 
 function isSameAgent(a: string, b: string) {
-  const na = normalizeText(a);
-  const nb = normalizeText(b);
-  const ca = compactText(a);
-  const cb = compactText(b);
-
-  return (
-    na === nb ||
-    ca === cb ||
-    na.includes(nb) ||
-    nb.includes(na) ||
-    ca.includes(cb) ||
-    cb.includes(ca)
-  );
+  return isSameCanonicalAgent(a, b);
 }
 
 function shouldHideAgentByMonth(agentName: string, selectedMonthKey: string) {

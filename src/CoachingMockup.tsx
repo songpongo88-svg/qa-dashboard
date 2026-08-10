@@ -20,6 +20,7 @@ import {
   type StoredCoachingRecord,
 } from "./coachingStore";
 import { fetchHistoricalCoachingEvaluations } from "./coachingHistoricalStore";
+import { canonicalizeAgentName, isSameCanonicalAgent } from "./lib/agentIdentity";
 import { richTextToPlainText } from "./richText";
 
 type CoachingUser = {
@@ -185,7 +186,7 @@ function compactText(value: unknown) {
 }
 
 function titleCaseName(value: string) {
-  return String(value || "")
+  const formattedName = String(value || "")
     .trim()
     .split(/\s+/)
     .map((part) =>
@@ -194,16 +195,11 @@ function titleCaseName(value: string) {
         : part
     )
     .join(" ");
+  return canonicalizeAgentName(formattedName);
 }
 
 function isSameAgent(a: string, b: string) {
-  const left = compactText(a);
-  const right = compactText(b);
-  return Boolean(
-    left &&
-      right &&
-      (left === right || left.includes(right) || right.includes(left))
-  );
+  return isSameCanonicalAgent(a, b);
 }
 
 function parseEvaluationDate(value: unknown): Date | null {

@@ -8,6 +8,7 @@
   setDoc,
 } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 export type AppealLogUser = {
   username?: string;
@@ -134,12 +135,12 @@ function toAppealLogEvent(id: string, row: any): AppealLogEvent {
     created_at: String(row.created_at || row.createdAt || ""),
     event_type: String(row.event_type || row.eventType || ""),
     username: String(row.username || ""),
-    display_name: String(row.display_name || row.displayName || ""),
+    display_name: canonicalizeAgentName(row.display_name || row.displayName),
     role: String(row.role || ""),
-    agent_name: String(row.agent_name || row.agentName || ""),
+    agent_name: canonicalizeAgentName(row.agent_name || row.agentName),
     tab: String(row.tab || row.details?.tab || ""),
     case_id: String(row.case_id || row.caseId || row.details?.caseId || ""),
-    target_agent: String(row.target_agent || row.targetAgent || row.details?.agent || ""),
+    target_agent: canonicalizeAgentName(row.target_agent || row.targetAgent || row.details?.agent),
     details: row.details && typeof row.details === "object" ? row.details : {},
     user_agent: String(row.user_agent || ""),
     page_url: String(row.page_url || ""),
@@ -164,12 +165,12 @@ export async function writeAppealEvent(
     {
       event_type: eventType,
       username: user.username || "",
-      display_name: user.displayName || "",
+      display_name: canonicalizeAgentName(user.displayName),
       role: user.role || "",
-      agent_name: user.agentName || "",
+      agent_name: canonicalizeAgentName(user.agentName),
       tab: payload.tab || "",
       case_id: payload.case_id || "",
-      target_agent: payload.target_agent || "",
+      target_agent: canonicalizeAgentName(payload.target_agent),
       details,
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
       page_url: typeof window !== "undefined" ? window.location.href : "",

@@ -1,6 +1,7 @@
 ﻿import { initializeApp, getApps } from "firebase/app";
 import { collection, deleteDoc, doc, getDocs, getFirestore, limit as firestoreLimit, orderBy, query, setDoc } from "firebase/firestore";
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from "firebase/storage";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 const env = (import.meta as any).env || {};
 const SUPABASE_URL = String(env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
@@ -201,6 +202,8 @@ function compactStoredUrl(value: unknown) {
 function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
   return {
     ...record,
+    agentName: canonicalizeAgentName(record.agentName),
+    targetDisplayName: canonicalizeAgentName(record.targetDisplayName),
     caseUrl: compactStoredUrl(record.caseUrl),
     inquiry: compactStoredText(record.inquiry),
     caseDescription: compactStoredText(record.caseDescription),
@@ -213,13 +216,22 @@ function compactStoredRecord(record: StoredEvaluation): StoredEvaluation {
       title: compactStoredText(topic.title, 2000),
       comment: compactStoredText(topic.comment),
     })),
-    rawDataPreview: Object.fromEntries(
+    rawDataPreview: canonicalizeRawPreview(Object.fromEntries(
       Object.entries(record.rawDataPreview || {}).map(([key, value]) => [
         key,
         typeof value === "number" ? value : compactStoredText(value),
       ])
-    ),
+    )),
   };
+}
+
+function canonicalizeRawPreview(preview: Record<string, string | number>) {
+  return Object.fromEntries(
+    Object.entries(preview || {}).map(([key, value]) => [
+      key,
+      typeof value === "string" ? canonicalizeAgentName(value) : value,
+    ])
+  ) as Record<string, string | number>;
 }
 
 function toTopics(value: unknown): StoredEvaluationTopic[] {
@@ -287,9 +299,9 @@ function toEvaluation(row: any): StoredEvaluation {
         ""
     ),
     caseId: String(row.case_id || ""),
-    agentName: String(row.agent_name || ""),
+    agentName: canonicalizeAgentName(row.agent_name),
     targetUsername: String(row.target_username || ""),
-    targetDisplayName: String(row.target_display_name || row.agent_name || ""),
+    targetDisplayName: canonicalizeAgentName(row.target_display_name || row.agent_name),
     targetEmail: String(row.target_email || ""),
     targetRole: String(row.target_role || ""),
     auditDate: String(row.audit_date || ""),
@@ -314,7 +326,7 @@ function toEvaluation(row: any): StoredEvaluation {
     strengths: toArray(row.strengths),
     improvements: toArray(row.improvements),
     topics: toTopics(row.topics),
-    rawDataPreview: (row.raw_data_preview || {}) as Record<string, string | number>,
+    rawDataPreview: canonicalizeRawPreview((row.raw_data_preview || {}) as Record<string, string | number>),
     evaluatorUsername: String(row.evaluator_username || ""),
     evaluatorName: String(row.evaluator_name || ""),
     submittedAt: String(row.submitted_at || row.created_at || ""),
@@ -336,9 +348,9 @@ function localRawPreview(row: any) {
 }
 
 function toLocalEvaluation(row: any): StoredEvaluation {
-  const rawDataPreview = localRawPreview(row);
+  const rawDataPreview = canonicalizeRawPreview(localRawPreview(row));
   const caseId = normalizeLocalString(localField(row, "caseId", "case_id"));
-  const agentName = normalizeLocalString(localField(row, "agentName", "agent_name") || localField(row, "targetDisplayName", "target_display_name"));
+  const agentName = canonicalizeAgentName(localField(row, "agentName", "agent_name") || localField(row, "targetDisplayName", "target_display_name"));
   const auditDate = normalizeLocalString(localField(row, "auditDate", "audit_date"));
   const fallbackId = [
     "local-eval",
@@ -371,7 +383,7 @@ function toLocalEvaluation(row: any): StoredEvaluation {
     caseId,
     agentName,
     targetUsername: normalizeLocalString(localField(row, "targetUsername", "target_username")),
-    targetDisplayName: normalizeLocalString(localField(row, "targetDisplayName", "target_display_name") || agentName),
+    targetDisplayName: canonicalizeAgentName(localField(row, "targetDisplayName", "target_display_name") || agentName),
     targetEmail: normalizeLocalString(localField(row, "targetEmail", "target_email")),
     targetRole: normalizeLocalString(localField(row, "targetRole", "target_role")),
     auditDate,

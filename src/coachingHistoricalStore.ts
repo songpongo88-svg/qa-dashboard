@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 import type { StoredEvaluation, StoredEvaluationTopic } from "./evaluationStore";
 
 const HISTORICAL_FILES = [
@@ -165,9 +166,9 @@ export async function fetchHistoricalCoachingEvaluations(): Promise<
   return dataRows
     .map((row, rowIndex): StoredEvaluation | null => {
       const caseId = String(helper.getAny(row, ["Case ID", "Case Id"]) || "").trim();
-      const agentName = String(
+      const agentName = canonicalizeAgentName(
         helper.getAny(row, ["Agent Name", "Agent", "AgentName"]) || ""
-      ).trim();
+      );
 
       if (!caseId || !agentName) return null;
 
