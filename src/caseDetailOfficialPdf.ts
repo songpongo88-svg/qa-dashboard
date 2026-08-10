@@ -1,5 +1,6 @@
 ﻿import { jsPDF } from "jspdf";
 import { registerTHSarabunNew } from "./THSarabunNew-jsPDF";
+import { parseRichTextRuns, richTextToPlainText, type RichTextRun } from "./richText";
 
 type PdfVariant = "original" | "appeal";
 
@@ -46,12 +47,12 @@ type TextOptions = {
 };
 
 function safeText(value: unknown, fallback = "-") {
-  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  const text = richTextToPlainText(value).replace(/\s+/g, " ").trim();
   return text || fallback;
 }
 
 function safeMultiline(value: unknown, fallback = "-") {
-  const text = String(value ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  const text = richTextToPlainText(value).replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
   return text || fallback;
 }
 
@@ -142,7 +143,7 @@ export async function generateOfficialCaseDetailPdf({
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   registerTHSarabunNew(doc as any);
 
-  const setFont = (style: "normal" | "bold" = "normal") => {
+  const setFont = (style: "normal" | "bold" | "italic" | "bolditalic" = "normal") => {
     try {
       doc.setFont("THSarabunNew", style);
     } catch {
@@ -283,6 +284,149 @@ export async function generateOfficialCaseDetailPdf({
     setFont("normal");
     doc.setFontSize(size);
     return doc.splitTextToSize(safeMultiline(value), Math.max(2, w - 2.4));
+  };
+
+  const richRunFontStyle = (run: RichTextRun): "normal" | "bold" | "italic" | "bolditalic" => {
+    if (run.bold && run.italic) return "bolditalic";
+    if (run.bold) return "bold";
+    if (run.italic) return "italic";
+    return "normal";
+  };
+
+  const richRunColor = (value?: string): [number, number, number] => {
+    const match = String(value || "").match(/^#([0-9a-f]{6})$/i);
+    if (!match) return BLACK;
+    return [
+      Number.parseInt(match[1].slice(0, 2), 16),
+      Number.parseInt(match[1].slice(2, 4), 16),
+      Number.parseInt(match[1].slice(4, 6), 16),
+    ];
+  };
+
+  const sameRichStyle = (leftRun: RichTextRun, rightRun: RichTextRun) =>
+    Boolean(leftRun.bold) === Boolean(rightRun.bold) &&
+    Boolean(leftRun.italic) === Boolean(rightRun.italic) &&
+    Boolean(leftRun.underline) === Boolean(rightRun.underline) &&
+    String(leftRun.color || "").toLowerCase() === String(rightRun.color || "").toLowerCase();
+
+  const layoutRichTextLines = (value: unknown, w: number, size: number): RichTextRun[][] => {
+    const sourceRuns = parseRichTextRuns(value);
+    const runs = sourceRuns.length ? sourceRuns : [{ text: "-" }];
+    const maxWidth = Math.max(2, w - 2.4);
+    const lines: RichTextRun[][] = [[]];
+    let currentWidth = 0;
+
+    const pushCharacter = (character: string, style: RichTextRun) => {
+      if (character === "\n") {
+        lines.push([]);
+        currentWidth = 0;
+        return;
+      }
+      setFont(richRunFontStyle(style));
+      doc.setFontSize(size);
+      const characterWidth = doc.getTextWidth(character);
+      if (currentWidth + characterWidth > maxWidth && lines[lines.length - 1].length) {
+        lines.push([]);
+        currentWidth = 0;
+      }
+      const line = lines[lines.length - 1];
+      const previous = line[line.length - 1];
+      if (previous && sameRichStyle(previous, style)) previous.text += character;
+      else line.push({ ...style, text: character });
+      currentWidth += characterWidth;
+    };
+
+    runs.forEach((run) => Array.from(run.text).forEach((character) => pushCharacter(character, run)));
+    while (lines.length > 1 && !lines[lines.length - 1].length) lines.pop();
+    return lines.length ? lines : [[{ text: "-" }]];
+  };
+
+  const drawRichTextLines = (
+    lines: RichTextRun[][],
+    x: number,
+    yy: number,
+    w: number,
+    h: number,
+    size: number,
+    leading: number,
+    valign: "top" | "middle" = "top"
+  ) => {
+    const lineH = lineHeight(size, leading);
+    const blockH = lines.length * lineH;
+    const startY = valign === "middle" ? yy + Math.max(2.2, (h - blockH) / 2 + lineH * 0.78) : yy + 3.8;
+
+    lines.forEach((line, lineIndex) => {
+      let currentX = x + 1.2;
+      const baselineY = startY + lineIndex * lineH;
+      line.forEach((run) => {
+        setFont(richRunFontStyle(run));
+        doc.setFontSize(size);
+        const color = richRunColor(run.color);
+        doc.setTextColor(color[0], color[1], color[2]);
+        doc.text(run.text, currentX, baselineY);
+        const segmentWidth = Math.min(doc.getTextWidth(run.text), Math.max(0, x + w - 1.2 - currentX));
+        if (run.underline && segmentWidth > 0) {
+          doc.setDrawColor(color[0], color[1], color[2]);
+          doc.setLineWidth(0.12);
+          doc.line(currentX, baselineY + 0.45, currentX + segmentWidth, baselineY + 0.45);
+        }
+        currentX += segmentWidth;
+      });
+    });
+    stroke(GRID);
+  };
+
+  const drawRichTextCell = (
+    col: number,
+    yy: number,
+    span: number,
+    h: number,
+    lines: RichTextRun[][],
+    bg: [number, number, number],
+    size: number,
+    leading: number,
+    valign: "top" | "middle" = "top"
+  ) => {
+    const x = xOf(col);
+    const w = wOf(col, span);
+    rect(x, yy, w, h, bg);
+    drawRichTextLines(lines, x, yy, w, h, size, leading, valign);
+  };
+
+  const drawWideRichTextRow = ({
+    labelText,
+    text,
+    size,
+    leading,
+    minH,
+    padY,
+  }: {
+    labelText: string;
+    text: unknown;
+    size: number;
+    leading: number;
+    minH: number;
+    padY: number;
+  }) => {
+    const lines = layoutRichTextLines(text, wOf(1, 7), size);
+    let index = 0;
+    while (index < lines.length) {
+      if (bottom - y < minH) {
+        doc.addPage();
+        y = top;
+      }
+      const fitCount = Math.max(1, fitLinesForHeight(bottom - y, size, leading, padY));
+      const chunk = lines.slice(index, index + fitCount);
+      const rowH = Math.max(minH, chunk.length * lineHeight(size, leading) + padY);
+      label(0, y, 1, rowH, index === 0 ? labelText : `${labelText}\n(cont.)`);
+      drawRichTextCell(1, y, 7, rowH, chunk, LIGHT_PURPLE, size, leading, "top");
+      y += rowH;
+      index += chunk.length;
+      if (index < lines.length) {
+        doc.addPage();
+        y = top;
+      }
+    }
   };
 
   const drawWideTextRow = ({
@@ -433,9 +577,9 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += caseUrlRowH;
 
-    drawWideTextRow({
+    drawWideRichTextRow({
       labelText: "Case\nDescription",
-      text: formatCaseDescriptionText(caseItem.caseDescription || "-"),
+      text: caseItem.caseDescription || "-",
       size: CASE_DESCRIPTION_TEXT_SIZE,
       leading: CASE_DESCRIPTION_LINE_SPACING,
       minH: 18,
@@ -444,9 +588,9 @@ export async function generateOfficialCaseDetailPdf({
 
     const processReferenceText = safeMultiline(caseItem.processReference, "");
     if (processReferenceText) {
-      drawWideTextRow({
+      drawWideRichTextRow({
         labelText: "Process\nReference",
-        text: processReferenceText,
+        text: caseItem.processReference,
         size: CASE_DESCRIPTION_TEXT_SIZE,
         leading: CASE_DESCRIPTION_LINE_SPACING,
         minH: 14,
@@ -573,9 +717,9 @@ export async function generateOfficialCaseDetailPdf({
     });
     y += remarkRowH;
 
-    drawWideTextRow({
+    drawWideRichTextRow({
       labelText: "Case\nDescription",
-      text: formatCaseDescriptionText(caseItem.caseDescription || "Revised"),
+      text: caseItem.caseDescription || "Revised",
       size: CASE_DESCRIPTION_TEXT_SIZE,
       leading: CASE_DESCRIPTION_LINE_SPACING,
       minH: 18,
@@ -584,9 +728,9 @@ export async function generateOfficialCaseDetailPdf({
 
     const processReferenceText = safeMultiline(caseItem.processReference, "");
     if (processReferenceText) {
-      drawWideTextRow({
+      drawWideRichTextRow({
         labelText: "Process\nReference",
-        text: processReferenceText,
+        text: caseItem.processReference,
         size: CASE_DESCRIPTION_TEXT_SIZE,
         leading: CASE_DESCRIPTION_LINE_SPACING,
         minH: 14,
@@ -657,12 +801,12 @@ export async function generateOfficialCaseDetailPdf({
     const max = num(active.max, num(topic.max));
     const pct = normalizePct(active.pct, score, max);
     const description = formatDescriptionText(active.label || topic.label);
-    const comment = formatTopicBodyText(active.comment || topic.comment || "-");
-    const appealReason = formatTopicBodyText(topicAppealReason(topic, revised, isRevised));
+    const comment = active.comment || topic.comment || "-";
+    const appealReason = topicAppealReason(topic, revised, isRevised);
 
     const descriptionLines = splitTextLines(description, wOf(1), BODY_TEXT_SIZE);
-    const commentLines = splitTextLines(comment, wOf(6), SMALL_BODY_TEXT_SIZE);
-    const appealLines = includeAppeal ? splitTextLines(appealReason, wOf(7), SMALL_BODY_TEXT_SIZE) : [];
+    const commentLines = layoutRichTextLines(comment, wOf(6), SMALL_BODY_TEXT_SIZE);
+    const appealLines = includeAppeal ? layoutRichTextLines(appealReason, wOf(7), SMALL_BODY_TEXT_SIZE) : [];
     const baseRowH = includeAppeal ? 24 : 18;
 
     let commentIndex = 0;
@@ -676,8 +820,8 @@ export async function generateOfficialCaseDetailPdf({
       const bodyFit = Math.max(1, fitLinesForHeight(availableH, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, TOPIC_ROW_PAD_Y));
       const commentChunk = commentLines.slice(commentIndex, commentIndex + bodyFit);
       const appealChunk = includeAppeal ? appealLines.slice(appealIndex, appealIndex + bodyFit) : [];
-      const visibleComment = commentChunk.length > 0 ? commentChunk : [" "];
-      const visibleAppeal = includeAppeal ? (appealChunk.length > 0 ? appealChunk : [" "]) : [];
+      const visibleComment = commentChunk.length > 0 ? commentChunk : [[{ text: " " }]];
+      const visibleAppeal = includeAppeal ? (appealChunk.length > 0 ? appealChunk : [[{ text: " " }]]) : [];
       const descriptionText = firstChunk ? description : "ต่อจากหน้าก่อน";
       const descriptionChunkLines = firstChunk ? descriptionLines : splitTextLines(descriptionText, wOf(1), BODY_TEXT_SIZE);
       const rowH = Math.min(
@@ -710,22 +854,10 @@ export async function generateOfficialCaseDetailPdf({
       cell(4, y, 1, rowH, firstChunk ? formatPct(pct) : "", pctFill(pct), { size: 6.8, align: "center", valign: "middle" });
       cell(5, y, 1, rowH, firstChunk ? statusByPct(pct) : "", WHITE, { size: 6.4, align: "center", valign: "middle", maxLines: 2 });
 
-      cell(6, y, 1, rowH, visibleComment.join("\n"), WHITE, {
-        size: SMALL_BODY_TEXT_SIZE,
-        align: "left",
-        valign: "middle",
-        maxLines: visibleComment.length,
-        leading: TOPIC_BODY_LINE_SPACING,
-      });
+      drawRichTextCell(6, y, 1, rowH, visibleComment, WHITE, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, "middle");
 
       if (includeAppeal) {
-        cell(7, y, 1, rowH, visibleAppeal.join("\n"), WHITE, {
-          size: SMALL_BODY_TEXT_SIZE,
-          align: "left",
-          valign: "middle",
-          maxLines: visibleAppeal.length,
-          leading: TOPIC_BODY_LINE_SPACING,
-        });
+        drawRichTextCell(7, y, 1, rowH, visibleAppeal, WHITE, SMALL_BODY_TEXT_SIZE, TOPIC_BODY_LINE_SPACING, "middle");
       }
 
       y += rowH;
