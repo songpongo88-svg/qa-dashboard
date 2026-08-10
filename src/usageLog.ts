@@ -1,5 +1,6 @@
 import { addDoc, collection, getDocs, limit as firestoreLimit, orderBy, query } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 type UsageLogUser = {
   username?: string;
@@ -124,9 +125,9 @@ function toUsageLogEvent(id: string, row: any): UsageLogEvent {
     created_at: String(row.created_at || row.createdAt || ""),
     event_type: String(row.event_type || row.eventType || ""),
     username: String(row.username || ""),
-    display_name: String(row.display_name || row.displayName || ""),
+    display_name: canonicalizeAgentName(row.display_name || row.displayName),
     role: String(row.role || ""),
-    agent_name: String(row.agent_name || row.agentName || ""),
+    agent_name: canonicalizeAgentName(row.agent_name || row.agentName),
     tab: "",
     case_id: "",
     target_agent: "",
@@ -151,9 +152,9 @@ export async function logUsageEvent(
     await addDoc(collection(firebaseDb, ACCESS_LOG_COLLECTION), {
       event_type: eventType,
       username: user.username || "",
-      display_name: user.displayName || "",
+      display_name: canonicalizeAgentName(user.displayName),
       role: user.role || "",
-      agent_name: user.agentName || "",
+      agent_name: canonicalizeAgentName(user.agentName),
       session_login_at: user.loginAt || "",
       created_at: now,
       login_at: eventType === "login" ? now : user.loginAt || "",
