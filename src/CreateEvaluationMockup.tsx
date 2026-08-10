@@ -29,6 +29,7 @@ import {
 import {
   RichTextContent,
   RichTextEditor,
+  RichTextToolbar,
   hasRichTextContent,
   richTextToPlainText,
 } from "./richText";
@@ -2546,6 +2547,8 @@ export default function CreateEvaluationMockup({
         ) : null}
 
         {workspaceView === "form" ? (
+        <>
+        <RichTextToolbar className="sticky top-3 z-30 mb-6" />
         <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)_360px]">
           <div className="space-y-6">
             <SectionCard label="Section A" title="Case Information">
@@ -2675,6 +2678,7 @@ export default function CreateEvaluationMockup({
                   <RichTextEditor
                     value={caseDescription}
                     onChange={setCaseDescription}
+                    editorLabel="Case Description"
                     minHeight={156}
                     placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..."
                   />
@@ -2685,6 +2689,7 @@ export default function CreateEvaluationMockup({
                   <RichTextEditor
                     value={processReference}
                     onChange={setProcessReference}
+                    editorLabel="Process ที่ใช้เทียบ"
                     minHeight={132}
                     tone="violet"
                     placeholder="วางข้อมูล Process, Slide, ข้อ หรือ Tag ที่ใช้อ้างอิงได้ที่นี่..."
@@ -2931,6 +2936,7 @@ export default function CreateEvaluationMockup({
                                     <RichTextEditor
                                       value={topicState[topic.code]?.reason || ""}
                                       onChange={(reason) => updateTopic(topic.code, { reason })}
+                                      editorLabel={`Assessment Reason · ${topic.code}`}
                                       minHeight={108}
                                       placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
                                     />
@@ -3038,6 +3044,7 @@ export default function CreateEvaluationMockup({
                   }}
                   minHeight={180}
                   tone="amber"
+                  editorLabel="Sticky Note"
                   placeholder="วางข้อความที่ใช้บ่อย หรือร่างคำตอบไว้ตรงนี้..."
                 />
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -3084,6 +3091,7 @@ export default function CreateEvaluationMockup({
             </div>
           </div>
         </div>
+        </>
         ) : null}
       </div>
       {submitPreview ? (
