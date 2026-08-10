@@ -114,6 +114,10 @@ const RESULTS_STORAGE_KEY = "qa-dashboard:pre-test-results";
 const RETAKE_GRANTS_STORAGE_KEY = "qa-dashboard:pre-test-retake-grants";
 const ACTIVE_ATTEMPT_STORAGE_KEY = "qa-dashboard:pre-test-active-attempt";
 const DEFAULT_SET_ID = "thai-help-plus-robinhood-2026";
+const RETIRED_PRE_TEST_SET_IDS = new Set([
+  DEFAULT_SET_ID,
+  THT_PLUS_2026_PRETEST_SET.id,
+]);
 const RESULTS_HISTORY_BASELINE_AT = "2026-08-10T10:22:00+07:00";
 const FORM_INPUT_CLASS = "h-[52px] w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-950 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50";
 
@@ -298,10 +302,20 @@ const DEFAULT_SET: PreTestSet = {
   updatedBy: "System",
 };
 
-const BUILT_IN_PRE_TEST_SETS: PreTestSet[] = [
-  DEFAULT_SET,
-  THT_PLUS_2026_PRETEST_SET,
-];
+const BUILT_IN_PRE_TEST_SETS: PreTestSet[] = [];
+
+const EMPTY_PRE_TEST_SET: PreTestSet = {
+  id: "no-pre-test-selected",
+  code: "-",
+  title: "ยังไม่มีแบบทดสอบที่เปิดใช้งาน",
+  description: "สร้างแบบทดสอบใหม่ในเมนูจัดการชุดแบบทดสอบ",
+  passScore: 1,
+  timeLimitSeconds: 15 * 60,
+  active: false,
+  questions: [],
+  updatedAt: "",
+  updatedBy: "System",
+};
 
 function safeJsonArray<T>(value: string | null): T[] {
   if (!value) return [];
@@ -724,9 +738,7 @@ function normalizeRetakeGrant(raw: unknown): PreTestRetakeGrant | null {
 function mergeSets(localSets: PreTestSet[], logs: UsageLogEvent[]) {
   const map = new Map<string, PreTestSet>();
   const setLatest = (set: PreTestSet) => {
-    if (set.id === DEFAULT_SET.id && set.questions.length < DEFAULT_SET.questions.length) {
-      return;
-    }
+    if (RETIRED_PRE_TEST_SET_IDS.has(set.id)) return;
     const current = map.get(set.id);
     if (!current || new Date(set.updatedAt).getTime() >= new Date(current.updatedAt).getTime()) {
       map.set(set.id, set);
@@ -798,7 +810,7 @@ export default function PreTestMockup({
     return readLocal<PreTestRetakeGrant>(RETAKE_GRANTS_STORAGE_KEY).map(normalizeRetakeGrant).filter(Boolean) as PreTestRetakeGrant[];
   });
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(() => getDefaultTab(canManagePreTest, canViewPreTestResults));
-  const [selectedSetId, setSelectedSetId] = useState(DEFAULT_SET_ID);
+  const [selectedSetId, setSelectedSetId] = useState("");
   const [editorSet, setEditorSet] = useState<PreTestSet | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState("");
@@ -817,7 +829,7 @@ export default function PreTestMockup({
   const [historyStatusMessage, setHistoryStatusMessage] = useState("");
   const [historyManageOpen, setHistoryManageOpen] = useState(false);
   const [clearHistoryConfirmed, setClearHistoryConfirmed] = useState(false);
-  const [previewSetId, setPreviewSetId] = useState(DEFAULT_SET_ID);
+  const [previewSetId, setPreviewSetId] = useState("");
   const [switchWarningCount, setSwitchWarningCount] = useState(0);
 
   const [attemptId, setAttemptId] = useState("");
@@ -830,7 +842,7 @@ export default function PreTestMockup({
 
   const activeSets = useMemo(() => sets.filter((set) => getSetEffectiveStatus(set) === "active"), [sets]);
   const selectedSet = useMemo(() => {
-    return sets.find((set) => set.id === selectedSetId) || activeSets[0] || sets[0] || DEFAULT_SET;
+    return sets.find((set) => set.id === selectedSetId) || activeSets[0] || sets[0] || EMPTY_PRE_TEST_SET;
   }, [activeSets, selectedSetId, sets]);
   const selectedSetStatus = getSetEffectiveStatus(selectedSet);
   const previewSet = useMemo(() => {
@@ -1471,10 +1483,6 @@ export default function PreTestMockup({
   }
 
   async function deleteSet(setId: string) {
-    if (setId === DEFAULT_SET.id) {
-      showToast("Default set cannot be deleted. You can disable it instead.");
-      return;
-    }
     if (BUILT_IN_PRE_TEST_SETS.some((set) => set.id === setId)) {
       showToast("Built-in set cannot be deleted. You can disable it instead.");
       return;
@@ -1482,7 +1490,7 @@ export default function PreTestMockup({
     const nextSets = sets.filter((set) => set.id !== setId);
     setSets(nextSets);
     writeLocal(SETS_STORAGE_KEY, nextSets);
-    if (selectedSetId === setId) setSelectedSetId(nextSets[0]?.id || DEFAULT_SET.id);
+    if (selectedSetId === setId) setSelectedSetId(nextSets[0]?.id || "");
     if (editorSet?.id === setId) setEditorSet(null);
     showToast("Pre-Test set deleted.");
     await logUsageEvent(currentUser || null, "pretest_set_deleted", {
