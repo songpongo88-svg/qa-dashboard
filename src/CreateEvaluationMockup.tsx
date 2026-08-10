@@ -20,6 +20,7 @@ import {
 } from "./lib/rubricVersions";
 import { scoreToGrade } from "./lib/scoreIncentivePolicy";
 import { fetchCachedStaticResponse } from "./staticFileCache";
+import { canonicalizeAgentName, JIRAPONG_AGENT_NAME } from "./lib/agentIdentity";
 import {
   cacheStickyNote,
   fetchStoredStickyNote,
@@ -201,6 +202,7 @@ function clearEvaluateTabMemory() {
 const FALLBACK_AGENT_NAMES = [
   "Anucha Makundin",
   "Chatkonnaphat Bhusomya",
+  JIRAPONG_AGENT_NAME,
   "Jariyawadee Taboodda",
   "Jureeporn Piddum",
   "Krivut Vongkampan",
@@ -698,7 +700,7 @@ function formatThaiDate(value: string) {
 }
 
 function normalizeAgentMatchValue(value: unknown) {
-  return String(value ?? "")
+  return canonicalizeAgentName(value)
     .trim()
     .replace(/\s+/g, " ")
     .toLowerCase();
@@ -976,6 +978,11 @@ export default function CreateEvaluationMockup({
   const availableAgentOptions = useMemo(() => {
     const options = (agentOptions || [])
       .filter((agent) => agent.agentName || agent.displayName)
+      .map((agent) => ({
+        ...agent,
+        displayName: canonicalizeAgentName(agent.displayName),
+        agentName: canonicalizeAgentName(agent.agentName || agent.displayName),
+      }))
       .sort((a, b) => (a.agentName || a.displayName).localeCompare(b.agentName || b.displayName));
     if (options.length) return options;
     return FALLBACK_AGENT_NAMES.map((name) => ({
@@ -1272,7 +1279,7 @@ export default function CreateEvaluationMockup({
     return {
       draftId,
       title: `${noCaseForMonth ? "No Case Monthly Result" : caseId || "Untitled Case"} - ${agentName || "No agent selected"}`,
-      agentName,
+      agentName: canonicalizeAgentName(agentName),
       auditDate,
       waitingTime,
       serviceTime,
@@ -1295,7 +1302,7 @@ export default function CreateEvaluationMockup({
 
   function loadDraftIntoForm(draft: EvaluationDraft) {
     const normalizedDraft = normalizeDraft(draft);
-    setAgentName(normalizedDraft.agentName || "");
+    setAgentName(canonicalizeAgentName(normalizedDraft.agentName));
     setAuditDate(normalizedDraft.auditDate || todayInputValue());
     setWaitingTime(normalizedDraft.waitingTime || "");
     setServiceTime(normalizedDraft.serviceTime || "");
@@ -1492,9 +1499,9 @@ export default function CreateEvaluationMockup({
         ? `No Case ${selectedMonthKey}`
         : `${caseId || "Untitled"} Original PDF`,
       caseId: noCaseForMonth ? "" : caseId || "Untitled Case",
-      agentName,
+      agentName: canonicalizeAgentName(agentName),
       targetUsername: selectedAgentOption?.username || "",
-      targetDisplayName: selectedAgentOption?.displayName || agentName,
+      targetDisplayName: canonicalizeAgentName(selectedAgentOption?.displayName || agentName),
       targetEmail: selectedAgentOption?.email || "",
       targetRole: selectedAgentOption?.role || "",
       auditDate,
