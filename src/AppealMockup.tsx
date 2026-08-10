@@ -7,6 +7,7 @@ import { buildAppealRequests } from "./AppealRequestsMockup";
 import { fetchAppealEvents } from "./appealStore";
 import { type UsageLogEvent } from "./usageLog";
 import LoadingMascot from "./LoadingMascot";
+import { richTextToPlainText } from "./richText";
 
 type ReviewStatus = "Original" | "Revised";
 
@@ -586,12 +587,12 @@ function repairMojibakeText(value: unknown) {
 }
 
 function sanitizeDisplayText(value: unknown, fallback = "-") {
-  const cleaned = stripInvisibleChars(repairMojibakeText(value)).trim();
+  const cleaned = stripInvisibleChars(repairMojibakeText(richTextToPlainText(value))).trim();
   return cleaned || fallback;
 }
 
 function normalizeComment(value?: string) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+  return richTextToPlainText(value).replace(/\s+/g, " ").trim();
 }
 
 function normalizeAppealReason(value: unknown) {

@@ -20,6 +20,7 @@ import {
   type StoredCoachingRecord,
 } from "./coachingStore";
 import { fetchHistoricalCoachingEvaluations } from "./coachingHistoricalStore";
+import { richTextToPlainText } from "./richText";
 
 type CoachingUser = {
   username: string;
@@ -443,7 +444,7 @@ function summarizeTopics(rows: StoredEvaluation[]): TopicSummary[] {
       if (score < max) {
         deductedCaseIds.add(evaluation.caseId);
         matchingTopics.forEach((topic) => {
-          const comment = String(topic.comment || "")
+          const comment = richTextToPlainText(topic.comment)
             .replace(/\s+/g, " ")
             .trim();
           if (comment) comments.push(comment);
@@ -2014,8 +2015,8 @@ th { background:#f5f3ff; color:#4c1d95; }
                         </div>
                       </div>
                       <div className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
-                        {item.inquiry ||
-                          item.caseDescription ||
+                        {richTextToPlainText(item.inquiry) ||
+                          richTextToPlainText(item.caseDescription) ||
                           "ไม่พบรายละเอียด Intent"}
                       </div>
                       <div className="mt-4 flex items-center justify-between gap-3">
@@ -2352,8 +2353,7 @@ th { background:#f5f3ff; color:#4c1d95; }
                 Case Description
               </div>
               <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                {selectedCase.caseDescription ||
-                  "-"}
+                {richTextToPlainText(selectedCase.caseDescription) || "-"}
               </div>
             </div>
           </div>
@@ -2380,8 +2380,7 @@ th { background:#f5f3ff; color:#4c1d95; }
                     </div>
                   </div>
                   <div className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                    {topic.comment ||
-                      "ไม่พบรายละเอียด Feedback"}
+                    {richTextToPlainText(topic.comment) || "ไม่พบรายละเอียด Feedback"}
                   </div>
                 </div>
               )

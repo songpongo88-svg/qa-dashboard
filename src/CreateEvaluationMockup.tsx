@@ -26,6 +26,12 @@ import {
   readCachedStickyNote,
   saveStoredStickyNote,
 } from "./stickyNoteStore";
+import {
+  RichTextContent,
+  RichTextEditor,
+  hasRichTextContent,
+  richTextToPlainText,
+} from "./richText";
 
 type TopicState = {
   score: number | null;
@@ -1156,7 +1162,7 @@ export default function CreateEvaluationMockup({
   const completedTopics = useMemo(
     () => noCaseForMonth
       ? 0
-      : topics.filter((topic) => topicState[topic.code]?.reason.trim()).length,
+      : topics.filter((topic) => hasRichTextContent(topicState[topic.code]?.reason)).length,
     [noCaseForMonth, topicState, topics]
   );
   const completionPct = noCaseForMonth
@@ -1195,8 +1201,8 @@ export default function CreateEvaluationMockup({
       "Case ID": noCaseForMonth ? "No case" : caseId || "-",
       "Case URL": noCaseForMonth ? "-" : caseUrl || "-",
       "Customer Inquiry": noCaseForMonth ? "No evaluation case available for this month" : inquiry || "-",
-      "Case Description": noCaseForMonth ? "Monthly zero-case result" : caseDescription || "-",
-      "Process Reference": noCaseForMonth ? "-" : processReference || "-",
+      "Case Description": noCaseForMonth ? "Monthly zero-case result" : richTextToPlainText(caseDescription) || "-",
+      "Process Reference": noCaseForMonth ? "-" : richTextToPlainText(processReference) || "-",
       "Case Image URL": noCaseForMonth ? "-" : evidenceDisplayValue || "-",
       "Evaluation Type": noCaseForMonth ? "no_case_month" : "case",
       "Evaluation Month Key": selectedMonthKey,
@@ -1217,7 +1223,7 @@ export default function CreateEvaluationMockup({
 
     topics.forEach((topic) => {
       base[`${topic.code} Score`] = topicState[topic.code]?.score ?? "-";
-      base[`${topic.code} Comment`] = topicState[topic.code]?.reason || "-";
+      base[`${topic.code} Comment`] = richTextToPlainText(topicState[topic.code]?.reason) || "-";
     });
 
     return base;
@@ -1634,7 +1640,7 @@ export default function CreateEvaluationMockup({
   }
 
   async function copyStickyNote() {
-    const text = stickyNote.trim();
+    const text = richTextToPlainText(stickyNote);
     if (!text) {
       setStickyNoteMessage("ยังไม่มีข้อความให้คัดลอก");
       return;
@@ -1765,8 +1771,8 @@ export default function CreateEvaluationMockup({
         "Case ID": record.caseId,
         "Case URL": record.caseUrl || "",
         "Customer Inquiry": record.inquiry || "",
-        "Case Description": record.caseDescription || "",
-        "Process Reference": record.processReference || "",
+        "Case Description": richTextToPlainText(record.caseDescription),
+        "Process Reference": richTextToPlainText(record.processReference),
         "Case Image URL": record.evidenceUrls.join("\n"),
         "QA Scheme": record.qaScheme,
         "Rubric Version": record.rubricName,
@@ -1784,7 +1790,7 @@ export default function CreateEvaluationMockup({
       allTopicCodes.forEach((code) => {
         const topic = record.topics.find((item) => item.code === code);
         row[`${code} Score`] = topic?.score ?? "";
-        row[`${code} Comment`] = topic?.comment ?? "";
+        row[`${code} Comment`] = richTextToPlainText(topic?.comment ?? "");
       });
 
       return row;
@@ -2666,17 +2672,22 @@ export default function CreateEvaluationMockup({
 
                 <label className="block">
                   <span className={labelClass}>Case Description</span>
-                  <AutoGrowTextarea value={caseDescription} onChange={(event) => setCaseDescription(event.target.value)} minRows={5} placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..." className={`${inputClass} leading-6`} />
+                  <RichTextEditor
+                    value={caseDescription}
+                    onChange={setCaseDescription}
+                    minHeight={156}
+                    placeholder="สรุปรายละเอียดเคส และสิ่งที่ Agent ดำเนินการ..."
+                  />
                 </label>
 
                 <label className="block">
                   <span className={labelClass}>Process ที่ใช้เทียบ</span>
-                  <AutoGrowTextarea
+                  <RichTextEditor
                     value={processReference}
-                    onChange={(event) => setProcessReference(event.target.value)}
-                    minRows={4}
+                    onChange={setProcessReference}
+                    minHeight={132}
+                    tone="violet"
                     placeholder="วางข้อมูล Process, Slide, ข้อ หรือ Tag ที่ใช้อ้างอิงได้ที่นี่..."
-                    className={`${inputClass} leading-6`}
                   />
                 </label>
                   </>
@@ -2917,7 +2928,12 @@ export default function CreateEvaluationMockup({
                                   </div>
                                   <label className="mt-3 block rounded-xl border border-emerald-100 bg-white/80 p-3">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Assessment Reason</span>
-                                    <AutoGrowTextarea value={topicState[topic.code]?.reason || ""} onChange={(event) => updateTopic(topic.code, { reason: event.target.value })} minRows={3} placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..." className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100" />
+                                    <RichTextEditor
+                                      value={topicState[topic.code]?.reason || ""}
+                                      onChange={(reason) => updateTopic(topic.code, { reason })}
+                                      minHeight={108}
+                                      placeholder="ระบุเหตุผลการประเมินหัวข้อนี้..."
+                                    />
                                   </label>
                                 </div>
                               );
@@ -3012,17 +3028,17 @@ export default function CreateEvaluationMockup({
                 <div className="mt-1 text-sm font-bold text-slate-600">พื้นที่วางข้อความชั่วคราว ใช้คัดลอกไปตอบเคสได้เร็วขึ้น</div>
               </div>
               <div className="space-y-3 p-5">
-                <textarea
+                <RichTextEditor
                   value={stickyNote}
-                  onChange={(event) => {
-                    const nextNote = event.target.value;
+                  onChange={(nextNote) => {
                     stickyNoteDirtyRef.current = true;
                     cacheStickyNote(stickyNoteOwner, nextNote);
                     setStickyNote(nextNote);
                     setStickyNoteMessage("กำลังบันทึกอัตโนมัติ...");
                   }}
+                  minHeight={180}
+                  tone="amber"
                   placeholder="วางข้อความที่ใช้บ่อย หรือร่างคำตอบไว้ตรงนี้..."
-                  className="min-h-[180px] w-full resize-y rounded-2xl border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm font-semibold leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
                 />
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <button
@@ -3138,12 +3154,12 @@ export default function CreateEvaluationMockup({
 
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Case Description</div>
-                  <div className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800">{submitPreview.record.caseDescription || "-"}</div>
+                  <RichTextContent value={submitPreview.record.caseDescription} className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800" />
                 </div>
 
                 <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/60 px-4 py-3">
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Process ที่ใช้เทียบ</div>
-                  <div className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800">{submitPreview.record.processReference || "-"}</div>
+                  <RichTextContent value={submitPreview.record.processReference} className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-800" />
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -3192,7 +3208,7 @@ export default function CreateEvaluationMockup({
                           {topic.comment ? (
                             <div className="border-t border-emerald-100 px-4 py-3">
                               <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Evaluation Comment</div>
-                              <div className="mt-1 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700">{topic.comment}</div>
+                              <RichTextContent value={topic.comment} className="mt-1 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700" />
                             </div>
                           ) : null}
                         </div>
