@@ -1,5 +1,6 @@
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
+import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 const SESSION_COLLECTION = "qa_user_sessions";
 const SESSION_CONTROL_COLLECTION = "qa_user_session_controls";
@@ -58,9 +59,9 @@ function parseSession(row: any, sessionId: string): StoredUserSession {
   return {
     sessionId,
     username: String(row.username || ""),
-    displayName: String(row.displayName || ""),
+    displayName: canonicalizeAgentName(row.displayName),
     role: String(row.role || ""),
-    agentName: String(row.agentName || ""),
+    agentName: canonicalizeAgentName(row.agentName),
     email: String(row.email || ""),
     policyVersion: String(row.policyVersion || ""),
     status: row.status === "revoked" ? "revoked" : "active",
@@ -80,9 +81,9 @@ export async function createStoredUserSession(user: SessionIdentity) {
   const session: StoredUserSession = {
     sessionId,
     username: user.username,
-    displayName: user.displayName,
+    displayName: canonicalizeAgentName(user.displayName),
     role: user.role,
-    agentName: user.agentName,
+    agentName: canonicalizeAgentName(user.agentName),
     email: user.email || "",
     policyVersion: SESSION_POLICY_VERSION,
     status: "active",
