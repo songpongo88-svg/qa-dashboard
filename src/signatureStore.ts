@@ -1,8 +1,9 @@
-import { collection, deleteField, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseDb } from "./firebaseClient";
 import { canonicalizeAgentName } from "./lib/agentIdentity";
 
 const SIGNATURE_DOCUMENT_COLLECTION = "qa_signature_documents";
+const SIGNATURE_LIBRARY_COLLECTION = "qa_signature_library";
 
 export type StoredSignatureEntry = {
   role: "QA" | "Supervisor" | "Senior" | "Agent";
@@ -116,6 +117,32 @@ export async function fetchStoredSignatureDocuments() {
       });
     });
   return [...merged.values()];
+}
+
+export async function fetchStoredSignatureLibraryEntry(libraryKey: string) {
+  const snapshot = await getDoc(
+    doc(firebaseDb, SIGNATURE_LIBRARY_COLLECTION, safeDocId(libraryKey))
+  );
+  if (!snapshot.exists()) return "";
+  const row = snapshot.data();
+  return String(row.signatureDataUrl || row.signature_data_url || "");
+}
+
+export async function saveStoredSignatureLibraryEntry(libraryKey: string, signatureDataUrl: string) {
+  const now = new Date().toISOString();
+  await setDoc(
+    doc(firebaseDb, SIGNATURE_LIBRARY_COLLECTION, safeDocId(libraryKey)),
+    {
+      libraryKey,
+      signatureDataUrl: String(signatureDataUrl || ""),
+      updatedAt: now,
+      updatedAtServer: serverTimestamp(),
+    }
+  );
+}
+
+export async function deleteStoredSignatureLibraryEntry(libraryKey: string) {
+  await deleteDoc(doc(firebaseDb, SIGNATURE_LIBRARY_COLLECTION, safeDocId(libraryKey)));
 }
 
 export async function saveStoredSignatureDocument(docId: string, entries: StoredSignatureEntry[], confirmedAt = "") {
