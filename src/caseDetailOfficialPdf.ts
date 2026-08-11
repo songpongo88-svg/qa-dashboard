@@ -34,6 +34,8 @@ const TOPIC_BODY_LINE_SPACING = 0.43;
 const TOPIC_ROW_PAD_Y = 3.8;
 const CASE_DESCRIPTION_TEXT_SIZE = 6.2;
 const CASE_DESCRIPTION_LINE_SPACING = 0.44;
+const TEXT_INNER_PAD_X = 1.2;
+const TEXT_WRAP_SAFETY = 0.8;
 
 type TextOptions = {
   bold?: boolean;
@@ -151,6 +153,92 @@ export async function generateOfficialCaseDetailPdf({
     }
   };
 
+  const createSegmenter = (granularity: "word" | "grapheme") => {
+    try {
+      return typeof Intl.Segmenter === "function"
+        ? new Intl.Segmenter("th", { granularity })
+        : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const wordSegmenter = createSegmenter("word");
+  const graphemeSegmenter = createSegmenter("grapheme");
+
+  const textWidth = (value: string) => doc.getTextWidth(value);
+
+  const splitLongToken = (token: string, maxWidth: number) => {
+    const graphemes = graphemeSegmenter
+      ? Array.from(graphemeSegmenter.segment(token), (item) => item.segment)
+      : Array.from(token);
+    const chunks: string[] = [];
+    let current = "";
+
+    graphemes.forEach((grapheme) => {
+      const candidate = `${current}${grapheme}`;
+      if (current && textWidth(candidate) > maxWidth) {
+        chunks.push(current);
+        current = grapheme;
+      } else {
+        current = candidate;
+      }
+    });
+
+    if (current) chunks.push(current);
+    return chunks.length ? chunks : [token];
+  };
+
+  const wrapParagraph = (paragraph: string, maxWidth: number) => {
+    if (!paragraph) return [""];
+    const segments = wordSegmenter
+      ? Array.from(wordSegmenter.segment(paragraph), (item) => item.segment)
+      : paragraph.split(/(\s+)/).filter(Boolean);
+    const lines: string[] = [];
+    let current = "";
+
+    const pushCurrent = () => {
+      const clean = current.replace(/[ \t]+$/g, "");
+      if (clean) lines.push(clean);
+      current = "";
+    };
+
+    segments.forEach((segment) => {
+      if (!segment) return;
+      if (/^\s+$/.test(segment)) {
+        if (current && !current.endsWith(" ")) current += " ";
+        return;
+      }
+
+      const cleanSegment = segment.replace(/^[ \t]+/g, "");
+      const candidate = `${current}${cleanSegment}`;
+      if (!current || textWidth(candidate) <= maxWidth) {
+        current = candidate;
+        return;
+      }
+
+      pushCurrent();
+      if (textWidth(cleanSegment) <= maxWidth) {
+        current = cleanSegment;
+        return;
+      }
+
+      const chunks = splitLongToken(cleanSegment, maxWidth);
+      chunks.slice(0, -1).forEach((chunk) => lines.push(chunk));
+      current = chunks[chunks.length - 1] || "";
+    });
+
+    pushCurrent();
+    return lines.length ? lines : [""];
+  };
+
+  const wrapPdfText = (value: unknown, maxWidth: number) => {
+    const width = Math.max(2, maxWidth - TEXT_WRAP_SAFETY);
+    return safeMultiline(value)
+      .split("\n")
+      .flatMap((paragraph) => wrapParagraph(paragraph, width));
+  };
+
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const left = 7.5;
@@ -189,7 +277,8 @@ export async function generateOfficialCaseDetailPdf({
     const color = opts.color ?? BLACK;
     doc.setTextColor(color[0], color[1], color[2]);
 
-    const lines = doc.splitTextToSize(safeMultiline(value), Math.max(2, w - 2.4));
+    const wrapWidth = Math.max(2, w - TEXT_INNER_PAD_X * 2);
+    const lines = wrapPdfText(value, wrapWidth);
     const shown = opts.maxLines ? lines.slice(0, opts.maxLines) : lines;
     const lineH = size * leading;
     const blockH = shown.length * lineH;
@@ -198,11 +287,11 @@ export async function generateOfficialCaseDetailPdf({
 
     shown.forEach((line: string, index: number) => {
       const align = opts.align || "left";
-      const tx = align === "center" ? x + w / 2 : align === "right" ? x + w - 1.2 : x + 1.2;
+      const tx = align === "center" ? x + w / 2 : align === "right" ? x + w - TEXT_INNER_PAD_X : x + TEXT_INNER_PAD_X;
       const baselineY = startY + index * lineH;
       doc.text(line, tx, baselineY, { align });
       if (opts.link) {
-        const textW = Math.min(doc.getTextWidth(line), Math.max(2, w - 2.4));
+        const textW = Math.min(doc.getTextWidth(line), Math.max(2, wrapWidth - TEXT_WRAP_SAFETY));
         const linkX = align === "center" ? tx - textW / 2 : align === "right" ? tx - textW : tx;
         doc.link(linkX, baselineY - lineH * 0.82, textW, lineH, { url: opts.link });
         stroke(color);
@@ -258,10 +347,10 @@ export async function generateOfficialCaseDetailPdf({
 
   const lineHeight = (size: number, leading = BODY_LINE_SPACING) => size * leading;
 
-  const measureTextLines = (value: unknown, w: number, size = 7, pad = 2.6) => {
+  const measureTextLines = (value: unknown, w: number, size = 7, pad = TEXT_INNER_PAD_X * 2) => {
     setFont("normal");
     doc.setFontSize(size);
-    return doc.splitTextToSize(safeMultiline(value), Math.max(2, w - pad));
+    return wrapPdfText(value, Math.max(2, w - pad));
   };
 
   const measureTextHeight = (value: unknown, w: number, size = 7, leading = 0.34, padY = 5) => {
@@ -273,7 +362,7 @@ export async function generateOfficialCaseDetailPdf({
     const measured = values.map((item) =>
       measureTextHeight(item.value, item.w, item.size ?? BODY_TEXT_SIZE, item.leading ?? BODY_LINE_SPACING, item.padY ?? 4.2)
     );
-    return Math.max(minH, Math.min(maxH, ...measured, Math.max(...measured)));
+    return Math.max(minH, Math.min(maxH, Math.max(...measured)));
   };
 
   const fitLinesForHeight = (h: number, size = 7, leading = 0.34, padY = 4) => {
@@ -283,7 +372,7 @@ export async function generateOfficialCaseDetailPdf({
   const splitTextLines = (value: unknown, w: number, size: number) => {
     setFont("normal");
     doc.setFontSize(size);
-    return doc.splitTextToSize(safeMultiline(value), Math.max(2, w - 2.4));
+    return wrapPdfText(value, Math.max(2, w - TEXT_INNER_PAD_X * 2));
   };
 
   const richRunFontStyle = (run: RichTextRun): "normal" | "bold" | "italic" | "bolditalic" => {
@@ -312,31 +401,139 @@ export async function generateOfficialCaseDetailPdf({
   const layoutRichTextLines = (value: unknown, w: number, size: number): RichTextRun[][] => {
     const sourceRuns = parseRichTextRuns(value);
     const runs = sourceRuns.length ? sourceRuns : [{ text: "-" }];
-    const maxWidth = Math.max(2, w - 2.4);
+    const fullText = runs.map((run) => run.text).join("");
+    const maxWidth = Math.max(2, w - TEXT_INNER_PAD_X * 2 - TEXT_WRAP_SAFETY);
     const lines: RichTextRun[][] = [[]];
     let currentWidth = 0;
 
-    const pushCharacter = (character: string, style: RichTextRun) => {
-      if (character === "\n") {
-        lines.push([]);
-        currentWidth = 0;
-        return;
-      }
-      setFont(richRunFontStyle(style));
-      doc.setFontSize(size);
-      const characterWidth = doc.getTextWidth(character);
-      if (currentWidth + characterWidth > maxWidth && lines[lines.length - 1].length) {
-        lines.push([]);
-        currentWidth = 0;
-      }
-      const line = lines[lines.length - 1];
-      const previous = line[line.length - 1];
-      if (previous && sameRichStyle(previous, style)) previous.text += character;
-      else line.push({ ...style, text: character });
-      currentWidth += characterWidth;
+    const appendRuns = (target: RichTextRun[], additions: RichTextRun[]) => {
+      additions.forEach((run) => {
+        if (!run.text) return;
+        const previous = target[target.length - 1];
+        if (previous && sameRichStyle(previous, run)) previous.text += run.text;
+        else target.push({ ...run });
+      });
     };
 
-    runs.forEach((run) => Array.from(run.text).forEach((character) => pushCharacter(character, run)));
+    const sliceRuns = (start: number, end: number) => {
+      const sliced: RichTextRun[] = [];
+      let offset = 0;
+      runs.forEach((run) => {
+        const runStart = offset;
+        const runEnd = offset + run.text.length;
+        offset = runEnd;
+        if (end <= runStart || start >= runEnd) return;
+        const text = run.text.slice(Math.max(0, start - runStart), Math.min(run.text.length, end - runStart));
+        appendRuns(sliced, [{ ...run, text }]);
+      });
+      return sliced;
+    };
+
+    const measureRuns = (items: RichTextRun[]) => {
+      return items.reduce((sum, run) => {
+        setFont(richRunFontStyle(run));
+        doc.setFontSize(size);
+        return sum + doc.getTextWidth(run.text);
+      }, 0);
+    };
+
+    const splitStyledToken = (items: RichTextRun[]) => {
+      const chunks: RichTextRun[][] = [];
+      let chunk: RichTextRun[] = [];
+      let chunkWidth = 0;
+
+      items.forEach((run) => {
+        const graphemes = graphemeSegmenter
+          ? Array.from(graphemeSegmenter.segment(run.text), (item) => item.segment)
+          : Array.from(run.text);
+        graphemes.forEach((grapheme) => {
+          setFont(richRunFontStyle(run));
+          doc.setFontSize(size);
+          const graphemeWidth = doc.getTextWidth(grapheme);
+          if (chunk.length && chunkWidth + graphemeWidth > maxWidth) {
+            chunks.push(chunk);
+            chunk = [];
+            chunkWidth = 0;
+          }
+          appendRuns(chunk, [{ ...run, text: grapheme }]);
+          chunkWidth += graphemeWidth;
+        });
+      });
+
+      if (chunk.length) chunks.push(chunk);
+      return chunks;
+    };
+
+    const tokenRanges: Array<{ start: number; end: number; newline?: boolean }> = [];
+    const addRange = (start: number, end: number) => {
+      let cursor = start;
+      while (cursor < end) {
+        const newlineIndex = fullText.indexOf("\n", cursor);
+        if (newlineIndex < 0 || newlineIndex >= end) {
+          tokenRanges.push({ start: cursor, end });
+          break;
+        }
+        if (newlineIndex > cursor) tokenRanges.push({ start: cursor, end: newlineIndex });
+        tokenRanges.push({ start: newlineIndex, end: newlineIndex + 1, newline: true });
+        cursor = newlineIndex + 1;
+      }
+    };
+
+    if (wordSegmenter) {
+      Array.from(wordSegmenter.segment(fullText)).forEach((segment) => {
+        addRange(segment.index, segment.index + segment.segment.length);
+      });
+    } else {
+      const expression = /\s+|[^\s]+/gu;
+      let match: RegExpExecArray | null;
+      while ((match = expression.exec(fullText))) {
+        addRange(match.index, match.index + match[0].length);
+      }
+    }
+
+    const startNewLine = () => {
+      lines.push([]);
+      currentWidth = 0;
+    };
+
+    tokenRanges.forEach((range) => {
+      if (range.newline) {
+        startNewLine();
+        return;
+      }
+
+      const text = fullText.slice(range.start, range.end);
+      const tokenRuns = sliceRuns(range.start, range.end);
+      const isWhitespace = /^\s+$/.test(text);
+      if (isWhitespace && !lines[lines.length - 1].length) return;
+
+      const tokenWidth = measureRuns(tokenRuns);
+      if (currentWidth + tokenWidth <= maxWidth) {
+        appendRuns(lines[lines.length - 1], tokenRuns);
+        currentWidth += tokenWidth;
+        return;
+      }
+
+      if (isWhitespace) {
+        startNewLine();
+        return;
+      }
+
+      if (lines[lines.length - 1].length) startNewLine();
+      if (tokenWidth <= maxWidth) {
+        appendRuns(lines[lines.length - 1], tokenRuns);
+        currentWidth = tokenWidth;
+        return;
+      }
+
+      const chunks = splitStyledToken(tokenRuns);
+      chunks.forEach((chunk, index) => {
+        if (index > 0) startNewLine();
+        appendRuns(lines[lines.length - 1], chunk);
+        currentWidth = measureRuns(chunk);
+      });
+    });
+
     while (lines.length > 1 && !lines[lines.length - 1].length) lines.pop();
     return lines.length ? lines : [[{ text: "-" }]];
   };
@@ -356,7 +553,7 @@ export async function generateOfficialCaseDetailPdf({
     const startY = valign === "middle" ? yy + Math.max(2.2, (h - blockH) / 2 + lineH * 0.78) : yy + 3.8;
 
     lines.forEach((line, lineIndex) => {
-      let currentX = x + 1.2;
+      let currentX = x + TEXT_INNER_PAD_X;
       const baselineY = startY + lineIndex * lineH;
       line.forEach((run) => {
         setFont(richRunFontStyle(run));
@@ -364,7 +561,10 @@ export async function generateOfficialCaseDetailPdf({
         const color = richRunColor(run.color);
         doc.setTextColor(color[0], color[1], color[2]);
         doc.text(run.text, currentX, baselineY);
-        const segmentWidth = Math.min(doc.getTextWidth(run.text), Math.max(0, x + w - 1.2 - currentX));
+        const segmentWidth = Math.min(
+          doc.getTextWidth(run.text),
+          Math.max(0, x + w - TEXT_INNER_PAD_X - TEXT_WRAP_SAFETY - currentX)
+        );
         if (run.underline && segmentWidth > 0) {
           doc.setDrawColor(color[0], color[1], color[2]);
           doc.setLineWidth(0.12);
